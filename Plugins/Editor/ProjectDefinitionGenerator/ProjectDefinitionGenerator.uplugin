@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Project Definition Generator",
+	"Description": "Universal JSON-to-DataAsset generator for ObjectDefinition types",
+	"Category": "Editor",
+	"CreatedBy": "ALIS",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectDefinitionGenerator",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectCore", "Enabled": true },
+		{ "Name": "ProjectEditorCore", "Enabled": true },
+		{ "Name": "ProjectObject", "Enabled": true },
+		{ "Name": "ProjectObjectCapabilities", "Enabled": true },
+		{ "Name": "ProjectGAS", "Enabled": true },
+		{ "Name": "GameplayAbilities", "Enabled": true }
+	]
+}

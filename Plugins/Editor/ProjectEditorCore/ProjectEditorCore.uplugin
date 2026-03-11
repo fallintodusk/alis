@@ -1,0 +1,17 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Project Editor Core",
+	"Description": "Shared editor abstractions: delegates, interfaces, events",
+	"Category": "Editor",
+	"CreatedBy": "ALIS",
+	"CanContainContent": false,
+	"Modules": [
+		{
+			"Name": "ProjectEditorCore",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

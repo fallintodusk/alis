@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "ProjectHUD",
+	"Description": "Lyra-style HUD composition root with slot-based widget hosting",
+	"Category": "Alis",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectHUD",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProjectCore",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectUI",
+			"Enabled": true
+		}
+	]
+}

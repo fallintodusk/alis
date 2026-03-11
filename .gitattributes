@@ -1,0 +1,21 @@
+# UE file types
+*.uasset filter=lfs merge=lfs diff=lfs -text
+*.umap filter=lfs merge=lfs diff=lfs -text
+
+# Raw Content types
+*.fbx filter=lfs merge=lfs diff=lfs -text
+*.3ds filter=lfs merge=lfs diff=lfs -text
+*.psd filter=lfs merge=lfs diff=lfs -text
+*.png filter=lfs merge=lfs diff=lfs -text
+*.mp3 filter=lfs merge=lfs diff=lfs -text
+*.wav filter=lfs merge=lfs diff=lfs -text
+*.xcf filter=lfs merge=lfs diff=lfs -text
+*.jpg filter=lfs merge=lfs diff=lfs -text
+
+# Config / Data
+*.json text eol=lf
+
+# Scripts & Hooks
+*.sh text eol=lf
+scripts/** text eol=lf
+

@@ -1,0 +1,12 @@
+name: ProjectIntegrationTests
+uuid: c4dd8510-15ad-4034-aa3c-52a7411c2832
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 0ffb4ea2bcbb90e5189c43aaea716f10d43e48354585dd1c415eb86cf19b8431
+  content: ''
+  data: {}

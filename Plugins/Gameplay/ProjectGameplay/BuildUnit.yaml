@@ -1,0 +1,12 @@
+name: ProjectGameplay
+uuid: 68d98a29-13c9-4ff0-8b8f-86047582cda3
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: c979491a3e98258e1f11aac3b789d9118973359bab402c639016879b3f562446
+  content: ''
+  data: {}

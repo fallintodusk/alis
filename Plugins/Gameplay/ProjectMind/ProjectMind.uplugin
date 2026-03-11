@@ -1,0 +1,22 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Mind",
+	"Description": "Player inner-voice and thought guidance gameplay plugin.",
+	"Category": "Gameplay",
+	"CreatedBy": "ALIS",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"Modules": [
+		{
+			"Name": "ProjectMind",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectCore", "Enabled": true },
+		{ "Name": "GameplayAbilities", "Enabled": true }
+	]
+}

@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectSettingsUI",
+  "Description": "Settings screens using ProjectSettings service.",
+  "Category": "Project.UI",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    { "Name": "ProjectSettingsUI", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "ProjectUI", "Enabled": true }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Combat System",
+	"Description": "Feature plugin providing combat mechanics (weapons, damage, health).",
+	"Category": "Project.Features",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"Modules": [
+		{
+			"Name": "ProjectCombat",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ProjectCombatTests",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectCore", "Enabled": true },
+		{ "Name": "ProjectFeature", "Enabled": true }
+	],
+	"CanContainContent": true,
+	"IsBetaVersion": true
+}

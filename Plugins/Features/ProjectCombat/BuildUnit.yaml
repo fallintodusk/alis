@@ -1,0 +1,12 @@
+name: ProjectCombat
+uuid: df2b14fa-9b3d-4c72-b57f-3690d5270a41
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 6cbca7e471874751ce25e7ebd33c78c8fb491fec7a892499ca5550b010d1dac1
+  content: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  data: {}

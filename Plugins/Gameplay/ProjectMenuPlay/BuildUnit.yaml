@@ -1,0 +1,12 @@
+name: ProjectMenuPlay
+uuid: 0b7775f3-ef31-4a0a-8e3b-8e533501f273
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 4e01cfad84d82a6dd1aa434487bd4dfcd1c84d21651e04a84bfc801f1de770ea
+  content: ''
+  data: {}

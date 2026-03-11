@@ -1,0 +1,25 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "ProjectObjectCapabilities",
+	"Description": "Reusable capability components for world objects (access control, state)",
+	"Category": "Project.Gameplay",
+	"CreatedBy": "ALIS",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Modules": [
+		{
+			"Name": "ProjectObjectCapabilities",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProjectCore",
+			"Enabled": true
+		}
+	]
+}

@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Dialogue System",
+	"Description": "Universal data-driven dialogue system for any actor (NPCs, objects, terminals).",
+	"Category": "Project.Features",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"Modules": [
+		{
+			"Name": "ProjectDialogue",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ProjectDialogueTests",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectCore", "Enabled": true },
+		{ "Name": "ProjectFeature", "Enabled": true },
+		{ "Name": "GameplayAbilities", "Enabled": true }
+	],
+	"CanContainContent": true,
+	"IsBetaVersion": true
+}

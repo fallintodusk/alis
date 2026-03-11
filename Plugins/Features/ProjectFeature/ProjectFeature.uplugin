@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Project Feature",
+	"Description": "Minimal contracts for feature self-registration: FeatureInitContext, FeatureRegistry, interfaces",
+	"Category": "Project.Features",
+	"CreatedBy": "ALIS",
+	"Modules": [
+		{
+			"Name": "ProjectFeature",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

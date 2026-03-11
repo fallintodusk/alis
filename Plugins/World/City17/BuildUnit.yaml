@@ -1,0 +1,12 @@
+name: City17
+uuid: 6e8b3963-92a4-4e4c-ada0-9f38e4f00e10
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 149857c894ac399953513fed21f2757a37123b6c2558f7ff710d3e8aaf93c975
+  content: ''
+  data: {}

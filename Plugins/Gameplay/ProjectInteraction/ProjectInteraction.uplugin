@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "ProjectInteraction",
+	"Description": "Player interaction system - detects interactables, handles input, broadcasts events",
+	"Category": "Gameplay",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectInteraction",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProjectCore",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectFeature",
+			"Enabled": true
+		}
+	]
+}

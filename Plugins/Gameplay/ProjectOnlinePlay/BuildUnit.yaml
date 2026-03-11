@@ -1,0 +1,12 @@
+name: ProjectOnlinePlay
+uuid: 627d0cde-2065-412d-bf02-a57ab7562e31
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: bfd42ffb8e4f3d57307f34afd7383acc027ca02d6ac0d4afe66de28f3fbf863b
+  content: ''
+  data: {}

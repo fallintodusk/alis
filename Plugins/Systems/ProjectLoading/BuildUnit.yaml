@@ -1,0 +1,12 @@
+name: ProjectLoading
+uuid: 0670096f-cdf9-45e9-ae34-b3e46cb6dce1
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 71b865714a09526b3365c7dd13c90e0d022e803bac15108d1ed708cf0a83618a
+  content: ''
+  data: {}

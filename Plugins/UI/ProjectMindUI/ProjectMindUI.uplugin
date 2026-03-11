@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "ProjectMindUI",
+	"Description": "Mind thought UI widgets and view models.",
+	"Category": "Project.UI",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectMindUI",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProjectCore",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectUI",
+			"Enabled": true
+		}
+	]
+}

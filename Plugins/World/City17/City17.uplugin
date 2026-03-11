@@ -1,0 +1,21 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "City17 World",
+  "Description": "Example gameplay world with World Partition, PCG, and procedural content.",
+  "Category": "Project.World",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    {
+      "Name": "City17",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    { "Name": "ProjectSinglePlay", "Enabled": true },
+    { "Name": "ProjectOnlinePlay", "Enabled": true }
+  ]
+}

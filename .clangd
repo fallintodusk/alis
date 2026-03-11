@@ -1,0 +1,3 @@
+Diagnostics:
+  Suppress:
+    - ovl_no_viable_function_in_call

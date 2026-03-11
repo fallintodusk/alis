@@ -1,0 +1,12 @@
+name: ProjectUI
+uuid: 07712607-32d9-48ea-8737-8f99e736c7df
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: b4c2b718c60093a9af54111e722d112b74265aa014998332607ccd879f75eb36
+  content: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  data: {}

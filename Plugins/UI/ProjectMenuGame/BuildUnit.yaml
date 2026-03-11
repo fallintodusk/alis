@@ -1,0 +1,12 @@
+name: ProjectMenuGame
+uuid: ecbab79f-3c4c-4b53-a096-a16ca192cb1c
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 8046422ed1dc55f0f5580da78e0940a1a9b77cda3da2cf239b9fb5c540ab232e
+  content: ''
+  data: {}

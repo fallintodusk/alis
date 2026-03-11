@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectWorld",
+  "Description": "World Partition, HLOD, and streaming policies/services.",
+  "Category": "Project.World",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    { "Name": "ProjectWorld", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "ProjectCore", "Enabled": true }
+  ]
+}

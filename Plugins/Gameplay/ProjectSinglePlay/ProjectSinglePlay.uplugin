@@ -1,0 +1,32 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Project Single Play",
+  "Description": "GameMode for single-player gameplay (ensures Combat, Dialogue, Inventory features).",
+  "Category": "Project.Gameplay",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    {
+      "Name": "ProjectSinglePlay",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "ProjectSinglePlayClient",
+      "Type": "ClientOnlyNoCommandlet",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectFeature", "Enabled": true },
+    { "Name": "ProjectGameplay", "Enabled": true },
+    { "Name": "EnhancedInput", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },
+    { "Name": "ProjectUI", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },
+    { "Name": "ProjectVitalsUI", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },
+    { "Name": "ProjectInventoryUI", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },
+    { "Name": "ProjectMindUI", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] }
+  ]
+}

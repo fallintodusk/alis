@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Animation",
+	"Description": "Universal animation asset library - skeletal meshes, animations, blendspaces. Same pattern as ProjectMesh/ProjectTexture/ProjectMaterial.",
+	"Category": "Resources",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectAnimation",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProjectCore",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectMotionSystem",
+			"Enabled": true
+		}
+	]
+}

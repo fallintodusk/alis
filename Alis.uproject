@@ -1,0 +1,42 @@
+{
+    "FileVersion":  3,
+    "EngineAssociation": "{9E619198-4A34-D522-E17C-6B9CA2415FDE}",
+    "Category":  "",
+    "Description":  "",
+    "Modules":  [
+                    {
+                        "Name":  "Alis",
+                        "Type":  "Runtime",
+                        "LoadingPhase":  "Default",
+                        "AdditionalDependencies":  [
+                                                       "Engine",
+                                                       "CoreUObject"
+                                                   ]
+                    }
+                ],
+    "Plugins":  [
+                    {
+                        "Name":  "LowEntryExtStdLib",
+                        "Enabled":  true,
+                        "MarketplaceURL":  "com.epicgames.launcher://ue/marketplace/content/846c2ad08f164f45b0335ecebf85361e"
+                    },
+                    {
+                        "Name":  "InstanceArrayTool",
+                        "Enabled":  true,
+                        "MarketplaceURL":  "com.epicgames.launcher://ue/marketplace/content/1ea69e97d8ce4b55be795dc5614fa669"
+                    },
+                    {
+                        "Name":  "DialoguePlugin",
+                        "Enabled":  true,
+                        "MarketplaceURL":  "com.epicgames.launcher://ue/marketplace/content/847aa65dc3024a37ae83ed89307524bd"
+                    },
+                    {
+                        "Name":  "Orchestrator",
+                        "Enabled":  true
+                    }
+                ],
+    "TargetPlatforms":  [
+                            "WindowsNoEditor",
+                            "LinuxNoEditor"
+                        ]
+}

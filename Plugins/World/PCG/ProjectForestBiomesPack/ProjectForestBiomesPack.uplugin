@@ -1,0 +1,11 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectForestBiomesPack",
+  "Description": "Content-only forest biomes pack.",
+  "Category": "Project.World.PCG",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": []
+}

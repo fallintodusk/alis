@@ -1,0 +1,47 @@
+# Private key material
+BEGIN OPENPGP PRIVATE KEY BLOCK
+BEGIN PGP PRIVATE KEY BLOCK
+BEGIN OPENSSH PRIVATE KEY
+BEGIN RSA PRIVATE KEY
+BEGIN EC PRIVATE KEY
+
+# Internal infrastructure markers
+92\.255\.198\.217
+192\.168\.0\.11
+
+# Personal machine path markers and personal contact domains
+C:\\Users\\
+C:/Users/
+\\\\wsl\.localhost\\
+/home/[A-Za-z0-9._-]+/repos_alis/
+@[A-Za-z0-9.-]+\.(yandex\.ru|outlook\.com|proton\.me)
+%USERPROFILE%
+%LOCALAPPDATA%
+%TEMP%
+%WSL_HOME%
+[A-Za-z]:\\Repos_Alis\\Alis
+[A-Za-z]:/Repos_Alis/Alis
+[A-Za-z]:\\Repos_Alis\\site
+[A-Za-z]:/Repos_Alis/site
+/mnt/[A-Za-z]/Repos_Alis/Alis
+/mnt/[A-Za-z]/Repos_Alis/site
+[A-Za-z]:\\UnrealEngine(?:-[0-9.]+|\\UE_[0-9.]+)
+[A-Za-z]:/UnrealEngine(?:-[0-9.]+|/UE_[0-9.]+)
+[A-Za-z]:\\Program Files(?: \(x86\))?\\Epic Games\\UE_[0-9.]+
+[A-Za-z]:/Program Files(?: \(x86\))?/Epic Games/UE_[0-9.]+
+<wsl-home>[\\/]+repos_alis[\\/]+cdn
+<home>[\\/]+repos_alis[\\/]+cdn
+
+# Credential-shaped environment assignments
+(^|[[:space:]])[A-Z0-9_]*(PASSWORD|PASS|SECRET|SECRET_KEY|ACCESS_KEY|API_KEY|TOKEN)([A-Z0-9_]*)[[:space:]]*=[[:space:]]*[^<"'[:space:]#][^[:space:]#]{7,}
+(^|[[:space:]])[A-Z0-9_]*DATABASE_URL[[:space:]]*=[[:space:]]*[A-Za-z][A-Za-z0-9+.-]*://[^<:@[:space:]#]+:[^<@[:space:]#]+@[^[:space:]#]+
+(^|[[:space:]])[A-Z0-9_]*URL[[:space:]]*=[[:space:]]*[A-Za-z][A-Za-z0-9+.-]*://[^<:@[:space:]#]+:[^<@[:space:]#]+@[^[:space:]#]+
+
+# Cloud-style credential values
+(^|[[:space:]])AWS_ACCESS_KEY_ID[[:space:]]*=[[:space:]]*[A-Z0-9]{16,}
+(^|[[:space:]])AWS_SECRET_ACCESS_KEY[[:space:]]*=[[:space:]]*[A-Za-z0-9/+=]{20,}
+(^|[[:space:]])S3_ACCESS_KEY[[:space:]]*=[[:space:]]*[A-Z0-9]{16,}
+(^|[[:space:]])S3_SECRET_KEY[[:space:]]*=[[:space:]]*[A-Za-z0-9/+=]{20,}
+
+# Header-style bearer tokens
+Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._-]{16,}

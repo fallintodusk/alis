@@ -1,0 +1,12 @@
+name: ProjectCore
+uuid: 4c86bb9c-7148-4038-a60b-9b9e8fa18b4c
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: ef6aa0987d58b945395e05541eed416248956a707754ad828e6403b0bbb17e22
+  content: ''
+  data: {}

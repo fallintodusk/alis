@@ -1,0 +1,98 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.0",
+	"FriendlyName": "Project Integration Tests",
+	"Description": "Editor-only integration tests validating project boot and menu flows.",
+	"Category": "Testing",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Plugins": [
+		{
+			"Name": "ProjectLoading",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectUI",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectInventoryUI",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectVitals",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectVitalsUI",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectMenuMain",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectDialogue",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectDialogueUI",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectMindUI",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectMind",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectInteraction",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectObject",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectObjectCapabilities",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectMotionSystem",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectWorld",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectDefinitionGenerator",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectPlacementEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "Orchestrator",
+			"Enabled": true
+		}
+	],
+	"Modules": [
+		{
+			"Name": "ProjectIntegrationTests",
+			"Type": "DeveloperTool",
+			"LoadingPhase": "PostEngineInit"
+		}
+	],
+	"EnabledByDefault": true
+}

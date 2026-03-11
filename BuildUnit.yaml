@@ -1,0 +1,12 @@
+name: Alis
+uuid: 42a58278-d743-438c-90c1-8e2278829a49
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 95cc1629e7dfd384e4fd2fb770801ceeb5dbb3014636384827c02627c08ffb8e
+  content: d5f2fa0ba86a3e65476541220e6c86b6ca037c48cf42ad49962dea3007699695
+  data: {}

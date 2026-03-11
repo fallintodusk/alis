@@ -1,0 +1,12 @@
+name: ProjectDialogue
+uuid: 70a76ab8-c4aa-4bf6-8d26-5a943c6f52a7
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: f3318f688b9cd8148a990f403b3978c41fb9d465c3a7405109390e4f3e6a5e6e
+  content: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  data: {}

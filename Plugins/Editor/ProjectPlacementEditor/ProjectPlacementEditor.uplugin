@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Project Placement Editor",
+	"Description": "Centralized Place Actors panel registration for all project templates and items",
+	"Category": "Editor",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Modules": [
+		{
+			"Name": "ProjectPlacementEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectObject", "Enabled": true },
+		{ "Name": "ProjectEditorCore", "Enabled": true },
+		{ "Name": "ProjectDefinitionGenerator", "Enabled": true }
+	]
+}

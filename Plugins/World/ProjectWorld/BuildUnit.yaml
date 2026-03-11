@@ -1,0 +1,12 @@
+name: ProjectWorld
+uuid: 98426fc7-9fff-4e60-a3bf-daf0a625d4ec
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: d83cfb01b0a998d5d3aeb3d3fe627e87c6cdf33c8b8084ccab74cfba75c0f850
+  content: ''
+  data: {}

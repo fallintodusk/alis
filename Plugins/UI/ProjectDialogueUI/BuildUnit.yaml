@@ -1,0 +1,12 @@
+name: ProjectDialogueUI
+uuid: d2f8a1c3-7e4b-4d9a-b5c1-8f3e2a6d9b74
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: ""
+  content: ""
+  data: {}

@@ -1,0 +1,12 @@
+name: ProjectForestBiomesPack
+uuid: e4d9341b-7306-44c7-a5e1-d2b1db4bb522
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 3248f045dd20d333b3aa317284d54121b07ff25ee071f68ba412793bdd066056
+  content: ''
+  data: {}

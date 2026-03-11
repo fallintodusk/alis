@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Save System",
+	"Description": "Save/load system for player profiles, game progress, and settings.",
+	"Category": "Project.Core",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"Modules": [
+		{
+			"Name": "ProjectSave",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "ProjectSaveTests",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ProjectCore",
+			"Enabled": true
+		}
+	],
+	"CanContainContent": false
+}

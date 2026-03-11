@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Project Menu Main",
+  "Description": "Front-end menu feature (logic + screens). Uses ProjectUI framework and ILoadingService for map loading.",
+  "Category": "Project.UI",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    { "Name": "ProjectMenuMain", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectUI", "Enabled": true },
+    { "Name": "ProjectSettingsUI", "Enabled": true }
+  ]
+}

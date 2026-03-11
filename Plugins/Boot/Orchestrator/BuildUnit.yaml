@@ -1,0 +1,12 @@
+name: Orchestrator
+uuid: c823aa55-8c60-4137-9578-c45e03c813e7
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 315be1037a017b0435282cad7fe5ad4a910c71f3c56cd5cacbea8893a83e365a
+  content: ''
+  data: {}

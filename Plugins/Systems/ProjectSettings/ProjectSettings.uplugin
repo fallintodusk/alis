@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectSettings",
+  "Description": "Settings storage, defaults, and typed API.",
+  "Category": "Systems",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    { "Name": "ProjectSettings", "Type": "Runtime", "LoadingPhase": "Default" }
+  ]
+}

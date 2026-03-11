@@ -1,0 +1,12 @@
+name: MainMenuWorld
+uuid: 2a5ed848-4b97-441b-ba46-71b6e642d818
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 6b0123f2498861a6b88e219152622456cc834b14ed24744f7f2404e24a28328a
+  content: ''
+  data: {}

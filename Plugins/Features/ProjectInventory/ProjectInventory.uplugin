@@ -1,0 +1,33 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Inventory System",
+	"Description": "Feature plugin providing inventory and item management.",
+	"Category": "Project.Features",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"Modules": [
+		{
+			"Name": "ProjectInventory",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ProjectInventoryTests",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectCore", "Enabled": true },
+		{ "Name": "ProjectFeature", "Enabled": true },
+		{ "Name": "ProjectGAS", "Enabled": true },
+		{ "Name": "ProjectSave", "Enabled": true },
+		{ "Name": "ProjectSharedTypes", "Enabled": true },
+		{ "Name": "ProjectObject", "Enabled": true },
+		{ "Name": "GameplayAbilities", "Enabled": true }
+	],
+	"CanContainContent": true,
+	"IsBetaVersion": true
+}

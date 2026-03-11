@@ -1,0 +1,12 @@
+name: ProjectMenuMain
+uuid: 83a7c03c-b9cb-45e2-bfa6-c32a64170a61
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: cc85eaaabc0ee6ef1d9633172cc2db84c26396af66a0a40bfe2eca25746bf9ff
+  content: 7d277434e352d5b758128e7bca50462e05938e2ccc7c9337b22ec929c762ab4f
+  data: {}

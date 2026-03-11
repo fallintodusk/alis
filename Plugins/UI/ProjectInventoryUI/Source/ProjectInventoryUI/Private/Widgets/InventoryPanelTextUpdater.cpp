@@ -1,0 +1,189 @@
+// Copyright ALIS. All Rights Reserved.
+
+#include "Widgets/InventoryPanelTextUpdater.h"
+#include "MVVM/InventoryViewModel.h"
+#include "Widgets/InventoryPanelState.h"
+#include "Components/TextBlock.h"
+#include "Components/Button.h"
+#include "Layout/ProjectWidgetLayoutLoader.h"
+
+void FInventoryPanelTextUpdater::Initialize(const FWidgetRefs& InRefs)
+{
+    Refs = InRefs;
+}
+
+void FInventoryPanelTextUpdater::UpdateStatsText(UInventoryViewModel* VM)
+{
+    if (!VM)
+    {
+        return;
+    }
+
+    const float ContainerMaxWeight = VM->GetContainerMaxWeight();
+    const float ContainerMaxVolume = VM->GetContainerMaxVolume();
+
+    if (Refs.WeightText)
+    {
+        FText TotalWeight = FormatWeight(VM->GetCurrentWeight(), VM->GetMaxWeight());
+        if (ContainerMaxWeight > 0.f)
+        {
+            const int32 ContainerPercent = FMath::RoundToInt(VM->GetContainerWeightRatio() * 100.f);
+            Refs.WeightText->SetText(FText::Format(
+                NSLOCTEXT("Inventory", "WeightWithContainer", "{0} [Tab: {1}%]"),
+                TotalWeight,
+                FText::AsNumber(ContainerPercent)));
+        }
+        else
+        {
+            Refs.WeightText->SetText(TotalWeight);
+        }
+    }
+
+    if (Refs.VolumeText)
+    {
+        FText TotalVolume = FormatVolume(VM->GetCurrentVolume(), VM->GetMaxVolume());
+        if (ContainerMaxVolume > 0.f)
+        {
+            const int32 ContainerPercent = FMath::RoundToInt(VM->GetContainerVolumeRatio() * 100.f);
+            Refs.VolumeText->SetText(FText::Format(
+                NSLOCTEXT("Inventory", "VolumeWithContainer", "{0} [Tab: {1}%]"),
+                TotalVolume,
+                FText::AsNumber(ContainerPercent)));
+        }
+        else
+        {
+            Refs.VolumeText->SetText(TotalVolume);
+        }
+    }
+
+    if (Refs.ItemCountText)
+    {
+        Refs.ItemCountText->SetText(FText::AsNumber(VM->GetItemCount()));
+    }
+}
+
+void FInventoryPanelTextUpdater::UpdateSelectionInfo(UInventoryViewModel* VM, FInventoryPanelState& PanelState)
+{
+    FInventoryEntryView Entry;
+    if (!PanelState.TryGetSelectedEntry(VM, Entry))
+    {
+        // No selection: show placeholder text, collapse icon and stats
+        if (Refs.SelectionText) Refs.SelectionText->SetText(NSLOCTEXT("Inventory", "NoSelection", "No item selected"));
+        if (Refs.SelectionStatsText) Refs.SelectionStatsText->SetVisibility(ESlateVisibility::Collapsed);
+        if (Refs.ItemDetailsText) Refs.ItemDetailsText->SetVisibility(ESlateVisibility::Collapsed);
+        if (Refs.ItemIcon) Refs.ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+        return;
+    }
+
+    // Item selected: show info and restore visibility
+    if (Refs.SelectionText)
+    {
+        Refs.SelectionText->SetText(Entry.DisplayName);
+    }
+
+    if (Refs.SelectionStatsText)
+    {
+        Refs.SelectionStatsText->SetText(FText::FromString(
+            FString::Printf(TEXT("Qty: %d  W: %.1f  V: %.1f"), Entry.Quantity, Entry.Weight, Entry.Volume)));
+        Refs.SelectionStatsText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    }
+
+    if (Refs.ItemDetailsText)
+    {
+        Refs.ItemDetailsText->SetText(Entry.Description);
+        Refs.ItemDetailsText->SetVisibility(Entry.Description.IsEmpty()
+            ? ESlateVisibility::Collapsed
+            : ESlateVisibility::SelfHitTestInvisible);
+    }
+
+    if (Refs.ItemIcon)
+    {
+        if (!Entry.IconCode.IsEmpty())
+        {
+            Refs.ItemIcon->SetFont(UProjectWidgetLayoutLoader::ResolveThemeFont(TEXT("GameIcon"), nullptr));
+            Refs.ItemIcon->SetText(FText::FromString(Entry.IconCode));
+            Refs.ItemIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+        else
+        {
+            Refs.ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+
+    PanelState.SelectedMaxQuantity = Entry.Quantity;
+    PanelState.ClampQuantity();
+}
+
+void FInventoryPanelTextUpdater::UpdateCommandButtons(UInventoryViewModel* VM, const FInventoryPanelState& PanelState)
+{
+    TArray<FProjectUIActionDescriptor> Actions;
+
+    FInventoryEntryView Entry;
+    if (VM && PanelState.TryGetSelectedEntry(VM, Entry))
+    {
+        VM->BuildActionDescriptors(Entry, Actions);
+    }
+
+    auto ApplyActionState = [&Actions](UButton* Button, FName ActionId)
+    {
+        if (!Button)
+        {
+            return;
+        }
+
+        const FProjectUIActionDescriptor* Action = UInventoryViewModel::FindActionDescriptor(Actions, ActionId);
+        const bool bVisible = Action && Action->bVisible;
+        const bool bEnabled = Action && Action->bVisible && Action->bEnabled;
+        Button->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        Button->SetIsEnabled(bEnabled);
+    };
+
+    if (Refs.UseButton)
+    {
+        ApplyActionState(Refs.UseButton, UInventoryViewModel::GetActionIdUse());
+    }
+
+    if (Refs.DropButton)
+    {
+        ApplyActionState(Refs.DropButton, UInventoryViewModel::GetActionIdDrop());
+    }
+
+    if (Refs.EquipButton)
+    {
+        ApplyActionState(Refs.EquipButton, UInventoryViewModel::GetActionIdEquip());
+    }
+}
+
+void FInventoryPanelTextUpdater::UpdateQuantityControls(const FInventoryPanelState& PanelState)
+{
+    if (Refs.QtyValueText)
+    {
+        Refs.QtyValueText->SetText(FText::AsNumber(PanelState.SelectedQuantity));
+    }
+    if (Refs.QtyDownButton)
+    {
+        Refs.QtyDownButton->SetIsEnabled(PanelState.SelectedQuantity > 1);
+    }
+    if (Refs.QtyUpButton)
+    {
+        Refs.QtyUpButton->SetIsEnabled(PanelState.SelectedMaxQuantity > 0 && PanelState.SelectedQuantity < PanelState.SelectedMaxQuantity);
+    }
+}
+
+void FInventoryPanelTextUpdater::UpdateRotateState(bool bRotateOn)
+{
+    if (Refs.RotateStateText)
+    {
+        Refs.RotateStateText->SetText(FText::FromString(bRotateOn ? TEXT("On") : TEXT("Off")));
+    }
+}
+
+FText FInventoryPanelTextUpdater::FormatWeight(float Current, float Max)
+{
+    return FText::FromString(FString::Printf(TEXT("Weight: %.1f / %.1f kg"), Current, Max));
+}
+
+FText FInventoryPanelTextUpdater::FormatVolume(float Current, float Max)
+{
+    return FText::FromString(FString::Printf(TEXT("Volume: %.1f / %.1f L"), Current, Max));
+}

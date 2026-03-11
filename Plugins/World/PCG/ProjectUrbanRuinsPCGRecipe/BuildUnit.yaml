@@ -1,0 +1,12 @@
+name: ProjectUrbanRuinsPCGRecipe
+uuid: 23aa09d7-8808-4608-8c38-e28c487b09a0
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 902a1beaede2f718683182819980e282f81e9f8b2f1f442e487d707bdcee6908
+  content: ''
+  data: {}

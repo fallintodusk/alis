@@ -1,0 +1,17 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Project Gameplay",
+  "Description": "Base gameplay classes and interfaces (GameMode base, PlayerController base, etc.).",
+  "Category": "Project.Systems",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    { "Name": "ProjectGameplay", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectFeature", "Enabled": true }
+  ]
+}

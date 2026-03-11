@@ -1,0 +1,72 @@
+# Alis Open Development Policy (AODL) v2.0
+
+This repository is multi-licensed by component. AODL is the project's licensing **policy**, not a single combined license. Each component uses a real, established license — no modifications, no contradictions.
+
+For the project's values and social contract, see [ALIS_PACT.md](ALIS_PACT.md).
+
+---
+
+## 1. Code (backend, game core, tools, smart contracts)
+
+Licensed under **GNU Affero General Public License v3.0 only** (AGPL-3.0-only).
+
+- You can use, modify, and distribute the code — including commercially
+- If you modify and distribute, or run it for users over a network, you must provide the source under AGPL-3.0
+- If you host a service using modified code, you must offer the source to service users (network copyleft)
+- Full text: https://www.gnu.org/licenses/agpl-3.0.en.html
+
+## 2. Assets (art, audio, lore, world-building, game content)
+
+Licensed under **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International** (CC BY-NC-SA 4.0).
+
+- You can share and adapt for non-commercial purposes with attribution
+- Commercial use of assets requires written permission from the Alis maintainers
+- Derivatives must use the same license
+- Full text: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+## 3. Documentation and website
+
+Licensed under **Mozilla Public License 2.0** (MPL-2.0).
+
+- File-level copyleft: modifications to MPL files must be shared
+- Can be combined with other-licensed code in a larger work
+- Full text: https://mozilla.org/MPL/2.0/
+
+## 4. Trademarks
+
+"Alis", the Alis logo, and related branding are governed by a separate trademark policy.
+
+See [TRADEMARKS.md](TRADEMARKS.md).
+
+## 5. Contributions
+
+All contributions use the Developer Certificate of Origin (DCO) process.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Why this structure?
+
+| What you want to do | Allowed? | License |
+|---|---|---|
+| Read and learn from the code | Yes | AGPL-3.0 |
+| Fork and modify the code | Yes, must share changes | AGPL-3.0 |
+| Run your own community server | Yes, must share server code | AGPL-3.0 |
+| Sell a product using the code | Yes, must provide source for the AGPL-covered program and modifications | AGPL-3.0 |
+| Use our art/music/lore commercially | No, unless we agree | CC BY-NC-SA |
+| Make fan art or non-commercial derivatives | Yes, with attribution | CC BY-NC-SA |
+| Call your fork "Alis" | No | Trademark |
+| Contribute code back | Yes, via DCO sign-off | DCO |
+
+---
+
+## Commercial licensing
+
+If you need a commercial license for Alis assets, branding, or a custom code license, contact the project maintainers.
+
+## Policy changes
+
+- Policy updates are versioned (vX.Y) with at least 30 days public notice
+- License changes do not apply retroactively to existing contributions
+- The underlying licenses (AGPL, CC, MPL) cannot be modified — they are used as-is

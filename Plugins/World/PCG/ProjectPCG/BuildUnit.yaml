@@ -1,0 +1,12 @@
+name: ProjectPCG
+uuid: 2b4e459a-bd85-437a-9d5f-d83936e6bdb0
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 213874558b63e0f40d633dde784000883c85b01fb18cac6d6f00231eea1fd032
+  content: ''
+  data: {}

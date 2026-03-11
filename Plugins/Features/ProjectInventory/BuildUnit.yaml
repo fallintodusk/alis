@@ -1,0 +1,12 @@
+name: ProjectInventory
+uuid: 7dc582b1-7ade-4d90-a66d-97a78df0e8b1
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: ab73ebecd329b8dd7d4280374b9ece6418dc373d13dfde03fe3dcd05af40f027
+  content: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  data: {}

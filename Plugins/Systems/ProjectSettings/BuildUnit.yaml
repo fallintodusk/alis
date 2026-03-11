@@ -1,0 +1,12 @@
+name: ProjectSettings
+uuid: 18a4082b-d956-460d-acb6-c5b722e57fff
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: a25b144422712fa557f2e89b0681df2d07fe8fbdc6ee4fa4d8cb4056fbbed83c
+  content: ''
+  data: {}

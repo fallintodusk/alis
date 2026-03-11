@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Project Menu Game",
+  "Description": "In-game / pause menu.",
+  "Category": "Project.UI",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    { "Name": "ProjectMenuGame", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectUI", "Enabled": true },
+    { "Name": "ProjectSettingsUI", "Enabled": true }
+  ]
+}

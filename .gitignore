@@ -1,0 +1,149 @@
+############################################
+# Unreal Engine - project & plugins (Alis)
+############################################
+
+# --- IDE / Editor (user-specific) ---
+# VS / VSCode / Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.code-workspace
+.history/
+Plugins/Developer/RiderLink/*
+.ignore
+
+# --- python ---
+langchain_env
+__pycache__
+
+# --- env secrets ---
+.env
+.env.*
+!.env.*.example
+
+# --- agentic ---
+.langgraph_api
+
+# --- tmp / logs ---
+tmp/
+*.log
+*.tmp
+*.swp
+*~
+*.bak
+*.old
+
+# --- common tool dependencies ---
+.bundle/
+node_modules/
+.vscode/settings.json
+
+# --- Runtime state (generated at runtime) ---
+LocalAppData/Alis/State/
+
+# --- Structurizr generated files (render from .dsl on demand) ---
+docs/architecture/diagrams/.structurizr/
+scripts/utils/structurizr/structurizr-lite.war
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+nul  # Windows device name sometimes created as file in Git Bash
+
+# --- Build system artifacts (regardless of depth) ---
+**/Binaries/**
+**/Intermediate/**
+**/Saved/**
+Saved/
+**/DerivedDataCache/**
+
+# Keep build scripts but drop artifacts (matches GitHub UE template intent)
+Build/**
+!Build/**/PakBlacklist*.txt
+!Build/**/*.ico
+
+# Build Service logs and workspace artifacts
+tools/BuildService/logs/
+tools/BuildService/workspace/
+tools/BuildService/staging/
+
+# --- Generated code by UHT (never commit) ---
+*.generated.h
+*.gen.cpp
+
+# --- Common MSVC project files UE can regenerate ---
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+.vs/
+
+# --- Xcode / CLion (if any) ---
+*.xcodeproj/**
+*.xcworkspace/**
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# --- Object & temp binaries (extra safety) ---
+*.obj
+*.o
+*.lo
+*.slo
+*.lib
+*.a
+*.exp
+*.pdb
+*.ipdb
+*.iobj
+*.dll
+*.dylib
+*.so
+*.exe
+
+# --- Shader/Derived caches occasionally created outside std dirs ---
+*.pch
+*.idb
+
+# --- Built lighting data (rebuilt from sources) ---
+*_BuiltData.uasset
+
+# --- Reports / local tools (from your uploaded file) ---
+utility/check/reports/
+utility/config/ue_path.conf
+
+# --- Third-party handling ---
+# By default, Binaries/** rules ignore everything;
+# explicitly un-ignore ThirdParty so you can commit headers/libs you vendor.
+!Plugins/**/ThirdParty/**
+!Source/**/ThirdParty/**
+
+############################################
+# Optional: per-plugin mirrors (kept for clarity)
+############################################
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+# Content stays tracked:
+# Plugins/**/Content/**  (do NOT ignore)
+
+############################################
+# Notes
+# - Track large binary assets with Git LFS via .gitattributes (uasset/umap, audio, video).
+# - This file is hierarchy-agnostic: works for project root and nested plugins.
+############################################
+nul
+# --- CI overnight artifacts (circuit breaker state, logs, metrics) ---
+artifacts/overnight/
+scripts/ue/artifacts/overnight/
+/Releases
+.vsconfig
+Alis.code-workspace.backup
+
+# --- Private/sensitive todo files ---
+Plugins/World/ProjectWorld/todo/critical.md
+
+# Claude Code temp files
+tmpclaude-*

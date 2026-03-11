@@ -1,0 +1,76 @@
+# ALIS public mirror policy:
+# - code, docs, and build/release scripts are public by default
+# - secrets, licensed assets, generated outputs, and local machine state are never public
+# - if a future workflow needs secrets, keep them outside the repository and outside the mirror
+
+# Workspace and local machine state
+.claude/**
+.vs/**
+.vscode/**
+langchain_env/**
+LocalAppData/**
+tmp/**
+tmpclaude-*
+.env
+.ignore
+.clinerules
+.vsconfig
+agent_policy.yaml
+AGENTS.md
+CLAUDE.md
+CODEX.md
+*.code-workspace
+*.code-workspace.backup
+todo/**
+
+# Generated artifacts and local outputs
+Binaries/**
+Build/**
+DerivedDataCache/**
+Intermediate/**
+Saved/**
+Releases/**
+artifacts/**
+scripts/ue/check/reports/**
+
+# Game content and packaged assets
+# Public mirror excludes UE asset payloads and packaged binaries.
+# This keeps the mirror compatible with open-source code flow while avoiding redistribution of licensed content.
+**/*.uasset
+**/*.umap
+**/*.ubulk
+**/*.uexp
+**/*.utoc
+**/*.ucas
+**/*.pak
+Content/**
+Config/**
+Plugins/**/Binaries/**
+Plugins/**/Content/**
+Plugins/**/Intermediate/**
+Plugins/**/Resources/**
+Plugins/**/Data/**
+Plugins/InstanceArrayTool/**
+Plugins/ThirdParty/**
+Plugins/**/ThirdParty/**
+Test/**
+tools/**
+Wiki/**
+
+# Internal docs and local automation
+# These are excluded because they are repo-local workflow helpers or internal machine setup,
+# not because ALIS documentation is private by default.
+docs/agents/**
+docs/ci/**
+docs/debugging/**
+docs/integration/**
+docs/loading/**
+scripts/config/**
+scripts/ci/**
+scripts/git/hooks/**
+scripts/utils/**
+scripts/scripts_list.txt
+
+# Internal project files
+Alis.uproject
+nul

@@ -1,0 +1,12 @@
+name: ProjectSave
+uuid: 8a7526cf-b12a-4d14-a1f0-3aee6608cae8
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: 8defb4448b1edc9c722983173a137c79b708f3fe11eca298daa827afe6bc25a7
+  content: ''
+  data: {}

@@ -1,0 +1,12 @@
+name: ProjectSinglePlay
+uuid: 5b363732-5ec4-4769-92fa-b14c36005e67
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: f9fdc5b6be33eae6c1f5d9a4759ece591ddc5b06e0929cba9cffad60f213568c
+  content: ''
+  data: {}

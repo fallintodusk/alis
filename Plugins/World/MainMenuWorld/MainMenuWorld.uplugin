@@ -1,0 +1,21 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Main Menu World",
+  "Description": "Main menu / frontend world composition (maps, lighting, data layers).",
+  "Category": "Project.World",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    {
+      "Name": "MainMenuWorld",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    { "Name": "ProjectMenuPlay", "Enabled": true },
+    { "Name": "ProjectLoading", "Enabled": true }
+  ]
+}
