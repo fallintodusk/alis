@@ -2,38 +2,37 @@
 
 Learn. Survive. Connect.
 
-ALIS is an open-source Unreal Engine 5 project centered on practical learning, realistic survival systems, and real-world locations. The project is engineered as a C++-first, text-first codebase with strong emphasis on JSON-driven systems, generator-backed content definitions, and agent-editable workflows.
+ALIS is an open-source Unreal Engine 5 project about realistic survival, practical learning through gameplay, and believable real-world locations.
 
-This repository is the public code and documentation home for ALIS. It is intended to be readable, reviewable, and contribution-friendly while keeping private infrastructure, licensed asset payloads, and local machine state out of the public tree.
+This repository is the public code and documentation home for ALIS. It is designed for code review, architecture study, public release verification, and source contributions while keeping private infrastructure, licensed asset payloads, and local machine state out of the public tree.
 
-The short version:
-- open game code
-- public architecture and workflow docs
-- signed release and verification flow
-- modular Unreal plugin architecture
-- text-based, agent-friendly data workflows
-- decentralized-friendly publication model
+In practical terms:
+- ALIS is an open game project with a strong focus on survival systems, real-world environments, and learning through play
+- this public repository contains source code, architecture docs, build and release workflows, and trust tooling
+- this public repository does not include full runtime asset payloads, private infrastructure, or private machine configuration
 
 Official links:
 - Site: https://fall.is/
 - About and trust: https://fall.is/about/
 
-## What ALIS Is
+## Current Public Status
 
-ALIS is not just a technical sandbox. The project is aimed at an open game that teaches real skills through gameplay, simulates survival in believable conditions, and connects people around a shared world and shared values.
+This public repository currently focuses on:
+- source code and architecture review
+- documentation and workflow review
+- release packaging, signing, and verification
+- contribution-friendly public publication of the codebase
 
-If you are arriving from GitHub search, the core context is:
-- Unreal Engine 5
-- C++
-- JSON-driven systems
-- data-driven UI
-- generator-backed definitions
-- modular plugin architecture
-- survival systems
-- real-world locations
-- educational game direction
-- signed public releases
-- open-source game development
+It is already useful today for:
+- Unreal developers studying the architecture
+- contributors reviewing or improving source and docs
+- technically curious players or supporters verifying release trust and project direction
+
+## Can I Run It?
+
+If you want to run ALIS today, use the public release builds.
+
+This public source tree is currently optimized for code, docs, review, and contribution flow. A full internal asset-complete checkout is still required for complete source-based runtime and release workflows.
 
 ## What This Repository Contains
 
@@ -43,7 +42,7 @@ Published here:
 - public-facing architecture, build, testing, and workflow documentation
 - build, test, packaging, signing, verification, and mirror automation
 - text-based design and runtime data workflows
-- a sanitized public `Alis.uproject` for source-tree context
+- the canonical `Alis.uproject`, so the public repo reflects the real plugin layout
 
 Not published here:
 - Unreal content asset payloads
@@ -51,28 +50,7 @@ Not published here:
 - secrets, credentials, and private machine configuration
 - non-redistributable third-party payloads
 
-Practical consequence:
-- this public repo is the right place for code review, architecture study, documentation work, and source contributions
-- a full internal asset-complete checkout is still required for complete runtime and release workflows
-
-## What Makes This Repo Distinct
-
-ALIS is intentionally biased toward text-based sources of truth where that improves automation, reviewability, and iteration.
-
-Important patterns in this repo:
-- JSON and INI over binary authoring where practical
-- schema-backed definition files owned by the plugin that uses them
-- universal generation pipelines instead of one-off asset editors
-- descriptor-driven UI instead of hardcoded screen branches
-- hot-reloadable and agent-friendly workflows for layout, data, and validation
-
-Concrete examples:
-- Data architecture router: [docs/data/README.md](docs/data/README.md)
-- Universal definition generator: [Plugins/Editor/ProjectDefinitionGenerator/README.md](Plugins/Editor/ProjectDefinitionGenerator/README.md)
-- Propagation pipeline for generated definitions: [Plugins/Editor/ProjectPlacementEditor/README.md](Plugins/Editor/ProjectPlacementEditor/README.md)
-- Data-driven object definitions: [Plugins/Resources/ProjectObject/README.md](Plugins/Resources/ProjectObject/README.md)
-- JSON layout and hot-reload workflow: [docs/ui/hot_reload.md](docs/ui/hot_reload.md)
-- UI framework and descriptor-driven rendering: [Plugins/UI/ProjectUI/README.md](Plugins/UI/ProjectUI/README.md)
+Some plugin entries in `Alis.uproject` can still refer to dependencies or asset payloads that are intentionally excluded from the public mirror. The goal is to expose the real project structure without redistributing content that should stay out of the public tree.
 
 ## Start Here
 
@@ -109,6 +87,30 @@ If you want build, test, and release workflows:
 - Packaging, signing, and verification: [scripts/ue/package/README.md](scripts/ue/package/README.md)
 - Public mirror flow: [scripts/git/mirror/README.md](scripts/git/mirror/README.md)
 
+## Why This Repo Is Distinct
+
+ALIS is intentionally biased toward text-based sources of truth where that improves automation, reviewability, and iteration.
+
+The public codebase is organized around a few explicit technical decisions:
+- Unreal Engine 5 as the runtime and editor platform
+- C++ as the main systems and architecture layer
+- text-first workflows for data, configuration, and many iteration paths
+- JSON-driven definitions and layouts where binary authoring would slow automation
+- universal generators instead of plugin-by-plugin custom authoring pipelines
+- modular plugins with clear ownership boundaries
+- contract-first integration across plugins
+- public documentation next to code wherever possible
+- signed release artifacts with public verification
+- a public mirror strategy that supports long-term open and decentralized workflows
+
+Important architectural themes visible in this repo:
+- boot and plugin lifecycle are separated from runtime content loading
+- foundation plugins define contracts and shared infrastructure, not gameplay logic
+- UI is framework-driven, JSON-driven, and descriptor-driven rather than hardcoded per screen
+- the data pipeline is split intentionally into sync, generation, and propagation
+- feature plugins are expected to remain optional, bounded, and soft-coupled
+- world plugins own world data, while shared world code owns reusable tooling
+
 ## Public Repository Map
 
 Top-level public structure:
@@ -132,28 +134,6 @@ Plugin tier entry points:
 - Gameplay framework: [Plugins/Gameplay/ProjectGameplay/README.md](Plugins/Gameplay/ProjectGameplay/README.md)
 - Features tier: [Plugins/Features/README.md](Plugins/Features/README.md)
 - World utilities: [Plugins/World/ProjectWorld/README.md](Plugins/World/ProjectWorld/README.md)
-
-## Technical Direction
-
-ALIS is organized around a few explicit technical decisions:
-- Unreal Engine 5 as the runtime and editor platform
-- C++ as the main systems and architecture layer
-- text-first workflows for data, configuration, and many iteration paths
-- JSON-driven definitions and layouts where binary authoring would slow automation
-- universal generators instead of plugin-by-plugin custom authoring pipelines
-- modular plugins with clear ownership boundaries
-- contract-first integration across plugins
-- public documentation next to code wherever possible
-- signed release artifacts with public verification
-- a public mirror strategy that supports long-term open and decentralized workflows
-
-Important architectural themes visible in this repo:
-- boot and plugin lifecycle are separated from runtime content loading
-- foundation plugins define contracts and shared infrastructure, not gameplay logic
-- UI is framework-driven, JSON-driven, and descriptor-driven rather than hardcoded per screen
-- the data pipeline is split intentionally into sync, generation, and propagation
-- feature plugins are expected to remain optional, bounded, and soft-coupled
-- world plugins own world data, while shared world code owns reusable tooling
 
 ## Release Trust
 

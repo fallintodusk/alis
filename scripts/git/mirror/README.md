@@ -45,7 +45,7 @@ If a workflow requires secrets, keep them outside the repository and inject them
 The flow is intentionally isolated:
 1. Reads tracked file paths from `HEAD`.
 2. Applies `mirror.exclude` before export, then checks out only surviving files from a temporary `HEAD` index.
-3. Rewrites `Alis_sanitized.uproject` to `Alis.uproject` in the filtered snapshot.
+3. Preserves the canonical `Alis.uproject` in the filtered snapshot so the public mirror shows the real plugin graph.
 4. Runs hard validation against forbidden paths, binary file types, and forbidden text patterns.
 5. Creates a temporary git repository.
 6. Commits filtered snapshot in the temp repo.
@@ -123,12 +123,17 @@ The root `Makefile` exposes a mirror wrapper:
 
 Push (default):
 ```bash
-make mirror MIRROR_REMOTE_URL=git@github.com:org/repo.git
+make mirror
+```
+
+Default mirror remote:
+```text
+git@github.com:fallintodusk/alis.git
 ```
 
 Dry run:
 ```bash
-make mirror MIRROR_DRY_RUN=1 MIRROR_REMOTE_URL=git@github.com:org/repo.git
+make mirror MIRROR_DRY_RUN=1
 ```
 
 Ephemeral local preview:
@@ -138,7 +143,7 @@ make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1
 
 Allow dirty tree:
 ```bash
-make mirror MIRROR_DRY_RUN=1 MIRROR_REMOTE_URL=git@github.com:org/repo.git MIRROR_FORCE=1
+make mirror MIRROR_DRY_RUN=1 MIRROR_FORCE=1
 ```
 
 Override branch or exclude file:

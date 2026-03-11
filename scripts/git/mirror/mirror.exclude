@@ -72,5 +72,5 @@ scripts/utils/**
 scripts/scripts_list.txt
 
 # Internal project files
-Alis.uproject
+Alis_sanitized.uproject
 nul

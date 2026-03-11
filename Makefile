@@ -7,16 +7,24 @@ include scripts/config/ue_env.mk
 # Configuration
 PROJECT_FILE := $(CURDIR)/Alis.uproject
 REPORTS_DIR := $(CURDIR)/Saved/Validation/Reports
+DEFAULT_MIRROR_REMOTE_URL ?= git@github.com:fallintodusk/alis.git
+EFFECTIVE_MIRROR_REMOTE_URL := $(if $(strip $(MIRROR_REMOTE_URL)),$(strip $(MIRROR_REMOTE_URL)),$(DEFAULT_MIRROR_REMOTE_URL))
 
 # Detect WSL to handle Windows tool invocation and path conversion
 # Environment detection
-UNAME_S := $(shell uname -s 2>/dev/null)
-UNAME_R := $(shell uname -r 2>/dev/null)
-
+UNAME_S :=
+UNAME_R :=
 IS_WSL := 0
-ifeq ($(UNAME_S),Linux)
-  ifneq (,$(findstring microsoft,$(shell cat /proc/version 2>/dev/null | tr '[:upper:]' '[:lower:]')))
-    IS_WSL := 1
+
+ifeq ($(OS),Windows_NT)
+  # Native Windows make.exe path: keep defaults and avoid POSIX-only probes.
+else
+  UNAME_S := $(shell uname -s 2>/dev/null)
+  UNAME_R := $(shell uname -r 2>/dev/null)
+  ifeq ($(UNAME_S),Linux)
+    ifneq (,$(findstring microsoft,$(shell cat /proc/version 2>/dev/null | tr '[:upper:]' '[:lower:]')))
+      IS_WSL := 1
+    endif
   endif
 endif
 
@@ -65,8 +73,9 @@ help:
 	@echo ""
 	@echo "  Git Workflow:"
 	@echo "    make merge-ai BRANCH=<branch> - Squash merge AI work branch (clean history)"
-	@echo "    make mirror MIRROR_REMOTE_URL=<url> - Publish sanitized public mirror snapshot"
-	@echo "    make mirror MIRROR_DRY_RUN=1 MIRROR_REMOTE_URL=<url> - Preview against mirror baseline"
+	@echo "    make mirror - Publish to default public mirror ($(DEFAULT_MIRROR_REMOTE_URL))"
+	@echo "    make mirror MIRROR_DRY_RUN=1 - Preview against default mirror baseline"
+	@echo "    make mirror MIRROR_REMOTE_URL=<url> - Override mirror remote explicitly"
 	@echo "    make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1 - One-off local preview without remote"
 	@echo ""
 
@@ -343,26 +352,10 @@ ifeq ($(IS_WSL),1)
 		bash "$$CMD" "$$@"; \
 	fi
 else
-	@set -eu; \
-	set --; \
-	if [ -n "$(MIRROR_REMOTE_URL)" ]; then set -- "$$@" --remote-url "$(MIRROR_REMOTE_URL)"; fi; \
-	if [ -n "$(MIRROR_BRANCH)" ]; then set -- "$$@" --branch "$(MIRROR_BRANCH)"; fi; \
-	if [ -n "$(MIRROR_EXCLUDE_FILE)" ]; then set -- "$$@" --exclude-file "$(MIRROR_EXCLUDE_FILE)"; fi; \
-	if [ -n "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" ]; then set -- "$$@" --forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)"; fi; \
-	if [ "$(MIRROR_DRY_RUN)" = "1" ]; then \
-		set -- "$$@" --dry-run; \
-	else \
-		set -- "$$@" --push; \
-	fi; \
-	if [ "$(MIRROR_EPHEMERAL_PREVIEW)" = "1" ]; then set -- "$$@" --ephemeral-preview; fi; \
-	if [ "$(MIRROR_FORCE)" = "1" ]; then set -- "$$@" --force; fi; \
-	if [ -n "$(MIRROR_ARGS)" ]; then set -- "$$@" $(MIRROR_ARGS); fi; \
-	echo "[INFO] mirror args: $$*"; \
-	if [ -n "$(MIRROR_GIT_SSH_COMMAND)" ]; then \
-		MIRROR_GIT_SSH_COMMAND="$(MIRROR_GIT_SSH_COMMAND)" powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" "$$@"; \
-	else \
-		powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" "$$@"; \
-	fi
+	@echo [INFO] mirror target uses PowerShell wrapper on Windows
+	@echo [INFO] mirror remote: $(EFFECTIVE_MIRROR_REMOTE_URL)
+	@echo [INFO] mirror args: --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
+	@$(if $(MIRROR_GIT_SSH_COMMAND),set "MIRROR_GIT_SSH_COMMAND=$(MIRROR_GIT_SSH_COMMAND)" && )powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
 endif
 
 # Documentation: Structurizr Lite (C4 Architecture Diagrams)

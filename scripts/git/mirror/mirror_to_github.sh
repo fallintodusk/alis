@@ -59,7 +59,7 @@ require_cmd() {
 }
 
 git_safe() {
-  git -c core.fsmonitor=false "$@"
+  git -c core.fsmonitor=false -c core.hooksPath=/dev/null "$@"
 }
 
 resolve_file() {
@@ -133,16 +133,6 @@ PY
   GIT_INDEX_FILE="$head_index_file" git_safe -C "$repo_root" read-tree HEAD
   if [[ -s "$allowed_paths_file" ]]; then
     GIT_INDEX_FILE="$head_index_file" git_safe -C "$repo_root" checkout-index -q -z --stdin --prefix="$filtered_dir/" < "$allowed_paths_file"
-  fi
-}
-
-normalize_public_project_file() {
-  local filtered_dir="$1"
-  local sanitized_uproject="$filtered_dir/Alis_sanitized.uproject"
-  if [[ -f "$sanitized_uproject" ]]; then
-    rm -f "$filtered_dir/Alis.uproject"
-    mv "$sanitized_uproject" "$filtered_dir/Alis.uproject"
-    info "Replaced Alis.uproject with sanitized public variant"
   fi
 }
 
@@ -435,8 +425,6 @@ trap cleanup EXIT
 mkdir -p "$FILTERED_DIR" "$MIRROR_DIR"
 
 build_filtered_snapshot "$REPO_ROOT" "$EXCLUDE_FILE" "$FILTERED_DIR" "$TEMP_ROOT"
-
-normalize_public_project_file "$FILTERED_DIR"
 info "Sanitizing filtered mirror tree for public anonymity"
 sanitize_filtered_tree "$FILTERED_DIR"
 
