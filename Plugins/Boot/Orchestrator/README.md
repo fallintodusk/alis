@@ -1,5 +1,7 @@
 # Orchestrator (Plugin Lifecycle Manager)
 
+Early boot plugin that manages code and module lifecycle, then hands runtime content loading off to `ProjectLoading`.
+
 ## Purpose
 Base plugin (PostConfigInit phase) that manages **CODE/MODULE LIFECYCLE ONLY**. Loads plugin code and modules during early boot. Content loading (IoStore, maps, UI) is deferred to **ProjectLoading** via `ILoadingService` using the manifest entry point (e.g., MainMenuWorld) after engine init.
 
@@ -127,9 +129,8 @@ else:
 
 ## Validation
 ```
-scripts/ue/build/build.bat ProjectEditor Win64 Development -Module=OrchestratorCore
-scripts/ue/test/unit/orchestrator_tests.bat
-scripts/ue/test/integration/boot_integration_test.bat
+scripts/ue/build/build.bat AlisEditor Win64 Development
+scripts/ue/test/integration/autonomous_boot_test.bat
 scripts/ue/test/smoke/boot_test.bat
 ```
 
@@ -151,7 +152,7 @@ scripts/ue/test/smoke/boot_test.bat
 ## Architecture Documentation
 - C4 Component View: `../../docs/architecture/diagrams/views/component_orchestrator.dsl`
 - C4 Container View: `../../docs/architecture/diagrams/views/container_plugins.dsl`
-- Manifest schema: `~/repos_alis/cdn/docs/manifest.schema.json` (`activation_strategy` field)
+- Manifest schema: maintained in the separate CDN repository and intentionally not mirrored in this public source tree
 - Dynamic views: `dynamic_update_content.dsl`, `dynamic_update_code.dsl`, `dynamic_rollback.dsl`
 
 ## Self-Update Process

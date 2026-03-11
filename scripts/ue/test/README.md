@@ -1,40 +1,50 @@
 # Test Scripts
 
-Scripts for running automated tests (Unit, Integration, Smoke).
+Scripts for running Unreal automation tests in ALIS.
 
-## 📂 Scripts
+## Main Entry Point
 
 ### `test.bat`
-**Purpose**: Run Unreal Engine automation tests.
-**Usage**: `test.bat [--unit|--integration|--all] [--filter <name>]`
 
-**Examples:**
-- `test.bat --unit` (Runs ProjectCore, ProjectData, etc.)
-- `test.bat --integration` (Runs ProjectIntegrationTests)
-- `test.bat --filter ProjectUI` (Runs specific test suite)
+Runs Unreal automation tests through grouped modes.
 
-## 📁 Categories
+Usage:
+
+```bat
+test.bat [--unit|--integration|--all] [--filter <name>]
+```
+
+Examples:
+- `test.bat --unit`
+- `test.bat --integration`
+- `test.bat --filter ProjectUI`
+
+## Test Categories
 
 ### `smoke/`
-**Purpose**: Critical path tests that must pass for a build to be usable.
-**Duration**: < 5 minutes.
-**Includes**: Basic boot, login flow, map load.
+
+Critical-path health checks.
+
+- Example: `smoke\\boot_test.bat`
 
 ### `integration/`
-**Purpose**: Multi-system tests verifying components work together.
-**Duration**: 5-30 minutes.
 
-Useful integration validation scripts:
-- `integration\validate_spawnclass_cook.bat` - Cook preflight for ObjectDefinition `spawnClass` Blueprint retention (`GrandPa_BP`).
+Multi-system validation.
+
+- Example: `integration\\autonomous_boot_test.bat`
+- Additional preflight helpers live in this folder as needed
 
 ### `unit/`
-**Purpose**: Isolated tests for individual functions or classes.
-**Duration**: < 1 minute (usually seconds).
 
-## 🔧 Headless Execution
-Tests run in **headless mode** (`-NullRHI`) by default to support CI environments.
-- Logs are saved to `Saved/Automation/Reports`.
-- Use `--filter` to verify specific fixes locally.
+Fast plugin or subsystem tests.
 
-## See Also
-- [../../docs/testing/index.md](../../docs/testing/index.md) for full Testing Strategy.
+## Execution Notes
+
+- Tests are typically run headless with `-NullRHI`
+- Reports are written under `Saved/Automation/Reports`
+- Full UE logs go to `Saved/Logs/`
+
+## Related Docs
+
+- Public testing router: [../../../docs/testing/README.md](../../../docs/testing/README.md)
+- Build router: [../../../docs/build/README.md](../../../docs/build/README.md)

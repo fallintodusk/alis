@@ -90,5 +90,5 @@ Note: Inventory items are defined in ObjectDefinition.Item (ProjectObject). Ther
 
 ## Related Routers
 
-- **[Loading Ecosystem](../loading/README.md)** - How data is packaged and delivered.
-- **[Plugin Architecture](../plugins.md)** - Where data lives in the hierarchy.
+- **[Architecture Router](../architecture/README.md)** - Where data fits in the overall plugin structure.
+- **[UI Router](../ui/README.md)** - JSON-first UI and descriptor-driven rendering.

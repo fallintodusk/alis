@@ -2,6 +2,8 @@
 
 Dockable panel for spawning template actors and DataAssets.
 
+Editor-only plugin that connects generated definitions to placed actors and keeps scene instances synchronized when those definitions change.
+
 ## Data Pipeline Role
 
 **This plugin handles PROPAGATION** - cascading dependency updates (Definition -> Actor updates).
@@ -138,7 +140,6 @@ Automatically synchronizes placed world actors when their definitions are modifi
 **Documentation:**
 - [Architecture](docs/ActorSyncArchitecture.md) - Full system design, flow diagrams, implementation details
 - [Quick Reference](docs/ActorSyncQuickReference.md) - Common tasks, troubleshooting, API reference
-- [TODO](TODO.md) - Outstanding tasks, known limitations, future enhancements
 
 ## Adding Templates
 
@@ -153,9 +154,6 @@ Automatically synchronizes placed world actors when their definitions are modifi
 - `GameplayTags` - FGameplayTag property special-case in SetPropertyByName
 
 ## Legacy Paths
-
-Canonical ID registry for this refactor:
-- [todo/done/generalize_placeable_actor_parent.md](../../../todo/done/generalize_placeable_actor_parent.md)
 
 Code marker format:
 - `// LEGACY_OBJECT_PARENT_GENERALIZATION(L###): <reason>. Remove when <condition>.`

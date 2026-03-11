@@ -2,6 +2,8 @@
 
 Common UI base plugin providing reusable UI infrastructure.
 
+ProjectUI is the shared UI framework layer for ALIS: JSON-driven layout loading, MVVM-style data flow, theming, registry-based widget creation, and descriptor-driven rendering rules.
+
 ## Docs Router
 
 - Layout system: `docs/ui_layout.md`
@@ -10,7 +12,7 @@ Common UI base plugin providing reusable UI infrastructure.
 - CommonUI integration: `docs/commonui_integration.md`
 - Framework ownership rules: `docs/framework_consolidation.md`
 - Troubleshooting & Debug: `docs/troubleshooting.md` (includes `UI.Debug.DumpTree` command)
-- Icon fonts: `Content/Slate/Fonts/README.txt` (MDI for UI, Game Icons for equipment)
+- Icon font asset notes live in the full project content tree and are not mirrored as part of the public source snapshot
 - Flow: Layout builds widget trees from JSON, MVVM supplies data/commands, Theme paints the widgets.
 
 ## Critical Usage Notes
@@ -33,7 +35,7 @@ Common UI base plugin providing reusable UI infrastructure.
 - ProjectUI scans the schema folder, loads definitions into registry, validates them, and creates widgets via factory.
 - LayerHost owns HUD/layout creation and applies effective input based on topmost layer.
 - HUD layout class comes from ProjectUISettings (HUDLayoutClass), default `/Script/ProjectHUD.W_HUDLayout`.
-- See [docs/data/specs.md](../../../docs/data/specs.md) for data schema architecture.
+- See [../../../docs/data/README.md](../../../docs/data/README.md) for the public data architecture overview.
 
 ## Provides
 

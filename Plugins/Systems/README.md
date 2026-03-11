@@ -15,3 +15,8 @@ Non-responsibilities
 - No domain screens here; UI belongs to Features.
 - Session does not wrap networking; Online/* adapters live in an optional Online tier.
 
+Useful entry points
+- [ProjectLoading](ProjectLoading/README.md)
+- [ProjectSave](ProjectSave/README.md)
+- [ProjectSettings](ProjectSettings/README.md)
+- [ProjectMotionSystem](ProjectMotionSystem/README.md)

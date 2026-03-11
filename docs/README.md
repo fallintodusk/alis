@@ -1,46 +1,47 @@
-# Documentation - Alis UE 5.5 Project
+# Documentation
 
-Agent-friendly documentation organized by topic. For quick agent routing, see [../AGENTS.md](../AGENTS.md).
+Public documentation router for the ALIS source tree.
 
----
+This folder is the public-facing documentation layer for the repository. It focuses on architecture, build and release flow, testing, UI, and text-based data workflows.
 
-## Doc Hygiene (keep implementation in plugins)
-- Use the index files below first; keep category docs concise and focused on routing.
-- Do not paste code into docs. Point to the implementation by class and method (for example `IOrchestratorModule::Start` in `Plugins/Boot/Orchestrator/Source/OrchestratorCore/Public/OrchestratorAPI.h`).
-- Plugin docs live next to their code under `Plugins/<Category>/<Name>/` (README or docs folder). Cross-link there instead of duplicating content here.
-- C4 DSL diagrams are mandatory: `docs/architecture/diagrams/workspace.dsl` (views under `diagrams/views/`). If a diagram drifts, call it out and sync after discussion.
+Start here if you want a stable public overview before drilling into plugin-level READMEs.
 
-## Quick Category Indexes (Progressive Disclosure)
- 
- **Start here for fast navigation:**
- - **[../scripts/README.md](../scripts/README.md)** - Script automation tasks with decision trees
- - **[testing/](testing/README.md)** - Testing strategies and debugging/troubleshooting
- - **[docs/loading/](loading/README.md)** - Content Delivery Ecosystem (Build -> CDN -> Launcher -> Engine)
- - **[architecture/README.md](architecture/README.md)** - High-level architecture index
- - **[animation/README.md](animation/README.md)** - Animation domain SOT
- - **[build/README.md](build/README.md)** - Build & compile tasks with decision trees
- - **[build/packaging_guide.md](build/packaging_guide.md)** - Public release packaging and GitHub Releases pipeline
- - **[docs/diagrams/](architecture/diagrams/)** - C4 Architecture Diagrams
- 
- **Pattern:** Category index -> Detailed docs (load only what you need)
- 
- ---
- 
- ## Category Routers (keep lean)
+## Best Entry Points
 
- - **Loading:** `loading/` (Master Ecosystem Guide)
- - **Data:** `data/` (Workflow, Specs, Router)
- - **Architecture:** `plugins.md` (Plugin rules), `principles.md` (Core philosophy)
- - **Systems:** folder `systems/` (Runtime Game Systems)
- - **Gameplay:** `gameplay/` (Characters, Modes, Features)
- - **UI:** `ui/README.md` (routes to ProjectUI plugin docs)
- - **Editor:** `editor/` (Place Actors panel, editor-only features)
- - **Testing:** `testing/` (+ `troubleshooting.md`)
- - **Tools:** `../tools/` (BuildService, Launcher docs co-located with code)
- - **Config:** `config/` (Rendering, INI)
- - **Reference:** `reference/`
- - **Manual:** `manual/`
- 
- ---
- 
-**Token budget:** Load only relevant category. Don't load entire reference/ unless needed.
+- Architecture: [architecture/README.md](architecture/README.md)
+- Build and release: [build/README.md](build/README.md)
+- Public packaging and verification: [build/packaging_guide.md](build/packaging_guide.md)
+- Data architecture: [data/README.md](data/README.md)
+- UI router: [ui/README.md](ui/README.md)
+- Testing: [testing/README.md](testing/README.md)
+- Animation system: [animation/README.md](animation/README.md)
+- Scripts and automation: [../scripts/README.md](../scripts/README.md)
+
+## What These Docs Cover
+
+- architecture and plugin boundaries
+- text-first, JSON-driven workflows
+- build, validation, and release packaging
+- testing strategy and automation
+- UI framework, hot reload, and descriptor-driven rendering
+- public trust and release verification flow
+
+## Public Scope
+
+These docs are selected for the public source mirror.
+
+Intentionally not routed from here:
+- private machine setup
+- internal CI wiring
+- local-only agent instructions
+- delivery or infrastructure notes that are not part of the public code tree
+
+## Reading Pattern
+
+Use category routers first, then move into the owning plugin README or focused guide.
+
+Examples:
+- architecture router -> plugin README
+- build router -> workflow or package guide
+- UI router -> ProjectUI docs or feature UI plugin README
+- data router -> generator or object-definition docs

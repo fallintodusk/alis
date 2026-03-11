@@ -1,5 +1,7 @@
 # ProjectGameplay
 
+Gameplay framework plugin for shared runtime gameplay patterns and GameMode-level orchestration support.
+
 ## Purpose
 
 Gameplay framework plugin providing **base classes and shared gameplay patterns**. Orchestrator GameModes and gameplay utilities.
@@ -10,7 +12,7 @@ Gameplay framework plugin providing **base classes and shared gameplay patterns*
 
 Feature registration contracts (`FFeatureRegistry`, `FFeatureInitContext`) moved to `ProjectFeature` plugin so that feature plugins (Combat, Dialogue, Inventory) don't need to depend on the gameplay framework.
 
-See: `Plugins/Gameplay/ProjectFeature/README.md`
+See: [../../Features/ProjectFeature/README.md](../../Features/ProjectFeature/README.md)
 
 ## Current Contents
 
@@ -81,10 +83,9 @@ GetWorld()->ServerTravel("City17?game=/Script/ProjectSinglePlay.SinglePlayerGame
 - `UGameInstance::CreateGameModeForURL` - Engine/Source/Runtime/Engine/Private/GameInstance.cpp:1490
 - `LoadClass<AGameModeBase>` call at GameInstance.cpp:1521
 
-See: `Plugins/Gameplay/ProjectSinglePlay/README.md` section 7.1.1 for full details.
+See: [../ProjectSinglePlay/README.md](../ProjectSinglePlay/README.md) for full details.
 
 ## See Also
 
-- `Plugins/Gameplay/ProjectFeature/README.md` - Feature registration contracts
-- `Plugins/Gameplay/ProjectSinglePlay/README.md` - Uses feature registry
-- `TODO.md` - Implementation phases
+- [../../Features/ProjectFeature/README.md](../../Features/ProjectFeature/README.md) - Feature registration contracts
+- [../ProjectSinglePlay/README.md](../ProjectSinglePlay/README.md) - Uses the feature registry in a concrete game mode flow

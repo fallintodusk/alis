@@ -2,6 +2,12 @@
 
 Foundation module that owns stable interfaces, shared types, and light utilities for the whole project.
 
+## Start Here
+
+- Architecture router: [../../../docs/architecture/README.md](../../../docs/architecture/README.md)
+- Core principles: [../../../docs/architecture/principles.md](../../../docs/architecture/principles.md)
+- Public interfaces: [Source/ProjectCore/Public/Interfaces/README.md](Source/ProjectCore/Public/Interfaces/README.md)
+
 ## Role
 - Single place for abstractions (DIP guardrail).
 - Data-only experience descriptors and registry live here so plugins do not depend on ProjectLoading.
@@ -35,11 +41,6 @@ Low-Level Systems (OrchestratorCore, BootROM, ...)
 ## Logging (Policy)
 - Each plugin defines its own log category.
 - ProjectCore only provides `LogProjectCore` for its own diagnostics.
-
-## Docs
-- docs/core_principles.md
-- docs/plugin_architecture.md
-- todo/create_architecture.md
 
 Version: 1.0.0 | Category: Framework.Core | Loading Phase: PostConfigInit
 

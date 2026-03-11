@@ -13,3 +13,8 @@ Examples
 Notes
 - Folder stays flat (orchestrator rule). Group by naming stems (ProjectMenu*, ProjectSettingsUI) and metadata.
 
+Useful entry points
+- [ProjectInventory](ProjectInventory/README.md)
+- [ProjectCombat](ProjectCombat/README.md)
+- [ProjectDialogue](ProjectDialogue/README.md)
+- [Inventory Design Vision](ProjectInventory/docs/design_vision.md)

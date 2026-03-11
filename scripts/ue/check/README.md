@@ -1,32 +1,40 @@
 # Validation Scripts
 
-Scripts for static analysis, validation, and compilation checks WITHOUT running a full game instance or tests.
+Scripts for fast validation and compile-adjacent checks without running a full packaged build.
 
-## 📂 Scripts
+## Main Entry Points
 
 ### `check.bat`
-**Purpose**: Main entry point for all fast validation checks.
-**Usage**: `check.bat [--uht|--syntax|--blueprints|--assets|--all]`
 
-**Modes:**
-- `--uht`: Validates Unreal Header Tool reflection data (very fast).
-- `--syntax`: Checks C++ syntax without full linking (fast).
-- `--blueprints`: Compiles all Blueprints to catch broken references.
-- `--assets`: Runs asset validation logic.
-- `--all`: Runs all of the above in sequence.
+Runs grouped validation modes.
 
-### `bp_compile.bat`
-**Purpose**: Compiles all Blueprints. Equivalent to `check.bat --blueprints`.
-**Duration**: 2-5 minutes.
+Usage:
 
-### `project_validate.bat`
-**Purpose**: Validates project assets. Equivalent to `check.bat --assets`.
-**Duration**: 1-3 minutes.
+```bat
+check.bat [--uht|--syntax|--blueprints|--assets|--all]
+```
 
-### `validate.sh`
-**Purpose**: Linux wrapper for validation checks.
+Modes:
+- `--uht` - Unreal Header Tool validation
+- `--syntax` - C++ syntax checks without full linking
+- `--blueprints` - Blueprint compile validation
+- `--assets` - asset validation
+- `--all` - all fast checks in sequence
 
-## 💡 When to Use
-- Run `check.bat --all` before pushing code.
-- Run `check.bat --uht` when changing header files (`.h`).
-- Run `check.bat --blueprints` after major refactors or deleting assets.
+### Direct wrappers
+
+- `bp_compile.bat` - Blueprint compilation shortcut
+- `project_validate.bat` - asset validation shortcut
+- `validate.sh` - shell wrapper for validation flow
+
+## When To Use
+
+- before pushing code
+- after header changes
+- after refactors that can break Blueprint references
+- after asset moves or data updates
+
+## Related Docs
+
+- Build router: [../../../docs/build/README.md](../../../docs/build/README.md)
+- Testing router: [../../../docs/testing/README.md](../../../docs/testing/README.md)

@@ -2,6 +2,8 @@
 
 Shared world utilities for any map or tile. Provides the common tools that world plugins (City17, future worlds) use.
 
+This README describes the reusable world layer. World-specific maps, authored content, and large asset payloads live in world plugins and are not fully represented in the public mirror.
+
 **Key principle:** ProjectWorld owns the *tools*, world plugins own the *data*.
 
 
@@ -670,14 +672,7 @@ No dependencies on:
 - UI plugins
 
 
-## 20. TODO
-
-See [TODO.md](TODO.md) for implementation tasks.
-
 ## Legacy Paths
-
-Canonical ID registry for this refactor:
-- [todo/done/generalize_placeable_actor_parent.md](../../../todo/done/generalize_placeable_actor_parent.md)
 
 Code marker format:
 - `// LEGACY_OBJECT_PARENT_GENERALIZATION(L###): <reason>. Remove when <condition>.`
@@ -701,5 +696,5 @@ Code marker format:
 ## 21. Related Docs
 
 - [City17 README](../../World/City17/README.md) - Reference world implementation
-- [ProjectPCG README](../ProjectPCG/README.md) - PCG integration
+- [ProjectPCG README](../PCG/ProjectPCG/README.md) - PCG integration
 - [World Partition docs](https://dev.epicgames.com/documentation/en-us/unreal-engine/world-partition-in-unreal-engine)

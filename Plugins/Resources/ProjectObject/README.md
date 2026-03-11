@@ -2,6 +2,8 @@
 
 Composed world objects for ALIS - characters, creatures, buildings, furniture, and interactive elements.
 
+This README describes the code-side composition model. Some folder examples refer to the full project checkout; the public mirror excludes Unreal content payloads and other non-code assets.
+
 ## Purpose
 
 - **ACTORS ONLY** - this plugin contains AActor classes that compose components
@@ -308,7 +310,7 @@ When JSON definitions change, placed actors are automatically updated without ma
 - `ObjectDefinitionId` on actor links it to source definition
 - `DefinitionStructureHash` detects structural changes
 - Mesh components tagged with `DefMeshId=<id>` for reliable matching
-- See [todo/current/1. replace_actor_if_json_updated.md](../../../todo/current/1.%20replace_actor_if_json_updated.md) for full architecture
+- Actor update flow is handled by ProjectPlacementEditor and the definition propagation pipeline described in [../../../docs/data/README.md](../../../docs/data/README.md)
 
 **Logging:** Full cycle logging under `LogInteractableActor` and `LogDefinitionGeneratorEditor` categories
 
@@ -326,9 +328,6 @@ Follow the pattern:
 6. Add interaction handling in appropriate Features plugin
 
 ## Legacy Paths
-
-Canonical ID registry for this refactor:
-- [todo/done/generalize_placeable_actor_parent.md](../../../todo/done/generalize_placeable_actor_parent.md)
 
 Code marker format:
 - `// LEGACY_OBJECT_PARENT_GENERALIZATION(L###): <reason>. Remove when <condition>.`

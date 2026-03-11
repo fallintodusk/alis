@@ -1,64 +1,39 @@
-# Scripts & Automation
+# Scripts and Automation
 
-Quick routing for scripts and automation. Primary reference: [docs/architecture.md](docs/architecture.md).
+Public router for ALIS automation scripts.
 
----
+This router focuses on the script categories that are part of the public source tree and meaningful to external contributors.
 
-## Quick Navigation
+## Main Script Categories
 
-| Category | Description | Documentation |
-|----------|-------------|---------------|
-| **Build** | C++ compilation, module rebuilding | [ue/build/](ue/build/README.md) |
-| **Package** | Public release packaging, hashing, signing, and verification | [ue/package/](ue/package/README.md) |
-| **Check** | Validation, static analysis, blueprint compile | [ue/check/](ue/check/README.md) |
-| **Test** | Automation tests (Unit, Integration, Smoke) | [ue/test/](ue/test/README.md) |
-| **Clean** | Cleaning intermediate files | [ue/clean/](ue/clean/README.md) |
-| **Run** | Runtime operations | [ue/run/](ue/run/README.md) |
-| **Standalone** | Standalone game testing | [ue/standalone/](ue/standalone/README.md) |
-| **Git** | Hooks, mirror export, git workflow automation | [git/](git/README.md) |
-| **Utils** | General utilities (Structurizr, etc.) | [utils/](utils/README.md) |
-| **CI** | CI/CD pipeline orchestration | `ci/` |
+- Build: [ue/build/README.md](ue/build/README.md)
+- Package and verify releases: [ue/package/README.md](ue/package/README.md)
+- Validation checks: [ue/check/README.md](ue/check/README.md)
+- Automated tests: [ue/test/README.md](ue/test/README.md)
+- Standalone runtime checks: [ue/standalone/README.md](ue/standalone/README.md)
+- Run helpers: [ue/run/README.md](ue/run/README.md)
+- Git and public mirroring: [git/README.md](git/README.md)
 
----
+## What Lives Here
 
-## Development
+- Unreal build wrappers
+- validation and test entry points
+- packaging, signing, and verification scripts
+- standalone and runtime launch helpers
+- git workflow helpers and public mirror automation
 
-- **[DEVELOPING.md](DEVELOPING.md)**: Guide for creating, moving, and debugging scripts.
-  - Where to put a new script?
-  - Naming rules
-  - Debugging guide
+## Public-Scope Note
 
----
+Some local-only script categories are intentionally not routed from this public README because they are excluded from the mirror or depend on private machine setup.
 
-## Architecture Summary
+Examples:
+- private engine-path configuration
+- local CI wiring
+- internal utility helpers that are not needed to understand the public workflow
 
-SOLID structure:
+## Related Docs
 
-```text
-scripts/
-|-- config/          # Single source of truth (ue_path.conf)
-|-- ue/
-|   |-- build/       # Build operations ONLY
-|   |-- package/     # Public release packaging
-|   |-- check/       # Validation WITHOUT build
-|   |-- clean/       # Clean operations
-|   |-- run/         # Runtime operations
-|   |-- standalone/  # Standalone game testing
-|   `-- test/        # All testing
-|-- ci/              # CI/CD orchestration
-|-- git/             # Hooks and mirror publication helpers
-|-- utils/           # General utilities
-`-- win/             # Platform-specific helpers
-```
-
-Full guide: [docs/architecture.md](docs/architecture.md)
-
----
-
-## Quick Links
-
-- Back to [Master Index](../docs/README.md)
-- Complete scripts guide: [docs/architecture.md](docs/architecture.md)
-- Build: [../docs/build/README.md](../docs/build/README.md)
-- Package: [ue/package/README.md](ue/package/README.md)
-- Test: [../docs/testing/index.md](../docs/testing/index.md)
+- Root docs router: [../docs/README.md](../docs/README.md)
+- Build and release docs: [../docs/build/README.md](../docs/build/README.md)
+- Public mirror policy: [git/mirror/README.md](git/mirror/README.md)
+- Script development guide: [DEVELOPING.md](DEVELOPING.md)

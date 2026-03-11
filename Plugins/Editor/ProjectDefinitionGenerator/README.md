@@ -2,6 +2,8 @@
 
 Universal JSON-to-DataAsset generator for definition types (Items, Objects, etc.).
 
+Editor-only plugin for turning text-based definitions into generated Unreal assets.
+
 ## Overview
 
 This editor plugin provides a **data-driven** approach to generating UDataAsset definitions from JSON source files. Resource plugins only provide:
@@ -171,7 +173,7 @@ Each generated asset stores:
 Source JSON folder structure is mirrored to generated Content:
 
 ```
-Data/Items/Consumable/Food/apple.json
+Data/Objects/Template/door.json
     -> /ProjectObject/Objects/Template/door.uasset
 ```
 
@@ -293,6 +295,10 @@ ProjectDefinitionGenerator/
 
 ## See Also
 
-- [object.schema.json](../../Resources/ProjectObject/Data/Schemas/object.schema.json) - Example schema
-- [editor_asset_picker.md](../../../todo/current/editor_asset_picker.md) - Picker integration roadmap
-- [items_objects_relationship_investigate.md](../../../todo/current/items_objects_relationship_investigate.md) - Architecture decisions
+- [../../../docs/data/README.md](../../../docs/data/README.md) - Public data architecture overview
+- [../ProjectPlacementEditor/README.md](../ProjectPlacementEditor/README.md) - Propagation stage after generation
+- [../../Resources/ProjectObject/README.md](../../Resources/ProjectObject/README.md) - Example consumer of generated object definitions
+
+Note:
+- concrete schema JSON files live under plugin `Data/` folders in the full project tree
+- those generated or source data payloads are not part of the public mirror snapshot

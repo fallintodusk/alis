@@ -11,8 +11,14 @@ Critical framework contract
 - Reusable mechanics must be implemented in `ProjectUI` and reused by feature UI plugins.
 - Feature plugins keep domain-specific logic only (inventory/menu/vitals/settings semantics).
 - Descriptor-driven views must collapse empty groups instead of leaving placeholder panels.
-- See `Plugins/UI/ProjectUI/docs/framework_consolidation.md` for mandatory ownership rules and test gates.
+- See [ProjectUI/docs/framework_consolidation.md](ProjectUI/docs/framework_consolidation.md) for mandatory ownership rules and test gates.
 
 Non-responsibilities
 - No front-end flow logic (which screen to show when).
 - UI consumer plugins live under Plugins/UI and define ui_definitions.json.
+
+Useful entry points
+- [ProjectUI](ProjectUI/README.md)
+- [ProjectInventoryUI](ProjectInventoryUI/README.md)
+- [ProjectDialogueUI](ProjectDialogueUI/README.md)
+- [ProjectHUD](ProjectHUD/README.md)

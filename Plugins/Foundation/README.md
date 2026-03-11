@@ -27,9 +27,9 @@ Foundation plugins are the architectural base layer that all other plugins depen
 
 ## Current Plugins
 
-- [ProjectCore](ProjectCore/) - Service locator, base types, interfaces, logging
+- [ProjectCore](ProjectCore/README.md) - service locator, interfaces, shared types, configuration helpers
 
 ## Related Documentation
 
-- [Component Responsibilities](../../docs/architecture/RESPONSIBILITIES.md) - Tier hierarchy and boundaries
-- [Plugin Architecture](../../docs/architecture/plugin_architecture.md) - Full plugin layout
+- [Architecture Router](../../docs/architecture/README.md) - public architecture overview
+- [Core Principles](../../docs/architecture/principles.md) - broad architecture rules
