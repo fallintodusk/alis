@@ -11,16 +11,9 @@ pushd "%~dp0\..\..\..\.." || (echo ERROR: cannot cd to repo root & exit /b 1)
 rem Optional: UTF-8 for nice glyphs in console
 chcp 65001 >nul
 
-rem ---------- Config ----------
-set "UE_PATH=<ue-path>"
-if exist "scripts\config\ue_path.conf" (
-  for /f "usebackq tokens=1,* delims==" %%A in ("scripts\config\ue_path.conf") do (
-    if /I "%%~A"=="UE_PATH" (
-      set "UE_PATH=%%~B"
-      set "UE_PATH=!UE_PATH:"=!"
-    )
-  )
-)
+rem ---------- Config (SOT: resolve_ue_path.bat) ----------
+call "scripts\config\resolve_ue_path.bat"
+if errorlevel 1 (echo ERROR: UE_PATH not resolved & exit /b 1)
 
 set "PROJECT_FILE=%CD%\Alis.uproject"
 set "UE_EDITOR=%UE_PATH%\Engine\Binaries\Win64\UnrealEditor.exe"

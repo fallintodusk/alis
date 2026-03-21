@@ -12,6 +12,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Engine/GameInstance.h"
 #include "Interaction/InventoryInteractionHandler.h"
+#include "Containers/Ticker.h"
 
 DEFINE_LOG_CATEGORY(LogProjectInventory);
 
@@ -22,14 +23,13 @@ void FProjectInventoryModule::StartupModule()
 	// Create interaction handler (subscribes to IInteractionService)
 	InteractionHandler = MakeShared<FInventoryInteractionHandler>();
 
-	// Defer subscription until after engine init (IInteractionService may not be registered yet)
-	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
+	// Try subscribing immediately; retry via ticker if IInteractionService is not yet registered.
+	if (TrySubscribeInteraction(0.0f))
 	{
-		if (InteractionHandler.IsValid())
-		{
-			InteractionHandler->Subscribe();
-		}
-	});
+		RetryHandle = FTSTicker::GetCoreTicker().AddTicker(
+			FTickerDelegate::CreateRaw(this, &FProjectInventoryModule::TrySubscribeInteraction),
+			0.5f);
+	}
 
 	// REGISTRATION ONLY - no init happens here
 	// GameMode will call this lambda later, in order, after pawn spawn
@@ -107,8 +107,31 @@ void FProjectInventoryModule::StartupModule()
 	UE_LOG(LogProjectInventory, Log, TEXT("StartupModule() - Inventory registered with FFeatureRegistry"));
 }
 
+bool FProjectInventoryModule::TrySubscribeInteraction(float /*DeltaTime*/)
+{
+	if (!InteractionHandler.IsValid())
+	{
+		return false;
+	}
+
+	InteractionHandler->Subscribe();
+	if (!InteractionHandler->IsSubscribed())
+	{
+		return true;
+	}
+
+	RetryHandle.Reset();
+	return false;
+}
+
 void FProjectInventoryModule::ShutdownModule()
 {
+	if (RetryHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(RetryHandle);
+		RetryHandle.Reset();
+	}
+
 	// Unsubscribe and release interaction handler
 	if (InteractionHandler.IsValid())
 	{

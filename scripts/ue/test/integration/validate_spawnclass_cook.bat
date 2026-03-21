@@ -10,25 +10,10 @@ set "PROJECT_ROOT=%SCRIPT_DIR%..\..\..\.."
 for %%I in ("%PROJECT_ROOT%") do set "PROJECT_ROOT=%%~fI"
 
 set "PROJECT_FILE=%PROJECT_ROOT%\Alis.uproject"
-set "UE_CONF=%PROJECT_ROOT%\scripts\config\ue_path.conf"
-
-if not exist "%UE_CONF%" (
-    echo ERROR: UE path config not found: %UE_CONF%
-    exit /b 1
-)
-
-set "UE_PATH="
-for /f "usebackq tokens=1,* delims==" %%A in ("%UE_CONF%") do (
-    if "%%A"=="UE_PATH" set "UE_PATH=%%B"
-)
-
-if not defined UE_PATH (
-    echo ERROR: UE_PATH is not set in %UE_CONF%
-    exit /b 1
-)
-
+REM Resolve UE_PATH (SOT: resolve_ue_path.bat)
+call "%PROJECT_ROOT%\scripts\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 set "UE_PATH=%UE_PATH:/=\%"
-set "UE_PATH=%UE_PATH:"=%"
 set "EDITOR_CMD=%UE_PATH%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 
 if not exist "%EDITOR_CMD%" (

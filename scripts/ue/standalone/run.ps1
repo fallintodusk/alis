@@ -46,47 +46,25 @@ Write-Host ""
 # ============================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ConfigFile = Join-Path (Split-Path -Parent (Split-Path -Parent $ScriptDir)) "config\ue_path.conf"
+$ConfigDir = Join-Path (Split-Path -Parent (Split-Path -Parent $ScriptDir)) "config"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $ProjectFile = Join-Path $ProjectRoot "Alis.uproject"
 
-Write-Host "Looking for config: $ConfigFile"
+. (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
+$config = Resolve-UEConfig -ConfigDir $ConfigDir
 
-$DefaultTarget = "AlisEditor"
-$DefaultConfig = "Development"
-$DefaultPlatform = "Win64"
+$UEPath      = $config.UE_PATH
+$Target      = $config.BUILD_TARGET
+$BuildConfig = $config.BUILD_CONFIG
+$Platform    = $config.BUILD_PLATFORM
 
-$UEPath = $null
-$Target = $null
-$BuildConfig = $null
-$Platform = $null
-
-if (Test-Path $ConfigFile) {
-    Get-Content $ConfigFile | Where-Object { $_ -match '^([A-Z_]+)=(.+)$' } | ForEach-Object {
-        $key = $matches[1]
-        $value = $matches[2].Trim()
-
-        switch ($key) {
-            "UE_PATH"        { $UEPath = $value }
-            "BUILD_TARGET"   { $Target = $value }
-            "BUILD_CONFIG"   { $BuildConfig = $value }
-            "BUILD_PLATFORM" { $Platform = $value }
-        }
-    }
-
-    if ($UEPath) {
-        Write-Host "Found config: UE_PATH=$UEPath" -ForegroundColor Green
-    }
-}
+Write-Host "Config: $($config.ConfigFile)" -ForegroundColor Green
 
 if (-not $UEPath) {
-    Write-Host "[ERROR] UE_PATH not found in config: $ConfigFile" -ForegroundColor Red
-    Write-Host "Set UE_PATH in scripts\\config\\ue_path.conf." -ForegroundColor Yellow
+    Write-Host "[ERROR] UE_PATH not found." -ForegroundColor Red
+    Write-Host "Create scripts\\config\\ue_path.local.conf with UE_PATH=<path>." -ForegroundColor Yellow
     exit 1
 }
-
-# Remove quotes if present
-$UEPath = $UEPath.Trim('"')
 
 # Apply defaults for missing values and export environment (shared with build.ps1)
 if (-not $Target) { $Target = $DefaultTarget }
@@ -128,7 +106,7 @@ Write-Host ""
 # Validate UnrealEditor.exe exists
 if (-not (Test-Path $GameExe)) {
     Write-Host "[ERROR] UnrealEditor.exe not found: $GameExe" -ForegroundColor Red
-    Write-Host "Check UE_PATH in scripts\config\ue_path.conf" -ForegroundColor Yellow
+    Write-Host "Create scripts\config\ue_path.local.conf with UE_PATH=<path>" -ForegroundColor Yellow
     exit 1
 }
 

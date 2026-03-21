@@ -93,6 +93,7 @@ private:
     TWeakObjectPtr<UTextBlock> ItemNameText;
     TWeakObjectPtr<UButton> CloseButton;
     TWeakObjectPtr<UButton> UseAction;
+    TWeakObjectPtr<UTextBlock> UseActionText;
     TWeakObjectPtr<UButton> EquipAction;
     TWeakObjectPtr<UTextBlock> EquipActionText;
     TWeakObjectPtr<UButton> DropAction;

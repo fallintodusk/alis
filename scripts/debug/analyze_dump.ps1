@@ -106,15 +106,10 @@ if (-not $OutputFile) {
 # Get paths from config
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
-$uePathConf = Join-Path $projectRoot "scripts\config\ue_path.conf"
-
-$uePath = "<ue-path>"
-if (Test-Path $uePathConf) {
-    $content = Get-Content $uePathConf -Raw
-    if ($content -match 'UE_PATH\s*=\s*(.+)') {
-        $uePath = $Matches[1].Trim()
-    }
-}
+$configDir = Join-Path $projectRoot "scripts\config"
+. (Join-Path $configDir "Resolve-UEConfig.ps1")
+$config = Resolve-UEConfig -ConfigDir $configDir
+$uePath = if ($config.UE_PATH) { $config.UE_PATH } else { "<ue-path>" }
 
 # Build symbol paths based on mode
 if ($Quick) {

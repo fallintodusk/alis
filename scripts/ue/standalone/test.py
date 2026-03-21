@@ -39,27 +39,30 @@ TEST_LOG_DIR = PROJECT_ROOT / "Saved" / "Logs"
 REPORT_DIR = PROJECT_ROOT / "Saved" / "AutomatedTests"
 REPORT_FILE = REPORT_DIR / f"standalone_test_{TIMESTAMP}.txt"
 
-# Find UE path from config (single source of truth)
+# Find UE path from config (SOT: local.conf > conf)
 UE_PATH = None
-config_file = PROJECT_ROOT / "scripts" / "config" / "ue_path.conf"
+config_dir = PROJECT_ROOT / "scripts" / "config"
+local_conf = config_dir / "ue_path.local.conf"
+default_conf = config_dir / "ue_path.conf"
+config_file = local_conf if local_conf.exists() else default_conf
+
 if config_file.exists():
     with open(config_file) as f:
         for line in f:
             line = line.strip()
-            # Support both shell (UE_PATH=) and Make (UE_PATH :=) syntax
+            if not line or line.startswith("#"):
+                continue
             if line.startswith("UE_PATH") and ("=" in line or ":=" in line):
-                # Extract value after = or :=
                 if ":=" in line:
                     path_str = line.split(":=", 1)[1].strip().strip('"').strip("'")
                 else:
                     path_str = line.split("=", 1)[1].strip().strip('"').strip("'")
-                # Skip comments
                 if not path_str.startswith("#"):
                     UE_PATH = Path(path_str)
                     break
 
 if UE_PATH is None:
-    print("[ERROR] UE_PATH not set. Configure scripts/config/ue_path.conf.")
+    print("[ERROR] UE_PATH not set. Create scripts/config/ue_path.local.conf.")
     sys.exit(1)
 
 PROJECT_FILE = PROJECT_ROOT / "Alis.uproject"

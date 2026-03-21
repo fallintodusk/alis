@@ -257,14 +257,12 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 		return Result;
 	}
 
-	// Get asset ID
-	if (!JsonObject->HasField(TEXT("id")))
+	if (!ResolveAssetIdFromJson(*TypeInfo, JsonObject, Result.AssetId, Result.ErrorMessage))
 	{
-		Result.ErrorMessage = FString::Printf(TEXT("Missing 'id' field in: %s"), *JsonFilePath);
+		Result.ErrorMessage = FString::Printf(TEXT("%s in: %s"), *Result.ErrorMessage, *JsonFilePath);
 		UE_LOG(LogDefinitionGenerator, Error, TEXT("%s"), *Result.ErrorMessage);
 		return Result;
 	}
-	Result.AssetId = JsonObject->GetStringField(TEXT("id"));
 
 	// Extract relative directory from source path (preserves full hierarchy)
 	const FString SourceDir = FPaths::ConvertRelativePathToFull(GetSourceDirectory(*TypeInfo));
@@ -409,6 +407,50 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 	FDefinitionEvents::OnDefinitionRegenerated().Broadcast(TypeName, Asset);
 
 	return Result;
+}
+
+bool UDefinitionGeneratorSubsystem::ResolveAssetIdFromJson(
+	const FDefinitionTypeInfo& TypeInfo,
+	const TSharedPtr<FJsonObject>& JsonObject,
+	FString& OutAssetId,
+	FString& OutError)
+{
+	OutAssetId.Reset();
+	OutError.Reset();
+
+	if (!JsonObject.IsValid())
+	{
+		OutError = TEXT("Invalid JSON object");
+		return false;
+	}
+
+	TArray<FString> CandidateIdFields;
+	if (!TypeInfo.IdPropertyName.IsEmpty())
+	{
+		CandidateIdFields.Add(TypeInfo.IdPropertyName);
+
+		FString LowerCamelIdField = TypeInfo.IdPropertyName;
+		if (!LowerCamelIdField.IsEmpty())
+		{
+			LowerCamelIdField[0] = FChar::ToLower(LowerCamelIdField[0]);
+			CandidateIdFields.AddUnique(LowerCamelIdField);
+		}
+	}
+	CandidateIdFields.AddUnique(TEXT("id"));
+
+	for (const FString& CandidateField : CandidateIdFields)
+	{
+		if (JsonObject->HasTypedField<EJson::String>(CandidateField))
+		{
+			OutAssetId = JsonObject->GetStringField(CandidateField);
+			return !OutAssetId.IsEmpty();
+		}
+	}
+
+	OutError = FString::Printf(
+		TEXT("Missing id field (%s)"),
+		*FString::Join(CandidateIdFields, TEXT(", ")));
+	return false;
 }
 
 int32 UDefinitionGeneratorSubsystem::CleanupOrphanedAssets(const FString& TypeName)

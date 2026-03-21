@@ -2,6 +2,7 @@
 
 #include "DefinitionJsonParser.h"
 #include "Data/ObjectDefinition.h"
+#include "Data/LootProfileDefinition.h"
 
 #include "Dom/JsonObject.h"
 #include "GameplayTagsManager.h"
@@ -10,6 +11,7 @@
 #include "Misc/Paths.h"
 #include "InstancedStruct.h"
 #include "GameFramework/Actor.h"
+#include "UObject/PrimaryAssetId.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDefinitionJsonParser, Log, All);
 
@@ -17,6 +19,111 @@ DEFINE_LOG_CATEGORY_STATIC(LogDefinitionJsonParser, Log, All);
 // Handles: FVector/FRotator string parsing, TSoftObjectPtr/TSoftClassPtr path normalization
 namespace
 {
+	bool ParseGameplayTagContainerField(
+		const TSharedPtr<FJsonObject>& JsonObject,
+		const TCHAR* FieldName,
+		FGameplayTagContainer& OutTags,
+		const FString& AssetName)
+	{
+		OutTags.Reset();
+
+		FString TagsString;
+		const TArray<TSharedPtr<FJsonValue>>* TagsArray = nullptr;
+		const FString FieldNameString(FieldName);
+
+		if (JsonObject->TryGetStringField(FieldName, TagsString) && !TagsString.IsEmpty())
+		{
+			TArray<FString> TagStrings;
+			TagsString.ParseIntoArray(TagStrings, TEXT(","));
+			for (const FString& TagStr : TagStrings)
+			{
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagStr.TrimStartAndEnd()), false);
+				if (Tag.IsValid())
+				{
+					OutTags.AddTag(Tag);
+				}
+				else
+				{
+					UE_LOG(LogDefinitionJsonParser, Warning, TEXT("[%s] Invalid tag in %s: %s"),
+						*AssetName, *FieldNameString, *TagStr);
+				}
+			}
+			return true;
+		}
+
+		if (JsonObject->TryGetArrayField(FieldName, TagsArray) && TagsArray)
+		{
+			for (const TSharedPtr<FJsonValue>& TagValue : *TagsArray)
+			{
+				const FString TagString = TagValue.IsValid() ? TagValue->AsString() : FString();
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagString), false);
+				if (Tag.IsValid())
+				{
+					OutTags.AddTag(Tag);
+				}
+				else
+				{
+					UE_LOG(LogDefinitionJsonParser, Warning, TEXT("[%s] Invalid tag in %s: %s"),
+						*AssetName, *FieldNameString, *TagString);
+				}
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	void ParseStorageSeedEntries(
+		const TSharedPtr<FJsonObject>& StorageObj,
+		TArray<FStorageSeedEntry>& OutEntries,
+		const FString& AssetName)
+	{
+		OutEntries.Reset();
+
+		const TArray<TSharedPtr<FJsonValue>>* EntriesArray = nullptr;
+		if (!StorageObj->TryGetArrayField(TEXT("seedEntries"), EntriesArray) || !EntriesArray)
+		{
+			return;
+		}
+
+		for (const TSharedPtr<FJsonValue>& EntryValue : *EntriesArray)
+		{
+			const TSharedPtr<FJsonObject>* EntryObj = nullptr;
+			if (!EntryValue->TryGetObject(EntryObj) || !EntryObj || !EntryObj->IsValid())
+			{
+				continue;
+			}
+
+			FStorageSeedEntry Entry;
+			FString ObjectIdString;
+			if ((*EntryObj)->TryGetStringField(TEXT("objectId"), ObjectIdString))
+			{
+				Entry.ObjectId = FPrimaryAssetId::FromString(ObjectIdString);
+			}
+
+			if ((*EntryObj)->HasField(TEXT("quantity")))
+			{
+				Entry.Quantity = (*EntryObj)->GetIntegerField(TEXT("quantity"));
+			}
+
+			if (Entry.Quantity < 1)
+			{
+				Entry.Quantity = 1;
+			}
+
+			if (Entry.IsValid())
+			{
+				OutEntries.Add(Entry);
+			}
+			else
+			{
+				UE_LOG(LogDefinitionJsonParser, Warning,
+					TEXT("[%s] Invalid storage seed entry: objectId='%s'"),
+					*AssetName, *ObjectIdString);
+			}
+		}
+	}
+
 	bool TryNormalizeSpawnClassPath(const FString& RawPath, FString& OutNormalizedPath, FString& OutReason)
 	{
 		OutNormalizedPath.Reset();
@@ -85,6 +192,18 @@ namespace
 		if (!JsonValue.IsValid() || !Property)
 		{
 			return false;
+		}
+
+		// -------------------------------------------------------------------------
+		// FPrimaryAssetId from JSON string
+		// -------------------------------------------------------------------------
+		if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
+		{
+			if (StructProp->Struct == TBaseStructure<FPrimaryAssetId>::Get() && JsonValue->Type == EJson::String)
+			{
+				*reinterpret_cast<FPrimaryAssetId*>(OutValue) = FPrimaryAssetId::FromString(JsonValue->AsString());
+				return true;
+			}
 		}
 
 		// -------------------------------------------------------------------------
@@ -499,8 +618,10 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 			}
 		}
 
+		ObjDef->Sections.Reset();
+
 		// ---------------------------------------------------------------------
-		// 4. SECTIONS (optional) - currently only "item" section
+		// 4. SECTIONS (optional) - item, storage
 		// ---------------------------------------------------------------------
 		const TSharedPtr<FJsonObject>* SectionsObj = nullptr;
 		const TSharedPtr<FJsonObject>* ItemObj = nullptr;
@@ -524,42 +645,7 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 			if (FJsonObjectConverter::JsonObjectToUStruct(
 				ItemObj->ToSharedRef(), FItemSection::StaticStruct(), &ItemData, 0, 0, false, nullptr, &Callback))
 			{
-				// Tags: support string "A,B" or array ["A","B"] format
-				FString TagsString;
-				const TArray<TSharedPtr<FJsonValue>>* TagsArray = nullptr;
-
-				if ((*ItemObj)->TryGetStringField(TEXT("tags"), TagsString) && !TagsString.IsEmpty())
-				{
-					TArray<FString> TagStrings;
-					TagsString.ParseIntoArray(TagStrings, TEXT(","));
-					for (const FString& TagStr : TagStrings)
-					{
-						FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagStr.TrimStartAndEnd()), false);
-						if (Tag.IsValid())
-						{
-							ItemData.Tags.AddTag(Tag);
-						}
-						else
-						{
-							UE_LOG(LogDefinitionJsonParser, Warning, TEXT("[%s] Invalid tag: %s"), *Asset->GetName(), *TagStr);
-						}
-					}
-				}
-				else if ((*ItemObj)->TryGetArrayField(TEXT("tags"), TagsArray) && TagsArray)
-				{
-					for (const TSharedPtr<FJsonValue>& TagValue : *TagsArray)
-					{
-						FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagValue->AsString()), false);
-						if (Tag.IsValid())
-						{
-							ItemData.Tags.AddTag(Tag);
-						}
-						else
-						{
-							UE_LOG(LogDefinitionJsonParser, Warning, TEXT("[%s] Invalid tag: %s"), *Asset->GetName(), *TagValue->AsString());
-						}
-					}
-				}
+				ParseGameplayTagContainerField(*ItemObj, TEXT("tags"), ItemData.Tags, Asset->GetName());
 
 				// Normalize GrantedAbilities (class paths - /Script/ passes through)
 				for (FSoftClassPath& ClassPath : ItemData.GrantedAbilities)
@@ -595,17 +681,63 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 		}
 
 		// ---------------------------------------------------------------------
-		// 5. LOOT SECTION (optional) - for loot containers
+		// 5. STORAGE SECTION (optional) - canonical world storage data
+		// ---------------------------------------------------------------------
+		const TSharedPtr<FJsonObject>* StorageObj = nullptr;
+
+		// Try canonical form: sections.storage
+		if (SectionsObj && SectionsObj->IsValid())
+		{
+			(*SectionsObj)->TryGetObjectField(TEXT("storage"), StorageObj);
+		}
+
+		// Fallback: top-level "storage" (sugar form)
+		if (!StorageObj || !StorageObj->IsValid())
+		{
+			JsonObject->TryGetObjectField(TEXT("storage"), StorageObj);
+		}
+
+		if (StorageObj && StorageObj->IsValid())
+		{
+			FStorageSection StorageData;
+
+			if (FJsonObjectConverter::JsonObjectToUStruct(
+				StorageObj->ToSharedRef(), FStorageSection::StaticStruct(), &StorageData, 0, 0, false, nullptr, &Callback))
+			{
+				ParseGameplayTagContainerField(*StorageObj, TEXT("allowedTags"), StorageData.AllowedTags, Asset->GetName());
+				ParseStorageSeedEntries(*StorageObj, StorageData.SeedEntries, Asset->GetName());
+
+				if ((*StorageObj)->HasField(TEXT("randomPool"))
+					|| (*StorageObj)->HasField(TEXT("randomPickCountMin"))
+					|| (*StorageObj)->HasField(TEXT("randomPickCountMax")))
+				{
+					OutError = TEXT("sections.storage.randomPool has been removed. Use sections.storage.lootProfileId.");
+					UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] %s"), *Asset->GetName(), *OutError);
+					return false;
+				}
+
+				FInstancedStruct StorageSection;
+				StorageSection.InitializeAs(FStorageSection::StaticStruct());
+				*StorageSection.GetMutablePtr<FStorageSection>() = MoveTemp(StorageData);
+				ObjDef->Sections.Add(ObjectSectionIds::Storage, MoveTemp(StorageSection));
+
+				UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] Parsed storage section"),
+					*Asset->GetName());
+			}
+			else
+			{
+				UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] Failed to parse storage section"), *Asset->GetName());
+			}
+		}
+
+		// ---------------------------------------------------------------------
+		// 6. REMOVED LOOT SECTION
 		// ---------------------------------------------------------------------
 		const TSharedPtr<FJsonObject>* LootObj = nullptr;
-
-		// Try canonical form: sections.loot
 		if (SectionsObj && SectionsObj->IsValid())
 		{
 			(*SectionsObj)->TryGetObjectField(TEXT("loot"), LootObj);
 		}
-
-		// Fallback: top-level "loot" (sugar form)
 		if (!LootObj || !LootObj->IsValid())
 		{
 			JsonObject->TryGetObjectField(TEXT("loot"), LootObj);
@@ -613,58 +745,9 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 
 		if (LootObj && LootObj->IsValid())
 		{
-			FLootSection LootData;
-
-			// Parse entries array
-			const TArray<TSharedPtr<FJsonValue>>* EntriesArray = nullptr;
-			if ((*LootObj)->TryGetArrayField(TEXT("entries"), EntriesArray))
-			{
-				for (const TSharedPtr<FJsonValue>& EntryValue : *EntriesArray)
-				{
-					const TSharedPtr<FJsonObject>* EntryObj = nullptr;
-					if (EntryValue->TryGetObject(EntryObj))
-					{
-						FLootEntryView Entry;
-
-						// Parse objectId as FPrimaryAssetId
-						FString ObjectIdStr;
-						if ((*EntryObj)->TryGetStringField(TEXT("objectId"), ObjectIdStr))
-						{
-							Entry.ObjectId = FPrimaryAssetId::FromString(ObjectIdStr);
-						}
-
-						// Parse quantity (default 1)
-						Entry.Quantity = (*EntryObj)->GetIntegerField(TEXT("quantity"));
-						if (Entry.Quantity < 1)
-						{
-							Entry.Quantity = 1;
-						}
-
-						if (Entry.IsValid())
-						{
-							LootData.Entries.Add(Entry);
-						}
-						else
-						{
-							UE_LOG(LogDefinitionJsonParser, Warning,
-								TEXT("[%s] Invalid loot entry: objectId='%s'"),
-								*Asset->GetName(), *ObjectIdStr);
-						}
-					}
-				}
-			}
-
-			if (LootData.Entries.Num() > 0)
-			{
-				// Add to Sections map
-				FInstancedStruct LootSection;
-				LootSection.InitializeAs(FLootSection::StaticStruct());
-				*LootSection.GetMutablePtr<FLootSection>() = MoveTemp(LootData);
-				ObjDef->Sections.Add(ObjectSectionIds::Loot, MoveTemp(LootSection));
-
-				UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] Parsed loot section: %d entries"),
-					*Asset->GetName(), ObjDef->GetLootSection()->Entries.Num());
-			}
+			OutError = TEXT("sections.loot has been removed. Use sections.storage.seedEntries or sections.storage.lootProfileId.");
+			UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] %s"), *Asset->GetName(), *OutError);
+			return false;
 		}
 
 		UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] ObjectDefinition: %d meshes, %d capabilities, %d sections"),

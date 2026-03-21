@@ -26,6 +26,7 @@ public class ProjectIntegrationTests : ModuleRules
 			"GameplayAbilities",   // UAbilitySystemComponent for ASC-backed vitals tests
 			"ProjectGAS",          // AttributeSet classes used by vitals ASC fixture tests
 			"ProjectUI",            // Widgets, ProjectUIThemeManager.h
+			"ProjectInventory",     // Container session subsystem and inventory runtime tests
 			"ProjectInventoryUI",   // Inventory panel definitions and ViewModel
 			"ProjectVitalsUI",      // Vitals ViewModel and widget contracts
 			"ProjectMenuMain",      // Screens/ProjectMenuScreen.h, ViewModels

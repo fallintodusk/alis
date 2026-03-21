@@ -2,6 +2,9 @@
 
 Game design document for ALIS inventory system - realistic survival inventory inspired by Escape from Tarkov, DayZ, and SCUM.
 
+This file is the inventory behavior SOT.
+Other docs should reference it instead of duplicating rules.
+
 ## Core Philosophy
 
 **Realism over convenience.** Every item has physical properties (volume, mass) that affect how and where it can be carried. Players make meaningful choices about what to bring.
@@ -58,9 +61,9 @@ Inspired by Escape from Tarkov, DayZ, Resident Evil 4.
 
 ### Container Restrictions
 - **Cell-based only**: Items must fit within container grid dimensions
-- **No tag restrictions** (for now): No "liquids only" or "ammo only" pockets
+- Baseline pockets and backpacks should rely on cell fit, weight, and volume first
+- Containers may optionally define `AllowedTags` for specialized pouches
 - A 2x3 item CAN fit in a 4x2 pocket if rotated to 3x2
-- Future: may add AllowedTags per container for specialized pouches
 
 ## Depth Stacking (KISS Voxel Model)
 
@@ -150,7 +153,7 @@ else:
 ## Container Grants (Equipment-Based)
 
 ### Base State (Naked)
-- **Hands only**: 2 slots for held items
+- **Hands only**: left and right hand carry positions are always present
 - No pockets, no storage
 
 ### Equipment Grants
@@ -174,6 +177,7 @@ else:
 
 Inventory UI must use one generic container descriptor model for all granted containers.
 Do not implement per-clothing or per-item widget paths.
+UI docs and test docs should reference this section instead of re-listing the contract.
 
 Required descriptor fields:
 - `ContainerId`
@@ -200,6 +204,152 @@ Canonical progression examples:
 This keeps rendering logic universal:
 - any equipped item can grant any grid size (2x2, 1x3, 4x5, 6x8, etc.)
 - UI placement is data-driven by descriptor group/order, not by special-case code
+
+## World Storage and Loot Places
+
+World item storage uses the same gameplay truth as player storage.
+Do not create one long-term "loot system" and a separate long-term "storage
+system".
+
+### Gameplay Truth
+
+- Any actor that meaningfully holds items is a container in gameplay truth.
+- `QuickLoot` and `FullOpen` are interaction modes over the same storage truth.
+- `Take All` is a convenience action over normal transfer rules.
+- A searchable prop can stay light in UX while still following the same storage
+  truth underneath.
+
+### Authoring Lanes
+
+- Storage follows the existing capability + section precedent already used by
+  pickup items.
+- `capabilities[]` own world interaction only:
+  - search or open label
+  - access rules
+  - optional search time
+- `sections.storage` owns storage-system data:
+  - grid size
+  - weight and volume limits
+  - max cells
+  - allowed tags
+  - persistence policy
+  - exact `seedEntries` by default
+  - optional shared `lootProfileId` for reusable randomized fill
+- `sections.storage` is the only authored world-storage data lane.
+- Existing precedent:
+  - `Pickup` capability + `sections.item`
+  - `LootContainer` capability + `sections.storage`
+- Capability owns the world verb; section owns the storage-system data.
+- Do not use `*View` types as authored storage truth.
+
+### Implementation Guardrails
+
+- Keep one `UObjectDefinition` type for authored world objects.
+- Reuse existing inventory math and transfer rules instead of creating a second
+  grid, stack, or transfer helper stack.
+- Reuse the existing ProjectInventoryUI + ProjectUI framework instead of
+  building a second chest or loot UI framework.
+- UI-facing container and item read models remain `FInventoryContainerView` and
+  `FInventoryEntryView`.
+- Do not create actor-specific chest, corpse, trunk, or backpack widget paths
+  in panel code.
+- Do not reintroduce flat loot fallback paths or mirrored world-storage data
+  sections.
+
+### Ownership Rule
+
+For the first implementation slice:
+
+- ProjectInventory owns transfer validation, inventory-side session
+  orchestration, and `Take All` behavior
+- world capability owns:
+  - world interaction state
+  - stable world-container identity
+  - canonical world-container runtime state
+- world capability must not become a second inventory implementation
+
+### Ownership and Dependency Guardrails
+
+- First delivery uses the "inventory-owned runtime" model.
+- ProjectInventory owns player inventory runtime, transfer validation, session
+  flow, and `Take All` behavior.
+- World capability exposes interaction, canonical world-container state, and
+  stable identity.
+- Do not add direct `ProjectObjectCapabilities` -> `ProjectInventory`
+  dependency just to reuse inventory internals.
+- Extract a neutral shared core only if a second real non-inventory consumer
+  appears and the boundary pressure is proven.
+
+### Compatibility and Migration Rule
+
+- `sections.storage` is the only authored world-storage section.
+- `IWorldContainerSessionSource` is the world-storage runtime contract.
+- `sections.loot` and `ILootSource` are removed.
+- Do not reintroduce fallback paths that bypass canonical world-container
+  sessions.
+
+### Session Rule
+
+- Full-open world storage is an inventory-side session, not a fake extension of
+  one actor component
+- inventory UI remains the main screen and binds player-side plus nearby
+  world-side container views in one session
+- UI ViewModel stays presentation-focused and must not absorb storage
+  orchestration logic
+
+### UI Session Composition
+
+- Reuse the inventory screen for nearby world containers.
+- Do not build a separate external-container widget framework.
+- External world storage is a two-owner session, not one inflated inventory.
+- Do not overload single-owner command semantics just to hide dual-owner
+  transfer flow.
+- `UInventoryViewModel` stays a screen ViewModel, not a gameplay orchestration
+  service.
+
+### First Delivery UX Rule
+
+- World interaction may expose `Search` or `OpenContainer` through the
+  capability layer.
+- First-pass interaction may stay simple: `E -> Search`.
+- Choosing `Search` or `OpenContainer` opens the inventory screen and binds the
+  nearby world container into the same session.
+- Player inventory remains the primary view.
+- Nearby world storage should render in a lower nearby-container region so the
+  player inventory layout stays recognizable.
+- Nearby world storage reuses the same grid cell presentation, cell visibility,
+  stack counts, hover tooltip, extended item info, capacity readouts, and
+  weight or volume patterns already used by inventory UI.
+- Bidirectional moves and `Take All` operate inside that same screen.
+- Not every searchable prop must expose `FullOpen` on day one; `QuickLoot` may
+  stay a lighter presentation over the same storage truth.
+
+### First Delivery Concurrency Rule
+
+- `QuickLoot` is transactional
+- `FullOpen` allows one opener at a time
+- additional open attempts fail cleanly with a busy state
+
+### First Delivery Technical Contract
+
+- Lock a stable `FWorldContainerKey` before persistence work starts.
+- Use a dedicated authored seed type such as `FStorageSeedEntry`.
+- Use `UProjectContainerSessionSubsystem` as the explicit inventory-side session
+  owner for full-open world storage.
+- First delivery default: make `UProjectContainerSessionSubsystem` a
+  `ULocalPlayerSubsystem`.
+- Use an explicit session handle such as `FContainerSessionHandle`.
+- If side-specific routing is needed, use an explicit side enum such as
+  `EContainerSessionSide` instead of hiding dual-owner semantics in one command
+  path.
+- Reuse save helpers and patterns where useful, but do not treat player
+  inventory save DTOs as the world-storage persistence SOT.
+
+### Persistence Identity Rule
+
+- Meaningful world storage requires a stable world-container key
+- Do not key world storage by actor pointer, actor display name, or transient
+  runtime identity
 
 ## Hands (Separate System)
 

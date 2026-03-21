@@ -14,7 +14,9 @@
 #include "Subsystems/ProjectUILayerHostSubsystem.h"
 #include "Subsystems/ProjectUIDebugSubsystem.h"
 #include "MVVM/InventoryViewModel.h"
+#include "Integration/Fixtures/WorldContainerSessionTestDouble.h"
 #include "Support/ProjectInventoryReadOnlyMock.h"
+#include "Types/ContainerSessionTypes.h"
 #include "Widgets/W_InventoryPanel.h"
 #include "ProjectWidgetHelpers.h"
 #include "ProjectGameplayTags.h"
@@ -332,6 +334,96 @@ namespace
 		Source->SetEntries({});
 		Source->SetTotals(0.f, 50.f, 0.f, 100.f, 0);
 	}
+
+	void ConfigureNearbyLootSource(UWorldContainerSessionTestDouble* Source)
+	{
+		if (!Source)
+		{
+			return;
+		}
+
+		Source->DisplayLabel = FText::FromString(TEXT("Cardboard Box"));
+		Source->ContainerKey.InstanceId = FGuid::NewGuid();
+		Source->ContainerKey.WorldScopeId = FName(TEXT("Automation"));
+		Source->ContainerKey.ContainerSlotId = FName(TEXT("NearbyLoot"));
+
+		Source->ContainerView.ContainerId = ProjectTags::Item_Container_WorldStorage;
+		Source->ContainerView.GridSize = FIntPoint(4, 5);
+		Source->ContainerView.MaxWeight = 12.f;
+		Source->ContainerView.MaxVolume = 18.f;
+		Source->ContainerView.MaxCells = 20;
+		Source->ContainerView.CurrentWeight = 0.3f;
+		Source->ContainerView.CurrentVolume = 0.3f;
+
+		FInventoryEntryView CigaretteEntry;
+		CigaretteEntry.InstanceId = 1001;
+		CigaretteEntry.ItemId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Cigarette"));
+		CigaretteEntry.DisplayName = FText::FromString(TEXT("Cigarette"));
+		CigaretteEntry.Description = FText::FromString(TEXT("Filtered cigarette."));
+		CigaretteEntry.Quantity = 1;
+		CigaretteEntry.ContainerId = ProjectTags::Item_Container_WorldStorage;
+		CigaretteEntry.GridPos = FIntPoint(0, 0);
+		CigaretteEntry.GridSize = FIntPoint(1, 1);
+		CigaretteEntry.Weight = 0.1f;
+		CigaretteEntry.Volume = 0.1f;
+		CigaretteEntry.IconCode = TEXT("C");
+
+		FInventoryEntryView RagEntry;
+		RagEntry.InstanceId = 1002;
+		RagEntry.ItemId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Rag"));
+		RagEntry.DisplayName = FText::FromString(TEXT("Rag"));
+		RagEntry.Description = FText::FromString(TEXT("Torn cloth useful for basic crafting."));
+		RagEntry.Quantity = 1;
+		RagEntry.ContainerId = ProjectTags::Item_Container_WorldStorage;
+		RagEntry.GridPos = FIntPoint(1, 0);
+		RagEntry.GridSize = FIntPoint(1, 1);
+		RagEntry.Weight = 0.2f;
+		RagEntry.Volume = 0.2f;
+		RagEntry.IconCode = TEXT("R");
+
+		Source->EntryViews = { CigaretteEntry, RagEntry };
+	}
+
+	UWidget* ResolveInventoryLookupRoot(UW_InventoryPanel* Panel)
+	{
+		if (!Panel)
+		{
+			return nullptr;
+		}
+
+		if (UWidget* RootWidget = Panel->GetRootWidget())
+		{
+			return RootWidget;
+		}
+
+		return Panel;
+	}
+
+	FContainerSessionHandle MakeNearbyLootSessionHandle(const UWorldContainerSessionTestDouble* Source)
+	{
+		FContainerSessionHandle Handle;
+		if (!Source)
+		{
+			return Handle;
+		}
+
+		Handle.SessionId = FGuid::NewGuid();
+		Handle.ContainerKey = Source->ContainerKey;
+		Handle.Mode = EContainerSessionMode::FullOpen;
+		return Handle;
+	}
+
+	void ConfigureVerboseUILayoutLogs(UWorld* World)
+	{
+		if (!World || !GEngine)
+		{
+			return;
+		}
+
+		GEngine->Exec(World, TEXT("log LogInventoryPanel Verbose"));
+		GEngine->Exec(World, TEXT("log LogInventoryVM Verbose"));
+		GEngine->Exec(World, TEXT("log LogProjectUserWidget Verbose"));
+	}
 }
 
 /**
@@ -363,6 +455,8 @@ bool FDumpInventoryTreeAfterLayout::Update()
 	// Verify grids were populated before dump (catches ViewModel -> UI binding bugs)
 	if (UW_InventoryPanel* Panel = Cast<UW_InventoryPanel>(Widget))
 	{
+		UWidget* LookupRoot = ResolveInventoryLookupRoot(Panel);
+
 		// Check ViewModel state
 		if (UInventoryViewModel* VM = Cast<UInventoryViewModel>(Panel->GetViewModel()))
 		{
@@ -380,7 +474,7 @@ bool FDumpInventoryTreeAfterLayout::Update()
 		}
 
 		// Check grid host content (UBorder is single-content, use GetContent not GetChildrenCount)
-		if (UBorder* GridHost = UProjectWidgetHelpers::FindWidgetByNameTyped<UBorder>(Panel, TEXT("GridHostPrimary")))
+		if (UBorder* GridHost = UProjectWidgetHelpers::FindWidgetByNameTyped<UBorder>(LookupRoot, TEXT("GridHostPrimary")))
 		{
 			UWidget* Content = GridHost->GetContent();
 			if (!Content)
@@ -413,6 +507,81 @@ bool FDumpInventoryTreeAfterLayout::Update()
 
 	return true;
 }
+
+class FDumpNearbyLootInventoryTree : public IAutomationLatentCommand
+{
+public:
+	FDumpNearbyLootInventoryTree(
+		FAutomationTestBase* InTest,
+		UProjectUIDebugSubsystem* InDebugSub,
+		UW_InventoryPanel* InPanel,
+		int32 InFramesRemaining = 2)
+		: Test(InTest)
+		, DebugSub(InDebugSub)
+		, Panel(InPanel)
+		, FramesRemaining(InFramesRemaining)
+	{
+	}
+
+	virtual bool Update() override
+	{
+		if (FramesRemaining > 0)
+		{
+			--FramesRemaining;
+			return false;
+		}
+
+		if (!Panel || !DebugSub)
+		{
+			Test->AddError(TEXT("Panel or DebugSubsystem became invalid"));
+			return true;
+		}
+
+		UInventoryViewModel* ViewModel = Cast<UInventoryViewModel>(Panel->GetViewModel());
+		if (!Test->TestNotNull(TEXT("Nearby-loot dump should have an inventory view model"), ViewModel))
+		{
+			return true;
+		}
+
+		UWidget* LookupRoot = ResolveInventoryLookupRoot(Panel);
+
+		Test->TestTrue(TEXT("Nearby-loot dump should expose nearby container state"), ViewModel->GetbHasNearbyContainer());
+		Test->TestEqual(TEXT("Nearby-loot dump should expose nearby grid width"), ViewModel->GetSecondaryGridWidth(), 4);
+		Test->TestEqual(TEXT("Nearby-loot dump should expose nearby grid height"), ViewModel->GetSecondaryGridHeight(), 5);
+
+		if (UWidget* NearbySection = UProjectWidgetHelpers::FindWidgetByNameTyped<UWidget>(LookupRoot, TEXT("NearbySection")))
+		{
+			Test->TestTrue(TEXT("NearbySection should be visible"), NearbySection->GetVisibility() != ESlateVisibility::Collapsed);
+		}
+
+		if (UBorder* NearbyGridHost = UProjectWidgetHelpers::FindWidgetByNameTyped<UBorder>(LookupRoot, TEXT("NearbyGridHost")))
+		{
+			UWidget* Content = NearbyGridHost->GetContent();
+			Test->TestNotNull(TEXT("NearbyGridHost should contain a populated grid"), Content);
+			if (Content)
+			{
+				Test->TestNotNull(TEXT("NearbyGridHost content should be a uniform grid"), Cast<UUniformGridPanel>(Content));
+			}
+		}
+		else
+		{
+			Test->AddError(TEXT("NearbyGridHost not found in inventory panel"));
+		}
+
+		const bool bDumpOk = DebugSub->DumpWidgetTreeEx(TEXT("Dumps/InventoryNearbyLoot.json"), TEXT("json"), TEXT("Inventory"));
+		Test->TestTrue(TEXT("Nearby-loot dump should succeed"), bDumpOk);
+
+		FScreenshotRequest::RequestScreenshot(TEXT("Dumps/InventoryNearbyLoot_screenshot.png"), false, false);
+		Test->AddInfo(TEXT("Screenshot requested: Dumps/InventoryNearbyLoot_screenshot.png"));
+		return true;
+	}
+
+private:
+	FAutomationTestBase* Test = nullptr;
+	UProjectUIDebugSubsystem* DebugSub = nullptr;
+	UW_InventoryPanel* Panel = nullptr;
+	int32 FramesRemaining = 0;
+};
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectUIInventoryDumpTreeTest,
@@ -477,6 +646,8 @@ bool FProjectUIInventoryDumpTreeTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	ConfigureVerboseUILayoutLogs(World);
+
 	FModuleManager::Get().LoadModuleChecked(TEXT("ProjectInventoryUI"));
 
 	if (APlayerController* PlayerController = World->GetFirstPlayerController())
@@ -510,6 +681,7 @@ bool FProjectUIInventoryDumpTreeTest::RunTest(const FString& Parameters)
 	}
 
 	UInventoryViewModel* InventoryVM = NewObject<UInventoryViewModel>(GameInstance);
+	InventoryVM->Initialize(GameInstance);
 	ConfigureInventoryViewModelForLayout(InventoryVM);
 	InventoryPanel->SetViewModel(InventoryVM);
 
@@ -521,6 +693,110 @@ bool FProjectUIInventoryDumpTreeTest::RunTest(const FString& Parameters)
 	// Frame 2: Layout is finalized
 	ADD_LATENT_AUTOMATION_COMMAND(FDumpInventoryTreeAfterLayout(this, DebugSub, InventoryWidget, 2));
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectUIInventoryNearbyLootDumpTreeTest,
+	"ProjectIntegrationTests.UI.Layout.InventoryNearbyLoot.DumpTree",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter
+)
+
+bool FProjectUIInventoryNearbyLootDumpTreeTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UWorld* World = AutomationCommon::GetAnyGameWorld();
+	if (!TestNotNull(TEXT("World should exist"), World))
+	{
+		AddError(TEXT("No game world available - run with -game flag and map specified"));
+		return false;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!TestNotNull(TEXT("GameInstance should exist"), GameInstance))
+	{
+		AddError(TEXT("GameInstance is null"));
+		return false;
+	}
+
+	UProjectUILayerHostSubsystem* LayerHost = GameInstance->GetSubsystem<UProjectUILayerHostSubsystem>();
+	UProjectUIDebugSubsystem* DebugSub = GameInstance->GetSubsystem<UProjectUIDebugSubsystem>();
+	if (!TestNotNull(TEXT("ProjectUILayerHostSubsystem should exist"), LayerHost)
+		|| !TestNotNull(TEXT("ProjectUIDebugSubsystem should exist"), DebugSub))
+	{
+		return false;
+	}
+
+	ConfigureVerboseUILayoutLogs(World);
+	FModuleManager::Get().LoadModuleChecked(TEXT("ProjectInventoryUI"));
+
+	if (APlayerController* PlayerController = World->GetFirstPlayerController())
+	{
+		LayerHost->InitializeForPlayer(PlayerController, true);
+	}
+
+	UUserWidget* InventoryWidget = LayerHost->ShowDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	if (!InventoryWidget)
+	{
+		UW_InventoryPanel* InventoryPanel = CreateWidget<UW_InventoryPanel>(GameInstance, UW_InventoryPanel::StaticClass());
+		if (!InventoryPanel)
+		{
+			AddError(TEXT("Inventory panel could not be created from definition or class"));
+			return false;
+		}
+		InventoryPanel->AddToViewport();
+		InventoryWidget = InventoryPanel;
+	}
+
+	UW_InventoryPanel* InventoryPanel = Cast<UW_InventoryPanel>(InventoryWidget);
+	if (!TestNotNull(TEXT("Inventory widget should be W_InventoryPanel"), InventoryPanel))
+	{
+		return false;
+	}
+
+	UProjectInventoryReadOnlyMock* InventorySource = NewObject<UProjectInventoryReadOnlyMock>(GameInstance);
+	if (!TestNotNull(TEXT("Mock inventory source should be created"), InventorySource))
+	{
+		return false;
+	}
+
+	ConfigureHandsPocketsAndBackpackSource(InventorySource);
+
+	AActor* NearbyLootActor = World->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
+	if (!TestNotNull(TEXT("Nearby loot actor should be created"), NearbyLootActor))
+	{
+		return false;
+	}
+
+	UWorldContainerSessionTestDouble* NearbyLootSource = NewObject<UWorldContainerSessionTestDouble>(NearbyLootActor);
+	if (!TestNotNull(TEXT("Nearby loot session source should be created"), NearbyLootSource))
+	{
+		NearbyLootActor->Destroy();
+		return false;
+	}
+
+	NearbyLootActor->AddInstanceComponent(NearbyLootSource);
+	NearbyLootSource->RegisterComponent();
+	ConfigureNearbyLootSource(NearbyLootSource);
+
+	UInventoryViewModel* InventoryVM = NewObject<UInventoryViewModel>(GameInstance);
+	if (!TestNotNull(TEXT("Inventory view model should be created"), InventoryVM))
+	{
+		NearbyLootActor->Destroy();
+		return false;
+	}
+
+	InventoryVM->Initialize(GameInstance);
+	InventoryVM->SetInventorySource(InventorySource);
+	InventoryVM->SetNearbyContainerSource(NearbyLootSource, MakeNearbyLootSessionHandle(NearbyLootSource));
+	InventoryVM->ShowPanel();
+	InventoryPanel->SetViewModel(InventoryVM);
+
+	InventoryWidget->SetVisibility(ESlateVisibility::Visible);
+	InventoryWidget->ForceLayoutPrepass();
+
+	ADD_LATENT_AUTOMATION_COMMAND(FDumpNearbyLootInventoryTree(this, DebugSub, InventoryPanel));
 	return true;
 }
 
@@ -708,6 +984,8 @@ bool FProjectUIInventoryMultiResTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	ConfigureVerboseUILayoutLogs(World);
+
 	FModuleManager::Get().LoadModuleChecked(TEXT("ProjectInventoryUI"));
 
 	if (APlayerController* PlayerController = World->GetFirstPlayerController())
@@ -736,6 +1014,7 @@ bool FProjectUIInventoryMultiResTest::RunTest(const FString& Parameters)
 	}
 
 	UInventoryViewModel* InventoryVM = NewObject<UInventoryViewModel>(GameInstance);
+	InventoryVM->Initialize(GameInstance);
 	ConfigureInventoryViewModelForLayout(InventoryVM);
 	InventoryPanel->SetViewModel(InventoryVM);
 	InventoryWidget->SetVisibility(ESlateVisibility::Visible);
@@ -850,6 +1129,8 @@ bool FProjectUIInventoryNakedDumpTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	ConfigureVerboseUILayoutLogs(World);
+
 	FModuleManager::Get().LoadModuleChecked(TEXT("ProjectInventoryUI"));
 
 	if (APlayerController* PC = World->GetFirstPlayerController())
@@ -871,6 +1152,7 @@ bool FProjectUIInventoryNakedDumpTest::RunTest(const FString& Parameters)
 
 	// Naked state: no storage, only equip slots
 	UInventoryViewModel* VM = NewObject<UInventoryViewModel>(GameInstance);
+	VM->Initialize(GameInstance);
 	ConfigureNakedViewModel(VM);
 	Panel->SetViewModel(VM);
 

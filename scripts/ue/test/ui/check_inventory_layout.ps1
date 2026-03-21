@@ -1,10 +1,12 @@
 # UI Layout Check - Inventory Panel
 # Runs widget tree dump test + validates with Python analyzer
 #
-# Usage: .\check_inventory_layout.ps1 [-SkipDump] [-Verbose]
+# Usage: .\check_inventory_layout.ps1 [-Scenario Hands|NearbyLoot|Naked] [-SkipDump]
 # See: docs/testing/agent_ue_inspection.md
 
 param(
+    [ValidateSet("Hands", "NearbyLoot", "Naked")]
+    [string]$Scenario = "Hands",
     [switch]$SkipDump = $false,  # Skip UE test, just analyze existing dump
     [string]$DumpPath = "",      # Custom dump path (default: Saved/Dumps/Inventory.json)
     [int]$TimeoutSeconds = 90
@@ -19,12 +21,29 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "UI Layout Check - Inventory" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Project:  $projectRoot"
+Write-Host "Scenario: $Scenario"
 Write-Host "SkipDump: $SkipDump"
 Write-Host ""
 
+# Determine scenario-specific test and dump path
+switch ($Scenario) {
+    "Hands" {
+        $testFilter = "ProjectIntegrationTests.UI.Layout.InventoryHands.DumpTree"
+        $defaultDumpPath = Join-Path $projectRoot "Saved\Dumps\Inventory.json"
+    }
+    "NearbyLoot" {
+        $testFilter = "ProjectIntegrationTests.UI.Layout.InventoryNearbyLoot.DumpTree"
+        $defaultDumpPath = Join-Path $projectRoot "Saved\Dumps\InventoryNearbyLoot.json"
+    }
+    "Naked" {
+        $testFilter = "ProjectIntegrationTests.UI.Layout.InventoryNaked.DumpTree"
+        $defaultDumpPath = Join-Path $projectRoot "Saved\Dumps\InventoryNaked.json"
+    }
+}
+
 # Determine dump path
 if (-not $DumpPath) {
-    $DumpPath = Join-Path $projectRoot "Saved\Dumps\Inventory.json"
+    $DumpPath = $defaultDumpPath
 }
 Write-Host "DumpPath: $DumpPath" -ForegroundColor Gray
 
@@ -41,7 +60,7 @@ if (-not $SkipDump) {
 
     # Run the DumpTree test in game mode with a real map
     & $testScript `
-        -TestFilter "ProjectIntegrationTests.UI.Layout.InventoryHands.DumpTree" `
+        -TestFilter $testFilter `
         -Map "/MainMenuWorld/Maps/MainMenu_Persistent.MainMenu_Persistent" `
         -Game `
         -TimeoutSeconds $TimeoutSeconds
@@ -54,7 +73,7 @@ if (-not $SkipDump) {
     }
     elseif ($testExitCode -eq 2) {
         Write-Host "  WARNING: No tests found - check test name" -ForegroundColor Yellow
-        Write-Host "  Expected: ProjectIntegrationTests.UI.Layout.InventoryHands.DumpTree" -ForegroundColor Gray
+        Write-Host "  Expected: $testFilter" -ForegroundColor Gray
         exit 2
     }
     elseif ($testExitCode -ne 0) {
@@ -100,16 +119,11 @@ foreach ($cmd in @("python", "python3", "py")) {
 # Fallback to UE bundled Python
 if (-not $pythonCmd) {
     # Read UE_PATH from config (handles both Make := and Shell = syntax)
-    $uePathConf = Join-Path $projectRoot "scripts\config\ue_path.conf"
-    if (Test-Path $uePathConf) {
-        $uePath = $null
-        Get-Content $uePathConf | ForEach-Object {
-            $line = $_.Trim()
-            if ($line -match "^UE_PATH\s*(?::=|=)\s*([^#]+)") {
-                # Handles both Make (:=) and Shell (=) syntax
-                $uePath = $Matches[1].Trim().Replace("/", "\").Trim('"', "'")
-            }
-        }
+    $configDir = Join-Path $projectRoot "scripts\config"
+    . (Join-Path $configDir "Resolve-UEConfig.ps1")
+    $ueConfig = Resolve-UEConfig -ConfigDir $configDir
+    if ($ueConfig.UE_PATH) {
+        $uePath = $ueConfig.UE_PATH.Replace("/", "\")
         if ($uePath) {
             $uePython = Join-Path $uePath "Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
             if (Test-Path $uePython) {

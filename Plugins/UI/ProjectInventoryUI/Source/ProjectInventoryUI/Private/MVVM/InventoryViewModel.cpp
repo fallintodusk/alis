@@ -3,6 +3,7 @@
 #include "MVVM/InventoryViewModel.h"
 #include "MVVM/InventoryViewModelCellBuilder.h"
 #include "MVVM/InventoryViewModelEquipSlotBuilder.h"
+#include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "ProjectGameplayTags.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
@@ -46,6 +47,32 @@ int32 GetPocketOrderKey(const FGameplayTag& ContainerId)
 bool IsBackpackContainerTag(const FGameplayTag& ContainerId)
 {
     return ContainerId == ProjectTags::Item_Container_Backpack;
+}
+
+bool BuildEnabledCellsForContainer(const FInventoryContainerView& Container, TArray<bool>& OutEnabled)
+{
+    const int32 CellCount = Container.GridSize.X * Container.GridSize.Y;
+    OutEnabled.SetNum(CellCount);
+    for (int32 Index = 0; Index < CellCount; ++Index)
+    {
+        OutEnabled[Index] = true;
+    }
+    if (Container.MaxCells > 0)
+    {
+        for (int32 Index = Container.MaxCells; Index < CellCount; ++Index)
+        {
+            OutEnabled[Index] = false;
+        }
+    }
+    return CellCount > 0;
+}
+
+bool DoGridRectsOverlap(FIntPoint PosA, FIntPoint SizeA, FIntPoint PosB, FIntPoint SizeB)
+{
+    return PosA.X < (PosB.X + SizeB.X)
+        && (PosA.X + SizeA.X) > PosB.X
+        && PosA.Y < (PosB.Y + SizeB.Y)
+        && (PosA.Y + SizeA.Y) > PosB.Y;
 }
 
 FString MakeContainerShortName(const FGameplayTag& Tag)
@@ -121,6 +148,38 @@ FInventoryActionCapabilityState BuildActionCapabilityState(const FInventoryEntry
 
     return CapabilityState;
 }
+
+IInventoryWorldContainerTransferBridge* GetWorldContainerTransferBridge(UObject* SourceObject)
+{
+    return (SourceObject && SourceObject->GetClass()->ImplementsInterface(UInventoryWorldContainerTransferBridge::StaticClass()))
+        ? Cast<IInventoryWorldContainerTransferBridge>(SourceObject)
+        : nullptr;
+}
+
+UObject* ResolveWorldContainerSessionSourceFromActor(AActor* Actor)
+{
+    if (!Actor)
+    {
+        return nullptr;
+    }
+
+    if (Actor->GetClass()->ImplementsInterface(UWorldContainerSessionSource::StaticClass()))
+    {
+        return Actor;
+    }
+
+    TInlineComponentArray<UActorComponent*> Components;
+    Actor->GetComponents(Components);
+    for (UActorComponent* Component : Components)
+    {
+        if (Component && Component->GetClass()->ImplementsInterface(UWorldContainerSessionSource::StaticClass()))
+        {
+            return Component;
+        }
+    }
+
+    return nullptr;
+}
 }
 
 void UInventoryViewModel::Initialize(UObject* Context)
@@ -144,6 +203,12 @@ void UInventoryViewModel::Initialize(UObject* Context)
 
 void UInventoryViewModel::Shutdown()
 {
+    if (IInventoryWorldContainerTransferBridge* Bridge = GetWorldContainerTransferBridge(InventorySource.GetObject()))
+    {
+        Bridge->OnWorldContainerSessionOpenedNative().RemoveAll(this);
+        Bridge->OnWorldContainerSessionClosedNative().RemoveAll(this);
+    }
+
     if (InventorySource)
     {
         InventorySource->OnInventoryViewChanged().RemoveAll(this);
@@ -154,6 +219,10 @@ void UInventoryViewModel::Shutdown()
     InventorySource.SetInterface(nullptr);
     InventoryCommands.SetObject(nullptr);
     InventoryCommands.SetInterface(nullptr);
+    NearbyContainerSource.SetObject(nullptr);
+    NearbyContainerSource.SetInterface(nullptr);
+    NearbySessionHandle.Reset();
+    ClearNearbyContainerData();
     CachedEntries.Reset();
     Super::Shutdown();
 }
@@ -163,6 +232,12 @@ void UInventoryViewModel::SetInventorySource(UObject* InObject)
     if (InventorySource.GetObject() == InObject)
     {
         return;
+    }
+
+    if (IInventoryWorldContainerTransferBridge* ExistingBridge = GetWorldContainerTransferBridge(InventorySource.GetObject()))
+    {
+        ExistingBridge->OnWorldContainerSessionOpenedNative().RemoveAll(this);
+        ExistingBridge->OnWorldContainerSessionClosedNative().RemoveAll(this);
     }
 
     if (!InObject || !InObject->GetClass()->ImplementsInterface(UInventoryReadOnly::StaticClass()))
@@ -200,6 +275,48 @@ void UInventoryViewModel::SetInventorySource(UObject* InObject)
         InventorySource->OnInventoryErrorNative().AddUObject(this, &UInventoryViewModel::HandleInventoryErrorFromSource);
     }
 
+    if (IInventoryWorldContainerTransferBridge* Bridge = GetWorldContainerTransferBridge(InObject))
+    {
+        Bridge->OnWorldContainerSessionOpenedNative().AddUObject(this, &UInventoryViewModel::HandleWorldContainerSessionOpened);
+        Bridge->OnWorldContainerSessionClosedNative().AddUObject(this, &UInventoryViewModel::HandleWorldContainerSessionClosed);
+        AActor* ActiveTargetActor = nullptr;
+        FContainerSessionHandle ActiveHandle;
+        if (IInventoryWorldContainerTransferBridge::Execute_GetActiveWorldContainerSession(
+                InObject,
+                ActiveTargetActor,
+                ActiveHandle))
+        {
+            if (UObject* ActiveSourceObject = ResolveWorldContainerSessionSourceFromActor(ActiveTargetActor))
+            {
+                SetNearbyContainerSource(ActiveSourceObject, ActiveHandle);
+            }
+            ShowPanel();
+        }
+    }
+
+    RefreshFromInventory();
+}
+
+void UInventoryViewModel::SetNearbyContainerSource(UObject* InObject, const FContainerSessionHandle& InSessionHandle)
+{
+    if (!InObject || !InObject->GetClass()->ImplementsInterface(UWorldContainerSessionSource::StaticClass()) || !InSessionHandle.IsValid())
+    {
+        ClearNearbyContainerSource();
+        return;
+    }
+
+    NearbyContainerSource.SetObject(InObject);
+    NearbyContainerSource.SetInterface(Cast<IWorldContainerSessionSource>(InObject));
+    NearbySessionHandle = InSessionHandle;
+    RefreshFromInventory();
+}
+
+void UInventoryViewModel::ClearNearbyContainerSource()
+{
+    NearbyContainerSource.SetObject(nullptr);
+    NearbyContainerSource.SetInterface(nullptr);
+    NearbySessionHandle.Reset();
+    ClearNearbyContainerData();
     RefreshFromInventory();
 }
 
@@ -229,10 +346,200 @@ void UInventoryViewModel::RequestMoveItem(int32 InstanceId, FGameplayTag FromCon
 
 void UInventoryViewModel::RequestUseItem(int32 InstanceId)
 {
+    if (IsNearbyEntryInstanceId(InstanceId))
+    {
+        RequestTakeNearbyItem(InstanceId, 1);
+        return;
+    }
+
     if (InventoryCommands)
     {
         InventoryCommands->RequestUseItem(InstanceId);
     }
+}
+
+void UInventoryViewModel::RequestTakeNearbyItem(int32 InstanceId, int32 Quantity)
+{
+    RequestTakeNearbyItemToContainer(
+        InstanceId,
+        FGameplayTag(),
+        FIntPoint(-1, -1),
+        false,
+        Quantity);
+}
+
+void UInventoryViewModel::RequestTakeNearbyItemToContainer(
+    int32 InstanceId,
+    FGameplayTag TargetContainerId,
+    FIntPoint TargetGridPos,
+    bool bTargetRotated,
+    int32 Quantity)
+{
+    if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
+    {
+        return;
+    }
+
+    IInventoryWorldContainerTransferBridge* TransferBridge = GetWorldContainerTransferBridge(InventorySource.GetObject());
+    if (!TransferBridge)
+    {
+        return;
+    }
+
+    FText ErrorMessage;
+    const bool bTransferSucceeded = IInventoryWorldContainerTransferBridge::Execute_TransferWorldContainerEntryToInventory(
+            InventorySource.GetObject(),
+            NearbyContainerSource.GetObject(),
+            NearbySessionHandle,
+            InstanceId,
+            Quantity,
+            TargetContainerId,
+            TargetGridPos,
+            bTargetRotated,
+            ErrorMessage);
+
+    if (!bTransferSucceeded
+        && TargetContainerId.IsValid()
+        && TargetGridPos.X >= 0
+        && TargetGridPos.Y >= 0)
+    {
+        FInventoryEntryView DraggedEntry;
+        FGameplayTag AlternateContainerId;
+        FIntPoint AlternateGridPos = FIntPoint(-1, -1);
+        if (TryGetEntryByInstanceId(InstanceId, DraggedEntry))
+        {
+            const FIntPoint ItemSize = bTargetRotated
+                ? FIntPoint(FMath::Max(1, DraggedEntry.GridSize.Y), FMath::Max(1, DraggedEntry.GridSize.X))
+                : FIntPoint(FMath::Max(1, DraggedEntry.GridSize.X), FMath::Max(1, DraggedEntry.GridSize.Y));
+
+            if (DoesCachedInventoryPlacementOverlap(TargetContainerId, TargetGridPos, ItemSize, InstanceId)
+                && TryResolveAlternateHandDropTarget(
+                    TargetContainerId,
+                    TargetGridPos,
+                    ItemSize,
+                    AlternateContainerId,
+                    AlternateGridPos)
+                && !DoesCachedInventoryPlacementOverlap(AlternateContainerId, AlternateGridPos, ItemSize, InstanceId))
+            {
+                FText RetryError;
+                if (IInventoryWorldContainerTransferBridge::Execute_TransferWorldContainerEntryToInventory(
+                        InventorySource.GetObject(),
+                        NearbyContainerSource.GetObject(),
+                        NearbySessionHandle,
+                        InstanceId,
+                        Quantity,
+                        AlternateContainerId,
+                        AlternateGridPos,
+                        bTargetRotated,
+                        RetryError))
+                {
+                    UE_LOG(LogInventoryVM, Verbose,
+                        TEXT("RequestTakeNearbyItemToContainer: redirected occupied hand target %s (%d,%d) -> %s (%d,%d)"),
+                        *TargetContainerId.ToString(),
+                        TargetGridPos.X,
+                        TargetGridPos.Y,
+                        *AlternateContainerId.ToString(),
+                        AlternateGridPos.X,
+                        AlternateGridPos.Y);
+                    RefreshFromInventory();
+                    return;
+                }
+
+                if (!RetryError.IsEmpty())
+                {
+                    ErrorMessage = RetryError;
+                }
+            }
+        }
+    }
+
+    if (!bTransferSucceeded)
+    {
+        if (!ErrorMessage.IsEmpty())
+        {
+            OnInventoryError.Broadcast(ErrorMessage);
+        }
+        return;
+    }
+
+    RefreshFromInventory();
+}
+
+void UInventoryViewModel::RequestStoreItemInNearbyContainer(int32 InstanceId, int32 Quantity)
+{
+    RequestStoreItemInNearbyContainerAt(
+        InstanceId,
+        FIntPoint(-1, -1),
+        false,
+        Quantity);
+}
+
+void UInventoryViewModel::RequestStoreItemInNearbyContainerAt(
+    int32 InstanceId,
+    FIntPoint TargetGridPos,
+    bool bTargetRotated,
+    int32 Quantity)
+{
+    if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
+    {
+        return;
+    }
+
+    IInventoryWorldContainerTransferBridge* TransferBridge = GetWorldContainerTransferBridge(InventorySource.GetObject());
+    if (!TransferBridge)
+    {
+        return;
+    }
+
+    FText ErrorMessage;
+    if (!IInventoryWorldContainerTransferBridge::Execute_StoreInventoryEntryInWorldContainer(
+            InventorySource.GetObject(),
+            NearbyContainerSource.GetObject(),
+            NearbySessionHandle,
+            InstanceId,
+            Quantity,
+            TargetGridPos,
+            bTargetRotated,
+            ErrorMessage))
+    {
+        if (!ErrorMessage.IsEmpty())
+        {
+            OnInventoryError.Broadcast(ErrorMessage);
+        }
+        return;
+    }
+
+    RefreshFromInventory();
+}
+
+void UInventoryViewModel::RequestTakeAllNearbyContainer()
+{
+    if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
+    {
+        return;
+    }
+
+    IInventoryWorldContainerTransferBridge* TransferBridge = GetWorldContainerTransferBridge(InventorySource.GetObject());
+    if (!TransferBridge)
+    {
+        return;
+    }
+
+    FText ErrorMessage;
+    if (!IInventoryWorldContainerTransferBridge::Execute_TakeAllFromWorldContainer(
+            InventorySource.GetObject(),
+            NearbyContainerSource.GetObject(),
+            NearbySessionHandle,
+            ErrorMessage))
+    {
+        if (!ErrorMessage.IsEmpty())
+        {
+            OnInventoryError.Broadcast(ErrorMessage);
+        }
+        return;
+    }
+
+    RefreshFromInventory();
 }
 
 void UInventoryViewModel::RequestEquipItem(int32 InstanceId, FGameplayTag EquipSlot)
@@ -296,10 +603,28 @@ void UInventoryViewModel::BuildActionDescriptors(const FInventoryEntryView& Entr
     // Action visibility and enabling rules must be authored only in this function.
     // Widgets consume descriptors and must not re-implement business rules.
     const bool bCanSendCommands = HasCommands();
+    const bool bIsNearbyEntry = IsNearbyEntryInstanceId(Entry.InstanceId);
     const FInventoryActionCapabilityState CapabilityState = BuildActionCapabilityState(Entry);
 
     OutActions.Reset();
     OutActions.Reserve(4);
+
+    if (bIsNearbyEntry)
+    {
+        const bool bCanTake = InventorySource
+            && NearbyContainerSource
+            && NearbySessionHandle.IsValid()
+            && GetWorldContainerTransferBridge(InventorySource.GetObject()) != nullptr;
+
+        AddActionDescriptor(
+            OutActions,
+            NAME_ActionUse,
+            NSLOCTEXT("Inventory", "ActionTake", "Take"),
+            true,
+            bCanTake,
+            100);
+        return;
+    }
 
     AddActionDescriptor(
         OutActions,
@@ -412,6 +737,40 @@ void UInventoryViewModel::HandleInventoryErrorFromSource(const FText& ErrorMessa
     OnInventoryError.Broadcast(ErrorMessage);
 }
 
+void UInventoryViewModel::RefreshNearbyContainerData()
+{
+    if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
+    {
+        ClearNearbyContainerData();
+        return;
+    }
+
+    CachedNearbyContainer = IWorldContainerSessionSource::Execute_GetContainerView(NearbyContainerSource.GetObject());
+    CachedNearbyEntries = IWorldContainerSessionSource::Execute_GetContainerEntryViews(NearbyContainerSource.GetObject());
+    UpdateNearbyContainerLabel(IWorldContainerSessionSource::Execute_GetContainerDisplayLabel(NearbyContainerSource.GetObject()));
+    UpdatebHasNearbyContainer(CachedNearbyContainer.GridSize.X > 0 && CachedNearbyContainer.GridSize.Y > 0);
+    UpdateNearbyContainerCurrentWeight(CachedNearbyContainer.CurrentWeight);
+    UpdateNearbyContainerMaxWeight(CachedNearbyContainer.MaxWeight);
+    UpdateNearbyContainerCurrentVolume(CachedNearbyContainer.CurrentVolume);
+    UpdateNearbyContainerMaxVolume(CachedNearbyContainer.MaxVolume);
+
+    BuildEnabledCellsForContainer(CachedNearbyContainer, NearbyCellEnabled);
+}
+
+void UInventoryViewModel::ClearNearbyContainerData()
+{
+    CachedNearbyContainer = FInventoryContainerView();
+    CachedNearbyEntries.Reset();
+    NearbyCellInstanceIds.Reset();
+    NearbyCellEnabled.Reset();
+    UpdateNearbyContainerLabel(FText::GetEmpty());
+    UpdatebHasNearbyContainer(false);
+    UpdateNearbyContainerCurrentWeight(0.f);
+    UpdateNearbyContainerMaxWeight(0.f);
+    UpdateNearbyContainerCurrentVolume(0.f);
+    UpdateNearbyContainerMaxVolume(0.f);
+}
+
 void UInventoryViewModel::RefreshFromInventory()
 {
     if (!InventorySource)
@@ -439,11 +798,14 @@ void UInventoryViewModel::RefreshFromInventory()
         CellEnabled.Reset();
         SecondaryCellInstanceIds.Reset();
         SecondaryCellEnabled.Reset();
+        NearbyCellInstanceIds.Reset();
+        NearbyCellEnabled.Reset();
         PocketCellTexts.Reset();
         PocketCellInstanceIds.Reset();
         PocketCellEnabled.Reset();
         EquipSlotTags.Reset();
         EquipSlotInstanceIds.Reset();
+        ClearNearbyContainerData();
         SetCellTexts(TArray<FText>());
         SetSecondaryCellTexts(TArray<FText>());
         NotifyPocketCellTextsChanged();
@@ -469,6 +831,7 @@ void UInventoryViewModel::RefreshFromInventory()
             *E.ItemId.ToString(), E.Quantity, *E.ContainerId.ToString(), E.GridPos.X, E.GridPos.Y);
     }
 
+    RefreshNearbyContainerData();
     BuildContainerData(Containers);
 
     UpdateItemCount(Entries.Num());
@@ -488,11 +851,13 @@ void UInventoryViewModel::RefreshFromInventory()
 
 void UInventoryViewModel::TogglePanel()
 {
-    if (!bPanelVisible)
+    if (bPanelVisible)
     {
-        RefreshFromInventory();
+        HidePanel();
+        return;
     }
-    UpdatebPanelVisible(!bPanelVisible);
+
+    ShowPanel();
 }
 
 void UInventoryViewModel::ShowPanel()
@@ -503,7 +868,47 @@ void UInventoryViewModel::ShowPanel()
 
 void UInventoryViewModel::HidePanel()
 {
+    bool bShouldClearNearbyState = false;
+
+    if (NearbySessionHandle.IsValid())
+    {
+        if (IInventoryWorldContainerTransferBridge* Bridge = GetWorldContainerTransferBridge(InventorySource.GetObject()))
+        {
+            FText CloseError;
+            const bool bCloseRequested = IInventoryWorldContainerTransferBridge::Execute_RequestCloseWorldContainerSession(
+                InventorySource.GetObject(),
+                NearbySessionHandle,
+                CloseError);
+            bShouldClearNearbyState = bCloseRequested;
+            if (!bCloseRequested && !CloseError.IsEmpty())
+            {
+                HandleInventoryErrorFromSource(CloseError);
+            }
+        }
+    }
+
+    if (bShouldClearNearbyState)
+    {
+        ClearNearbyContainerSource();
+    }
+
     UpdatebPanelVisible(false);
+}
+
+void UInventoryViewModel::HandleWorldContainerSessionOpened(
+    UObject* WorldContainerSource,
+    const FContainerSessionHandle& SessionHandle)
+{
+    SetNearbyContainerSource(WorldContainerSource, SessionHandle);
+    ShowPanel();
+}
+
+void UInventoryViewModel::HandleWorldContainerSessionClosed(const FContainerSessionHandle& SessionHandle)
+{
+    if (NearbySessionHandle.IsValid() && NearbySessionHandle.SessionId == SessionHandle.SessionId)
+    {
+        ClearNearbyContainerSource();
+    }
 }
 
 void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerView>& Containers)
@@ -564,23 +969,6 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
     CachedPocketContainers = PocketContainers;
     CachedContainers = LargeContainers;
 
-    auto BuildCellEnabled = [](const FInventoryContainerView& Container, TArray<bool>& OutEnabled)
-    {
-        const int32 CellCount = Container.GridSize.X * Container.GridSize.Y;
-        OutEnabled.SetNum(CellCount);
-        for (int32 Index = 0; Index < CellCount; ++Index)
-        {
-            OutEnabled[Index] = true;
-        }
-        if (Container.MaxCells > 0)
-        {
-            for (int32 Index = Container.MaxCells; Index < CellCount; ++Index)
-            {
-                OutEnabled[Index] = false;
-            }
-        }
-    };
-
     TArray<FText> PocketLabels;
     PocketLabels.Reserve(PocketContainers.Num());
     PocketCellEnabled.SetNum(PocketContainers.Num());
@@ -588,7 +976,7 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
     {
         const FInventoryContainerView& PocketContainer = PocketContainers[PocketIndex];
         PocketLabels.Add(FText::FromString(MakeContainerShortName(PocketContainer.ContainerId)));
-        BuildCellEnabled(PocketContainer, PocketCellEnabled[PocketIndex]);
+        BuildEnabledCellsForContainer(PocketContainer, PocketCellEnabled[PocketIndex]);
     }
     UpdatePocketContainerLabels(PocketLabels);
 
@@ -646,10 +1034,16 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
         UpdateContainerMaxWeight(Primary.MaxWeight);
         UpdateContainerCurrentVolume(Primary.CurrentVolume);
         UpdateContainerMaxVolume(Primary.MaxVolume);
-        BuildCellEnabled(Primary, CellEnabled);
+        BuildEnabledCellsForContainer(Primary, CellEnabled);
     }
 
-    if (!LargeContainers.IsValidIndex(SecondaryIndex))
+    if (bHasNearbyContainer)
+    {
+        UpdateSecondaryGridWidth(CachedNearbyContainer.GridSize.X);
+        UpdateSecondaryGridHeight(CachedNearbyContainer.GridSize.Y);
+        SecondaryCellEnabled = NearbyCellEnabled;
+    }
+    else if (!LargeContainers.IsValidIndex(SecondaryIndex))
     {
         UpdateSecondaryGridWidth(0);
         UpdateSecondaryGridHeight(0);
@@ -660,7 +1054,7 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
         const FInventoryContainerView& Secondary = LargeContainers[SecondaryIndex];
         UpdateSecondaryGridWidth(Secondary.GridSize.X);
         UpdateSecondaryGridHeight(Secondary.GridSize.Y);
-        BuildCellEnabled(Secondary, SecondaryCellEnabled);
+        BuildEnabledCellsForContainer(Secondary, SecondaryCellEnabled);
     }
 }
 
@@ -677,9 +1071,23 @@ void UInventoryViewModel::BuildCellTexts(const TArray<FInventoryEntryView>& Entr
 void UInventoryViewModel::BuildSecondaryCellTexts(const TArray<FInventoryEntryView>& Entries)
 {
     TArray<FText> NewTexts;
-    const FGameplayTag ContainerId = CachedContainers.IsValidIndex(SecondaryContainerIndex)
-        ? CachedContainers[SecondaryContainerIndex].ContainerId : FGameplayTag();
-    FInventoryViewModelCellBuilder::Build(Entries, ContainerId, SecondaryGridWidth, SecondaryGridHeight, SecondaryCellInstanceIds, NewTexts);
+    if (bHasNearbyContainer)
+    {
+        FInventoryViewModelCellBuilder::Build(
+            CachedNearbyEntries,
+            CachedNearbyContainer.ContainerId,
+            SecondaryGridWidth,
+            SecondaryGridHeight,
+            NearbyCellInstanceIds,
+            NewTexts);
+        SecondaryCellInstanceIds = NearbyCellInstanceIds;
+    }
+    else
+    {
+        const FGameplayTag ContainerId = CachedContainers.IsValidIndex(SecondaryContainerIndex)
+            ? CachedContainers[SecondaryContainerIndex].ContainerId : FGameplayTag();
+        FInventoryViewModelCellBuilder::Build(Entries, ContainerId, SecondaryGridWidth, SecondaryGridHeight, SecondaryCellInstanceIds, NewTexts);
+    }
     SetSecondaryCellTexts(NewTexts);
 }
 
@@ -710,7 +1118,7 @@ void UInventoryViewModel::NotifyPocketCellTextsChanged()
 
 void UInventoryViewModel::BuildHandCellTexts(const TArray<FInventoryEntryView>& Entries)
 {
-    // Try dedicated LeftHand/RightHand containers first (from equip slot grants)
+    // Dedicated hand containers are real 2x2 micro-grids.
     TArray<FText> LeftTexts;
     TArray<int32> LeftIds;
     FInventoryViewModelCellBuilder::Build(Entries, ProjectTags::Item_Container_LeftHand,
@@ -721,36 +1129,28 @@ void UInventoryViewModel::BuildHandCellTexts(const TArray<FInventoryEntryView>& 
     FInventoryViewModelCellBuilder::Build(Entries, ProjectTags::Item_Container_RightHand,
         HandGridSize, HandGridSize, RightIds, RightTexts);
 
-    // Also handle the generic "Hands" container (slot-based 2x1: X=0 -> left, X=1 -> right)
-    // This is the default container when no equipment grants LeftHand/RightHand
     for (const FInventoryEntryView& Entry : Entries)
     {
-        if (Entry.ContainerId != ProjectTags::Item_Container_Hands)
+        if (Entry.ContainerId != ProjectTags::Item_Container_Hands || Entry.InstanceId <= 0)
         {
             continue;
         }
-        if (Entry.InstanceId <= 0)
+
+        if (LeftTexts.Num() < HandCellCount)
         {
-            continue;
+            LeftTexts.Init(FText::GetEmpty(), HandCellCount);
+            LeftIds.Init(EmptyCellInstanceId, HandCellCount);
+        }
+        if (RightTexts.Num() < HandCellCount)
+        {
+            RightTexts.Init(FText::GetEmpty(), HandCellCount);
+            RightIds.Init(EmptyCellInstanceId, HandCellCount);
         }
 
         const FString Label = !Entry.IconCode.IsEmpty()
             ? Entry.IconCode
             : FInventoryViewModelCellBuilder::BuildEntryLabel(Entry.DisplayName, Entry.Quantity, Entry.ItemId);
 
-        // Ensure arrays are sized
-        if (LeftTexts.Num() < HandCellCount)
-        {
-            LeftTexts.SetNum(HandCellCount);
-            LeftIds.Init(EmptyCellInstanceId, HandCellCount);
-        }
-        if (RightTexts.Num() < HandCellCount)
-        {
-            RightTexts.SetNum(HandCellCount);
-            RightIds.Init(EmptyCellInstanceId, HandCellCount);
-        }
-
-        // Slot X=0 -> left hand, X=1 -> right hand
         TArray<FText>& TargetTexts = (Entry.GridPos.X == 0) ? LeftTexts : RightTexts;
         TArray<int32>& TargetIds = (Entry.GridPos.X == 0) ? LeftIds : RightIds;
         if (TargetTexts[0].IsEmpty())
@@ -758,13 +1158,6 @@ void UInventoryViewModel::BuildHandCellTexts(const TArray<FInventoryEntryView>& 
             TargetTexts[0] = FText::FromString(Label);
             TargetIds[0] = Entry.InstanceId;
         }
-
-        // Log hex for PUA codepoints - raw PUA chars in Output Log trigger Slate glyph warnings
-        const FString SafeLabel = (!Label.IsEmpty() && Label[0] >= 0xE000)
-            ? FString::Printf(TEXT("U+%04X"), static_cast<uint32>(Label[0]))
-            : Label;
-        UE_LOG(LogInventoryVM, Log, TEXT("BuildHandCellTexts: Hands entry '%s' -> %s hand"),
-            *SafeLabel, (Entry.GridPos.X == 0) ? TEXT("Left") : TEXT("Right"));
     }
 
     SetLeftHandCellTexts(LeftTexts);
@@ -813,6 +1206,11 @@ void UInventoryViewModel::SetSelectedContainerIndex(int32 NewIndex)
 
 void UInventoryViewModel::SetSecondaryContainerIndex(int32 NewIndex)
 {
+    if (bHasNearbyContainer)
+    {
+        return;
+    }
+
     if (NewIndex == SecondaryContainerIndex)
     {
         return;
@@ -837,6 +1235,11 @@ FGameplayTag UInventoryViewModel::GetSelectedContainerId() const
 
 FGameplayTag UInventoryViewModel::GetSecondaryContainerId() const
 {
+    if (bHasNearbyContainer)
+    {
+        return CachedNearbyContainer.ContainerId;
+    }
+
     if (!CachedContainers.IsValidIndex(SecondaryContainerIndex))
     {
         return FGameplayTag();
@@ -945,6 +1348,25 @@ bool UInventoryViewModel::TryGetEntryByInstanceId(int32 InstanceId, FInventoryEn
         }
     }
 
+    return TryGetNearbyEntryByInstanceId(InstanceId, OutEntry);
+}
+
+bool UInventoryViewModel::TryGetNearbyEntryByInstanceId(int32 InstanceId, FInventoryEntryView& OutEntry) const
+{
+    if (InstanceId <= 0 || InstanceId == EmptyCellInstanceId)
+    {
+        return false;
+    }
+
+    for (const FInventoryEntryView& Entry : CachedNearbyEntries)
+    {
+        if (Entry.InstanceId == InstanceId)
+        {
+            OutEntry = Entry;
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -961,7 +1383,8 @@ bool UInventoryViewModel::TryGetSecondaryEntryByCellIndex(int32 CellIndex, FInve
         return false;
     }
 
-    for (const FInventoryEntryView& Entry : CachedEntries)
+    const TArray<FInventoryEntryView>& SecondaryEntries = bHasNearbyContainer ? CachedNearbyEntries : CachedEntries;
+    for (const FInventoryEntryView& Entry : SecondaryEntries)
     {
         if (Entry.InstanceId == InstanceId)
         {
@@ -1001,6 +1424,203 @@ int32 UInventoryViewModel::GetCellInstanceId(int32 CellIndex) const
 int32 UInventoryViewModel::GetSecondaryCellInstanceId(int32 CellIndex) const
 {
     return SecondaryCellInstanceIds.IsValidIndex(CellIndex) ? SecondaryCellInstanceIds[CellIndex] : EmptyCellInstanceId;
+}
+
+bool UInventoryViewModel::IsNearbyEntryInstanceId(int32 InstanceId) const
+{
+    FInventoryEntryView Entry;
+    return TryGetNearbyEntryByInstanceId(InstanceId, Entry);
+}
+
+bool UInventoryViewModel::ResolveHandDropTarget(bool bLeftHand, FGameplayTag& OutContainerId, FIntPoint& OutGridPos) const
+{
+    OutContainerId = FGameplayTag();
+    OutGridPos = FIntPoint(-1, -1);
+
+    const FGameplayTag DedicatedHandContainer = bLeftHand
+        ? ProjectTags::Item_Container_LeftHand
+        : ProjectTags::Item_Container_RightHand;
+
+    for (const FInventoryContainerView& Container : CachedAllContainers)
+    {
+        if (Container.ContainerId == DedicatedHandContainer)
+        {
+            OutContainerId = DedicatedHandContainer;
+            for (int32 Y = 0; Y < FMath::Max(1, Container.GridSize.Y); ++Y)
+            {
+                for (int32 X = 0; X < FMath::Max(1, Container.GridSize.X); ++X)
+                {
+                    const FIntPoint CandidatePos(X, Y);
+                    if (!DoesCachedInventoryPlacementOverlap(DedicatedHandContainer, CandidatePos, FIntPoint(1, 1), EmptyCellInstanceId))
+                    {
+                        OutGridPos = CandidatePos;
+                        return true;
+                    }
+                }
+            }
+
+            OutGridPos = FIntPoint::ZeroValue;
+            return true;
+        }
+    }
+
+    for (const FInventoryContainerView& Container : CachedAllContainers)
+    {
+        if (Container.ContainerId == ProjectTags::Item_Container_Hands)
+        {
+            OutContainerId = ProjectTags::Item_Container_Hands;
+            OutGridPos = FIntPoint(bLeftHand ? 0 : 1, 0);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UInventoryViewModel::TryResolveFreePlacementInContainer(
+    const FGameplayTag& ContainerId,
+    FIntPoint ItemSize,
+    FIntPoint& OutGridPos,
+    TOptional<FIntPoint> ExcludedGridPos) const
+{
+    OutGridPos = FIntPoint(-1, -1);
+
+    if (!ContainerId.IsValid() || ItemSize.X <= 0 || ItemSize.Y <= 0)
+    {
+        return false;
+    }
+
+    const FInventoryContainerView* TargetContainer = CachedAllContainers.FindByPredicate(
+        [&ContainerId](const FInventoryContainerView& Container)
+        {
+            return Container.ContainerId == ContainerId;
+        });
+    if (!TargetContainer)
+    {
+        return false;
+    }
+
+    const int32 MaxWidth = FMath::Max(1, TargetContainer->GridSize.X);
+    const int32 MaxHeight = FMath::Max(1, TargetContainer->GridSize.Y);
+    for (int32 Y = 0; Y <= MaxHeight - ItemSize.Y; ++Y)
+    {
+        for (int32 X = 0; X <= MaxWidth - ItemSize.X; ++X)
+        {
+            const FIntPoint CandidatePos(X, Y);
+            if (ExcludedGridPos.IsSet() && CandidatePos == ExcludedGridPos.GetValue())
+            {
+                continue;
+            }
+
+            if (!DoesCachedInventoryPlacementOverlap(ContainerId, CandidatePos, ItemSize, EmptyCellInstanceId))
+            {
+                OutGridPos = CandidatePos;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool UInventoryViewModel::TryResolveAlternateHandDropTarget(
+    const FGameplayTag& CurrentContainerId,
+    FIntPoint CurrentGridPos,
+    FIntPoint ItemSize,
+    FGameplayTag& OutContainerId,
+    FIntPoint& OutGridPos) const
+{
+    OutContainerId = FGameplayTag();
+    OutGridPos = FIntPoint(-1, -1);
+
+    if (CurrentContainerId == ProjectTags::Item_Container_LeftHand
+        || CurrentContainerId == ProjectTags::Item_Container_RightHand)
+    {
+        FIntPoint SameHandGridPos = FIntPoint(-1, -1);
+        if (TryResolveFreePlacementInContainer(CurrentContainerId, ItemSize, SameHandGridPos, CurrentGridPos))
+        {
+            OutContainerId = CurrentContainerId;
+            OutGridPos = SameHandGridPos;
+            return true;
+        }
+    }
+
+    FGameplayTag AlternateContainerId;
+    if (CurrentContainerId == ProjectTags::Item_Container_LeftHand)
+    {
+        AlternateContainerId = ProjectTags::Item_Container_RightHand;
+    }
+    else if (CurrentContainerId == ProjectTags::Item_Container_RightHand)
+    {
+        AlternateContainerId = ProjectTags::Item_Container_LeftHand;
+    }
+    else
+    {
+        FGameplayTag LeftContainerId;
+        FIntPoint LeftGridPos = FIntPoint(-1, -1);
+        const bool bHasLeft = ResolveHandDropTarget(true, LeftContainerId, LeftGridPos);
+
+        FGameplayTag RightContainerId;
+        FIntPoint RightGridPos = FIntPoint(-1, -1);
+        const bool bHasRight = ResolveHandDropTarget(false, RightContainerId, RightGridPos);
+
+        if (bHasLeft && CurrentContainerId == LeftContainerId && CurrentGridPos == LeftGridPos)
+        {
+            OutContainerId = RightContainerId;
+            OutGridPos = RightGridPos;
+            return bHasRight;
+        }
+
+        if (bHasRight && CurrentContainerId == RightContainerId && CurrentGridPos == RightGridPos)
+        {
+            OutContainerId = LeftContainerId;
+            OutGridPos = LeftGridPos;
+            return bHasLeft;
+        }
+
+        return false;
+    }
+
+    FIntPoint AlternateGridPos = FIntPoint(-1, -1);
+    if (TryResolveFreePlacementInContainer(AlternateContainerId, ItemSize, AlternateGridPos))
+    {
+        OutContainerId = AlternateContainerId;
+        OutGridPos = AlternateGridPos;
+        return true;
+    }
+
+    return false;
+}
+
+bool UInventoryViewModel::DoesCachedInventoryPlacementOverlap(
+    const FGameplayTag& ContainerId,
+    FIntPoint GridPos,
+    FIntPoint ItemSize,
+    int32 IgnoreInstanceId) const
+{
+    if (!ContainerId.IsValid() || GridPos.X < 0 || GridPos.Y < 0 || ItemSize.X <= 0 || ItemSize.Y <= 0)
+    {
+        return false;
+    }
+
+    for (const FInventoryEntryView& Entry : CachedEntries)
+    {
+        if (Entry.InstanceId == IgnoreInstanceId || Entry.ContainerId != ContainerId)
+        {
+            continue;
+        }
+
+        const FIntPoint EntrySize = Entry.bRotated
+            ? FIntPoint(FMath::Max(1, Entry.GridSize.Y), FMath::Max(1, Entry.GridSize.X))
+            : FIntPoint(FMath::Max(1, Entry.GridSize.X), FMath::Max(1, Entry.GridSize.Y));
+
+        if (DoGridRectsOverlap(GridPos, ItemSize, Entry.GridPos, EntrySize))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool UInventoryViewModel::IsContainerEmpty(FGameplayTag ContainerId, int32 IgnoreInstanceId) const
@@ -1111,4 +1731,3 @@ void UInventoryViewModel::BuildEquipSlotLabels(const TArray<FInventoryEntryView>
     UpdateEquipSlotLabels(Result.Labels);
     NotifyPropertyChanged(FName(TEXT("EquipSlotItemIconCodes")));
 }
-

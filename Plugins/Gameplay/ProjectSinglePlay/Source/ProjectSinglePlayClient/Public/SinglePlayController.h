@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "TimerManager.h"
-#include "SinglePlayerPlayerController.generated.h"
+#include "SinglePlayController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
@@ -19,12 +19,12 @@ struct FInputActionValue;
  * - Spectator/menu: UI mode with cursor
  */
 UCLASS()
-class PROJECTSINGLEPLAYCLIENT_API ASinglePlayerPlayerController : public APlayerController
+class PROJECTSINGLEPLAYCLIENT_API ASinglePlayController : public APlayerController
 {
 	GENERATED_BODY()
 
 public:
-	ASinglePlayerPlayerController();
+	ASinglePlayController();
 
 protected:
 	virtual void BeginPlay() override;
@@ -51,6 +51,8 @@ private:
 
 	// Bind to InventoryViewModel from ProjectUI factory (retry if needed).
 	void TryBindInventoryViewModel();
+
+	bool EnsureInventoryViewModelReady();
 
 	// Bind to MindJournalViewModel from ProjectUI factory.
 	void TryBindMindJournalViewModel();

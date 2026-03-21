@@ -190,7 +190,10 @@ void UW_ItemTooltip::NativeConstruct()
 	if (RootWidget)
 	{
 		FProjectUIWidgetBinder Binder(RootWidget, GetClass()->GetName());
+		HeaderIconBox = Binder.FindOptional<UWidget>(TEXT("HeaderIconBox"));
+		ItemIcon = Binder.FindOptional<UTextBlock>(TEXT("ItemIcon"));
 		ItemName = Binder.FindRequired<UTextBlock>(TEXT("ItemName"));
+		ItemMetaText = Binder.FindOptional<UTextBlock>(TEXT("ItemMetaText"));
 		ItemDescription = Binder.FindRequired<UTextBlock>(TEXT("ItemDescription"));
 		WeightText = Binder.FindRequired<UTextBlock>(TEXT("WeightText"));
 		VolumeText = Binder.FindRequired<UTextBlock>(TEXT("VolumeText"));
@@ -214,16 +217,34 @@ void UW_ItemTooltip::NativeConstruct()
 
 void UW_ItemTooltip::SetItemData(const FInventoryEntryView& EntryView)
 {
+	if (ItemIcon.IsValid())
+	{
+		const bool bHasIcon = !EntryView.IconCode.IsEmpty();
+		ItemIcon->SetText(FText::FromString(EntryView.IconCode));
+		ItemIcon->SetVisibility(bHasIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		if (HeaderIconBox.IsValid())
+		{
+			HeaderIconBox->SetVisibility(bHasIcon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		}
+	}
+
 	// Item name (with quantity if > 1)
 	if (ItemName.IsValid())
 	{
-		FText NameText = EntryView.DisplayName;
+		FText NameText = EntryView.DisplayName.IsEmpty()
+			? FText::FromString(EntryView.ItemId.ToString())
+			: EntryView.DisplayName;
 		if (EntryView.Quantity > 1)
 		{
 			NameText = FText::Format(NSLOCTEXT("Inventory", "ItemNameWithQty", "{0} x{1}"),
-				EntryView.DisplayName, FText::AsNumber(EntryView.Quantity));
+				NameText, FText::AsNumber(EntryView.Quantity));
 		}
 		ItemName->SetText(NameText);
+	}
+
+	if (ItemMetaText.IsValid())
+	{
+		SetTextWithVisibility(ItemMetaText.Get(), BuildMetaText(EntryView));
 	}
 
 	// Description
@@ -360,9 +381,23 @@ void UW_ItemTooltip::SetItemData(const FInventoryEntryView& EntryView)
 
 void UW_ItemTooltip::Clear()
 {
+	if (HeaderIconBox.IsValid())
+	{
+		HeaderIconBox->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (ItemIcon.IsValid())
+	{
+		ItemIcon->SetText(FText::GetEmpty());
+		ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	if (ItemName.IsValid())
 	{
 		ItemName->SetText(FText::GetEmpty());
+	}
+	if (ItemMetaText.IsValid())
+	{
+		ItemMetaText->SetText(FText::GetEmpty());
+		ItemMetaText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 	if (ItemDescription.IsValid())
 	{
@@ -431,4 +466,29 @@ FLinearColor UW_ItemTooltip::GetDurabilityColor(float Percent)
 		const float T = Percent * 2.0f;
 		return FLinearColor::LerpUsingHSV(FLinearColor::Red, FLinearColor::Yellow, T);
 	}
+}
+
+FText UW_ItemTooltip::BuildMetaText(const FInventoryEntryView& EntryView)
+{
+	TArray<FString> MetaParts;
+
+	if (EntryView.MaxStack > 1)
+	{
+		MetaParts.Add(FString::Printf(TEXT("Stack %d/%d"), EntryView.Quantity, EntryView.MaxStack));
+	}
+	else if (EntryView.Quantity > 1)
+	{
+		MetaParts.Add(FString::Printf(TEXT("Qty %d"), EntryView.Quantity));
+	}
+	else
+	{
+		MetaParts.Add(TEXT("Single item"));
+	}
+
+	const FIntPoint Footprint = EntryView.bRotated
+		? FIntPoint(FMath::Max(1, EntryView.GridSize.Y), FMath::Max(1, EntryView.GridSize.X))
+		: FIntPoint(FMath::Max(1, EntryView.GridSize.X), FMath::Max(1, EntryView.GridSize.Y));
+	MetaParts.Add(FString::Printf(TEXT("Size %dx%d"), Footprint.X, Footprint.Y));
+
+	return FText::FromString(FString::Join(MetaParts, TEXT("  |  ")));
 }

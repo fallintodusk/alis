@@ -274,7 +274,7 @@ DEFINE_SINGLEPLAY_MODE(Medium)
 {
     Config.ModeName = FName(TEXT("Medium"));
     Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(
-        FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayerPlayerController")));
+        FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
     Config.FeatureConfigs.Add(FName(TEXT("Difficulty")), TEXT("{\"level\":\"normal\",\"damageMultiplier\":1.0}"));
 }
 
@@ -282,7 +282,7 @@ DEFINE_SINGLEPLAY_MODE(Hardcore)
 {
     Config.ModeName = FName(TEXT("Hardcore"));
     Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(
-        FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayerPlayerController")));
+        FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
     Config.FeatureConfigs.Add(FName(TEXT("Difficulty")), TEXT("{\"level\":\"hard\",\"damageMultiplier\":2.0}"));
 }
 ```

@@ -2,6 +2,7 @@
 
 #include "Widgets/W_InventoryPanel.h"
 #include "Widgets/W_ItemContextMenu.h"
+#include "Widgets/InventoryDragVisualBuilder.h"
 #include "Widgets/W_ItemTooltip.h"
 #include "MVVM/InventoryViewModel.h"
 #include "Layout/ProjectWidgetLayoutLoader.h"
@@ -26,6 +27,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "InputCoreTypes.h"
 #include "Misc/FileHelper.h"
+#include "ProjectGameplayTags.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -44,6 +46,7 @@ uint32 BuildTooltipContentHash(const FInventoryEntryView& Entry)
     Hash = HashCombine(Hash, GetTypeHash(Entry.Ammo));
     Hash = HashCombine(Hash, GetTypeHash(Entry.DisplayName.ToString()));
     Hash = HashCombine(Hash, GetTypeHash(Entry.Description.ToString()));
+    Hash = HashCombine(Hash, GetTypeHash(Entry.IconCode));
 
     for (const FGameplayTag& Modifier : Entry.Modifiers)
     {
@@ -135,6 +138,7 @@ void UW_InventoryPanel::NativeConstruct()
     // Core layout containers
     GridHost = Binder.FindRequiredAny<UBorder>({ TEXT("GridHostPrimary"), TEXT("GridHost") });
     GridHostSecondary = Binder.FindOptional<UBorder>(TEXT("GridHostSecondary"));
+    NearbyGridHost = Binder.FindOptional<UBorder>(TEXT("NearbyGridHost"));
     ContainerTabs = Binder.FindRequiredAny<UHorizontalBox>({ TEXT("ContainerTabsPrimary"), TEXT("ContainerTabs") });
     ContainerTabsSecondary = Binder.FindOptional<UHorizontalBox>(TEXT("ContainerTabsSecondary"));
     EquipSlotsHost = Binder.FindRequired<UVerticalBox>(TEXT("EquipSlotsHost"));
@@ -143,6 +147,8 @@ void UW_InventoryPanel::NativeConstruct()
     GridRow = Binder.FindOptional<UWidget>(TEXT("GridRow"));
     GridSizeBoxPrimary = Binder.FindOptional<UWidget>(TEXT("GridSizeBoxPrimary"));
     GridSizeBoxSecondary = Binder.FindOptional<UWidget>(TEXT("GridSizeBoxSecondary"));
+    NearbySection = Binder.FindOptional<UWidget>(TEXT("NearbySection"));
+    NearbyGridSizeBox = Binder.FindOptional<UWidget>(TEXT("NearbyGridSizeBox"));
     EmptyStoragePlaceholder = Binder.FindOptional<UWidget>(TEXT("EmptyStoragePlaceholder"));
 
     // Hand grids
@@ -161,6 +167,8 @@ void UW_InventoryPanel::NativeConstruct()
     StatusText = Binder.FindOptional<UTextBlock>(TEXT("StatusText"));
     RotateStateText = Binder.FindOptional<UTextBlock>(TEXT("RotateStateText"));
     QtyValueText = Binder.FindOptional<UTextBlock>(TEXT("QtyValueText"));
+    NearbyTitleText = Binder.FindOptional<UTextBlock>(TEXT("NearbyTitleText"));
+    NearbyStatsText = Binder.FindOptional<UTextBlock>(TEXT("NearbyStatsText"));
 
     // Buttons
     UButton* QtyDownButton = Binder.FindOptional<UButton>(TEXT("QtyDownButton"));
@@ -168,6 +176,7 @@ void UW_InventoryPanel::NativeConstruct()
     UButton* UseButton = Binder.FindOptional<UButton>(TEXT("UseButton"));
     UButton* DropButton = Binder.FindOptional<UButton>(TEXT("DropButton"));
     UButton* EquipButton = Binder.FindOptional<UButton>(TEXT("EquipButton"));
+    UButton* TakeAllButton = Binder.FindOptional<UButton>(TEXT("TakeAllButton"));
     UButton* RotateButton = Binder.FindOptional<UButton>(TEXT("RotateButton"));
 
     // Initialize TextUpdater helper (SOLID)
@@ -181,11 +190,14 @@ void UW_InventoryPanel::NativeConstruct()
     TextRefs.QtyValueText = QtyValueText;
     TextRefs.RotateStateText = RotateStateText;
     TextRefs.ItemIcon = ItemIcon;
+    TextRefs.NearbyTitleText = NearbyTitleText;
+    TextRefs.NearbyStatsText = NearbyStatsText;
     TextRefs.QtyDownButton = QtyDownButton;
     TextRefs.QtyUpButton = QtyUpButton;
     TextRefs.UseButton = UseButton;
     TextRefs.DropButton = DropButton;
     TextRefs.EquipButton = EquipButton;
+    TextRefs.TakeAllButton = TakeAllButton;
     TextUpdater.Initialize(TextRefs);
 
     // Bind buttons
@@ -194,6 +206,7 @@ void UW_InventoryPanel::NativeConstruct()
     if (UseButton) { UseButton->OnClicked.AddUniqueDynamic(this, &UW_InventoryPanel::HandleUseClicked); }
     if (DropButton) { DropButton->OnClicked.AddUniqueDynamic(this, &UW_InventoryPanel::HandleDropClicked); }
     if (EquipButton) { EquipButton->OnClicked.AddUniqueDynamic(this, &UW_InventoryPanel::HandleEquipClicked); }
+    if (TakeAllButton) { TakeAllButton->OnClicked.AddUniqueDynamic(this, &UW_InventoryPanel::HandleTakeAllClicked); }
     if (RotateButton) { RotateButton->OnClicked.AddUniqueDynamic(this, &UW_InventoryPanel::HandleRotateClicked); }
 
     // Collapse empty text widgets initially
@@ -313,6 +326,7 @@ void UW_InventoryPanel::RefreshFromViewModel_Implementation()
     RebuildHandGrids();
     RebuildPocketGrids();
     RebuildEquipSlots();
+    ReconcilePanelStateWithViewModel();
     UpdateAllVisuals();
     RefreshAllText();
 }
@@ -335,8 +349,11 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
     static const FName NAME_bPanelVisible(TEXT("bPanelVisible"));
     static const FName NAME_GridWidth(TEXT("GridWidth"));
     static const FName NAME_GridHeight(TEXT("GridHeight"));
+    static const FName NAME_SecondaryGridWidth(TEXT("SecondaryGridWidth"));
+    static const FName NAME_SecondaryGridHeight(TEXT("SecondaryGridHeight"));
     static const FName NAME_ContainerLabels(TEXT("ContainerLabels"));
     static const FName NAME_PocketContainerLabels(TEXT("PocketContainerLabels"));
+    static const FName NAME_bHasNearbyContainer(TEXT("bHasNearbyContainer"));
     static const FName NAME_CellTexts(TEXT("CellTexts"));
     static const FName NAME_SecondaryCellTexts(TEXT("SecondaryCellTexts"));
     static const FName NAME_LeftHandCellTexts(TEXT("LeftHandCellTexts"));
@@ -363,9 +380,14 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
             SetFocus();
         }
     }
-    else if (PropertyName == NAME_GridWidth || PropertyName == NAME_GridHeight)
+    else if (PropertyName == NAME_GridWidth
+        || PropertyName == NAME_GridHeight
+        || PropertyName == NAME_SecondaryGridWidth
+        || PropertyName == NAME_SecondaryGridHeight
+        || PropertyName == NAME_bHasNearbyContainer)
     {
         RebuildGrids();
+        RebuildTabs();
     }
     else if (PropertyName == NAME_ContainerLabels)
     {
@@ -406,8 +428,62 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
         RebuildEquipSlots();
     }
 
+    ReconcilePanelStateWithViewModel();
     RefreshAllText();
     UpdateAllVisuals();
+}
+
+void UW_InventoryPanel::ReconcilePanelStateWithViewModel()
+{
+    if (!InventoryVM)
+    {
+        return;
+    }
+
+    FInventoryEntryView Entry;
+
+    if (PanelState.SelectedInstanceId != INDEX_NONE
+        && !InventoryVM->TryGetEntryByInstanceId(PanelState.SelectedInstanceId, Entry))
+    {
+        PanelState.SetSelectedByInstanceId(INDEX_NONE);
+    }
+    else if (PanelState.bSelectedSecondary
+        && PanelState.SelectedCellIndexSecondary != INDEX_NONE
+        && !InventoryVM->TryGetSecondaryEntryByCellIndex(PanelState.SelectedCellIndexSecondary, Entry))
+    {
+        PanelState.SelectedCellIndexSecondary = INDEX_NONE;
+        PanelState.bSelectedSecondary = false;
+        PanelState.ResetQuantity();
+    }
+    else if (!PanelState.bSelectedSecondary
+        && PanelState.SelectedCellIndex != INDEX_NONE
+        && !InventoryVM->TryGetEntryByCellIndex(PanelState.SelectedCellIndex, Entry))
+    {
+        PanelState.SelectedCellIndex = INDEX_NONE;
+        PanelState.ResetQuantity();
+    }
+
+    if (PanelState.bHoveredSecondary)
+    {
+        if (PanelState.HoveredCellIndexSecondary == INDEX_NONE
+            || !InventoryVM->TryGetSecondaryEntryByCellIndex(PanelState.HoveredCellIndexSecondary, Entry))
+        {
+            PanelState.ClearHover();
+            HideTooltip();
+        }
+    }
+    else if (PanelState.HoveredCellIndex != INDEX_NONE
+        && !InventoryVM->TryGetEntryByCellIndex(PanelState.HoveredCellIndex, Entry))
+    {
+        PanelState.ClearHover();
+        HideTooltip();
+    }
+
+    if (PendingDragInstanceId != INDEX_NONE
+        && !InventoryVM->TryGetEntryByInstanceId(PendingDragInstanceId, Entry))
+    {
+        PendingDragInstanceId = INDEX_NONE;
+    }
 }
 
 void UW_InventoryPanel::HandleInventoryError(const FText& ErrorMessage)
@@ -470,6 +546,9 @@ void UW_InventoryPanel::RebuildGrids()
     const int32 NewW2 = InventoryVM->GetSecondaryGridWidth();
     const int32 NewH2 = InventoryVM->GetSecondaryGridHeight();
     const bool bHasSecondary = (NewW2 > 0 && NewH2 > 0);
+    const bool bRenderSecondaryAsNearby = InventoryVM->GetbHasNearbyContainer();
+    UBorder* ActiveSecondaryGridHost = bRenderSecondaryAsNearby ? NearbyGridHost : GridHostSecondary;
+    UBorder* InactiveSecondaryGridHost = bRenderSecondaryAsNearby ? GridHostSecondary : NearbyGridHost;
 
     if (NewW2 != CachedGridWidthSecondary || NewH2 != CachedGridHeightSecondary)
     {
@@ -492,19 +571,35 @@ void UW_InventoryPanel::RebuildGrids()
         GridPanelSecondary = nullptr;
         SecondaryCellWidgets.Reset();
         SecondaryCellBorders.Reset();
-        if (GridHostSecondary)
-        {
-            GridHostSecondary->SetContent(nullptr);
-        }
     }
-    if (GridHostSecondary) { GridHostSecondary->SetVisibility(bHasSecondary ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
-    if (GridSizeBoxSecondary) { GridSizeBoxSecondary->SetVisibility(bHasSecondary ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
 
-    // Storage area is shown only when at least one equipped storage container exists.
-    const bool bAnyGrid = bHasPrimary || bHasSecondary;
-    if (GridRow) { GridRow->SetVisibility(bAnyGrid ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
-    if (ContainerTabs) { ContainerTabs->SetVisibility(bAnyGrid ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
-    if (ContainerTabsSecondary) { ContainerTabsSecondary->SetVisibility(bHasSecondary ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (InactiveSecondaryGridHost)
+    {
+        InactiveSecondaryGridHost->SetContent(nullptr);
+    }
+
+    if (bHasSecondary && ActiveSecondaryGridHost && GridPanelSecondary)
+    {
+        ActiveSecondaryGridHost->SetContent(GridPanelSecondary);
+    }
+    else
+    {
+        if (GridHostSecondary) { GridHostSecondary->SetContent(nullptr); }
+        if (NearbyGridHost) { NearbyGridHost->SetContent(nullptr); }
+    }
+
+    const bool bHasPlayerSecondary = bHasSecondary && !bRenderSecondaryAsNearby;
+    if (GridHostSecondary) { GridHostSecondary->SetVisibility(bHasPlayerSecondary ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (GridSizeBoxSecondary) { GridSizeBoxSecondary->SetVisibility(bHasPlayerSecondary ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (NearbyGridHost) { NearbyGridHost->SetVisibility((bHasSecondary && bRenderSecondaryAsNearby) ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (NearbyGridSizeBox) { NearbyGridSizeBox->SetVisibility((bHasSecondary && bRenderSecondaryAsNearby) ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (NearbySection) { NearbySection->SetVisibility((bHasSecondary && bRenderSecondaryAsNearby) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed); }
+
+    // Storage area is shown only when at least one player storage container exists.
+    const bool bAnyPlayerGrid = bHasPrimary || bHasPlayerSecondary;
+    if (GridRow) { GridRow->SetVisibility(bAnyPlayerGrid ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (ContainerTabs) { ContainerTabs->SetVisibility(bAnyPlayerGrid ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
+    if (ContainerTabsSecondary) { ContainerTabsSecondary->SetVisibility(bHasPlayerSecondary ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
     if (EmptyStoragePlaceholder) { EmptyStoragePlaceholder->SetVisibility(ESlateVisibility::Collapsed); }
 
     GridBuilder.UpdateGridTexts(InventoryVM->GetCellTexts(), CellWidgets);
@@ -530,14 +625,16 @@ void UW_InventoryPanel::RebuildHandGrids()
         for (UProjectGridCell* Cell : LeftHandCells)
         {
             if (!Cell) { continue; }
-            Cell->OnCellClicked.AddUObject(this, &UW_InventoryPanel::HandleLeftHandCellClicked);
-            Cell->OnCellRightClicked.AddUObject(this, &UW_InventoryPanel::HandleLeftHandCellContextRequested);
+            Cell->SetIsGridCell(true);
+            Cell->SetGridMouseDownHandler(
+                UProjectGridCell::FOnGridCellMouseDown::CreateUObject(this, &UW_InventoryPanel::HandleLeftHandCellMouseDown));
         }
         for (UProjectGridCell* Cell : RightHandCells)
         {
             if (!Cell) { continue; }
-            Cell->OnCellClicked.AddUObject(this, &UW_InventoryPanel::HandleRightHandCellClicked);
-            Cell->OnCellRightClicked.AddUObject(this, &UW_InventoryPanel::HandleRightHandCellContextRequested);
+            Cell->SetIsGridCell(true);
+            Cell->SetGridMouseDownHandler(
+                UProjectGridCell::FOnGridCellMouseDown::CreateUObject(this, &UW_InventoryPanel::HandleRightHandCellMouseDown));
         }
 
         bHandGridsBuilt = (LeftHandGridPanel && RightHandGridPanel);
@@ -595,6 +692,67 @@ bool UW_InventoryPanel::DecodePocketCellIndex(int32 EncodedCellIndex, int32& Out
     OutPocketIndex = (EncodedCellIndex >> 16) & 0x7FFF;
     OutCellIndex = EncodedCellIndex & 0xFFFF;
     return true;
+}
+
+bool UW_InventoryPanel::ResolveHandDropTargetAtScreenPos(
+    const FVector2D& ScreenPos,
+    FGameplayTag& OutContainerId,
+    FIntPoint& OutGridPos) const
+{
+    OutContainerId = FGameplayTag();
+    OutGridPos = FIntPoint(-1, -1);
+
+    if (!InventoryVM)
+    {
+        return false;
+    }
+
+	int32 HandCellIndex = INDEX_NONE;
+	if (LeftHandGridPanel
+		&& HitDetector.ResolveGridHit(
+			LeftHandGridPanel,
+            UInventoryViewModel::HandGridSize,
+			UInventoryViewModel::HandGridSize,
+			ScreenPos,
+			HandCellIndex))
+	{
+		if (!InventoryVM->ResolveHandDropTarget(true, OutContainerId, OutGridPos))
+		{
+			return false;
+		}
+
+		if (OutContainerId == ProjectTags::Item_Container_LeftHand)
+		{
+			OutGridPos = FIntPoint(
+				HandCellIndex % UInventoryViewModel::HandGridSize,
+				HandCellIndex / UInventoryViewModel::HandGridSize);
+		}
+		return true;
+	}
+
+    if (RightHandGridPanel
+        && HitDetector.ResolveGridHit(
+            RightHandGridPanel,
+            UInventoryViewModel::HandGridSize,
+			UInventoryViewModel::HandGridSize,
+			ScreenPos,
+			HandCellIndex))
+	{
+		if (!InventoryVM->ResolveHandDropTarget(false, OutContainerId, OutGridPos))
+		{
+			return false;
+		}
+
+		if (OutContainerId == ProjectTags::Item_Container_RightHand)
+		{
+			OutGridPos = FIntPoint(
+				HandCellIndex % UInventoryViewModel::HandGridSize,
+				HandCellIndex / UInventoryViewModel::HandGridSize);
+		}
+		return true;
+	}
+
+    return false;
 }
 
 void UW_InventoryPanel::RebuildPocketGrids()
@@ -692,7 +850,8 @@ void UW_InventoryPanel::RebuildTabs()
         if (Tab) { Tab->OnCellClicked.AddUObject(this, &UW_InventoryPanel::HandleContainerTabSelected); }
     }
 
-    const bool bHas2 = (InventoryVM->GetSecondaryGridWidth() > 0);
+    const bool bHasNearbyContainer = InventoryVM->GetbHasNearbyContainer();
+    const bool bHas2 = (InventoryVM->GetSecondaryGridWidth() > 0) && !bHasNearbyContainer;
     if (bHas2)
     {
         GridBuilder.BuildContainerTabs(ContainerTabsSecondary, Labels, SecondaryContainerTabCells, true);
@@ -700,6 +859,10 @@ void UW_InventoryPanel::RebuildTabs()
         {
             if (Tab) { Tab->OnCellClicked.AddUObject(this, &UW_InventoryPanel::HandleSecondaryContainerTabSelected); }
         }
+    }
+    else
+    {
+        SecondaryContainerTabCells.Reset();
     }
     if (ContainerTabsSecondary) { ContainerTabsSecondary->SetVisibility(bHas2 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed); }
 }
@@ -779,6 +942,7 @@ void UW_InventoryPanel::UpdateAllVisuals()
 void UW_InventoryPanel::RefreshAllText()
 {
     TextUpdater.UpdateStatsText(InventoryVM);
+    TextUpdater.UpdateNearbyContainerInfo(InventoryVM);
     TextUpdater.UpdateSelectionInfo(InventoryVM, PanelState);
     TextUpdater.UpdateCommandButtons(InventoryVM, PanelState);
     TextUpdater.UpdateQuantityControls(PanelState);
@@ -806,6 +970,76 @@ void UW_InventoryPanel::HandleRightHandCellClicked(int32 CellIndex)
         InstanceId != UInventoryViewModel::EmptyCellInstanceId ? InstanceId : INDEX_NONE);
     RefreshAllText();
     UpdateAllVisuals();
+}
+
+FEventReply UW_InventoryPanel::HandleLeftHandCellMouseDown(int32 CellIndex, bool /*bSecondary*/, const FPointerEvent& MouseEvent)
+{
+    if (!InventoryVM)
+    {
+        return UWidgetBlueprintLibrary::Handled();
+    }
+
+    const int32 InstanceId = InventoryVM->GetLeftHandInstanceId(CellIndex);
+    const FKey Button = MouseEvent.GetEffectingButton();
+    if (Button == EKeys::RightMouseButton)
+    {
+        PanelState.PendingDragCellIndex = INDEX_NONE;
+        PendingDragInstanceId = INDEX_NONE;
+        HandleLeftHandCellContextRequested(CellIndex);
+        return UWidgetBlueprintLibrary::Handled();
+    }
+
+    if (Button == EKeys::LeftMouseButton)
+    {
+        PanelState.PendingDragCellIndex = INDEX_NONE;
+        HandleLeftHandCellClicked(CellIndex);
+        PendingDragInstanceId = InstanceId;
+        if (InstanceId != UInventoryViewModel::EmptyCellInstanceId)
+        {
+            FInventoryEntryView Entry;
+            if (InventoryVM->TryGetEntryByInstanceId(InstanceId, Entry))
+            {
+                return UWidgetBlueprintLibrary::DetectDragIfPressed(MouseEvent, this, EKeys::LeftMouseButton);
+            }
+        }
+    }
+
+    return UWidgetBlueprintLibrary::Handled();
+}
+
+FEventReply UW_InventoryPanel::HandleRightHandCellMouseDown(int32 CellIndex, bool /*bSecondary*/, const FPointerEvent& MouseEvent)
+{
+    if (!InventoryVM)
+    {
+        return UWidgetBlueprintLibrary::Handled();
+    }
+
+    const int32 InstanceId = InventoryVM->GetRightHandInstanceId(CellIndex);
+    const FKey Button = MouseEvent.GetEffectingButton();
+    if (Button == EKeys::RightMouseButton)
+    {
+        PanelState.PendingDragCellIndex = INDEX_NONE;
+        PendingDragInstanceId = INDEX_NONE;
+        HandleRightHandCellContextRequested(CellIndex);
+        return UWidgetBlueprintLibrary::Handled();
+    }
+
+    if (Button == EKeys::LeftMouseButton)
+    {
+        PanelState.PendingDragCellIndex = INDEX_NONE;
+        HandleRightHandCellClicked(CellIndex);
+        PendingDragInstanceId = InstanceId;
+        if (InstanceId != UInventoryViewModel::EmptyCellInstanceId)
+        {
+            FInventoryEntryView Entry;
+            if (InventoryVM->TryGetEntryByInstanceId(InstanceId, Entry))
+            {
+                return UWidgetBlueprintLibrary::DetectDragIfPressed(MouseEvent, this, EKeys::LeftMouseButton);
+            }
+        }
+    }
+
+    return UWidgetBlueprintLibrary::Handled();
 }
 
 FEventReply UW_InventoryPanel::HandlePocketCellMouseDown(int32 EncodedCellIndex, bool /*bSecondary*/, const FPointerEvent& MouseEvent)
@@ -1038,7 +1272,7 @@ void UW_InventoryPanel::HandleContainerTabSelected(int32 TabIndex)
 
 void UW_InventoryPanel::HandleSecondaryContainerTabSelected(int32 TabIndex)
 {
-    if (InventoryVM) { InventoryVM->SetSecondaryContainerIndex(TabIndex); }
+    if (InventoryVM && !InventoryVM->GetbHasNearbyContainer()) { InventoryVM->SetSecondaryContainerIndex(TabIndex); }
 }
 
 void UW_InventoryPanel::HandleUseClicked()
@@ -1080,6 +1314,14 @@ void UW_InventoryPanel::HandleEquipClicked()
         {
             InventoryVM->RequestEquipItem(Entry.InstanceId, Entry.EquipSlotTag);
         }
+    }
+}
+
+void UW_InventoryPanel::HandleTakeAllClicked()
+{
+    if (InventoryVM)
+    {
+        InventoryVM->RequestTakeAllNearbyContainer();
     }
 }
 
@@ -1279,6 +1521,15 @@ FReply UW_InventoryPanel::NativeOnKeyDown(const FGeometry& InGeometry, const FKe
 {
     const FKey Key = InKeyEvent.GetKey();
 
+    if (Key == EKeys::E)
+    {
+        if (InventoryVM && InventoryVM->GetbHasNearbyContainer())
+        {
+            InventoryVM->HidePanel();
+            return FReply::Handled();
+        }
+    }
+
     if (Key == EKeys::R) { HandleRotateClicked(); return FReply::Handled(); }
     if (Key == EKeys::Enter) { HandleUseClicked(); return FReply::Handled(); }
 
@@ -1436,19 +1687,9 @@ void UW_InventoryPanel::NativeOnDragDetected(const FGeometry& InGeometry, const 
     DragOp->bRotated = bRotated;
     DragOp->ItemSize = bRotated ? FIntPoint(Entry.GridSize.Y, Entry.GridSize.X) : Entry.GridSize;
     DragOp->EquipSlotTag = Entry.EquipSlotTag;
+    DragOp->bFromNearbyContainer = InventoryVM->IsNearbyEntryInstanceId(Entry.InstanceId);
 
-    // Create drag visual showing item name and quantity
-    UTextBlock* DragVisual = NewObject<UTextBlock>(this);
-    const FString DragText = DragQuantity > 1
-        ? FString::Printf(TEXT("%s x%d"), *Entry.DisplayName.ToString(), DragQuantity)
-        : Entry.DisplayName.ToString();
-    DragVisual->SetText(FText::FromString(DragText));
-    DragVisual->SetFont(UProjectWidgetLayoutLoader::ResolveThemeFont(TEXT("BodySmall"), CurrentTheme));
-    if (CurrentTheme)
-    {
-        DragVisual->SetColorAndOpacity(FSlateColor(CurrentTheme->Colors.TextPrimary));
-    }
-    DragOp->DefaultDragVisual = DragVisual;
+    DragOp->DefaultDragVisual = FInventoryDragVisualBuilder::Build(this, Entry, DragQuantity, CurrentTheme);
     DragOp->Pivot = EDragPivot::CenterCenter;
 
     OutOperation = DragOp;
@@ -1517,6 +1758,37 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
         return false;
     }
 
+    FGameplayTag HandContainerId;
+    FIntPoint HandGridPos;
+    if (ResolveHandDropTargetAtScreenPos(InDragDropEvent.GetScreenSpacePosition(), HandContainerId, HandGridPos))
+    {
+        if (!HandContainerId.IsValid())
+        {
+            return false;
+        }
+
+        if (DragOp->bFromNearbyContainer)
+        {
+            InventoryVM->RequestTakeNearbyItemToContainer(
+                DragOp->InstanceId,
+                HandContainerId,
+                HandGridPos,
+                DragOp->bRotated,
+                DragOp->Quantity);
+            return true;
+        }
+
+        InventoryVM->RequestMoveItem(
+            DragOp->InstanceId,
+            DragOp->FromContainer,
+            DragOp->FromPos,
+            HandContainerId,
+            HandGridPos,
+            DragOp->Quantity,
+            DragOp->bRotated);
+        return true;
+    }
+
     // Pocket targets (compact top-row containers) are validated locally here.
     for (const FPocketGridRuntime& PocketRuntime : PocketGridRuntime)
     {
@@ -1577,6 +1849,17 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
             return false;
         }
 
+        if (DragOp->bFromNearbyContainer)
+        {
+            InventoryVM->RequestTakeNearbyItemToContainer(
+                DragOp->InstanceId,
+                PocketContainerId,
+                FIntPoint(PocketCol, PocketRow),
+                DragOp->bRotated,
+                DragOp->Quantity);
+            return true;
+        }
+
         InventoryVM->RequestMoveItem(
             DragOp->InstanceId,
             DragOp->FromContainer,
@@ -1613,6 +1896,35 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
             Col, Row, bSecondary))
     {
         return false;
+    }
+
+    if (InventoryVM->GetbHasNearbyContainer())
+    {
+        if (bSecondary && DragOp->bFromNearbyContainer)
+        {
+            return false;
+        }
+
+        if (bSecondary && !DragOp->bFromNearbyContainer)
+        {
+            InventoryVM->RequestStoreItemInNearbyContainerAt(
+                DragOp->InstanceId,
+                FIntPoint(Col, Row),
+                DragOp->bRotated,
+                DragOp->Quantity);
+            return true;
+        }
+
+        if (!bSecondary && DragOp->bFromNearbyContainer)
+        {
+            InventoryVM->RequestTakeNearbyItemToContainer(
+                DragOp->InstanceId,
+                InventoryVM->GetSelectedContainerId(),
+                FIntPoint(Col, Row),
+                DragOp->bRotated,
+                DragOp->Quantity);
+            return true;
+        }
     }
 
     const FGameplayTag ContainerId = bSecondary ? InventoryVM->GetSecondaryContainerId() : InventoryVM->GetSelectedContainerId();

@@ -36,4 +36,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	FGameplayTag EquipSlotTag;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	bool bFromNearbyContainer = false;
 };

@@ -18,13 +18,9 @@ set "TIMESTAMP=%date:~-4%%date:~4,2%%date:~7,2%_%time:~0,2%%time:~3,2%%time:~6,2
 set "TIMESTAMP=!TIMESTAMP: =0!"
 set "LOG_FILE=%LOG_DIR%boot_test_!TIMESTAMP!.log"
 
-REM Find UE path
-set "UE_PATH=<ue-path>"
-if exist "%PROJECT_ROOT%utility\config\ue_path.conf" (
-    for /f "tokens=1,* delims==" %%A in (%PROJECT_ROOT%utility\config\ue_path.conf) do (
-        if "%%A"=="UE_PATH" set "UE_PATH=%%B"
-    )
-)
+REM Resolve UE_PATH (SOT: resolve_ue_path.bat)
+call "%PROJECT_ROOT%scripts\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 
 set "PROJECT_FILE=%PROJECT_ROOT%Alis.uproject"
 set "UE_EDITOR_CMD=%UE_PATH%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"

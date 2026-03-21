@@ -79,17 +79,21 @@ private:
     void UpdateAllVisuals();
     void RefreshAllText();
     void HandleViewModelPropertyChanged(FName PropertyName);
+    void ReconcilePanelStateWithViewModel();
 
     // Click handlers (UFUNCTION required for delegates)
     UFUNCTION() void HandleUseClicked();
     UFUNCTION() void HandleDropClicked();
     UFUNCTION() void HandleEquipClicked();
+    UFUNCTION() void HandleTakeAllClicked();
     UFUNCTION() void HandleQtyDownClicked();
     UFUNCTION() void HandleQtyUpClicked();
     UFUNCTION() void HandleRotateClicked();
 
     void HandleLeftHandCellClicked(int32 CellIndex);
     void HandleRightHandCellClicked(int32 CellIndex);
+    FEventReply HandleLeftHandCellMouseDown(int32 CellIndex, bool bSecondary, const FPointerEvent& MouseEvent);
+    FEventReply HandleRightHandCellMouseDown(int32 CellIndex, bool bSecondary, const FPointerEvent& MouseEvent);
     void HandleLeftHandCellContextRequested(int32 CellIndex);
     void HandleRightHandCellContextRequested(int32 CellIndex);
     void HandlePocketCellClicked(int32 EncodedCellIndex);
@@ -102,6 +106,7 @@ private:
     static int32 EncodePocketCellIndex(int32 PocketIndex, int32 CellIndex);
     static bool DecodePocketCellIndex(int32 EncodedCellIndex, int32& OutPocketIndex, int32& OutCellIndex);
     FEventReply HandlePocketCellMouseDown(int32 EncodedCellIndex, bool bSecondary, const FPointerEvent& MouseEvent);
+    bool ResolveHandDropTargetAtScreenPos(const FVector2D& ScreenPos, FGameplayTag& OutContainerId, FIntPoint& OutGridPos) const;
 
 private:
     // Core references
@@ -111,6 +116,7 @@ private:
     // Layout containers (from JSON)
     UPROPERTY() TObjectPtr<UBorder> GridHost;
     UPROPERTY() TObjectPtr<UBorder> GridHostSecondary;
+    UPROPERTY() TObjectPtr<UBorder> NearbyGridHost;
     UPROPERTY() TObjectPtr<UHorizontalBox> ContainerTabs;
     UPROPERTY() TObjectPtr<UHorizontalBox> ContainerTabsSecondary;
     UPROPERTY() TObjectPtr<UVerticalBox> EquipSlotsHost;
@@ -119,6 +125,8 @@ private:
     UPROPERTY() TObjectPtr<UWidget> GridRow;
     UPROPERTY() TObjectPtr<UWidget> GridSizeBoxPrimary;
     UPROPERTY() TObjectPtr<UWidget> GridSizeBoxSecondary;
+    UPROPERTY() TObjectPtr<UWidget> NearbySection;
+    UPROPERTY() TObjectPtr<UWidget> NearbyGridSizeBox;
 
     // Placeholder shown when no storage containers exist
     UPROPERTY() TObjectPtr<UWidget> EmptyStoragePlaceholder;
@@ -175,6 +183,8 @@ private:
     UPROPERTY() TObjectPtr<UTextBlock> StatusText;
     UPROPERTY() TObjectPtr<UTextBlock> RotateStateText;
     UPROPERTY() TObjectPtr<UTextBlock> QtyValueText;
+    UPROPERTY() TObjectPtr<UTextBlock> NearbyTitleText;
+    UPROPERTY() TObjectPtr<UTextBlock> NearbyStatsText;
 
     // Context menu adapters (popup mechanics in ProjectUI presenter, commands in ViewModel)
     UPROPERTY() TObjectPtr<UCanvasPanel> RootCanvas;

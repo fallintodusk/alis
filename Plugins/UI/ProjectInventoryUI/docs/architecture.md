@@ -1,5 +1,11 @@
 # ProjectInventoryUI Architecture
 
+Behavior SOT
+- Inventory behavior and the container layout contract live only in
+  `../../../Features/ProjectInventory/docs/design_vision.md`.
+- This doc covers UI implementation split and framework ownership only.
+- Do not restate inventory behavior here.
+
 ## Overview
 
 Inventory UI follows SOLID principles with single-responsibility components and structured observability.

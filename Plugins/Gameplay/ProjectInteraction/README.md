@@ -16,7 +16,7 @@ ProjectCore (interfaces only)
   -> IInteractionComponentInterface  # PlayerController queries this
   -> IInteractionService             # Features subscribe to this
 
-PlayerController (SinglePlayerPlayerController, etc.)
+PlayerController (SinglePlayController, etc.)
   -> Depends on ProjectCore
   -> Owns IA_Interact input (E key)
   -> Calls IInteractionComponentInterface::Execute_TryInteract() on pawn's component

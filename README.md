@@ -11,9 +11,13 @@ In practical terms:
 - this public repository contains source code, architecture docs, build and release workflows, and trust tooling
 - this public repository does not include full runtime asset payloads, private infrastructure, or private machine configuration
 
+Vision: [VISION.md](VISION.md) - what ALIS is trying to achieve for people.
+
+Social contract: [ALIS_PACT.md](ALIS_PACT.md) - the agreement that protects the project's intent.
+
 Official links:
 - Site: https://fall.is/
-- About and trust: https://fall.is/about/
+- Trust and verification: https://fall.is/trust/
 
 ## Current Public Status
 
@@ -142,7 +146,7 @@ ALIS public releases are designed to be verifiable, not just downloadable.
 Relevant entry points:
 - Packaging guide: [docs/build/packaging_guide.md](docs/build/packaging_guide.md)
 - Packaging scripts: [scripts/ue/package/README.md](scripts/ue/package/README.md)
-- Trust page and public key: https://fall.is/about/
+- Trust page and public key: https://fall.is/trust/
 
 The release flow in this repo includes:
 - packaging for public distribution

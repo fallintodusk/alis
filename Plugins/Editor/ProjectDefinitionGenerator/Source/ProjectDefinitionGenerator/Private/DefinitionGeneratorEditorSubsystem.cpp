@@ -229,16 +229,24 @@ TArray<FDefinitionValidationResult> UDefinitionGeneratorEditorSubsystem::Validat
 
 		TSharedPtr<FJsonObject> JsonObject;
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid() || !JsonObject->HasField(TEXT("id")))
+		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
 		{
 			Result.AssetId = FPaths::GetBaseFilename(JsonFile);
 			Result.bNeedsRegeneration = true;
-			Result.Reason = TEXT("Invalid JSON or missing 'id' field");
+			Result.Reason = TEXT("Invalid JSON");
 			Results.Add(Result);
 			continue;
 		}
 
-		Result.AssetId = JsonObject->GetStringField(TEXT("id"));
+		FString ResolveError;
+		if (!UDefinitionGeneratorSubsystem::ResolveAssetIdFromJson(TypeInfo, JsonObject, Result.AssetId, ResolveError))
+		{
+			Result.AssetId = FPaths::GetBaseFilename(JsonFile);
+			Result.bNeedsRegeneration = true;
+			Result.Reason = ResolveError;
+			Results.Add(Result);
+			continue;
+		}
 
 		// Find existing asset and check hash/version
 		UObject* ExistingAsset = Generator->FindExistingAssetForType(TypeName, Result.AssetId);

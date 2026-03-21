@@ -3,7 +3,7 @@
 #include "Customization/LootEntryViewCustomization.h"
 #include "ProjectPlacementEditor.h"
 #include "Data/ObjectDefinition.h"
-#include "Interfaces/ILootSource.h"
+#include "Types/LootEntryTypes.h"
 
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"

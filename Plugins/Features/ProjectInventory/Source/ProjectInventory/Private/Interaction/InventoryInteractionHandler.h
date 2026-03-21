@@ -7,12 +7,11 @@
 class UProjectInventoryComponent;
 
 /**
- * Handles inventory-related interactions (pickup items, loot containers).
+ * Handles inventory-related interactions (pickup items).
  * Subscribes to IInteractionService::OnInteraction() and routes to inventory.
  *
  * Pattern:
  * - Pickup items: Resolve IPickupSource, read ObjectDefinitionId + Quantity from source
- * - Loot containers: Resolve ILootSource, call CanFitItems/AddItemsBatch
  *
  * NOTE: Doors and other interactables handle themselves via IInteractableTargetInterface.
  * This handler only processes inventory-specific objects.
@@ -27,14 +26,13 @@ public:
 
 	void Subscribe();
 	void Unsubscribe();
+	bool IsSubscribed() const { return InteractionHandle.IsValid(); }
 
 private:
 	void HandleInteraction(AActor* Target, AActor* Instigator);
 	void HandlePickupSource(UObject* PickupSource, APawn* Pawn);
-	void HandleLootSource(UObject* LootSource, APawn* Pawn);
 	UProjectInventoryComponent* GetInventory(APawn* Pawn) const;
 	UObject* FindPickupSource(AActor* Target) const;
-	UObject* FindLootSource(AActor* Target) const;
 
 	FDelegateHandle InteractionHandle;
 };

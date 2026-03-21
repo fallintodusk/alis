@@ -7,27 +7,9 @@ REM   build.bat AlisEditor Development -Module=ProjectBoot
 
 setlocal
 
-REM Read UE path from config
-set CONFIG_FILE=%~dp0..\..\config\ue_path.conf
-if exist "%CONFIG_FILE%" (
-    for /f "usebackq tokens=1,2 delims==" %%a in ("%CONFIG_FILE%") do (
-        if "%%a"=="UE_PATH" set UE_PATH=%%b
-    )
-)
-
-REM Fallback to common paths
-if not defined UE_PATH (
-    if exist "<ue-path>" set UE_PATH=<ue-path>
-    if exist "<ue-path>" set UE_PATH=<ue-path>
-)
-
-if not defined UE_PATH (
-    echo ERROR: UE_PATH not found! Create scripts\config\ue_path.conf with UE_PATH=<ue-path>
-    exit /b 1
-)
-
-REM Remove quotes from UE_PATH
-set UE_PATH=%UE_PATH:"=%
+REM Resolve UE_PATH (SOT: resolve_ue_path.bat)
+call "%~dp0..\..\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 
 REM Project file
 pushd "%~dp0..\..\.."

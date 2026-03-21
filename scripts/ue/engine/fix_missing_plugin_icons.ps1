@@ -18,19 +18,14 @@ $projectRoot = Resolve-Path (Join-Path $scriptDir "..\..\..")
 
 # Read UE path from config if not provided
 if (-not $EngineRoot) {
-    $configPath = Join-Path $projectRoot "scripts\config\ue_path.conf"
-    if (Test-Path $configPath) {
-        $configContent = Get-Content $configPath -Raw
-        if ($configContent -match 'UE_PATH=(.+)') {
-            $EngineRoot = $matches[1].Trim()
-        }
-    }
-
-    # No fallbacks: UE_PATH is SOT
+    $configDir = Join-Path $projectRoot "scripts\config"
+    . (Join-Path $configDir "Resolve-UEConfig.ps1")
+    $config = Resolve-UEConfig -ConfigDir $configDir
+    $EngineRoot = $config.UE_PATH
 }
 
 if (-not $EngineRoot -or -not (Test-Path $EngineRoot)) {
-    Write-Error "Engine not found. Specify -EngineRoot or set UE_PATH in scripts/config/ue_path.conf"
+    Write-Error "Engine not found. Specify -EngineRoot or create scripts/config/ue_path.local.conf"
     exit 1
 }
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "Modules/ModuleManager.h"
 
 PROJECTINVENTORY_API DECLARE_LOG_CATEGORY_EXTERN(LogProjectInventory, Log, All);
@@ -24,6 +25,10 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+	bool TrySubscribeInteraction(float DeltaTime);
+
 	/** Handles pickup and loot container interactions. */
 	TSharedPtr<FInventoryInteractionHandler> InteractionHandler;
+
+	FTSTicker::FDelegateHandle RetryHandle;
 };

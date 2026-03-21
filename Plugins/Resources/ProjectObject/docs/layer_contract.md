@@ -25,7 +25,7 @@ ObjectDefinition (JSON SOT)
   |
   +-- sections{}         = data for other systems (optional)
         - item           (identity + rules + behavior refs)
-        - loot           (future)
+        - storage        (container data for world storage and loot places)
         - quest          (future)
 ```
 
@@ -54,6 +54,7 @@ A **door** is an ObjectDefinition that:
 | Capability | Properties | Purpose |
 |------------|------------|---------|
 | `Pickup` | PickupTime, InitialQuantity | Can be picked up |
+| `LootContainer` | OneTimeUse, interaction mode label | Can be searched/opened as world storage |
 | `Hinged` | OpenAngle, Speed, TargetMesh | Rotates on hinge |
 | `Lockable` | LockTag, DefaultLocked | Can be locked/unlocked |
 | `Sliding` | OpenOffset, Speed, TargetMesh | Slides open/closed |
@@ -64,6 +65,7 @@ A **door** is an ObjectDefinition that:
 - DisplayName in Pickup (that's for UI, not world)
 - Weight in Pickup (that's for inventory rules, not world)
 - Effects in Pickup (that's for GAS, not world)
+- GridSize/MaxWeight/AllowedTags in LootContainer properties (those belong in `sections.storage`)
 
 ---
 
@@ -100,6 +102,29 @@ A **door** is an ObjectDefinition that:
 **Hard contract:** Section fields MUST NOT be world-interaction fields.
 
 **The object doesn't "know" inventory tech.** It just contains optional data. Only inventory/GAS code interprets the item section.
+
+### Storage Section
+
+**Purpose:** Data for world storage, nearby loot containers, and persistent container state.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| GridSize | FIntPoint | Rules - container footprint in cells |
+| MaxWeight | float | Rules - per-container weight limit |
+| MaxVolume | float | Rules - per-container volume limit |
+| MaxCells | int32 | Rules - optional enabled-cell limit |
+| AllowedTags | FGameplayTagContainer | Rules - item filter for specialized storage |
+| bAllowRotation | bool | Rules - placement rotation support |
+| bPersistent | bool | Persistence policy |
+| ContainerSlotId | FName | Stable authored slot/key within object |
+| SeedEntries | TArray<FStorageSeedEntry> | Exact authored contents (default) |
+| LootProfileId | FPrimaryAssetId | Optional shared randomized fill profile |
+
+**Hard contract:** Storage section fields MUST NOT be world-interaction fields.
+
+The object still does not "know" inventory runtime internals. It only exposes optional
+storage data. World-capability and inventory code interpret the section through stable
+contracts.
 
 ---
 
@@ -139,6 +164,7 @@ ProjectInventory / ProjectGAS
 |--------|-------------------|
 | All Objects | (no filter) |
 | Pickups | `ALIS.Cap.Pickup = "true"` |
+| World storage | `ALIS.Cap.LootContainer = "true"` or `ALIS.Section.Storage = "true"` |
 | Items | `ALIS.Section.Item = "true"` OR `ALIS.ItemTag.*` |
 | Doors | `ALIS.Cap.Hinged` OR `ALIS.Cap.Lockable` |
 | Consumables | `ALIS.ItemTag.Item.Type.Consumable` |
@@ -191,6 +217,17 @@ ProjectInventory / ProjectGAS
         "SetByCaller.Hydration": -30.0
       },
       "consumeOnUse": true
+    },
+    "storage": {
+      "gridSize": "3,3",
+      "maxWeight": 12.0,
+      "maxVolume": 18.0,
+      "maxCells": 9,
+      "allowRotation": true,
+      "persistent": false,
+      "containerSlotId": "Primary",
+      "seedEntries": [],
+      "lootProfileId": "LootProfileDefinition:Scavenge_SmallConsumables"
     }
   }
 }

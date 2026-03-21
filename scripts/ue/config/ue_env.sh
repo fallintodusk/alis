@@ -2,35 +2,12 @@
 # Unreal Engine Environment Configuration
 # Single source of truth for UE paths and settings
 
-# Load UE path from config (single source of truth)
+# Delegate to central config loader (SOT: scripts/config/ue_env.sh)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-CONFIG_FILE="${PROJECT_ROOT}/scripts/config/ue_path.conf"
 
-UE_PATH=""
-if [ -f "$CONFIG_FILE" ]; then
-    while IFS= read -r line; do
-        case "$line" in
-            \#*|"") continue ;;
-        esac
-        if [[ "$line" =~ ^[[:space:]]*UE_PATH[[:space:]]*(:=|=)[[:space:]]*(.+)$ ]]; then
-            UE_PATH="${BASH_REMATCH[2]}"
-            UE_PATH="${UE_PATH%\"}"
-            UE_PATH="${UE_PATH#\"}"
-            UE_PATH="${UE_PATH%\'}"
-            UE_PATH="${UE_PATH#\'}"
-            break
-        fi
-    done < "$CONFIG_FILE"
-fi
-
-if [ -z "$UE_PATH" ]; then
-    echo "ERROR: UE_PATH not set. Configure scripts/config/ue_path.conf"
-    exit 1
-fi
-
-export UE_PATH
-export UE_TYPE="config"
+# shellcheck source=../../config/ue_env.sh
+source "${PROJECT_ROOT}/scripts/config/ue_env.sh"
 
 # Project paths (Unix-style for Git Bash)
 export PROJECT_ROOT="${PROJECT_ROOT}"

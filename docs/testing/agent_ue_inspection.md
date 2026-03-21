@@ -56,13 +56,17 @@ Dumps persist between sessions. If stale, ask user to regenerate in PIE.
 ```
 Output: `Saved/Dumps/Inventory.json`
 
+**Inventory + nearby loot layout test:**
+```powershell
+.\scripts\ue\test\unit\run_cpp_tests_safe.ps1 -TestFilter "ProjectIntegrationTests.UI.Layout.InventoryNearbyLoot.DumpTree" -Game -Map "/MainMenuWorld/Maps/MainMenu_Persistent.MainMenu_Persistent"
+```
+Output: `Saved/Dumps/InventoryNearbyLoot.json`
+
 **Inventory ordering contract test (hands + pockets + backpack):**
 ```powershell
 .\scripts\ue\test\unit\run_cpp_tests_safe.ps1 -TestFilter "ProjectIntegrationTests.UI.Layout.InventoryHands.PocketOrdering" -Game -Map "/MainMenuWorld/Maps/MainMenu_Persistent.MainMenu_Persistent"
 ```
-Validates descriptor-driven ordering:
-- top compact row near hands: `Pockets1`, `Pockets2`, `Pockets3`, `Pockets4`
-- bottom large storage row: backpack first
+Validates the current descriptor-driven layout contract defined in `Plugins/Features/ProjectInventory/docs/design_vision.md`.
 
 **UI framework regression gate (required for framework refactors):**
 ```powershell
@@ -149,6 +153,7 @@ Generate dump + analyze in one command:
 
 ```powershell
 .\scripts\ue\test\ui\check_inventory_layout.ps1
+.\scripts\ue\test\ui\check_inventory_layout.ps1 -Scenario NearbyLoot
 .\scripts\ue\test\ui\check_inventory_layout.ps1 -SkipDump              # Analyze existing dump only
 .\scripts\ue\test\ui\check_inventory_layout.ps1 -DumpPath "path.json"  # Custom dump path
 ```
@@ -157,6 +162,7 @@ Generate dump + analyze in one command:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `-Scenario` | `Hands`, `NearbyLoot`, or `Naked` dump preset | `Hands` |
 | `-SkipDump` | Skip UE test, analyze existing dump | `$false` |
 | `-DumpPath` | Custom JSON dump path | `Saved/Dumps/Inventory.json` |
 | `-TimeoutSeconds` | UE test timeout | `90` |
@@ -205,7 +211,7 @@ The report tool validates these invariants (from [Common Issues](#common-issues)
 | `NO_VIEWMODEL` | ProjectUserWidget missing ViewModel binding | Medium |
 | `SAME_POSITION` | Multiple siblings at identical Canvas offset AND anchor | Medium |
 
-**EMPTY_CONTAINER**: Checks that known grid hosts (`GridHostPrimary`, `GridHostSecondary`, `LeftHandGridHost`, `RightHandGridHost`) have children when visible. Empty grid hosts indicate the ViewModel didn't properly populate grid dimensions, or `RebuildGrids()` wasn't called.
+**EMPTY_CONTAINER**: Checks that known grid hosts (`GridHostPrimary`, `GridHostSecondary`, `NearbyGridHost`, `LeftHandGridHost`, `RightHandGridHost`) have children when visible. Empty grid hosts indicate the ViewModel didn't properly populate grid dimensions, or `RebuildGrids()` wasn't called.
 
 ## Framework Consolidation Checks (Critical)
 
@@ -232,10 +238,8 @@ Expected: settings root created once and reused across navigation.
 - Avoid widget-local action visibility logic duplication.
 
 5. Inventory layout contract check
-- Inventory container rendering must be descriptor-driven, not per-container widget branching.
-- Hands are fixed; compact containers render top-right; backpack/large containers render bottom-right.
-- If no descriptors are present for a group, that group host must be collapsed (no empty white placeholder storage panel).
-- Baseline naked state must show hands only.
+- Inventory container rendering must follow the contract in `Plugins/Features/ProjectInventory/docs/design_vision.md`.
+- Keep this doc as a routing note only; do not duplicate the contract here.
 
 ### Integration with CI
 
@@ -445,7 +449,7 @@ See [ProjectUIInventoryDumpTreeTest.cpp](../../Plugins/Test/ProjectIntegrationTe
 
 | Item | Path |
 |------|------|
-| JSON dumps (single) | `Saved/Dumps/Inventory.json` |
+| JSON dumps (single) | `Saved/Dumps/Inventory.json`, `Saved/Dumps/InventoryNearbyLoot.json`, `Saved/Dumps/InventoryNaked.json` |
 | JSON dumps (multi-res) | `Saved/Dumps/Inventory_{720p,1080p,1440p,Ultrawide}.json` |
 | **Agentic Tools** | |
 | Layout report | `tools/agentic/ui/layout_report.py` |

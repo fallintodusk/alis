@@ -5,28 +5,13 @@ REM Usage: check.bat [--uht|--syntax|--blueprints|--assets|--all]
 setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
-set CONFIG_FILE=%SCRIPT_DIR%..\..\config\ue_path.conf
 set PROJECT_ROOT=%SCRIPT_DIR%..\..\..
 set PROJECT_FILE=%PROJECT_ROOT%\Alis.uproject
 set REPORTS_DIR=%PROJECT_ROOT%\Saved\Validation\Reports
 
-if exist "%CONFIG_FILE%" (
-    for /f "usebackq tokens=1,2 delims==" %%a in ("%CONFIG_FILE%") do (
-        if "%%a"=="UE_PATH" set UE_PATH=%%b
-    )
-)
-
-if not defined UE_PATH (
-    if exist "<ue-path>" set UE_PATH=<ue-path>
-    if exist "<ue-path>" set UE_PATH=<ue-path>
-)
-
-if not defined UE_PATH (
-    echo ERROR: UE_PATH not found. Check scripts\config\ue_path.conf
-    exit /b 1
-)
-
-set UE_PATH=%UE_PATH:"=%
+REM Resolve UE_PATH (SOT: resolve_ue_path.bat)
+call "%SCRIPT_DIR%..\..\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 
 if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
 

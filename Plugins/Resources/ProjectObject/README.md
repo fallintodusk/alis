@@ -247,7 +247,7 @@ Capabilities are C++ components with stable IDs via `GetPrimaryAssetId()`:
 | Tag | Example Value | Purpose |
 |-----|---------------|---------|
 | `ALIS.Cap.<Name>` | `"true"` | Boolean per capability (Hinged, Lockable, Pickup, etc.) |
-| `ALIS.Section.<Name>` | `"true"` | Boolean per section (Item, Loot, etc.) |
+| `ALIS.Section.<Name>` | `"true"` | Boolean per section (Item, Storage, etc.) |
 | `ALIS.ItemTag.<Tag>` | `"true"` | Boolean per item tag (e.g., `ALIS.ItemTag.Item.Type.Consumable`) |
 | `DisplayName` | `"Water Bottle"` | Tooltip display (from Item section) |
 | `Weight` | `"0.5"` | Tooltip display (from Item section) |

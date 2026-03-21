@@ -6,27 +6,18 @@ param(
     [switch]$Force
 )
 
-$ConfigPath = Join-Path $PSScriptRoot "..\config\ue_path.conf"
-$UePath = $null
+$ConfigDir = Join-Path $PSScriptRoot "..\config"
+. (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
+$config = Resolve-UEConfig -ConfigDir $ConfigDir
 
-# Parse UE_PATH from ue_path.conf (single source of truth)
-if (Test-Path $ConfigPath) {
-    Get-Content $ConfigPath | ForEach-Object {
-        $line = $_.Trim()
-        if (-not $line -or $line.StartsWith("#")) { return }
-        if ($line -match "^\s*UE_PATH\s*(:=|=)\s*(.+)$") {
-            $val = $Matches[2].Trim('"', "'")
-            if (-not $val.StartsWith("#")) {
-                $UePath = $val
-            }
-        }
-    }
-}
+$UePath = $config.UE_PATH
 
 if (-not $UePath) {
-    Write-Error "Could not parse UE_PATH from $ConfigPath"
+    Write-Error "UE_PATH not found. Create scripts/config/ue_path.local.conf with UE_PATH=<your engine path>"
     exit 1
 }
+
+Write-Host "Config file: $($config.ConfigFile)"
 
 # Normalize path for Windows
 $UePath = $UePath -replace '/', '\'

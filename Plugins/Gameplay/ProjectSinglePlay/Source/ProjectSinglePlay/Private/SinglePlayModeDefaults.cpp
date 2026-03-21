@@ -46,7 +46,7 @@ DEFINE_SINGLEPLAY_MODE(Beginner)
 
 	// Character class (ProjectCharacter plugin)
 	Config.DefaultPawnClass = TSoftClassPtr<APawn>(FSoftClassPath(TEXT("/Script/ProjectCharacter.ProjectCharacter")));
-	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayerPlayerController")));
+	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 
 	// Features to initialize (order matters)
 	Config.FeatureNames.Add(TEXT("Interaction"));
@@ -67,7 +67,7 @@ DEFINE_SINGLEPLAY_MODE(Medium)
 
 	// Character class (ProjectCharacter plugin)
 	Config.DefaultPawnClass = TSoftClassPtr<APawn>(FSoftClassPath(TEXT("/Script/ProjectCharacter.ProjectCharacter")));
-	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayerPlayerController")));
+	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 
 	// Features to initialize (order matters)
 	Config.FeatureNames.Add(TEXT("Interaction"));
@@ -88,7 +88,7 @@ DEFINE_SINGLEPLAY_MODE(Hardcore)
 
 	// Character class (ProjectCharacter plugin)
 	Config.DefaultPawnClass = TSoftClassPtr<APawn>(FSoftClassPath(TEXT("/Script/ProjectCharacter.ProjectCharacter")));
-	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayerPlayerController")));
+	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 
 	// Features to initialize (order matters)
 	Config.FeatureNames.Add(TEXT("Interaction"));

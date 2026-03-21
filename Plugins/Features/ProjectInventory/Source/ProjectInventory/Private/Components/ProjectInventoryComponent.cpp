@@ -10,10 +10,13 @@
 #include "Helpers/InventoryViewHelper.h"
 #include "Helpers/InventoryAddHelper.h"
 #include "Helpers/InventoryMoveHelper.h"
+#include "Helpers/InventoryWorldContainerTransferHelper.h"
 #include "ProjectInventory.h"
+#include "Subsystems/ProjectContainerSessionSubsystem.h"
 #include "Services/ObjectDefinitionCache.h"
 #include "Services/IObjectSpawnService.h"
 #include "Interfaces/IPickupSource.h"
+#include "Interfaces/IWorldContainerSessionSource.h"
 #include "ProjectServiceLocator.h"
 #include "ProjectGameplayTags.h"
 #include "AbilitySystemComponent.h"
@@ -22,10 +25,80 @@
 #include "ProjectSaveSubsystem.h"
 #include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Modules/ModuleManager.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+
+namespace
+{
+UProjectContainerSessionSubsystem* ResolveLocalPlayerSessionSubsystem(const UProjectInventoryComponent* Inventory)
+{
+	if (!Inventory)
+	{
+		return nullptr;
+	}
+
+	const APawn* OwnerPawn = Cast<APawn>(Inventory->GetOwner());
+	APlayerController* PlayerController = OwnerPawn ? Cast<APlayerController>(OwnerPawn->GetController()) : nullptr;
+	if (!PlayerController)
+	{
+		PlayerController = Cast<APlayerController>(Inventory->GetOwner());
+	}
+
+	if (!PlayerController)
+	{
+		return nullptr;
+	}
+
+	ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
+	return LocalPlayer ? LocalPlayer->GetSubsystem<UProjectContainerSessionSubsystem>() : nullptr;
+}
+
+AActor* ResolveWorldContainerActorFromSource(UObject* WorldContainerSource)
+{
+	if (AActor* Actor = Cast<AActor>(WorldContainerSource))
+	{
+		return Actor;
+	}
+
+	if (const UActorComponent* Component = Cast<UActorComponent>(WorldContainerSource))
+	{
+		return Component->GetOwner();
+	}
+
+	return nullptr;
+}
+
+int32 GetTotalItemQuantity(const TArray<FInventoryEntry>& Entries, const FPrimaryAssetId& ObjectId)
+{
+	int32 TotalQuantity = 0;
+	for (const FInventoryEntry& Entry : Entries)
+	{
+		if (Entry.ItemId == ObjectId)
+		{
+			TotalQuantity += Entry.Quantity;
+		}
+	}
+	return TotalQuantity;
+}
+
+void BuildExpectedLootQuantities(const TArray<FLootEntry>& Items, TMap<FPrimaryAssetId, int32>& OutExpectedQuantities)
+{
+	OutExpectedQuantities.Reset();
+	for (const FLootEntry& Item : Items)
+	{
+		if (!Item.IsValid())
+		{
+			continue;
+		}
+
+		OutExpectedQuantities.FindOrAdd(Item.ObjectId) += Item.Quantity;
+	}
+}
+}
 
 // -------------------------------------------------------------------------
 // Constructor & Lifecycle
@@ -35,7 +108,7 @@ UProjectInventoryComponent::UProjectInventoryComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-	DefaultContainerId = ProjectTags::Item_Container_Hands;
+	DefaultContainerId = ProjectTags::Item_Container_LeftHand;
 	MaxSlots = 2;
 	DefaultContainerGridWidth = 2;
 
@@ -57,8 +130,7 @@ UProjectInventoryComponent::UProjectInventoryComponent()
 			EquipSlotContainerGrants.Add(Grant);
 		};
 
-		// Hand containers: 2x2 grip zone, width-only validation, MaxCells=1 (one item per hand)
-		// Items always placed at (0,0), height overflow is visual-only via UI clipping
+		// Equipped items occupying hand equipment slots collapse hand storage back to a single held item.
 		AddGrant(ProjectTags::Item_EquipmentSlot_MainHand, ProjectTags::Item_Container_LeftHand, FIntPoint(2, 2), true, 1);
 		AddGrant(ProjectTags::Item_EquipmentSlot_OffHand, ProjectTags::Item_Container_RightHand, FIntPoint(2, 2), true, 1);
 
@@ -474,6 +546,19 @@ void UProjectInventoryComponent::BroadcastErrorLocal(const FText& ErrorMessage)
 void UProjectInventoryComponent::Client_InventoryError_Implementation(const FText& ErrorMessage)
 {
 	BroadcastErrorLocal(ErrorMessage);
+}
+
+void UProjectInventoryComponent::Client_WorldContainerSessionOpened_Implementation(
+	AActor* TargetActor,
+	FContainerSessionHandle SessionHandle)
+{
+	HandleWorldContainerSessionOpenedLocal(TargetActor, SessionHandle);
+}
+
+void UProjectInventoryComponent::Client_WorldContainerSessionClosed_Implementation(
+	FContainerSessionHandle SessionHandle)
+{
+	HandleWorldContainerSessionClosedLocal(SessionHandle);
 }
 
 void UProjectInventoryComponent::BroadcastError(const FText& ErrorMessage)
@@ -920,6 +1005,1011 @@ void UProjectInventoryComponent::AddItemsBatch(const TArray<FLootEntry>& Items)
 	UE_LOG(LogProjectInventory, Log, TEXT("AddItemsBatch: Processed %d loot entries"), Items.Num());
 }
 
+bool UProjectInventoryComponent::TryExtractContainerTransferEntry(
+	int32 InstanceId,
+	int32 Quantity,
+	FContainerEntryTransfer& OutEntry,
+	FText& OutError)
+{
+	OutEntry = FContainerEntryTransfer();
+	OutError = FText::GetEmpty();
+
+	AActor* Owner = GetOwner();
+	if (!Owner || !Owner->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "ExtractContainerEntryAuthority", "Inventory extraction requires authority.");
+		return false;
+	}
+
+	FInventoryEntry Entry;
+	if (!FindEntry(InstanceId, Entry))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "ExtractContainerEntryMissing", "Inventory entry is no longer available.");
+		return false;
+	}
+
+	const int32 ExtractQuantity = FMath::Clamp(Quantity, 1, Entry.Quantity);
+	OutEntry.ObjectId = Entry.ItemId;
+	OutEntry.Quantity = ExtractQuantity;
+
+	if (!Internal_RemoveItem(InstanceId, ExtractQuantity))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "ExtractContainerEntryRemoveFailed", "Inventory entry could not be removed.");
+		OutEntry = FContainerEntryTransfer();
+		return false;
+	}
+
+	return true;
+}
+
+UObject* UProjectInventoryComponent::ResolveWorldContainerSessionSource(AActor* TargetActor) const
+{
+	if (!TargetActor)
+	{
+		return nullptr;
+	}
+
+	if (TargetActor->Implements<UWorldContainerSessionSource>())
+	{
+		return TargetActor;
+	}
+
+	TInlineComponentArray<UActorComponent*> Components;
+	TargetActor->GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (Component && Component->Implements<UWorldContainerSessionSource>())
+		{
+			return Component;
+		}
+	}
+
+	return nullptr;
+}
+
+AActor* UProjectInventoryComponent::ResolveWorldContainerActor(UObject* WorldContainerSource) const
+{
+	return ResolveWorldContainerActorFromSource(WorldContainerSource);
+}
+
+bool UProjectInventoryComponent::OpenWorldContainerSessionAuthority(
+	AActor* TargetActor,
+	EContainerSessionMode Mode,
+	FContainerSessionHandle& OutHandle,
+	FText& OutError)
+{
+	OutHandle.Reset();
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionAuthorityRequired", "World-container session open requires authority.");
+		return false;
+	}
+
+	if (!TargetActor)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionMissingTarget", "World-container target is required.");
+		return false;
+	}
+
+	if (ActiveWorldContainerSessionHandle.IsValid())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionAlreadyActive", "A world-container session is already active.");
+		return false;
+	}
+
+	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
+	if (!SourceObject)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionMissingSource", "Target does not expose a world-container session source.");
+		return false;
+	}
+
+	if (!IWorldContainerSessionSource::Execute_SupportsContainerSession(SourceObject, Mode))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionUnsupportedMode", "Target does not support the requested world-container mode.");
+		return false;
+	}
+
+	FContainerSessionHandle Handle;
+	Handle.SessionId = FGuid::NewGuid();
+	Handle.ContainerKey = IWorldContainerSessionSource::Execute_GetWorldContainerKey(SourceObject);
+	Handle.Mode = Mode;
+	if (!Handle.IsValid())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionInvalidKey", "Target world-container key is invalid.");
+		return false;
+	}
+
+	if (!IWorldContainerSessionSource::Execute_TryBeginContainerSession(
+		SourceObject,
+		OwnerActor,
+		Handle.SessionId,
+		Mode,
+		OutError))
+	{
+		if (OutError.IsEmpty())
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionRejected", "World-container session open was rejected.");
+		}
+		return false;
+	}
+
+	ActiveWorldContainerSessionHandle = Handle;
+	ActiveWorldContainerTargetActor = TargetActor;
+	OutHandle = Handle;
+	return true;
+}
+
+bool UProjectInventoryComponent::CloseWorldContainerSessionAuthority(
+	AActor* TargetActor,
+	const FContainerSessionHandle& SessionHandle,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "CloseWorldSessionAuthorityRequired", "World-container session close requires authority.");
+		return false;
+	}
+
+	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "CloseWorldSessionUnknown", "World-container session handle is not active.");
+		return false;
+	}
+
+	if (!TargetActor)
+	{
+		TargetActor = ActiveWorldContainerTargetActor.Get();
+	}
+
+	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
+	if (SourceObject && ActiveWorldContainerSessionHandle.Mode == EContainerSessionMode::FullOpen)
+	{
+		if (!IWorldContainerSessionSource::Execute_EndContainerSession(SourceObject, SessionHandle.SessionId))
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "CloseWorldSessionRejected", "World-container session close was rejected.");
+			return false;
+		}
+	}
+
+	ActiveWorldContainerSessionHandle.Reset();
+	ActiveWorldContainerTargetActor.Reset();
+	return true;
+}
+
+bool UProjectInventoryComponent::TakeEntryFromWorldContainerAuthority(
+	AActor* TargetActor,
+	const FContainerSessionHandle& SessionHandle,
+	int32 EntryInstanceId,
+	int32 Quantity,
+	FGameplayTag TargetContainerId,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryAuthorityRequired", "World-container take requires authority.");
+		return false;
+	}
+
+	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryUnknownSession", "World-container session handle is not active.");
+		return false;
+	}
+
+	if (!TargetActor)
+	{
+		TargetActor = ActiveWorldContainerTargetActor.Get();
+	}
+
+	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
+	if (!SourceObject)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryMissingSource", "World-container source is no longer valid.");
+		return false;
+	}
+
+	return TakeEntryFromWorldContainerResolved(
+		SourceObject,
+		SessionHandle,
+		EntryInstanceId,
+		Quantity,
+		TargetContainerId,
+		TargetGridPos,
+		bTargetRotated,
+		OutError);
+}
+
+bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainerAuthority(
+	AActor* TargetActor,
+	const FContainerSessionHandle& SessionHandle,
+	int32 InventoryInstanceId,
+	int32 Quantity,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryAuthorityRequired", "World-container store requires authority.");
+		return false;
+	}
+
+	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryUnknownSession", "World-container session handle is not active.");
+		return false;
+	}
+
+	if (!TargetActor)
+	{
+		TargetActor = ActiveWorldContainerTargetActor.Get();
+	}
+
+	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
+	if (!SourceObject)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryMissingSource", "World-container source is no longer valid.");
+		return false;
+	}
+
+	return StoreInventoryEntryInWorldContainerResolved(
+		SourceObject,
+		SessionHandle,
+		InventoryInstanceId,
+		Quantity,
+		TargetGridPos,
+		bTargetRotated,
+		OutError);
+}
+
+bool UProjectInventoryComponent::TakeAllFromWorldContainerAuthority(
+	AActor* TargetActor,
+	const FContainerSessionHandle& SessionHandle,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldAuthorityRequired", "World-container take-all requires authority.");
+		return false;
+	}
+
+	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldUnknownSession", "World-container session handle is not active.");
+		return false;
+	}
+
+	if (!TargetActor)
+	{
+		TargetActor = ActiveWorldContainerTargetActor.Get();
+	}
+
+	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
+	if (!SourceObject)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldMissingSource", "World-container source is no longer valid.");
+		return false;
+	}
+
+	return TakeAllFromWorldContainerResolved(SourceObject, SessionHandle, OutError);
+}
+
+void UProjectInventoryComponent::CaptureInventoryStateSnapshot(FInventoryStateSnapshot& OutSnapshot) const
+{
+	OutSnapshot.Entries = Inventory.Entries;
+	OutSnapshot.NextInstanceId = Inventory.NextInstanceId;
+}
+
+void UProjectInventoryComponent::RestoreInventoryStateSnapshot(const FInventoryStateSnapshot& Snapshot)
+{
+	Inventory.Entries = Snapshot.Entries;
+	Inventory.NextInstanceId = Snapshot.NextInstanceId;
+	Inventory.MarkArrayDirty();
+	for (FInventoryEntry& Entry : Inventory.Entries)
+	{
+		Inventory.MarkEntryDirty(Entry);
+	}
+}
+
+bool UProjectInventoryComponent::TakeEntryFromWorldContainerResolved(
+	UObject* SourceObject,
+	const FContainerSessionHandle& SessionHandle,
+	int32 EntryInstanceId,
+	int32 Quantity,
+	FGameplayTag TargetContainerId,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryResolvedAuthorityRequired", "World-container take requires authority.");
+		return false;
+	}
+
+	if (!SourceObject || !SourceObject->Implements<UWorldContainerSessionSource>())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryResolvedMissingSource", "World-container source is no longer valid.");
+		return false;
+	}
+
+	const TArray<FInventoryEntryView> EntryViews = IWorldContainerSessionSource::Execute_GetContainerEntryViews(SourceObject);
+	const FInventoryEntryView* EntryView = EntryViews.FindByPredicate([EntryInstanceId](const FInventoryEntryView& Entry)
+	{
+		return Entry.InstanceId == EntryInstanceId;
+	});
+
+	if (!EntryView)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryResolvedMissingEntry", "World-container entry is no longer available.");
+		return false;
+	}
+
+	const int32 TakeQuantity = FMath::Clamp(Quantity, 1, EntryView->Quantity);
+	const bool bHasExplicitPlacement =
+		TargetContainerId.IsValid() && TargetGridPos.X >= 0 && TargetGridPos.Y >= 0;
+
+	TArray<FLootEntry> LootItems;
+	if (!bHasExplicitPlacement)
+	{
+		FLootEntry LootItem;
+		LootItem.ObjectId = EntryView->ItemId;
+		LootItem.Quantity = TakeQuantity;
+		LootItems.Add(LootItem);
+		if (!CanFitItems(LootItems))
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryNoSpace", "Inventory does not have enough free space.");
+			return false;
+		}
+	}
+
+	FInventoryStateSnapshot Snapshot;
+	CaptureInventoryStateSnapshot(Snapshot);
+	const int32 QuantityBefore = GetTotalItemQuantity(Snapshot.Entries, EntryView->ItemId);
+
+	if (bHasExplicitPlacement)
+	{
+		if (!TryAddItemAtPosition(
+				EntryView->ItemId,
+				TakeQuantity,
+				TargetContainerId,
+				TargetGridPos,
+				bTargetRotated,
+				OutError))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		AddItemsBatch(LootItems);
+	}
+
+	const int32 QuantityAfter = GetTotalItemQuantity(Inventory.Entries, EntryView->ItemId);
+	if (QuantityAfter - QuantityBefore != TakeQuantity)
+	{
+		RestoreInventoryStateSnapshot(Snapshot);
+		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryInventoryMutationMismatch", "Inventory add did not commit the expected quantity.");
+		return false;
+	}
+
+	FContainerEntryTransfer ConsumeEntry;
+	ConsumeEntry.EntryInstanceId = EntryInstanceId;
+	ConsumeEntry.ObjectId = EntryView->ItemId;
+	ConsumeEntry.Quantity = TakeQuantity;
+
+	TArray<FContainerEntryTransfer> ConsumeEntries;
+	ConsumeEntries.Add(ConsumeEntry);
+	if (!IWorldContainerSessionSource::Execute_ConsumeContainerEntries(
+			SourceObject,
+			SessionHandle.SessionId,
+			ConsumeEntries,
+			OutError))
+	{
+		RestoreInventoryStateSnapshot(Snapshot);
+		if (OutError.IsEmpty())
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryConsumeRejected", "World-container failed to consume the transferred entry.");
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainerResolved(
+	UObject* SourceObject,
+	const FContainerSessionHandle& SessionHandle,
+	int32 InventoryInstanceId,
+	int32 Quantity,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryResolvedAuthorityRequired", "World-container store requires authority.");
+		return false;
+	}
+
+	if (!SourceObject || !SourceObject->Implements<UWorldContainerSessionSource>())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryResolvedMissingSource", "World-container source is no longer valid.");
+		return false;
+	}
+
+	FInventoryEntry InventoryEntry;
+	if (!FindEntry(InventoryInstanceId, InventoryEntry))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryMissingInventoryEntry", "Inventory entry is no longer available.");
+		return false;
+	}
+
+	FContainerEntryTransfer CandidateEntry;
+	CandidateEntry.ObjectId = InventoryEntry.ItemId;
+	CandidateEntry.Quantity = FMath::Clamp(Quantity, 1, InventoryEntry.Quantity);
+	if (TargetGridPos.X >= 0 && TargetGridPos.Y >= 0)
+	{
+		CandidateEntry.GridPos = TargetGridPos;
+		CandidateEntry.bRotated = bTargetRotated;
+	}
+
+	TArray<FContainerEntryTransfer> CandidateEntries;
+	CandidateEntries.Add(CandidateEntry);
+	if (!IWorldContainerSessionSource::Execute_CanStoreContainerEntries(
+		SourceObject,
+		SessionHandle.SessionId,
+		CandidateEntries,
+		OutError))
+	{
+		return false;
+	}
+
+	FInventoryStateSnapshot Snapshot;
+	CaptureInventoryStateSnapshot(Snapshot);
+
+	FContainerEntryTransfer ExtractedEntry;
+	if (!TryExtractContainerTransferEntry(InventoryInstanceId, CandidateEntry.Quantity, ExtractedEntry, OutError))
+	{
+		return false;
+	}
+	ExtractedEntry.GridPos = CandidateEntry.GridPos;
+	ExtractedEntry.bRotated = CandidateEntry.bRotated;
+
+	TArray<FContainerEntryTransfer> StoreEntries;
+	StoreEntries.Add(ExtractedEntry);
+	if (!IWorldContainerSessionSource::Execute_StoreContainerEntries(
+			SourceObject,
+			SessionHandle.SessionId,
+			StoreEntries,
+			OutError))
+	{
+		RestoreInventoryStateSnapshot(Snapshot);
+		if (OutError.IsEmpty())
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryRejected", "World-container failed to store the extracted inventory entry.");
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool UProjectInventoryComponent::TakeAllFromWorldContainerResolved(
+	UObject* SourceObject,
+	const FContainerSessionHandle& SessionHandle,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldResolvedAuthorityRequired", "World-container take-all requires authority.");
+		return false;
+	}
+
+	TArray<FContainerEntryTransfer> ConsumeEntries;
+	TArray<FLootEntry> LootItems;
+	if (!FInventoryWorldContainerTransferHelper::BuildLootEntries(SourceObject, ConsumeEntries, LootItems, OutError))
+	{
+		return false;
+	}
+
+	if (!CanFitItems(LootItems))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldNoSpace", "Inventory does not have enough free space.");
+		return false;
+	}
+
+	FInventoryStateSnapshot Snapshot;
+	CaptureInventoryStateSnapshot(Snapshot);
+
+	TMap<FPrimaryAssetId, int32> ExpectedQuantities;
+	BuildExpectedLootQuantities(LootItems, ExpectedQuantities);
+
+	AddItemsBatch(LootItems);
+
+	for (const TPair<FPrimaryAssetId, int32>& Pair : ExpectedQuantities)
+	{
+		const int32 QuantityBefore = GetTotalItemQuantity(Snapshot.Entries, Pair.Key);
+		const int32 QuantityAfter = GetTotalItemQuantity(Inventory.Entries, Pair.Key);
+		if (QuantityAfter - QuantityBefore != Pair.Value)
+		{
+			RestoreInventoryStateSnapshot(Snapshot);
+			OutError = NSLOCTEXT("ProjectInventory", "TakeAllInventoryMutationMismatch", "Inventory add did not commit the expected take-all quantity.");
+			return false;
+		}
+	}
+
+	if (!IWorldContainerSessionSource::Execute_ConsumeContainerEntries(
+			SourceObject,
+			SessionHandle.SessionId,
+			ConsumeEntries,
+			OutError))
+	{
+		RestoreInventoryStateSnapshot(Snapshot);
+		if (OutError.IsEmpty())
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "TakeAllConsumeRejected", "World-container failed to consume transferred entries.");
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool UProjectInventoryComponent::TryAddItemAtPosition(
+	FPrimaryAssetId ObjectId,
+	int32 Quantity,
+	FGameplayTag TargetContainerId,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || !OwnerActor->HasAuthority())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionAuthorityRequired", "Exact inventory placement requires authority.");
+		return false;
+	}
+
+	if (!ObjectId.IsValid() || Quantity <= 0)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionInvalidPayload", "Target item payload is invalid.");
+		return false;
+	}
+
+	if (!TargetContainerId.IsValid() || TargetGridPos.X < 0 || TargetGridPos.Y < 0)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionInvalidTarget", "Target inventory placement is invalid.");
+		return false;
+	}
+
+	FItemDataView ItemData;
+	if (!GetItemDataView(ObjectId, ItemData))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionMissingItemData", "Target item data is missing.");
+		return false;
+	}
+
+	FInventoryContainerConfig TargetContainer;
+	if (!GetContainerConfig(TargetContainerId, TargetContainer))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionMissingContainer", "Target inventory container is unavailable.");
+		return false;
+	}
+
+	if (!ContainerAllowsItem(TargetContainer, ItemData))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionRejectedByContainer", "Target inventory container does not accept this item.");
+		return false;
+	}
+
+	const int32 AllowedQuantity = FInventoryStackHelper::CalculateAllowedQuantity(
+		ItemData,
+		GetMaxWeight(),
+		GetMaxVolume(),
+		GetCurrentWeight(),
+		GetCurrentVolume(),
+		Quantity);
+	if (AllowedQuantity < Quantity)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionCapacityExceeded", "Inventory does not have enough carrying capacity.");
+		return false;
+	}
+
+	TMap<FPrimaryAssetId, FItemDataView> ItemDataCache;
+	ItemDataCache.Add(ObjectId, ItemData);
+	if (TargetContainer.MaxWeight > 0.f)
+	{
+		const float TargetWeight = GetContainerCurrentWeight(TargetContainerId, ItemDataCache);
+		if (TargetWeight + (ItemData.Weight * Quantity) > TargetContainer.MaxWeight)
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionWeightExceeded", "Target inventory container would exceed its weight limit.");
+			return false;
+		}
+	}
+
+	if (TargetContainer.MaxVolume > 0.f)
+	{
+		const float TargetVolume = GetContainerCurrentVolume(TargetContainerId, ItemDataCache);
+		if (TargetVolume + (ItemData.Volume * Quantity) > TargetContainer.MaxVolume)
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionVolumeExceeded", "Target inventory container would exceed its volume limit.");
+			return false;
+		}
+	}
+
+	const bool bEffectiveRotated = bTargetRotated && TargetContainer.bAllowRotation;
+	const FIntPoint ItemSize = GetItemGridSize(ItemData, bEffectiveRotated);
+	if (!IsRectWithinContainer(TargetContainer, TargetGridPos, ItemSize))
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionOutOfBounds", "Target inventory placement is outside the container grid.");
+		return false;
+	}
+
+	FInventoryMoveHelper::FMoveCallbacks MoveCallbacks;
+	MoveCallbacks.GetEffectivePlacement = [this](const FInventoryEntry& E, FGameplayTag& C, FIntPoint& P, bool& R) {
+		return GetEffectiveEntryPlacement(E, C, P, R);
+	};
+	MoveCallbacks.GetItemDataView = [this](FPrimaryAssetId Id, FItemDataView& D) {
+		return GetItemDataView(Id, D);
+	};
+	MoveCallbacks.GetItemGridSize = [this](const FItemDataView& D, bool R) {
+		return GetItemGridSize(D, R);
+	};
+
+	const FInventoryMoveHelper::FOverlapResult OverlapResult = FInventoryMoveHelper::FindOverlapAtTarget(
+		Inventory.Entries,
+		TargetContainerId,
+		TargetGridPos,
+		ItemSize,
+		INDEX_NONE,
+		MoveCallbacks);
+	if (OverlapResult.bMultipleOverlaps)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionMultipleOverlaps", "Target inventory placement overlaps multiple entries.");
+		return false;
+	}
+
+	if (OverlapResult.bHasOverlap)
+	{
+		FInventoryEntry* OverlapEntry = Inventory.FindEntry(OverlapResult.OverlapInstanceId);
+		const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
+		if (!OverlapEntry
+			|| OverlapEntry->ItemId != ObjectId
+			|| OverlapEntry->OverrideMagnitudes.Num() > 0
+			|| MaxStack <= 1
+			|| OverlapEntry->Quantity + Quantity > MaxStack)
+		{
+			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionOverlapRejected", "Target inventory entry cannot accept this stack.");
+			return false;
+		}
+
+		OverlapEntry->Quantity += Quantity;
+		Inventory.MarkEntryDirty(*OverlapEntry);
+		return true;
+	}
+
+	const int32 SlotIndex = ComputeSlotIndex(TargetContainerId, TargetGridPos);
+	Inventory.AddEntry(ObjectId, Quantity, TargetContainerId, TargetGridPos, bEffectiveRotated, SlotIndex);
+	return true;
+}
+
+void UProjectInventoryComponent::HandleWorldContainerSessionOpenedLocal(
+	AActor* TargetActor,
+	const FContainerSessionHandle& SessionHandle)
+{
+	if (!TargetActor || !SessionHandle.IsValid())
+	{
+		return;
+	}
+
+	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
+	if (!SourceObject)
+	{
+		return;
+	}
+
+	if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
+	{
+		FText RegisterError;
+		if (!SessionSubsystem->RegisterOpenedSession(TargetActor, SourceObject, GetOwner(), SessionHandle, RegisterError))
+		{
+			if (!RegisterError.IsEmpty())
+			{
+				BroadcastErrorLocal(RegisterError);
+			}
+			return;
+		}
+	}
+
+	WorldContainerSessionOpenedNative.Broadcast(SourceObject, SessionHandle);
+}
+
+void UProjectInventoryComponent::HandleWorldContainerSessionClosedLocal(const FContainerSessionHandle& SessionHandle)
+{
+	if (!SessionHandle.IsValid())
+	{
+		return;
+	}
+
+	if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
+	{
+		SessionSubsystem->CloseSessionLocal(SessionHandle);
+	}
+
+	WorldContainerSessionClosedNative.Broadcast(SessionHandle);
+}
+
+bool UProjectInventoryComponent::RequestOpenWorldContainerSession_Implementation(
+	AActor* TargetActor,
+	EContainerSessionMode Mode,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	if (!TargetActor)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "RequestOpenWorldSessionMissingTarget", "World-container target is required.");
+		return false;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (OwnerActor && OwnerActor->HasAuthority())
+	{
+		FContainerSessionHandle Handle;
+		if (!OpenWorldContainerSessionAuthority(TargetActor, Mode, Handle, OutError))
+		{
+			return false;
+		}
+
+		HandleWorldContainerSessionOpenedLocal(TargetActor, Handle);
+		return true;
+	}
+
+	Server_RequestOpenWorldContainerSession(TargetActor, Mode);
+	return true;
+}
+
+bool UProjectInventoryComponent::RequestCloseWorldContainerSession_Implementation(
+	const FContainerSessionHandle& SessionHandle,
+	FText& OutError)
+{
+	OutError = FText::GetEmpty();
+
+	if (!SessionHandle.IsValid())
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "RequestCloseWorldSessionInvalidHandle", "World-container session handle is invalid.");
+		return false;
+	}
+
+	AActor* TargetActor = ActiveWorldContainerTargetActor.Get();
+	AActor* OwnerActor = GetOwner();
+	if (OwnerActor && OwnerActor->HasAuthority())
+	{
+		if (!CloseWorldContainerSessionAuthority(TargetActor, SessionHandle, OutError))
+		{
+			return false;
+		}
+
+		HandleWorldContainerSessionClosedLocal(SessionHandle);
+		return true;
+	}
+
+	Server_RequestCloseWorldContainerSession(TargetActor, SessionHandle);
+	return true;
+}
+
+bool UProjectInventoryComponent::GetActiveWorldContainerSession_Implementation(
+	AActor*& OutTargetActor,
+	FContainerSessionHandle& OutSessionHandle) const
+{
+	OutTargetActor = ActiveWorldContainerTargetActor.Get();
+	OutSessionHandle = ActiveWorldContainerSessionHandle;
+	return OutTargetActor != nullptr && OutSessionHandle.IsValid();
+}
+
+bool UProjectInventoryComponent::TransferWorldContainerEntryToInventory_Implementation(
+	UObject* WorldContainerSource,
+	const FContainerSessionHandle& SessionHandle,
+	int32 EntryInstanceId,
+	int32 Quantity,
+	FGameplayTag TargetContainerId,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	AActor* TargetActor = ResolveWorldContainerActor(WorldContainerSource);
+	if (!TargetActor)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "MissingWorldContainerActorForTake", "World-container actor is unavailable.");
+		return false;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (OwnerActor && OwnerActor->HasAuthority())
+	{
+		if (ActiveWorldContainerSessionHandle.IsValid()
+			&& ActiveWorldContainerSessionHandle.SessionId == SessionHandle.SessionId)
+		{
+			return TakeEntryFromWorldContainerAuthority(
+				TargetActor,
+				SessionHandle,
+				EntryInstanceId,
+				Quantity,
+				TargetContainerId,
+				TargetGridPos,
+				bTargetRotated,
+				OutError);
+		}
+
+		if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
+		{
+			if (SessionSubsystem->IsSessionActive(SessionHandle))
+			{
+				return SessionSubsystem->TakeEntryFromWorldContainerSession(
+					SessionHandle,
+					this,
+					EntryInstanceId,
+					Quantity,
+					TargetContainerId,
+					TargetGridPos,
+					bTargetRotated,
+					OutError);
+			}
+		}
+
+		return TakeEntryFromWorldContainerAuthority(
+			TargetActor,
+			SessionHandle,
+			EntryInstanceId,
+			Quantity,
+			TargetContainerId,
+			TargetGridPos,
+			bTargetRotated,
+			OutError);
+	}
+
+	Server_RequestTakeEntryFromWorldContainer(
+		TargetActor,
+		SessionHandle,
+		EntryInstanceId,
+		Quantity,
+		TargetContainerId,
+		TargetGridPos,
+		bTargetRotated);
+	OutError = FText::GetEmpty();
+	return true;
+}
+
+bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainer_Implementation(
+	UObject* WorldContainerSource,
+	const FContainerSessionHandle& SessionHandle,
+	int32 InventoryInstanceId,
+	int32 Quantity,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated,
+	FText& OutError)
+{
+	AActor* TargetActor = ResolveWorldContainerActor(WorldContainerSource);
+	if (!TargetActor)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "MissingWorldContainerActorForStore", "World-container actor is unavailable.");
+		return false;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (OwnerActor && OwnerActor->HasAuthority())
+	{
+		if (ActiveWorldContainerSessionHandle.IsValid()
+			&& ActiveWorldContainerSessionHandle.SessionId == SessionHandle.SessionId)
+		{
+			return StoreInventoryEntryInWorldContainerAuthority(
+				TargetActor,
+				SessionHandle,
+				InventoryInstanceId,
+				Quantity,
+				TargetGridPos,
+				bTargetRotated,
+				OutError);
+		}
+
+		if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
+		{
+			if (SessionSubsystem->IsSessionActive(SessionHandle))
+			{
+				return SessionSubsystem->StoreInventoryEntryInWorldContainerSession(
+					SessionHandle,
+					this,
+					InventoryInstanceId,
+					Quantity,
+					TargetGridPos,
+					bTargetRotated,
+					OutError);
+			}
+		}
+
+		return StoreInventoryEntryInWorldContainerAuthority(
+			TargetActor,
+			SessionHandle,
+			InventoryInstanceId,
+			Quantity,
+			TargetGridPos,
+			bTargetRotated,
+			OutError);
+	}
+
+	Server_RequestStoreInventoryEntryInWorldContainer(
+		TargetActor,
+		SessionHandle,
+		InventoryInstanceId,
+		Quantity,
+		TargetGridPos,
+		bTargetRotated);
+	OutError = FText::GetEmpty();
+	return true;
+}
+
+bool UProjectInventoryComponent::TakeAllFromWorldContainer_Implementation(
+	UObject* WorldContainerSource,
+	const FContainerSessionHandle& SessionHandle,
+	FText& OutError)
+{
+	AActor* TargetActor = ResolveWorldContainerActor(WorldContainerSource);
+	if (!TargetActor)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "MissingWorldContainerActorForTakeAll", "World-container actor is unavailable.");
+		return false;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (OwnerActor && OwnerActor->HasAuthority())
+	{
+		if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
+		{
+			if (SessionSubsystem->IsSessionActive(SessionHandle))
+			{
+				return SessionSubsystem->TakeAllFromWorldContainerSession(SessionHandle, this, OutError);
+			}
+		}
+
+		return TakeAllFromWorldContainerAuthority(TargetActor, SessionHandle, OutError);
+	}
+
+	Server_RequestTakeAllFromWorldContainer(TargetActor, SessionHandle);
+	OutError = FText::GetEmpty();
+	return true;
+}
+
 // -------------------------------------------------------------------------
 // FFastArraySerializer Callbacks
 // -------------------------------------------------------------------------
@@ -956,6 +2046,116 @@ void UProjectInventoryComponent::OnEntryChanged(const FInventoryEntry& Entry)
 // -------------------------------------------------------------------------
 // Server RPCs
 // -------------------------------------------------------------------------
+
+void UProjectInventoryComponent::Server_RequestOpenWorldContainerSession_Implementation(
+	AActor* TargetActor,
+	EContainerSessionMode Mode)
+{
+	FText OpenError;
+	FContainerSessionHandle Handle;
+	if (!OpenWorldContainerSessionAuthority(TargetActor, Mode, Handle, OpenError))
+	{
+		if (!OpenError.IsEmpty())
+		{
+			BroadcastError(OpenError);
+		}
+		return;
+	}
+
+	Client_WorldContainerSessionOpened(TargetActor, Handle);
+}
+
+void UProjectInventoryComponent::Server_RequestCloseWorldContainerSession_Implementation(
+	AActor* TargetActor,
+	FContainerSessionHandle SessionHandle)
+{
+	FText CloseError;
+	if (!CloseWorldContainerSessionAuthority(TargetActor, SessionHandle, CloseError))
+	{
+		if (!CloseError.IsEmpty())
+		{
+			BroadcastError(CloseError);
+		}
+		return;
+	}
+
+	Client_WorldContainerSessionClosed(SessionHandle);
+}
+
+void UProjectInventoryComponent::Server_RequestTakeEntryFromWorldContainer_Implementation(
+	AActor* TargetActor,
+	FContainerSessionHandle SessionHandle,
+	int32 EntryInstanceId,
+	int32 Quantity,
+	FGameplayTag TargetContainerId,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated)
+{
+	FText TakeError;
+	if (!TakeEntryFromWorldContainerAuthority(
+			TargetActor,
+			SessionHandle,
+			EntryInstanceId,
+			Quantity,
+			TargetContainerId,
+			TargetGridPos,
+			bTargetRotated,
+			TakeError))
+	{
+		if (!TakeError.IsEmpty())
+		{
+			BroadcastError(TakeError);
+		}
+		return;
+	}
+
+	InventoryViewChanged.Broadcast();
+}
+
+void UProjectInventoryComponent::Server_RequestStoreInventoryEntryInWorldContainer_Implementation(
+	AActor* TargetActor,
+	FContainerSessionHandle SessionHandle,
+	int32 InventoryInstanceId,
+	int32 Quantity,
+	FIntPoint TargetGridPos,
+	bool bTargetRotated)
+{
+	FText StoreError;
+	if (!StoreInventoryEntryInWorldContainerAuthority(
+			TargetActor,
+			SessionHandle,
+			InventoryInstanceId,
+			Quantity,
+			TargetGridPos,
+			bTargetRotated,
+			StoreError))
+	{
+		if (!StoreError.IsEmpty())
+		{
+			BroadcastError(StoreError);
+		}
+		return;
+	}
+
+	InventoryViewChanged.Broadcast();
+}
+
+void UProjectInventoryComponent::Server_RequestTakeAllFromWorldContainer_Implementation(
+	AActor* TargetActor,
+	FContainerSessionHandle SessionHandle)
+{
+	FText TakeAllError;
+	if (!TakeAllFromWorldContainerAuthority(TargetActor, SessionHandle, TakeAllError))
+	{
+		if (!TakeAllError.IsEmpty())
+		{
+			BroadcastError(TakeAllError);
+		}
+		return;
+	}
+
+	InventoryViewChanged.Broadcast();
+}
 
 void UProjectInventoryComponent::Server_AddItem_Implementation(FPrimaryAssetId ObjectId, int32 Quantity)
 {
@@ -1115,69 +2315,35 @@ void UProjectInventoryComponent::Server_DropItem_Implementation(int32 InstanceId
 
 void UProjectInventoryComponent::Server_SwapHands_Implementation()
 {
-	// Find items in hand slots 0 and 1, detect duplicates
-	FInventoryEntry* LeftHandEntry = nullptr;
-	FInventoryEntry* RightHandEntry = nullptr;
-	int32 LeftCount = 0;
-	int32 RightCount = 0;
+	bool bChanged = false;
 
 	for (FInventoryEntry& Entry : Inventory.Entries)
 	{
-		if (Entry.ContainerId == ProjectTags::Item_Container_Hands)
+		if (Entry.ContainerId == ProjectTags::Item_Container_LeftHand)
 		{
-			if (Entry.GridPos.X == 0)
-			{
-				LeftHandEntry = &Entry;
-				++LeftCount;
-			}
-			else if (Entry.GridPos.X == 1)
-			{
-				RightHandEntry = &Entry;
-				++RightCount;
-			}
+			Entry.ContainerId = ProjectTags::Item_Container_RightHand;
+			Inventory.MarkEntryDirty(Entry);
+			bChanged = true;
+		}
+		else if (Entry.ContainerId == ProjectTags::Item_Container_RightHand)
+		{
+			Entry.ContainerId = ProjectTags::Item_Container_LeftHand;
+			Inventory.MarkEntryDirty(Entry);
+			bChanged = true;
+		}
+		else if (Entry.ContainerId == ProjectTags::Item_Container_Hands)
+		{
+			Entry.GridPos = FIntPoint(Entry.GridPos.X == 0 ? 1 : 0, Entry.GridPos.Y);
+			Inventory.MarkEntryDirty(Entry);
+			bChanged = true;
 		}
 	}
 
-	// Warn about duplicate items in same hand slot (data corruption)
-	if (LeftCount > 1)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Server_SwapHands: Multiple items (%d) in left hand slot - data corruption"), LeftCount);
-	}
-	if (RightCount > 1)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Server_SwapHands: Multiple items (%d) in right hand slot - data corruption"), RightCount);
-	}
-
-	// Nothing to swap if both hands are empty
-	if (!LeftHandEntry && !RightHandEntry)
+	if (!bChanged)
 	{
 		return;
 	}
 
-	// Helper to set full GridPos for slot-based container
-	auto SetHandSlot = [](FInventoryEntry& Entry, int32 Slot)
-	{
-		Entry.GridPos = FIntPoint(Slot, 0);
-	};
-
-	// Swap positions (write full GridPos, not just X)
-	if (LeftHandEntry && RightHandEntry)
-	{
-		SetHandSlot(*LeftHandEntry, 1);
-		SetHandSlot(*RightHandEntry, 0);
-		Inventory.MarkEntryDirty(*LeftHandEntry);
-		Inventory.MarkEntryDirty(*RightHandEntry);
-	}
-	else if (LeftHandEntry)
-	{
-		SetHandSlot(*LeftHandEntry, 1);
-		Inventory.MarkEntryDirty(*LeftHandEntry);
-	}
-	else if (RightHandEntry)
-	{
-		SetHandSlot(*RightHandEntry, 0);
-		Inventory.MarkEntryDirty(*RightHandEntry);
-	}
 	UE_LOG(LogProjectInventory, Log, TEXT("Server_SwapHands: Swapped hand items"));
 	UE_LOG(LogProjectInventory, Verbose, TEXT("Server_SwapHands: authority broadcast"));
 	InventoryViewChanged.Broadcast();
@@ -1837,19 +3003,30 @@ bool UProjectInventoryComponent::Internal_UnequipItem(FGameplayTag EquipSlot)
 		}
 	}
 
-	// Pre-check: find a free hand to return the item to
+	// Pre-check: find a free hand cell to return the item to.
 	FGameplayTag TargetHand;
-	if (IsContainerEmpty(ProjectTags::Item_Container_LeftHand))
+	FIntPoint TargetHandPos = FIntPoint(-1, -1);
+	const FIntPoint ItemSize = GetItemGridSize(ItemData, Entry->bRotated);
+
+	FInventoryContainerConfig LeftHandConfig;
+	if (GetContainerConfig(ProjectTags::Item_Container_LeftHand, LeftHandConfig)
+		&& FindFreeGridPos(LeftHandConfig, ItemSize, Entry->InstanceId, TargetHandPos))
 	{
 		TargetHand = ProjectTags::Item_Container_LeftHand;
 	}
-	else if (IsContainerEmpty(ProjectTags::Item_Container_RightHand))
-	{
-		TargetHand = ProjectTags::Item_Container_RightHand;
-	}
 	else
 	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_UnequipItem: Both hands full, cannot unequip slot %s"), *EquipSlot.ToString());
+		FInventoryContainerConfig RightHandConfig;
+		if (GetContainerConfig(ProjectTags::Item_Container_RightHand, RightHandConfig)
+			&& FindFreeGridPos(RightHandConfig, ItemSize, Entry->InstanceId, TargetHandPos))
+		{
+			TargetHand = ProjectTags::Item_Container_RightHand;
+		}
+	}
+
+	if (!TargetHand.IsValid())
+	{
+		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_UnequipItem: No free hand space, cannot unequip slot %s"), *EquipSlot.ToString());
 		BroadcastError(NSLOCTEXT("Inventory", "UnequipHandsFull", "Cannot unequip - hands full"));
 		return false;
 	}
@@ -1861,11 +3038,10 @@ bool UProjectInventoryComponent::Internal_UnequipItem(FGameplayTag EquipSlot)
 		UProjectAbilitySet::TakeFromAbilitySystem(ASC, &EquipData->GrantedHandles);
 	}
 
-	// Commit: remove from equipped map and return to hands
-	// Hands use MaxCells=1 at position (0,0) - safe because IsContainerEmpty passed above
+	// Commit: remove from equipped map and return to the resolved hand cell.
 	EquippedItems.Remove(EquipSlot);
 	Entry->ContainerId = TargetHand;
-	Entry->GridPos = FIntPoint(0, 0);
+	Entry->GridPos = TargetHandPos;
 	Inventory.MarkEntryDirty(*Entry);
 
 	UE_LOG(LogProjectInventory, Log, TEXT("Unequipped item from slot %s -> %s"), *EquipSlot.ToString(), *TargetHand.ToString());
@@ -1892,32 +3068,43 @@ void UProjectInventoryComponent::GetEffectiveContainers(TArray<FInventoryContain
 	}
 	else
 	{
-		// Vision SOT: naked baseline is hands/default container only.
-		// Pockets/backpack containers are added only from equipped item grants.
-		FInventoryContainerConfig DefaultContainer;
-		DefaultContainer.ContainerId = GetDefaultContainerId();
-		DefaultContainer.MaxWeight = MaxWeight;
-		DefaultContainer.MaxVolume = MaxVolume;
-		DefaultContainer.MaxCells = MaxSlots;
-
-		// Hands container is slot-based (accepts any item size).
-		if (DefaultContainer.ContainerId == ProjectTags::Item_Container_Hands)
+		// Vision SOT: naked baseline is hands only.
+		// Represent hands as two real 2x2 containers so small items can share a hand grid.
+		const FGameplayTag EffectiveDefaultContainerId = GetDefaultContainerId();
+		if (EffectiveDefaultContainerId == ProjectTags::Item_Container_LeftHand
+			|| EffectiveDefaultContainerId == ProjectTags::Item_Container_RightHand
+			|| EffectiveDefaultContainerId == ProjectTags::Item_Container_Hands)
 		{
-			DefaultContainer.bSlotBased = true;
-			DefaultContainer.GridSize = FIntPoint(MaxSlots, 1);
+			auto AddHandContainer = [&OutContainers](const FGameplayTag& ContainerId)
+			{
+				FInventoryContainerConfig HandContainer;
+				HandContainer.ContainerId = ContainerId;
+				HandContainer.GridSize = FIntPoint(2, 2);
+				HandContainer.MaxCells = 4;
+				HandContainer.bWidthOnlyValidation = true;
+				OutContainers.Add(HandContainer);
+			};
+
+			AddHandContainer(ProjectTags::Item_Container_LeftHand);
+			AddHandContainer(ProjectTags::Item_Container_RightHand);
 		}
 		else
 		{
+			FInventoryContainerConfig DefaultContainer;
+			DefaultContainer.ContainerId = EffectiveDefaultContainerId;
+			DefaultContainer.MaxWeight = MaxWeight;
+			DefaultContainer.MaxVolume = MaxVolume;
+			DefaultContainer.MaxCells = MaxSlots;
+
 			int32 Width = FMath::Max(1, DefaultContainerGridWidth);
 			if (MaxSlots > 0)
 			{
 				Width = FMath::Min(Width, MaxSlots);
 			}
-			int32 Height = (Width > 0) ? FMath::DivideAndRoundUp(MaxSlots, Width) : 0;
+			const int32 Height = (Width > 0) ? FMath::DivideAndRoundUp(MaxSlots, Width) : 0;
 			DefaultContainer.GridSize = FIntPoint(Width, Height);
+			OutContainers.Add(DefaultContainer);
 		}
-
-		OutContainers.Add(DefaultContainer);
 	}
 
 	for (const auto& Pair : EquippedItems)
@@ -1980,7 +3167,12 @@ bool UProjectInventoryComponent::GetContainerConfig(FGameplayTag ContainerId, FI
 
 FGameplayTag UProjectInventoryComponent::GetDefaultContainerId() const
 {
-	return DefaultContainerId.IsValid() ? DefaultContainerId : ProjectTags::Item_Container_Hands;
+	if (!DefaultContainerId.IsValid() || DefaultContainerId == ProjectTags::Item_Container_Hands)
+	{
+		return ProjectTags::Item_Container_LeftHand;
+	}
+
+	return DefaultContainerId;
 }
 
 // SOLID: Delegated to FInventoryContainerHelper

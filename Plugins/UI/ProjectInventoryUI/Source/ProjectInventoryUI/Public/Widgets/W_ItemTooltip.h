@@ -12,6 +12,7 @@ class UProgressBar;
 class UHorizontalBox;
 class UVerticalBox;
 class UBorder;
+class UWidget;
 
 /**
  * Item Tooltip Widget - displays detailed item information.
@@ -45,6 +46,8 @@ class PROJECTINVENTORYUI_API UW_ItemTooltip : public UProjectUserWidget
 public:
 	UW_ItemTooltip(const FObjectInitializer& ObjectInitializer);
 
+	static FText BuildMetaText(const FInventoryEntryView& EntryView);
+
 	/**
 	 * Update tooltip content from an inventory entry view.
 	 */
@@ -62,7 +65,10 @@ protected:
 
 private:
 	// Child widgets (found by name)
+	TWeakObjectPtr<UWidget> HeaderIconBox;
+	TWeakObjectPtr<UTextBlock> ItemIcon;
 	TWeakObjectPtr<UTextBlock> ItemName;
+	TWeakObjectPtr<UTextBlock> ItemMetaText;
 	TWeakObjectPtr<UTextBlock> ItemDescription;
 	TWeakObjectPtr<UTextBlock> WeightText;
 	TWeakObjectPtr<UTextBlock> VolumeText;
@@ -85,4 +91,5 @@ private:
 
 	/** Get durability bar color based on percentage. */
 	static FLinearColor GetDurabilityColor(float Percent);
+
 };

@@ -6,6 +6,8 @@
 #include "MVVM/ProjectViewModel.h"
 #include "Interfaces/IInventoryCommands.h"
 #include "Interfaces/IInventoryReadOnly.h"
+#include "Interfaces/IWorldContainerSessionSource.h"
+#include "Types/ContainerSessionTypes.h"
 #include "Presentation/ProjectUIActionDescriptor.h"
 #include "InventoryViewModel.generated.h"
 
@@ -109,6 +111,33 @@ public:
     VIEWMODEL_PROPERTY(int32, SecondaryGridWidth)
     VIEWMODEL_PROPERTY(int32, SecondaryGridHeight)
 
+    VIEWMODEL_PROPERTY(bool, bHasNearbyContainer)
+
+    VIEWMODEL_PROPERTY(float, NearbyContainerCurrentWeight)
+    VIEWMODEL_PROPERTY(float, NearbyContainerMaxWeight)
+    VIEWMODEL_PROPERTY(float, NearbyContainerCurrentVolume)
+    VIEWMODEL_PROPERTY(float, NearbyContainerMaxVolume)
+
+    float GetNearbyContainerWeightRatio() const
+    {
+        return (NearbyContainerMaxWeight > 0.f) ? (NearbyContainerCurrentWeight / NearbyContainerMaxWeight) : 0.f;
+    }
+
+    float GetNearbyContainerVolumeRatio() const
+    {
+        return (NearbyContainerMaxVolume > 0.f) ? (NearbyContainerCurrentVolume / NearbyContainerMaxVolume) : 0.f;
+    }
+
+protected:
+    UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
+    FText NearbyContainerLabel;
+
+    void UpdateNearbyContainerLabel(const FText& InValue)
+    {
+        NearbyContainerLabel = InValue;
+        NotifyPropertyChanged(FName(TEXT("NearbyContainerLabel")));
+    }
+
 protected:
     UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
     TArray<FText> PocketContainerLabels;
@@ -121,6 +150,7 @@ protected:
 
 public:
     FORCEINLINE const TArray<FText>& GetPocketContainerLabels() const { return PocketContainerLabels; }
+    FORCEINLINE const FText& GetNearbyContainerLabel() const { return NearbyContainerLabel; }
     int32 GetPocketContainerCount() const;
     FText GetPocketContainerLabel(int32 PocketIndex) const;
     FGameplayTag GetPocketContainerId(int32 PocketIndex) const;
@@ -244,6 +274,12 @@ public:
     void SetInventorySource(UObject* InObject);
 
     UFUNCTION(BlueprintCallable, Category = "Inventory")
+    void SetNearbyContainerSource(UObject* InObject, const FContainerSessionHandle& InSessionHandle);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory")
+    void ClearNearbyContainerSource();
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory")
     void RefreshFromInventory();
 
     UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -267,6 +303,30 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestUseItem(int32 InstanceId);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
+    void RequestTakeNearbyItem(int32 InstanceId, int32 Quantity = 1);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
+    void RequestTakeNearbyItemToContainer(
+        int32 InstanceId,
+        FGameplayTag TargetContainerId,
+        FIntPoint TargetGridPos,
+        bool bTargetRotated,
+        int32 Quantity = 1);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
+    void RequestStoreItemInNearbyContainer(int32 InstanceId, int32 Quantity = 1);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
+    void RequestStoreItemInNearbyContainerAt(
+        int32 InstanceId,
+        FIntPoint TargetGridPos,
+        bool bTargetRotated,
+        int32 Quantity = 1);
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
+    void RequestTakeAllNearbyContainer();
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestEquipItem(int32 InstanceId, FGameplayTag EquipSlot);
@@ -331,6 +391,9 @@ public:
     bool TryGetEntryByInstanceId(int32 InstanceId, FInventoryEntryView& OutEntry) const;
 
     UFUNCTION(BlueprintPure, Category = "Inventory")
+    bool TryGetNearbyEntryByInstanceId(int32 InstanceId, FInventoryEntryView& OutEntry) const;
+
+    UFUNCTION(BlueprintPure, Category = "Inventory")
     bool TryGetSecondaryEntryByCellIndex(int32 CellIndex, FInventoryEntryView& OutEntry) const;
 
     UFUNCTION(BlueprintPure, Category = "Inventory")
@@ -344,6 +407,26 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Inventory")
     int32 GetSecondaryCellInstanceId(int32 CellIndex) const;
+
+    UFUNCTION(BlueprintPure, Category = "Inventory")
+    bool IsNearbyEntryInstanceId(int32 InstanceId) const;
+
+    UFUNCTION(BlueprintPure, Category = "Inventory")
+    bool HasNearbyEntries() const { return CachedNearbyEntries.Num() > 0; }
+
+    /** Resolve the actual inventory container/slot to use when dropping onto a hand grid. */
+    bool ResolveHandDropTarget(bool bLeftHand, FGameplayTag& OutContainerId, FIntPoint& OutGridPos) const;
+    bool TryResolveFreePlacementInContainer(
+        const FGameplayTag& ContainerId,
+        FIntPoint ItemSize,
+        FIntPoint& OutGridPos,
+        TOptional<FIntPoint> ExcludedGridPos = TOptional<FIntPoint>()) const;
+    bool TryResolveAlternateHandDropTarget(
+        const FGameplayTag& CurrentContainerId,
+        FIntPoint CurrentGridPos,
+        FIntPoint ItemSize,
+        FGameplayTag& OutContainerId,
+        FIntPoint& OutGridPos) const;
 
     UFUNCTION(BlueprintPure, Category = "Inventory")
     bool IsContainerEmpty(FGameplayTag ContainerId, int32 IgnoreInstanceId = -1) const;
@@ -386,8 +469,22 @@ private:
     UPROPERTY()
     TScriptInterface<IInventoryCommands> InventoryCommands;
 
+    UPROPERTY()
+    TScriptInterface<IWorldContainerSessionSource> NearbyContainerSource;
+
+    FContainerSessionHandle NearbySessionHandle;
+
     void HandleInventoryViewChanged();
     void HandleInventoryErrorFromSource(const FText& ErrorMessage);
+    void HandleWorldContainerSessionOpened(UObject* WorldContainerSource, const FContainerSessionHandle& SessionHandle);
+    void HandleWorldContainerSessionClosed(const FContainerSessionHandle& SessionHandle);
+    void RefreshNearbyContainerData();
+    void ClearNearbyContainerData();
+    bool DoesCachedInventoryPlacementOverlap(
+        const FGameplayTag& ContainerId,
+        FIntPoint GridPos,
+        FIntPoint ItemSize,
+        int32 IgnoreInstanceId) const;
 
     void BuildContainerData(const TArray<FInventoryContainerView>& Containers);
     void BuildCellTexts(const TArray<FInventoryEntryView>& Entries);       // SOLID: uses FInventoryViewModelCellBuilder
@@ -401,12 +498,16 @@ private:
 
     TArray<FInventoryContainerView> CachedAllContainers;
     TArray<FInventoryEntryView> CachedEntries;
+    FInventoryContainerView CachedNearbyContainer;
+    TArray<FInventoryEntryView> CachedNearbyEntries;
     TArray<FInventoryContainerView> CachedContainers;
     TArray<FInventoryContainerView> CachedPocketContainers;
     TArray<int32> CellInstanceIds;
     TArray<bool> CellEnabled;
     TArray<int32> SecondaryCellInstanceIds;
     TArray<bool> SecondaryCellEnabled;
+    TArray<int32> NearbyCellInstanceIds;
+    TArray<bool> NearbyCellEnabled;
     TArray<TArray<FText>> PocketCellTexts;
     TArray<TArray<int32>> PocketCellInstanceIds;
     TArray<TArray<bool>> PocketCellEnabled;

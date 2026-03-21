@@ -11,14 +11,17 @@
 #include "Types/InventoryContainerConfig.h"
 #include "Interfaces/IInventoryCommands.h"
 #include "Interfaces/IInventoryReadOnly.h"
+#include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "Interfaces/IItemDataProvider.h"
 #include "Interfaces/IProjectActionReceiver.h"
 #include "Loot/LootTypes.h"
+#include "Types/LootEntryTypes.h"
 #include "ProjectInventoryComponent.generated.h"
 
 class UAbilitySystemComponent;
 class UObjectDefinitionCache;
 class UProjectSaveSubsystem;
+class UProjectContainerSessionSubsystem;
 
 // -------------------------------------------------------------------------
 // Inventory Component
@@ -54,9 +57,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInventoryError, FText, ErrorMessa
  * | FInventorySaveHelper      | Save data building and restoration          |
  */
 UCLASS(ClassGroup=(Inventory), meta=(BlueprintSpawnableComponent))
-class PROJECTINVENTORY_API UProjectInventoryComponent : public UActorComponent, public IInventoryReadOnly, public IInventoryCommands, public IProjectActionReceiver
+class PROJECTINVENTORY_API UProjectInventoryComponent : public UActorComponent, public IInventoryReadOnly, public IInventoryCommands, public IProjectActionReceiver, public IInventoryWorldContainerTransferBridge
 {
 	GENERATED_BODY()
+
+	friend class UProjectContainerSessionSubsystem;
 
 public:
 	UProjectInventoryComponent();
@@ -226,6 +231,57 @@ public:
 	virtual FOnInventoryErrorNative& OnInventoryErrorNative() override { return InventoryErrorNative; }
 
 	// -------------------------------------------------------------------------
+	// IInventoryWorldContainerTransferBridge
+	// -------------------------------------------------------------------------
+
+	virtual bool RequestOpenWorldContainerSession_Implementation(
+		AActor* TargetActor,
+		EContainerSessionMode Mode,
+		FText& OutError) override;
+
+	virtual bool RequestCloseWorldContainerSession_Implementation(
+		const FContainerSessionHandle& SessionHandle,
+		FText& OutError) override;
+
+	virtual bool GetActiveWorldContainerSession_Implementation(
+		AActor*& OutTargetActor,
+		FContainerSessionHandle& OutSessionHandle) const override;
+
+	virtual bool TransferWorldContainerEntryToInventory_Implementation(
+		UObject* WorldContainerSource,
+		const FContainerSessionHandle& SessionHandle,
+		int32 EntryInstanceId,
+		int32 Quantity,
+		FGameplayTag TargetContainerId,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError) override;
+
+	virtual bool StoreInventoryEntryInWorldContainer_Implementation(
+		UObject* WorldContainerSource,
+		const FContainerSessionHandle& SessionHandle,
+		int32 InventoryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError) override;
+
+	virtual bool TakeAllFromWorldContainer_Implementation(
+		UObject* WorldContainerSource,
+		const FContainerSessionHandle& SessionHandle,
+		FText& OutError) override;
+
+	virtual FOnInventoryWorldContainerSessionOpenedNative& OnWorldContainerSessionOpenedNative() override
+	{
+		return WorldContainerSessionOpenedNative;
+	}
+
+	virtual FOnInventoryWorldContainerSessionClosedNative& OnWorldContainerSessionClosedNative() override
+	{
+		return WorldContainerSessionClosedNative;
+	}
+
+	// -------------------------------------------------------------------------
 	// Loot Container Support (batch operations)
 	// -------------------------------------------------------------------------
 
@@ -244,6 +300,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")
 	void AddItemsBatch(const TArray<FLootEntry>& Items);
+
+	/**
+	 * Extract an inventory entry into a loot-entry payload for world-container store.
+	 * Authority only. Removes the requested quantity from inventory on success.
+	 */
+	bool TryExtractContainerTransferEntry(int32 InstanceId, int32 Quantity, FContainerEntryTransfer& OutEntry, FText& OutError);
 
 	// -------------------------------------------------------------------------
 	// Cache Management
@@ -295,6 +357,12 @@ public:
 	void OnEntryChanged(const FInventoryEntry& Entry);
 
 protected:
+	struct FInventoryStateSnapshot
+	{
+		TArray<FInventoryEntry> Entries;
+		uint32 NextInstanceId = 1;
+	};
+
 	// -------------------------------------------------------------------------
 	// Server RPCs
 	// -------------------------------------------------------------------------
@@ -322,6 +390,34 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void Server_SwapHands();
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestOpenWorldContainerSession(AActor* TargetActor, EContainerSessionMode Mode);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestCloseWorldContainerSession(AActor* TargetActor, FContainerSessionHandle SessionHandle);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestTakeEntryFromWorldContainer(
+		AActor* TargetActor,
+		FContainerSessionHandle SessionHandle,
+		int32 EntryInstanceId,
+		int32 Quantity,
+		FGameplayTag TargetContainerId,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestStoreInventoryEntryInWorldContainer(
+		AActor* TargetActor,
+		FContainerSessionHandle SessionHandle,
+		int32 InventoryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RequestTakeAllFromWorldContainer(AActor* TargetActor, FContainerSessionHandle SessionHandle);
 
 	// -------------------------------------------------------------------------
 	// Replication
@@ -392,8 +488,69 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void Client_InventoryError(const FText& ErrorMessage);
 
+	UFUNCTION(Client, Reliable)
+	void Client_WorldContainerSessionOpened(AActor* TargetActor, FContainerSessionHandle SessionHandle);
+
+	UFUNCTION(Client, Reliable)
+	void Client_WorldContainerSessionClosed(FContainerSessionHandle SessionHandle);
+
 	/** Actually broadcast error locally (fires delegates). */
 	void BroadcastErrorLocal(const FText& ErrorMessage);
+
+	UObject* ResolveWorldContainerSessionSource(AActor* TargetActor) const;
+	AActor* ResolveWorldContainerActor(UObject* WorldContainerSource) const;
+	bool OpenWorldContainerSessionAuthority(AActor* TargetActor, EContainerSessionMode Mode, FContainerSessionHandle& OutHandle, FText& OutError);
+	bool CloseWorldContainerSessionAuthority(AActor* TargetActor, const FContainerSessionHandle& SessionHandle, FText& OutError);
+	bool TakeEntryFromWorldContainerAuthority(
+		AActor* TargetActor,
+		const FContainerSessionHandle& SessionHandle,
+		int32 EntryInstanceId,
+		int32 Quantity,
+		FGameplayTag TargetContainerId,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError);
+	bool StoreInventoryEntryInWorldContainerAuthority(
+		AActor* TargetActor,
+		const FContainerSessionHandle& SessionHandle,
+		int32 InventoryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError);
+	bool TakeAllFromWorldContainerAuthority(AActor* TargetActor, const FContainerSessionHandle& SessionHandle, FText& OutError);
+	void CaptureInventoryStateSnapshot(FInventoryStateSnapshot& OutSnapshot) const;
+	void RestoreInventoryStateSnapshot(const FInventoryStateSnapshot& Snapshot);
+	bool TakeEntryFromWorldContainerResolved(
+		UObject* SourceObject,
+		const FContainerSessionHandle& SessionHandle,
+		int32 EntryInstanceId,
+		int32 Quantity,
+		FGameplayTag TargetContainerId,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError);
+	bool StoreInventoryEntryInWorldContainerResolved(
+		UObject* SourceObject,
+		const FContainerSessionHandle& SessionHandle,
+		int32 InventoryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError);
+	bool TakeAllFromWorldContainerResolved(
+		UObject* SourceObject,
+		const FContainerSessionHandle& SessionHandle,
+		FText& OutError);
+	bool TryAddItemAtPosition(
+		FPrimaryAssetId ObjectId,
+		int32 Quantity,
+		FGameplayTag TargetContainerId,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError);
+	void HandleWorldContainerSessionOpenedLocal(AActor* TargetActor, const FContainerSessionHandle& SessionHandle);
+	void HandleWorldContainerSessionClosedLocal(const FContainerSessionHandle& SessionHandle);
 
 	/** Update weight state tag on ASC based on current weight ratio. */
 	void UpdateWeightStateTag();
@@ -481,4 +638,10 @@ protected:
 
 	/** Error delegate for C++ consumers (IInventoryReadOnly interface). */
 	FOnInventoryErrorNative InventoryErrorNative;
+
+	FOnInventoryWorldContainerSessionOpenedNative WorldContainerSessionOpenedNative;
+	FOnInventoryWorldContainerSessionClosedNative WorldContainerSessionClosedNative;
+
+	FContainerSessionHandle ActiveWorldContainerSessionHandle;
+	TWeakObjectPtr<AActor> ActiveWorldContainerTargetActor;
 };

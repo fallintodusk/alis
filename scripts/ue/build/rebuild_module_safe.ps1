@@ -325,14 +325,13 @@ else {
 # Step 3: Run UBT with timeout and retry
 Write-Host "[3/4] Running Unreal Build Tool with retry logic..." -ForegroundColor Yellow
 
-# Read UE_PATH from config (single source of truth)
-$configPath = Join-Path $PSScriptRoot "..\..\config\ue_path.conf"
-$uePath = $null
-if (Test-Path $configPath) {
-    $uePath = (Get-Content $configPath | Where-Object { $_ -match "^UE_PATH=(.+)$" } | Select-Object -First 1) -replace "^UE_PATH=", "" | ForEach-Object { $_.Trim().Replace("/", "\") }
-}
+# Read UE_PATH from config (SOT: Resolve-UEConfig.ps1)
+$configDir = Join-Path $PSScriptRoot "..\..\config"
+. (Join-Path $configDir "Resolve-UEConfig.ps1")
+$config = Resolve-UEConfig -ConfigDir $configDir
+$uePath = $config.UE_PATH.Replace("/", "\")
 if (-not $uePath) {
-    Write-Host "  ERROR: UE_PATH not found in $configPath" -ForegroundColor Red
+    Write-Host "  ERROR: UE_PATH not found. Create scripts\config\ue_path.local.conf" -ForegroundColor Red
     exit 1
 }
 Write-Host "  UE_PATH: $uePath" -ForegroundColor Gray

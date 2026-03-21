@@ -114,6 +114,7 @@ cmake-build-*/
 # --- Reports / local tools (from your uploaded file) ---
 utility/check/reports/
 utility/config/ue_path.conf
+scripts/config/ue_path.local.conf
 
 # --- Third-party handling ---
 # By default, Binaries/** rules ignore everything;

@@ -148,6 +148,7 @@ namespace ProjectTags
 	UE_DEFINE_GAMEPLAY_TAG(Item_Container_Pockets3, "Item.Container.Pockets3");
 	UE_DEFINE_GAMEPLAY_TAG(Item_Container_Pockets4, "Item.Container.Pockets4");
 	UE_DEFINE_GAMEPLAY_TAG(Item_Container_Backpack, "Item.Container.Backpack");
+	UE_DEFINE_GAMEPLAY_TAG(Item_Container_WorldStorage, "Item.Container.WorldStorage");
 	UE_DEFINE_GAMEPLAY_TAG(Item_Type_Weapon, "Item.Type.Weapon");
 	UE_DEFINE_GAMEPLAY_TAG(Item_Type_Weapon_Melee, "Item.Type.Weapon.Melee");
 	UE_DEFINE_GAMEPLAY_TAG(Item_Type_Weapon_Ranged, "Item.Type.Weapon.Ranged");

@@ -3,7 +3,6 @@
 #include "Interaction/InventoryInteractionHandler.h"
 #include "ProjectInventory.h"
 #include "Interfaces/IInteractionService.h"
-#include "Interfaces/ILootSource.h"
 #include "Interfaces/IPickupSource.h"
 #include "ProjectServiceLocator.h"
 #include "Components/ProjectInventoryComponent.h"
@@ -17,13 +16,20 @@ FInventoryInteractionHandler::~FInventoryInteractionHandler()
 
 void FInventoryInteractionHandler::Subscribe()
 {
-	TSharedPtr<IInteractionService> Service = FProjectServiceLocator::Resolve<IInteractionService>();
-	if (!Service.IsValid())
+	if (InteractionHandle.IsValid())
 	{
 		return;
 	}
 
+	TSharedPtr<IInteractionService> Service = FProjectServiceLocator::Resolve<IInteractionService>();
+	if (!Service.IsValid())
+	{
+		UE_LOG(LogProjectInventory, Verbose, TEXT("[InventoryInteractionHandler::Subscribe] IInteractionService not yet available"));
+		return;
+	}
+
 	InteractionHandle = Service->OnInteraction().AddSP(AsShared(), &FInventoryInteractionHandler::HandleInteraction);
+	UE_LOG(LogProjectInventory, Log, TEXT("Inventory interaction handler subscribed"));
 }
 
 void FInventoryInteractionHandler::Unsubscribe()
@@ -69,13 +75,6 @@ void FInventoryInteractionHandler::HandleInteraction(AActor* Target, AActor* Ins
 		return;
 	}
 
-	// Loot containers
-	if (UObject* LootSource = FindLootSource(Target))
-	{
-		HandleLootSource(LootSource, Pawn);
-		return;
-	}
-
 	// NOTE: Doors and other interactables handle themselves via IInteractableTargetInterface
 	// No door-specific code here
 }
@@ -114,65 +113,6 @@ void FInventoryInteractionHandler::HandlePickupSource(UObject* PickupSource, APa
 	}
 }
 
-void FInventoryInteractionHandler::HandleLootSource(UObject* LootSource, APawn* Pawn)
-{
-	if (!LootSource)
-	{
-		return;
-	}
-
-	if (ILootSource::Execute_IsLootEmpty(LootSource))
-	{
-		return;
-	}
-
-	TArray<FLootEntryView> LootEntries = ILootSource::Execute_GetLootEntries(LootSource);
-	if (LootEntries.Num() == 0)
-	{
-		return;
-	}
-
-	TArray<FLootEntry> Items;
-	Items.Reserve(LootEntries.Num());
-
-	int32 InvalidCount = 0;
-	for (const FLootEntryView& EntryView : LootEntries)
-	{
-		if (!EntryView.IsValid())
-		{
-			++InvalidCount;
-			continue;
-		}
-
-		Items.Add(FLootEntry(EntryView.ObjectId, EntryView.Quantity));
-	}
-
-	if (InvalidCount > 0)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("HandleLootSource: Skipped %d invalid loot entries in %s"),
-			InvalidCount, *GetNameSafe(LootSource));
-	}
-
-	UProjectInventoryComponent* Inventory = GetInventory(Pawn);
-	if (!Inventory)
-	{
-		return;
-	}
-
-	if (Items.Num() == 0)
-	{
-		return;
-	}
-
-	if (!Inventory->CanFitItems(Items))
-	{
-		return;
-	}
-
-	Inventory->AddItemsBatch(Items);
-	ILootSource::Execute_ConsumeLootSource(LootSource);
-}
-
 UProjectInventoryComponent* FInventoryInteractionHandler::GetInventory(APawn* Pawn) const
 {
 	if (!Pawn)
@@ -200,32 +140,6 @@ UObject* FInventoryInteractionHandler::FindPickupSource(AActor* Target) const
 	for (UActorComponent* Component : Components)
 	{
 		if (Component && Component->Implements<UPickupSource>())
-		{
-			return Component;
-		}
-	}
-
-	return nullptr;
-}
-
-UObject* FInventoryInteractionHandler::FindLootSource(AActor* Target) const
-{
-	if (!Target)
-	{
-		return nullptr;
-	}
-
-	if (Target->Implements<ULootSource>())
-	{
-		return Target;
-	}
-
-	TInlineComponentArray<UActorComponent*> Components;
-	Target->GetComponents(Components);
-
-	for (UActorComponent* Component : Components)
-	{
-		if (Component && Component->Implements<ULootSource>())
 		{
 			return Component;
 		}

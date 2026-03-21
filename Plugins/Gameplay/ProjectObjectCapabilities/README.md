@@ -8,7 +8,7 @@ Reusable capability components for world objects (access control, state).
 - Provides composable capabilities that any actor can attach
 - Not tied to specific actor types - generic building blocks
 - Pairs with ProjectInteraction (player side) for complete interaction flow
-- **World interactions only** - item identity data lives in ObjectDefinition.Item, not here
+- **World interactions only** - item identity data lives in `ObjectDefinition.sections.item`, storage data lives in `ObjectDefinition.sections.storage`, not here
 
 **Architecture:** See [Layer Contract](../../Resources/ProjectObject/docs/layer_contract.md) for the 3-layer separation (Capabilities / Item Data / GAS Profiles).
 
@@ -31,10 +31,10 @@ If you're creating a placeable world object, put it in ProjectObject.
 
 ```
 Gameplay/
-├── ProjectInteraction/         <- Player side (E key, traces)
-└── ProjectObjectCapabilities/  <- Object side (lock, state)
-    └── Access/
-        └── ULockableComponent
+|-- ProjectInteraction/         <- Player side (E key, traces)
+`-- ProjectObjectCapabilities/  <- Object side (lock, state)
+    `-- Access/
+        `-- ULockableComponent
 ```
 
 ## Components
@@ -153,6 +153,33 @@ Quick log checks:
 - Lock path: `LogProjectObjectCapabilities ... Lockable ... Access denied`
 - Watch path: `LogProjectObjectCapabilities ... ActorWatcher ... Event emitted (Name=lock.access_denied, ...)`
 - If both exist, capability side is healthy and debugging should continue in ProjectDialogue/ProjectDialogueUI.
+
+### ULootContainerCapabilityComponent
+
+World interaction shell for searchable/openable storage containers.
+
+Owns:
+- interaction label/state (`Search`, empty/busy response)
+- stable world-container identity
+- canonical runtime container entries exposed through `IWorldContainerSessionSource`
+- authority-side single-opener rule for `FullOpen`
+
+Does not own:
+- authored storage spec
+- inventory-side session orchestration
+- inventory UI layout
+
+Authoring contract:
+- capability stays in `capabilities[]`
+- container data lives in `sections.storage`
+- exact contents default to `seedEntries`
+- reusable randomized fill references `lootProfileId`
+
+Integration route:
+- ProjectInteraction resolves focus and `E`
+- ProjectSinglePlay routes local input
+- ProjectInventory opens session and executes transfer rules
+- ProjectInventoryUI presents the nearby container inside the inventory screen
 
 ## Future Components
 

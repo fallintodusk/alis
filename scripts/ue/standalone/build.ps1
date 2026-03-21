@@ -31,48 +31,26 @@ $ErrorActionPreference = "Stop"
 # ============================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ConfigFile = Join-Path (Split-Path -Parent (Split-Path -Parent $ScriptDir)) "config\ue_path.conf"
-
-# Default fallbacks (non-UE)
-$DefaultTarget = "AlisEditor"
-$DefaultConfig = "Development"
-$DefaultPlatform = "Win64"
+$ConfigDir = Join-Path (Split-Path -Parent (Split-Path -Parent $ScriptDir)) "config"
 
 # ============================================================
-# Load Configuration from File
+# Load Configuration (SOT: Resolve-UEConfig.ps1)
 # ============================================================
 
-$UEPath = $null
-$Target = $null
-$BuildConfig = $null
-$Platform = $null
+. (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
+$config = Resolve-UEConfig -ConfigDir $ConfigDir
 
-if (Test-Path $ConfigFile) {
-    # Support both shell (=) and Make (:=) syntax for ue_path.conf
-    Get-Content $ConfigFile | Where-Object { $_ -match '^([A-Z_]+)\s*:?=\s*(.+)$' } | ForEach-Object {
-        $key = $matches[1]
-        $value = $matches[2].Trim().Trim('"', "'")
+$UEPath      = $config.UE_PATH
+$Target      = $config.BUILD_TARGET
+$BuildConfig = $config.BUILD_CONFIG
+$Platform    = $config.BUILD_PLATFORM
+$ConfigFile  = $config.ConfigFile
 
-        switch ($key) {
-            "UE_PATH" { $UEPath = $value }
-            "BUILD_TARGET" { $Target = $value }
-            "BUILD_CONFIG" { $BuildConfig = $value }
-            "BUILD_PLATFORM" { $Platform = $value }
-        }
-    }
-}
-
-# Require UE_PATH from config
 if (-not $UEPath) {
     Write-Host "[ERROR] UE_PATH not found in config: $ConfigFile" -ForegroundColor Red
-    Write-Host "Set UE_PATH in scripts\\config\\ue_path.conf." -ForegroundColor Yellow
+    Write-Host "Create scripts\\config\\ue_path.local.conf with UE_PATH=<path>." -ForegroundColor Yellow
     exit 1
 }
-
-# Apply defaults for non-UE values if not loaded
-if (-not $Target) { $Target = $DefaultTarget }
-if (-not $BuildConfig) { $BuildConfig = $DefaultConfig }
-if (-not $Platform) { $Platform = $DefaultPlatform }
 
 # Export to environment so all child tools share same config
 $Env:UE_PATH        = $UEPath
@@ -85,7 +63,7 @@ $UEBuildBat = Join-Path $UEPath "Engine\Build\BatchFiles\Build.bat"
 if (-not (Test-Path $UEBuildBat)) {
     Write-Host "[ERROR] UE_PATH invalid or not found: $UEPath" -ForegroundColor Red
     Write-Host ""
-    Write-Host "Create scripts\\config\\ue_path.conf with:" -ForegroundColor Yellow
+    Write-Host "Create scripts\\config\\ue_path.local.conf with:" -ForegroundColor Yellow
     Write-Host "  UE_PATH=<path to source-built engine>"
     Write-Host "  BUILD_TARGET=AlisEditor"
     Write-Host "  BUILD_CONFIG=Development"

@@ -1,6 +1,7 @@
-#include "SinglePlayerPlayerController.h"
+#include "SinglePlayController.h"
 #include "ProjectSinglePlayLog.h"
 #include "GameFramework/Character.h"
+#include "Components/ActorComponent.h"
 #include "Engine/GameViewportClient.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -13,7 +14,9 @@
 #include "HAL/PlatformTLS.h"
 #include "Interfaces/IInteractionService.h"
 #include "Interfaces/IInventoryCommands.h"
+#include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "Interfaces/IMindRuntimeControl.h"
+#include "Interfaces/IWorldContainerSessionSource.h"
 #include "ProjectServiceLocator.h"
 #if !UE_SERVER
 #include "MVVM/InventoryViewModel.h"
@@ -23,7 +26,60 @@
 // Thread-safe logging macro for init diagnostics
 #define LOG_INIT(Format, ...) UE_LOG(LogProjectSinglePlay, Log, TEXT("[Thread:%u] " Format), FPlatformTLS::GetCurrentThreadId(), ##__VA_ARGS__)
 
-ASinglePlayerPlayerController::ASinglePlayerPlayerController()
+namespace
+{
+UObject* ResolveInventoryWorldContainerBridgeObject(APawn* Pawn)
+{
+	if (!Pawn)
+	{
+		return nullptr;
+	}
+
+	for (UActorComponent* Component : Pawn->GetComponents())
+	{
+		if (Component && Component->GetClass()->ImplementsInterface(UInventoryWorldContainerTransferBridge::StaticClass()))
+		{
+			return Component;
+		}
+	}
+
+	return nullptr;
+}
+
+UObject* ResolveWorldContainerSessionSource(AActor* TargetActor)
+{
+	if (!TargetActor)
+	{
+		return nullptr;
+	}
+
+	auto ResolveSource = [](UObject* Candidate) -> UObject*
+	{
+		return Candidate && Candidate->GetClass()->ImplementsInterface(UWorldContainerSessionSource::StaticClass())
+			? Candidate
+			: nullptr;
+	};
+
+	if (UObject* SourceObject = ResolveSource(TargetActor))
+	{
+		return SourceObject;
+	}
+
+	TInlineComponentArray<UActorComponent*> Components;
+	TargetActor->GetComponents(Components);
+	for (UActorComponent* Component : Components)
+	{
+		if (UObject* SourceObject = ResolveSource(Component))
+		{
+			return SourceObject;
+		}
+	}
+
+	return nullptr;
+}
+}
+
+ASinglePlayController::ASinglePlayController()
 {
 	// Defaults - will be overridden in OnPossess based on pawn type
 	bShowMouseCursor = false;
@@ -32,7 +88,7 @@ ASinglePlayerPlayerController::ASinglePlayerPlayerController()
 	VitalsUIBindAttempts = 0;
 }
 
-void ASinglePlayerPlayerController::BeginPlay()
+void ASinglePlayController::BeginPlay()
 {
 	LOG_INIT("BeginPlay START - Controller=%s", *GetName());
 	Super::BeginPlay();
@@ -59,7 +115,7 @@ void ASinglePlayerPlayerController::BeginPlay()
 	LOG_INIT("BeginPlay END");
 }
 
-void ASinglePlayerPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ASinglePlayController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	LOG_INIT("EndPlay START - Reason=%d", static_cast<int32>(EndPlayReason));
 
@@ -71,14 +127,14 @@ void ASinglePlayerPlayerController::EndPlay(const EEndPlayReason::Type EndPlayRe
 
 	if (VitalsViewModel)
 	{
-		VitalsViewModel->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayerPlayerController::HandleVitalsViewModelPropertyChanged);
+		VitalsViewModel->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayController::HandleVitalsViewModelPropertyChanged);
 		LOG_INIT("EndPlay: Unbound from VitalsViewModel.OnPropertyChanged");
 	}
 
 #if !UE_SERVER
 	if (UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel))
 	{
-		InventoryVM->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayerPlayerController::HandleInventoryViewModelPropertyChanged);
+		InventoryVM->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayController::HandleInventoryViewModelPropertyChanged);
 		LOG_INIT("EndPlay: Unbound from InventoryViewModel.OnPropertyChanged");
 	}
 #endif
@@ -100,7 +156,7 @@ void ASinglePlayerPlayerController::EndPlay(const EEndPlayReason::Type EndPlayRe
 	LOG_INIT("EndPlay END");
 }
 
-void ASinglePlayerPlayerController::OnPossess(APawn* InPawn)
+void ASinglePlayController::OnPossess(APawn* InPawn)
 {
 	LOG_INIT("OnPossess START - Pawn=%s", InPawn ? *InPawn->GetName() : TEXT("null"));
 	Super::OnPossess(InPawn);
@@ -128,7 +184,7 @@ void ASinglePlayerPlayerController::OnPossess(APawn* InPawn)
 	LOG_INIT("OnPossess END");
 }
 
-void ASinglePlayerPlayerController::SetupInputComponent()
+void ASinglePlayController::SetupInputComponent()
 {
 	LOG_INIT("SetupInputComponent START");
 	Super::SetupInputComponent();
@@ -143,7 +199,7 @@ void ASinglePlayerPlayerController::SetupInputComponent()
 				ToggleVitalsAction,
 				ETriggerEvent::Started,
 				this,
-				&ASinglePlayerPlayerController::HandleToggleVitalsAction);
+				&ASinglePlayController::HandleToggleVitalsAction);
 			LOG_INIT("SetupInputComponent: Bound ToggleVitalsAction");
 		}
 
@@ -154,7 +210,7 @@ void ASinglePlayerPlayerController::SetupInputComponent()
 				ToggleInventoryAction,
 				ETriggerEvent::Started,
 				this,
-				&ASinglePlayerPlayerController::HandleToggleInventoryAction);
+				&ASinglePlayController::HandleToggleInventoryAction);
 			LOG_INIT("SetupInputComponent: Bound ToggleInventoryAction");
 		}
 
@@ -164,7 +220,7 @@ void ASinglePlayerPlayerController::SetupInputComponent()
 				ToggleMindJournalAction,
 				ETriggerEvent::Started,
 				this,
-				&ASinglePlayerPlayerController::HandleToggleMindJournalAction);
+				&ASinglePlayController::HandleToggleMindJournalAction);
 			LOG_INIT("SetupInputComponent: Bound ToggleMindJournalAction");
 		}
 #endif
@@ -175,7 +231,7 @@ void ASinglePlayerPlayerController::SetupInputComponent()
 				InteractAction,
 				ETriggerEvent::Started,
 				this,
-				&ASinglePlayerPlayerController::HandleInteractAction);
+				&ASinglePlayController::HandleInteractAction);
 			LOG_INIT("SetupInputComponent: Bound InteractAction");
 		}
 
@@ -185,7 +241,7 @@ void ASinglePlayerPlayerController::SetupInputComponent()
 				SwapHandsAction,
 				ETriggerEvent::Started,
 				this,
-				&ASinglePlayerPlayerController::HandleSwapHandsAction);
+				&ASinglePlayController::HandleSwapHandsAction);
 			LOG_INIT("SetupInputComponent: Bound SwapHandsAction");
 		}
 	}
@@ -196,7 +252,7 @@ void ASinglePlayerPlayerController::SetupInputComponent()
 	LOG_INIT("SetupInputComponent END");
 }
 
-bool ASinglePlayerPlayerController::InputKey(const FInputKeyEventArgs& Params)
+bool ASinglePlayController::InputKey(const FInputKeyEventArgs& Params)
 {
 	const bool bHandled = Super::InputKey(Params);
 
@@ -215,7 +271,7 @@ bool ASinglePlayerPlayerController::InputKey(const FInputKeyEventArgs& Params)
 	return bHandled;
 }
 
-void ASinglePlayerPlayerController::SetFirstPersonInputMode()
+void ASinglePlayController::SetFirstPersonInputMode()
 {
 	// Disable move/look ignore (in case coming from menu)
 	SetIgnoreMoveInput(false);
@@ -234,7 +290,7 @@ void ASinglePlayerPlayerController::SetFirstPersonInputMode()
 	}
 }
 
-void ASinglePlayerPlayerController::SetUIInputMode()
+void ASinglePlayController::SetUIInputMode()
 {
 	bShowMouseCursor = true;
 	FInputModeGameAndUI InputMode;
@@ -243,7 +299,7 @@ void ASinglePlayerPlayerController::SetUIInputMode()
 	SetInputMode(InputMode);
 }
 
-void ASinglePlayerPlayerController::InitializeVitalsUI(APawn* InPawn)
+void ASinglePlayController::InitializeVitalsUI(APawn* InPawn)
 {
 	LOG_INIT("InitializeVitalsUI START - Pawn=%s", InPawn ? *InPawn->GetName() : TEXT("null"));
 
@@ -268,7 +324,7 @@ void ASinglePlayerPlayerController::InitializeVitalsUI(APawn* InPawn)
 	LOG_INIT("InitializeVitalsUI END");
 }
 
-void ASinglePlayerPlayerController::InitializeInventoryUI(APawn* InPawn)
+void ASinglePlayController::InitializeInventoryUI(APawn* InPawn)
 {
 #if !UE_SERVER
 	// Inventory UI is demand-loaded: ViewModel created on first toggle, not on possess.
@@ -279,7 +335,7 @@ void ASinglePlayerPlayerController::InitializeInventoryUI(APawn* InPawn)
 #endif
 }
 
-void ASinglePlayerPlayerController::TryBindVitalsViewModel()
+void ASinglePlayController::TryBindVitalsViewModel()
 {
 	LOG_INIT("TryBindVitalsViewModel START - Attempt=%d", VitalsUIBindAttempts + 1);
 
@@ -304,12 +360,12 @@ void ASinglePlayerPlayerController::TryBindVitalsViewModel()
 	{
 		if (VitalsViewModel)
 		{
-			VitalsViewModel->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayerPlayerController::HandleVitalsViewModelPropertyChanged);
+			VitalsViewModel->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayController::HandleVitalsViewModelPropertyChanged);
 			LOG_INIT("TryBindVitalsViewModel: Unbound previous ViewModel");
 		}
 
 		VitalsViewModel = FoundVM;
-		VitalsViewModel->OnPropertyChanged.AddUniqueDynamic(this, &ASinglePlayerPlayerController::HandleVitalsViewModelPropertyChanged);
+		VitalsViewModel->OnPropertyChanged.AddUniqueDynamic(this, &ASinglePlayController::HandleVitalsViewModelPropertyChanged);
 		LOG_INIT("TryBindVitalsViewModel: Bound to VitalsViewModel.OnPropertyChanged delegate");
 
 		if (VitalsViewModel->GetbPanelVisible())
@@ -330,7 +386,7 @@ void ASinglePlayerPlayerController::TryBindVitalsViewModel()
 		GetWorld()->GetTimerManager().SetTimer(
 			VitalsUIRetryHandle,
 			this,
-			&ASinglePlayerPlayerController::TryBindVitalsViewModel,
+			&ASinglePlayController::TryBindVitalsViewModel,
 			0.2f,
 			false);
 	}
@@ -341,7 +397,7 @@ void ASinglePlayerPlayerController::TryBindVitalsViewModel()
 	}
 }
 
-void ASinglePlayerPlayerController::TryBindInventoryViewModel()
+void ASinglePlayController::TryBindInventoryViewModel()
 {
 #if !UE_SERVER
 	// Called from HandleToggleInventoryAction after ShowDefinition creates the ViewModel.
@@ -362,13 +418,33 @@ void ASinglePlayerPlayerController::TryBindInventoryViewModel()
 		Factory->GetSharedViewModel(UInventoryViewModel::StaticClass())))
 	{
 		InventoryViewModel = FoundVM;
-		FoundVM->OnPropertyChanged.AddUniqueDynamic(this, &ASinglePlayerPlayerController::HandleInventoryViewModelPropertyChanged);
+		FoundVM->OnPropertyChanged.AddUniqueDynamic(this, &ASinglePlayController::HandleInventoryViewModelPropertyChanged);
 		LOG_INIT("TryBindInventoryViewModel: Bound to InventoryViewModel");
 	}
 #endif
 }
 
-void ASinglePlayerPlayerController::TryBindMindJournalViewModel()
+bool ASinglePlayController::EnsureInventoryViewModelReady()
+{
+#if !UE_SERVER
+	if (InventoryViewModel)
+	{
+		return true;
+	}
+
+	if (UProjectUILayerHostSubsystem* LayerHost = GetGameInstance()->GetSubsystem<UProjectUILayerHostSubsystem>())
+	{
+		LayerHost->ShowDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	}
+
+	TryBindInventoryViewModel();
+	return InventoryViewModel != nullptr;
+#else
+	return false;
+#endif
+}
+
+void ASinglePlayController::TryBindMindJournalViewModel()
 {
 #if !UE_SERVER
 	if (!IsLocalController() || MindJournalViewModel)
@@ -386,7 +462,7 @@ void ASinglePlayerPlayerController::TryBindMindJournalViewModel()
 #endif
 }
 
-void ASinglePlayerPlayerController::CreateUIInputAssets()
+void ASinglePlayController::CreateUIInputAssets()
 {
 	if (!UIInputMappingContext)
 	{
@@ -431,7 +507,7 @@ void ASinglePlayerPlayerController::CreateUIInputAssets()
 	}
 }
 
-void ASinglePlayerPlayerController::HandleVitalsViewModelPropertyChanged(FName PropertyName)
+void ASinglePlayController::HandleVitalsViewModelPropertyChanged(FName PropertyName)
 {
 	if (PropertyName == TEXT("bPanelVisible"))
 	{
@@ -449,7 +525,7 @@ void ASinglePlayerPlayerController::HandleVitalsViewModelPropertyChanged(FName P
 	}
 }
 
-void ASinglePlayerPlayerController::HandleInventoryViewModelPropertyChanged(FName PropertyName)
+void ASinglePlayController::HandleInventoryViewModelPropertyChanged(FName PropertyName)
 {
 #if !UE_SERVER
 	LOG_INIT("HandleInventoryViewModelPropertyChanged - PropertyName=%s", *PropertyName.ToString());
@@ -480,7 +556,7 @@ void ASinglePlayerPlayerController::HandleInventoryViewModelPropertyChanged(FNam
 #endif
 }
 
-void ASinglePlayerPlayerController::HandleToggleVitalsAction(const FInputActionValue& Value)
+void ASinglePlayController::HandleToggleVitalsAction(const FInputActionValue& Value)
 {
 	if (!Value.Get<bool>())
 	{
@@ -498,7 +574,7 @@ void ASinglePlayerPlayerController::HandleToggleVitalsAction(const FInputActionV
 	}
 }
 
-void ASinglePlayerPlayerController::HandleToggleInventoryAction(const FInputActionValue& Value)
+void ASinglePlayController::HandleToggleInventoryAction(const FInputActionValue& Value)
 {
 #if !UE_SERVER
 	if (!Value.Get<bool>())
@@ -510,16 +586,9 @@ void ASinglePlayerPlayerController::HandleToggleInventoryAction(const FInputActi
 	LOG_INIT("HandleToggleInventoryAction - BEFORE: IgnoreMoveInput=%d, IgnoreLookInput=%d",
 		IsMoveInputIgnored(), IsLookInputIgnored());
 
-	// Bootstrap: If ViewModel not bound yet, show the panel to create it, then bind
-	if (!InventoryViewModel)
+	if (!EnsureInventoryViewModelReady())
 	{
-		LOG_INIT("HandleToggleInventoryAction - Bootstrap: showing definition to create ViewModel");
-		if (UProjectUILayerHostSubsystem* LayerHost = GetGameInstance()->GetSubsystem<UProjectUILayerHostSubsystem>())
-		{
-			// Ensure the InventoryPanel definition is created so the shared ViewModel exists.
-			LayerHost->ShowDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
-		}
-		TryBindInventoryViewModel();
+		return;
 	}
 
 	// Toggle panel - the delegate HandleInventoryViewModelPropertyChanged handles Show/Hide
@@ -538,7 +607,7 @@ void ASinglePlayerPlayerController::HandleToggleInventoryAction(const FInputActi
 #endif
 }
 
-void ASinglePlayerPlayerController::HandleToggleMindJournalAction(const FInputActionValue& Value)
+void ASinglePlayController::HandleToggleMindJournalAction(const FInputActionValue& Value)
 {
 #if !UE_SERVER
 	if (!Value.Get<bool>())
@@ -564,12 +633,23 @@ void ASinglePlayerPlayerController::HandleToggleMindJournalAction(const FInputAc
 #endif
 }
 
-void ASinglePlayerPlayerController::HandleInteractAction(const FInputActionValue& Value)
+void ASinglePlayController::HandleInteractAction(const FInputActionValue& Value)
 {
 	if (!Value.Get<bool>())
 	{
 		return;
 	}
+
+#if !UE_SERVER
+	if (UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel))
+	{
+		if (InventoryVM->GetbPanelVisible() && InventoryVM->GetbHasNearbyContainer())
+		{
+			InventoryVM->HidePanel();
+			return;
+		}
+	}
+#endif
 
 	APawn* ControlledPawn = GetPawn();
 	if (!ControlledPawn)
@@ -582,13 +662,51 @@ void ASinglePlayerPlayerController::HandleInteractAction(const FInputActionValue
 	{
 		if (Comp && Comp->Implements<UInteractionComponentInterface>())
 		{
+			AActor* FocusedActor = IInteractionComponentInterface::Execute_GetFocusedActor(Comp);
+			UObject* WorldContainerSource = ResolveWorldContainerSessionSource(FocusedActor);
+
 			IInteractionComponentInterface::Execute_TryInteract(Comp);
+
+#if !UE_SERVER
+			if (WorldContainerSource)
+			{
+				if (!EnsureInventoryViewModelReady())
+				{
+					UE_LOG(LogProjectSinglePlay, Warning,
+						TEXT("HandleInteractAction: inventory UI/view-model not ready for world container '%s'"),
+						*GetNameSafe(FocusedActor));
+					return;
+				}
+
+				if (UObject* InventoryBridgeObject = ResolveInventoryWorldContainerBridgeObject(ControlledPawn))
+				{
+					FText OpenError;
+					const bool bOpenRequested =
+						IInventoryWorldContainerTransferBridge::Execute_RequestOpenWorldContainerSession(
+							InventoryBridgeObject,
+							FocusedActor,
+							EContainerSessionMode::FullOpen,
+							OpenError);
+					if (!bOpenRequested && !OpenError.IsEmpty())
+					{
+						UE_LOG(LogProjectSinglePlay, Warning, TEXT("HandleInteractAction: world-container open rejected - %s"),
+							*OpenError.ToString());
+					}
+				}
+				else
+				{
+					UE_LOG(LogProjectSinglePlay, Warning,
+						TEXT("HandleInteractAction: no inventory world-container bridge on '%s'"),
+						*GetNameSafe(ControlledPawn));
+				}
+			}
+#endif
 			return;
 		}
 	}
 }
 
-void ASinglePlayerPlayerController::HandleSwapHandsAction(const FInputActionValue& Value)
+void ASinglePlayController::HandleSwapHandsAction(const FInputActionValue& Value)
 {
 	if (!Value.Get<bool>())
 	{
@@ -612,7 +730,7 @@ void ASinglePlayerPlayerController::HandleSwapHandsAction(const FInputActionValu
 	}
 }
 
-void ASinglePlayerPlayerController::NotifyMindInputActivity()
+void ASinglePlayController::NotifyMindInputActivity()
 {
 	if (!IsLocalController())
 	{

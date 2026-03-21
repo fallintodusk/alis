@@ -2,6 +2,7 @@
 
 #include "Spawning/ObjectSpawnUtility.h"
 #include "Data/ObjectDefinition.h"
+#include "Data/LootProfileDefinition.h"
 #include "Template/Interactable/InteractableActor.h"
 #include "ObjectDefinitionHostHelpers.h"
 #include "ProjectObjectModule.h"
@@ -15,6 +16,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Interfaces/IInteractableTarget.h"
 #include "Modules/ModuleManager.h"
+#include "Types/WorldContainerKey.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Engine/AssetManager.h"
 #include "GameFramework/Character.h"
@@ -290,6 +292,29 @@ namespace
 		}
 
 		return SingleCompatible;
+	}
+
+	ULootProfileDefinition* ResolveLootProfileDefinition(const FPrimaryAssetId& ProfileId)
+	{
+		if (!ProfileId.IsValid())
+		{
+			return nullptr;
+		}
+
+		UAssetManager& AssetManager = UAssetManager::Get();
+		if (ULootProfileDefinition* Profile = AssetManager.GetPrimaryAssetObject<ULootProfileDefinition>(ProfileId))
+		{
+			return Profile;
+		}
+
+		const FSoftObjectPath AssetPath = AssetManager.GetPrimaryAssetPath(ProfileId);
+		if (!AssetPath.IsValid())
+		{
+			return nullptr;
+		}
+
+		UObject* Loaded = AssetManager.GetStreamableManager().LoadSynchronous(AssetPath, false);
+		return Cast<ULootProfileDefinition>(Loaded);
 	}
 }
 
@@ -1025,11 +1050,32 @@ AActor* SpawnFromDefinition(
 				}
 			}
 
-			// Special handling: LootContainer gets InstanceLoot from sections.loot
+			// Special handling: LootContainer gets InstanceLoot from canonical
+			// storage seed entries plus optional shared loot profile contents.
 			if (CapEntry.Type == FName(TEXT("LootContainer")))
 			{
-				if (const FLootSection* LootSection = Def->GetLootSection())
+				const FStorageSection* StorageSection = Def->GetStorageSection();
+				if (StorageSection && StorageSection->HasInitialContents())
 				{
+					TArray<FLootEntryView> InitialEntries;
+					FRandomStream RandomStream(FMath::Rand());
+					StorageSection->BuildSeedLootEntries(InitialEntries);
+
+					if (StorageSection->HasLootProfile())
+					{
+						if (ULootProfileDefinition* LootProfile = ResolveLootProfileDefinition(StorageSection->LootProfileId))
+						{
+							LootProfile->BuildLootEntries(InitialEntries, &RandomStream);
+						}
+						else
+						{
+							UE_LOG(LogProjectObject, Warning,
+								TEXT("LootContainer: Failed to resolve loot profile '%s' for '%s'"),
+								*StorageSection->LootProfileId.ToString(),
+								*Def->ObjectId.ToString());
+						}
+					}
+
 					// Set InstanceLoot array via reflection
 					FArrayProperty* ArrayProp = CastField<FArrayProperty>(
 						Comp->GetClass()->FindPropertyByName(TEXT("InstanceLoot")));
@@ -1037,19 +1083,86 @@ AActor* SpawnFromDefinition(
 					{
 						void* ArrayPtr = ArrayProp->ContainerPtrToValuePtr<void>(Comp);
 						FScriptArrayHelper ArrayHelper(ArrayProp, ArrayPtr);
-						ArrayHelper.Resize(LootSection->Entries.Num());
+						ArrayHelper.Resize(InitialEntries.Num());
 
-						for (int32 i = 0; i < LootSection->Entries.Num(); ++i)
+						for (int32 i = 0; i < InitialEntries.Num(); ++i)
 						{
-							const FLootEntryView& SrcEntry = LootSection->Entries[i];
+							const FLootEntryView& SrcEntry = InitialEntries[i];
 							FLootEntryView* DstEntry = reinterpret_cast<FLootEntryView*>(ArrayHelper.GetRawPtr(i));
 							*DstEntry = SrcEntry;
 						}
 
 						UE_LOG(LogProjectObject, Log,
-							TEXT("LootContainer: Set %d entries from sections.loot for '%s'"),
-							LootSection->Entries.Num(),
+							TEXT("LootContainer: Set %d entries from sections.storage contents for '%s'"),
+							InitialEntries.Num(),
 							*Def->ObjectId.ToString());
+					}
+				}
+
+				if (FStructProperty* KeyProp = CastField<FStructProperty>(
+					Comp->GetClass()->FindPropertyByName(TEXT("ContainerKey"))))
+				{
+					if (KeyProp->Struct == FWorldContainerKey::StaticStruct())
+					{
+						if (FWorldContainerKey* Key = KeyProp->ContainerPtrToValuePtr<FWorldContainerKey>(Comp))
+						{
+							if (StorageSection && !StorageSection->ContainerSlotId.IsNone())
+							{
+								Key->ContainerSlotId = StorageSection->ContainerSlotId;
+							}
+						}
+					}
+				}
+
+				if (StorageSection)
+				{
+					if (FStructProperty* GridProp = CastField<FStructProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("RuntimeGridSize"))))
+					{
+						if (GridProp->Struct == TBaseStructure<FIntPoint>::Get())
+						{
+							if (FIntPoint* GridSize = GridProp->ContainerPtrToValuePtr<FIntPoint>(Comp))
+							{
+								*GridSize = StorageSection->GridSize;
+							}
+						}
+					}
+
+					if (FFloatProperty* MaxWeightProp = CastField<FFloatProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("RuntimeMaxWeight"))))
+					{
+						MaxWeightProp->SetPropertyValue_InContainer(Comp, StorageSection->MaxWeight);
+					}
+
+					if (FFloatProperty* MaxVolumeProp = CastField<FFloatProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("RuntimeMaxVolume"))))
+					{
+						MaxVolumeProp->SetPropertyValue_InContainer(Comp, StorageSection->MaxVolume);
+					}
+
+					if (FIntProperty* MaxCellsProp = CastField<FIntProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("RuntimeMaxCells"))))
+					{
+						MaxCellsProp->SetPropertyValue_InContainer(Comp, StorageSection->MaxCells);
+					}
+
+					if (FBoolProperty* AllowRotationProp = CastField<FBoolProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("bRuntimeAllowRotation"))))
+					{
+						AllowRotationProp->SetPropertyValue_InContainer(Comp, StorageSection->AllowRotation);
+					}
+
+					if (FStructProperty* AllowedTagsProp = CastField<FStructProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("RuntimeAllowedTags"))))
+					{
+						if (AllowedTagsProp->Struct == FGameplayTagContainer::StaticStruct())
+						{
+							if (FGameplayTagContainer* AllowedTags =
+								AllowedTagsProp->ContainerPtrToValuePtr<FGameplayTagContainer>(Comp))
+							{
+								*AllowedTags = StorageSection->AllowedTags;
+							}
+						}
 					}
 				}
 			}

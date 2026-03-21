@@ -28,27 +28,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Get-ConfigValue {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Path,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Key
-    )
-
-    if (-not (Test-Path $Path)) {
-        return $null
-    }
-
-    foreach ($line in Get-Content $Path) {
-        if ($line -match "^\s*$Key\s*(:=|=)\s*(.+)$") {
-            return $Matches[2].Trim().Trim('"', "'")
-        }
-    }
-
-    return $null
-}
 
 function Format-Bytes {
     param(
@@ -61,15 +40,17 @@ function Format-Bytes {
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
-$ConfigFile = Join-Path $ProjectRoot "scripts\config\ue_path.conf"
+$ConfigDir = Join-Path $ProjectRoot "scripts\config"
 $ProjectFile = Join-Path $ProjectRoot "Alis.uproject"
 
 if (-not $EngineRoot) {
-    $EngineRoot = Get-ConfigValue -Path $ConfigFile -Key "UE_PATH"
+    . (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
+    $config = Resolve-UEConfig -ConfigDir $ConfigDir
+    $EngineRoot = $config.UE_PATH
 }
 
 if (-not $EngineRoot) {
-    throw "UE_PATH is not set. Configure scripts/config/ue_path.conf or pass -EngineRoot."
+    throw "UE_PATH is not set. Create scripts/config/ue_path.local.conf or pass -EngineRoot."
 }
 
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"

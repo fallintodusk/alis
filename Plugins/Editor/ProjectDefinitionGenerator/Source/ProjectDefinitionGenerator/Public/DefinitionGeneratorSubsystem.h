@@ -144,6 +144,16 @@ public:
 	static FString ComputeFileHash(const FString& FilePath);
 
 	/**
+	 * Resolve the generated asset id from JSON using the type's configured id field
+	 * and compatibility fallbacks.
+	 */
+	static bool ResolveAssetIdFromJson(
+		const FDefinitionTypeInfo& TypeInfo,
+		const TSharedPtr<class FJsonObject>& JsonObject,
+		FString& OutAssetId,
+		FString& OutError);
+
+	/**
 	 * Discover and register all definition types from plugin schemas.
 	 * Scans enabled plugins for Data/Schemas/*.schema.json files with x-alis-generator block.
 	 * Called automatically on Initialize, but can be called manually to refresh.

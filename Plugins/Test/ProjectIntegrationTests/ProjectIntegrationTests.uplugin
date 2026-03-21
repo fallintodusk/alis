@@ -23,6 +23,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectInventory",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectInventoryUI",
 			"Enabled": true
 		},

@@ -3,28 +3,13 @@ setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
 for %%I in ("%SCRIPT_DIR%..\..\..") do set PROJECT_ROOT=%%~fI
-set CONFIG_FILE=%PROJECT_ROOT%\scripts\config\ue_path.conf
 set LOG_DIR=%PROJECT_ROOT%\Saved\Logs
 set PROJECT_FILE=%PROJECT_ROOT%\Alis.uproject
 set LOG=%LOG_DIR%\data_validate.log
 
-if exist "%CONFIG_FILE%" (
-    for /f "usebackq tokens=1,2 delims==" %%a in ("%CONFIG_FILE%") do (
-        if "%%a"=="UE_PATH" set UE_PATH=%%b
-    )
-)
-
-if not defined UE_PATH (
-    if exist "<ue-path>" set UE_PATH=<ue-path>
-    if exist "<ue-path>" set UE_PATH=<ue-path>
-)
-
-if not defined UE_PATH (
-    echo ERROR: UE_PATH not found. Check scripts\config\ue_path.conf
-    exit /b 1
-)
-
-set UE_PATH=%UE_PATH:"=%
+REM Resolve UE_PATH (SOT: resolve_ue_path.bat)
+call "%PROJECT_ROOT%\scripts\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 

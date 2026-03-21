@@ -42,6 +42,18 @@ void UW_ItemContextMenu::NativeConstruct()
         if (UseAction.IsValid())
         {
             UseAction->OnClicked.AddDynamic(this, &UW_ItemContextMenu::HandleUseClicked);
+
+            if (UHorizontalBox* HBox = Cast<UHorizontalBox>(UseAction->GetChildAt(0)))
+            {
+                for (int32 i = HBox->GetChildrenCount() - 1; i >= 0; --i)
+                {
+                    if (UTextBlock* TB = Cast<UTextBlock>(HBox->GetChildAt(i)))
+                    {
+                        UseActionText = TB;
+                        break;
+                    }
+                }
+            }
         }
         if (EquipAction.IsValid())
         {
@@ -204,6 +216,16 @@ void UW_ItemContextMenu::UpdateActionVisibility(const TArray<FProjectUIActionDes
     if (UseAction.IsValid())
     {
         ApplyActionState(UseAction.Get(), UInventoryViewModel::GetActionIdUse());
+
+        if (UseActionText.IsValid())
+        {
+            const FProjectUIActionDescriptor* UseDesc = UInventoryViewModel::FindActionDescriptor(
+                ActionDescriptors, UInventoryViewModel::GetActionIdUse());
+            if (UseDesc)
+            {
+                UseActionText->SetText(UseDesc->Label);
+            }
+        }
     }
 
     if (EquipAction.IsValid())

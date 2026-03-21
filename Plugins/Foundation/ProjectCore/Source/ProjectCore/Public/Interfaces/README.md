@@ -66,6 +66,8 @@ class PROJECTCORE_API IOrchestratorRegistry { /* ... */ };
 - **IOrchestratorRegistry** - Query loaded feature plugins (implemented by OrchestratorCore, consumed by game systems)
 - **IProjectFeatureModule** - Feature plugin lifecycle contract
 - **IActorWatchEventListener** - Generic watch-event listener contract for capability-driven actor observation
+- **IWorldContainerSessionSource** - Thin world-side contract for meaningful storage containers
+- **IInventoryWorldContainerTransferBridge** - Inventory-side transfer/session bridge for nearby world containers
 - **IMindThoughtFeed / IMindService** - Mind feed consumer/runtime contracts
 - **IMindThoughtSource** - Mind source adapter contracts (default implementations in ProjectMind, optional overrides by gameplay plugins)
   - Guardrail: keep mind orchestration in ProjectMind, not in domain feature modules

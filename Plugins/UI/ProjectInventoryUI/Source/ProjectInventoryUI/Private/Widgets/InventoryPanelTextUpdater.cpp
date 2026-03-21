@@ -62,6 +62,34 @@ void FInventoryPanelTextUpdater::UpdateStatsText(UInventoryViewModel* VM)
     }
 }
 
+void FInventoryPanelTextUpdater::UpdateNearbyContainerInfo(UInventoryViewModel* VM)
+{
+    if (Refs.NearbyTitleText)
+    {
+        FText Title = NSLOCTEXT("Inventory", "NearbyLootFallbackTitle", "Nearby Loot");
+        if (VM && VM->GetbHasNearbyContainer() && !VM->GetNearbyContainerLabel().IsEmpty())
+        {
+            Title = VM->GetNearbyContainerLabel();
+        }
+        Refs.NearbyTitleText->SetText(Title);
+    }
+
+    if (Refs.NearbyStatsText)
+    {
+        if (VM && VM->GetbHasNearbyContainer())
+        {
+            Refs.NearbyStatsText->SetText(FText::Format(
+                NSLOCTEXT("Inventory", "NearbyLootStats", "{0}   {1}"),
+                FormatWeight(VM->GetNearbyContainerCurrentWeight(), VM->GetNearbyContainerMaxWeight()),
+                FormatVolume(VM->GetNearbyContainerCurrentVolume(), VM->GetNearbyContainerMaxVolume())));
+        }
+        else
+        {
+            Refs.NearbyStatsText->SetText(FText::GetEmpty());
+        }
+    }
+}
+
 void FInventoryPanelTextUpdater::UpdateSelectionInfo(UInventoryViewModel* VM, FInventoryPanelState& PanelState)
 {
     FInventoryEntryView Entry;
@@ -151,6 +179,14 @@ void FInventoryPanelTextUpdater::UpdateCommandButtons(UInventoryViewModel* VM, c
     if (Refs.EquipButton)
     {
         ApplyActionState(Refs.EquipButton, UInventoryViewModel::GetActionIdEquip());
+    }
+
+    if (Refs.TakeAllButton)
+    {
+        const bool bShowTakeAll = VM && VM->GetbHasNearbyContainer();
+        const bool bEnableTakeAll = bShowTakeAll && VM->HasNearbyEntries();
+        Refs.TakeAllButton->SetVisibility(bShowTakeAll ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        Refs.TakeAllButton->SetIsEnabled(bEnableTakeAll);
     }
 }
 
