@@ -25,6 +25,7 @@ struct PROJECTINVENTORY_API FInventoryViewHelper
         TFunction<bool(FPrimaryAssetId, FItemDataView&)> GetItemDataView;
         TFunction<bool(const FInventoryEntry&, FGameplayTag&, FIntPoint&, bool&)> GetEffectivePlacement;
         TFunction<int32(FGameplayTag, FIntPoint)> ComputeSlotIndex;
+        TFunction<bool(FGameplayTag, FInventoryContainerConfig&)> GetContainerConfig;
         TFunction<bool(FGameplayTag, TArray<FInventoryContainerConfig>&)> GetEquipSlotGrants;
         TFunction<float(FGameplayTag, TMap<FPrimaryAssetId, FItemDataView>&)> GetContainerWeight;
         TFunction<float(FGameplayTag, TMap<FPrimaryAssetId, FItemDataView>&)> GetContainerVolume;

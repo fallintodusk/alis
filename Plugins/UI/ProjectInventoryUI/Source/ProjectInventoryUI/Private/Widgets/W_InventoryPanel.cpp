@@ -362,7 +362,7 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
     static const FName NAME_EquipSlotLabels(TEXT("EquipSlotLabels"));
     static const FName NAME_EquipSlotItemIconCodes(TEXT("EquipSlotItemIconCodes"));
 
-    UE_LOG(LogInventoryPanel, Verbose, TEXT("HandleViewModelPropertyChanged: %s"), *PropertyName.ToString());
+    UE_LOG(LogInventoryPanel, Log, TEXT("HandleViewModelPropertyChanged: %s"), *PropertyName.ToString());
 
     if (PropertyName == NAME_bPanelVisible)
     {
@@ -405,7 +405,13 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
     }
     else if (PropertyName == NAME_SecondaryCellTexts)
     {
-        GridBuilder.UpdateGridTexts(InventoryVM->GetSecondaryCellTexts(), SecondaryCellWidgets);
+        const TArray<FText>& Texts = InventoryVM->GetSecondaryCellTexts();
+        int32 NonEmpty = 0;
+        for (const FText& T : Texts) { if (!T.IsEmpty()) { ++NonEmpty; } }
+        UE_LOG(LogInventoryPanel, Log,
+            TEXT("SecondaryCellTexts updated: %d texts (%d non-empty) -> %d widgets"),
+            Texts.Num(), NonEmpty, SecondaryCellWidgets.Num());
+        GridBuilder.UpdateGridTexts(Texts, SecondaryCellWidgets);
     }
     else if (PropertyName == NAME_LeftHandCellTexts)
     {
@@ -1347,6 +1353,31 @@ void UW_InventoryPanel::HandleRotateClicked()
 {
     PanelState.bRotateNextDrop = !PanelState.bRotateNextDrop;
     TextUpdater.UpdateRotateState(PanelState.bRotateNextDrop);
+
+    if (!InventoryVM)
+    {
+        return;
+    }
+
+    UInventoryDragDropOperation* DragOp =
+        Cast<UInventoryDragDropOperation>(UWidgetBlueprintLibrary::GetDragDroppingContent());
+    if (!DragOp)
+    {
+        return;
+    }
+
+    FInventoryEntryView Entry;
+    if (!InventoryVM->TryGetEntryByInstanceId(DragOp->InstanceId, Entry))
+    {
+        return;
+    }
+
+    DragOp->ApplyRotationFromEntry(Entry, !DragOp->bRotated);
+    if (bHasLastDragScreenPos)
+    {
+        UpdateDragPreviewForOperation(DragOp, LastDragScreenPos);
+        UpdateAllVisuals();
+    }
 }
 
 // Context menu adapters (popup lifecycle in ProjectUI presenter, commands in ViewModel)
@@ -1705,25 +1736,9 @@ bool UW_InventoryPanel::NativeOnDragOver(const FGeometry& InGeometry, const FDra
         DragDropHandler.ClearPreview();
         return Super::NativeOnDragOver(InGeometry, InDragDropEvent, InOperation);
     }
-    FProjectUIGridDragPayload DragPayload;
-    DragPayload.InstanceId = DragOp->InstanceId;
-    DragPayload.ItemSize = ResolveDragItemFootprint(InventoryVM, DragOp);
-
-    DragDropHandler.UpdatePreview(
-        InDragDropEvent.GetScreenSpacePosition(),
-        DragPayload,
-        GridPanel, InventoryVM->GetGridWidth(), InventoryVM->GetGridHeight(),
-        GridPanelSecondary, InventoryVM->GetSecondaryGridWidth(), InventoryVM->GetSecondaryGridHeight(),
-        [this](bool bSecondary, int32 CellIndex)
-        {
-            if (!InventoryVM) { return false; }
-            return bSecondary ? InventoryVM->IsSecondaryCellEnabled(CellIndex) : InventoryVM->IsCellEnabled(CellIndex);
-        },
-        [this](bool bSecondary, int32 CellIndex)
-        {
-            if (!InventoryVM) { return UInventoryViewModel::EmptyCellInstanceId; }
-            return bSecondary ? InventoryVM->GetSecondaryCellInstanceId(CellIndex) : InventoryVM->GetCellInstanceId(CellIndex);
-        });
+    LastDragScreenPos = InDragDropEvent.GetScreenSpacePosition();
+    bHasLastDragScreenPos = true;
+    UpdateDragPreviewForOperation(const_cast<UInventoryDragDropOperation*>(DragOp), LastDragScreenPos);
     UpdateAllVisuals();
     return true;
 }
@@ -1732,19 +1747,40 @@ void UW_InventoryPanel::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent,
 {
     DragDropHandler.ClearPreview();
     PendingDragInstanceId = INDEX_NONE;
+    bHasLastDragScreenPos = false;
     UpdateAllVisuals();
     Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+}
+
+void UW_InventoryPanel::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    DragDropHandler.ClearPreview();
+    PendingDragInstanceId = INDEX_NONE;
+    bHasLastDragScreenPos = false;
+    UpdateAllVisuals();
+    Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
 }
 
 bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
     DragDropHandler.ClearPreview();
     PendingDragInstanceId = INDEX_NONE;
+    bHasLastDragScreenPos = false;
     UpdateAllVisuals();
 
     UInventoryDragDropOperation* DragOp = Cast<UInventoryDragDropOperation>(InOperation);
     if (!DragOp || !InventoryVM) { return false; }
     const FIntPoint DragItemSize = ResolveDragItemFootprint(InventoryVM, DragOp);
+
+    UE_LOG(LogInventoryPanel, Log,
+        TEXT("NativeOnDrop: InstanceId=%d From=%s Pos=(%d,%d) Qty=%d Rot=%d FromNearby=%d Size=(%d,%d)"),
+        DragOp->InstanceId,
+        *DragOp->FromContainer.ToString(),
+        DragOp->FromPos.X, DragOp->FromPos.Y,
+        DragOp->Quantity,
+        DragOp->bRotated ? 1 : 0,
+        DragOp->bFromNearbyContainer ? 1 : 0,
+        DragItemSize.X, DragItemSize.Y);
 
     int32 EquipSlotIdx = INDEX_NONE;
     if (HitDetector.TryGetWidgetIndexAtScreenPos(EquipSlotCells, InDragDropEvent.GetScreenSpacePosition(), EquipSlotIdx))
@@ -1752,9 +1788,11 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
         const FGameplayTag SlotTag = InventoryVM->GetEquipSlotTag(EquipSlotIdx);
         if (SlotTag.IsValid() && DragOp->EquipSlotTag == SlotTag)
         {
+            UE_LOG(LogInventoryPanel, Log, TEXT("NativeOnDrop -> EquipSlot %s"), *SlotTag.ToString());
             InventoryVM->RequestEquipItem(DragOp->InstanceId, SlotTag);
             return true;
         }
+        UE_LOG(LogInventoryPanel, Log, TEXT("NativeOnDrop -> EquipSlot rejected (tag mismatch)"));
         return false;
     }
 
@@ -1764,11 +1802,14 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
     {
         if (!HandContainerId.IsValid())
         {
+            UE_LOG(LogInventoryPanel, Log, TEXT("NativeOnDrop -> Hand hit but invalid ContainerId"));
             return false;
         }
 
         if (DragOp->bFromNearbyContainer)
         {
+            UE_LOG(LogInventoryPanel, Log, TEXT("NativeOnDrop -> TakeNearbyItemToHand %s at (%d,%d)"),
+                *HandContainerId.ToString(), HandGridPos.X, HandGridPos.Y);
             InventoryVM->RequestTakeNearbyItemToContainer(
                 DragOp->InstanceId,
                 HandContainerId,
@@ -1778,6 +1819,8 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
             return true;
         }
 
+        UE_LOG(LogInventoryPanel, Log, TEXT("NativeOnDrop -> MoveItem to hand %s at (%d,%d)"),
+            *HandContainerId.ToString(), HandGridPos.X, HandGridPos.Y);
         InventoryVM->RequestMoveItem(
             DragOp->InstanceId,
             DragOp->FromContainer,
@@ -1895,28 +1938,45 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
             },
             Col, Row, bSecondary))
     {
+        UE_LOG(LogInventoryPanel, Warning,
+            TEXT("NativeOnDrop -> Grid resolve FAILED (no hit on primary or secondary grid). HasPrimary=%d HasSecondary=%d HasNearby=%d"),
+            GridPanel ? 1 : 0,
+            GridPanelSecondary ? 1 : 0,
+            InventoryVM->GetbHasNearbyContainer() ? 1 : 0);
         return false;
     }
+
+    UE_LOG(LogInventoryPanel, Log,
+        TEXT("NativeOnDrop -> Grid resolved: Col=%d Row=%d bSecondary=%d HasNearby=%d"),
+        Col, Row, bSecondary ? 1 : 0, InventoryVM->GetbHasNearbyContainer() ? 1 : 0);
 
     if (InventoryVM->GetbHasNearbyContainer())
     {
         if (bSecondary && DragOp->bFromNearbyContainer)
         {
+            UE_LOG(LogInventoryPanel, Log, TEXT("NativeOnDrop -> Rejected: rearrange within nearby not supported"));
             return false;
         }
 
         if (bSecondary && !DragOp->bFromNearbyContainer)
         {
+            UE_LOG(LogInventoryPanel, Log,
+                TEXT("NativeOnDrop -> StoreInNearby: InstanceId=%d Pos=(%d,%d) Rot=%d Qty=%d"),
+                DragOp->InstanceId, Col, Row, DragOp->bRotated ? 1 : 0, DragOp->Quantity);
             InventoryVM->RequestStoreItemInNearbyContainerAt(
                 DragOp->InstanceId,
                 FIntPoint(Col, Row),
                 DragOp->bRotated,
                 DragOp->Quantity);
+            RebuildGrids();
             return true;
         }
 
         if (!bSecondary && DragOp->bFromNearbyContainer)
         {
+            UE_LOG(LogInventoryPanel, Log,
+                TEXT("NativeOnDrop -> TakeNearbyToContainer: InstanceId=%d Container=%s Pos=(%d,%d)"),
+                DragOp->InstanceId, *InventoryVM->GetSelectedContainerId().ToString(), Col, Row);
             InventoryVM->RequestTakeNearbyItemToContainer(
                 DragOp->InstanceId,
                 InventoryVM->GetSelectedContainerId(),
@@ -1928,9 +1988,47 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
     }
 
     const FGameplayTag ContainerId = bSecondary ? InventoryVM->GetSecondaryContainerId() : InventoryVM->GetSelectedContainerId();
-    if (!ContainerId.IsValid()) { return false; }
+    if (!ContainerId.IsValid())
+    {
+        UE_LOG(LogInventoryPanel, Warning,
+            TEXT("NativeOnDrop -> MoveItem rejected: invalid ContainerId (bSecondary=%d)"), bSecondary ? 1 : 0);
+        return false;
+    }
 
+    UE_LOG(LogInventoryPanel, Log,
+        TEXT("NativeOnDrop -> MoveItem: InstanceId=%d to %s at (%d,%d)"),
+        DragOp->InstanceId, *ContainerId.ToString(), Col, Row);
     InventoryVM->RequestMoveItem(DragOp->InstanceId, DragOp->FromContainer, DragOp->FromPos,
         ContainerId, FIntPoint(Col, Row), DragOp->Quantity, DragOp->bRotated);
+    return true;
+}
+
+bool UW_InventoryPanel::UpdateDragPreviewForOperation(UInventoryDragDropOperation* DragOp, const FVector2D& ScreenPos)
+{
+    if (!DragOp || !InventoryVM)
+    {
+        DragDropHandler.ClearPreview();
+        return false;
+    }
+
+    FProjectUIGridDragPayload DragPayload;
+    DragPayload.InstanceId = DragOp->InstanceId;
+    DragPayload.ItemSize = ResolveDragItemFootprint(InventoryVM, DragOp);
+
+    DragDropHandler.UpdatePreview(
+        ScreenPos,
+        DragPayload,
+        GridPanel, InventoryVM->GetGridWidth(), InventoryVM->GetGridHeight(),
+        GridPanelSecondary, InventoryVM->GetSecondaryGridWidth(), InventoryVM->GetSecondaryGridHeight(),
+        [this](bool bSecondary, int32 CellIndex)
+        {
+            if (!InventoryVM) { return false; }
+            return bSecondary ? InventoryVM->IsSecondaryCellEnabled(CellIndex) : InventoryVM->IsCellEnabled(CellIndex);
+        },
+        [this](bool bSecondary, int32 CellIndex)
+        {
+            if (!InventoryVM) { return UInventoryViewModel::EmptyCellInstanceId; }
+            return bSecondary ? InventoryVM->GetSecondaryCellInstanceId(CellIndex) : InventoryVM->GetCellInstanceId(CellIndex);
+        });
     return true;
 }

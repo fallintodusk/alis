@@ -7,6 +7,19 @@
 #include "Loot/LootTypes.h"
 #include "ProjectInventory.h"
 
+namespace
+{
+int32 ResolveEffectiveMaxStack(
+    const FInventoryLootHelper::FSimulationCallbacks& Callbacks,
+    const FInventoryContainerConfig& Container,
+    const FItemDataView& ItemData)
+{
+    checkf(Callbacks.GetEffectiveMaxStack,
+        TEXT("FInventoryLootHelper requires GetEffectiveMaxStack to be bound."));
+    return FMath::Max(1, Callbacks.GetEffectiveMaxStack(Container, ItemData));
+}
+}
+
 bool FInventoryLootHelper::CanFitItems(
     const TArray<FLootEntry>& Items,
     const FSimulationInput& Input,
@@ -72,11 +85,10 @@ bool FInventoryLootHelper::CanFitItems(
     {
         int32 Remaining = Pair.Value;
         const FItemDataView& ItemData = ItemDataCache.FindChecked(Pair.Key);
-        const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
-        const bool bIsStackable = MaxStack > 1;
+        const bool bCanPotentiallyStack = FMath::Max(1, ItemData.MaxStack) > 1;
 
         // Try stacking first
-        if (bIsStackable)
+        if (bCanPotentiallyStack)
         {
             Remaining = TryStackIncoming(Pair.Key, Remaining, ItemData, Input.Entries,
                 ContainerSims, SimQuantityByInstance, Callbacks);
@@ -226,8 +238,6 @@ int32 FInventoryLootHelper::TryStackIncoming(
     TMap<int32, int32>& SimQuantityByInstance,
     const FSimulationCallbacks& Callbacks)
 {
-    const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
-
     for (const FInventoryEntry& Entry : Entries)
     {
         if (Remaining <= 0) break;
@@ -250,7 +260,8 @@ int32 FInventoryLootHelper::TryStackIncoming(
         if (!Callbacks.ContainerAllowsItem(ContainerSims[SimIndex].Config, ItemData)) continue;
 
         const int32 CurrentQty = SimQuantityByInstance.FindRef(Entry.InstanceId);
-        int32 SpaceInStack = MaxStack - CurrentQty;
+        const int32 EffectiveMaxStack = ResolveEffectiveMaxStack(Callbacks, ContainerSims[SimIndex].Config, ItemData);
+        int32 SpaceInStack = EffectiveMaxStack - CurrentQty;
         if (SpaceInStack <= 0) continue;
 
         // Apply container constraints
@@ -286,19 +297,16 @@ bool FInventoryLootHelper::PlaceNewStacks(
     TArray<FContainerSim>& ContainerSims,
     const FSimulationCallbacks& Callbacks)
 {
-    const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
-    const bool bIsStackable = MaxStack > 1;
-
     while (Remaining > 0)
     {
-        const int32 StackSize = bIsStackable ? FMath::Min(Remaining, MaxStack) : 1;
         bool bPlaced = false;
 
         for (FContainerSim& Sim : ContainerSims)
         {
             if (!Callbacks.ContainerAllowsItem(Sim.Config, ItemData)) continue;
 
-            int32 StackSizeToPlace = StackSize;
+            const int32 EffectiveMaxStack = ResolveEffectiveMaxStack(Callbacks, Sim.Config, ItemData);
+            int32 StackSizeToPlace = FMath::Min(Remaining, EffectiveMaxStack);
             if (Sim.Config.MaxWeight > 0.f && ItemData.Weight > 0.f)
             {
                 const float WeightLeft = Sim.Config.MaxWeight - Sim.CurrentWeight;

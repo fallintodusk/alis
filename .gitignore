@@ -24,6 +24,9 @@ __pycache__
 
 # --- agentic ---
 .langgraph_api
+.mcp.json
+.claude/settings.local.json
+scripts/config/tools.conf
 
 # --- tmp / logs ---
 tmp/
@@ -142,9 +145,6 @@ scripts/ue/artifacts/overnight/
 /Releases
 .vsconfig
 Alis.code-workspace.backup
-
-# --- Private/sensitive todo files ---
-Plugins/World/ProjectWorld/todo/critical.md
 
 # Claude Code temp files
 tmpclaude-*

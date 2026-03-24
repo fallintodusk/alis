@@ -37,6 +37,10 @@ struct PROJECTCORE_API FInventoryContainerGrantView
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	int32 MaxCells = 0;
 
+	/** Max stack height per cell for 1x1 depth stacking (default 1). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	int32 CellDepthUnits = 1;
+
 	/** Optional tag filter for items allowed in this container. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	FGameplayTagContainer AllowedTags;
@@ -86,6 +90,13 @@ struct PROJECTCORE_API FItemDataView
 	/** Maximum stack size (1 = non-stackable). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	int32 MaxStack = 1;
+
+	/**
+	 * Quantity represented by one depth unit for 1x1 stacks.
+	 * 0 = compatibility fallback to MaxStack.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	int32 UnitsPerDepthUnit = 0;
 
 	/** Whether item can be dropped. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")

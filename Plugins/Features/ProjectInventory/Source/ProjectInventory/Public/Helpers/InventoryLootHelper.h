@@ -45,6 +45,8 @@ struct PROJECTINVENTORY_API FInventoryLootHelper
         TFunction<bool(const FInventoryEntry&, FGameplayTag&, FIntPoint&, bool&)> GetEffectivePlacement;
         TFunction<FIntPoint(const FItemDataView&, bool)> GetItemGridSize;
         TFunction<bool(const FInventoryContainerConfig&, const FItemDataView&)> ContainerAllowsItem;
+        // Required: helper uses container-contextual stack caps, not authored MaxStack directly.
+        TFunction<int32(const FInventoryContainerConfig&, const FItemDataView&)> GetEffectiveMaxStack;
     };
 
     /**

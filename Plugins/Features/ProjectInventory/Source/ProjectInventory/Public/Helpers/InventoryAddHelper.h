@@ -47,6 +47,8 @@ struct PROJECTINVENTORY_API FInventoryAddHelper
         TFunction<bool(const FInventoryEntry&, FGameplayTag&, FIntPoint&, bool&)> GetEffectivePlacement;
         TFunction<bool(const FInventoryContainerConfig&, FIntPoint, int32, FIntPoint&)> FindFreeGridPos;
         TFunction<bool(const FInventoryContainerConfig&, const FItemDataView&)> ContainerAllowsItem;
+        // Required: helper uses container-contextual stack caps, not authored MaxStack directly.
+        TFunction<int32(const FInventoryContainerConfig&, const FItemDataView&)> GetEffectiveMaxStack;
     };
 
     /**
@@ -54,7 +56,6 @@ struct PROJECTINVENTORY_API FInventoryAddHelper
      * @param ItemId - Item to add
      * @param ItemData - Item data
      * @param Quantity - Quantity to add
-     * @param MaxStack - Max stack size
      * @param Entries - Existing entries
      * @param ContainerStates - Container states
      * @param Callbacks - Resolution callbacks
@@ -65,7 +66,6 @@ struct PROJECTINVENTORY_API FInventoryAddHelper
         FPrimaryAssetId ItemId,
         const FItemDataView& ItemData,
         int32 Quantity,
-        int32 MaxStack,
         const TArray<FInventoryEntry>& Entries,
         TArray<FContainerState>& ContainerStates,
         const FAddCallbacks& Callbacks,
@@ -75,7 +75,6 @@ struct PROJECTINVENTORY_API FInventoryAddHelper
      * Calculate new stack placements for remaining items.
      * @param ItemData - Item data
      * @param Remaining - Remaining quantity to place
-     * @param MaxStack - Max stack size
      * @param ContainerStates - Container states (will be modified with weight/volume)
      * @param Callbacks - Resolution callbacks
      * @param OutPlacements - Placements to create
@@ -84,7 +83,6 @@ struct PROJECTINVENTORY_API FInventoryAddHelper
     static int32 CalculateNewPlacements(
         const FItemDataView& ItemData,
         int32 Remaining,
-        int32 MaxStack,
         TArray<FContainerState>& ContainerStates,
         const FAddCallbacks& Callbacks,
         TArray<FNewStackPlacement>& OutPlacements);

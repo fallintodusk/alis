@@ -11,6 +11,7 @@
 #include "Helpers/InventoryAddHelper.h"
 #include "Helpers/InventoryMoveHelper.h"
 #include "Helpers/InventoryWorldContainerTransferHelper.h"
+#include "Types/InventoryStackRules.h"
 #include "ProjectInventory.h"
 #include "Subsystems/ProjectContainerSessionSubsystem.h"
 #include "Services/ObjectDefinitionCache.h"
@@ -119,7 +120,13 @@ UProjectInventoryComponent::UProjectInventoryComponent()
 		// - Equipment variants can define different pocket/backpack sizes without hardcoding slots.
 		// - Slot grants are only a safety net for legacy content during migration.
 		// - Hands remain the only true default container for "naked" characters.
-		auto AddGrant = [this](FGameplayTag SlotTag, FGameplayTag ContainerTag, FIntPoint GridSize, bool bWidthOnly = false, int32 InMaxCells = 0)
+		auto AddGrant = [this](
+			FGameplayTag SlotTag,
+			FGameplayTag ContainerTag,
+			FIntPoint GridSize,
+			bool bWidthOnly = false,
+			int32 InMaxCells = 0,
+			int32 InCellDepthUnits = 1)
 		{
 			FEquipSlotContainerGrant Grant;
 			Grant.EquipSlot = SlotTag;
@@ -127,12 +134,13 @@ UProjectInventoryComponent::UProjectInventoryComponent()
 			Grant.Container.GridSize = GridSize;
 			Grant.Container.bWidthOnlyValidation = bWidthOnly;
 			Grant.Container.MaxCells = InMaxCells;
+			Grant.Container.CellDepthUnits = FMath::Max(1, InCellDepthUnits);
 			EquipSlotContainerGrants.Add(Grant);
 		};
 
 		// Equipped items occupying hand equipment slots collapse hand storage back to a single held item.
-		AddGrant(ProjectTags::Item_EquipmentSlot_MainHand, ProjectTags::Item_Container_LeftHand, FIntPoint(2, 2), true, 1);
-		AddGrant(ProjectTags::Item_EquipmentSlot_OffHand, ProjectTags::Item_Container_RightHand, FIntPoint(2, 2), true, 1);
+		AddGrant(ProjectTags::Item_EquipmentSlot_MainHand, ProjectTags::Item_Container_LeftHand, FIntPoint(2, 2), true, 1, 4);
+		AddGrant(ProjectTags::Item_EquipmentSlot_OffHand, ProjectTags::Item_Container_RightHand, FIntPoint(2, 2), true, 1, 4);
 
 		AddGrant(ProjectTags::Item_EquipmentSlot_Legs, ProjectTags::Item_Container_Pockets1, FIntPoint(2, 2));
 		AddGrant(ProjectTags::Item_EquipmentSlot_Legs, ProjectTags::Item_Container_Pockets2, FIntPoint(2, 2));
@@ -689,6 +697,9 @@ void UProjectInventoryComponent::GetEntriesView(TArray<FInventoryEntryView>& Out
 		return GetEffectiveEntryPlacement(E, C, P, R);
 	};
 	Callbacks.ComputeSlotIndex = [this](FGameplayTag C, FIntPoint P) { return ComputeSlotIndex(C, P); };
+	Callbacks.GetContainerConfig = [this](FGameplayTag C, FInventoryContainerConfig& OutConfig) {
+		return GetContainerConfig(C, OutConfig);
+	};
 	Callbacks.GetEquipSlotGrants = [this](FGameplayTag S, TArray<FInventoryContainerConfig>& G) {
 		return GetEquipSlotContainerGrants(S, G);
 	};
@@ -972,6 +983,9 @@ bool UProjectInventoryComponent::CanFitItems(const TArray<FLootEntry>& Items) co
 	Callbacks.GetItemGridSize = [this](const FItemDataView& Data, bool bRotated) { return GetItemGridSize(Data, bRotated); };
 	Callbacks.ContainerAllowsItem = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
 		return ContainerAllowsItem(C, D);
+	};
+	Callbacks.GetEffectiveMaxStack = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
+		return GetEffectiveMaxStackForContainer(C, D);
 	};
 
 	return FInventoryLootHelper::CanFitItems(Items, Input, Callbacks);
@@ -1487,6 +1501,17 @@ bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainerResolved(
 		CandidateEntries,
 		OutError))
 	{
+		UE_LOG(
+			LogProjectInventory,
+			Warning,
+			TEXT("StoreInventoryEntryInWorldContainerResolved: CanStore rejected %s x%d for %s at (%d,%d) rot:%d - %s"),
+			*CandidateEntry.ObjectId.ToString(),
+			CandidateEntry.Quantity,
+			*GetNameSafe(SourceObject),
+			CandidateEntry.GridPos.X,
+			CandidateEntry.GridPos.Y,
+			CandidateEntry.bRotated ? 1 : 0,
+			*OutError.ToString());
 		return false;
 	}
 
@@ -1510,12 +1535,34 @@ bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainerResolved(
 			OutError))
 	{
 		RestoreInventoryStateSnapshot(Snapshot);
+		UE_LOG(
+			LogProjectInventory,
+			Warning,
+			TEXT("StoreInventoryEntryInWorldContainerResolved: Store rejected %s x%d for %s at (%d,%d) rot:%d - %s"),
+			*ExtractedEntry.ObjectId.ToString(),
+			ExtractedEntry.Quantity,
+			*GetNameSafe(SourceObject),
+			ExtractedEntry.GridPos.X,
+			ExtractedEntry.GridPos.Y,
+			ExtractedEntry.bRotated ? 1 : 0,
+			*OutError.ToString());
 		if (OutError.IsEmpty())
 		{
 			OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryRejected", "World-container failed to store the extracted inventory entry.");
 		}
 		return false;
 	}
+
+	UE_LOG(
+		LogProjectInventory,
+		Log,
+		TEXT("StoreInventoryEntryInWorldContainerResolved: Stored %s x%d into %s at (%d,%d) rot:%d"),
+		*ExtractedEntry.ObjectId.ToString(),
+		ExtractedEntry.Quantity,
+		*GetNameSafe(SourceObject),
+		ExtractedEntry.GridPos.X,
+		ExtractedEntry.GridPos.Y,
+		ExtractedEntry.bRotated ? 1 : 0);
 
 	return true;
 }
@@ -1633,6 +1680,13 @@ bool UProjectInventoryComponent::TryAddItemAtPosition(
 		return false;
 	}
 
+	const int32 EffectiveMaxStack = GetEffectiveMaxStackForContainer(TargetContainer, ItemData);
+	if (Quantity > EffectiveMaxStack)
+	{
+		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionDepthRejected", "Target inventory cell cannot hold that many items.");
+		return false;
+	}
+
 	const int32 AllowedQuantity = FInventoryStackHelper::CalculateAllowedQuantity(
 		ItemData,
 		GetMaxWeight(),
@@ -1703,12 +1757,11 @@ bool UProjectInventoryComponent::TryAddItemAtPosition(
 	if (OverlapResult.bHasOverlap)
 	{
 		FInventoryEntry* OverlapEntry = Inventory.FindEntry(OverlapResult.OverlapInstanceId);
-		const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
 		if (!OverlapEntry
 			|| OverlapEntry->ItemId != ObjectId
 			|| OverlapEntry->OverrideMagnitudes.Num() > 0
-			|| MaxStack <= 1
-			|| OverlapEntry->Quantity + Quantity > MaxStack)
+			|| EffectiveMaxStack <= 1
+			|| OverlapEntry->Quantity + Quantity > EffectiveMaxStack)
 		{
 			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionOverlapRejected", "Target inventory entry cannot accept this stack.");
 			return false;
@@ -2421,16 +2474,18 @@ uint32 UProjectInventoryComponent::TryAddItemWithOverrides(FPrimaryAssetId Objec
 	Callbacks.ContainerAllowsItem = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
 		return ContainerAllowsItem(C, D);
 	};
+	Callbacks.GetEffectiveMaxStack = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
+		return GetEffectiveMaxStackForContainer(C, D);
+	};
 
 	// Add entries one at a time to avoid overlapping placements
-	const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
 	uint32 FirstInstanceId = 0;
 	int32 RemainingQuantity = AllowedQuantity;
 
 	while (RemainingQuantity > 0)
 	{
 		TArray<FInventoryAddHelper::FNewStackPlacement> Placements;
-		FInventoryAddHelper::CalculateNewPlacements(ItemData, RemainingQuantity, MaxStack, ContainerStates, Callbacks, Placements);
+		FInventoryAddHelper::CalculateNewPlacements(ItemData, RemainingQuantity, ContainerStates, Callbacks, Placements);
 
 		if (Placements.Num() == 0)
 		{
@@ -2529,9 +2584,11 @@ int32 UProjectInventoryComponent::Internal_AddItem(FPrimaryAssetId ObjectId, int
 	Callbacks.ContainerAllowsItem = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
 		return ContainerAllowsItem(C, D);
 	};
+	Callbacks.GetEffectiveMaxStack = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
+		return GetEffectiveMaxStackForContainer(C, D);
+	};
 
-	const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
-	const bool bIsStackable = MaxStack > 1;
+	const bool bIsStackable = FMath::Max(1, ItemData.MaxStack) > 1;
 	int32 RemainingQuantity = AllowedQuantity;
 
 	// Phase 1: Stack with existing entries
@@ -2539,7 +2596,7 @@ int32 UProjectInventoryComponent::Internal_AddItem(FPrimaryAssetId ObjectId, int
 	{
 		TArray<FInventoryAddHelper::FStackTarget> StackTargets;
 		RemainingQuantity = FInventoryAddHelper::CalculateStackTargets(
-			ObjectId, ItemData, AllowedQuantity, MaxStack, Inventory.Entries, ContainerStates, Callbacks, StackTargets);
+			ObjectId, ItemData, AllowedQuantity, Inventory.Entries, ContainerStates, Callbacks, StackTargets);
 
 		// Apply stack targets to state
 		for (const FInventoryAddHelper::FStackTarget& Target : StackTargets)
@@ -2561,7 +2618,7 @@ int32 UProjectInventoryComponent::Internal_AddItem(FPrimaryAssetId ObjectId, int
 		TArray<FInventoryAddHelper::FNewStackPlacement> Placements;
 		const int32 BeforeRemaining = RemainingQuantity;
 		RemainingQuantity = FInventoryAddHelper::CalculateNewPlacements(
-			ItemData, RemainingQuantity, MaxStack, ContainerStates, Callbacks, Placements);
+			ItemData, RemainingQuantity, ContainerStates, Callbacks, Placements);
 
 		if (Placements.Num() == 0)
 		{
@@ -2667,6 +2724,13 @@ bool UProjectInventoryComponent::Internal_MoveItem(uint32 InstanceId, FGameplayT
 		return false;
 	}
 
+	const int32 EffectiveMaxStack = GetEffectiveMaxStackForContainer(TargetContainer, ItemData);
+	if (Quantity > EffectiveMaxStack)
+	{
+		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Quantity %d exceeds target stack/depth limit %d"), Quantity, EffectiveMaxStack);
+		return false;
+	}
+
 	const bool bTargetRotated = bRotated && TargetContainer.bAllowRotation;
 	const FIntPoint ItemSize = GetItemGridSize(ItemData, bTargetRotated);
 	const FIntPoint CurrentItemSize = GetItemGridSize(ItemData, bCurrentRotated);
@@ -2746,8 +2810,7 @@ bool UProjectInventoryComponent::Internal_MoveItem(uint32 InstanceId, FGameplayT
 	// SOLID: Stack validation delegated to FInventoryMoveHelper
 	if (OverlapEntry)
 	{
-		const int32 MaxStack = FMath::Max(1, ItemData.MaxStack);
-		if (!FInventoryMoveHelper::CanStackWith(*Entry, *OverlapEntry, MaxStack, Quantity))
+		if (!FInventoryMoveHelper::CanStackWith(*Entry, *OverlapEntry, EffectiveMaxStack, Quantity))
 		{
 			UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Cannot stack at target"));
 			return false;
@@ -3081,6 +3144,7 @@ void UProjectInventoryComponent::GetEffectiveContainers(TArray<FInventoryContain
 				HandContainer.ContainerId = ContainerId;
 				HandContainer.GridSize = FIntPoint(2, 2);
 				HandContainer.MaxCells = 4;
+				HandContainer.CellDepthUnits = 4;
 				HandContainer.bWidthOnlyValidation = true;
 				OutContainers.Add(HandContainer);
 			};
@@ -3216,6 +3280,18 @@ FIntPoint UProjectInventoryComponent::GetItemGridSize(const FItemDataView& ItemD
 	return FInventoryGridPlacement::GetItemGridSize(ItemData.GridSize, bRotated);
 }
 
+int32 UProjectInventoryComponent::GetContainerCellDepthUnits(const FInventoryContainerConfig& Container) const
+{
+	return FMath::Max(1, Container.CellDepthUnits);
+}
+
+int32 UProjectInventoryComponent::GetEffectiveMaxStackForContainer(
+	const FInventoryContainerConfig& Container,
+	const FItemDataView& ItemData) const
+{
+	return FInventoryStackRules::CalculateMaxStackForContainer(ItemData, GetContainerCellDepthUnits(Container));
+}
+
 FInventoryContainerConfig UProjectInventoryComponent::BuildContainerConfigFromGrant(const FInventoryContainerGrantView& Grant) const
 {
 	FInventoryContainerConfig Config;
@@ -3223,6 +3299,7 @@ FInventoryContainerConfig UProjectInventoryComponent::BuildContainerConfigFromGr
 	Config.MaxWeight = Grant.MaxWeight;
 	Config.MaxVolume = Grant.MaxVolume;
 	Config.MaxCells = Grant.MaxCells;
+	Config.CellDepthUnits = FMath::Max(1, Grant.CellDepthUnits);
 	Config.AllowedTags = Grant.AllowedTags;
 	Config.bAllowRotation = Grant.bAllowRotation;
 

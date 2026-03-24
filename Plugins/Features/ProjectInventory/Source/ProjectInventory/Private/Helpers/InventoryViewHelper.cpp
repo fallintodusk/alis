@@ -4,6 +4,7 @@
 #include "Inventory/InventoryTypes.h"
 #include "Types/InventoryContainerConfig.h"
 #include "Interfaces/IItemDataProvider.h"
+#include "Types/InventoryStackRules.h"
 #include "Types/EquippedItemData.h"
 
 FInventoryEntryView FInventoryViewHelper::BuildEntryView(
@@ -42,6 +43,8 @@ FInventoryEntryView FInventoryViewHelper::BuildEntryView(
         View.Volume = ItemData.Volume;
         View.GridSize = ItemData.GridSize;
         View.MaxStack = ItemData.MaxStack;
+        View.UnitsPerDepthUnit = FInventoryStackRules::ResolveUnitsPerDepthUnit(ItemData);
+        View.bUsesDepthStacking = FInventoryStackRules::UsesDepthStacking(ItemData);
         View.bCanBeDropped = ItemData.bCanBeDropped;
         View.bIsConsumable = ItemData.bIsConsumable;
         // Explicit action capability contract for UI: do not infer these in widgets/viewmodel.
@@ -50,6 +53,17 @@ FInventoryEntryView FInventoryViewHelper::BuildEntryView(
         // Must be set whenever explicit capabilities are populated by producers.
         View.bActionCapsPopulated = true;
         View.UseMagnitudes = ItemData.Magnitudes;
+
+        if (bHasPlacement && Callbacks.GetContainerConfig)
+        {
+            FInventoryContainerConfig ContainerConfig;
+            if (Callbacks.GetContainerConfig(View.ContainerId, ContainerConfig))
+            {
+                View.MaxStack = FInventoryStackRules::CalculateMaxStackForContainer(ItemData, ContainerConfig.CellDepthUnits);
+                View.MaxDepthUnits = FMath::Max(1, ContainerConfig.CellDepthUnits);
+                View.DepthUnitsUsed = FInventoryStackRules::CalculateDepthUnitsForQuantity(ItemData, Entry.Quantity);
+            }
+        }
     }
 
     // Find equipped slot
@@ -141,6 +155,7 @@ FInventoryContainerView FInventoryViewHelper::BuildContainerView(
     View.CurrentVolume = Callbacks.GetContainerVolume(Container.ContainerId, ItemDataCache);
     View.MaxVolume = Container.MaxVolume;
     View.MaxCells = Container.MaxCells;
+    View.CellDepthUnits = FMath::Max(1, Container.CellDepthUnits);
     View.bSlotBased = Container.bSlotBased;
     return View;
 }
@@ -166,6 +181,7 @@ void FInventoryViewHelper::BuildContainersView(
         View.CurrentVolume = Callbacks.GetContainerVolume(Container.ContainerId, ItemDataCache);
         View.MaxVolume = Container.MaxVolume;
         View.MaxCells = Container.MaxCells;
+        View.CellDepthUnits = FMath::Max(1, Container.CellDepthUnits);
         View.bSlotBased = Container.bSlotBased;
         OutViews.Add(View);
     }

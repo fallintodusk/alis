@@ -482,14 +482,28 @@ void UInventoryViewModel::RequestStoreItemInNearbyContainerAt(
 {
     if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
     {
+        UE_LOG(LogInventoryVM, Warning,
+            TEXT("RequestStoreItemInNearbyContainerAt ignored: Nearby source/session missing. HasSource=%d HasSession=%d"),
+            NearbyContainerSource ? 1 : 0,
+            NearbySessionHandle.IsValid() ? 1 : 0);
         return;
     }
 
     IInventoryWorldContainerTransferBridge* TransferBridge = GetWorldContainerTransferBridge(InventorySource.GetObject());
     if (!TransferBridge)
     {
+        UE_LOG(LogInventoryVM, Warning,
+            TEXT("RequestStoreItemInNearbyContainerAt ignored: Inventory source has no world-container transfer bridge"));
         return;
     }
+
+    UE_LOG(LogInventoryVM, Log,
+        TEXT("RequestStoreItemInNearbyContainerAt: InstanceId=%d Qty=%d Pos=(%d,%d) Rot=%d"),
+        InstanceId,
+        Quantity,
+        TargetGridPos.X,
+        TargetGridPos.Y,
+        bTargetRotated ? 1 : 0);
 
     FText ErrorMessage;
     if (!IInventoryWorldContainerTransferBridge::Execute_StoreInventoryEntryInWorldContainer(
@@ -502,6 +516,15 @@ void UInventoryViewModel::RequestStoreItemInNearbyContainerAt(
             bTargetRotated,
             ErrorMessage))
     {
+        RefreshFromInventory();
+        UE_LOG(LogInventoryVM, Warning,
+            TEXT("RequestStoreItemInNearbyContainerAt failed: InstanceId=%d Qty=%d Pos=(%d,%d) Rot=%d Error=%s"),
+            InstanceId,
+            Quantity,
+            TargetGridPos.X,
+            TargetGridPos.Y,
+            bTargetRotated ? 1 : 0,
+            *ErrorMessage.ToString());
         if (!ErrorMessage.IsEmpty())
         {
             OnInventoryError.Broadcast(ErrorMessage);
@@ -741,6 +764,10 @@ void UInventoryViewModel::RefreshNearbyContainerData()
 {
     if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
     {
+        UE_LOG(LogInventoryVM, Log,
+            TEXT("RefreshNearbyContainerData: Cleared (Source=%d Session=%d)"),
+            NearbyContainerSource ? 1 : 0,
+            NearbySessionHandle.IsValid() ? 1 : 0);
         ClearNearbyContainerData();
         return;
     }
@@ -753,6 +780,14 @@ void UInventoryViewModel::RefreshNearbyContainerData()
     UpdateNearbyContainerMaxWeight(CachedNearbyContainer.MaxWeight);
     UpdateNearbyContainerCurrentVolume(CachedNearbyContainer.CurrentVolume);
     UpdateNearbyContainerMaxVolume(CachedNearbyContainer.MaxVolume);
+    UpdateNearbyContainerCellDepthUnits(CachedNearbyContainer.CellDepthUnits);
+
+    UE_LOG(LogInventoryVM, Log,
+        TEXT("RefreshNearbyContainerData: %d entries, Grid=%dx%d, W=%.1f/%.1f, V=%.1f/%.1f"),
+        CachedNearbyEntries.Num(),
+        CachedNearbyContainer.GridSize.X, CachedNearbyContainer.GridSize.Y,
+        CachedNearbyContainer.CurrentWeight, CachedNearbyContainer.MaxWeight,
+        CachedNearbyContainer.CurrentVolume, CachedNearbyContainer.MaxVolume);
 
     BuildEnabledCellsForContainer(CachedNearbyContainer, NearbyCellEnabled);
 }
@@ -769,6 +804,7 @@ void UInventoryViewModel::ClearNearbyContainerData()
     UpdateNearbyContainerMaxWeight(0.f);
     UpdateNearbyContainerCurrentVolume(0.f);
     UpdateNearbyContainerMaxVolume(0.f);
+    UpdateNearbyContainerCellDepthUnits(0);
 }
 
 void UInventoryViewModel::RefreshFromInventory()
@@ -1023,6 +1059,7 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
         UpdateContainerMaxWeight(0.f);
         UpdateContainerCurrentVolume(0.f);
         UpdateContainerMaxVolume(0.f);
+        UpdateContainerCellDepthUnits(0);
         CellEnabled.Reset();
     }
     else
@@ -1034,6 +1071,7 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
         UpdateContainerMaxWeight(Primary.MaxWeight);
         UpdateContainerCurrentVolume(Primary.CurrentVolume);
         UpdateContainerMaxVolume(Primary.MaxVolume);
+        UpdateContainerCellDepthUnits(Primary.CellDepthUnits);
         BuildEnabledCellsForContainer(Primary, CellEnabled);
     }
 

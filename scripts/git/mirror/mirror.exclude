@@ -21,7 +21,6 @@ CLAUDE.md
 CODEX.md
 *.code-workspace
 *.code-workspace.backup
-todo/**
 
 # Generated artifacts and local outputs
 Binaries/**

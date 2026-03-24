@@ -78,10 +78,17 @@ void FInventoryPanelTextUpdater::UpdateNearbyContainerInfo(UInventoryViewModel* 
     {
         if (VM && VM->GetbHasNearbyContainer())
         {
-            Refs.NearbyStatsText->SetText(FText::Format(
+            FString StatsText = FText::Format(
                 NSLOCTEXT("Inventory", "NearbyLootStats", "{0}   {1}"),
                 FormatWeight(VM->GetNearbyContainerCurrentWeight(), VM->GetNearbyContainerMaxWeight()),
-                FormatVolume(VM->GetNearbyContainerCurrentVolume(), VM->GetNearbyContainerMaxVolume())));
+                FormatVolume(VM->GetNearbyContainerCurrentVolume(), VM->GetNearbyContainerMaxVolume())).ToString();
+
+            if (VM->GetNearbyContainerCellDepthUnits() > 1)
+            {
+                StatsText += FString::Printf(TEXT("   Depth: %d/cell"), VM->GetNearbyContainerCellDepthUnits());
+            }
+
+            Refs.NearbyStatsText->SetText(FText::FromString(StatsText));
         }
         else
         {
@@ -111,8 +118,12 @@ void FInventoryPanelTextUpdater::UpdateSelectionInfo(UInventoryViewModel* VM, FI
 
     if (Refs.SelectionStatsText)
     {
-        Refs.SelectionStatsText->SetText(FText::FromString(
-            FString::Printf(TEXT("Qty: %d  W: %.1f  V: %.1f"), Entry.Quantity, Entry.Weight, Entry.Volume)));
+        FString StatsText = FString::Printf(TEXT("Qty: %d  W: %.1f  V: %.1f"), Entry.Quantity, Entry.Weight, Entry.Volume);
+        if (Entry.bUsesDepthStacking && Entry.MaxDepthUnits > 0)
+        {
+            StatsText += FString::Printf(TEXT("  D: %d/%d"), Entry.DepthUnitsUsed, Entry.MaxDepthUnits);
+        }
+        Refs.SelectionStatsText->SetText(FText::FromString(StatsText));
         Refs.SelectionStatsText->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
     }
 

@@ -14,6 +14,7 @@ public class ProjectInventoryTests : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"GameplayTags",
+			"ProjectCore",
 			"ProjectInventory"   // Module being tested
 		});
 	}

@@ -14,6 +14,7 @@
 #include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "Interfaces/IWorldContainerSessionSource.h"
 #include "MVVM/InventoryViewModel.h"
+#include "Widgets/InventoryDragDropOperation.h"
 #include "Widgets/InventoryDragVisualBuilder.h"
 #include "Spawning/ObjectSpawnUtility.h"
 #include "LootContainer/LootContainerCapabilityComponent.h"
@@ -108,6 +109,79 @@ bool EnsureInventoryLootPlacesTestAssetLoaded(const FPrimaryAssetId& ObjectId)
 
 	return AssetManager.GetPrimaryAssetObject<UObject>(ObjectId) != nullptr;
 }
+
+struct FScopedInventoryLootPlacesItemOverride
+{
+	FScopedInventoryLootPlacesItemOverride(const FPrimaryAssetId& InObjectId)
+		: ObjectId(InObjectId)
+	{
+		if (!EnsureInventoryLootPlacesTestAssetLoaded(ObjectId))
+		{
+			return;
+		}
+
+		Definition = Cast<UObjectDefinition>(UAssetManager::Get().GetPrimaryAssetObject(ObjectId));
+		if (!Definition)
+		{
+			return;
+		}
+
+		FItemSection* ItemSection = Definition->GetMutableItemSection();
+		if (!ItemSection)
+		{
+			Definition = nullptr;
+			return;
+		}
+
+		OriginalGridSize = ItemSection->GridSize;
+		OriginalMaxStack = ItemSection->MaxStack;
+		OriginalUnitsPerDepthUnit = ItemSection->UnitsPerDepthUnit;
+		bValid = true;
+	}
+
+	~FScopedInventoryLootPlacesItemOverride()
+	{
+		if (!bValid || !Definition)
+		{
+			return;
+		}
+
+		if (FItemSection* ItemSection = Definition->GetMutableItemSection())
+		{
+			ItemSection->GridSize = OriginalGridSize;
+			ItemSection->MaxStack = OriginalMaxStack;
+			ItemSection->UnitsPerDepthUnit = OriginalUnitsPerDepthUnit;
+		}
+	}
+
+	bool IsValid() const
+	{
+		return bValid && Definition != nullptr;
+	}
+
+	void ApplyDepthStacking(FIntPoint InGridSize, int32 InMaxStack, int32 InUnitsPerDepthUnit)
+	{
+		if (!IsValid())
+		{
+			return;
+		}
+
+		if (FItemSection* ItemSection = Definition->GetMutableItemSection())
+		{
+			ItemSection->GridSize = InGridSize;
+			ItemSection->MaxStack = InMaxStack;
+			ItemSection->UnitsPerDepthUnit = InUnitsPerDepthUnit;
+		}
+	}
+
+private:
+	FPrimaryAssetId ObjectId;
+	TObjectPtr<UObjectDefinition> Definition;
+	FIntPoint OriginalGridSize = FIntPoint(1, 1);
+	int32 OriginalMaxStack = 1;
+	int32 OriginalUnitsPerDepthUnit = 0;
+	bool bValid = false;
+};
 
 bool LoadInventoryLootPlacesDefinitionFromFile(
 	const FString& RelativePath,
@@ -447,9 +521,14 @@ bool FInventoryLootPlaces_StorageSectionParserTest::RunTest(const FString& Param
 		NewObject<UObjectDefinition>(GetTransientPackage(), NAME_None, RF_Transient));
 
 	FString ParseError;
+	TSharedPtr<FJsonObject> Root = MakeLootContainerJson(TEXT("StorageParserOnly"), true);
+	TSharedPtr<FJsonObject> Sections = Root->GetObjectField(TEXT("sections"));
+	TSharedPtr<FJsonObject> Storage = Sections->GetObjectField(TEXT("storage"));
+	Storage->SetNumberField(TEXT("cellDepthUnits"), 4);
+
 	const bool bParsed = FDefinitionJsonParser::ParseJsonToAsset(
 		TypeInfo,
-		MakeLootContainerJson(TEXT("StorageParserOnly"), true),
+		Root,
 		Def.Get(),
 		ParseError);
 
@@ -471,6 +550,7 @@ bool FInventoryLootPlaces_StorageSectionParserTest::RunTest(const FString& Param
 	TestEqual(TEXT("MaxWeight should parse"), StorageSection->MaxWeight, 15.0f);
 	TestEqual(TEXT("MaxVolume should parse"), StorageSection->MaxVolume, 30.0f);
 	TestEqual(TEXT("MaxCells should parse"), StorageSection->MaxCells, 20);
+	TestEqual(TEXT("CellDepthUnits should parse"), StorageSection->CellDepthUnits, 4);
 	TestTrue(TEXT("Persistent flag should parse"), StorageSection->Persistent);
 	TestEqual(TEXT("ContainerSlotId should parse"), StorageSection->ContainerSlotId, FName(TEXT("Primary")));
 	TestEqual(TEXT("SeedEntries should parse"), StorageSection->SeedEntries.Num(), 1);
@@ -1972,9 +2052,231 @@ bool FInventoryLootPlaces_ViewModelResolveHandDropTargetTest::RunTest(const FStr
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_RequestMoveItemRejectsDepthOverflowOverlapTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.Inventory.RequestMoveItemRejectsDepthOverflowOverlap",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FInventoryLootPlaces_RequestMoveItemRejectsDepthOverflowOverlapTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	const FPrimaryAssetId CigaretteId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Cigarette"));
+	FScopedInventoryLootPlacesItemOverride ItemOverride(CigaretteId);
+	TestTrue(TEXT("Cigarette asset should load for depth-overlap inventory test"), ItemOverride.IsValid());
+	if (!ItemOverride.IsValid())
+	{
+		return false;
+	}
+	ItemOverride.ApplyDepthStacking(FIntPoint(1, 1), 10, 1);
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Automation world should resolve for depth-overlap inventory test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	AActor* InventoryOwner = nullptr;
+	UProjectInventoryComponent* Inventory = CreateInventoryLootPlacesTestInventory(World, InventoryOwner);
+	TestNotNull(TEXT("Inventory component should be created for depth-overlap inventory test"), Inventory);
+	if (!Inventory)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Initial add should split across two hand stacks under the depth cap"), Inventory->TryAddItem(CigaretteId, 5), 5);
+
+	TArray<FInventoryEntry> CigaretteEntries;
+	for (const FInventoryEntry& Entry : Inventory->GetEntries())
+	{
+		if (Entry.ItemId == CigaretteId)
+		{
+			CigaretteEntries.Add(Entry);
+		}
+	}
+
+	TestEqual(TEXT("Depth-limited add should create two cigarette stacks"), CigaretteEntries.Num(), 2);
+	if (CigaretteEntries.Num() != 2)
+	{
+		Inventory->DestroyComponent();
+		if (InventoryOwner)
+		{
+			InventoryOwner->Destroy();
+		}
+		return false;
+	}
+
+	const FInventoryEntry* FullStack = CigaretteEntries.FindByPredicate([](const FInventoryEntry& Entry) { return Entry.Quantity == 4; });
+	const FInventoryEntry* RemainderStack = CigaretteEntries.FindByPredicate([](const FInventoryEntry& Entry) { return Entry.Quantity == 1; });
+	TestNotNull(TEXT("Depth-limited add should create one full stack"), FullStack);
+	TestNotNull(TEXT("Depth-limited add should create one remainder stack"), RemainderStack);
+	if (!FullStack || !RemainderStack)
+	{
+		Inventory->DestroyComponent();
+		if (InventoryOwner)
+		{
+			InventoryOwner->Destroy();
+		}
+		return false;
+	}
+
+	Inventory->RequestMoveItem(
+		RemainderStack->InstanceId,
+		RemainderStack->ContainerId,
+		RemainderStack->GridPos,
+		FullStack->ContainerId,
+		FullStack->GridPos,
+		1,
+		RemainderStack->bRotated);
+
+	TArray<FInventoryEntry> AfterEntries;
+	for (const FInventoryEntry& Entry : Inventory->GetEntries())
+	{
+		if (Entry.ItemId == CigaretteId)
+		{
+			AfterEntries.Add(Entry);
+		}
+	}
+
+	TestEqual(TEXT("Rejected move should keep exactly two stacks"), AfterEntries.Num(), 2);
+
+	const FInventoryEntry* AfterFullStack = AfterEntries.FindByPredicate([](const FInventoryEntry& Entry) { return Entry.Quantity == 4; });
+	const FInventoryEntry* AfterRemainderStack = AfterEntries.FindByPredicate([](const FInventoryEntry& Entry) { return Entry.Quantity == 1; });
+	TestNotNull(TEXT("Rejected move should preserve the full stack"), AfterFullStack);
+	TestNotNull(TEXT("Rejected move should preserve the remainder stack"), AfterRemainderStack);
+
+	if (AfterFullStack && FullStack)
+	{
+		TestEqual(TEXT("Full stack container unchanged"), AfterFullStack->ContainerId, FullStack->ContainerId);
+		TestEqual(TEXT("Full stack grid unchanged"), AfterFullStack->GridPos, FullStack->GridPos);
+		TestEqual(TEXT("Full stack instance unchanged"), AfterFullStack->InstanceId, FullStack->InstanceId);
+	}
+	if (AfterRemainderStack && RemainderStack)
+	{
+		TestEqual(TEXT("Remainder stack container unchanged"), AfterRemainderStack->ContainerId, RemainderStack->ContainerId);
+		TestEqual(TEXT("Remainder stack grid unchanged"), AfterRemainderStack->GridPos, RemainderStack->GridPos);
+		TestEqual(TEXT("Remainder stack instance unchanged"), AfterRemainderStack->InstanceId, RemainderStack->InstanceId);
+	}
+
+	Inventory->DestroyComponent();
+	if (InventoryOwner)
+	{
+		InventoryOwner->Destroy();
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_WorldContainerStoreRejectsDepthOverflowPlacementTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.World.StoreRejectsDepthOverflowPlacement",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FInventoryLootPlaces_WorldContainerStoreRejectsDepthOverflowPlacementTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	const FPrimaryAssetId CigaretteId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Cigarette"));
+	FScopedInventoryLootPlacesItemOverride ItemOverride(CigaretteId);
+	TestTrue(TEXT("Cigarette asset should load for world depth-overflow store test"), ItemOverride.IsValid());
+	if (!ItemOverride.IsValid())
+	{
+		return false;
+	}
+	ItemOverride.ApplyDepthStacking(FIntPoint(1, 1), 10, 1);
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Automation world should resolve for world depth-overflow store test"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	AActor* Owner = World->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SpawnParams);
+	TestNotNull(TEXT("World container owner should spawn"), Owner);
+	if (!Owner)
+	{
+		return false;
+	}
+
+	ULootContainerCapabilityComponent* LootComponent = NewObject<ULootContainerCapabilityComponent>(Owner);
+	Owner->AddInstanceComponent(LootComponent);
+	LootComponent->RegisterComponent();
+	LootComponent->RuntimeGridSize = FIntPoint(2, 2);
+	LootComponent->RuntimeMaxCells = 4;
+	LootComponent->RuntimeCellDepthUnits = 1;
+	LootComponent->ContainerKey.InstanceId = FGuid::NewGuid();
+	LootComponent->ContainerKey.WorldScopeId = FName(TEXT("Automation"));
+	LootComponent->ContainerKey.ContainerSlotId = FName(TEXT("Primary"));
+
+	FContainerEntryTransfer Transfer;
+	Transfer.ObjectId = CigaretteId;
+	Transfer.Quantity = 2;
+	Transfer.GridPos = FIntPoint(0, 0);
+	Transfer.bRotated = false;
+
+	TArray<FContainerEntryTransfer> Transfers;
+	Transfers.Add(Transfer);
+
+	FText StoreError;
+	const FGuid SessionId = FGuid::NewGuid();
+	const bool bCanStore = IWorldContainerSessionSource::Execute_CanStoreContainerEntries(
+		LootComponent,
+		SessionId,
+		Transfers,
+		StoreError);
+
+	TestFalse(TEXT("World container should reject explicit placement that exceeds shallow cell depth"), bCanStore);
+	TestTrue(TEXT("Depth-overflow store rejection should return an error"), !StoreError.IsEmpty());
+
+	FText CommitError;
+	const bool bStored = IWorldContainerSessionSource::Execute_StoreContainerEntries(
+		LootComponent,
+		SessionId,
+		Transfers,
+		CommitError);
+
+	TestFalse(TEXT("StoreContainerEntries should fail when depth-overflow placement is invalid"), bStored);
+	TestEqual(TEXT("Rejected world-container store should leave runtime entries unchanged"), LootComponent->RuntimeEntries.Num(), 0);
+
+	LootComponent->DestroyComponent();
+	Owner->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FInventoryLootPlaces_DragVisualUsesTooltipWidgetTest,
 	"ProjectIntegrationTests.InventoryLootPlaces.UI.DragVisualUsesIconCard",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_DragOperationAppliesRotationFromEntryTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.UI.DragOperationAppliesRotationFromEntry",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FInventoryLootPlaces_DragOperationAppliesRotationFromEntryTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UInventoryDragDropOperation* DragOp = NewObject<UInventoryDragDropOperation>(GetTransientPackage());
+	TestNotNull(TEXT("Drag operation should allocate"), DragOp);
+	if (!DragOp)
+	{
+		return false;
+	}
+
+	FInventoryEntryView Entry;
+	Entry.GridSize = FIntPoint(1, 3);
+
+	DragOp->ApplyRotationFromEntry(Entry, false);
+	TestFalse(TEXT("Drag operation should report unrotated state"), DragOp->bRotated);
+	TestEqual(TEXT("Unrotated drag footprint should match entry size"), DragOp->ItemSize, FIntPoint(1, 3));
+
+	DragOp->ApplyRotationFromEntry(Entry, true);
+	TestTrue(TEXT("Drag operation should report rotated state"), DragOp->bRotated);
+	TestEqual(TEXT("Rotated drag footprint should swap entry dimensions"), DragOp->ItemSize, FIntPoint(3, 1));
+	return true;
+}
 
 bool FInventoryLootPlaces_DragVisualUsesTooltipWidgetTest::RunTest(const FString& Parameters)
 {
@@ -2404,6 +2706,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	"ProjectIntegrationTests.InventoryLootPlaces.UI.FullOpenEmptyContainerStaysOpenAndAcceptsStore",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_ViewModelStoreFailureRefreshesInventoryStateTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.UI.ViewModelStoreFailureRefreshesInventoryState",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_TakeOneItemThenStoreBackViaViewModelTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.UI.TakeOneItemThenStoreBackViaViewModel",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_LiveCardboardBoxStoreBackBreadAfterEmptyTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.Content.LiveCardboardBoxStoreBackBreadAfterEmpty",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
 bool FInventoryLootPlaces_ToggleCloseAllowsReopenTest::RunTest(const FString& Parameters)
 {
 	(void)Parameters;
@@ -2687,6 +3004,553 @@ bool FInventoryLootPlaces_FullOpenEmptyContainerStaysOpenAndAcceptsStoreTest::Ru
 	{
 		Spawned->Destroy();
 	}
+	return true;
+}
+
+bool FInventoryLootPlaces_ViewModelStoreFailureRefreshesInventoryStateTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	const FPrimaryAssetId BreadSliceId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:BreadSlice"));
+	TestTrue(TEXT("BreadSlice asset should load for store-failure refresh test"), EnsureInventoryLootPlacesTestAssetLoaded(BreadSliceId));
+	if (!EnsureInventoryLootPlacesTestAssetLoaded(BreadSliceId))
+	{
+		return false;
+	}
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Test world should resolve"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	ULocalPlayer* LocalPlayer = ResolveInventoryLootPlacesTestLocalPlayer(World);
+	TestNotNull(TEXT("Local player should resolve"), LocalPlayer);
+	if (!LocalPlayer)
+	{
+		return false;
+	}
+
+	UProjectContainerSessionSubsystem* SessionSubsystem = LocalPlayer->GetSubsystem<UProjectContainerSessionSubsystem>();
+	TestNotNull(TEXT("Session subsystem should exist"), SessionSubsystem);
+	if (!SessionSubsystem)
+	{
+		return false;
+	}
+
+	APlayerController* InventoryOwner = nullptr;
+	UProjectInventoryComponent* Inventory = CreateInventoryLootPlacesPlayerInventory(World, InventoryOwner);
+	TestNotNull(TEXT("Player inventory component should be created"), Inventory);
+	if (!Inventory)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("BreadSlice should be added to inventory"), Inventory->TryAddItem(BreadSliceId, 1), 1);
+
+	FInventoryEntry BreadEntryForFailureTest;
+	TestTrue(TEXT("BreadSlice entry should be findable for store-failure test"), Inventory->FindEntryByItemId(BreadSliceId, BreadEntryForFailureTest));
+	if (!Inventory->FindEntryByItemId(BreadSliceId, BreadEntryForFailureTest))
+	{
+		InventoryOwner->Destroy();
+		return false;
+	}
+
+	UWorldContainerSessionTestDouble* SessionSource = nullptr;
+	AActor* SourceActor = CreateWorldContainerSessionTestActor(World, SessionSource);
+	TestNotNull(TEXT("Store-failure source actor should be created"), SourceActor);
+	TestNotNull(TEXT("Store-failure session source should be created"), SessionSource);
+	if (!SourceActor || !SessionSource)
+	{
+		InventoryOwner->Destroy();
+		return false;
+	}
+
+	SessionSource->bFailStore = true;
+	SessionSource->bSupportsQuickLoot = false;
+	SessionSource->bSupportsFullOpen = true;
+
+	UInventoryViewModel* ViewModel = NewObject<UInventoryViewModel>(GetTransientPackage());
+	TestNotNull(TEXT("Inventory view model should be created"), ViewModel);
+	if (!ViewModel)
+	{
+		InventoryOwner->Destroy();
+		SourceActor->Destroy();
+		return false;
+	}
+	ViewModel->Initialize(nullptr);
+	ViewModel->SetInventorySource(Inventory);
+
+	FText OpenError;
+	const bool bOpenRequested =
+		IInventoryWorldContainerTransferBridge::Execute_RequestOpenWorldContainerSession(
+			Inventory,
+			SourceActor,
+			EContainerSessionMode::FullOpen,
+			OpenError);
+
+	TestTrue(TEXT("Bridge should request world-container open for store-failure refresh test"), bOpenRequested);
+	if (!bOpenRequested)
+	{
+		AddError(FString::Printf(TEXT("Open error: %s"), *OpenError.ToString()));
+		InventoryOwner->Destroy();
+		SourceActor->Destroy();
+		return false;
+	}
+
+	TestTrue(TEXT("View model should expose nearby container before failed store"), ViewModel->GetbHasNearbyContainer());
+
+	ViewModel->RequestStoreItemInNearbyContainerAt(BreadEntryForFailureTest.InstanceId, FIntPoint(0, 0), false, 1);
+
+	TestTrue(TEXT("Inventory should still contain BreadSlice after failed store"), Inventory->ContainsItem(BreadSliceId, 1));
+	TestFalse(TEXT("Nearby container should remain empty after failed store"), ViewModel->HasNearbyEntries());
+
+	FInventoryEntry RestoredEntry;
+	TestTrue(TEXT("BreadSlice entry should still be readable after failed store"), Inventory->FindEntryByItemId(BreadSliceId, RestoredEntry));
+
+	InventoryOwner->Destroy();
+	SourceActor->Destroy();
+	return true;
+}
+
+bool FInventoryLootPlaces_TakeOneItemThenStoreBackViaViewModelTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Test world should resolve"), World);
+	if (!World) { return false; }
+
+	ULocalPlayer* LocalPlayer = ResolveInventoryLootPlacesTestLocalPlayer(World);
+	TestNotNull(TEXT("Local player should resolve"), LocalPlayer);
+	if (!LocalPlayer) { return false; }
+
+	TStrongObjectPtr<UObjectDefinition> Definition;
+	FString ParseError;
+	const bool bLoaded = LoadInventoryLootPlacesDefinitionFromFile(
+		TEXT("Plugins/Resources/ProjectObject/Content/HumanMade/Trash/Packaging/Cardboard/Set_1/Loot_CardboardBox.json"),
+		Definition, ParseError);
+	TestTrue(TEXT("Cardboard-box definition should parse"), bLoaded);
+	if (!bLoaded)
+	{
+		AddError(FString::Printf(TEXT("Parse error: %s"), *ParseError));
+		return false;
+	}
+
+	FText SpawnError;
+	FActorSpawnParameters SpawnParams;
+	AActor* Spawned = ProjectObjectSpawn::SpawnFromDefinition(
+		World, Definition.Get(), FTransform::Identity, SpawnParams, &SpawnError);
+	TestNotNull(TEXT("Cardboard-box actor should spawn"), Spawned);
+	if (!Spawned)
+	{
+		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
+		return false;
+	}
+
+	ULootContainerCapabilityComponent* LootComponent = Spawned->FindComponentByClass<ULootContainerCapabilityComponent>();
+	TestNotNull(TEXT("Loot component should exist"), LootComponent);
+	if (!LootComponent) { Spawned->Destroy(); return false; }
+
+	APlayerController* InventoryOwner = nullptr;
+	UProjectInventoryComponent* Inventory = CreateInventoryLootPlacesPlayerInventory(World, InventoryOwner);
+	TestNotNull(TEXT("Player inventory should be created"), Inventory);
+	if (!Inventory) { Spawned->Destroy(); return false; }
+
+	UInventoryViewModel* ViewModel = NewObject<UInventoryViewModel>(GetTransientPackage());
+	TestNotNull(TEXT("ViewModel should be created"), ViewModel);
+	if (!ViewModel) { InventoryOwner->Destroy(); Spawned->Destroy(); return false; }
+	ViewModel->Initialize(nullptr);
+	ViewModel->SetInventorySource(Inventory);
+
+	FText OpenError;
+	const bool bOpened = IInventoryWorldContainerTransferBridge::Execute_RequestOpenWorldContainerSession(
+		Inventory, Spawned, EContainerSessionMode::FullOpen, OpenError);
+	TestTrue(TEXT("Session should open"), bOpened);
+	if (!bOpened)
+	{
+		AddError(FString::Printf(TEXT("Open error: %s"), *OpenError.ToString()));
+		InventoryOwner->Destroy();
+		Spawned->Destroy();
+		return false;
+	}
+
+	TestTrue(TEXT("ViewModel should expose nearby container"), ViewModel->GetbHasNearbyContainer());
+	TestTrue(TEXT("Nearby should have entries at start"), ViewModel->HasNearbyEntries());
+
+	const int32 InitialNearbyCount = IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent).Num();
+	AddInfo(FString::Printf(TEXT("Initial nearby entry count: %d"), InitialNearbyCount));
+	TestTrue(TEXT("Box should have at least one loot entry"), InitialNearbyCount > 0);
+	if (InitialNearbyCount == 0) { InventoryOwner->Destroy(); Spawned->Destroy(); return false; }
+
+	const TArray<FInventoryEntryView> NearbyBefore = IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent);
+	const FInventoryEntryView FirstNearbyEntry = NearbyBefore[0];
+	const FPrimaryAssetId TakenItemId = FirstNearbyEntry.ItemId;
+	const FIntPoint TakenGridPos = FirstNearbyEntry.GridPos;
+	AddInfo(FString::Printf(TEXT("Taking first nearby entry: %s InstanceId=%d at (%d,%d)"),
+		*TakenItemId.ToString(), FirstNearbyEntry.InstanceId, TakenGridPos.X, TakenGridPos.Y));
+
+	ViewModel->RequestTakeNearbyItem(FirstNearbyEntry.InstanceId, FirstNearbyEntry.Quantity);
+
+	const int32 AfterTakeNearbyCount = IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent).Num();
+	TestEqual(TEXT("Nearby should have one fewer entry after take"), AfterTakeNearbyCount, InitialNearbyCount - 1);
+
+	FInventoryEntry TakenEntry;
+	TestTrue(TEXT("Taken item should now be in player inventory"), Inventory->FindEntryByItemId(TakenItemId, TakenEntry));
+	if (!Inventory->FindEntryByItemId(TakenItemId, TakenEntry))
+	{
+		AddError(TEXT("Taken item not found in inventory - cannot test store-back"));
+		InventoryOwner->Destroy();
+		Spawned->Destroy();
+		return false;
+	}
+
+	AddInfo(FString::Printf(TEXT("Taken item in inventory: InstanceId=%d at %s (%d,%d). Storing back at (%d,%d)"),
+		TakenEntry.InstanceId, *TakenEntry.ContainerId.ToString(),
+		TakenEntry.GridPos.X, TakenEntry.GridPos.Y,
+		TakenGridPos.X, TakenGridPos.Y));
+
+	const int32 InventoryCountBefore = Inventory->GetEntries().Num();
+
+	ViewModel->RequestStoreItemInNearbyContainerAt(
+		TakenEntry.InstanceId,
+		TakenGridPos,
+		false,
+		TakenEntry.Quantity);
+
+	const int32 InventoryCountAfter = Inventory->GetEntries().Num();
+	TestEqual(TEXT("Item should be removed from inventory after store-back"),
+		InventoryCountAfter, InventoryCountBefore - 1);
+
+	TestFalse(TEXT("Inventory should no longer contain the stored-back item"),
+		Inventory->ContainsItem(TakenItemId, 1));
+
+	const int32 FinalNearbyCount = IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent).Num();
+	TestEqual(TEXT("Container should have original entry count after store-back"), FinalNearbyCount, InitialNearbyCount);
+
+	TestTrue(TEXT("ViewModel HasNearbyEntries should be true after store-back"), ViewModel->HasNearbyEntries());
+
+	const TArray<FInventoryEntryView> FinalNearbyViews =
+		IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent);
+	const FInventoryEntryView* StoredBackView = FinalNearbyViews.FindByPredicate(
+		[TakenItemId](const FInventoryEntryView& V) { return V.ItemId == TakenItemId; });
+	TestNotNull(TEXT("Stored-back item should be visible in container entry views"), StoredBackView);
+	if (StoredBackView)
+	{
+		TestEqual(TEXT("Stored-back item should be at original grid pos"), StoredBackView->GridPos, TakenGridPos);
+	}
+
+	AddInfo(FString::Printf(TEXT("Final state: Inventory=%d entries, Nearby=%d entries, VM.HasNearby=%d"),
+		InventoryCountAfter, FinalNearbyCount, ViewModel->HasNearbyEntries() ? 1 : 0));
+
+	InventoryOwner->Destroy();
+	Spawned->Destroy();
+	return true;
+}
+
+bool FInventoryLootPlaces_LiveCardboardBoxStoreBackBreadAfterEmptyTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	const FPrimaryAssetId BreadSliceId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:BreadSlice"));
+	TestTrue(TEXT("BreadSlice asset should load for live cardboard store-back test"), EnsureInventoryLootPlacesTestAssetLoaded(BreadSliceId));
+	if (!EnsureInventoryLootPlacesTestAssetLoaded(BreadSliceId))
+	{
+		return false;
+	}
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Test world should resolve"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	TStrongObjectPtr<UObjectDefinition> Definition;
+	FString ParseError;
+	const FString RelativePath =
+		TEXT("Plugins/Resources/ProjectObject/Content/HumanMade/Trash/Packaging/Cardboard/Set_1/Loot_CardboardBox.json");
+	const bool bLoaded = LoadInventoryLootPlacesDefinitionFromFile(RelativePath, Definition, ParseError);
+	TestTrue(TEXT("Live cardboard-box definition should parse"), bLoaded);
+	if (!bLoaded)
+	{
+		AddError(FString::Printf(TEXT("%s parse error: %s"), *RelativePath, *ParseError));
+		return false;
+	}
+
+	FText SpawnError;
+	FActorSpawnParameters SpawnParams;
+	AActor* Spawned = ProjectObjectSpawn::SpawnFromDefinition(
+		World,
+		Definition.Get(),
+		FTransform::Identity,
+		SpawnParams,
+		&SpawnError);
+
+	TestNotNull(TEXT("Live cardboard-box actor should spawn"), Spawned);
+	if (!Spawned)
+	{
+		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
+		return false;
+	}
+
+	ULootContainerCapabilityComponent* LootComponent = Spawned->FindComponentByClass<ULootContainerCapabilityComponent>();
+	TestNotNull(TEXT("Live cardboard-box loot component should exist"), LootComponent);
+	if (!LootComponent)
+	{
+		Spawned->Destroy();
+		return false;
+	}
+
+	TestFalse(TEXT("Live cardboard-box should no longer be one-time-use"), LootComponent->bOneTimeUse);
+
+	APlayerController* InventoryOwner = nullptr;
+	UProjectInventoryComponent* Inventory = CreateInventoryLootPlacesPlayerInventory(World, InventoryOwner);
+	TestNotNull(TEXT("Player inventory component should be created"), Inventory);
+	if (!Inventory)
+	{
+		Spawned->Destroy();
+		return false;
+	}
+
+	UInventoryViewModel* ViewModel = NewObject<UInventoryViewModel>(GetTransientPackage());
+	TestNotNull(TEXT("Inventory view model should be created"), ViewModel);
+	if (!ViewModel)
+	{
+		InventoryOwner->Destroy();
+		Spawned->Destroy();
+		return false;
+	}
+	ViewModel->Initialize(nullptr);
+	ViewModel->SetInventorySource(Inventory);
+
+	FText OpenError;
+	const bool bOpenRequested =
+		IInventoryWorldContainerTransferBridge::Execute_RequestOpenWorldContainerSession(
+			Inventory,
+			Spawned,
+			EContainerSessionMode::FullOpen,
+			OpenError);
+
+	TestTrue(TEXT("Bridge should request world-container open for live cardboard-box test"), bOpenRequested);
+	if (!bOpenRequested)
+	{
+		AddError(FString::Printf(TEXT("Open error: %s"), *OpenError.ToString()));
+		InventoryOwner->Destroy();
+		Spawned->Destroy();
+		return false;
+	}
+
+	TestTrue(TEXT("View model should expose nearby cardboard box"), ViewModel->GetbHasNearbyContainer());
+	ViewModel->RequestTakeAllNearbyContainer();
+	TestFalse(TEXT("Nearby cardboard box should be empty after take-all"), ViewModel->HasNearbyEntries());
+
+	TestEqual(TEXT("BreadSlice should be added for store-back regression"), Inventory->TryAddItem(BreadSliceId, 1), 1);
+
+	FInventoryEntry BreadEntryForStore;
+	TestTrue(TEXT("BreadSlice entry should be findable before store-back"), Inventory->FindEntryByItemId(BreadSliceId, BreadEntryForStore));
+	if (!Inventory->FindEntryByItemId(BreadSliceId, BreadEntryForStore))
+	{
+		InventoryOwner->Destroy();
+		Spawned->Destroy();
+		return false;
+	}
+
+	ViewModel->RequestStoreItemInNearbyContainerAt(BreadEntryForStore.InstanceId, FIntPoint(0, 0), false, 1);
+
+	const TArray<FInventoryEntryView> NearbyEntries = IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent);
+	TestTrue(TEXT("Live cardboard box should expose entries after bread is stored back"), NearbyEntries.Num() > 0);
+
+	const FInventoryEntryView* StoredBreadEntry = NearbyEntries.FindByPredicate([BreadSliceId](const FInventoryEntryView& Entry)
+	{
+		return Entry.ItemId == BreadSliceId;
+	});
+	TestNotNull(TEXT("Live cardboard box should expose stored BreadSlice entry"), StoredBreadEntry);
+	if (StoredBreadEntry)
+	{
+		TestEqual(TEXT("Stored BreadSlice should occupy requested nearby cell"), StoredBreadEntry->GridPos, FIntPoint(0, 0));
+	}
+
+	TestTrue(TEXT("View model should show nearby entries after bread is stored back"), ViewModel->HasNearbyEntries());
+
+	InventoryOwner->Destroy();
+	Spawned->Destroy();
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_LiveCardboardBoxTakeOneThenStoreBackTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.Content.LiveCardboardBoxTakeOneThenStoreBack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FInventoryLootPlaces_LiveCardboardBoxTakeOneThenStoreBackTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Test world should resolve"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	TStrongObjectPtr<UObjectDefinition> Definition;
+	FString ParseError;
+	const FString RelativePath =
+		TEXT("Plugins/Resources/ProjectObject/Content/HumanMade/Trash/Packaging/Cardboard/Set_1/Loot_CardboardBox.json");
+	const bool bLoaded = LoadInventoryLootPlacesDefinitionFromFile(RelativePath, Definition, ParseError);
+	TestTrue(TEXT("Cardboard-box definition should parse"), bLoaded);
+	if (!bLoaded)
+	{
+		AddError(FString::Printf(TEXT("%s parse error: %s"), *RelativePath, *ParseError));
+		return false;
+	}
+
+	FText SpawnError;
+	FActorSpawnParameters SpawnParams;
+	AActor* Spawned = ProjectObjectSpawn::SpawnFromDefinition(
+		World,
+		Definition.Get(),
+		FTransform::Identity,
+		SpawnParams,
+		&SpawnError);
+
+	TestNotNull(TEXT("Cardboard-box actor should spawn"), Spawned);
+	if (!Spawned)
+	{
+		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
+		return false;
+	}
+
+	ULootContainerCapabilityComponent* LootComponent = Spawned->FindComponentByClass<ULootContainerCapabilityComponent>();
+	TestNotNull(TEXT("Cardboard-box loot component should exist"), LootComponent);
+	if (!LootComponent)
+	{
+		Spawned->Destroy();
+		return false;
+	}
+
+	AActor* InventoryOwner = nullptr;
+	UProjectInventoryComponent* Inventory = CreateInventoryLootPlacesTestInventory(World, InventoryOwner);
+	TestNotNull(TEXT("Inventory component should be created"), Inventory);
+	if (!Inventory)
+	{
+		Spawned->Destroy();
+		return false;
+	}
+
+	const TArray<FInventoryEntryView> InitialEntries =
+		IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent);
+	const int32 InitialEntryCount = InitialEntries.Num();
+	TestTrue(TEXT("Cardboard box should have loot entries at spawn"), InitialEntryCount > 0);
+	if (InitialEntryCount == 0)
+	{
+		AddError(TEXT("No loot entries generated - cannot test take-one-then-store-back"));
+		Inventory->DestroyComponent();
+		if (InventoryOwner) { InventoryOwner->Destroy(); }
+		Spawned->Destroy();
+		return false;
+	}
+
+	const FInventoryEntryView FirstEntry = InitialEntries[0];
+	AddInfo(FString::Printf(TEXT("Taking first entry: %s x%d (InstanceId=%d) at (%d,%d)"),
+		*FirstEntry.ItemId.ToString(), FirstEntry.Quantity, FirstEntry.InstanceId,
+		FirstEntry.GridPos.X, FirstEntry.GridPos.Y));
+
+	const FIntPoint TakenGridPos = FirstEntry.GridPos;
+	const FPrimaryAssetId TakenItemId = FirstEntry.ItemId;
+
+	FContainerEntryTransfer ConsumeTransfer;
+	ConsumeTransfer.EntryInstanceId = FirstEntry.InstanceId;
+	ConsumeTransfer.ObjectId = FirstEntry.ItemId;
+	ConsumeTransfer.Quantity = FirstEntry.Quantity;
+	ConsumeTransfer.GridPos = FirstEntry.GridPos;
+	ConsumeTransfer.bRotated = FirstEntry.bRotated;
+
+	TArray<FLootEntry> LootItems;
+	LootItems.Add(FLootEntry(FirstEntry.ItemId, FirstEntry.Quantity));
+	Inventory->AddItemsBatch(LootItems);
+
+	FInventoryEntry TakenInventoryEntry;
+	TestTrue(TEXT("Taken item should be in inventory"), Inventory->FindEntryByItemId(TakenItemId, TakenInventoryEntry));
+	if (!Inventory->FindEntryByItemId(TakenItemId, TakenInventoryEntry))
+	{
+		Inventory->DestroyComponent();
+		if (InventoryOwner) { InventoryOwner->Destroy(); }
+		Spawned->Destroy();
+		return false;
+	}
+
+	TArray<FContainerEntryTransfer> ConsumeEntries;
+	ConsumeEntries.Add(ConsumeTransfer);
+	FText ConsumeError;
+	const bool bConsumed = IWorldContainerSessionSource::Execute_ConsumeContainerEntries(
+		LootComponent,
+		FGuid::NewGuid(),
+		ConsumeEntries,
+		ConsumeError);
+	TestTrue(TEXT("Container should accept consume of first entry"), bConsumed);
+
+	const TArray<FInventoryEntryView> AfterTakeEntries =
+		IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent);
+	const int32 AfterTakeCount = AfterTakeEntries.Num();
+	TestEqual(TEXT("Container should have one fewer entry after take"), AfterTakeCount, InitialEntryCount - 1);
+
+	AddInfo(FString::Printf(TEXT("Container after take: %d entries (was %d). Storing %s back at (%d,%d)"),
+		AfterTakeCount, InitialEntryCount,
+		*TakenItemId.ToString(), TakenGridPos.X, TakenGridPos.Y));
+
+	FContainerEntryTransfer StoreTransfer;
+	StoreTransfer.ObjectId = TakenItemId;
+	StoreTransfer.Quantity = TakenInventoryEntry.Quantity;
+	StoreTransfer.GridPos = TakenGridPos;
+	StoreTransfer.bRotated = false;
+
+	TArray<FContainerEntryTransfer> StoreEntries;
+	StoreEntries.Add(StoreTransfer);
+
+	FText CanStoreError;
+	const bool bCanStore = IWorldContainerSessionSource::Execute_CanStoreContainerEntries(
+		LootComponent,
+		FGuid::NewGuid(),
+		StoreEntries,
+		CanStoreError);
+
+	AddInfo(FString::Printf(TEXT("CanStore result: %s (Error: %s)"),
+		bCanStore ? TEXT("true") : TEXT("false"),
+		*CanStoreError.ToString()));
+	TestTrue(TEXT("Container should accept store-back at original position"), bCanStore);
+
+	FText StoreError;
+	const bool bStored = IWorldContainerSessionSource::Execute_StoreContainerEntries(
+		LootComponent,
+		FGuid::NewGuid(),
+		StoreEntries,
+		StoreError);
+
+	AddInfo(FString::Printf(TEXT("Store result: %s (Error: %s)"),
+		bStored ? TEXT("true") : TEXT("false"),
+		*StoreError.ToString()));
+	TestTrue(TEXT("Container should commit store-back"), bStored);
+
+	const TArray<FInventoryEntryView> FinalEntries =
+		IWorldContainerSessionSource::Execute_GetContainerEntryViews(LootComponent);
+	TestEqual(TEXT("Container should have original entry count after store-back"), FinalEntries.Num(), InitialEntryCount);
+
+	const FInventoryEntryView* RestoredEntry = FinalEntries.FindByPredicate([TakenItemId](const FInventoryEntryView& Entry)
+	{
+		return Entry.ItemId == TakenItemId;
+	});
+	TestNotNull(TEXT("Stored item should be visible in container entries"), RestoredEntry);
+	if (RestoredEntry)
+	{
+		TestEqual(TEXT("Stored item should be at original grid position"), RestoredEntry->GridPos, TakenGridPos);
+	}
+
+	Inventory->DestroyComponent();
+	if (InventoryOwner) { InventoryOwner->Destroy(); }
+	Spawned->Destroy();
 	return true;
 }
 

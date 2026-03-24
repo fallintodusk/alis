@@ -465,6 +465,8 @@ protected:
 	bool TryGetGridPosFromSlot(FGameplayTag ContainerId, int32 SlotIndex, FIntPoint& OutGridPos) const;
 	FIntPoint SanitizeGridSize(FIntPoint InSize) const;
 	FIntPoint GetItemGridSize(const FItemDataView& ItemData, bool bRotated) const;
+	int32 GetContainerCellDepthUnits(const FInventoryContainerConfig& Container) const;
+	int32 GetEffectiveMaxStackForContainer(const FInventoryContainerConfig& Container, const FItemDataView& ItemData) const;
 	FInventoryContainerConfig BuildContainerConfigFromGrant(const FInventoryContainerGrantView& Grant) const;
 	void UpsertContainerConfig(const FInventoryContainerConfig& GrantConfig, TArray<FInventoryContainerConfig>& OutContainers) const;
 	bool IsRectWithinContainer(const FInventoryContainerConfig& Container, FIntPoint GridPos, FIntPoint ItemSize) const;

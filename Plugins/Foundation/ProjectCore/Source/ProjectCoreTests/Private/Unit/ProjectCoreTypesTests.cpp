@@ -3,7 +3,9 @@
 #include "Misc/AutomationTest.h"
 #include "Types/ProjectLoadRequest.h"
 #include "Types/ProjectLoadPhaseState.h"
+#include "Types/InventoryStackRules.h"
 #include "Interfaces/ProjectLoadingHandle.h"
+#include "Interfaces/IItemDataProvider.h"
 #include "ProjectServiceLocator.h"
 #include "ProjectConfigHelpers.h"
 
@@ -1113,6 +1115,63 @@ bool FProjectCore_LoadPhaseState_Validate_ValidFailed::RunTest(const FString& Pa
 
 	TestTrue(TEXT("Valid failed state passes validation"), bIsValid);
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectCore_InventoryStackRules_DepthFallbackUsesMaxStack,
+	"ProjectCore.Types.InventoryStackRules.DepthFallbackUsesMaxStack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectCore_InventoryStackRules_DepthFallbackUsesMaxStack::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	FItemDataView ItemData;
+	ItemData.GridSize = FIntPoint(1, 1);
+	ItemData.MaxStack = 6;
+	ItemData.UnitsPerDepthUnit = 0;
+
+	TestTrue(TEXT("1x1 stackable item should use depth stacking rules"), FInventoryStackRules::UsesDepthStacking(ItemData));
+	TestEqual(TEXT("Unset UnitsPerDepthUnit should fall back to MaxStack"), FInventoryStackRules::ResolveUnitsPerDepthUnit(ItemData), 6);
+	TestEqual(TEXT("Default one-depth container should preserve legacy stack cap"), FInventoryStackRules::CalculateMaxStackForContainer(ItemData, 1), 6);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectCore_InventoryStackRules_AuthoredDepthCapsStack,
+	"ProjectCore.Types.InventoryStackRules.AuthoredDepthCapsStack",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectCore_InventoryStackRules_AuthoredDepthCapsStack::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	FItemDataView ItemData;
+	ItemData.GridSize = FIntPoint(1, 1);
+	ItemData.MaxStack = 99;
+	ItemData.UnitsPerDepthUnit = 2;
+
+	TestEqual(TEXT("Authored units per depth unit should be honored"), FInventoryStackRules::ResolveUnitsPerDepthUnit(ItemData), 2);
+	TestEqual(TEXT("Cell depth should cap the effective stack"), FInventoryStackRules::CalculateMaxStackForContainer(ItemData, 4), 8);
+	TestEqual(TEXT("Quantity should report consumed depth units"), FInventoryStackRules::CalculateDepthUnitsForQuantity(ItemData, 5), 3);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectCore_InventoryStackRules_MultiCellIgnoresDepth,
+	"ProjectCore.Types.InventoryStackRules.MultiCellIgnoresDepth",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectCore_InventoryStackRules_MultiCellIgnoresDepth::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	FItemDataView ItemData;
+	ItemData.GridSize = FIntPoint(2, 1);
+	ItemData.MaxStack = 10;
+	ItemData.UnitsPerDepthUnit = 1;
+
+	TestFalse(TEXT("Multi-cell item should not use depth stacking"), FInventoryStackRules::UsesDepthStacking(ItemData));
+	TestEqual(TEXT("Multi-cell item should keep authored MaxStack"), FInventoryStackRules::CalculateMaxStackForContainer(ItemData, 4), 10);
+	TestEqual(TEXT("Multi-cell item should not report depth usage"), FInventoryStackRules::CalculateDepthUnitsForQuantity(ItemData, 5), 0);
 	return true;
 }
 

@@ -57,6 +57,7 @@ public:
     VIEWMODEL_PROPERTY(float, ContainerMaxWeight)
     VIEWMODEL_PROPERTY(float, ContainerCurrentVolume)
     VIEWMODEL_PROPERTY(float, ContainerMaxVolume)
+    VIEWMODEL_PROPERTY(int32, ContainerCellDepthUnits)
 
     /** Get selected container weight ratio (0.0 - 1.0+). */
     float GetContainerWeightRatio() const
@@ -117,6 +118,7 @@ public:
     VIEWMODEL_PROPERTY(float, NearbyContainerMaxWeight)
     VIEWMODEL_PROPERTY(float, NearbyContainerCurrentVolume)
     VIEWMODEL_PROPERTY(float, NearbyContainerMaxVolume)
+    VIEWMODEL_PROPERTY(int32, NearbyContainerCellDepthUnits)
 
     float GetNearbyContainerWeightRatio() const
     {

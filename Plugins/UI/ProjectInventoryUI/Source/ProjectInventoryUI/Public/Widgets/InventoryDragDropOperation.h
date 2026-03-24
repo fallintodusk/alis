@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/DragDropOperation.h"
 #include "GameplayTagContainer.h"
+#include "Interfaces/IInventoryReadOnly.h"
 #include "InventoryDragDropOperation.generated.h"
 
 /**
@@ -39,4 +40,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	bool bFromNearbyContainer = false;
+
+	void ApplyRotationFromEntry(const FInventoryEntryView& Entry, bool bInRotated)
+	{
+		bRotated = bInRotated;
+		const int32 Width = FMath::Max(1, Entry.GridSize.X);
+		const int32 Height = FMath::Max(1, Entry.GridSize.Y);
+		ItemSize = bRotated ? FIntPoint(Height, Width) : FIntPoint(Width, Height);
+	}
 };

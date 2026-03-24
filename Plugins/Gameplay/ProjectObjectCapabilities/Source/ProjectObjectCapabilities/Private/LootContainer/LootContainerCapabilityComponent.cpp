@@ -8,6 +8,7 @@
 #include "Net/UnrealNetwork.h"
 #include "ProjectGameplayTags.h"
 #include "ProjectObjectCapabilitiesModule.h"
+#include "Types/InventoryStackRules.h"
 
 namespace
 {
@@ -37,9 +38,20 @@ bool HasRuntimeStorageSpec(const ULootContainerCapabilityComponent& Component)
 	return Component.RuntimeGridSize.X > 0
 		|| Component.RuntimeGridSize.Y > 0
 		|| Component.RuntimeMaxCells > 0
+		|| Component.RuntimeCellDepthUnits > 1
 		|| Component.RuntimeMaxWeight > 0.f
 		|| Component.RuntimeMaxVolume > 0.f
 		|| Component.RuntimeAllowedTags.Num() > 0;
+}
+
+int32 GetRuntimeCellDepthUnits(const ULootContainerCapabilityComponent& Component)
+{
+	return FMath::Max(1, Component.RuntimeCellDepthUnits);
+}
+
+int32 GetEffectiveMaxStack(const ULootContainerCapabilityComponent& Component, const FItemDataView& ItemData)
+{
+	return FInventoryStackRules::CalculateMaxStackForContainer(ItemData, GetRuntimeCellDepthUnits(Component));
 }
 
 bool ResolveItemDataView(const FPrimaryAssetId& ObjectId, FItemDataView& OutItemData)
@@ -196,7 +208,7 @@ bool MarkPlacedEntry(
 		return false;
 	}
 
-	const int32 MaxStack = FMath::Max(ItemData.MaxStack, 1);
+	const int32 MaxStack = GetEffectiveMaxStack(Component, ItemData);
 	if (Entry.Quantity > MaxStack)
 	{
 		if (OutError)
@@ -356,7 +368,11 @@ bool BuildRuntimeEntryViews(
 		View.Weight = ResolvedEntry.ItemData.Weight;
 		View.Volume = ResolvedEntry.ItemData.Volume;
 		View.GridSize = SanitizeGridSize(ResolvedEntry.ItemData.GridSize);
-		View.MaxStack = ResolvedEntry.ItemData.MaxStack;
+		View.MaxStack = GetEffectiveMaxStack(Component, ResolvedEntry.ItemData);
+		View.UnitsPerDepthUnit = FInventoryStackRules::ResolveUnitsPerDepthUnit(ResolvedEntry.ItemData);
+		View.DepthUnitsUsed = FInventoryStackRules::CalculateDepthUnitsForQuantity(ResolvedEntry.ItemData, Entry.Quantity);
+		View.MaxDepthUnits = GetRuntimeCellDepthUnits(Component);
+		View.bUsesDepthStacking = FInventoryStackRules::UsesDepthStacking(ResolvedEntry.ItemData);
 		View.ContainerId = ProjectTags::Item_Container_WorldStorage;
 		View.GridPos = Entry.GridPos;
 		View.bRotated = Entry.bRotated;
@@ -409,7 +425,7 @@ bool BuildSeedRuntimeEntries(
 		}
 
 		int32 Remaining = SeedEntry.Quantity;
-		const int32 MaxStack = FMath::Max(ItemData.MaxStack, 1);
+		const int32 MaxStack = GetEffectiveMaxStack(Component, ItemData);
 		while (Remaining > 0)
 		{
 			FPendingSeedStack Pending;
@@ -570,7 +586,7 @@ bool TryApplyStoreTransfer(
 		return false;
 	}
 
-	const int32 MaxStack = FMath::Max(ItemData.MaxStack, 1);
+	const int32 MaxStack = GetEffectiveMaxStack(Component, ItemData);
 	int32 Remaining = Transfer.Quantity;
 
 	if (Transfer.HasPlacement())
@@ -839,10 +855,21 @@ FInventoryContainerView ULootContainerCapabilityComponent::GetContainerView_Impl
 	View.MaxWeight = RuntimeMaxWeight;
 	View.MaxVolume = RuntimeMaxVolume;
 	View.MaxCells = RuntimeMaxCells;
+	View.CellDepthUnits = GetRuntimeCellDepthUnits(*this);
 
 	TArray<FInventoryEntryView> EntryViews;
 	FText IgnoredError;
-	BuildRuntimeEntryViews(*this, RuntimeEntries, EntryViews, View.CurrentWeight, View.CurrentVolume, &IgnoredError);
+	if (!BuildRuntimeEntryViews(*this, RuntimeEntries, EntryViews, View.CurrentWeight, View.CurrentVolume, &IgnoredError))
+	{
+		View.CurrentWeight = 0.f;
+		View.CurrentVolume = 0.f;
+		UE_LOG(
+			LogProjectObjectCapabilities,
+			Warning,
+			TEXT("LootContainer: Failed to build container view for %s - %s"),
+			*GetNameSafe(GetOwner()),
+			*IgnoredError.ToString());
+	}
 	return View;
 }
 
@@ -852,7 +879,15 @@ TArray<FInventoryEntryView> ULootContainerCapabilityComponent::GetContainerEntry
 	float CurrentWeight = 0.f;
 	float CurrentVolume = 0.f;
 	FText IgnoredError;
-	BuildRuntimeEntryViews(*this, RuntimeEntries, EntryViews, CurrentWeight, CurrentVolume, &IgnoredError);
+	if (!BuildRuntimeEntryViews(*this, RuntimeEntries, EntryViews, CurrentWeight, CurrentVolume, &IgnoredError))
+	{
+		UE_LOG(
+			LogProjectObjectCapabilities,
+			Warning,
+			TEXT("LootContainer: Failed to build entry views for %s - %s"),
+			*GetNameSafe(GetOwner()),
+			*IgnoredError.ToString());
+	}
 	return EntryViews;
 }
 
@@ -1070,17 +1105,43 @@ bool ULootContainerCapabilityComponent::StoreContainerEntries_Implementation(
 		return false;
 	}
 
+	const TArray<FWorldContainerRuntimeEntry> RuntimeEntriesSnapshot = RuntimeEntries;
+	const int32 NextRuntimeEntryInstanceIdSnapshot = NextRuntimeEntryInstanceId;
+
 	int32 SimulatedNextInstanceId = NextRuntimeEntryInstanceId;
 	for (const FContainerEntryTransfer& Entry : Entries)
 	{
 		if (!TryApplyStoreTransfer(*this, Entry, RuntimeEntries, SimulatedNextInstanceId, OutError))
 		{
+			RuntimeEntries = RuntimeEntriesSnapshot;
+			NextRuntimeEntryInstanceId = NextRuntimeEntryInstanceIdSnapshot;
 			return false;
 		}
 	}
 
+	TArray<FInventoryEntryView> ValidatedEntryViews;
+	float IgnoredWeight = 0.f;
+	float IgnoredVolume = 0.f;
+	if (!BuildRuntimeEntryViews(*this, RuntimeEntries, ValidatedEntryViews, IgnoredWeight, IgnoredVolume, &OutError))
+	{
+		RuntimeEntries = RuntimeEntriesSnapshot;
+		NextRuntimeEntryInstanceId = NextRuntimeEntryInstanceIdSnapshot;
+		if (OutError.IsEmpty())
+		{
+			OutError = NSLOCTEXT("LootContainerCapability", "StoreValidationFailed", "Stored item placement became invalid for this container.");
+		}
+		return false;
+	}
+
 	NextRuntimeEntryInstanceId = SimulatedNextInstanceId;
 	bLooted = RuntimeEntries.Num() == 0;
+	UE_LOG(
+		LogProjectObjectCapabilities,
+		Log,
+		TEXT("LootContainer: Stored %d entries on %s; runtime now has %d entries"),
+		Entries.Num(),
+		*GetNameSafe(GetOwner()),
+		RuntimeEntries.Num());
 	return true;
 }
 
@@ -1168,6 +1229,7 @@ void ULootContainerCapabilityComponent::GetLifetimeReplicatedProps(TArray<FLifet
 	DOREPLIFETIME(ULootContainerCapabilityComponent, RuntimeMaxWeight);
 	DOREPLIFETIME(ULootContainerCapabilityComponent, RuntimeMaxVolume);
 	DOREPLIFETIME(ULootContainerCapabilityComponent, RuntimeMaxCells);
+	DOREPLIFETIME(ULootContainerCapabilityComponent, RuntimeCellDepthUnits);
 	DOREPLIFETIME(ULootContainerCapabilityComponent, RuntimeAllowedTags);
 	DOREPLIFETIME(ULootContainerCapabilityComponent, bRuntimeAllowRotation);
 }

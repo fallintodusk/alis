@@ -167,6 +167,9 @@ public:
 	int32 RuntimeMaxCells = 0;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "LootContainer|Runtime")
+	int32 RuntimeCellDepthUnits = 1;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "LootContainer|Runtime")
 	FGameplayTagContainer RuntimeAllowedTags;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "LootContainer|Runtime")

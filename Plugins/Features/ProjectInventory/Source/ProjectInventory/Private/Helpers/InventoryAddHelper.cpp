@@ -6,11 +6,23 @@
 #include "Inventory/InventoryTypes.h"
 #include "Interfaces/IItemDataProvider.h"
 
+namespace
+{
+int32 ResolveEffectiveMaxStack(
+    const FInventoryAddHelper::FAddCallbacks& Callbacks,
+    const FInventoryContainerConfig& Container,
+    const FItemDataView& ItemData)
+{
+    checkf(Callbacks.GetEffectiveMaxStack,
+        TEXT("FInventoryAddHelper requires GetEffectiveMaxStack to be bound."));
+    return FMath::Max(1, Callbacks.GetEffectiveMaxStack(Container, ItemData));
+}
+}
+
 int32 FInventoryAddHelper::CalculateStackTargets(
     FPrimaryAssetId ItemId,
     const FItemDataView& ItemData,
     int32 Quantity,
-    int32 MaxStack,
     const TArray<FInventoryEntry>& Entries,
     TArray<FContainerState>& ContainerStates,
     const FAddCallbacks& Callbacks,
@@ -23,7 +35,7 @@ int32 FInventoryAddHelper::CalculateStackTargets(
     {
         if (Remaining <= 0) break;
         if (Entry.OverrideMagnitudes.Num() > 0) continue;
-        if (Entry.ItemId != ItemId || Entry.Quantity >= MaxStack) continue;
+        if (Entry.ItemId != ItemId) continue;
 
         FGameplayTag EntryContainerId;
         FIntPoint EntryPos;
@@ -41,8 +53,14 @@ int32 FInventoryAddHelper::CalculateStackTargets(
             continue;
         }
 
+        const int32 EffectiveMaxStack = ResolveEffectiveMaxStack(Callbacks, ContainerState->Config, ItemData);
+        if (Entry.Quantity >= EffectiveMaxStack)
+        {
+            continue;
+        }
+
         const int32 ToAdd = FInventoryStackHelper::CalculateStackableQuantity(
-            Entry, ItemData, MaxStack, ContainerState->Config,
+            Entry, ItemData, EffectiveMaxStack, ContainerState->Config,
             ContainerState->CurrentWeight, ContainerState->CurrentVolume, Remaining);
 
         if (ToAdd <= 0) continue;
@@ -63,23 +81,22 @@ int32 FInventoryAddHelper::CalculateStackTargets(
 int32 FInventoryAddHelper::CalculateNewPlacements(
     const FItemDataView& ItemData,
     int32 Remaining,
-    int32 MaxStack,
     TArray<FContainerState>& ContainerStates,
     const FAddCallbacks& Callbacks,
     TArray<FNewStackPlacement>& OutPlacements)
 {
     OutPlacements.Reset();
-    const bool bIsStackable = MaxStack > 1;
 
     while (Remaining > 0)
     {
-        const int32 DesiredStackSize = bIsStackable ? FMath::Min(Remaining, MaxStack) : 1;
         bool bPlaced = false;
 
         for (FContainerState& ContainerState : ContainerStates)
         {
             if (!Callbacks.ContainerAllowsItem(ContainerState.Config, ItemData)) continue;
 
+            const int32 EffectiveMaxStack = ResolveEffectiveMaxStack(Callbacks, ContainerState.Config, ItemData);
+            const int32 DesiredStackSize = FMath::Min(Remaining, EffectiveMaxStack);
             const int32 StackSize = FInventoryStackHelper::CalculateNewStackQuantity(
                 ItemData, ContainerState.Config, ContainerState.CurrentWeight,
                 ContainerState.CurrentVolume, DesiredStackSize);

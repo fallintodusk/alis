@@ -490,5 +490,10 @@ FText UW_ItemTooltip::BuildMetaText(const FInventoryEntryView& EntryView)
 		: FIntPoint(FMath::Max(1, EntryView.GridSize.X), FMath::Max(1, EntryView.GridSize.Y));
 	MetaParts.Add(FString::Printf(TEXT("Size %dx%d"), Footprint.X, Footprint.Y));
 
+	if (EntryView.bUsesDepthStacking && EntryView.MaxDepthUnits > 0)
+	{
+		MetaParts.Add(FString::Printf(TEXT("Depth %d/%d"), EntryView.DepthUnitsUsed, EntryView.MaxDepthUnits));
+	}
+
 	return FText::FromString(FString::Join(MetaParts, TEXT("  |  ")));
 }

@@ -28,6 +28,7 @@ class UBorder;
 class UCanvasPanel;
 class UW_ItemContextMenu;
 class UW_ItemTooltip;
+class UInventoryDragDropOperation;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInventoryPanel, Log, All);
 
@@ -65,6 +66,7 @@ protected:
     virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
     virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
     virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+    virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
     virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 private:
@@ -107,6 +109,7 @@ private:
     static bool DecodePocketCellIndex(int32 EncodedCellIndex, int32& OutPocketIndex, int32& OutCellIndex);
     FEventReply HandlePocketCellMouseDown(int32 EncodedCellIndex, bool bSecondary, const FPointerEvent& MouseEvent);
     bool ResolveHandDropTargetAtScreenPos(const FVector2D& ScreenPos, FGameplayTag& OutContainerId, FIntPoint& OutGridPos) const;
+    bool UpdateDragPreviewForOperation(UInventoryDragDropOperation* DragOp, const FVector2D& ScreenPos);
 
 private:
     // Core references
@@ -171,6 +174,8 @@ private:
     TArray<FPocketGridRuntime> PocketGridRuntime;
 
     int32 PendingDragInstanceId = INDEX_NONE;
+    FVector2D LastDragScreenPos = FVector2D::ZeroVector;
+    bool bHasLastDragScreenPos = false;
 
     // Info display widgets
     UPROPERTY() TObjectPtr<UTextBlock> WeightText;

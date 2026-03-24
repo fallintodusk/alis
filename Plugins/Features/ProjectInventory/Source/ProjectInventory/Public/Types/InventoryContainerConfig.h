@@ -31,6 +31,10 @@ struct PROJECTINVENTORY_API FInventoryContainerConfig
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
     int32 MaxCells = 0;
 
+    /** Max stack height per cell for 1x1 depth stacking (default 1). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+    int32 CellDepthUnits = 1;
+
     /** Optional tag filter for items allowed in this container. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
     FGameplayTagContainer AllowedTags;

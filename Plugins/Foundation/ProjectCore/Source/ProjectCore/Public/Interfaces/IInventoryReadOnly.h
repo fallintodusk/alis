@@ -53,9 +53,25 @@ struct PROJECTCORE_API FInventoryEntryView
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	FIntPoint GridSize = FIntPoint(1, 1);
 
-	/** Maximum stack size (1 = non-stackable). */
+	/** Effective maximum stack size in the current container context (1 = non-stackable). */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	int32 MaxStack = 1;
+
+	/** Quantity represented by one depth unit for 1x1 stacks. */
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	int32 UnitsPerDepthUnit = 0;
+
+	/** Depth units currently used by this stack (0 when depth stacking is inactive). */
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	int32 DepthUnitsUsed = 0;
+
+	/** Max depth units available per cell in the current container. */
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	int32 MaxDepthUnits = 0;
+
+	/** True when this entry uses the 1x1 depth-stacking rules. */
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	bool bUsesDepthStacking = false;
 
 	/** Whether item can be dropped. */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
@@ -156,6 +172,10 @@ struct PROJECTCORE_API FInventoryContainerView
 	/** Optional hard cap on total cells used (0 = unlimited). */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	int32 MaxCells = 0;
+
+	/** Max stack height per cell for 1x1 depth stacking. */
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+	int32 CellDepthUnits = 1;
 
 	/** Slot-based container (ignores item grid size, uses slots instead). */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")

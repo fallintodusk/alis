@@ -1146,6 +1146,12 @@ AActor* SpawnFromDefinition(
 						MaxCellsProp->SetPropertyValue_InContainer(Comp, StorageSection->MaxCells);
 					}
 
+					if (FIntProperty* CellDepthUnitsProp = CastField<FIntProperty>(
+						Comp->GetClass()->FindPropertyByName(TEXT("RuntimeCellDepthUnits"))))
+					{
+						CellDepthUnitsProp->SetPropertyValue_InContainer(Comp, StorageSection->CellDepthUnits);
+					}
+
 					if (FBoolProperty* AllowRotationProp = CastField<FBoolProperty>(
 						Comp->GetClass()->FindPropertyByName(TEXT("bRuntimeAllowRotation"))))
 					{
