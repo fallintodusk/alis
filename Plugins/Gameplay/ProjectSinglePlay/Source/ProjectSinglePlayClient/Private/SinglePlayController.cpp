@@ -11,10 +11,11 @@
 #include "MVVM/VitalsViewModel.h"
 #include "Subsystems/ProjectUILayerHostSubsystem.h"
 #include "Subsystems/ProjectUIFactorySubsystem.h"
+#include "Subsystems/ProjectUIRegistrySubsystem.h"
 #include "HAL/PlatformTLS.h"
 #include "Interfaces/IInteractionService.h"
 #include "Interfaces/IInventoryCommands.h"
-#include "Interfaces/IInventoryWorldContainerTransferBridge.h"
+#include "Interfaces/IInventoryReadOnly.h"
 #include "Interfaces/IMindRuntimeControl.h"
 #include "Interfaces/IWorldContainerSessionSource.h"
 #include "ProjectServiceLocator.h"
@@ -28,24 +29,6 @@
 
 namespace
 {
-UObject* ResolveInventoryWorldContainerBridgeObject(APawn* Pawn)
-{
-	if (!Pawn)
-	{
-		return nullptr;
-	}
-
-	for (UActorComponent* Component : Pawn->GetComponents())
-	{
-		if (Component && Component->GetClass()->ImplementsInterface(UInventoryWorldContainerTransferBridge::StaticClass()))
-		{
-			return Component;
-		}
-	}
-
-	return nullptr;
-}
-
 UObject* ResolveWorldContainerSessionSource(AActor* TargetActor)
 {
 	if (!TargetActor)
@@ -232,6 +215,16 @@ void ASinglePlayController::SetupInputComponent()
 				ETriggerEvent::Started,
 				this,
 				&ASinglePlayController::HandleInteractAction);
+			EnhancedInputComponent->BindAction(
+				InteractAction,
+				ETriggerEvent::Completed,
+				this,
+				&ASinglePlayController::HandleInteractReleasedAction);
+			EnhancedInputComponent->BindAction(
+				InteractAction,
+				ETriggerEvent::Canceled,
+				this,
+				&ASinglePlayController::HandleInteractReleasedAction);
 			LOG_INIT("SetupInputComponent: Bound InteractAction");
 		}
 
@@ -330,6 +323,7 @@ void ASinglePlayController::InitializeInventoryUI(APawn* InPawn)
 	// Inventory UI is demand-loaded: ViewModel created on first toggle, not on possess.
 	// TryBindInventoryViewModel() is called from HandleToggleInventoryAction() when user opens inventory.
 	LOG_INIT("InitializeInventoryUI: Pawn=%s (binding deferred to first toggle)", InPawn ? *InPawn->GetName() : TEXT("null"));
+	SyncInventoryViewModelSourceFromPawn();
 #else
 	(void)InPawn;
 #endif
@@ -400,11 +394,13 @@ void ASinglePlayController::TryBindVitalsViewModel()
 void ASinglePlayController::TryBindInventoryViewModel()
 {
 #if !UE_SERVER
-	// Called from HandleToggleInventoryAction after ShowDefinition creates the ViewModel.
-	// No retry loop needed - ViewModel exists by the time this is called.
+	// Global InventoryViewModel can now be created without showing the panel widget.
+	// This keeps timed loot-search interactions from opening an empty panel before
+	// the world-container session actually exists.
 
 	if (!IsLocalController() || InventoryViewModel)
 	{
+		SyncInventoryViewModelSourceFromPawn();
 		return;
 	}
 
@@ -417,8 +413,14 @@ void ASinglePlayController::TryBindInventoryViewModel()
 	if (UInventoryViewModel* FoundVM = Cast<UInventoryViewModel>(
 		Factory->GetSharedViewModel(UInventoryViewModel::StaticClass())))
 	{
+		if (UInventoryViewModel* ExistingVM = Cast<UInventoryViewModel>(InventoryViewModel))
+		{
+			ExistingVM->OnPropertyChanged.RemoveDynamic(this, &ASinglePlayController::HandleInventoryViewModelPropertyChanged);
+		}
+
 		InventoryViewModel = FoundVM;
 		FoundVM->OnPropertyChanged.AddUniqueDynamic(this, &ASinglePlayController::HandleInventoryViewModelPropertyChanged);
+		SyncInventoryViewModelSourceFromPawn();
 		LOG_INIT("TryBindInventoryViewModel: Bound to InventoryViewModel");
 	}
 #endif
@@ -427,20 +429,72 @@ void ASinglePlayController::TryBindInventoryViewModel()
 bool ASinglePlayController::EnsureInventoryViewModelReady()
 {
 #if !UE_SERVER
+	if (!IsLocalController())
+	{
+		return false;
+	}
+
 	if (InventoryViewModel)
 	{
+		SyncInventoryViewModelSourceFromPawn();
 		return true;
 	}
 
-	if (UProjectUILayerHostSubsystem* LayerHost = GetGameInstance()->GetSubsystem<UProjectUILayerHostSubsystem>())
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!GameInstance)
 	{
-		LayerHost->ShowDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+		return false;
 	}
 
+	UProjectUIFactorySubsystem* Factory = GameInstance->GetSubsystem<UProjectUIFactorySubsystem>();
+	UProjectUIRegistrySubsystem* Registry = GameInstance->GetSubsystem<UProjectUIRegistrySubsystem>();
+	if (!Factory || !Registry)
+	{
+		return false;
+	}
+
+	const FProjectUIDefinition* Definition = Registry->FindDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	if (!Definition)
+	{
+		UE_LOG(LogProjectSinglePlay, Warning, TEXT("[Thread:%u] EnsureInventoryViewModelReady: Missing UI definition for ProjectInventoryUI.InventoryPanel"),
+			FPlatformTLS::GetCurrentThreadId());
+		return false;
+	}
+
+	Factory->EnsureGlobalViewModel(*Definition);
 	TryBindInventoryViewModel();
+	SyncInventoryViewModelSourceFromPawn();
 	return InventoryViewModel != nullptr;
 #else
 	return false;
+#endif
+}
+
+void ASinglePlayController::SyncInventoryViewModelSourceFromPawn()
+{
+#if !UE_SERVER
+	UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel);
+	if (!InventoryVM)
+	{
+		return;
+	}
+
+	UObject* InventorySource = nullptr;
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		TInlineComponentArray<UActorComponent*> Components;
+		ControlledPawn->GetComponents(Components);
+		for (UActorComponent* Component : Components)
+		{
+			if (Component && Component->GetClass()->ImplementsInterface(UInventoryReadOnly::StaticClass()))
+			{
+				InventorySource = Component;
+				break;
+			}
+		}
+	}
+
+	InventoryVM->SetInventorySource(InventorySource);
 #endif
 }
 
@@ -663,44 +717,33 @@ void ASinglePlayController::HandleInteractAction(const FInputActionValue& Value)
 		if (Comp && Comp->Implements<UInteractionComponentInterface>())
 		{
 			AActor* FocusedActor = IInteractionComponentInterface::Execute_GetFocusedActor(Comp);
-			UObject* WorldContainerSource = ResolveWorldContainerSessionSource(FocusedActor);
-
-			IInteractionComponentInterface::Execute_TryInteract(Comp);
-
 #if !UE_SERVER
-			if (WorldContainerSource)
+			if (ResolveWorldContainerSessionSource(FocusedActor))
 			{
-				if (!EnsureInventoryViewModelReady())
-				{
-					UE_LOG(LogProjectSinglePlay, Warning,
-						TEXT("HandleInteractAction: inventory UI/view-model not ready for world container '%s'"),
-						*GetNameSafe(FocusedActor));
-					return;
-				}
-
-				if (UObject* InventoryBridgeObject = ResolveInventoryWorldContainerBridgeObject(ControlledPawn))
-				{
-					FText OpenError;
-					const bool bOpenRequested =
-						IInventoryWorldContainerTransferBridge::Execute_RequestOpenWorldContainerSession(
-							InventoryBridgeObject,
-							FocusedActor,
-							EContainerSessionMode::FullOpen,
-							OpenError);
-					if (!bOpenRequested && !OpenError.IsEmpty())
-					{
-						UE_LOG(LogProjectSinglePlay, Warning, TEXT("HandleInteractAction: world-container open rejected - %s"),
-							*OpenError.ToString());
-					}
-				}
-				else
-				{
-					UE_LOG(LogProjectSinglePlay, Warning,
-						TEXT("HandleInteractAction: no inventory world-container bridge on '%s'"),
-						*GetNameSafe(ControlledPawn));
-				}
+				EnsureInventoryViewModelReady();
 			}
 #endif
+			IInteractionComponentInterface::Execute_BeginInteractInput(Comp);
+			return;
+		}
+	}
+}
+
+void ASinglePlayController::HandleInteractReleasedAction(const FInputActionValue& Value)
+{
+	(void)Value;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
+	{
+		return;
+	}
+
+	for (UActorComponent* Comp : ControlledPawn->GetComponents())
+	{
+		if (Comp && Comp->Implements<UInteractionComponentInterface>())
+		{
+			IInteractionComponentInterface::Execute_EndInteractInput(Comp);
 			return;
 		}
 	}

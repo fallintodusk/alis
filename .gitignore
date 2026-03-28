@@ -122,6 +122,7 @@ scripts/config/ue_path.local.conf
 # --- Third-party handling ---
 # By default, Binaries/** rules ignore everything;
 # explicitly un-ignore ThirdParty so you can commit headers/libs you vendor.
+Plugins/Local/**
 !Plugins/**/ThirdParty/**
 !Source/**/ThirdParty/**
 

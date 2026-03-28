@@ -67,8 +67,8 @@ void UInteractionPromptViewModel::SubscribeToService()
 	}
 
 	// Use per-pawn filtered API - service handles event routing
-	Service->OnFocusChangedForPawn(Pawn).AddUObject(this, &UInteractionPromptViewModel::HandleFocusChanged);
-	UE_LOG(LogInteractionPromptVM, Log, TEXT("SubscribeToService: Subscribed via OnFocusChangedForPawn"));
+	Service->OnPromptStateChangedForPawn(Pawn).AddUObject(this, &UInteractionPromptViewModel::HandlePromptStateChanged);
+	UE_LOG(LogInteractionPromptVM, Log, TEXT("SubscribeToService: Subscribed via OnPromptStateChangedForPawn"));
 
 	// Sync with current state
 	PullInitialFocusState();
@@ -98,6 +98,8 @@ void UInteractionPromptViewModel::PullInitialFocusState()
 		return;
 	}
 
+	HandlePromptStateChanged(FInteractionPromptState());
+
 	// Find component implementing IInteractionComponentInterface
 	TInlineComponentArray<UActorComponent*> Components;
 	Pawn->GetComponents(Components);
@@ -105,41 +107,54 @@ void UInteractionPromptViewModel::PullInitialFocusState()
 	{
 		if (Comp->Implements<UInteractionComponentInterface>())
 		{
-			UPrimitiveComponent* FocusedComp = IInteractionComponentInterface::Execute_GetFocusedComponent(Comp);
-			if (FocusedComp)
-			{
-				FText Label = IInteractionComponentInterface::Execute_GetFocusedLabel(Comp);
-				HandleFocusChanged(FocusedComp, Label);
-				UE_LOG(LogInteractionPromptVM, Log, TEXT("PullInitialFocusState: Initial focus - Label='%s'"), *Label.ToString());
-			}
+			const FInteractionPromptState PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Comp);
+			HandlePromptStateChanged(PromptState);
 			break;
 		}
 	}
 }
 
-void UInteractionPromptViewModel::HandleFocusChanged(UPrimitiveComponent* FocusedComponent, FText Label)
+void UInteractionPromptViewModel::HandlePromptStateChanged(const FInteractionPromptState& State)
 {
-	// No filtering needed - service already filtered for our pawn
-
-	if (FocusedComponent)
+	if (State.IsVisible())
 	{
 		UpdatebHasFocus(true);
-		UpdateFocusLabel(Label);
+		UpdateFocusLabel(State.Label);
+		UpdatebShowProgress(State.bIsInProgress);
+		UpdateProgressPercent(FMath::Clamp(State.Progress, 0.0f, 1.0f));
 
-		FText Formatted = FText::Format(
-			NSLOCTEXT("Interaction", "PromptFormat", "[E] {0}"),
-			Label
-		);
+		FText Formatted;
+		if (State.bIsInProgress)
+		{
+			Formatted = State.Label;
+		}
+		else if (State.bRequiresHold)
+		{
+			Formatted = FText::Format(
+				NSLOCTEXT("Interaction", "HoldPromptFormat", "[Hold E] {0}"),
+				State.Label);
+		}
+		else
+		{
+			Formatted = FText::Format(
+				NSLOCTEXT("Interaction", "PromptFormat", "[E] {0}"),
+				State.Label);
+		}
 		UpdateFormattedPrompt(Formatted);
 
-		UE_LOG(LogInteractionPromptVM, Log, TEXT("HandleFocusChanged: FOCUS ON - Label='%s'"), *Label.ToString());
+		UE_LOG(LogInteractionPromptVM, Verbose, TEXT("HandlePromptStateChanged: Visible - Label='%s' Progress=%.2f InProgress=%s"),
+			*State.Label.ToString(),
+			State.Progress,
+			State.bIsInProgress ? TEXT("true") : TEXT("false"));
 	}
 	else
 	{
 		UpdatebHasFocus(false);
 		UpdateFocusLabel(FText::GetEmpty());
 		UpdateFormattedPrompt(FText::GetEmpty());
+		UpdatebShowProgress(false);
+		UpdateProgressPercent(0.0f);
 
-		UE_LOG(LogInteractionPromptVM, Log, TEXT("HandleFocusChanged: FOCUS OFF"));
+		UE_LOG(LogInteractionPromptVM, Verbose, TEXT("HandlePromptStateChanged: Hidden"));
 	}
 }

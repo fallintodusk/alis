@@ -213,6 +213,15 @@ FText UPickupCapabilityComponent::GetInteractionLabel_Implementation() const
 	return NSLOCTEXT("PickupCapability", "PickupLabel", "Pick up");
 }
 
+FInteractionExecutionSpec UPickupCapabilityComponent::GetInteractionExecutionSpec_Implementation(AActor* Instigator) const
+{
+	FInteractionExecutionSpec Spec;
+	Spec.DurationSeconds = FMath::Max(0.0f, PickupTime);
+	Spec.ActiveLabel = NSLOCTEXT("PickupCapability", "PickingUpLabel", "Picking up...");
+	Spec.bCancelOnRelease = true;
+	return Spec;
+}
+
 void UPickupCapabilityComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

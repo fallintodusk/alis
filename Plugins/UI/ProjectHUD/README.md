@@ -14,6 +14,8 @@ Scope
 - ProjectHUD owns only HUD slot containers and the HUD layout widget.
 - Overlay panels (Inventory, VitalsPanel, menus) are not HUD slots.
 - Overlay panels are shown via ProjectUI layer host (ShowDefinition/HideDefinition).
+- Interaction prompt progress is part of the shared HUD prompt path, not a
+  feature-specific inventory widget.
 
 Framework consolidation rules
 - Keep `W_HUDLayout` as a composition host only.
@@ -71,6 +73,8 @@ Add `Config/UI/ui_definitions.json` with a slot entry:
 2. **Factory sizing rules** - Slot sizing is enforced in ProjectUI factory
 3. **ViewModel Outer = Widget** - VM lifecycle tied to widget, not layout
 4. **Thin layout** - W_HUDLayout is slot hosting only
+5. **Timed interaction prompt lives here** - hold progress for search/open flows
+   is rendered by the shared interaction prompt widget and ProjectUI primitives
 
 ## Files
 
@@ -86,3 +90,8 @@ Add `Config/UI/ui_definitions.json` with a slot entry:
 ## SOT
 
 `todo/current/gas_ui_mechanics.md` (Phase 10)
+
+Related behavior docs
+- Interaction flow: `Plugins/Gameplay/ProjectInteraction/README.md`
+- Inventory/world-storage behavior:
+  `Plugins/Features/ProjectInventory/docs/design_vision.md`

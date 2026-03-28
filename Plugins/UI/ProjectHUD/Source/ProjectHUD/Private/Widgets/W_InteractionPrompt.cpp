@@ -6,6 +6,7 @@
 #include "Layout/ProjectWidgetLayoutLoader.h"
 #include "ProjectWidgetHelpers.h"
 #include "Subsystems/ProjectUIDebugSubsystem.h"
+#include "Widgets/ProjectRadialProgress.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInteractionPrompt, Log, All);
 
@@ -23,6 +24,7 @@ void UW_InteractionPrompt::NativeConstruct()
 	if (RootWidget)
 	{
 		PromptText = UProjectWidgetHelpers::FindWidgetByNameTyped<UTextBlock>(RootWidget, TEXT("PromptText"));
+		PromptProgress = UProjectWidgetHelpers::FindWidgetByNameTyped<UProjectRadialProgress>(RootWidget, TEXT("PromptProgress"));
 		UE_LOG(LogInteractionPrompt, Log, TEXT("NativeConstruct: RootWidget=%s PromptText=%s"),
 			*RootWidget->GetName(),
 			PromptText.IsValid() ? *PromptText->GetName() : TEXT("NOT FOUND"));
@@ -81,7 +83,10 @@ void UW_InteractionPrompt::SetInteractionViewModel(UInteractionPromptViewModel* 
 void UW_InteractionPrompt::HandleViewModelPropertyChanged(FName PropertyName)
 {
 	// Refresh on any relevant property change
-	if (PropertyName == TEXT("bHasFocus") || PropertyName == TEXT("FormattedPrompt"))
+	if (PropertyName == TEXT("bHasFocus")
+		|| PropertyName == TEXT("FormattedPrompt")
+		|| PropertyName == TEXT("bShowProgress")
+		|| PropertyName == TEXT("ProgressPercent"))
 	{
 		RefreshFromViewModel();
 	}
@@ -104,6 +109,14 @@ void UW_InteractionPrompt::RefreshFromViewModel()
 		{
 			PromptText->SetText(InteractionVM->GetFormattedPrompt());
 		}
+		if (PromptProgress.IsValid())
+		{
+			PromptProgress->SetPercent(InteractionVM->GetProgressPercent());
+			PromptProgress->SetVisibility(
+				InteractionVM->GetbShowProgress()
+					? ESlateVisibility::Visible
+					: ESlateVisibility::Collapsed);
+		}
 		SetVisibility(ESlateVisibility::HitTestInvisible);
 
 		PROJECT_UI_DEBUG(Info, TEXT("InteractionPrompt SHOW: Label='%s'"),
@@ -112,6 +125,11 @@ void UW_InteractionPrompt::RefreshFromViewModel()
 	else
 	{
 		// Hide prompt
+		if (PromptProgress.IsValid())
+		{
+			PromptProgress->SetVisibility(ESlateVisibility::Collapsed);
+			PromptProgress->SetPercent(0.0f);
+		}
 		SetVisibility(ESlateVisibility::Collapsed);
 	}
 }

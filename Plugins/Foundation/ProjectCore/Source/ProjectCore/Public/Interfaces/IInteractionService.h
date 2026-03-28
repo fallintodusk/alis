@@ -36,6 +36,38 @@ DECLARE_MULTICAST_DELEGATE_FourParams(FInteractionFocusDelegate, APawn*, AActor*
 DECLARE_MULTICAST_DELEGATE_TwoParams(FInteractionFocusFilteredDelegate, UPrimitiveComponent*, FText);
 
 /**
+ * HUD-facing prompt state for the current focused interaction.
+ * Owned by ProjectInteraction, consumed by ProjectHUD.
+ */
+USTRUCT(BlueprintType)
+struct PROJECTCORE_API FInteractionPromptState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHasFocus = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FText Label;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bRequiresHold = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsInProgress = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Progress = 0.0f;
+
+	bool IsVisible() const
+	{
+		return bHasFocus && !Label.IsEmpty();
+	}
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FInteractionPromptStateFilteredDelegate, const FInteractionPromptState&);
+
+/**
  * IInteractionComponent
  *
  * Interface for interaction detection components.
@@ -67,6 +99,14 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	bool TryInteract();
 
+	/** Begin the interact input lifecycle (press/hold path). */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	bool BeginInteractInput();
+
+	/** End the interact input lifecycle (release/cancel path). */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	void EndInteractInput();
+
 	/** Get currently focused actor */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	AActor* GetFocusedActor() const;
@@ -82,6 +122,10 @@ public:
 	/** Get current interaction label (for HUD initial state) */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	FText GetFocusedLabel() const;
+
+	/** Get current HUD-facing prompt state (for initial sync and tests). */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	FInteractionPromptState GetInteractionPromptState() const;
 };
 
 /**
@@ -123,6 +167,9 @@ public:
 	 */
 	virtual FInteractionFocusFilteredDelegate& OnFocusChangedForPawn(APawn* Pawn) = 0;
 
+	/** Subscribe to HUD-facing prompt state for a specific pawn. */
+	virtual FInteractionPromptStateFilteredDelegate& OnPromptStateChangedForPawn(APawn* Pawn) = 0;
+
 	/**
 	 * Unsubscribe from per-pawn focus events.
 	 * Call when ViewModel shuts down to clean up.
@@ -136,4 +183,7 @@ public:
 	 * Routes to global OnFocusChanged() and per-pawn delegates.
 	 */
 	virtual void BroadcastFocusChanged(APawn* Instigator, AActor* FocusedActor, UPrimitiveComponent* FocusedComponent, FText Label) = 0;
+
+	/** Broadcast prompt state. Called by InteractionComponent. */
+	virtual void BroadcastPromptState(APawn* Instigator, const FInteractionPromptState& State) = 0;
 };

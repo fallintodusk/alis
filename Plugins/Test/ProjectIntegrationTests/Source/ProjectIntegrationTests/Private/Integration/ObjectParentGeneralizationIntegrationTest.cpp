@@ -1009,6 +1009,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	"ProjectIntegrationTests.ObjectParentGeneralization.Interaction.ActorInterfaceExecution",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FObjectParentGeneralization_TimedInteractionPromptProgressTest,
+	"ProjectIntegrationTests.ObjectParentGeneralization.Interaction.TimedPromptProgress",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FObjectParentGeneralization_ActorTimedInteractionWithoutHighlightComponentTest,
+	"ProjectIntegrationTests.ObjectParentGeneralization.Interaction.ActorTimedPromptWithoutHighlightComponent",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FObjectParentGeneralization_ActorInterfaceFallbackExecutionSpecTest,
+	"ProjectIntegrationTests.ObjectParentGeneralization.Interaction.ActorInterfaceFallsBackToComponentExecutionSpec",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
 bool FObjectParentGeneralization_InteractionActorInterfaceExecutionTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = OPG_ResolveAutomationTestWorld();
@@ -1043,10 +1058,15 @@ bool FObjectParentGeneralization_InteractionActorInterfaceExecutionTest::RunTest
 		return false;
 	}
 
-	UProjectInteractionCounterCapabilityComponent* FallbackComponent =
-		NewObject<UProjectInteractionCounterCapabilityComponent>(Target, TEXT("FallbackCapability"));
-	Target->AddInstanceComponent(FallbackComponent);
-	FallbackComponent->RegisterComponent();
+	UProjectInteractionCounterCapabilityComponent* FallbackComponent = Target->FallbackCapability;
+	TestNotNull(TEXT("Actor-interface target should include fallback capability"), FallbackComponent);
+	if (!FallbackComponent)
+	{
+		Target->Destroy();
+		Pawn->Destroy();
+		return false;
+	}
+
 	FallbackComponent->InteractionLabel = FText::FromString(TEXT("Fallback"));
 	FallbackComponent->InteractPriority = 999;
 	IInteractableComponentTargetInterface::Execute_SetInteractTargetMesh(FallbackComponent, Target->TestMesh);
@@ -1068,6 +1088,207 @@ bool FObjectParentGeneralization_InteractionActorInterfaceExecutionTest::RunTest
 	TestEqual(TEXT("Actor OnInteract should execute exactly once"), Target->OnInteractCallCount, 1);
 	TestEqual(TEXT("Fallback component should not execute when actor interface exists"), FallbackComponent->InteractionCallCount, 0);
 	TestTrue(TEXT("Actor interface should receive pawn instigator"), Target->LastInstigator == Pawn);
+
+	Target->Destroy();
+	Pawn->Destroy();
+	return true;
+}
+
+bool FObjectParentGeneralization_TimedInteractionPromptProgressTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = OPG_ResolveAutomationTestWorld();
+	TestNotNull(TEXT("Automation world should be available"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APawn* Pawn = World->SpawnActor<APawn>(APawn::StaticClass(), FTransform::Identity);
+	TestNotNull(TEXT("Pawn should spawn"), Pawn);
+	if (!Pawn)
+	{
+		return false;
+	}
+
+	UInteractionComponent* Interaction = NewObject<UInteractionComponent>(Pawn, TEXT("TimedPromptInteraction"));
+	Pawn->AddInstanceComponent(Interaction);
+	Interaction->RegisterComponent();
+
+	AActor* Target = World->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
+	TestNotNull(TEXT("Target should spawn"), Target);
+	if (!Target)
+	{
+		Pawn->Destroy();
+		return false;
+	}
+
+	USceneComponent* Root = NewObject<USceneComponent>(Target, TEXT("Root"));
+	Target->SetRootComponent(Root);
+	Target->AddInstanceComponent(Root);
+	Root->RegisterComponent();
+
+	UStaticMeshComponent* HitMesh = NewObject<UStaticMeshComponent>(Target, TEXT("HitMesh"));
+	HitMesh->SetupAttachment(Root);
+	Target->AddInstanceComponent(HitMesh);
+	HitMesh->RegisterComponent();
+
+	UProjectInteractionCounterCapabilityComponent* TimedCapability =
+		NewObject<UProjectInteractionCounterCapabilityComponent>(Target, TEXT("TimedCapability"));
+	Target->AddInstanceComponent(TimedCapability);
+	TimedCapability->RegisterComponent();
+	TimedCapability->InteractionLabel = FText::FromString(TEXT("Search"));
+	TimedCapability->ActiveInteractionLabel = FText::FromString(TEXT("Searching..."));
+	TimedCapability->HoldDurationSeconds = 3.0f;
+	IInteractableComponentTargetInterface::Execute_SetInteractTargetMesh(TimedCapability, HitMesh);
+
+	Interaction->TestOnly_SetFocusedActor(Target, HitMesh);
+
+	FInteractionPromptState PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Timed prompt should report focus"), PromptState.bHasFocus);
+	TestTrue(TEXT("Timed prompt should require hold"), PromptState.bRequiresHold);
+	TestFalse(TEXT("Timed prompt should not start in progress"), PromptState.bIsInProgress);
+	TestEqual(TEXT("Timed prompt should use base label before hold"), PromptState.Label.ToString(), FString(TEXT("Search")));
+
+	TestTrue(TEXT("BeginInteractInput should start timed interaction"), IInteractionComponentInterface::Execute_BeginInteractInput(Interaction));
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Timed prompt should be in progress after hold starts"), PromptState.bIsInProgress);
+	TestEqual(TEXT("Timed prompt should use active label during hold"), PromptState.Label.ToString(), FString(TEXT("Searching...")));
+
+	World->Tick(ELevelTick::LEVELTICK_All, 1.5f);
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Timed prompt should still be in progress mid-hold"), PromptState.bIsInProgress);
+	TestTrue(TEXT("Timed prompt progress should advance"), PromptState.Progress > 0.0f);
+	TestTrue(TEXT("Timed prompt progress should remain incomplete mid-hold"), PromptState.Progress < 1.0f);
+
+	IInteractionComponentInterface::Execute_EndInteractInput(Interaction);
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestFalse(TEXT("Timed prompt should cancel on release"), PromptState.bIsInProgress);
+	TestEqual(TEXT("Timed prompt should restore base label after cancel"), PromptState.Label.ToString(), FString(TEXT("Search")));
+	TestEqual(TEXT("Timed prompt progress should reset after cancel"), PromptState.Progress, 0.0f);
+
+	Target->Destroy();
+	Pawn->Destroy();
+	return true;
+}
+
+bool FObjectParentGeneralization_ActorTimedInteractionWithoutHighlightComponentTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = OPG_ResolveAutomationTestWorld();
+	TestNotNull(TEXT("Automation world should be available"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APawn* Pawn = World->SpawnActor<APawn>(APawn::StaticClass(), FTransform::Identity);
+	TestNotNull(TEXT("Pawn should spawn"), Pawn);
+	if (!Pawn)
+	{
+		return false;
+	}
+
+	UInteractionComponent* Interaction = NewObject<UInteractionComponent>(Pawn, TEXT("ActorTimedPromptInteraction"));
+	Pawn->AddInstanceComponent(Interaction);
+	Interaction->RegisterComponent();
+
+	AProjectInteractionActorInterfaceTestActor* Target = World->SpawnActor<AProjectInteractionActorInterfaceTestActor>(
+		AProjectInteractionActorInterfaceTestActor::StaticClass(),
+		FTransform::Identity);
+	TestNotNull(TEXT("Actor-interface target should spawn"), Target);
+	if (!Target)
+	{
+		Pawn->Destroy();
+		return false;
+	}
+
+	Target->HoldDurationSeconds = 3.0f;
+	Target->ActiveInteractionLabel = FText::FromString(TEXT("Searching..."));
+	Target->bReturnHighlightMesh = false;
+
+	Interaction->TestOnly_SetFocusedActor(Target, nullptr);
+
+	FInteractionPromptState PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Actor-timed prompt should report focus"), PromptState.bHasFocus);
+	TestTrue(TEXT("Actor-timed prompt should require hold"), PromptState.bRequiresHold);
+	TestFalse(TEXT("Actor-timed prompt should not start in progress"), PromptState.bIsInProgress);
+	TestNull(TEXT("Actor-timed prompt should allow actor-only focus with no highlight component"), Interaction->GetFocusedComponent_Implementation());
+
+	TestTrue(TEXT("BeginInteractInput should start actor-level timed interaction"), IInteractionComponentInterface::Execute_BeginInteractInput(Interaction));
+	World->Tick(ELevelTick::LEVELTICK_All, 1.5f);
+
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Actor-timed prompt should remain in progress mid-hold"), PromptState.bIsInProgress);
+	TestTrue(TEXT("Actor-timed prompt progress should advance"), PromptState.Progress > 0.0f);
+	TestTrue(TEXT("Actor-timed prompt progress should remain incomplete mid-hold"), PromptState.Progress < 1.0f);
+
+	IInteractionComponentInterface::Execute_EndInteractInput(Interaction);
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestFalse(TEXT("Actor-timed prompt should cancel on release"), PromptState.bIsInProgress);
+	TestEqual(TEXT("Actor-timed prompt should restore base label after cancel"), PromptState.Label.ToString(), FString(TEXT("ActorInterface")));
+
+	Target->Destroy();
+	Pawn->Destroy();
+	return true;
+}
+
+bool FObjectParentGeneralization_ActorInterfaceFallbackExecutionSpecTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = OPG_ResolveAutomationTestWorld();
+	TestNotNull(TEXT("Automation world should be available"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APawn* Pawn = World->SpawnActor<APawn>(APawn::StaticClass(), FTransform::Identity);
+	TestNotNull(TEXT("Pawn should spawn"), Pawn);
+	if (!Pawn)
+	{
+		return false;
+	}
+
+	UInteractionComponent* Interaction = NewObject<UInteractionComponent>(Pawn, TEXT("ActorInterfaceFallbackInteraction"));
+	Pawn->AddInstanceComponent(Interaction);
+	Interaction->RegisterComponent();
+
+	AProjectInteractionActorInterfaceTestActor* Target = World->SpawnActor<AProjectInteractionActorInterfaceTestActor>(
+		AProjectInteractionActorInterfaceTestActor::StaticClass(),
+		FTransform::Identity);
+	TestNotNull(TEXT("Actor-interface fallback target should spawn"), Target);
+	if (!Target || !Target->TestMesh || !Target->FallbackCapability)
+	{
+		if (Target)
+		{
+			Target->Destroy();
+		}
+		Pawn->Destroy();
+		return false;
+	}
+
+	Target->bReturnValidFocus = false;
+	Target->HoldDurationSeconds = 0.0f;
+	Target->ActiveInteractionLabel = FText::FromString(TEXT("ActorImmediate"));
+	Target->FallbackCapability->InteractionLabel = FText::FromString(TEXT("FallbackSearch"));
+	Target->FallbackCapability->ActiveInteractionLabel = FText::FromString(TEXT("FallbackSearching..."));
+	Target->FallbackCapability->HoldDurationSeconds = 2.0f;
+	IInteractableComponentTargetInterface::Execute_SetInteractTargetMesh(Target->FallbackCapability, Target->TestMesh);
+
+	Interaction->TestOnly_SetFocusedActor(Target, Target->TestMesh);
+
+	FInteractionPromptState PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Fallback actor prompt should report focus"), PromptState.bHasFocus);
+	TestTrue(TEXT("Fallback actor prompt should require hold from component execution spec"), PromptState.bRequiresHold);
+	TestEqual(TEXT("Fallback actor prompt should use component label"), PromptState.Label.ToString(), FString(TEXT("FallbackSearch")));
+
+	TestTrue(TEXT("BeginInteractInput should start fallback timed interaction"), IInteractionComponentInterface::Execute_BeginInteractInput(Interaction));
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Fallback actor prompt should enter progress state"), PromptState.bIsInProgress);
+	TestEqual(TEXT("Fallback actor prompt should use component active label"), PromptState.Label.ToString(), FString(TEXT("FallbackSearching...")));
+
+	IInteractionComponentInterface::Execute_EndInteractInput(Interaction);
+	PromptState = IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestFalse(TEXT("Fallback actor prompt should cancel on release"), PromptState.bIsInProgress);
+	TestEqual(TEXT("Fallback actor prompt should restore component label after cancel"), PromptState.Label.ToString(), FString(TEXT("FallbackSearch")));
 
 	Target->Destroy();
 	Pawn->Destroy();

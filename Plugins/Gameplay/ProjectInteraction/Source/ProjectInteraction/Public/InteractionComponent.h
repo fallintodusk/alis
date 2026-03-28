@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Interfaces/IInteractableTarget.h"
 #include "Interfaces/IInteractionService.h"
 #include "Engine/PostProcessVolume.h"
 #include "InteractionComponent.generated.h"
@@ -34,10 +35,13 @@ public:
 
 	//~ IInteractionComponentInterface
 	virtual bool TryInteract_Implementation() override;
+	virtual bool BeginInteractInput_Implementation() override;
+	virtual void EndInteractInput_Implementation() override;
 	virtual AActor* GetFocusedActor_Implementation() const override { return FocusedActor.Get(); }
 	virtual bool HasFocusedActor_Implementation() const override { return FocusedActor.IsValid(); }
 	virtual UPrimitiveComponent* GetFocusedComponent_Implementation() const override { return FocusedComponent.Get(); }
 	virtual FText GetFocusedLabel_Implementation() const override { return FocusedLabel; }
+	virtual FInteractionPromptState GetInteractionPromptState_Implementation() const override;
 
 	// -------------------------------------------------------------------------
 	// Server-Authoritative Interaction
@@ -104,8 +108,14 @@ public:
 	TSoftObjectPtr<UMaterialInterface> OutlineMaterial;
 
 private:
+	void DrawInteractionDebugTraceOnInput();
+
 	/** Broadcast focus change through IInteractionService (for HUD prompts). */
 	void BroadcastFocusChangedToService();
+	void BroadcastPromptStateToService() const;
+	FInteractionPromptState BuildPromptState() const;
+	void CancelHoldInteraction();
+	void CompleteHoldInteraction();
 	/**
 	 * Server-authoritative interaction execution.
 	 * Re-traces to find target, validates, then broadcasts.
@@ -122,6 +132,9 @@ private:
 	/** Current interaction label (e.g., "Open", "Close", "Interact") */
 	FText FocusedLabel;
 
+	/** Current interaction execution behavior for the focused target. */
+	FInteractionExecutionSpec FocusedExecutionSpec;
+
 	/** Cached trace start (updated each tick) */
 	FVector TraceStart;
 
@@ -130,6 +143,19 @@ private:
 
 	/** Frame counter for trace interval */
 	int32 FrameCounter = 0;
+
+	/** True while interact input is held for a timed interaction. */
+	bool bHoldInteractionActive = false;
+
+	/** Current timed interaction progress (0..1). */
+	float HoldInteractionProgress = 0.0f;
+
+	/** World time when the current timed interaction started. */
+	float HoldInteractionStartTime = 0.0f;
+
+	/** Focus captured when the current timed interaction started. */
+	TWeakObjectPtr<AActor> HoldTargetActor;
+	TWeakObjectPtr<UPrimitiveComponent> HoldTargetComponent;
 
 	/** Setup post-process material on camera */
 	void SetupPostProcess();

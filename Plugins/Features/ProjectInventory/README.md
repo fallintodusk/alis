@@ -25,11 +25,15 @@ Runtime scope
 - Applies use magnitudes and equip ability grants through ProjectGAS.
 
 Current implementation notes
-- Depth stacking from the behavior SOT is not implemented yet; see the tracker above.
+- Depth stacking and drag-time rotation from the behavior SOT are implemented;
+  use the tracker above only as a completion router.
 - World storage uses canonical `sections.storage` authoring and
   `IWorldContainerSessionSource` runtime flow.
 - Nearby world containers now open inside the existing inventory screen with
-  bidirectional move and `Take All`.
+  a distinct right-side panel, bidirectional move, and `Take All`.
+- Search timing belongs to the world interaction capability, not inventory UI.
+- Empty persistent world containers stay usable for store-back flows; they do
+  not auto-collapse or auto-destroy on empty.
 
 Current integration routes
 - pickup:

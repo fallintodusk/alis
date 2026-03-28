@@ -260,6 +260,17 @@ FInteractionFocusInfo AInteractableActor::GetFocusInfo_Implementation(UPrimitive
 	return Result;
 }
 
+FInteractionExecutionSpec AInteractableActor::GetInteractionExecutionSpec_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent) const
+{
+	UActorComponent* TargetCapability = SelectBestInteractableComponentForHit(CachedInteractableComponents, HitComponent);
+	if (!TargetCapability)
+	{
+		return FInteractionExecutionSpec();
+	}
+
+	return IInteractableComponentTargetInterface::Execute_GetInteractionExecutionSpec(TargetCapability, InteractInstigator);
+}
+
 void AInteractableActor::RefreshInteractableComponents()
 {
 	CacheInteractableComponents();

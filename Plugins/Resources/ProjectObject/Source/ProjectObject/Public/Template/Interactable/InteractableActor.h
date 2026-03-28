@@ -45,6 +45,7 @@ public:
 	// --- IInteractableTargetInterface ---
 	virtual bool OnInteract_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent) override;
 	virtual FInteractionFocusInfo GetFocusInfo_Implementation(UPrimitiveComponent* HitComponent) const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent) const override;
 
 	// --- IDefinitionApplicable ---
 	virtual bool ApplyDefinition_Implementation(UPrimaryDataAsset* Definition) override;

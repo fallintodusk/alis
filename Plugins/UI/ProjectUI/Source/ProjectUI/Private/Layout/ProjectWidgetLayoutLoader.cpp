@@ -23,6 +23,7 @@
 #include "Components/ComboBoxString.h"
 #include "Components/CheckBox.h"
 #include "Components/Slider.h"
+#include "Widgets/ProjectRadialProgress.h"
 #include "Effects/ProjectEffectWidget.h"
 #include "Dialogs/ProjectDialogWidget.h"
 
@@ -57,6 +58,7 @@ namespace LayoutPropertyAppliers
 	void ApplyTextBlockProperties(UTextBlock* TextBlock, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
 	void ApplyImageProperties(UImage* Image, const TSharedPtr<FJsonObject>& JsonObject);
 	void ApplyProgressBarProperties(UProgressBar* ProgressBar, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
+	void ApplyRadialProgressProperties(UProjectRadialProgress* RadialProgress, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
 	void ApplyBorderProperties(UBorder* Border, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
 	void ApplyEffectProperties(class UProjectEffectWidget* Effect, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
 	void ApplyComboBoxProperties(UComboBoxString* ComboBox, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
@@ -190,6 +192,10 @@ void UProjectWidgetLayoutLoader::ApplyWidgetProperties(UWidget* Widget, const TS
 	else if (UProgressBar* ProgressBar = Cast<UProgressBar>(Widget))
 	{
 		LayoutPropertyAppliers::ApplyProgressBarProperties(ProgressBar, JsonObject, Theme);
+	}
+	else if (UProjectRadialProgress* RadialProgress = Cast<UProjectRadialProgress>(Widget))
+	{
+		LayoutPropertyAppliers::ApplyRadialProgressProperties(RadialProgress, JsonObject, Theme);
 	}
 	else if (UBorder* Border = Cast<UBorder>(Widget))
 	{
@@ -537,6 +543,11 @@ void UProjectWidgetLayoutLoader::ApplyImageProperties(UImage* Image, const TShar
 void UProjectWidgetLayoutLoader::ApplyProgressBarProperties(UProgressBar* ProgressBar, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme)
 {
 	LayoutPropertyAppliers::ApplyProgressBarProperties(ProgressBar, JsonObject, Theme);
+}
+
+void UProjectWidgetLayoutLoader::ApplyRadialProgressProperties(UProjectRadialProgress* RadialProgress, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme)
+{
+	LayoutPropertyAppliers::ApplyRadialProgressProperties(RadialProgress, JsonObject, Theme);
 }
 
 void UProjectWidgetLayoutLoader::ApplyButtonVariantStyle(UButton* Button, const FString& Variant, UProjectUIThemeData* Theme)

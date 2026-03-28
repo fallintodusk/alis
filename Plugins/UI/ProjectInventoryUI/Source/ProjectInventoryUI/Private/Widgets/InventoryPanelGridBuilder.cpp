@@ -370,13 +370,11 @@ void FInventoryPanelGridBuilder::UpdateGridTexts(
 	const TArray<FText>& CellTexts,
 	TArray<TObjectPtr<UTextBlock>>& CellWidgets)
 {
-	// Lazy-resolve fonts (can be called before NativeConstruct/Initialize)
+	// Lazy-resolve fonts (can be called before NativeConstruct/Initialize).
+	// Never skip text assignment entirely here: the widget tree may rebuild
+	// before the icon font is fully resolved, and dropping the update leaves
+	// grids visually blank even though the ViewModel has valid cell data.
 	EnsureFontsResolved();
-	if (!bFontsResolved)
-	{
-		// FontsDir not ready yet (module not started). Skip - will be called again after Initialize.
-		return;
-	}
 
 	// Icon font sized to ~80% of cell content area (cell - 2*(padding + gridline))
 	const float ContentArea = CellSize - 10.f;

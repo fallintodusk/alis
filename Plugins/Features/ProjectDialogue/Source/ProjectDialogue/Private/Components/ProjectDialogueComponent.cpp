@@ -90,6 +90,12 @@ FText UProjectDialogueComponent::GetInteractionLabel_Implementation() const
 	return NSLOCTEXT("Dialogue", "InteractLabel", "Talk");
 }
 
+FInteractionExecutionSpec UProjectDialogueComponent::GetInteractionExecutionSpec_Implementation(AActor* InInstigator) const
+{
+	(void)InInstigator;
+	return FInteractionExecutionSpec();
+}
+
 void UProjectDialogueComponent::StartConversation()
 {
 	if (bInConversation)

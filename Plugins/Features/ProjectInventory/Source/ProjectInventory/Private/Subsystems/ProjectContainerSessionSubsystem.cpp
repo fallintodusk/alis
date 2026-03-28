@@ -50,8 +50,12 @@ bool UProjectContainerSessionSubsystem::OpenWorldContainerSession(
 	AActor* Instigator = ResolveSessionInstigator();
 	if (!Instigator)
 	{
-		OutError = NSLOCTEXT("ProjectContainerSessionSubsystem", "MissingInstigator", "A local player controller or pawn is required to open a container session.");
-		return false;
+		Instigator = TargetActor;
+		UE_LOG(
+			LogProjectContainerSessionSubsystem,
+			Verbose,
+			TEXT("OpenWorldContainerSession: no local player controller or pawn; using target actor %s as fallback instigator"),
+			*GetNameSafe(TargetActor));
 	}
 
 	UObject* SourceObject = ResolveSessionSource(TargetActor);
@@ -407,7 +411,30 @@ AActor* UProjectContainerSessionSubsystem::ResolveSessionInstigator() const
 		return nullptr;
 	}
 
-	APlayerController* PlayerController = LocalPlayer->GetPlayerController(GetWorld());
+	const UWorld* PreferredWorld = LocalPlayer->GetWorld();
+	if (!PreferredWorld)
+	{
+		PreferredWorld = GetWorld();
+	}
+
+	APlayerController* PlayerController = LocalPlayer->GetPlayerController(PreferredWorld);
+	if (!PlayerController)
+	{
+		if (PreferredWorld)
+		{
+			for (FConstPlayerControllerIterator It = PreferredWorld->GetPlayerControllerIterator(); It; ++It)
+			{
+				if (APlayerController* Candidate = It->Get())
+				{
+					if (Candidate->GetLocalPlayer() == LocalPlayer)
+					{
+						PlayerController = Candidate;
+						break;
+					}
+				}
+			}
+		}
+	}
 	if (PlayerController)
 	{
 		if (APawn* PlayerPawn = PlayerController->GetPawn())

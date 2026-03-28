@@ -28,6 +28,7 @@ void UProjectHotReloadManager::Initialize(FSubsystemCollectionBase& Collection)
 		TEXT("TextBlock"),
 		TEXT("Image"),
 		TEXT("ProgressBar"),
+		TEXT("RadialProgress"),
 		TEXT("EditableText"),
 		TEXT("ListView"),
 		TEXT("Spacer"),
@@ -35,6 +36,8 @@ void UProjectHotReloadManager::Initialize(FSubsystemCollectionBase& Collection)
 		TEXT("ComboBox"),
 		TEXT("CheckBox"),
 		TEXT("Slider"),
+		TEXT("SizeBox"),
+		TEXT("ScrollBox"),
 		TEXT("FireSparks"),
 		TEXT("Dialog")
 	};
@@ -270,6 +273,41 @@ int32 UProjectHotReloadManager::ValidateJsonObject(const TSharedPtr<FJsonObject>
 			{
 				OutWarnings.Add(FString::Printf(TEXT("ProgressBar percent out of range: %.2f (should be 0.0-1.0)"), Percent));
 			}
+		}
+	}
+	else if (Type == TEXT("RadialProgress"))
+	{
+		FString ColorName;
+		if (JsonObject->TryGetStringField(TEXT("fillColor"), ColorName) && Theme)
+		{
+			if (!IsValidThemeColor(ColorName, Theme))
+			{
+				OutWarnings.Add(FString::Printf(TEXT("Unknown theme color: '%s' (will fallback to white)"), *ColorName));
+			}
+		}
+
+		FString TrackColorName;
+		if (JsonObject->TryGetStringField(TEXT("trackColor"), TrackColorName) && Theme)
+		{
+			if (!IsValidThemeColor(TrackColorName, Theme))
+			{
+				OutWarnings.Add(FString::Printf(TEXT("Unknown theme color: '%s' (will fallback to white)"), *TrackColorName));
+			}
+		}
+
+		double Percent = 0.0;
+		if (JsonObject->TryGetNumberField(TEXT("percent"), Percent))
+		{
+			if (Percent < 0.0 || Percent > 1.0)
+			{
+				OutWarnings.Add(FString::Printf(TEXT("RadialProgress percent out of range: %.2f (should be 0.0-1.0)"), Percent));
+			}
+		}
+
+		double Thickness = 0.0;
+		if (JsonObject->TryGetNumberField(TEXT("thickness"), Thickness) && Thickness < 1.0)
+		{
+			OutWarnings.Add(FString::Printf(TEXT("RadialProgress thickness too small: %.2f (minimum 1.0)"), Thickness));
 		}
 	}
 

@@ -35,6 +35,33 @@ struct PROJECTCORE_API FInteractionPrompt
 };
 
 /**
+ * Optional execution timing for an interaction.
+ * Default/zero-initialized state means immediate interaction.
+ */
+USTRUCT(BlueprintType)
+struct PROJECTCORE_API FInteractionExecutionSpec
+{
+	GENERATED_BODY()
+
+	/** Time the player must hold interact before execution. <= 0 = immediate. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DurationSeconds = 0.0f;
+
+	/** Label shown while the timed interaction is progressing. Empty = reuse base interaction label. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FText ActiveLabel;
+
+	/** If true, releasing the interact key before completion cancels the interaction. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCancelOnRelease = true;
+
+	bool RequiresHold() const
+	{
+		return DurationSeconds > KINDA_SMALL_NUMBER;
+	}
+};
+
+/**
  * Focus info returned by actor when player looks at a component.
  * Allows actor to control highlighting/labeling without exposing capability internals.
  */
@@ -94,6 +121,16 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	FInteractionFocusInfo GetFocusInfo(UPrimitiveComponent* HitComponent) const;
+
+	/**
+	 * Optional execution timing for actor-level interaction.
+	 *
+	 * Actors that route interaction through internal capability selection should forward
+	 * this to the selected capability for the current hit component.
+	 * Default: immediate interaction (DurationSeconds <= 0).
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	FInteractionExecutionSpec GetInteractionExecutionSpec(AActor* Instigator, UPrimitiveComponent* HitComponent) const;
 };
 
 /**
@@ -166,6 +203,15 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	FText GetInteractionLabel() const;
+
+	/**
+	 * Optional execution timing for this interaction.
+	 *
+	 * Default: immediate interaction (DurationSeconds <= 0).
+	 * Timed interactions are owned by ProjectInteraction and surfaced through HUD prompt state.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	FInteractionExecutionSpec GetInteractionExecutionSpec(AActor* Instigator) const;
 
 	/**
 	 * Optional explicit target mesh for this capability.

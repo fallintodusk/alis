@@ -16,7 +16,9 @@
 #include "Widgets/InventoryPanelState.h"
 #include "ProjectGameplayTags.h"
 #include "ProjectWidgetHelpers.h"
+#include "Layout/ProjectWidgetLayoutLoader.h"
 #include "Dialogs/ProjectDialogWidget.h"
+#include "Widgets/ProjectRadialProgress.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -26,6 +28,13 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
+#include "Input/HittestGrid.h"
+#include "Layout/Geometry.h"
+#include "Rendering/DrawElements.h"
+#include "Styling/WidgetStyle.h"
+#include "Types/PaintArgs.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/SNullWidget.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -332,6 +341,111 @@ bool FProjectUIPopupAndTooltipLifecycleTest::RunTest(const FString& Parameters)
 	TooltipPresenter.Hide();
 	TestFalse(TEXT("Tooltip presenter hidden after Hide"), TooltipPresenter.IsVisible());
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectUIRadialProgressJsonLayoutTest,
+	"ProjectIntegrationTests.UI.Framework.LayoutLoader.RadialProgressJson",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter
+)
+
+bool FProjectUIRadialProgressJsonLayoutTest::RunTest(const FString& Parameters)
+{
+	UProjectDialogWidget* Owner = NewObject<UProjectDialogWidget>(GetTransientPackage(), UProjectDialogWidget::StaticClass(), TEXT("RadialProgressLayoutOwner"));
+	if (!TestNotNull(TEXT("Owner widget should be created"), Owner))
+	{
+		return false;
+	}
+
+	const FString Json = TEXT(
+		"{"
+		"\"root\":{"
+			"\"type\":\"CanvasPanel\","
+			"\"name\":\"RootCanvas\","
+			"\"children\":["
+				"{"
+					"\"type\":\"RadialProgress\","
+					"\"name\":\"SearchProgress\","
+					"\"percent\":0.75,"
+					"\"thickness\":4.0,"
+					"\"fillColor\":\"Secondary\","
+					"\"trackColor\":\"Border\","
+					"\"startAngleDegrees\":-90.0,"
+					"\"clockwise\":true,"
+					"\"showTrack\":true,"
+					"\"size\":{\"x\":20,\"y\":20}"
+				"}"
+			"]"
+		"}}");
+
+	UWidget* Root = UProjectWidgetLayoutLoader::LoadLayoutFromString(Owner, Json, nullptr);
+	if (!TestNotNull(TEXT("Root widget should load from JSON"), Root))
+	{
+		return false;
+	}
+
+	UProjectRadialProgress* RadialProgress =
+		UProjectWidgetHelpers::FindWidgetByNameTyped<UProjectRadialProgress>(Root, TEXT("SearchProgress"));
+	if (!TestNotNull(TEXT("RadialProgress widget should be found by name"), RadialProgress))
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("RadialProgress percent should parse"), RadialProgress->GetPercent(), 0.75f);
+	TestEqual(TEXT("RadialProgress thickness should parse"), RadialProgress->GetThickness(), 4.0f);
+	TestEqual(TEXT("RadialProgress start angle should parse"), RadialProgress->GetStartAngleDegrees(), -90.0f);
+	TestTrue(TEXT("RadialProgress clockwise should parse"), RadialProgress->GetClockwise());
+	TestTrue(TEXT("RadialProgress showTrack should parse"), RadialProgress->GetShowTrack());
+
+	const TSharedRef<SWidget> SlateWidget = RadialProgress->TakeWidget();
+	TestTrue(TEXT("RadialProgress should build a Slate widget"), SlateWidget != SNullWidget::NullWidget);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectUIRadialProgressPaintClosedLoopTest,
+	"ProjectIntegrationTests.UI.Framework.LayoutLoader.RadialProgressPaintClosedLoop",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter
+)
+
+bool FProjectUIRadialProgressPaintClosedLoopTest::RunTest(const FString& Parameters)
+{
+	UProjectRadialProgress* RadialProgress = NewObject<UProjectRadialProgress>(
+		GetTransientPackage(),
+		UProjectRadialProgress::StaticClass(),
+		TEXT("RadialProgressPaintClosedLoop"));
+	if (!TestNotNull(TEXT("RadialProgress widget should be created"), RadialProgress))
+	{
+		return false;
+	}
+
+	RadialProgress->SetPercent(1.0f);
+	RadialProgress->SetThickness(3.0f);
+	RadialProgress->SetShowTrack(true);
+
+	const TSharedRef<SWidget> SlateWidget = RadialProgress->TakeWidget();
+	TestTrue(TEXT("RadialProgress should build a Slate widget for paint"), SlateWidget != SNullWidget::NullWidget);
+
+	TSharedRef<SWindow> PaintWindow = SNew(SWindow).ClientSize(FVector2D(32.0f, 32.0f));
+	FSlateWindowElementList DrawElements(PaintWindow);
+	FHittestGrid HitTestGrid;
+	HitTestGrid.SetHittestArea(FVector2D::ZeroVector, FVector2D(32.0f, 32.0f));
+
+	const FPaintArgs PaintArgs(nullptr, HitTestGrid, FVector2D::ZeroVector, 0.0, 0.0f);
+	const FGeometry Geometry = FGeometry::MakeRoot(FVector2D(32.0f, 32.0f), FSlateLayoutTransform());
+	const FSlateRect CullingRect(0.0f, 0.0f, 32.0f, 32.0f);
+	const int32 FinalLayer = SlateWidget->Paint(
+		PaintArgs,
+		Geometry,
+		CullingRect,
+		DrawElements,
+		0,
+		FWidgetStyle(),
+		true);
+
+	TestTrue(TEXT("RadialProgress paint should complete and advance layers"), FinalLayer >= 1);
 	return true;
 }
 

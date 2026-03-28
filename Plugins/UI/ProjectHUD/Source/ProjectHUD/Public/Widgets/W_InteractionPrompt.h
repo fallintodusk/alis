@@ -7,6 +7,7 @@
 #include "W_InteractionPrompt.generated.h"
 
 class UTextBlock;
+class UProjectRadialProgress;
 class UInteractionPromptViewModel;
 
 /**
@@ -45,6 +46,9 @@ private:
 
 	/** Text block showing "[E] {Label}" - found by name in JSON layout */
 	TWeakObjectPtr<UTextBlock> PromptText;
+
+	/** Optional radial progress indicator shown while timed interaction is in progress. */
+	TWeakObjectPtr<UProjectRadialProgress> PromptProgress;
 
 	/** Handle ViewModel property changes */
 	void HandleViewModelPropertyChanged(FName PropertyName);

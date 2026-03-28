@@ -50,6 +50,7 @@ Plugins/**/Intermediate/**
 Plugins/**/Resources/**
 Plugins/**/Data/**
 Plugins/InstanceArrayTool/**
+Plugins/Local/**
 Plugins/ThirdParty/**
 Plugins/**/ThirdParty/**
 Test/**

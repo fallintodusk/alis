@@ -22,7 +22,11 @@
 #include "ProjectGameplayTags.h"
 #include "UObject/UnrealType.h"
 #include "Components/Border.h"
+#include "Components/ContentWidget.h"
+#include "Components/PanelWidget.h"
+#include "Components/TextBlock.h"
 #include "Components/UniformGridPanel.h"
+#include "Components/VerticalBox.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -399,6 +403,58 @@ namespace
 		return Panel;
 	}
 
+	int32 CountNonEmptyTextWidgets(UWidget* Root)
+	{
+		if (!Root)
+		{
+			return 0;
+		}
+
+		int32 Result = 0;
+		TArray<UWidget*> Stack;
+		Stack.Add(Root);
+
+		while (Stack.Num() > 0)
+		{
+			UWidget* Widget = Stack.Pop(EAllowShrinking::No);
+			if (!Widget)
+			{
+				continue;
+			}
+
+			if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+			{
+				if (!TextBlock->GetText().IsEmpty())
+				{
+					++Result;
+				}
+			}
+
+			if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+			{
+				const int32 ChildCount = PanelWidget->GetChildrenCount();
+				for (int32 Index = 0; Index < ChildCount; ++Index)
+				{
+					if (UWidget* Child = PanelWidget->GetChildAt(Index))
+					{
+						Stack.Add(Child);
+					}
+				}
+				continue;
+			}
+
+			if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+			{
+				if (UWidget* Child = ContentWidget->GetContent())
+				{
+					Stack.Add(Child);
+				}
+			}
+		}
+
+		return Result;
+	}
+
 	FContainerSessionHandle MakeNearbyLootSessionHandle(const UWorldContainerSessionTestDouble* Source)
 	{
 		FContainerSessionHandle Handle;
@@ -548,6 +604,15 @@ public:
 		Test->TestTrue(TEXT("Nearby-loot dump should expose nearby container state"), ViewModel->GetbHasNearbyContainer());
 		Test->TestEqual(TEXT("Nearby-loot dump should expose nearby grid width"), ViewModel->GetSecondaryGridWidth(), 4);
 		Test->TestEqual(TEXT("Nearby-loot dump should expose nearby grid height"), ViewModel->GetSecondaryGridHeight(), 5);
+		int32 NonEmptySecondaryTexts = 0;
+		for (const FText& Text : ViewModel->GetSecondaryCellTexts())
+		{
+			if (!Text.IsEmpty())
+			{
+				++NonEmptySecondaryTexts;
+			}
+		}
+		Test->TestTrue(TEXT("Nearby-loot dump should expose non-empty secondary cell texts"), NonEmptySecondaryTexts > 0);
 
 		if (UWidget* NearbySection = UProjectWidgetHelpers::FindWidgetByNameTyped<UWidget>(LookupRoot, TEXT("NearbySection")))
 		{
@@ -560,12 +625,36 @@ public:
 			Test->TestNotNull(TEXT("NearbyGridHost should contain a populated grid"), Content);
 			if (Content)
 			{
-				Test->TestNotNull(TEXT("NearbyGridHost content should be a uniform grid"), Cast<UUniformGridPanel>(Content));
+				UUniformGridPanel* NearbyGrid = Cast<UUniformGridPanel>(Content);
+				Test->TestNotNull(TEXT("NearbyGridHost content should be a uniform grid"), NearbyGrid);
+				if (NearbyGrid)
+				{
+					const int32 NonEmptyGridTexts = CountNonEmptyTextWidgets(NearbyGrid);
+					Test->TestTrue(TEXT("Nearby grid should render non-empty cell text widgets"), NonEmptyGridTexts > 0);
+				}
 			}
 		}
 		else
 		{
 			Test->AddError(TEXT("NearbyGridHost not found in inventory panel"));
+		}
+
+		if (UBorder* LeftHandGridHost = UProjectWidgetHelpers::FindWidgetByNameTyped<UBorder>(LookupRoot, TEXT("LeftHandGridHost")))
+		{
+			Test->TestNotNull(TEXT("LeftHandGridHost should contain a populated hand grid"), LeftHandGridHost->GetContent());
+		}
+		else
+		{
+			Test->AddError(TEXT("LeftHandGridHost not found in inventory panel"));
+		}
+
+		if (UVerticalBox* EquipSlotsHost = UProjectWidgetHelpers::FindWidgetByNameTyped<UVerticalBox>(LookupRoot, TEXT("EquipSlotsHost")))
+		{
+			Test->TestTrue(TEXT("EquipSlotsHost should contain rebuilt slot rows"), EquipSlotsHost->GetChildrenCount() > 0);
+		}
+		else
+		{
+			Test->AddError(TEXT("EquipSlotsHost not found in inventory panel"));
 		}
 
 		const bool bDumpOk = DebugSub->DumpWidgetTreeEx(TEXT("Dumps/InventoryNearbyLoot.json"), TEXT("json"), TEXT("Inventory"));
@@ -693,6 +782,93 @@ bool FProjectUIInventoryDumpTreeTest::RunTest(const FString& Parameters)
 	// Frame 2: Layout is finalized
 	ADD_LATENT_AUTOMATION_COMMAND(FDumpInventoryTreeAfterLayout(this, DebugSub, InventoryWidget, 2));
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectUIInventoryNearbyLootPreboundViewModelTest,
+	"ProjectIntegrationTests.UI.Layout.InventoryNearbyLoot.PreboundViewModel",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter
+)
+
+bool FProjectUIInventoryNearbyLootPreboundViewModelTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UWorld* World = AutomationCommon::GetAnyGameWorld();
+	if (!TestNotNull(TEXT("World should exist"), World))
+	{
+		AddError(TEXT("No game world available - run with -game flag and map specified"));
+		return false;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!TestNotNull(TEXT("GameInstance should exist"), GameInstance))
+	{
+		AddError(TEXT("GameInstance is null"));
+		return false;
+	}
+
+	UProjectUIDebugSubsystem* DebugSub = GameInstance->GetSubsystem<UProjectUIDebugSubsystem>();
+	if (!TestNotNull(TEXT("ProjectUIDebugSubsystem should exist"), DebugSub))
+	{
+		return false;
+	}
+
+	ConfigureVerboseUILayoutLogs(World);
+	FModuleManager::Get().LoadModuleChecked(TEXT("ProjectInventoryUI"));
+
+	UW_InventoryPanel* InventoryPanel = CreateWidget<UW_InventoryPanel>(GameInstance, UW_InventoryPanel::StaticClass());
+	if (!TestNotNull(TEXT("Inventory panel should be created"), InventoryPanel))
+	{
+		return false;
+	}
+
+	UProjectInventoryReadOnlyMock* InventorySource = NewObject<UProjectInventoryReadOnlyMock>(GameInstance);
+	if (!TestNotNull(TEXT("Mock inventory source should be created"), InventorySource))
+	{
+		return false;
+	}
+
+	ConfigureHandsPocketsAndBackpackSource(InventorySource);
+
+	AActor* NearbyLootActor = World->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity);
+	if (!TestNotNull(TEXT("Nearby loot actor should be created"), NearbyLootActor))
+	{
+		return false;
+	}
+
+	UWorldContainerSessionTestDouble* NearbyLootSource = NewObject<UWorldContainerSessionTestDouble>(NearbyLootActor);
+	if (!TestNotNull(TEXT("Nearby loot session source should be created"), NearbyLootSource))
+	{
+		NearbyLootActor->Destroy();
+		return false;
+	}
+
+	NearbyLootActor->AddInstanceComponent(NearbyLootSource);
+	NearbyLootSource->RegisterComponent();
+	ConfigureNearbyLootSource(NearbyLootSource);
+
+	UInventoryViewModel* InventoryVM = NewObject<UInventoryViewModel>(GameInstance);
+	if (!TestNotNull(TEXT("Inventory view model should be created"), InventoryVM))
+	{
+		NearbyLootActor->Destroy();
+		return false;
+	}
+
+	InventoryVM->Initialize(GameInstance);
+	InventoryVM->SetInventorySource(InventorySource);
+	InventoryVM->SetNearbyContainerSource(NearbyLootSource, MakeNearbyLootSessionHandle(NearbyLootSource));
+	InventoryVM->ShowPanel();
+
+	// Reproduce the live runtime order: the shared ViewModel already exists and is
+	// populated before the inventory panel is constructed and added to the viewport.
+	InventoryPanel->SetViewModel(InventoryVM);
+	InventoryPanel->AddToViewport();
+	InventoryPanel->SetVisibility(ESlateVisibility::Visible);
+	InventoryPanel->ForceLayoutPrepass();
+
+	ADD_LATENT_AUTOMATION_COMMAND(FDumpNearbyLootInventoryTree(this, DebugSub, InventoryPanel));
 	return true;
 }
 

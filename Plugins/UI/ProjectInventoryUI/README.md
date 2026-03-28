@@ -17,6 +17,9 @@ Current implementation notes
 - The default runtime `Item.Container.Hands` container is projected into left and right hand grids by the ViewModel.
 - Container layout, group ordering, and empty-host collapse behavior are defined
   only in the behavior SOT above.
+- Nearby world storage is presented inside the same screen as a distinct
+  right-side panel; the UI reuses the same grid, tooltip, drag/drop, and
+  capacity primitives rather than creating a second loot framework.
 
 Not responsible for
 - Inventory rules, item semantics, or overflow policy.
@@ -38,4 +41,5 @@ Related docs
 - Inventory implementation: `Plugins/Features/ProjectInventory/README.md`
 - Inventory architecture: `Plugins/Features/ProjectInventory/docs/architecture.md`
 - ProjectUI MVVM: `Plugins/UI/ProjectUI/docs/ui_mvvm.md`
+- Runtime gotchas: `docs/pitfalls.md`
 - Icon fonts and codepoints: `Plugins/UI/ProjectUI/Content/Slate/Fonts/README.txt`

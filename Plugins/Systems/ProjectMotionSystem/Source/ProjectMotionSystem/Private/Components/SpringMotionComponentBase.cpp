@@ -175,6 +175,11 @@ FText USpringMotionComponentBase::GetInteractionLabel_Implementation() const
 		: NSLOCTEXT("Interaction", "Open", "Open");
 }
 
+FInteractionExecutionSpec USpringMotionComponentBase::GetInteractionExecutionSpec_Implementation(AActor* Instigator) const
+{
+	return FInteractionExecutionSpec();
+}
+
 UPrimitiveComponent* USpringMotionComponentBase::GetInteractTargetMesh_Implementation() const
 {
 	// Prefer resolved runtime mesh; fallback to explicit reference for pre-BeginPlay/editor paths.

@@ -70,6 +70,8 @@ protected:
     virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 private:
+    void ResetRuntimeWidgetState();
+
     // Build methods - delegate to GridBuilder
     void RebuildGrids();
     void RebuildHandGrids();

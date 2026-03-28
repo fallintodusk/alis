@@ -34,6 +34,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Test")
 	bool bOnInteractReturnValue = true;
 
+	UPROPERTY(EditAnywhere, Category = "Test")
+	float HoldDurationSeconds = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Test")
+	FText ActiveInteractionLabel;
+
 	UPROPERTY(Transient)
 	int32 InteractionCallCount = 0;
 
@@ -45,6 +51,7 @@ public:
 	virtual bool OnComponentInteract_Implementation(AActor* Instigator) override;
 	virtual FInteractionPrompt GetInteractionPrompt_Implementation(AActor* Instigator) const override;
 	virtual FText GetInteractionLabel_Implementation() const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* Instigator) const override;
 	virtual UPrimitiveComponent* GetInteractTargetMesh_Implementation() const override;
 	virtual void SetInteractTargetMesh_Implementation(UPrimitiveComponent* TargetMesh) override;
 
@@ -69,6 +76,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Test")
 	bool bOnInteractReturnValue = true;
 
+	UPROPERTY(EditAnywhere, Category = "Test")
+	float HoldDurationSeconds = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Test")
+	FText ActiveInteractionLabel;
+
+	UPROPERTY(EditAnywhere, Category = "Test")
+	bool bReturnHighlightMesh = true;
+
+	UPROPERTY(EditAnywhere, Category = "Test")
+	bool bReturnValidFocus = true;
+
 	UPROPERTY(Transient)
 	int32 OnInteractCallCount = 0;
 
@@ -81,9 +100,13 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Test")
 	TObjectPtr<UStaticMeshComponent> TestMesh = nullptr;
 
+	UPROPERTY(VisibleAnywhere, Category = "Test")
+	TObjectPtr<UProjectInteractionCounterCapabilityComponent> FallbackCapability = nullptr;
+
 	// IInteractableTargetInterface
 	virtual bool OnInteract_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent) override;
 	virtual FInteractionFocusInfo GetFocusInfo_Implementation(UPrimitiveComponent* HitComponent) const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent) const override;
 
 private:
 	UPROPERTY()

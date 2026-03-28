@@ -122,6 +122,7 @@ private:
 	static void ApplyTextBlockProperties(class UTextBlock* TextBlock, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
 	static void ApplyImageProperties(class UImage* Image, const TSharedPtr<FJsonObject>& JsonObject);
 	static void ApplyProgressBarProperties(class UProgressBar* ProgressBar, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
+	static void ApplyRadialProgressProperties(class UProjectRadialProgress* RadialProgress, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme);
 
 	// Parsing helpers
 	static FVector2D ParseVector2D(const TSharedPtr<FJsonObject>& JsonObject);

@@ -49,7 +49,7 @@ void UOrchestratorEditorBootSubsystem::ScanForUpluginFiles(const FString& Direct
 	// Check if directory exists (optional - no warning if missing)
 	if (!PlatformFile.DirectoryExists(*DirectoryPath))
 	{
-		UE_LOG(LogOrchestratorEditor, Log, TEXT("ThirdParty plugins directory does not exist (optional): %s"), *DirectoryPath);
+		UE_LOG(LogOrchestratorEditor, Log, TEXT("External plugins directory does not exist (optional): %s"), *DirectoryPath);
 		return;
 	}
 
@@ -88,13 +88,17 @@ void UOrchestratorEditorBootSubsystem::LoadExternalPlugins()
 {
 	// Get project directory
 	const FString ProjectDir = FPaths::ProjectDir();
-	const FString ExternalPluginsDir = FPaths::Combine(ProjectDir, TEXT("Plugins"), TEXT("ThirdParty"));
-
-	UE_LOG(LogOrchestratorEditor, Log, TEXT("Scanning for external plugins in: %s"), *ExternalPluginsDir);
-
-	// Scan for .uplugin files
 	TArray<FString> UpluginFiles;
-	ScanForUpluginFiles(ExternalPluginsDir, UpluginFiles);
+	const TArray<FString> ExternalPluginDirs = {
+		FPaths::Combine(ProjectDir, TEXT("Plugins"), TEXT("ThirdParty")),
+		FPaths::Combine(ProjectDir, TEXT("Plugins"), TEXT("Local"))
+	};
+
+	for (const FString& ExternalPluginsDir : ExternalPluginDirs)
+	{
+		UE_LOG(LogOrchestratorEditor, Log, TEXT("Scanning for external plugins in: %s"), *ExternalPluginsDir);
+		ScanForUpluginFiles(ExternalPluginsDir, UpluginFiles);
+	}
 
 	if (UpluginFiles.Num() == 0)
 	{

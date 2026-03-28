@@ -465,6 +465,9 @@ public:
     FOnInventoryViewModelError OnInventoryError;
 
 private:
+    void EnsureInventorySourceFromContext();
+    UObject* ResolveInventorySourceFromContext() const;
+
     UPROPERTY()
     TScriptInterface<IInventoryReadOnly> InventorySource;
 
@@ -518,4 +521,5 @@ private:
     TArray<FText> EquipSlotShortLabels;
     TArray<FText> EquipSlotItemLabels;
     TArray<FString> EquipSlotItemIconCodes;
+    TWeakObjectPtr<UObject> InitializationContext;
 };

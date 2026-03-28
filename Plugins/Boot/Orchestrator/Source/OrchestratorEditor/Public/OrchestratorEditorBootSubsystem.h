@@ -8,7 +8,8 @@
 
 /**
  * Editor subsystem that loads external plugins at PIE start.
- * Scans Plugins/ThirdParty/ for .uplugin files and loads their modules.
+ * Scans shared and local external plugin roots for .uplugin files and loads
+ * their modules.
  */
 UCLASS()
 class ORCHESTRATOREDITOR_API UOrchestratorEditorBootSubsystem : public UEditorSubsystem
@@ -36,7 +37,7 @@ private:
 	void ScanForUpluginFiles(const FString& DirectoryPath, TArray<FString>& OutUpluginFiles);
 
 	/**
-	 * Load all plugins from Plugins/ThirdParty/ directory.
+	 * Load all plugins from the supported external plugin directories.
 	 */
 	void LoadExternalPlugins();
 };

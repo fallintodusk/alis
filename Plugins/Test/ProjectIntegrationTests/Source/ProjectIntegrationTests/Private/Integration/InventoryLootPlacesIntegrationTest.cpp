@@ -12,20 +12,31 @@
 #include "DefinitionTypeInfo.h"
 #include "Components/ProjectInventoryComponent.h"
 #include "Interfaces/IInventoryWorldContainerTransferBridge.h"
+#include "Interfaces/IInteractionService.h"
 #include "Interfaces/IWorldContainerSessionSource.h"
+#include "InteractionComponent.h"
 #include "MVVM/InventoryViewModel.h"
+#include "Support/ProjectInventoryReadOnlyMock.h"
+#include "Subsystems/ProjectUIFactorySubsystem.h"
+#include "Subsystems/ProjectUILayerHostSubsystem.h"
+#include "Subsystems/ProjectUIRegistrySubsystem.h"
 #include "Widgets/InventoryDragDropOperation.h"
+#include "Widgets/InventoryDragEntryResolver.h"
 #include "Widgets/InventoryDragVisualBuilder.h"
+#include "Widgets/W_InventoryPanel.h"
 #include "Spawning/ObjectSpawnUtility.h"
 #include "LootContainer/LootContainerCapabilityComponent.h"
 #include "Integration/Fixtures/WorldContainerSessionTestDouble.h"
 #include "ProjectGameplayTags.h"
+#include "ProjectServiceLocator.h"
 #include "Subsystems/ProjectContainerSessionSubsystem.h"
 #include "Types/ContainerSessionTypes.h"
 #include "Types/WorldContainerKey.h"
 
 #include "Dom/JsonObject.h"
+#include "Camera/CameraComponent.h"
 #include "Components/Border.h"
+#include "Components/SceneComponent.h"
 #include "Components/TextBlock.h"
 #include "Engine/AssetManager.h"
 #include "Engine/LocalPlayer.h"
@@ -33,6 +44,8 @@
 #include "Editor.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
@@ -42,11 +55,153 @@
 
 namespace
 {
+bool EnsureInventoryLootPlacesTestLocalPlayerHasController(ULocalPlayer* LocalPlayer, UWorld* World)
+{
+	if (!LocalPlayer || !World)
+	{
+		return false;
+	}
+
+	if (LocalPlayer->GetPlayerController(World))
+	{
+		return true;
+	}
+
+	FString SpawnError;
+	if (LocalPlayer->SpawnPlayActor(TEXT(""), SpawnError, World))
+	{
+		return LocalPlayer->GetPlayerController(World) != nullptr;
+	}
+
+	return false;
+}
+
+APlayerController* EnsureInventoryLootPlacesTestPlayerController(UWorld* World)
+{
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(World, 0))
+	{
+		return PlayerController;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		const TArray<ULocalPlayer*>& LocalPlayers = GameInstance->GetLocalPlayers();
+		for (ULocalPlayer* LocalPlayer : LocalPlayers)
+		{
+			if (EnsureInventoryLootPlacesTestLocalPlayerHasController(LocalPlayer, World))
+			{
+				if (APlayerController* PlayerController = LocalPlayer->GetPlayerController(World))
+				{
+					return PlayerController;
+				}
+			}
+		}
+	}
+
+	return UGameplayStatics::CreatePlayer(World, -1, true);
+}
+
+FContainerSessionHandle MakeInventoryLootPlacesNearbySessionHandle(const UWorldContainerSessionTestDouble* Source)
+{
+	FContainerSessionHandle Handle;
+	if (!Source)
+	{
+		return Handle;
+	}
+
+	Handle.SessionId = FGuid::NewGuid();
+	Handle.ContainerKey = Source->ContainerKey;
+	Handle.Mode = EContainerSessionMode::FullOpen;
+	return Handle;
+}
+
+void ResetInventoryLootPlacesTestWorldState(UWorld* World)
+{
+	if (!World)
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		if (UProjectUIFactorySubsystem* Factory = GameInstance->GetSubsystem<UProjectUIFactorySubsystem>())
+		{
+			if (UInventoryViewModel* InventoryViewModel = Cast<UInventoryViewModel>(
+					Factory->GetSharedViewModel(UInventoryViewModel::StaticClass())))
+			{
+				InventoryViewModel->HidePanel();
+			}
+		}
+
+		if (UProjectUILayerHostSubsystem* LayerHost = GameInstance->GetSubsystem<UProjectUILayerHostSubsystem>())
+		{
+			LayerHost->HideDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+		}
+
+		for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+		{
+			if (!LocalPlayer)
+			{
+				continue;
+			}
+
+			if (UProjectContainerSessionSubsystem* SessionSubsystem =
+					LocalPlayer->GetSubsystem<UProjectContainerSessionSubsystem>())
+			{
+				SessionSubsystem->CloseAllSessions();
+			}
+		}
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APlayerController* PlayerController = It->Get())
+		{
+			TInlineComponentArray<UProjectInventoryComponent*> Components(PlayerController);
+			for (UProjectInventoryComponent* InventoryComponent : Components)
+			{
+				if (InventoryComponent)
+				{
+					InventoryComponent->DestroyComponent();
+				}
+			}
+		}
+	}
+}
+
+int32 CountVisibleInventoryLootPlacesPanels(UWorld* World)
+{
+	if (!World)
+	{
+		return 0;
+	}
+
+	TArray<UUserWidget*> Widgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, Widgets, UW_InventoryPanel::StaticClass(), false);
+
+	int32 VisibleCount = 0;
+	for (UUserWidget* Widget : Widgets)
+	{
+		if (Widget && Widget->IsVisible())
+		{
+			++VisibleCount;
+		}
+	}
+
+	return VisibleCount;
+}
+
 UWorld* ResolveInventoryLootPlacesTestWorld()
 {
 	UWorld* World = AutomationCommon::GetAnyGameWorld();
 	if (World)
 	{
+		ResetInventoryLootPlacesTestWorldState(World);
 		return World;
 	}
 
@@ -55,7 +210,9 @@ UWorld* ResolveInventoryLootPlacesTestWorld()
 		return nullptr;
 	}
 
-	return AutomationCommon::GetAnyGameWorld();
+	World = AutomationCommon::GetAnyGameWorld();
+	ResetInventoryLootPlacesTestWorldState(World);
+	return World;
 }
 
 ULocalPlayer* ResolveInventoryLootPlacesTestLocalPlayer(UWorld* World)
@@ -65,7 +222,7 @@ ULocalPlayer* ResolveInventoryLootPlacesTestLocalPlayer(UWorld* World)
 		return nullptr;
 	}
 
-	if (APlayerController* PlayerController = World->GetFirstPlayerController())
+	if (APlayerController* PlayerController = EnsureInventoryLootPlacesTestPlayerController(World))
 	{
 		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
 		{
@@ -294,7 +451,7 @@ UProjectInventoryComponent* CreateInventoryLootPlacesTestInventory(UWorld* World
 
 UProjectInventoryComponent* CreateInventoryLootPlacesPlayerInventory(UWorld* World, APlayerController*& OutOwner)
 {
-	OutOwner = World ? World->GetFirstPlayerController() : nullptr;
+	OutOwner = EnsureInventoryLootPlacesTestPlayerController(World);
 	if (!OutOwner)
 	{
 		return nullptr;
@@ -329,6 +486,43 @@ UObject* ResolveInventoryLootPlacesWorldContainerSource(AActor* TargetActor)
 	}
 
 	return nullptr;
+}
+
+UPrimitiveComponent* FindInventoryLootPlacesInteractionHitComponent(AActor* TargetActor)
+{
+	if (!TargetActor)
+	{
+		return nullptr;
+	}
+
+	TInlineComponentArray<UPrimitiveComponent*> Components(TargetActor);
+	for (UPrimitiveComponent* Component : Components)
+	{
+		if (Component && Component->IsRegistered() && Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+		{
+			return Component;
+		}
+	}
+
+	return nullptr;
+}
+
+bool AdvanceInventoryLootPlacesWorld(UWorld* World, float TotalSeconds, float StepSeconds = 0.1f)
+{
+	if (!World || TotalSeconds <= 0.0f || StepSeconds <= 0.0f)
+	{
+		return false;
+	}
+
+	float RemainingSeconds = TotalSeconds;
+	while (RemainingSeconds > KINDA_SMALL_NUMBER)
+	{
+		const float TickSeconds = FMath::Min(StepSeconds, RemainingSeconds);
+		World->Tick(ELevelTick::LEVELTICK_All, TickSeconds);
+		RemainingSeconds -= TickSeconds;
+	}
+
+	return true;
 }
 
 AActor* CreateWorldContainerSessionTestActor(
@@ -1115,7 +1309,7 @@ bool FInventoryLootPlaces_FullOpenBusyRuleTest::RunTest(const FString& Parameter
 		return false;
 	}
 
-	APlayerController* PlayerController = World->GetFirstPlayerController();
+	APlayerController* PlayerController = EnsureInventoryLootPlacesTestPlayerController(World);
 	TestNotNull(TEXT("Player controller should exist"), PlayerController);
 	if (!PlayerController)
 	{
@@ -2254,6 +2448,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	"ProjectIntegrationTests.InventoryLootPlaces.UI.DragOperationAppliesRotationFromEntry",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_DragResolverPrefersNearbyCellOverInventoryIdCollisionTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.UI.DragResolverPrefersNearbyCellOverInventoryIdCollision",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
 bool FInventoryLootPlaces_DragOperationAppliesRotationFromEntryTest::RunTest(const FString& Parameters)
 {
 	(void)Parameters;
@@ -2326,6 +2525,99 @@ bool FInventoryLootPlaces_DragVisualUsesTooltipWidgetTest::RunTest(const FString
 
 	TestEqual(TEXT("Drag visual should carry the item icon"), IconText->GetText().ToString(), FString(TEXT("C")));
 	TestEqual(TEXT("Drag visual should show stack quantity in label"), LabelText->GetText().ToString(), FString(TEXT("Cigarette x2")));
+	return true;
+}
+
+bool FInventoryLootPlaces_DragResolverPrefersNearbyCellOverInventoryIdCollisionTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UInventoryViewModel* ViewModel = NewObject<UInventoryViewModel>(GetTransientPackage(), UInventoryViewModel::StaticClass());
+	TestNotNull(TEXT("ViewModel should be created"), ViewModel);
+	if (!ViewModel)
+	{
+		return false;
+	}
+
+	UProjectInventoryReadOnlyMock* InventorySource = NewObject<UProjectInventoryReadOnlyMock>(GetTransientPackage(), UProjectInventoryReadOnlyMock::StaticClass());
+	TestNotNull(TEXT("Mock inventory source should be created"), InventorySource);
+	if (!InventorySource)
+	{
+		return false;
+	}
+
+	FInventoryContainerView LeftHandContainer;
+	LeftHandContainer.ContainerId = ProjectTags::Item_Container_LeftHand;
+	LeftHandContainer.GridSize = FIntPoint(UInventoryViewModel::HandGridSize, UInventoryViewModel::HandGridSize);
+
+	FInventoryContainerView RightHandContainer;
+	RightHandContainer.ContainerId = ProjectTags::Item_Container_RightHand;
+	RightHandContainer.GridSize = FIntPoint(UInventoryViewModel::HandGridSize, UInventoryViewModel::HandGridSize);
+
+	InventorySource->SetContainers({ LeftHandContainer, RightHandContainer });
+
+	FInventoryEntryView InventoryEntry;
+	InventoryEntry.ItemId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:WaterBottleSmall"));
+	InventoryEntry.DisplayName = FText::FromString(TEXT("Water Bottle"));
+	InventoryEntry.InstanceId = 1;
+	InventoryEntry.Quantity = 1;
+	InventoryEntry.ContainerId = ProjectTags::Item_Container_LeftHand;
+	InventoryEntry.GridPos = FIntPoint(0, 0);
+	InventoryEntry.GridSize = FIntPoint(1, 1);
+	InventoryEntry.IconCode = TEXT("W");
+	InventorySource->SetEntries({ InventoryEntry });
+
+	ViewModel->SetInventorySource(InventorySource);
+
+	UWorldContainerSessionTestDouble* NearbySource = NewObject<UWorldContainerSessionTestDouble>(GetTransientPackage(), UWorldContainerSessionTestDouble::StaticClass());
+	TestNotNull(TEXT("Nearby source should be created"), NearbySource);
+	if (!NearbySource)
+	{
+		return false;
+	}
+
+	NearbySource->DisplayLabel = FText::FromString(TEXT("NearbyLoot"));
+	NearbySource->ContainerView.ContainerId = ProjectTags::Item_Container_WorldStorage;
+	NearbySource->ContainerView.GridSize = FIntPoint(3, 3);
+	NearbySource->ContainerKey.InstanceId = FGuid::NewGuid();
+	NearbySource->ContainerKey.WorldScopeId = FName(TEXT("Automation"));
+	NearbySource->ContainerKey.ContainerSlotId = FName(TEXT("Nearby"));
+
+	FInventoryEntryView NearbyEntry;
+	NearbyEntry.ItemId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:BraisedBeans"));
+	NearbyEntry.DisplayName = FText::FromString(TEXT("Braised Beans"));
+	NearbyEntry.InstanceId = 1;
+	NearbyEntry.Quantity = 1;
+	NearbyEntry.ContainerId = ProjectTags::Item_Container_WorldStorage;
+	NearbyEntry.GridPos = FIntPoint(0, 0);
+	NearbyEntry.GridSize = FIntPoint(1, 1);
+	NearbyEntry.IconCode = TEXT("B");
+	NearbySource->EntryViews = { NearbyEntry };
+
+	ViewModel->SetNearbyContainerSource(NearbySource, MakeInventoryLootPlacesNearbySessionHandle(NearbySource));
+
+	FInventoryEntryView ResolvedEntry;
+	const bool bResolved = FInventoryDragEntryResolver::Resolve(
+		ViewModel,
+		1,
+		0,
+		true,
+		ResolvedEntry);
+
+	TestTrue(TEXT("Drag resolver should resolve nearby entry from clicked secondary cell"), bResolved);
+	if (!bResolved)
+	{
+		return false;
+	}
+
+	TestEqual(
+		TEXT("Resolved entry should come from nearby container, not player inventory"),
+		ResolvedEntry.ContainerId,
+		FGameplayTag(ProjectTags::Item_Container_WorldStorage));
+	TestEqual(
+		TEXT("Resolved nearby entry should be BraisedBeans"),
+		ResolvedEntry.ItemId.ToString(),
+		FString(TEXT("ObjectDefinition:BraisedBeans")));
 	return true;
 }
 
@@ -2707,6 +2999,16 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_ControllerEnsureViewModelDoesNotShowPanelTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.UI.ControllerEnsureViewModelDoesNotShowPanel",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FInventoryLootPlaces_InteractionHoldOpensWorldContainerSessionTest,
+	"ProjectIntegrationTests.InventoryLootPlaces.Session.InteractionHoldOpensWorldContainerSession",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FInventoryLootPlaces_ViewModelStoreFailureRefreshesInventoryStateTest,
 	"ProjectIntegrationTests.InventoryLootPlaces.UI.ViewModelStoreFailureRefreshesInventoryState",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
@@ -2864,6 +3166,395 @@ bool FInventoryLootPlaces_ToggleCloseAllowsReopenTest::RunTest(const FString& Pa
 
 	Inventory->DestroyComponent();
 	Spawned->Destroy();
+	return true;
+}
+
+bool FInventoryLootPlaces_InteractionHoldOpensWorldContainerSessionTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	const FPrimaryAssetId WaterBottleId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:WaterBottle"));
+	TestTrue(TEXT("WaterBottle asset should load for interaction-hold open test"), EnsureInventoryLootPlacesTestAssetLoaded(WaterBottleId));
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Inventory loot places test world should resolve"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerController* PlayerController = EnsureInventoryLootPlacesTestPlayerController(World);
+	TestNotNull(TEXT("PlayerController should resolve for interaction-hold open test"), PlayerController);
+	if (!PlayerController)
+	{
+		return false;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	TestNotNull(TEXT("GameInstance should resolve for interaction-hold open test"), GameInstance);
+	if (!GameInstance)
+	{
+		return false;
+	}
+
+	UProjectUILayerHostSubsystem* LayerHost = GameInstance->GetSubsystem<UProjectUILayerHostSubsystem>();
+	UProjectUIFactorySubsystem* Factory = GameInstance->GetSubsystem<UProjectUIFactorySubsystem>();
+	UProjectUIRegistrySubsystem* Registry = GameInstance->GetSubsystem<UProjectUIRegistrySubsystem>();
+	TestNotNull(TEXT("LayerHost should resolve for interaction-hold open test"), LayerHost);
+	TestNotNull(TEXT("Factory should resolve for interaction-hold open test"), Factory);
+	TestNotNull(TEXT("Registry should resolve for interaction-hold open test"), Registry);
+	if (!LayerHost || !Factory || !Registry)
+	{
+		return false;
+	}
+
+	bool bSpawnedPawn = false;
+	APawn* Pawn = PlayerController->GetPawn();
+	if (!Pawn)
+	{
+		Pawn = World->SpawnActor<APawn>(APawn::StaticClass(), FTransform::Identity);
+		bSpawnedPawn = Pawn != nullptr;
+	}
+	TestNotNull(TEXT("Pawn should spawn for interaction-hold open test"), Pawn);
+	if (!Pawn)
+	{
+		return false;
+	}
+
+	USceneComponent* RootComponent = NewObject<USceneComponent>(Pawn, TEXT("InteractionHoldRoot"));
+	Pawn->SetRootComponent(RootComponent);
+	Pawn->AddInstanceComponent(RootComponent);
+	RootComponent->RegisterComponent();
+
+	UCameraComponent* CameraComponent = NewObject<UCameraComponent>(Pawn, TEXT("InteractionHoldCamera"));
+	CameraComponent->SetupAttachment(RootComponent);
+	Pawn->AddInstanceComponent(CameraComponent);
+	CameraComponent->RegisterComponent();
+	CameraComponent->SetRelativeLocation(FVector::ZeroVector);
+	CameraComponent->SetRelativeRotation(FRotator::ZeroRotator);
+
+	if (PlayerController->GetPawn() != Pawn)
+	{
+		PlayerController->Possess(Pawn);
+	}
+	if (!PlayerController->PlayerCameraManager)
+	{
+		PlayerController->SpawnPlayerCameraManager();
+	}
+	PlayerController->SetViewTarget(Pawn);
+	PlayerController->SetControlRotation(FRotator::ZeroRotator);
+	Pawn->SetActorLocation(FVector(0.0f, 0.0f, 200.0f));
+	Pawn->SetActorRotation(FRotator::ZeroRotator);
+	AdvanceInventoryLootPlacesWorld(World, 0.2f);
+
+	LayerHost->HideDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	if (UInventoryViewModel* ExistingViewModel = Cast<UInventoryViewModel>(
+			Factory->GetSharedViewModel(UInventoryViewModel::StaticClass())))
+	{
+		ExistingViewModel->HidePanel();
+	}
+	AdvanceInventoryLootPlacesWorld(World, 0.1f);
+
+	const FProjectUIDefinition* InventoryPanelDefinition = Registry->FindDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	TestNotNull(TEXT("Inventory panel definition should resolve for interaction-hold open test"), InventoryPanelDefinition);
+	if (!InventoryPanelDefinition)
+	{
+		return false;
+	}
+	Factory->EnsureGlobalViewModel(*InventoryPanelDefinition);
+
+	UInventoryViewModel* InventoryViewModel = Cast<UInventoryViewModel>(
+		Factory->GetSharedViewModel(UInventoryViewModel::StaticClass()));
+	TestNotNull(TEXT("Prepared inventory view model should resolve for interaction-hold open test"), InventoryViewModel);
+	if (!InventoryViewModel)
+	{
+		return false;
+	}
+
+	FVector InitialViewLocation = FVector::ZeroVector;
+	FRotator InitialViewRotation = FRotator::ZeroRotator;
+	PlayerController->GetPlayerViewPoint(InitialViewLocation, InitialViewRotation);
+
+	UProjectInventoryComponent* Inventory = NewObject<UProjectInventoryComponent>(Pawn, TEXT("InteractionHoldInventory"));
+	Pawn->AddInstanceComponent(Inventory);
+	Inventory->RegisterComponent();
+	InventoryViewModel->SetInventorySource(Inventory);
+
+	UInteractionComponent* Interaction = NewObject<UInteractionComponent>(Pawn, TEXT("InteractionHoldComponent"));
+	Pawn->AddInstanceComponent(Interaction);
+	Interaction->RegisterComponent();
+	Interaction->TraceFrameInterval = 1;
+	Interaction->bDrawDebug = false;
+
+	FDefinitionTypeInfo TypeInfo;
+	TypeInfo.DefinitionClass = UObjectDefinition::StaticClass();
+
+	TStrongObjectPtr<UObjectDefinition> Def(
+		NewObject<UObjectDefinition>(GetTransientPackage(), NAME_None, RF_Transient));
+
+	FString ParseError;
+	const bool bParsed = FDefinitionJsonParser::ParseJsonToAsset(
+		TypeInfo,
+		MakeLootContainerJson(TEXT("InteractionHoldOpen"), true, TEXT("ObjectDefinition:WaterBottle"), 1),
+		Def.Get(),
+		ParseError);
+	TestTrue(TEXT("Definition should parse for interaction-hold open test"), bParsed);
+	if (!bParsed)
+	{
+		AddError(FString::Printf(TEXT("Parse error: %s"), *ParseError));
+		Inventory->DestroyComponent();
+		Interaction->DestroyComponent();
+		if (bSpawnedPawn)
+		{
+			Pawn->Destroy();
+		}
+		return false;
+	}
+
+	FText SpawnError;
+	FActorSpawnParameters SpawnParams;
+	const FVector SpawnLocation = InitialViewLocation + (InitialViewRotation.Vector() * 150.0f);
+	AActor* Spawned = ProjectObjectSpawn::SpawnFromDefinition(
+		World,
+		Def.Get(),
+		FTransform(FRotator::ZeroRotator, SpawnLocation),
+		SpawnParams,
+		&SpawnError);
+	TestNotNull(TEXT("Loot container should spawn for interaction-hold open test"), Spawned);
+	if (!Spawned)
+	{
+		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
+		Inventory->DestroyComponent();
+		Interaction->DestroyComponent();
+		if (bSpawnedPawn)
+		{
+			Pawn->Destroy();
+		}
+		return false;
+	}
+
+	UPrimitiveComponent* HitComponent = FindInventoryLootPlacesInteractionHitComponent(Spawned);
+	TestNotNull(TEXT("Loot container should expose a hittable primitive for interaction-hold open test"), HitComponent);
+	if (!HitComponent)
+	{
+		Spawned->Destroy();
+		Interaction->DestroyComponent();
+		Inventory->DestroyComponent();
+		if (bSpawnedPawn)
+		{
+			Pawn->Destroy();
+		}
+		return false;
+	}
+
+	Interaction->TestOnly_SetFocusedActor(Spawned, HitComponent);
+
+	const FInteractionPromptState InitialPromptState =
+		IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Loot container interaction should require hold"), InitialPromptState.bRequiresHold);
+	TestEqual(TEXT("Loot container interaction should start with Search label"), InitialPromptState.Label.ToString(), FString(TEXT("Search")));
+
+	Interaction->SetComponentTickEnabled(false);
+	TestTrue(TEXT("BeginInteractInput should start real loot-container interaction"), IInteractionComponentInterface::Execute_BeginInteractInput(Interaction));
+	for (int32 Index = 0; Index < 15; ++Index)
+	{
+		if (Pawn->GetController() != PlayerController)
+		{
+			PlayerController->Possess(Pawn);
+		}
+		if (!PlayerController->PlayerCameraManager)
+		{
+			PlayerController->SpawnPlayerCameraManager();
+		}
+		PlayerController->SetViewTarget(Pawn);
+		PlayerController->SetControlRotation(InitialViewRotation);
+		AdvanceInventoryLootPlacesWorld(World, 0.1f);
+		Interaction->TickComponent(0.1f, ELevelTick::LEVELTICK_All, nullptr);
+	}
+
+	const FInteractionPromptState MidHoldPromptState =
+		IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestTrue(TEXT("Real hold interaction should remain in progress mid-search"), MidHoldPromptState.bIsInProgress);
+	TestTrue(TEXT("Real hold interaction should advance progress mid-search"), MidHoldPromptState.Progress > 0.0f);
+	TestEqual(TEXT("Real hold interaction should show active Searching label mid-search"), MidHoldPromptState.Label.ToString(), FString(TEXT("Searching...")));
+	TestFalse(TEXT("Inventory view model must stay hidden while timed search is still in progress"), InventoryViewModel->GetbPanelVisible());
+
+	bool bHasActiveSession = false;
+	AActor* ActiveTargetActor = nullptr;
+	FContainerSessionHandle ActiveSessionHandle;
+	for (int32 Index = 0; Index < 25; ++Index)
+	{
+		if (Pawn->GetController() != PlayerController)
+		{
+			PlayerController->Possess(Pawn);
+		}
+		if (!PlayerController->PlayerCameraManager)
+		{
+			PlayerController->SpawnPlayerCameraManager();
+		}
+		PlayerController->SetViewTarget(Pawn);
+		PlayerController->SetControlRotation(InitialViewRotation);
+		AdvanceInventoryLootPlacesWorld(World, 0.1f);
+		Interaction->TickComponent(0.1f, ELevelTick::LEVELTICK_All, nullptr);
+		bHasActiveSession =
+			IInventoryWorldContainerTransferBridge::Execute_GetActiveWorldContainerSession(
+				Inventory,
+				ActiveTargetActor,
+				ActiveSessionHandle);
+		if (bHasActiveSession)
+		{
+			break;
+		}
+	}
+
+	const FInteractionPromptState CompletedPromptState =
+		IInteractionComponentInterface::Execute_GetInteractionPromptState(Interaction);
+	TestFalse(TEXT("Real hold interaction should clear in-progress state after completion"), CompletedPromptState.bIsInProgress);
+	TestEqual(TEXT("Real hold interaction should restore Search label after completion"), CompletedPromptState.Label.ToString(), FString(TEXT("Search")));
+
+	TestTrue(TEXT("Real hold interaction should open world-container session through inventory handler"), bHasActiveSession);
+	if (bHasActiveSession)
+	{
+		TestEqual(TEXT("Active world-container target should match interacted actor"), ActiveTargetActor, Spawned);
+		TestTrue(TEXT("Opened session handle should be valid"), ActiveSessionHandle.IsValid());
+		TestTrue(TEXT("Inventory view model should expose nearby container after completed hold"), InventoryViewModel->GetbHasNearbyContainer());
+		TestTrue(TEXT("Inventory view model should keep standard equipment slots after completed hold"), InventoryViewModel->GetEquipSlotCount() >= 7);
+		TestTrue(TEXT("Inventory view model should become visible only after timed search completes"), InventoryViewModel->GetbPanelVisible());
+	}
+
+	Interaction->DestroyComponent();
+	Inventory->DestroyComponent();
+	Spawned->Destroy();
+	if (bSpawnedPawn)
+	{
+		Pawn->Destroy();
+	}
+	return true;
+}
+
+bool FInventoryLootPlaces_ControllerEnsureViewModelDoesNotShowPanelTest::RunTest(const FString& Parameters)
+{
+	(void)Parameters;
+
+	UWorld* World = ResolveInventoryLootPlacesTestWorld();
+	TestNotNull(TEXT("Inventory loot places test world should resolve"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	APlayerController* PlayerController = EnsureInventoryLootPlacesTestPlayerController(World);
+	TestNotNull(TEXT("PlayerController should resolve for controller view model test"), PlayerController);
+	if (!PlayerController)
+	{
+		return false;
+	}
+
+	APawn* Pawn = PlayerController->GetPawn();
+	bool bSpawnedPawn = false;
+	if (!Pawn)
+	{
+		Pawn = World->SpawnActor<APawn>(APawn::StaticClass(), FTransform::Identity);
+		bSpawnedPawn = Pawn != nullptr;
+		if (Pawn)
+		{
+			PlayerController->Possess(Pawn);
+		}
+	}
+	TestNotNull(TEXT("Pawn should resolve for controller view model test"), Pawn);
+	if (!Pawn)
+	{
+		return false;
+	}
+
+	bool bCreatedInventory = false;
+	UProjectInventoryComponent* Inventory = Pawn->FindComponentByClass<UProjectInventoryComponent>();
+	if (!Inventory)
+	{
+		Inventory = NewObject<UProjectInventoryComponent>(Pawn, TEXT("ControllerEnsureInventory"));
+		Pawn->AddInstanceComponent(Inventory);
+		Inventory->RegisterComponent();
+		bCreatedInventory = true;
+	}
+	TestNotNull(TEXT("Inventory component should resolve for controller view model test"), Inventory);
+	if (!Inventory)
+	{
+		if (bSpawnedPawn)
+		{
+			Pawn->Destroy();
+		}
+		return false;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	TestNotNull(TEXT("GameInstance should resolve for controller view model test"), GameInstance);
+	if (!GameInstance)
+	{
+		return false;
+	}
+
+	UProjectUILayerHostSubsystem* LayerHost = GameInstance->GetSubsystem<UProjectUILayerHostSubsystem>();
+	UProjectUIFactorySubsystem* Factory = GameInstance->GetSubsystem<UProjectUIFactorySubsystem>();
+	UProjectUIRegistrySubsystem* Registry = GameInstance->GetSubsystem<UProjectUIRegistrySubsystem>();
+	TestNotNull(TEXT("Layer host should resolve for controller view model test"), LayerHost);
+	TestNotNull(TEXT("UI factory should resolve for controller view model test"), Factory);
+	TestNotNull(TEXT("UI registry should resolve for controller view model test"), Registry);
+	if (!LayerHost || !Factory || !Registry)
+	{
+		return false;
+	}
+
+	LayerHost->HideDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	if (UInventoryViewModel* ExistingViewModel = Cast<UInventoryViewModel>(
+			Factory->GetSharedViewModel(UInventoryViewModel::StaticClass())))
+	{
+		ExistingViewModel->HidePanel();
+	}
+	AdvanceInventoryLootPlacesWorld(World, 0.1f);
+
+	TestEqual(
+		TEXT("Inventory panel should start hidden before ensure-only preparation"),
+		CountVisibleInventoryLootPlacesPanels(World),
+		0);
+
+	const FProjectUIDefinition* InventoryPanelDefinition = Registry->FindDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
+	TestNotNull(TEXT("Inventory panel definition should resolve for controller view model test"), InventoryPanelDefinition);
+	if (!InventoryPanelDefinition)
+	{
+		return false;
+	}
+	Factory->EnsureGlobalViewModel(*InventoryPanelDefinition);
+
+	UInventoryViewModel* InventoryViewModel = Cast<UInventoryViewModel>(
+		Factory->GetSharedViewModel(UInventoryViewModel::StaticClass()));
+	TestNotNull(TEXT("Inventory view model should exist after ensure-only preparation"), InventoryViewModel);
+	if (!InventoryViewModel)
+	{
+		if (bSpawnedPawn)
+		{
+			Pawn->Destroy();
+		}
+		return false;
+	}
+	InventoryViewModel->SetInventorySource(Inventory);
+
+	TestFalse(TEXT("Ensure-only preparation must not toggle panel visibility"), InventoryViewModel->GetbPanelVisible());
+	TestTrue(TEXT("Ensure-only preparation must bind inventory commands from possessed pawn"), InventoryViewModel->HasCommands());
+	TestTrue(TEXT("Ensure-only preparation must hydrate standard equipment slots"), InventoryViewModel->GetEquipSlotCount() >= 7);
+	TestEqual(
+		TEXT("Ensure-only preparation must not create a visible inventory panel widget"),
+		CountVisibleInventoryLootPlacesPanels(World),
+		0);
+
+	if (bSpawnedPawn)
+	{
+		Pawn->Destroy();
+	}
+	else if (bCreatedInventory)
+	{
+		Inventory->DestroyComponent();
+	}
+
 	return true;
 }
 

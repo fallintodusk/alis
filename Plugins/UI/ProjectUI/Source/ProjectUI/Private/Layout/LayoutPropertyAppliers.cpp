@@ -17,6 +17,7 @@
 #include "Theme/ProjectUIThemeData.h"
 #include "Effects/ProjectEffectWidget.h"
 #include "Effects/ProjectEffectRegistry.h"
+#include "Widgets/ProjectRadialProgress.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLayoutAppliers, Log, All);
 
@@ -279,6 +280,56 @@ namespace LayoutPropertyAppliers
 		if (JsonObject->TryGetStringField(TEXT("fillColor"), ColorName))
 		{
 			ProgressBar->SetFillColorAndOpacity(LayoutThemeResolver::GetColor(ColorName, Theme));
+		}
+	}
+
+	void ApplyRadialProgressProperties(UProjectRadialProgress* RadialProgress, const TSharedPtr<FJsonObject>& JsonObject, UProjectUIThemeData* Theme)
+	{
+		if (!RadialProgress)
+		{
+			return;
+		}
+
+		double Percent = 0.0;
+		if (JsonObject->TryGetNumberField(TEXT("percent"), Percent))
+		{
+			RadialProgress->SetPercent(static_cast<float>(Percent));
+		}
+
+		double Thickness = 0.0;
+		if (JsonObject->TryGetNumberField(TEXT("thickness"), Thickness))
+		{
+			RadialProgress->SetThickness(static_cast<float>(Thickness));
+		}
+
+		FString FillColorName;
+		if (JsonObject->TryGetStringField(TEXT("fillColor"), FillColorName))
+		{
+			RadialProgress->SetFillColor(LayoutThemeResolver::GetColor(FillColorName, Theme));
+		}
+
+		FString TrackColorName;
+		if (JsonObject->TryGetStringField(TEXT("trackColor"), TrackColorName))
+		{
+			RadialProgress->SetTrackColor(LayoutThemeResolver::GetColor(TrackColorName, Theme));
+		}
+
+		double StartAngleDegrees = 0.0;
+		if (JsonObject->TryGetNumberField(TEXT("startAngleDegrees"), StartAngleDegrees))
+		{
+			RadialProgress->SetStartAngleDegrees(static_cast<float>(StartAngleDegrees));
+		}
+
+		bool bClockwise = true;
+		if (JsonObject->TryGetBoolField(TEXT("clockwise"), bClockwise))
+		{
+			RadialProgress->SetClockwise(bClockwise);
+		}
+
+		bool bShowTrack = true;
+		if (JsonObject->TryGetBoolField(TEXT("showTrack"), bShowTrack))
+		{
+			RadialProgress->SetShowTrack(bShowTrack);
 		}
 	}
 

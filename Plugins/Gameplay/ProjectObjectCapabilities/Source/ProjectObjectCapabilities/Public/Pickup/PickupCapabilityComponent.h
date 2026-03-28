@@ -45,6 +45,7 @@ public:
 	virtual int32 GetInteractPriority_Implementation() const override { return 0; }
 	virtual bool OnComponentInteract_Implementation(AActor* Instigator) override;
 	virtual FText GetInteractionLabel_Implementation() const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* Instigator) const override;
 
 	// -------------------------------------------------------------------------
 	// IPickupSource

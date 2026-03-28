@@ -53,6 +53,7 @@ public:
 	virtual bool OnComponentInteract_Implementation(AActor* Instigator) override;
 	virtual FInteractionPrompt GetInteractionPrompt_Implementation(AActor* Instigator) const override;
 	virtual FText GetInteractionLabel_Implementation() const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* Instigator) const override;
 
 	// Start dialogue from the tree's start node
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")

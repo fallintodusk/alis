@@ -19,7 +19,7 @@ ProjectCore (interfaces only)
 PlayerController (SinglePlayController, etc.)
   -> Depends on ProjectCore
   -> Owns IA_Interact input (E key)
-  -> Calls IInteractionComponentInterface::Execute_TryInteract() on pawn's component
+  -> Calls BeginInteractInput()/EndInteractInput() on pawn's interaction component
 
 ProjectInteraction (this plugin)
   -> FFeatureRegistry("Interaction")  # Attaches component on GameMode init
@@ -39,10 +39,14 @@ Player Input (IA_Interact in PlayerController)
 PlayerController finds UInteractionComponent on Pawn
     |
     v
-IInteractionComponentInterface::Execute_TryInteract()
+IInteractionComponentInterface::Execute_BeginInteractInput()
     |
     v
-UInteractionComponent::TryInteract_Implementation()
+UInteractionComponent starts hold if the focused execution spec requires it
+    |
+    +-- Release early? --> cancel prompt/progress
+    |
+    +-- Hold completes? --> TryInteract()
     |
     +-- Has Authority? --> ExecuteInteraction_ServerAuth()
     |
@@ -62,10 +66,20 @@ IInteractionService::OnInteraction.Broadcast(Target, Instigator)
 ```
 
 **Server-Authoritative Design:**
-- Client calls `TryInteract()`, which routes to server via `Server_TryInteract()` RPC
+- Client begins interaction input, and immediate or completed hold interactions
+  route to `TryInteract()`, which then uses `Server_TryInteract()` when needed
 - Server re-traces from camera to find target (anti-cheat)
 - Only server broadcasts `OnInteraction` - features handle server-side only
 - Sidesteps "RPC must be called on owned actor" - component is on player's pawn
+
+Timed interaction rules
+- Interaction timing is described by `FInteractionExecutionSpec`.
+- World interaction providers own search/open timing.
+- Default searchable world storage uses a short hold (`1.0s`).
+- `0.0s` means instant interaction.
+- HUD prompt shows progress through the shared interaction prompt path.
+- Releasing `E` cancels timed interaction; no extra cancel key is required.
+- If a nearby world-container session is already open, `E` closes it.
 
 ## Key Classes
 
@@ -104,6 +118,12 @@ How it works:
 
 - `ProjectCore` - IInteractionComponentInterface, IInteractionService, ServiceLocator
 - `ProjectFeature` - FFeatureRegistry for GameMode-driven initialization
+
+Related docs
+- Inventory/world-storage behavior SOT:
+  `Plugins/Features/ProjectInventory/docs/design_vision.md`
+- HUD composition root:
+  `Plugins/UI/ProjectHUD/README.md`
 
 ## Decoupling
 

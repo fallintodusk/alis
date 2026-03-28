@@ -311,16 +311,22 @@ For the first implementation slice:
 
 - World interaction may expose `Search` or `OpenContainer` through the
   capability layer.
-- First-pass interaction may stay simple: `E -> Search`.
+- Default searchable storage uses `SearchTimeSeconds = 1.0`.
+- `SearchTimeSeconds = 0.0` means instant open.
+- `SearchTimeSeconds > 0.0` means `[Hold E] Search`.
+- Releasing `E` early cancels immediately; do not require a second cancel key.
 - Choosing `Search` or `OpenContainer` opens the inventory screen and binds the
   nearby world container into the same session.
 - Player inventory remains the primary view.
-- Nearby world storage should render in a lower nearby-container region so the
-  player inventory layout stays recognizable.
+- Nearby world storage should render as a distinct right-side nearby-container
+  panel so the player-vs-world split stays obvious.
 - Nearby world storage reuses the same grid cell presentation, cell visibility,
   stack counts, hover tooltip, extended item info, capacity readouts, and
   weight or volume patterns already used by inventory UI.
 - Bidirectional moves and `Take All` operate inside that same screen.
+- If nearby world storage is already open, `E` closes that session.
+- Empty persistent world containers remain valid searchable storage and must not
+  auto-close or auto-destroy just because the player took every item.
 - Not every searchable prop must expose `FullOpen` on day one; `QuickLoot` may
   stay a lighter presentation over the same storage truth.
 

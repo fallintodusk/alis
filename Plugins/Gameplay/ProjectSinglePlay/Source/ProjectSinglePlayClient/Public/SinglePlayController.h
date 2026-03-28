@@ -54,6 +54,8 @@ private:
 
 	bool EnsureInventoryViewModelReady();
 
+	void SyncInventoryViewModelSourceFromPawn();
+
 	// Bind to MindJournalViewModel from ProjectUI factory.
 	void TryBindMindJournalViewModel();
 
@@ -79,6 +81,9 @@ private:
 
 	// Attempt interaction with focused actor.
 	void HandleInteractAction(const FInputActionValue& Value);
+
+	// Release/cancel interaction input.
+	void HandleInteractReleasedAction(const FInputActionValue& Value);
 
 	// Swap items between hand slots.
 	void HandleSwapHandsAction(const FInputActionValue& Value);

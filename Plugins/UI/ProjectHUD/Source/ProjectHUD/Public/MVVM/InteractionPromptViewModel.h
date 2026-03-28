@@ -8,7 +8,7 @@
 
 class IInteractionService;
 class APawn;
-class UPrimitiveComponent;
+struct FInteractionPromptState;
 
 /**
  * ViewModel for interaction prompt widget.
@@ -44,6 +44,8 @@ public:
 	VIEWMODEL_PROPERTY(bool, bHasFocus)
 	VIEWMODEL_PROPERTY(FText, FocusLabel)
 	VIEWMODEL_PROPERTY(FText, FormattedPrompt)
+	VIEWMODEL_PROPERTY(bool, bShowProgress)
+	VIEWMODEL_PROPERTY(float, ProgressPercent)
 
 private:
 	// =========================================================================
@@ -61,6 +63,6 @@ private:
 	void UnsubscribeFromService();
 	void PullInitialFocusState();
 
-	/** Handle filtered focus change (only our pawn's events) */
-	void HandleFocusChanged(UPrimitiveComponent* FocusedComponent, FText Label);
+	/** Handle filtered prompt state change (only our pawn's events). */
+	void HandlePromptStateChanged(const FInteractionPromptState& State);
 };

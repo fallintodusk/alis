@@ -127,6 +127,13 @@ else:
 - `FModuleManager::LoadModule()` - Load plugin modules (DLLs only)
 - `UGameFeaturesSubsystem::LoadGameFeaturePlugin()` - Activate features (ProjectLoading-managed)
 
+## External Plugin Roots
+
+- `Plugins/ThirdParty/` is for shared tracked external plugins.
+- `Plugins/Local/` is for ignored machine-local editor tooling.
+- Editor-only external plugin loading may scan both roots.
+- Runtime/package flows must not depend on `Plugins/Local/`.
+
 ## Validation
 ```
 scripts/ue/build/build.bat AlisEditor Win64 Development

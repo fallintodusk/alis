@@ -2,6 +2,7 @@
 
 #include "Widgets/W_InventoryPanel.h"
 #include "Widgets/W_ItemContextMenu.h"
+#include "Widgets/InventoryDragEntryResolver.h"
 #include "Widgets/InventoryDragVisualBuilder.h"
 #include "Widgets/W_ItemTooltip.h"
 #include "MVVM/InventoryViewModel.h"
@@ -30,6 +31,7 @@
 #include "ProjectGameplayTags.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY(LogInventoryPanel);
 
@@ -126,6 +128,7 @@ void UW_InventoryPanel::NativeConstruct()
     HitDetector.SetCellSize(CachedCellSize);
     // Explicit rebind avoids setup drift after construct/hot-reload.
     DragDropHandler.Initialize(&HitDetector);
+    ResetRuntimeWidgetState();
 
     if (!RootWidget)
     {
@@ -257,6 +260,29 @@ void UW_InventoryPanel::NativeConstruct()
         UE_LOG(LogInventoryPanel, Warning, TEXT("RootCanvas not found - context menu/tooltip will not be available"));
     }
 
+    if (InventoryVM)
+    {
+        // Live runtime can bind the shared InventoryViewModel before this widget
+        // finishes NativeConstruct. Reapply the current VM state now that hosts,
+        // grids, and presenter widgets are actually available.
+        RefreshFromViewModel();
+        SetVisibility(InventoryVM->GetbPanelVisible() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+            {
+                if (!InventoryVM)
+                {
+                    return;
+                }
+
+                RefreshFromViewModel();
+                SetVisibility(InventoryVM->GetbPanelVisible() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+            }));
+        }
+    }
+
     UE_LOG(LogInventoryPanel, Log, TEXT("NativeConstruct complete"));
 }
 
@@ -304,12 +330,20 @@ void UW_InventoryPanel::SetInventoryViewModel(UInventoryViewModel* InViewModel)
     {
         InventoryVM->OnPropertyChanged.AddUniqueDynamic(this, &UW_InventoryPanel::HandleViewModelPropertyChanged);
         InventoryVM->OnInventoryError.AddUObject(this, &UW_InventoryPanel::HandleInventoryError);
-        RefreshFromViewModel();
-        SetVisibility(InventoryVM->GetbPanelVisible() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        const bool bWidgetTreeReady = (GridHost != nullptr) || (LeftHandGridHost != nullptr) || (EquipSlotsHost != nullptr);
+        if (bWidgetTreeReady)
+        {
+            ResetRuntimeWidgetState();
+            RefreshFromViewModel();
+            SetVisibility(InventoryVM->GetbPanelVisible() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
     }
     else
     {
-        SetVisibility(ESlateVisibility::Collapsed);
+        if (GridHost || LeftHandGridHost || EquipSlotsHost)
+        {
+            SetVisibility(ESlateVisibility::Collapsed);
+        }
     }
 }
 
@@ -337,7 +371,7 @@ void UW_InventoryPanel::OnThemeChanged_Implementation(UProjectUIThemeData* NewTh
     CurrentTheme = NewTheme;
     VisualState.UpdateColors(NewTheme);
     GridBuilder.SetTheme(NewTheme);
-    CachedGridWidth = CachedGridHeight = CachedGridWidthSecondary = CachedGridHeightSecondary = 0;
+    ResetRuntimeWidgetState();
     RebuildGrids();
     UpdateAllVisuals();
 }
@@ -362,7 +396,7 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
     static const FName NAME_EquipSlotLabels(TEXT("EquipSlotLabels"));
     static const FName NAME_EquipSlotItemIconCodes(TEXT("EquipSlotItemIconCodes"));
 
-    UE_LOG(LogInventoryPanel, Log, TEXT("HandleViewModelPropertyChanged: %s"), *PropertyName.ToString());
+    UE_LOG(LogInventoryPanel, Verbose, TEXT("HandleViewModelPropertyChanged: %s"), *PropertyName.ToString());
 
     if (PropertyName == NAME_bPanelVisible)
     {
@@ -371,6 +405,15 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
         SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
         if (bVisible)
         {
+            if ((InventoryVM->GetGridWidth() > 0 && (!GridPanel || (GridHost && GridHost->GetContent() != GridPanel)))
+                || (InventoryVM->GetSecondaryGridWidth() > 0 && InventoryVM->GetbHasNearbyContainer() && (!GridPanelSecondary || (NearbyGridHost && NearbyGridHost->GetContent() != GridPanelSecondary)))
+                || !LeftHandGridPanel
+                || !RightHandGridPanel
+                || !EquipSlotsHost
+                || EquipSlotsHost->GetChildrenCount() == 0)
+            {
+                ResetRuntimeWidgetState();
+            }
             // Grid data properties fire before bPanelVisible, so the panel
             // may not exist yet when they arrive. Rebuild now with latest state.
             RebuildGrids();
@@ -518,21 +561,20 @@ void UW_InventoryPanel::RebuildGrids()
     const int32 NewW = InventoryVM->GetGridWidth();
     const int32 NewH = InventoryVM->GetGridHeight();
     const bool bHasPrimary = (NewW > 0 && NewH > 0);
+    const bool bPrimaryHostMissingContent = GridHost && GridHost->GetContent() != GridPanel;
+    const bool bPrimaryCellMismatch = CellWidgets.Num() != (NewW * NewH) || CellBorders.Num() != (NewW * NewH);
 
-    if (NewW != CachedGridWidth || NewH != CachedGridHeight)
+    if (bHasPrimary && (NewW != CachedGridWidth || NewH != CachedGridHeight || !GridPanel || bPrimaryHostMissingContent || bPrimaryCellMismatch))
     {
         UE_LOG(LogInventoryPanel, Log, TEXT("RebuildGrids: %dx%d -> %dx%d"), CachedGridWidth, CachedGridHeight, NewW, NewH);
         CachedGridWidth = NewW;
         CachedGridHeight = NewH;
-        if (bHasPrimary)
+        GridPanel = GridBuilder.BuildGrid(NewW, NewH, CellWidgets, CellBorders, false);
+        if (GridHost) { GridHost->SetContent(GridPanel); }
+        for (UProjectGridCell* Cell : CellBorders)
         {
-            GridPanel = GridBuilder.BuildGrid(NewW, NewH, CellWidgets, CellBorders, false);
-            if (GridHost) { GridHost->SetContent(GridPanel); }
-            for (UProjectGridCell* Cell : CellBorders)
-            {
-                if (!Cell) { continue; }
-                Cell->SetIsGridCell(true);
-            }
+            if (!Cell) { continue; }
+            Cell->SetIsGridCell(true);
         }
     }
 
@@ -555,20 +597,20 @@ void UW_InventoryPanel::RebuildGrids()
     const bool bRenderSecondaryAsNearby = InventoryVM->GetbHasNearbyContainer();
     UBorder* ActiveSecondaryGridHost = bRenderSecondaryAsNearby ? NearbyGridHost : GridHostSecondary;
     UBorder* InactiveSecondaryGridHost = bRenderSecondaryAsNearby ? GridHostSecondary : NearbyGridHost;
+    const bool bSecondaryHostMissingContent =
+        ActiveSecondaryGridHost && ActiveSecondaryGridHost->GetContent() != GridPanelSecondary;
+    const bool bSecondaryCellMismatch = SecondaryCellWidgets.Num() != (NewW2 * NewH2) || SecondaryCellBorders.Num() != (NewW2 * NewH2);
 
-    if (NewW2 != CachedGridWidthSecondary || NewH2 != CachedGridHeightSecondary)
+    if (bHasSecondary && (NewW2 != CachedGridWidthSecondary || NewH2 != CachedGridHeightSecondary || !GridPanelSecondary || bSecondaryHostMissingContent || bSecondaryCellMismatch))
     {
         CachedGridWidthSecondary = NewW2;
         CachedGridHeightSecondary = NewH2;
-        if (bHasSecondary)
+        GridPanelSecondary = GridBuilder.BuildGrid(NewW2, NewH2, SecondaryCellWidgets, SecondaryCellBorders, true);
+        if (GridHostSecondary) { GridHostSecondary->SetContent(GridPanelSecondary); }
+        for (UProjectGridCell* Cell : SecondaryCellBorders)
         {
-            GridPanelSecondary = GridBuilder.BuildGrid(NewW2, NewH2, SecondaryCellWidgets, SecondaryCellBorders, true);
-            if (GridHostSecondary) { GridHostSecondary->SetContent(GridPanelSecondary); }
-            for (UProjectGridCell* Cell : SecondaryCellBorders)
-            {
-                if (!Cell) { continue; }
-                Cell->SetIsGridCell(true);
-            }
+            if (!Cell) { continue; }
+            Cell->SetIsGridCell(true);
         }
     }
 
@@ -579,19 +621,22 @@ void UW_InventoryPanel::RebuildGrids()
         SecondaryCellBorders.Reset();
     }
 
-    if (InactiveSecondaryGridHost)
+    if (InactiveSecondaryGridHost && InactiveSecondaryGridHost->GetContent())
     {
         InactiveSecondaryGridHost->SetContent(nullptr);
     }
 
     if (bHasSecondary && ActiveSecondaryGridHost && GridPanelSecondary)
     {
-        ActiveSecondaryGridHost->SetContent(GridPanelSecondary);
+        if (ActiveSecondaryGridHost->GetContent() != GridPanelSecondary)
+        {
+            ActiveSecondaryGridHost->SetContent(GridPanelSecondary);
+        }
     }
     else
     {
-        if (GridHostSecondary) { GridHostSecondary->SetContent(nullptr); }
-        if (NearbyGridHost) { NearbyGridHost->SetContent(nullptr); }
+        if (GridHostSecondary && GridHostSecondary->GetContent()) { GridHostSecondary->SetContent(nullptr); }
+        if (NearbyGridHost && NearbyGridHost->GetContent()) { NearbyGridHost->SetContent(nullptr); }
     }
 
     const bool bHasPlayerSecondary = bHasSecondary && !bRenderSecondaryAsNearby;
@@ -609,6 +654,7 @@ void UW_InventoryPanel::RebuildGrids()
     if (EmptyStoragePlaceholder) { EmptyStoragePlaceholder->SetVisibility(ESlateVisibility::Collapsed); }
 
     GridBuilder.UpdateGridTexts(InventoryVM->GetCellTexts(), CellWidgets);
+
     GridBuilder.UpdateGridTexts(InventoryVM->GetSecondaryCellTexts(), SecondaryCellWidgets);
 }
 
@@ -618,10 +664,29 @@ void UW_InventoryPanel::RebuildHandGrids()
 
     // Hand grids are always 2x2 - only build once
     constexpr int32 HandSize = UInventoryViewModel::HandGridSize;
+    const bool bNeedRebuild =
+        !bHandGridsBuilt
+        || !LeftHandGridPanel
+        || !RightHandGridPanel
+        || !LeftHandGridHost
+        || !RightHandGridHost
+        || LeftHandGridHost->GetContent() != LeftHandGridPanel
+        || RightHandGridHost->GetContent() != RightHandGridPanel
+        || LeftHandCellWidgets.Num() != UInventoryViewModel::HandCellCount
+        || RightHandCellWidgets.Num() != UInventoryViewModel::HandCellCount;
 
     // Only build once - but wait until hosts are valid
-    if (!bHandGridsBuilt && LeftHandGridHost && RightHandGridHost)
+    if (bNeedRebuild && LeftHandGridHost && RightHandGridHost)
     {
+        LeftHandGridPanel = nullptr;
+        RightHandGridPanel = nullptr;
+        LeftHandCellWidgets.Reset();
+        RightHandCellWidgets.Reset();
+        LeftHandCells.Reset();
+        RightHandCells.Reset();
+        LeftHandGridHost->SetContent(nullptr);
+        RightHandGridHost->SetContent(nullptr);
+
         LeftHandGridPanel = GridBuilder.BuildGrid(HandSize, HandSize, LeftHandCellWidgets, LeftHandCells, false);
         if (LeftHandGridPanel) { LeftHandGridHost->SetContent(LeftHandGridPanel); }
 
@@ -676,6 +741,43 @@ void UW_InventoryPanel::RebuildHandGrids()
             UE_LOG(LogInventoryPanel, Verbose, TEXT("  RHand[%d]: %s"), i, *Safe);
         }
     }
+}
+
+void UW_InventoryPanel::ResetRuntimeWidgetState()
+{
+    CachedGridWidth = 0;
+    CachedGridHeight = 0;
+    CachedGridWidthSecondary = 0;
+    CachedGridHeightSecondary = 0;
+
+    GridPanel = nullptr;
+    GridPanelSecondary = nullptr;
+    LeftHandGridPanel = nullptr;
+    RightHandGridPanel = nullptr;
+    bHandGridsBuilt = false;
+
+    ContainerTabCells.Reset();
+    SecondaryContainerTabCells.Reset();
+    CellWidgets.Reset();
+    CellBorders.Reset();
+    SecondaryCellWidgets.Reset();
+    SecondaryCellBorders.Reset();
+    EquipSlotCells.Reset();
+    LeftHandCellWidgets.Reset();
+    RightHandCellWidgets.Reset();
+    LeftHandCells.Reset();
+    RightHandCells.Reset();
+    PocketGridRuntime.Reset();
+
+    if (GridHost) { GridHost->SetContent(nullptr); }
+    if (GridHostSecondary) { GridHostSecondary->SetContent(nullptr); }
+    if (NearbyGridHost) { NearbyGridHost->SetContent(nullptr); }
+    if (LeftHandGridHost) { LeftHandGridHost->SetContent(nullptr); }
+    if (RightHandGridHost) { RightHandGridHost->SetContent(nullptr); }
+    if (EquipSlotsHost) { EquipSlotsHost->ClearChildren(); }
+    if (PocketGridsHost) { PocketGridsHost->ClearChildren(); }
+    if (ContainerTabs) { ContainerTabs->ClearChildren(); }
+    if (ContainerTabsSecondary) { ContainerTabsSecondary->ClearChildren(); }
 }
 
 int32 UW_InventoryPanel::EncodePocketCellIndex(int32 PocketIndex, int32 CellIndex)
@@ -1694,17 +1796,12 @@ void UW_InventoryPanel::NativeOnDragDetected(const FGeometry& InGeometry, const 
     if (!InventoryVM) { return; }
 
     FInventoryEntryView Entry;
-    bool bHas = false;
-    if (PendingDragInstanceId != INDEX_NONE)
-    {
-        bHas = InventoryVM->TryGetEntryByInstanceId(PendingDragInstanceId, Entry);
-    }
-    else if (PanelState.PendingDragCellIndex != INDEX_NONE)
-    {
-        bHas = PanelState.bPendingDragSecondary
-            ? InventoryVM->TryGetSecondaryEntryByCellIndex(PanelState.PendingDragCellIndex, Entry)
-            : InventoryVM->TryGetEntryByCellIndex(PanelState.PendingDragCellIndex, Entry);
-    }
+    const bool bHas = FInventoryDragEntryResolver::Resolve(
+        InventoryVM,
+        PendingDragInstanceId,
+        PanelState.PendingDragCellIndex,
+        PanelState.bPendingDragSecondary,
+        Entry);
     if (!bHas) { return; }
 
     UInventoryDragDropOperation* DragOp = NewObject<UInventoryDragDropOperation>();
@@ -1718,7 +1815,7 @@ void UW_InventoryPanel::NativeOnDragDetected(const FGeometry& InGeometry, const 
     DragOp->bRotated = bRotated;
     DragOp->ItemSize = bRotated ? FIntPoint(Entry.GridSize.Y, Entry.GridSize.X) : Entry.GridSize;
     DragOp->EquipSlotTag = Entry.EquipSlotTag;
-    DragOp->bFromNearbyContainer = InventoryVM->IsNearbyEntryInstanceId(Entry.InstanceId);
+    DragOp->bFromNearbyContainer = Entry.ContainerId == ProjectTags::Item_Container_WorldStorage;
 
     DragOp->DefaultDragVisual = FInventoryDragVisualBuilder::Build(this, Entry, DragQuantity, CurrentTheme);
     DragOp->Pivot = EDragPivot::CenterCenter;
@@ -1968,7 +2065,6 @@ bool UW_InventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
                 FIntPoint(Col, Row),
                 DragOp->bRotated,
                 DragOp->Quantity);
-            RebuildGrids();
             return true;
         }
 

@@ -71,6 +71,7 @@ public:
 	virtual int32 GetInteractPriority_Implementation() const override { return 0; }
 	virtual bool OnComponentInteract_Implementation(AActor* Instigator) override;
 	virtual FText GetInteractionLabel_Implementation() const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* Instigator) const override;
 
 	// -------------------------------------------------------------------------
 	// IWorldContainerSessionSource
@@ -119,6 +120,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LootContainer")
 	bool bOneTimeUse = false;
+
+	/** Time the player must hold search before this container opens. 0 = immediate open. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LootContainer", meta = (ClampMin = "0.0"))
+	float SearchTimeSeconds = 1.0f;
 
 	// -------------------------------------------------------------------------
 	// Per-Instance Loot (Designer Editable)

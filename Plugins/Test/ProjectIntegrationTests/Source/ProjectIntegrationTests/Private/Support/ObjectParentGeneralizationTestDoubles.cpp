@@ -9,6 +9,7 @@ UProjectInteractionCounterCapabilityComponent::UProjectInteractionCounterCapabil
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	InteractionLabel = FText::FromString(TEXT("ComponentFallback"));
+	ActiveInteractionLabel = FText::FromString(TEXT("Interacting..."));
 }
 
 int32 UProjectInteractionCounterCapabilityComponent::GetInteractPriority_Implementation() const
@@ -33,6 +34,15 @@ FText UProjectInteractionCounterCapabilityComponent::GetInteractionLabel_Impleme
 	return InteractionLabel;
 }
 
+FInteractionExecutionSpec UProjectInteractionCounterCapabilityComponent::GetInteractionExecutionSpec_Implementation(AActor* Instigator) const
+{
+	FInteractionExecutionSpec Spec;
+	Spec.DurationSeconds = HoldDurationSeconds;
+	Spec.ActiveLabel = ActiveInteractionLabel;
+	Spec.bCancelOnRelease = true;
+	return Spec;
+}
+
 UPrimitiveComponent* UProjectInteractionCounterCapabilityComponent::GetInteractTargetMesh_Implementation() const
 {
 	return BoundTargetMesh;
@@ -53,7 +63,11 @@ AProjectInteractionActorInterfaceTestActor::AProjectInteractionActorInterfaceTes
 	TestMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TestMesh"));
 	TestMesh->SetupAttachment(Root);
 
+	FallbackCapability = CreateDefaultSubobject<UProjectInteractionCounterCapabilityComponent>(TEXT("FallbackCapability"));
+	IInteractableComponentTargetInterface::Execute_SetInteractTargetMesh(FallbackCapability, TestMesh);
+
 	FocusLabel = FText::FromString(TEXT("ActorInterface"));
+	ActiveInteractionLabel = FText::FromString(TEXT("ActorInteracting..."));
 }
 
 bool AProjectInteractionActorInterfaceTestActor::OnInteract_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent)
@@ -67,9 +81,23 @@ bool AProjectInteractionActorInterfaceTestActor::OnInteract_Implementation(AActo
 FInteractionFocusInfo AProjectInteractionActorInterfaceTestActor::GetFocusInfo_Implementation(UPrimitiveComponent* HitComponent) const
 {
 	FInteractionFocusInfo Result;
+	if (!bReturnValidFocus)
+	{
+		return Result;
+	}
+
 	Result.Label = FocusLabel;
-	Result.HighlightMesh = HitComponent ? HitComponent : TestMesh;
+	Result.HighlightMesh = bReturnHighlightMesh ? (HitComponent ? HitComponent : TestMesh) : nullptr;
 	return Result;
+}
+
+FInteractionExecutionSpec AProjectInteractionActorInterfaceTestActor::GetInteractionExecutionSpec_Implementation(AActor* InteractInstigator, UPrimitiveComponent* HitComponent) const
+{
+	FInteractionExecutionSpec Spec;
+	Spec.DurationSeconds = HoldDurationSeconds;
+	Spec.ActiveLabel = ActiveInteractionLabel;
+	Spec.bCancelOnRelease = true;
+	return Spec;
 }
 
 AProjectSyncDefinitionApplicableTestActor::AProjectSyncDefinitionApplicableTestActor()

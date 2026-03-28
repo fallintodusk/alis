@@ -31,8 +31,10 @@ public:
 private:
 	void HandleInteraction(AActor* Target, AActor* Instigator);
 	void HandlePickupSource(UObject* PickupSource, APawn* Pawn);
+	void HandleWorldContainerSource(AActor* Target, UObject* WorldContainerSource, APawn* Pawn);
 	UProjectInventoryComponent* GetInventory(APawn* Pawn) const;
 	UObject* FindPickupSource(AActor* Target) const;
+	UObject* FindWorldContainerSource(AActor* Target) const;
 
 	FDelegateHandle InteractionHandle;
 };

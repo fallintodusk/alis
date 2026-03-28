@@ -43,6 +43,7 @@ public:
 	bool CloseSession(const FContainerSessionHandle& Handle);
 
 	bool CloseSessionLocal(const FContainerSessionHandle& Handle);
+	void CloseAllSessions();
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|ContainerSession")
 	bool TakeAllFromWorldContainerSession(
@@ -97,7 +98,6 @@ private:
 
 	UObject* ResolveSessionSource(AActor* TargetActor) const;
 	AActor* ResolveSessionInstigator() const;
-	void CloseAllSessions();
 
 	TMap<FGuid, FActiveContainerSession> ActiveSessions;
 };

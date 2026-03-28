@@ -6,6 +6,8 @@
 #include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "ProjectGameplayTags.h"
 #include "Components/ActorComponent.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -185,6 +187,23 @@ UObject* ResolveWorldContainerSessionSourceFromActor(AActor* Actor)
 void UInventoryViewModel::Initialize(UObject* Context)
 {
     Super::Initialize(Context);
+    InitializationContext = Context;
+
+    auto BindFromPlayerController = [this](APlayerController* PlayerController) -> bool
+    {
+        if (!PlayerController)
+        {
+            return false;
+        }
+
+        if (APawn* Pawn = PlayerController->GetPawn())
+        {
+            SetInventorySource(FindInventorySourceFromActor(Pawn));
+            return true;
+        }
+
+        return false;
+    };
 
     if (APawn* Pawn = Cast<APawn>(Context))
     {
@@ -194,10 +213,92 @@ void UInventoryViewModel::Initialize(UObject* Context)
 
     if (APlayerController* PC = Cast<APlayerController>(Context))
     {
-        if (APawn* Pawn = PC->GetPawn())
+        if (BindFromPlayerController(PC))
         {
-            SetInventorySource(FindInventorySourceFromActor(Pawn));
+            return;
         }
+    }
+
+    if (ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Context))
+    {
+        if (BindFromPlayerController(LocalPlayer->GetPlayerController(Context->GetWorld())))
+        {
+            return;
+        }
+    }
+
+    if (UGameInstance* GameInstance = Cast<UGameInstance>(Context))
+    {
+        for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+        {
+            if (BindFromPlayerController(LocalPlayer ? LocalPlayer->GetPlayerController(GameInstance->GetWorld()) : nullptr))
+            {
+                return;
+            }
+        }
+    }
+}
+
+UObject* UInventoryViewModel::ResolveInventorySourceFromContext() const
+{
+    UObject* Context = InitializationContext.Get();
+    if (!Context)
+    {
+        return nullptr;
+    }
+
+    auto ResolveFromController = [this](APlayerController* PlayerController) -> UObject*
+    {
+        if (!PlayerController)
+        {
+            return nullptr;
+        }
+
+        if (APawn* Pawn = PlayerController->GetPawn())
+        {
+            return FindInventorySourceFromActor(Pawn);
+        }
+
+        return nullptr;
+    };
+
+    if (APawn* Pawn = Cast<APawn>(Context))
+    {
+        return FindInventorySourceFromActor(Pawn);
+    }
+
+    if (APlayerController* PC = Cast<APlayerController>(Context))
+    {
+        return ResolveFromController(PC);
+    }
+
+    if (ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Context))
+    {
+        return ResolveFromController(LocalPlayer->GetPlayerController(Context->GetWorld()));
+    }
+
+    if (UGameInstance* GameInstance = Cast<UGameInstance>(Context))
+    {
+        for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+        {
+            if (UObject* Resolved = ResolveFromController(LocalPlayer ? LocalPlayer->GetPlayerController(GameInstance->GetWorld()) : nullptr))
+            {
+                return Resolved;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+void UInventoryViewModel::EnsureInventorySourceFromContext()
+{
+    UObject* CurrentSource = InventorySource.GetObject();
+    UObject* ResolvedSource = ResolveInventorySourceFromContext();
+
+    if (ResolvedSource && ResolvedSource != CurrentSource)
+    {
+        SetInventorySource(ResolvedSource);
     }
 }
 
@@ -898,14 +999,13 @@ void UInventoryViewModel::TogglePanel()
 
 void UInventoryViewModel::ShowPanel()
 {
+    EnsureInventorySourceFromContext();
     RefreshFromInventory();
     UpdatebPanelVisible(true);
 }
 
 void UInventoryViewModel::HidePanel()
 {
-    bool bShouldClearNearbyState = false;
-
     if (NearbySessionHandle.IsValid())
     {
         if (IInventoryWorldContainerTransferBridge* Bridge = GetWorldContainerTransferBridge(InventorySource.GetObject()))
@@ -915,17 +1015,11 @@ void UInventoryViewModel::HidePanel()
                 InventorySource.GetObject(),
                 NearbySessionHandle,
                 CloseError);
-            bShouldClearNearbyState = bCloseRequested;
             if (!bCloseRequested && !CloseError.IsEmpty())
             {
                 HandleInventoryErrorFromSource(CloseError);
             }
         }
-    }
-
-    if (bShouldClearNearbyState)
-    {
-        ClearNearbyContainerSource();
     }
 
     UpdatebPanelVisible(false);
@@ -935,6 +1029,7 @@ void UInventoryViewModel::HandleWorldContainerSessionOpened(
     UObject* WorldContainerSource,
     const FContainerSessionHandle& SessionHandle)
 {
+    EnsureInventorySourceFromContext();
     SetNearbyContainerSource(WorldContainerSource, SessionHandle);
     ShowPanel();
 }

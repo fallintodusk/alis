@@ -23,9 +23,9 @@ void FInventoryViewModelEquipSlotBuilder::Build(const TArray<FInventoryEntryView
     const int32 SlotCount = OutResult.SlotTags.Num();
     OutResult.InstanceIds.SetNum(SlotCount);
     OutResult.ItemIconCodes.SetNum(SlotCount);
-    OutResult.Labels.Reserve(SlotCount);
-    OutResult.ShortLabels.Reserve(SlotCount);
-    OutResult.ItemLabels.Reserve(SlotCount);
+    OutResult.Labels.Reset(SlotCount);
+    OutResult.ShortLabels.Reset(SlotCount);
+    OutResult.ItemLabels.Reset(SlotCount);
 
     for (int32 Index = 0; Index < SlotCount; ++Index)
     {

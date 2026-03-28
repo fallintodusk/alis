@@ -1846,6 +1846,16 @@ bool UProjectInventoryComponent::RequestOpenWorldContainerSession_Implementation
 		}
 
 		HandleWorldContainerSessionOpenedLocal(TargetActor, Handle);
+		if (APawn* OwnerPawn = Cast<APawn>(OwnerActor))
+		{
+			if (APlayerController* OwningPC = Cast<APlayerController>(OwnerPawn->GetController()))
+			{
+				if (!OwningPC->IsLocalController())
+				{
+					Client_WorldContainerSessionOpened(TargetActor, Handle);
+				}
+			}
+		}
 		return true;
 	}
 

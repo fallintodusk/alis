@@ -1185,6 +1185,17 @@ TArray<FCapabilityValidationResult> ULootContainerCapabilityComponent::ValidateC
 	const TMap<FName, FString>& Properties)
 {
 	TArray<FCapabilityValidationResult> Results;
+
+	const FString* SearchTimeValue = Properties.Find(TEXT("SearchTimeSeconds"));
+	if (SearchTimeValue && !SearchTimeValue->IsEmpty())
+	{
+		const float SearchTime = FCString::Atof(**SearchTimeValue);
+		if (SearchTime < 0.0f)
+		{
+			Results.Add({TEXT("SearchTimeSeconds"), TEXT("Cannot be negative"), true});
+		}
+	}
+
 	return Results;
 }
 
@@ -1216,6 +1227,15 @@ bool ULootContainerCapabilityComponent::OnComponentInteract_Implementation(AActo
 FText ULootContainerCapabilityComponent::GetInteractionLabel_Implementation() const
 {
 	return NSLOCTEXT("LootContainerCapability", "SearchLabel", "Search");
+}
+
+FInteractionExecutionSpec ULootContainerCapabilityComponent::GetInteractionExecutionSpec_Implementation(AActor* Instigator) const
+{
+	FInteractionExecutionSpec Spec;
+	Spec.DurationSeconds = FMath::Max(0.0f, SearchTimeSeconds);
+	Spec.ActiveLabel = NSLOCTEXT("LootContainerCapability", "SearchingLabel", "Searching...");
+	Spec.bCancelOnRelease = true;
+	return Spec;
 }
 
 void ULootContainerCapabilityComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

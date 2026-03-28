@@ -3,7 +3,9 @@
 #include "Interaction/InventoryInteractionHandler.h"
 #include "ProjectInventory.h"
 #include "Interfaces/IInteractionService.h"
+#include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "Interfaces/IPickupSource.h"
+#include "Interfaces/IWorldContainerSessionSource.h"
 #include "ProjectServiceLocator.h"
 #include "Components/ProjectInventoryComponent.h"
 #include "Components/ActorComponent.h"
@@ -75,6 +77,12 @@ void FInventoryInteractionHandler::HandleInteraction(AActor* Target, AActor* Ins
 		return;
 	}
 
+	if (UObject* WorldContainerSource = FindWorldContainerSource(Target))
+	{
+		HandleWorldContainerSource(Target, WorldContainerSource, Pawn);
+		return;
+	}
+
 	// NOTE: Doors and other interactables handle themselves via IInteractableTargetInterface
 	// No door-specific code here
 }
@@ -113,6 +121,34 @@ void FInventoryInteractionHandler::HandlePickupSource(UObject* PickupSource, APa
 	}
 }
 
+void FInventoryInteractionHandler::HandleWorldContainerSource(AActor* Target, UObject* WorldContainerSource, APawn* Pawn)
+{
+	if (!Target || !WorldContainerSource || !Pawn)
+	{
+		return;
+	}
+
+	UProjectInventoryComponent* Inventory = GetInventory(Pawn);
+	if (!Inventory || !Inventory->GetClass()->ImplementsInterface(UInventoryWorldContainerTransferBridge::StaticClass()))
+	{
+		return;
+	}
+
+	FText OpenError;
+	if (!IInventoryWorldContainerTransferBridge::Execute_RequestOpenWorldContainerSession(
+		Inventory,
+		Target,
+		EContainerSessionMode::FullOpen,
+		OpenError))
+	{
+		if (!OpenError.IsEmpty())
+		{
+			UE_LOG(LogProjectInventory, Verbose, TEXT("HandleWorldContainerSource: open rejected - %s"),
+				*OpenError.ToString());
+		}
+	}
+}
+
 UProjectInventoryComponent* FInventoryInteractionHandler::GetInventory(APawn* Pawn) const
 {
 	if (!Pawn)
@@ -140,6 +176,32 @@ UObject* FInventoryInteractionHandler::FindPickupSource(AActor* Target) const
 	for (UActorComponent* Component : Components)
 	{
 		if (Component && Component->Implements<UPickupSource>())
+		{
+			return Component;
+		}
+	}
+
+	return nullptr;
+}
+
+UObject* FInventoryInteractionHandler::FindWorldContainerSource(AActor* Target) const
+{
+	if (!Target)
+	{
+		return nullptr;
+	}
+
+	if (Target->Implements<UWorldContainerSessionSource>())
+	{
+		return Target;
+	}
+
+	TInlineComponentArray<UActorComponent*> Components;
+	Target->GetComponents(Components);
+
+	for (UActorComponent* Component : Components)
+	{
+		if (Component && Component->Implements<UWorldContainerSessionSource>())
 		{
 			return Component;
 		}

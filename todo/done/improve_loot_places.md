@@ -15,9 +15,17 @@ Delivered outcome:
 - inventory owns session orchestration through `UProjectContainerSessionSubsystem`
 - `QuickLoot` and `FullOpen` are interaction modes over the same world-container truth
 - `FullOpen` uses a single-opener rule
-- nearby world storage opens in the existing inventory screen
+- nearby world storage opens in the existing inventory screen as a distinct
+  right-side panel
 - player <-> world transfer supports exact placement and rotation targets
 - nearby-container UI includes `Take All`
+- timed search/open uses the shared interaction prompt path:
+  - default `SearchTimeSeconds = 1.0`
+  - `0.0` means instant
+  - `[Hold E] Search` uses progress and release-to-cancel
+  - `E` closes an already open nearby-container session
+- empty persistent world containers stay valid store-back targets and do not
+  auto-close or auto-destroy on empty
 - focused integration coverage exists for parser, spawn seeding, identity, session flow, busy rule, quick-loot take-all, nearby take/store, and bridge lifecycle
 
 Key implementation routes:

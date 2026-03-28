@@ -147,6 +147,11 @@ FText ULockableComponent::GetInteractionLabel_Implementation() const
 		: NSLOCTEXT("LockableComponent", "Interact", "Interact");
 }
 
+FInteractionExecutionSpec ULockableComponent::GetInteractionExecutionSpec_Implementation(AActor* Instigator) const
+{
+	return FInteractionExecutionSpec();
+}
+
 UPrimitiveComponent* ULockableComponent::GetInteractTargetMesh_Implementation() const
 {
 	return InteractTargetMesh;

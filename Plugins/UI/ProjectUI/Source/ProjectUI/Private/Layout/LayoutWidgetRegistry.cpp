@@ -22,6 +22,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Effects/ProjectFireSparksEffect.h"
 #include "Dialogs/ProjectDialogWidget.h"
+#include "Widgets/ProjectRadialProgress.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLayoutRegistry, Log, All);
 
@@ -71,6 +72,7 @@ namespace LayoutWidgetRegistry
 		WidgetFactories.Add(TEXT("TextBlock"), &CreateWidget<UTextBlock>);
 		WidgetFactories.Add(TEXT("Image"), &CreateWidget<UImage>);
 		WidgetFactories.Add(TEXT("ProgressBar"), &CreateWidget<UProgressBar>);
+		WidgetFactories.Add(TEXT("RadialProgress"), &CreateWidget<UProjectRadialProgress>);
 		WidgetFactories.Add(TEXT("EditableText"), &CreateWidget<UEditableText>);
 		WidgetFactories.Add(TEXT("ListView"), &CreateWidget<UListView>);
 		WidgetFactories.Add(TEXT("Spacer"), &CreateWidget<USpacer>);

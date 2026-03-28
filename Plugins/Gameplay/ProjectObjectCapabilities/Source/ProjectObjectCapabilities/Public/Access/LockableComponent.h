@@ -35,6 +35,7 @@ public:
 	virtual bool OnComponentInteract_Implementation(AActor* Instigator) override;
 	virtual FInteractionPrompt GetInteractionPrompt_Implementation(AActor* Instigator) const override;
 	virtual FText GetInteractionLabel_Implementation() const override;
+	virtual FInteractionExecutionSpec GetInteractionExecutionSpec_Implementation(AActor* Instigator) const override;
 	virtual UPrimitiveComponent* GetInteractTargetMesh_Implementation() const override;
 	virtual void SetInteractTargetMesh_Implementation(UPrimitiveComponent* TargetMesh) override;
 

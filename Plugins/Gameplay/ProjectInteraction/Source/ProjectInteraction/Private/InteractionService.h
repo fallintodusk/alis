@@ -51,6 +51,19 @@ public:
 		return Delegate;
 	}
 
+	virtual FInteractionPromptStateFilteredDelegate& OnPromptStateChangedForPawn(APawn* Pawn) override
+	{
+		if (!Pawn)
+		{
+			UE_LOG(LogInteractionService, Warning, TEXT("OnPromptStateChangedForPawn: Called with null Pawn"));
+			static FInteractionPromptStateFilteredDelegate DummyDelegate;
+			return DummyDelegate;
+		}
+
+		FInteractionPromptStateFilteredDelegate& Delegate = PerPawnPromptDelegates.FindOrAdd(Pawn);
+		return Delegate;
+	}
+
 	virtual void UnsubscribeForPawn(APawn* Pawn) override
 	{
 		if (!Pawn)
@@ -63,6 +76,7 @@ public:
 			UE_LOG(LogInteractionService, Log, TEXT("UnsubscribeForPawn: Unsubscribed Pawn=%s (TotalPawns=%d)"),
 				*Pawn->GetName(), PerPawnDelegates.Num());
 		}
+		PerPawnPromptDelegates.Remove(Pawn);
 	}
 
 	virtual void BroadcastFocusChanged(APawn* Instigator, AActor* FocusedActor, UPrimitiveComponent* FocusedComponent, FText Label) override
@@ -83,6 +97,19 @@ public:
 			{
 				PawnDelegate->Broadcast(FocusedComponent, Label);
 			}
+		}
+	}
+
+	virtual void BroadcastPromptState(APawn* Instigator, const FInteractionPromptState& State) override
+	{
+		if (!Instigator)
+		{
+			return;
+		}
+
+		if (FInteractionPromptStateFilteredDelegate* PawnDelegate = PerPawnPromptDelegates.Find(Instigator))
+		{
+			PawnDelegate->Broadcast(State);
 		}
 	}
 
@@ -111,4 +138,7 @@ private:
 
 	/** Per-pawn delegates for filtered focus events */
 	TMap<TWeakObjectPtr<APawn>, FInteractionFocusFilteredDelegate> PerPawnDelegates;
+
+	/** Per-pawn delegates for HUD prompt state. */
+	TMap<TWeakObjectPtr<APawn>, FInteractionPromptStateFilteredDelegate> PerPawnPromptDelegates;
 };

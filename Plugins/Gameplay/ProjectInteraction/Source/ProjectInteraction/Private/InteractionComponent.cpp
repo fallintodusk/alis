@@ -185,6 +185,47 @@ namespace
 		return true;
 	}
 
+	bool ResolveInteractionExecutionSpecFromComponents(
+		AActor* Target,
+		UPrimitiveComponent* HitComponent,
+		AActor* Instigator,
+		FInteractionExecutionSpec& OutSpec)
+	{
+		OutSpec = FInteractionExecutionSpec();
+		if (!Target)
+		{
+			return false;
+		}
+
+		UActorComponent* Selected = SelectBestInteractableComponent(Target, HitComponent);
+		if (!Selected)
+		{
+			return false;
+		}
+
+		OutSpec = IInteractableComponentTargetInterface::Execute_GetInteractionExecutionSpec(Selected, Instigator);
+		return true;
+	}
+
+	bool HasHoldTargetChanged(
+		const TWeakObjectPtr<AActor>& HoldActor,
+		const TWeakObjectPtr<UPrimitiveComponent>& HoldComponent,
+		const TWeakObjectPtr<AActor>& CurrentActor,
+		const TWeakObjectPtr<UPrimitiveComponent>& CurrentComponent)
+	{
+		if (!CurrentActor.IsValid() || HoldActor.Get() != CurrentActor.Get())
+		{
+			return true;
+		}
+
+		if (HoldComponent.IsValid() && HoldComponent.Get() != CurrentComponent.Get())
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	bool ExecuteInteractionViaComponents(AActor* Target, AActor* Instigator, UPrimitiveComponent* HitComponent)
 	{
 		if (!Target || !Instigator)
@@ -235,6 +276,35 @@ void UInteractionComponent::BeginPlay()
 void UInteractionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (bHoldInteractionActive)
+	{
+		const bool bFocusChanged = HasHoldTargetChanged(HoldTargetActor, HoldTargetComponent, FocusedActor, FocusedComponent);
+
+		if (bFocusChanged || !FocusedExecutionSpec.RequiresHold())
+		{
+			CancelHoldInteraction();
+		}
+		else if (UWorld* World = GetWorld())
+		{
+			const float HoldDuration = FMath::Max(FocusedExecutionSpec.DurationSeconds, KINDA_SMALL_NUMBER);
+			const float NewProgress = FMath::Clamp(
+				(World->GetTimeSeconds() - HoldInteractionStartTime) / HoldDuration,
+				0.0f,
+				1.0f);
+
+			if (!FMath::IsNearlyEqual(NewProgress, HoldInteractionProgress))
+			{
+				HoldInteractionProgress = NewProgress;
+				BroadcastPromptStateToService();
+			}
+
+			if (HoldInteractionProgress >= 1.0f - KINDA_SMALL_NUMBER)
+			{
+				CompleteHoldInteraction();
+			}
+		}
+	}
 
 	// Skip frames for performance (trace every N frames)
 	++FrameCounter;
@@ -296,13 +366,24 @@ void UInteractionComponent::SetFocusedActor(AActor* NewFocus, UPrimitiveComponen
 {
 	// Query focus info from actor interface first, then fallback to component routing.
 	FInteractionFocusInfo FocusInfo;
+	FInteractionExecutionSpec NewExecutionSpec;
+	bool bResolvedExecutionSpecFromActor = false;
 	if (NewFocus && NewFocus->Implements<UInteractableTargetInterface>())
 	{
 		FocusInfo = IInteractableTargetInterface::Execute_GetFocusInfo(NewFocus, HitComponent);
+		if (FocusInfo.IsValid())
+		{
+			NewExecutionSpec = IInteractableTargetInterface::Execute_GetInteractionExecutionSpec(NewFocus, GetOwner(), HitComponent);
+			bResolvedExecutionSpecFromActor = true;
+		}
 	}
 	if (NewFocus && !FocusInfo.IsValid())
 	{
 		ResolveFocusFromComponents(NewFocus, HitComponent, FocusInfo);
+	}
+	if (NewFocus && !bResolvedExecutionSpecFromActor)
+	{
+		ResolveInteractionExecutionSpecFromComponents(NewFocus, HitComponent, GetOwner(), NewExecutionSpec);
 	}
 
 	// Not interactable if no valid focus info
@@ -310,11 +391,26 @@ void UInteractionComponent::SetFocusedActor(AActor* NewFocus, UPrimitiveComponen
 	{
 		NewFocus = nullptr;
 		HitComponent = nullptr;
+		NewExecutionSpec = FInteractionExecutionSpec();
 	}
 
 	// Get highlight mesh and label from focus info
 	UPrimitiveComponent* HighlightComponent = FocusInfo.HighlightMesh ? FocusInfo.HighlightMesh.Get() : HitComponent;
 	FText NewLabel = FocusInfo.Label.IsEmpty() ? DefaultInteractionLabel : FocusInfo.Label;
+	const bool bExecutionSpecChanged =
+		!FMath::IsNearlyEqual(FocusedExecutionSpec.DurationSeconds, NewExecutionSpec.DurationSeconds)
+		|| !FocusedExecutionSpec.ActiveLabel.EqualTo(NewExecutionSpec.ActiveLabel)
+		|| FocusedExecutionSpec.bCancelOnRelease != NewExecutionSpec.bCancelOnRelease;
+
+	if (bHoldInteractionActive
+		&& HasHoldTargetChanged(
+			HoldTargetActor,
+			HoldTargetComponent,
+			TWeakObjectPtr<AActor>(NewFocus),
+			TWeakObjectPtr<UPrimitiveComponent>(HighlightComponent)))
+	{
+		CancelHoldInteraction();
+	}
 
 	// Check if anything changed
 	const bool bSameFocus =
@@ -323,8 +419,9 @@ void UInteractionComponent::SetFocusedActor(AActor* NewFocus, UPrimitiveComponen
 
 	if (bSameFocus)
 	{
+		FocusedExecutionSpec = NewExecutionSpec;
 		// Still same focus - check if label changed (Open -> Close)
-		if (!NewLabel.EqualTo(FocusedLabel))
+		if (!NewLabel.EqualTo(FocusedLabel) || bExecutionSpecChanged)
 		{
 			FocusedLabel = NewLabel;
 			BroadcastFocusChangedToService();
@@ -347,6 +444,7 @@ void UInteractionComponent::SetFocusedActor(AActor* NewFocus, UPrimitiveComponen
 	FocusedActor = NewFocus;
 	FocusedComponent = HighlightComponent;
 	FocusedLabel = NewLabel;
+	FocusedExecutionSpec = NewExecutionSpec;
 
 	if (HighlightComponent && NewFocus)
 	{
@@ -393,6 +491,60 @@ void UInteractionComponent::BroadcastFocusChangedToService()
 
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 	Service->BroadcastFocusChanged(OwnerPawn, FocusedActor.Get(), FocusedComponent.Get(), FocusedLabel);
+	Service->BroadcastPromptState(OwnerPawn, BuildPromptState());
+}
+
+void UInteractionComponent::DrawInteractionDebugTraceOnInput()
+{
+#if WITH_EDITOR
+	if (!bDrawDebug && !GIsEditor)
+	{
+		return;
+	}
+
+	AActor* Owner = GetOwner();
+	APawn* Pawn = Cast<APawn>(Owner);
+	if (!Pawn)
+	{
+		UE_LOG(LogInteraction, Verbose, TEXT("[%s] DrawInteractionDebugTraceOnInput: Skipped - owner is not a pawn"), *GetName());
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+	if (!PC || !PC->PlayerCameraManager)
+	{
+		UE_LOG(LogInteraction, Verbose, TEXT("[%s] DrawInteractionDebugTraceOnInput: Skipped - no PlayerController or CameraManager"), *GetName());
+		return;
+	}
+
+	const FVector DebugTraceStart = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
+	const FVector DebugTraceEnd = DebugTraceStart + (CameraForward * TraceDistance);
+
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(Owner);
+
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		DebugTraceStart,
+		DebugTraceEnd,
+		TraceChannel,
+		QueryParams
+	);
+
+	const FColor LineColor = bHit ? FColor::Green : FColor::Red;
+	const FVector EndPoint = bHit ? HitResult.ImpactPoint : DebugTraceEnd;
+	UKismetSystemLibrary::DrawDebugLine(this, DebugTraceStart, EndPoint, LineColor, 5.0f, 0.3f);
+
+	UE_LOG(
+		LogInteraction,
+		Log,
+		TEXT("[%s] DrawInteractionDebugTraceOnInput: Drawn %s line to '%s'"),
+		*GetName(),
+		bHit ? TEXT("hit") : TEXT("miss"),
+		bHit && HitResult.GetActor() ? *HitResult.GetActor()->GetActorNameOrLabel() : TEXT("None"));
+#endif
 }
 
 bool UInteractionComponent::TryInteract_Implementation()
@@ -419,6 +571,54 @@ bool UInteractionComponent::TryInteract_Implementation()
 	}
 
 	return true;
+}
+
+bool UInteractionComponent::BeginInteractInput_Implementation()
+{
+	DrawInteractionDebugTraceOnInput();
+
+	if (!FocusedActor.IsValid())
+	{
+		return false;
+	}
+
+	if (!FocusedExecutionSpec.RequiresHold())
+	{
+		return TryInteract_Implementation();
+	}
+
+	if (bHoldInteractionActive)
+	{
+		return true;
+	}
+
+	UWorld* World = GetWorld();
+	HoldInteractionStartTime = World ? World->GetTimeSeconds() : 0.0f;
+	HoldInteractionProgress = 0.0f;
+	bHoldInteractionActive = true;
+	HoldTargetActor = FocusedActor;
+	HoldTargetComponent = FocusedComponent;
+
+	UE_LOG(LogInteraction, Log, TEXT("[%s] BeginInteractInput: Started timed interaction '%s' (Duration=%.2fs)"),
+		*GetName(),
+		*FocusedLabel.ToString(),
+		FocusedExecutionSpec.DurationSeconds);
+
+	BroadcastPromptStateToService();
+	return true;
+}
+
+void UInteractionComponent::EndInteractInput_Implementation()
+{
+	if (bHoldInteractionActive && FocusedExecutionSpec.bCancelOnRelease)
+	{
+		CancelHoldInteraction();
+	}
+}
+
+FInteractionPromptState UInteractionComponent::GetInteractionPromptState_Implementation() const
+{
+	return BuildPromptState();
 }
 
 void UInteractionComponent::Server_TryInteract_Implementation()
@@ -476,16 +676,6 @@ void UInteractionComponent::ExecuteInteraction_ServerAuth()
 		true
 	);
 
-	// Simple debug line only (editor-only, thin line for 10 sec)
-#if WITH_EDITOR
-	if (bDrawDebug)
-	{
-		const FColor LineColor = bHit ? FColor::Green : FColor::Red;
-		const FVector EndPoint = bHit ? HitResult.ImpactPoint : ServerTraceEnd;
-		UKismetSystemLibrary::DrawDebugLine(this, ServerTraceStart, EndPoint, LineColor, 10.0f, 0.3f);
-	}
-#endif
-
 	AActor* Target = bHit ? HitResult.GetActor() : nullptr;
 	UPrimitiveComponent* HitComponent = bHit ? HitResult.GetComponent() : nullptr;
 
@@ -513,18 +703,91 @@ void UInteractionComponent::ExecuteInteraction_ServerAuth()
 	}
 
 	// Execute interaction through actor interface first, fallback to component routing.
+	bool bHandled = false;
 	if (Target->Implements<UInteractableTargetInterface>())
 	{
-		IInteractableTargetInterface::Execute_OnInteract(Target, Owner, HitComponent);
+		bHandled = IInteractableTargetInterface::Execute_OnInteract(Target, Owner, HitComponent);
 	}
 	else
 	{
-		ExecuteInteractionViaComponents(Target, Owner, HitComponent);
+		bHandled = ExecuteInteractionViaComponents(Target, Owner, HitComponent);
 	}
 
-	// Then broadcast to features (inventory handles pickups/loot, etc.)
-	InteractionService->BroadcastInteraction(Target, Owner);
+	if (bHandled)
+	{
+		// Then broadcast to features (inventory handles pickups/loot, etc.)
+		InteractionService->BroadcastInteraction(Target, Owner);
+	}
 }
+
+void UInteractionComponent::BroadcastPromptStateToService() const
+{
+	TSharedPtr<IInteractionService> Service = FProjectServiceLocator::Resolve<IInteractionService>();
+	if (!Service.IsValid())
+	{
+		return;
+	}
+
+	if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+	{
+		Service->BroadcastPromptState(OwnerPawn, BuildPromptState());
+	}
+}
+
+FInteractionPromptState UInteractionComponent::BuildPromptState() const
+{
+	FInteractionPromptState State;
+	State.bHasFocus = FocusedActor.IsValid() && !FocusedLabel.IsEmpty();
+	if (!State.bHasFocus)
+	{
+		return State;
+	}
+
+	State.bRequiresHold = FocusedExecutionSpec.RequiresHold();
+	State.bIsInProgress = bHoldInteractionActive;
+	State.Progress = bHoldInteractionActive ? FMath::Clamp(HoldInteractionProgress, 0.0f, 1.0f) : 0.0f;
+	State.Label =
+		(bHoldInteractionActive && !FocusedExecutionSpec.ActiveLabel.IsEmpty())
+			? FocusedExecutionSpec.ActiveLabel
+			: FocusedLabel;
+	return State;
+}
+
+void UInteractionComponent::CancelHoldInteraction()
+{
+	if (!bHoldInteractionActive)
+	{
+		return;
+	}
+
+	bHoldInteractionActive = false;
+	HoldInteractionProgress = 0.0f;
+	HoldInteractionStartTime = 0.0f;
+	HoldTargetActor.Reset();
+	HoldTargetComponent.Reset();
+
+	UE_LOG(LogInteraction, Verbose, TEXT("[%s] CancelHoldInteraction: Timed interaction cancelled"), *GetName());
+	BroadcastPromptStateToService();
+}
+
+void UInteractionComponent::CompleteHoldInteraction()
+{
+	if (!bHoldInteractionActive)
+	{
+		return;
+	}
+
+	bHoldInteractionActive = false;
+	HoldInteractionProgress = 0.0f;
+	HoldInteractionStartTime = 0.0f;
+	HoldTargetActor.Reset();
+	HoldTargetComponent.Reset();
+	BroadcastPromptStateToService();
+
+	UE_LOG(LogInteraction, Log, TEXT("[%s] CompleteHoldInteraction: Timed interaction completed"), *GetName());
+	TryInteract_Implementation();
+}
+
 
 void UInteractionComponent::SetupPostProcess()
 {
