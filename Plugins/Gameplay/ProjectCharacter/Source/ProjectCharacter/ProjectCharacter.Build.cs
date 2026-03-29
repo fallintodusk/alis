@@ -16,7 +16,11 @@ public class ProjectCharacter : ModuleRules
 			"GameplayAbilities",
 			"GameplayTags",
 			"ProjectGAS",
-			"ProjectVitals"
+			"ProjectVitals",
+			"CustomizableObject",
+			"HairStrandsCore",
+			"AnimGraphRuntime",
+			"AnimationCore"
 		});
 	}
 }

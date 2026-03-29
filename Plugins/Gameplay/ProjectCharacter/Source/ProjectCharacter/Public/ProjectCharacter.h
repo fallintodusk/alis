@@ -22,6 +22,7 @@ class UStatusAttributeSet;
 class UProjectAbilitySet;
 struct FProjectAbilitySetHandles;
 class UProjectVitalsComponent;
+class UCustomizableObjectInstance;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogProjectCharacter, Log, All);
 
@@ -75,6 +76,12 @@ class PROJECTCHARACTER_API AProjectCharacter : public ACharacter, public IAbilit
 	/** First-person camera at eye level */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FirstPerson", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* WorldBodyMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "FirstPerson", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* LocalBodyMesh;
 
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -130,6 +137,9 @@ class PROJECTCHARACTER_API AProjectCharacter : public ACharacter, public IAbilit
 	/** Guard against double-binding to attribute delegate */
 	bool bMovementSpeedBound = false;
 
+	// Deferred re-apply visibility after Mutable update — Groom components appear asynchronously
+	FTimerHandle GroomRetryTimerHandle;
+
 public:
 	AProjectCharacter();
 
@@ -178,6 +188,7 @@ protected:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void PostInitializeComponents() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void UnPossessed() override;
@@ -188,6 +199,12 @@ private:
 	/** Creates default Enhanced Input assets if not configured */
 	void CreateDefaultInputAssets();
 
+	// Re-applies visibility flags (Mutable resets them on mesh regeneration)
+	void ApplyFirstPersonVisibility();
+
+	/** Mutable callback — re-apply visibility after mesh rebuild */
+	void OnMutableMeshUpdated(UCustomizableObjectInstance* Instance);
+
 	/** Grant all startup ability sets to ASC (called on server in PossessedBy) */
 	void GiveStartupAbilitySets();
 
@@ -197,4 +214,7 @@ private:
 public:
 	/** Returns FirstPersonCamera subobject */
 	FORCEINLINE class UCameraComponent* GetFirstPersonCamera() const { return FirstPersonCamera; }
+
+	/** WHY exposed: LocalBodyAnimInstance needs WorldBodyMesh as CopyPose source */
+	FORCEINLINE class USkeletalMeshComponent* GetWorldBodyMesh() const { return WorldBodyMesh; }
 };

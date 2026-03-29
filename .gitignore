@@ -42,6 +42,9 @@ tmp/
 node_modules/
 .vscode/settings.json
 
+# --- Local UE config overrides (per-developer) ---
+Config/UserEngine.ini
+
 # --- Runtime state (generated at runtime) ---
 LocalAppData/Alis/State/
 
@@ -118,6 +121,8 @@ cmake-build-*/
 utility/check/reports/
 utility/config/ue_path.conf
 scripts/config/ue_path.local.conf
+scripts/config/tools.conf
+scripts/config/tools.local.conf
 
 # --- Third-party handling ---
 # By default, Binaries/** rules ignore everything;

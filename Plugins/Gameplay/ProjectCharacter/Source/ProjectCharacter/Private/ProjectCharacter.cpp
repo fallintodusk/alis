@@ -21,6 +21,11 @@
 #include "Attributes/StatusAttributeSet.h"
 #include "Abilities/ProjectAbilitySet.h"
 #include "ProjectVitalsComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
+#include "MuCO/CustomizableObjectInstance.h"
+#include "GroomComponent.h"
+#include "LocalBodyAnimInstance.h"  // CopyPose + spine lock AnimInstance for LocalBody
 
 DEFINE_LOG_CATEGORY(LogProjectCharacter);
 
@@ -29,6 +34,9 @@ DEFINE_LOG_CATEGORY(LogProjectCharacter);
 
 AProjectCharacter::AProjectCharacter()
 {
+	// Tick enabled for FP debug visualization (disable after debugging)
+	PrimaryActorTick.bCanEverTick = false;
+
 	// -------------------------------------------------------------------------
 	// GAS Setup
 	// -------------------------------------------------------------------------
@@ -105,11 +113,42 @@ AProjectCharacter::AProjectCharacter()
 	GetCharacterMovement()->SetCrouchedHalfHeight(60.0f);
 	GetCharacterMovement()->MaxWalkSpeedCrouched = CrouchSpeed;
 
+	// Driver mesh: capsule bottom, face forward
+	GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
+	GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+
 	// FIRST-PERSON: Camera directly attached at eye level (no spring arm)
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(RootComponent);
-	FirstPersonCamera->SetRelativeLocation(FVector(0.f, 0.f, 64.f)); // Eye height
+	FirstPersonCamera->SetRelativeLocation(FVector(23.f, 0.f, 62.0f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
+	FirstPersonCamera->FieldOfView = 90.0f;
+
+	// -------------------------------------------------------------------------
+	// Layer 2a — world body: other players see full character + shadow
+	// -------------------------------------------------------------------------
+	WorldBodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WorldBodyMesh"));
+	WorldBodyMesh->SetupAttachment(GetMesh());
+	// Visual-only layer, physics handled by capsule
+	WorldBodyMesh->SetCollisionProfileName(FName("NoCollision"));
+	// CopyPose source for LocalBody — bones must be fresh every frame even when OwnerNoSee hides it
+	WorldBodyMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+	// -------------------------------------------------------------------------
+	// Layer 2b: Headless local body — owner sees this (no head geo to clip)
+	// -------------------------------------------------------------------------
+	// Shares animation from Layer 2a (CharacterMesh0) via LeaderPose.
+	// Head geometry removed in ApplyFirstPersonVisibility().
+	// Shadow comes from Layer 2a (world body), not this mesh.
+	// -------------------------------------------------------------------------
+	LocalBodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("LocalBodyMesh"));
+	LocalBodyMesh->SetupAttachment(GetMesh());
+	LocalBodyMesh->SetLeaderPoseComponent(GetMesh());
+	LocalBodyMesh->SetOnlyOwnerSee(true);
+	LocalBodyMesh->SetCastShadow(false);
+	LocalBodyMesh->SetCollisionProfileName(FName("NoCollision"));
+	// HideBoneByName and CopyPose require fresh bone transforms every frame — AlwaysTickPose alone is insufficient
+	LocalBodyMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character)
 	// are set in the derived blueprint asset (to avoid direct content references in C++)
@@ -135,8 +174,12 @@ void AProjectCharacter::PossessedBy(AController* NewController)
 		{
 			GiveStartupAbilitySets();
 
-			// Start vitals tick (metabolism, thresholds, condition regen/drain)
-			if (VitalsComponent)
+			// Restart vitals on re-possession (after UnPossessed->Stop).
+			// On first spawn, ASC::InitializeComponent hasn't run yet
+			// (PossessedBy fires from PreInitializeComponents), so
+			// SpawnedAttributes is empty. PostInitializeComponents handles
+			// the first start after ASC discovers attribute sets.
+			if (VitalsComponent && AbilitySystemComponent->HasBeenInitialized())
 			{
 				VitalsComponent->Start();
 			}
@@ -219,6 +262,23 @@ void AProjectCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// PostInitializeComponents
+// ASC::InitializeComponent() runs during Super call, populating SpawnedAttributes.
+// This is the earliest safe point to write GAS attribute values.
+// PossessedBy fires from PreInitializeComponents (before SpawnedAttributes exist).
+
+void AProjectCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	// Start vitals on first spawn (server-only, bIsRunning guard prevents double-start)
+	if (HasAuthority() && VitalsComponent)
+	{
+		VitalsComponent->Start();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 // BeginPlay
 
 void AProjectCharacter::BeginPlay()
@@ -236,7 +296,35 @@ void AProjectCharacter::BeginPlay()
 
 	// Bind to MovementSpeedMultiplier attribute for movement speed changes
 	BindMovementSpeedAttribute();
+
+	// -------------------------------------------------------------------------
+	// First-Person Visibility — Layer 2 split
+	// -------------------------------------------------------------------------
+	// Bind Mutable delegate — reapply visibility after mesh rebuild
+	TArray<UCustomizableSkeletalComponent*> MutableComps;
+	GetComponents<UCustomizableSkeletalComponent>(MutableComps);
+	for (UCustomizableSkeletalComponent* Comp : MutableComps)
+	{
+		UCustomizableObjectInstance* Instance = Comp ? Comp->GetCustomizableObjectInstance() : nullptr;
+		if (Instance)
+		{
+			Instance->UpdatedNativeDelegate.AddUObject(this, &AProjectCharacter::OnMutableMeshUpdated);
+		}
+	}
+
+	// Apply immediately (in case Mutable already finished before BeginPlay)
+	ApplyFirstPersonVisibility();
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+// Proxy is a member field — no heap allocation
+FAnimInstanceProxy* ULocalBodyAnimInstance::CreateAnimInstanceProxy()
+{
+	return &LocalBodyProxy;
+}
+
+void ULocalBodyAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) {}
 
 void AProjectCharacter::CreateDefaultInputAssets()
 {
@@ -385,11 +473,10 @@ void AProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AProjectCharacter::StopSprint);
 		}
 
-		// Crouching (Ctrl held = crouch, released = stand)
+		// Crouching (Ctrl toggle)
 		if (CrouchAction)
 		{
 			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AProjectCharacter::StartCrouch);
-			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &AProjectCharacter::StopCrouch);
 		}
 
 		UE_LOG(LogProjectCharacter, Log, TEXT("Enhanced Input bindings configured (Move=%s, Look=%s, Jump=%s, Sprint=%s, Crouch=%s)"),
@@ -549,8 +636,7 @@ void AProjectCharacter::OnMovementSpeedMultiplierChanged(const FOnAttributeChang
 
 void AProjectCharacter::StartCrouch()
 {
-	// Built-in UE crouch system handles capsule resize and collision
-	// CrouchSpeed (~4 km/h) is set via MaxWalkSpeedCrouched in constructor
+	if (bIsCrouched) { UnCrouch(); return; }
 	Crouch();
 }
 
@@ -567,4 +653,156 @@ void AProjectCharacter::StopCrouch()
 UAbilitySystemComponent* AProjectCharacter::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// First-Person Visibility (Layer 2 Split)
+
+void AProjectCharacter::ApplyFirstPersonVisibility()
+{
+	if (!IsLocallyControlled()) return;
+
+	USkeletalMeshComponent* Body = GetMesh();
+	if (!Body) return;
+
+	// === Layer 1: Driver — invisible to all; exists only for Motion Matching + Root Motion ===
+	Body->SetHiddenInGame(true);   // No one sees the driver mesh
+	Body->SetCastShadow(false);    // Shadow comes from WorldBodyMesh instead
+
+	// === Layer 2a: World Body (full, others see, casts shadow) ===
+	Body->SetOwnerNoSee(true);
+	Body->SetCastHiddenShadow(true);
+
+	// === WorldBodyMesh: other players see this body + it casts the FP shadow ===
+	if (WorldBodyMesh)
+	{
+		// Sync mesh from Driver in case Mutable generated it after constructor
+		if (Body->GetSkeletalMeshAsset() && WorldBodyMesh->GetSkeletalMeshAsset() != Body->GetSkeletalMeshAsset())
+		{
+			WorldBodyMesh->SetSkeletalMeshAsset(Body->GetSkeletalMeshAsset());
+		}
+
+		WorldBodyMesh->SetOwnerNoSee(true);       // Owner sees LocalBody instead
+		WorldBodyMesh->SetCastHiddenShadow(true);  // Shadow visible even when mesh is OwnerNoSee
+		WorldBodyMesh->SetHiddenInGame(false);      // Other players see this body
+
+		// Camera stays on capsule — SpineLock pulls bone TO camera, not camera to bone
+
+		// Head must follow WorldBody (not Driver) — otherwise neck-body seam gap appears
+		TArray<USkeletalMeshComponent*> SkelComps;
+		GetComponents<USkeletalMeshComponent>(SkelComps);
+		for (USkeletalMeshComponent* Comp : SkelComps)
+		{
+			if (Comp == Body || Comp == WorldBodyMesh || Comp == LocalBodyMesh) continue;
+			if (Comp->GetFName() == FName("Head"))
+			{
+				Comp->SetLeaderPoseComponent(WorldBodyMesh);
+				break;
+			}
+		}
+	}
+
+	// === Layer 2b: Local Body (headless, owner sees) ===
+	// Local_Body_CSK (Blueprint) should generate mesh via Mutable.
+	// Fallback: copy from Layer 2a if CSK hasn't populated it yet.
+	if (LocalBodyMesh)
+	{
+		LocalBodyMesh->SetOnlyOwnerSee(true);
+		LocalBodyMesh->SetCastShadow(false);       // Original (kept for zero-diff with git HEAD)
+		LocalBodyMesh->SetCastShadow(true);        // Override: owner needs to see own body shadow
+		LocalBodyMesh->SetHiddenInGame(false);
+
+		// Fallback: sync mesh from Layer 2a if Local_Body_CSK hasn't generated it
+		if (!LocalBodyMesh->GetSkeletalMeshAsset() && Body->GetSkeletalMeshAsset())
+		{
+			LocalBodyMesh->SetSkeletalMeshAsset(Body->GetSkeletalMeshAsset());
+		}
+
+		// Second fallback: WorldBody may have mesh if Driver was empty (Mutable workflow)
+		if (!LocalBodyMesh->GetSkeletalMeshAsset() && WorldBodyMesh)
+		{
+			LocalBodyMesh->SetSkeletalMeshAsset(WorldBodyMesh->GetSkeletalMeshAsset());
+		}
+
+		// Setup CopyPose + ModifyBone(root) AnimInstance for spine lock
+		// LeaderPose bypasses AnimGraph so per-bone offset is impossible with it
+		if (LocalBodyMesh->GetSkeletalMeshAsset() && !LocalBodyMesh->GetAnimInstance())
+		{
+			LocalBodyMesh->SetAnimInstanceClass(ULocalBodyAnimInstance::StaticClass());
+			LocalBodyMesh->InitAnim(true);
+		}
+
+		// Clear LeaderPose (set in constructor) — LocalBody uses CopyPose via AnimGraph instead
+		if (LocalBodyMesh->LeaderPoseComponent.IsValid())
+		{
+			LocalBodyMesh->SetLeaderPoseComponent(nullptr);
+		}
+
+		// Remove head geometry on local body only (scales head bone to zero)
+		// Layer 2a retains full head for other players and shadow
+		LocalBodyMesh->HideBoneByName(TEXT("head"), PBO_None);
+	}
+
+	// === Head, Groom, and other non-body primitives: hide from owner, keep shadow ===
+	// GetComponents only returns Actor-owned components; Grooms may be children of Head mesh
+	TArray<UPrimitiveComponent*> PrimComps;
+	GetComponents<UPrimitiveComponent>(PrimComps);
+
+	// Also gather children of Head mesh (Groom bindings are attached there)
+	TArray<USceneComponent*> HeadChildren;
+	for (UPrimitiveComponent* PC : PrimComps)
+	{
+		if (PC->GetFName().ToString().Contains(TEXT("Head")))
+		{
+			PC->GetChildrenComponents(true, HeadChildren);
+			break;
+		}
+	}
+	for (USceneComponent* Child : HeadChildren)
+	{
+		if (UPrimitiveComponent* ChildPrim = Cast<UPrimitiveComponent>(Child))
+		{
+			PrimComps.AddUnique(ChildPrim);
+		}
+	}
+
+	for (UPrimitiveComponent* PrimComp : PrimComps)
+	{
+		if (PrimComp == Body || PrimComp == WorldBodyMesh || PrimComp == LocalBodyMesh) continue;
+		if (PrimComp == GetCapsuleComponent()) continue;
+
+		const FString CompName = PrimComp->GetFName().ToString();
+		const FString ClassName = PrimComp->GetClass()->GetName();
+
+		bool bIsHead = CompName.Contains(TEXT("Head"));
+		bool bIsGroom = CompName.Contains(TEXT("Groom"))
+			|| ClassName.Contains(TEXT("Groom"))
+			|| CompName.Contains(TEXT("Hair"))
+			|| CompName.Contains(TEXT("Beard"))
+			|| CompName.Contains(TEXT("Eyebrow"))
+			|| CompName.Contains(TEXT("Eyelash"))
+			|| CompName.Contains(TEXT("Mustache"));
+
+		if (bIsHead || bIsGroom)
+		{
+			PrimComp->SetOwnerNoSee(true);
+			PrimComp->SetCastHiddenShadow(true);
+		}
+	}
+}
+
+void AProjectCharacter::OnMutableMeshUpdated(UCustomizableObjectInstance* Instance)
+{
+	ApplyFirstPersonVisibility();
+
+	// Groom components may be re-attached asynchronously after Mutable finishes — retry after short delay
+	GetWorld()->GetTimerManager().SetTimer(
+		GroomRetryTimerHandle,
+		[this]()
+		{
+			ApplyFirstPersonVisibility();
+		},
+		0.5f,
+		false
+	);
 }
