@@ -1,6 +1,5 @@
 @echo off
-REM Check GameFeature Plugin Registration Status
-REM This script verifies that all GameFeature plugins have valid configurations
+REM Validate GameFeature plugin registration configuration without launching the editor.
 
 echo ========================================
 echo GameFeature Plugin Registration Check
@@ -10,7 +9,6 @@ echo.
 echo Checking plugin files...
 echo.
 
-REM Check if .uplugin files exist
 echo [1/5] Verifying .uplugin files exist:
 if exist "Plugins\GameFeatures\ProjectMenuCoreGF\ProjectMenuCoreGF.uplugin" (
     echo   [OK] ProjectMenuCoreGF.uplugin
@@ -25,7 +23,6 @@ if exist "Plugins\GameFeatures\ProjectMenuExperienceGF\ProjectMenuExperienceGF.u
 )
 echo.
 
-REM Check if GameFeatureData field exists in .uplugin files
 echo [2/5] Checking GameFeatureData paths in .uplugin files:
 findstr /C:"GameFeatureData" "Plugins\GameFeatures\ProjectMenuCoreGF\ProjectMenuCoreGF.uplugin" >nul
 if %errorlevel%==0 (
@@ -44,7 +41,6 @@ if %errorlevel%==0 (
 )
 echo.
 
-REM Check if GameFeatureData .uasset files exist
 echo [3/5] Verifying GameFeatureData .uasset files exist:
 if exist "Plugins\GameFeatures\ProjectMenuCoreGF\Content\GameFeatureData\DA_ProjectMenuCore_GameFeature.uasset" (
     echo   [OK] DA_ProjectMenuCore_GameFeature.uasset exists
@@ -61,7 +57,6 @@ if exist "Plugins\GameFeatures\ProjectMenuExperienceGF\Content\GameFeatureData\G
 )
 echo.
 
-REM Check plugin enablement in Alis.uproject
 echo [4/5] Checking plugin enablement in Alis.uproject:
 findstr /C:"ProjectMenuCoreGF" Alis.uproject >nul
 if %errorlevel%==0 (
@@ -78,7 +73,6 @@ if %errorlevel%==0 (
 )
 echo.
 
-REM Check Config/DefaultProject.ini
 echo [5/5] Checking Menu experience configuration:
 findstr /C:"ExperienceName=\"Menu\"" Config\DefaultProject.ini >nul
 if %errorlevel%==0 (

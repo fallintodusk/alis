@@ -125,7 +125,7 @@ private:
 	void SelectMotionDriver();
 
 	struct FMotionDriverState;
-	TUniquePtr<FMotionDriverState> DriverState;
+	TSharedPtr<FMotionDriverState> DriverState;
 
 	friend class FRotatorKinematicDriver;
 	friend class FRotatorChaosDriver;

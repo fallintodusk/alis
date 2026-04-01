@@ -110,7 +110,7 @@ void USpringSliderComponent::BeginPlay()
 		DriverState->Driver->Init();
 	}
 
-	UE_LOG(LogProjectMotionSystem, Log,
+	UE_LOG(LogProjectMotionSystem, Verbose,
 		TEXT("SpringSliderComponent on %s: InitialLocation = %s, ClosedPosition = %s, OpenPosition = %s"),
 		*GetOwner()->GetName(),
 		*InitialLocation.ToString(),
@@ -120,7 +120,7 @@ void USpringSliderComponent::BeginPlay()
 
 void USpringSliderComponent::SelectMotionDriver()
 {
-	DriverState = MakeUnique<FMotionDriverState>();
+	DriverState = MakeShared<FMotionDriverState>();
 	if (ShouldUseChaosMode())
 	{
 		DriverState->Driver = MakeUnique<FSliderChaosDriver>(*this);

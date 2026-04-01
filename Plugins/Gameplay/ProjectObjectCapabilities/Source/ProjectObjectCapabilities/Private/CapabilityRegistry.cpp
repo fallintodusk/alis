@@ -1,15 +1,41 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "CapabilityRegistry.h"
+#include "Registry/RegisteredClassScan.h"
 #include "Components/ActorComponent.h"
-#include "UObject/UObjectIterator.h"
 #include "ProjectObjectCapabilitiesModule.h"
 
 TMap<FName, UClass*> FCapabilityRegistry::Registry;
+TArray<FName> FCapabilityRegistry::ExternalCapabilityModules;
 bool FCapabilityRegistry::bIsBuilt = false;
 
 // Motion capability IDs (meshes with these need Movable mobility)
 static const TArray<FName> MotionCapabilityIds = { FName(TEXT("Hinged")), FName(TEXT("Sliding")) };
+
+void FCapabilityRegistry::RegisterCapabilityModule(FName ModuleName)
+{
+	check(IsInGameThread());
+
+	if (!ExternalCapabilityModules.Contains(ModuleName))
+	{
+		ExternalCapabilityModules.Add(ModuleName);
+
+		// Auto-invalidate so next lookup rescans with the new module
+		if (bIsBuilt)
+		{
+			bIsBuilt = false;
+			UE_LOG(LogProjectObjectCapabilities, Log,
+				TEXT("CapabilityRegistry: registered external module '%s' (late registration, will rescan on next lookup)"),
+				*ModuleName.ToString());
+		}
+		else
+		{
+			UE_LOG(LogProjectObjectCapabilities, Log,
+				TEXT("CapabilityRegistry: registered external module '%s'"),
+				*ModuleName.ToString());
+		}
+	}
+}
 
 UClass* FCapabilityRegistry::GetCapabilityClass(FName CapabilityId)
 {
@@ -40,8 +66,36 @@ bool FCapabilityRegistry::IsMotionCapability(FName CapabilityId)
 	return MotionCapabilityIds.Contains(CapabilityId);
 }
 
+void FCapabilityRegistry::ForEach(TFunctionRef<void(FName Id, UClass* Class)> Func)
+{
+	EnsureBuilt();
+	for (const auto& Pair : Registry)
+	{
+		Func(Pair.Key, Pair.Value);
+	}
+}
+
+void FCapabilityRegistry::DumpToLog()
+{
+	EnsureBuilt();
+	UE_LOG(LogProjectObjectCapabilities, Log,
+		TEXT("=== CapabilityRegistry dump (%d entries) ==="), Registry.Num());
+	for (const auto& Pair : Registry)
+	{
+		UE_LOG(LogProjectObjectCapabilities, Log,
+			TEXT("  %s -> %s"), *Pair.Key.ToString(), *Pair.Value->GetPathName());
+	}
+}
+
+int32 FCapabilityRegistry::Num()
+{
+	EnsureBuilt();
+	return Registry.Num();
+}
+
 void FCapabilityRegistry::EnsureBuilt()
 {
+	check(IsInGameThread());
 	if (!bIsBuilt)
 	{
 		Build();
@@ -52,54 +106,21 @@ void FCapabilityRegistry::Build()
 {
 	Registry.Empty();
 
-	// Ensure capability modules are loaded before CDO scan
-	// TObjectIterator only sees loaded classes
-	FModuleManager::Get().LoadModule(TEXT("ProjectObjectCapabilities"));
-	FModuleManager::Get().LoadModule(TEXT("ProjectMotionSystem"));
+	FRegistryScanConfig Config;
+	Config.AssetType = FPrimaryAssetType(TEXT("CapabilityComponent"));
+	// TObjectIterator only sees classes from loaded DLLs.
+	// Preload built-in capability modules so the single scan discovers all
+	// capability classes from all sources into one registry map.
+	Config.RequiredModules = {
+		FName(TEXT("ProjectObjectCapabilities")),
+		FName(TEXT("ProjectMotionSystem")),
+		FName(TEXT("ProjectSkeletalAssembly"))
+	};
+	Config.RequiredModules.Append(ExternalCapabilityModules);
+	Config.RequiredBaseClass = UActorComponent::StaticClass();
+	Config.DomainName = TEXT("CapabilityRegistry");
 
-	const FPrimaryAssetType CapabilityType(TEXT("CapabilityComponent"));
-
-	for (TObjectIterator<UClass> It; It; ++It)
-	{
-		UClass* Class = *It;
-
-		// Skip abstract classes and non-components
-		if (Class->HasAnyClassFlags(CLASS_Abstract) || !Class->IsChildOf(UActorComponent::StaticClass()))
-		{
-			continue;
-		}
-
-		// Get CDO and check for CapabilityComponent asset type
-		UActorComponent* CDO = Class->GetDefaultObject<UActorComponent>();
-		if (!CDO)
-		{
-			continue;
-		}
-
-		FPrimaryAssetId AssetId = CDO->GetPrimaryAssetId();
-		if (!AssetId.IsValid() || AssetId.PrimaryAssetType != CapabilityType)
-		{
-			continue;
-		}
-
-		// Duplicate ID detection
-		if (Registry.Contains(AssetId.PrimaryAssetName))
-		{
-			UE_LOG(LogProjectObjectCapabilities, Error,
-				TEXT("Duplicate CapabilityId '%s' - %s conflicts with %s"),
-				*AssetId.PrimaryAssetName.ToString(),
-				*Class->GetName(),
-				*Registry[AssetId.PrimaryAssetName]->GetName());
-			continue; // Keep first, skip duplicate
-		}
-
-		Registry.Add(AssetId.PrimaryAssetName, Class);
-
-		UE_LOG(LogProjectObjectCapabilities, Log,
-			TEXT("CapabilityRegistry: registered '%s' -> %s"),
-			*AssetId.PrimaryAssetName.ToString(),
-			*Class->GetName());
-	}
+	FRegisteredClassScan::ScanByPrimaryAssetId(Config, Registry);
 
 	bIsBuilt = true;
 

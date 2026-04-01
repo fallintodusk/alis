@@ -107,6 +107,10 @@ class PROJECTCHARACTER_API AProjectCharacter : public ACharacter, public IAbilit
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* CrouchAction;
 
+	/** Walk toggle Input Action (Caps Lock) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* WalkAction;
+
 	// -------------------------------------------------------------------------
 	// Movement Speed Configuration
 	// -------------------------------------------------------------------------
@@ -119,13 +123,17 @@ class PROJECTCHARACTER_API AProjectCharacter : public ACharacter, public IAbilit
 	// - Sprint (trained): 30+ km/h (833+ cm/s)
 	// -------------------------------------------------------------------------
 
-	/** Walking speed - default movement without sprint (brisk walk ~6.5 km/h) */
+	/** Walking speed - tactical/careful pace (~6.5 km/h) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Speed", meta = (AllowPrivateAccess = "true"))
 	float WalkSpeed = 180.0f;
 
-	/** Running speed - when sprint key held (~15 km/h jogging pace) */
+	/** Running speed - default movement (~12.6 km/h) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Speed", meta = (AllowPrivateAccess = "true"))
-	float RunSpeed = 420.0f;
+	float RunSpeed = 350.0f;
+
+	/** Sprint speed - burst sprint while Shift held (~19.8 km/h) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Speed", meta = (AllowPrivateAccess = "true"))
+	float SprintSpeed = 550.0f;
 
 	/** Crouched movement speed - slower for stealth (~4 km/h) */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement|Speed", meta = (AllowPrivateAccess = "true"))
@@ -133,6 +141,8 @@ class PROJECTCHARACTER_API AProjectCharacter : public ACharacter, public IAbilit
 
 	/** Current sprint state (used for speed calculations) */
 	bool bIsSprinting = false;
+	bool bIsWalking = false;
+	double LastWalkToggleTime = 0.0;
 
 	/** Guard against double-binding to attribute delegate */
 	bool bMovementSpeedBound = false;
@@ -159,13 +169,16 @@ protected:
 	/** Legacy input - move right/left */
 	void MoveRight(float Value);
 
-	/** Called when sprint key pressed - switches to RunSpeed */
+	/** Called when sprint key pressed — switches to SprintSpeed */
 	void StartSprint();
 
-	/** Called when sprint key released - returns to WalkSpeed */
+	/** Called when sprint key released — returns to RunSpeed or WalkSpeed */
 	void StopSprint();
 
-	/** Refresh movement speed based on current state (walk/sprint) and attribute modifiers */
+	/** CapsLock toggle — switches between Run and Walk */
+	void ToggleWalk();
+
+	/** Refresh movement speed based on current state and attribute modifiers */
 	void RefreshMovementSpeed();
 
 	/** Get movement speed multiplier from StatusAttributeSet */

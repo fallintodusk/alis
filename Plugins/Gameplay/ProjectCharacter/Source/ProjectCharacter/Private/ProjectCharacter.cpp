@@ -83,9 +83,8 @@ AProjectCharacter::AProjectCharacter()
 	GetCharacterMovement()->JumpZVelocity = 420.f;
 	GetCharacterMovement()->AirControl = 0.35f;
 
-	// Default speed is WalkSpeed (brisk walk ~6.5 km/h = 180 cm/s)
-	// Sprint key (Shift) temporarily increases to RunSpeed
-	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	// Default = Run, Shift = Sprint, CapsLock = Walk toggle
+	GetCharacterMovement()->MaxWalkSpeed = RunSpeed;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
@@ -385,13 +384,20 @@ void AProjectCharacter::CreateDefaultInputAssets()
 		DefaultMappingContext->MapKey(SprintAction, EKeys::LeftShift);
 	}
 
-	// Crouch: Left Ctrl - hold to crouch (lower profile, slower movement)
+	// Crouch: Left Ctrl (toggle)
 	if (!CrouchAction)
 	{
 		CrouchAction = NewObject<UInputAction>(this, TEXT("IA_Crouch"));
 		CrouchAction->ValueType = EInputActionValueType::Boolean;
-
 		DefaultMappingContext->MapKey(CrouchAction, EKeys::LeftControl);
+	}
+
+	// Walk: Caps Lock (toggle)
+	if (!WalkAction)
+	{
+		WalkAction = NewObject<UInputAction>(this, TEXT("IA_Walk"));
+		WalkAction->ValueType = EInputActionValueType::Boolean;
+		DefaultMappingContext->MapKey(WalkAction, EKeys::CapsLock);
 	}
 
 	UE_LOG(LogProjectCharacter, Log, TEXT("Created default Enhanced Input assets"));
@@ -479,12 +485,19 @@ void AProjectCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &AProjectCharacter::StartCrouch);
 		}
 
-		UE_LOG(LogProjectCharacter, Log, TEXT("Enhanced Input bindings configured (Move=%s, Look=%s, Jump=%s, Sprint=%s, Crouch=%s)"),
+		// Walk (CapsLock toggle)
+		if (WalkAction)
+		{
+			EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &AProjectCharacter::ToggleWalk);
+		}
+
+		UE_LOG(LogProjectCharacter, Log, TEXT("Enhanced Input bindings configured (Move=%s, Look=%s, Jump=%s, Sprint=%s, Crouch=%s, Walk=%s)"),
 			MoveAction ? TEXT("YES") : TEXT("NO"),
 			LookAction ? TEXT("YES") : TEXT("NO"),
 			JumpAction ? TEXT("YES") : TEXT("NO"),
 			SprintAction ? TEXT("YES") : TEXT("NO"),
-			CrouchAction ? TEXT("YES") : TEXT("NO"));
+			CrouchAction ? TEXT("YES") : TEXT("NO"),
+			WalkAction ? TEXT("YES") : TEXT("NO"));
 	}
 	else
 	{
@@ -565,15 +578,27 @@ void AProjectCharacter::StopSprint()
 	RefreshMovementSpeed();
 }
 
+void AProjectCharacter::ToggleWalk()
+{
+	// Debounce — CapsLock fires double events on some OS
+	double Now = FPlatformTime::Seconds();
+	if (Now - LastWalkToggleTime < 0.3) return;
+	LastWalkToggleTime = Now;
+
+	bIsWalking = !bIsWalking;
+	RefreshMovementSpeed();
+}
+
 void AProjectCharacter::RefreshMovementSpeed()
 {
-	const float BaseSpeed = bIsSprinting ? RunSpeed : WalkSpeed;
+	// Priority: Sprint > Walk > Run (default)
+	const float BaseSpeed = bIsSprinting ? SprintSpeed
+	                      : bIsWalking   ? WalkSpeed
+	                      :                RunSpeed;
 	const float Multiplier = GetMovementSpeedMultiplier();
 	const float FinalSpeed = BaseSpeed * Multiplier;
 
 	GetCharacterMovement()->MaxWalkSpeed = FinalSpeed;
-
-	// Also apply to crouch speed
 	GetCharacterMovement()->MaxWalkSpeedCrouched = CrouchSpeed * Multiplier;
 
 	UE_LOG(LogProjectCharacter, Verbose, TEXT("Movement speed refreshed: Base=%.0f, Mult=%.2f, Final=%.0f"),

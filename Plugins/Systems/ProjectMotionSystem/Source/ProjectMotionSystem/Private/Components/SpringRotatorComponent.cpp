@@ -110,7 +110,7 @@ void USpringRotatorComponent::BeginPlay()
 		DriverState->Driver->Init();
 	}
 
-	UE_LOG(LogProjectMotionSystem, Log,
+	UE_LOG(LogProjectMotionSystem, Verbose,
 		TEXT("SpringRotatorComponent on %s: InitialRotation = %s, OpenAngle = %.1f"),
 		*GetOwner()->GetName(),
 		*InitialRotation.ToString(),
@@ -119,7 +119,7 @@ void USpringRotatorComponent::BeginPlay()
 
 void USpringRotatorComponent::SelectMotionDriver()
 {
-	DriverState = MakeUnique<FMotionDriverState>();
+	DriverState = MakeShared<FMotionDriverState>();
 	if (ShouldUseChaosMode())
 	{
 		DriverState->Driver = MakeUnique<FRotatorChaosDriver>(*this);

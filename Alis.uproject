@@ -145,6 +145,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectSkeletalAssembly",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectAnimation",
 			"Enabled": true
 		},

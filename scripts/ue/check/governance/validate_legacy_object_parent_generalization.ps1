@@ -6,7 +6,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")).Path
 $todoPath = Join-Path $projectRoot "todo\done\generalize_placeable_actor_parent.md"
 
 $requiredReadmes = @(

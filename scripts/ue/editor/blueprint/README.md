@@ -1,93 +1,62 @@
-# Blueprint ↔ JSON Converter
+# Blueprint Editor Helpers
 
-System for exporting Blueprint properties to JSON and importing them back into Unreal Engine 5.5.
+Editor-side Blueprint tooling lives here.
 
-## Project Structure
+Use this folder for scripts that inspect or mutate Blueprint assets in Unreal Editor or `UnrealEditor-Cmd`.
+If a script validates Blueprint state without owning the edit logic, put it under `scripts/ue/check/blueprint/` instead.
 
-```
-blueprint_json_converter/
-├── scripts/              # Production scripts
-│   ├── export_blueprint.py   # Export Blueprint → JSON
-│   └── import_blueprint.py   # Import JSON → Blueprint
-├── docs/                 # Documentation
-│   ├── README.md              # Detailed documentation
-│   ├── QUICKSTART.md          # Quick start guide
-│   ├── LIMITATIONS.md         # System limitations
-│   ├── CLAUDE_WORKFLOW.md     # Working with Claude
-│   └── EXAMPLE_SESSION.md     # Usage examples
-├── tests/                # Test and diagnostic scripts
-│   ├── DIAGNOSTIC.py          # Blueprint API diagnostics
-│   ├── FIND_VARIABLES.py      # Search for Blueprint variables
-│   ├── EXPORT_ALL_VARIABLES.py
-│   ├── EXPORT_WITH_COMPONENTS.py
-│   ├── EXPORT_SCS_COMPONENTS.py
-│   └── ...
-└── deprecated/           # Deprecated scripts
-    ├── bp_to_json.py          # Old export version
-    └── quick_test.py          # Old test
+## Layout
 
-```
+- `helpers/` - reusable Blueprint asset helpers
+- `character/` - narrow character-specific wrappers built on top of the generic helpers
+- `docs/` - longer-form notes for the JSON snapshot workflow
+- `tests/` - diagnostics and experiments
+- `deprecated/` - old one-off scripts kept only for reference
+- `export_blueprint.py`, `import_blueprint.py`, `config.py` - JSON snapshot workflow
 
-## Quick Start
+## Current Helpers
 
-### 1. Export Blueprint to JSON
+- `helpers/set_blueprint_component_transform.py`
+  - edits a Blueprint component template through `SubobjectDataSubsystem`
+  - use this when inherited component overrides must be changed on the asset template itself
+- `character/fix_bp_hero_character_mesh_defaults.bat`
+  - aligns `BP_Hero` inherited `CharacterMesh0` transform with native `ProjectCharacter`
+  - recompiles Blueprints after the template edit so generated defaults stay in sync
 
-Open UE Python Console and execute:
+## Why Component Template Helpers Live Here
 
-```python
-import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
-exec(open("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts/export_blueprint.py").read())
-```
+Blueprint component overrides are editor-owned asset state.
+They are not the same responsibility as runtime validation, gameplay code, or content checks.
 
-JSON file will be saved to: `Saved/AI_Snapshots/blueprint_YYYYMMDD_HHMMSS.json`
-
-### 2. Edit with Claude
-
-Send the JSON file to Claude and ask to modify the desired properties.
-
-### 3. Import changes back
-
-```python
-import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
-exec(open("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts/import_blueprint.py").read())
-```
-
-## What Works ✅
-
-- **28 Actor Properties**: can_be_damaged, custom_time_dilation, net_priority, relative_location, etc.
-- **Data Types**: bool, float, int, Vector, Rotator, Color, Guid, Object References
-- **Dry-run mode**: validation before applying changes
-
-## What Doesn't Work ❌
-
-- **Blueprint Variables**: CurrentSkyIntensity, TargetSkyIntensity and other custom variables
-- **Components**: DirectionalLight, SkyLight and their properties
-- **SCS (SimpleConstructionScript)**: Blueprint components not accessible via Python API
-
-**Reason**: UE 5.5 Python API doesn't provide access to Blueprint-specific variables and components.
-
-## Documentation
-
-- [docs/README.md](docs/README.md) - Complete documentation
-- [docs/QUICKSTART.md](docs/QUICKSTART.md) - Quick start with examples
-- [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Detailed limitations and alternative solutions
-- [docs/CLAUDE_WORKFLOW.md](docs/CLAUDE_WORKFLOW.md) - Examples of working with Claude
-
-## Testing
-
-Diagnostic scripts in `tests/` folder:
-- `DIAGNOSTIC.py` - shows all available Blueprint API methods
-- `FIND_VARIABLES.py` - searches for Blueprint variables in CDO
-- `EXPORT_WITH_COMPONENTS.py` - tests access to components
-
-## System Requirements
-
-- Unreal Engine 5.5
-- Python 3.x (built into UE)
-- Windows (paths adapted for Windows)
+That split is intentional:
+- edit helpers belong in `scripts/ue/editor/blueprint/`
+- validation wrappers belong in `scripts/ue/check/blueprint/`
 
 ## Usage
 
-See [docs/USAGE.md](docs/USAGE.md) for detailed instructions.
+Character-specific repair:
+
+```bat
+scripts\ue\editor\blueprint\character\fix_bp_hero_character_mesh_defaults.bat
+```
+
+Generic helper via environment variables:
+
+```bat
+set ALIS_BP_ASSET_PATH=/ProjectObject/Human/Hero/BP_Hero
+set ALIS_BP_COMPONENT_VARIABLE_NAME=Mesh
+set ALIS_BP_COMPONENT_OBJECT_NAME=CharacterMesh0
+set ALIS_BP_RELATIVE_LOCATION=0,0,-90
+set ALIS_BP_RELATIVE_ROTATION=0,-90,0
+```
+
+Then run `UnrealEditor-Cmd` with:
+
+```bat
+-run=pythonscript -script="scripts\ue\editor\blueprint\helpers\set_blueprint_component_transform.py"
+```
+
+## Related Docs
+
+- [docs/README.md](docs/README.md) - JSON snapshot workflow index
+- [../check/blueprint/README.md](../check/blueprint/README.md) - Blueprint validation wrappers

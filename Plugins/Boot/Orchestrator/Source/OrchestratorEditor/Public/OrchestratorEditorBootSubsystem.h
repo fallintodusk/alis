@@ -40,4 +40,13 @@ private:
 	 * Load all plugins from the supported external plugin directories.
 	 */
 	void LoadExternalPlugins();
+
+	/**
+	 * Preload heavy assets (pawn class + deps) in background.
+	 * Called at editor startup so deps are warm when PIE starts.
+	 */
+	void PreloadPawnClass();
+
+	/** Handle keeping the async preload alive */
+	TSharedPtr<struct FStreamableHandle> PawnPreloadHandle;
 };

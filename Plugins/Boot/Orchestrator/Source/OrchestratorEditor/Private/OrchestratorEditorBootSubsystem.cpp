@@ -5,6 +5,10 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "OrchestratorPluginRegistry.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -23,6 +27,21 @@ void UOrchestratorEditorBootSubsystem::Initialize(FSubsystemCollectionBase& Coll
 		FEditorDelegates::BeginPIE.AddUObject(this, &UOrchestratorEditorBootSubsystem::OnBeginPIE);
 		UE_LOG(LogOrchestratorEditor, Log, TEXT("  BeginPIE delegate registered"));
 	}
+
+	// Preload pawn class + all deps in background so PIE starts fast.
+	// Deferred: AssetManager isn't ready during subsystem init.
+	FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateWeakLambda(this, [this](float)
+		{
+			if (UAssetManager::IsInitialized())
+			{
+				PreloadPawnClass();
+				return false; // Remove ticker
+			}
+			return true; // Keep ticking until AssetManager is ready
+		}),
+		0.0f
+	);
 }
 
 void UOrchestratorEditorBootSubsystem::Deinitialize()
@@ -153,6 +172,56 @@ void UOrchestratorEditorBootSubsystem::LoadExternalPlugins()
 	}
 
 	UE_LOG(LogOrchestratorEditor, Log, TEXT("External plugin loading complete - %d/%d modules loaded"), LoadedCount, UpluginFiles.Num());
+}
+
+void UOrchestratorEditorBootSubsystem::PreloadPawnClass()
+{
+	// BP_Hero references MotionMatching animation content (~1.9 GB of anim sequences).
+	// LoadSynchronous in SinglePlayerGameMode::InitGame blocks PIE for ~9s loading these deps.
+	// By requesting async load at editor startup, deps are warm by the time user hits Play.
+	const FSoftObjectPath PawnPath(TEXT("/ProjectObject/Human/Hero/BP_Hero.BP_Hero_C"));
+
+	FNotificationInfo Info(NSLOCTEXT("Orchestrator", "PawnPreload",
+		"Preloading pawn class (faster PIE startup)"));
+	Info.bFireAndForget = false;
+	Info.bUseThrobber = true;
+	Info.bUseSuccessFailIcons = true;
+	Info.FadeOutDuration = 0.5f;
+	Info.ExpireDuration = 0.0f;
+	TSharedPtr<SNotificationItem> Notification =
+		FSlateNotificationManager::Get().AddNotification(Info);
+	if (Notification.IsValid())
+	{
+		Notification->SetCompletionState(SNotificationItem::CS_Pending);
+	}
+
+	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+	PawnPreloadHandle = StreamableManager.RequestAsyncLoad(
+		PawnPath,
+		FStreamableDelegate::CreateLambda([PawnPath, Notification]()
+		{
+			UE_LOG(LogOrchestratorEditor, Log, TEXT("Pawn class preloaded: %s"),
+				*PawnPath.ToString());
+
+			if (Notification.IsValid())
+			{
+				Notification->SetText(NSLOCTEXT("Orchestrator", "PawnPreloadDone",
+					"Pawn class ready"));
+				Notification->SetCompletionState(SNotificationItem::CS_Success);
+				Notification->ExpireAndFadeout();
+			}
+		}),
+		FStreamableManager::AsyncLoadHighPriority,
+		false,
+		false,
+		TEXT("PIE Pawn Preload")
+	);
+
+	if (PawnPreloadHandle.IsValid())
+	{
+		UE_LOG(LogOrchestratorEditor, Log,
+			TEXT("  Started async preload for pawn class: %s"), *PawnPath.ToString());
+	}
 }
 
 #endif // WITH_EDITOR

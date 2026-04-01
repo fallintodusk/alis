@@ -331,11 +331,11 @@ scripts\ue\build\build_module.bat ProjectMenuMain
 
 **Examples:**
 ```batch
-REM Validate C++ reflection markup
-scripts\ue\check\validate_uht.bat
+REM Fast project validation bundle
+scripts\ue\check\validate_all.bat
 
-REM Compile all Blueprints
-scripts\ue\check\validate_blueprints.bat
+REM Run one explicit check only
+scripts\ue\check\validate_uht.bat
 ```
 
 **Why separate from build?**
@@ -678,8 +678,7 @@ exit /b 0
 
 **Quick pre-commit check:**
 ```batch
-scripts\ue\check\validate_uht.bat
-scripts\ue\check\validate_blueprints.bat
+scripts\ue\check\validate_all.bat
 ```
 
 **Build and test:**
@@ -703,8 +702,7 @@ scripts\autonomous\claude\overnight\main.ps1
 **PR validation:**
 ```batch
 REM Fast checks
-scripts\ue\check\validate_uht.bat
-scripts\ue\check\validate_blueprints.bat
+scripts\ue\check\validate_all.bat
 
 REM Smoke tests only (fast)
 for %%T in (scripts\ue\test\smoke\*.bat) do call %%T
@@ -795,7 +793,7 @@ scripts/test/standalone.bat          → scripts/ue/test/integration/standalone_
 scripts/test/lib/                    → scripts/ue/test/lib/ (keep)
 scripts/win/build.bat                → scripts/ue/build/build.bat
 scripts/win/check.bat                → scripts/ue/check/validate_uht.bat
-scripts/check/validate.sh            → scripts/ue/check/validate_blueprints.bat
+scripts/check/validate.sh            → scripts/ue/check/validate_all.bat
 scripts/build/build.sh               → scripts/ue/build/build.bat
 scripts/overnight_ci.ps1             → scripts/autonomous/claude/overnight/main.ps1
 scripts/sanitize_text.py             → scripts/utils/sanitize_text.py

@@ -21,7 +21,7 @@ void USpringMotionComponentBase::BeginPlay()
 	const TCHAR* MotionModeStr = (MotionMode == EMotionMode::Chaos) ? TEXT("Chaos") : TEXT("Kinematic");
 	const TCHAR* UseModeStr = ShouldUseChaosMode() ? TEXT("Chaos") : TEXT("Kinematic");
 	const int32 bForceChaos = bForceChaosMode ? 1 : 0;
-	UE_LOG(LogProjectMotionSystem, Log,
+	UE_LOG(LogProjectMotionSystem, Verbose,
 		TEXT("[%s] %s BeginPlay: TargetMesh=%s ResolvedMesh=%s Reg=%d Phys=%d Coll=%d MotionMode=%s SelectedMode=%s ForceChaos=%d"),
 		*GetNameSafe(Owner),
 		*GetClass()->GetName(),
@@ -38,7 +38,7 @@ void USpringMotionComponentBase::BeginPlay()
 void USpringMotionComponentBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	AActor* Owner = GetOwner();
-	UE_LOG(LogProjectMotionSystem, Log,
+	UE_LOG(LogProjectMotionSystem, Verbose,
 		TEXT("[%s] EndPlay START: Reason=%d"),
 		*GetNameSafe(Owner),
 		(int)EndPlayReason);
@@ -46,7 +46,7 @@ void USpringMotionComponentBase::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	ShutdownMotionDriver();
 	SetComponentTickEnabled(false);
 
-	UE_LOG(LogProjectMotionSystem, Log,
+	UE_LOG(LogProjectMotionSystem, Verbose,
 		TEXT("[%s] EndPlay DONE"),
 		*GetNameSafe(Owner));
 
@@ -56,7 +56,7 @@ void USpringMotionComponentBase::EndPlay(const EEndPlayReason::Type EndPlayReaso
 void USpringMotionComponentBase::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	AActor* Owner = GetOwner();
-	UE_LOG(LogProjectMotionSystem, Log,
+	UE_LOG(LogProjectMotionSystem, Verbose,
 		TEXT("[%s] %s OnComponentDestroyed: DestroyingHierarchy=%d"),
 		*GetNameSafe(Owner),
 		*GetClass()->GetName(),
