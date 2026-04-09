@@ -81,9 +81,17 @@ void UDefinitionThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 	// Delegate to mesh renderer (static/skeletal/etc). Guard recursion in case
 	// a bad reference resolves back to definition asset type.
 	FThumbnailRenderingInfo* RenderInfo = ThumbnailMgr.GetRenderingInfo(MeshToRender);
-	if (RenderInfo && RenderInfo->Renderer && RenderInfo->Renderer != this)
+	UThumbnailRenderer* DelegateRenderer = RenderInfo ? RenderInfo->Renderer : nullptr;
+
+	// Skip self to avoid infinite recursion when definition asset is mapped back to us.
+	if (DelegateRenderer == this)
 	{
-		RenderInfo->Renderer->Draw(MeshToRender, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
+		DelegateRenderer = nullptr;
+	}
+
+	if (DelegateRenderer)
+	{
+		DelegateRenderer->Draw(MeshToRender, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
 	}
 	else
 	{
@@ -91,10 +99,12 @@ void UDefinitionThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 		{
 			LoggedNoRendererKeys.Add(CacheKey);
 			UE_LOG(LogDefinitionThumbnail, Warning,
-				TEXT("[Draw] '%s': no valid renderer for mesh='%s' (class=%s)"),
+				TEXT("[Draw] '%s': no valid renderer for mesh='%s' (class=%s, RenderInfo=%s, Renderer=%s)"),
 				*CacheKey.ToString(),
 				*GetNameSafe(MeshToRender),
-				MeshToRender ? *MeshToRender->GetClass()->GetName() : TEXT("null"));
+				MeshToRender ? *MeshToRender->GetClass()->GetName() : TEXT("null"),
+				RenderInfo ? TEXT("valid") : TEXT("null"),
+				RenderInfo ? *GetNameSafe(RenderInfo->Renderer) : TEXT("n/a"));
 		}
 	}
 }

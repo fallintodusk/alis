@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "MVVM/ProjectViewModel.h"
 #include "InteractionPromptViewModel.generated.h"
 
 class IInteractionService;
 class APawn;
+class APlayerController;
 struct FInteractionPromptState;
 
 /**
@@ -55,13 +57,29 @@ private:
 	/** Local pawn for per-pawn service subscription */
 	TWeakObjectPtr<APawn> LocalPawn;
 
+	/** Owning local controller used to track respawn / pawn replacement. */
+	TWeakObjectPtr<APlayerController> OwningController;
+
+	/** Handle for controller pawn-change notifications. */
+	FDelegateHandle PawnChangedHandle;
+
+	/** Deferred retry when controller briefly reports no pawn during respawn. */
+	FTSTicker::FDelegateHandle PendingPawnRefreshHandle;
+
 	// =========================================================================
 	// Service Integration
 	// =========================================================================
 
+	void BindToOwningController();
+	void UnbindFromOwningController();
+	void ScheduleObservedPawnRefresh();
+	void ClearPendingPawnRefresh();
+	bool RefreshObservedPawnFromController();
+	void SetObservedPawn(APawn* NewPawn);
 	void SubscribeToService();
 	void UnsubscribeFromService();
 	void PullInitialFocusState();
+	void HandleObservedPawnChanged(APawn* NewPawn);
 
 	/** Handle filtered prompt state change (only our pawn's events). */
 	void HandlePromptStateChanged(const FInteractionPromptState& State);

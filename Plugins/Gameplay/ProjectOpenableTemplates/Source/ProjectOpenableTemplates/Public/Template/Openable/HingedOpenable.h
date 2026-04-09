@@ -11,12 +11,11 @@ class USpringRotatorComponent;
 /**
  * Hinged openable actor (doors, windows, hatches, cabinet doors).
  *
- * Behavior: Rotates on hinge with spring-damper motion.
- *
- * Hierarchy: AProjectWorldActor -> AInteractableActor -> AOpenableActor -> AHingedOpenable
+ * Legacy actor template for editor placement. The data-driven path uses
+ * AInteractableActor + Hinged capability from JSON definitions.
  */
 UCLASS(Blueprintable)
-class PROJECTOBJECT_API AHingedOpenable : public AOpenableActor
+class PROJECTOPENABLETEMPLATES_API AHingedOpenable : public AOpenableActor
 {
 	GENERATED_BODY()
 

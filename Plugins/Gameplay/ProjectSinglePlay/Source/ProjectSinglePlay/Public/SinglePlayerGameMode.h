@@ -2,8 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "UObject/PrimaryAssetId.h"
 #include "SinglePlayModeConfig.h"
 #include "SinglePlayerGameMode.generated.h"
+
+UENUM()
+enum class ESinglePlayCharacterSystem : uint8
+{
+	Legacy,
+	Modular
+};
 
 /**
  * GameMode for single-player gameplay in ALIS.
@@ -22,7 +30,7 @@
  *   ?game=SinglePlayer
  *   NOTE: Alias is NOT configured by default - use full path for modular/decoupled approach.
  *
- *   Example: ServerTravel("MapName?Mode=Medium?game=/Script/ProjectSinglePlay.SinglePlayerGameMode")
+ *   Example: ServerTravel("MapName?Mode=Medium?CharacterSystem=Modular?CharacterDefinition=Hero?game=/Script/ProjectSinglePlay.SinglePlayerGameMode")
  *
  * Why no 'A' prefix?
  *   C++ naming: ASinglePlayerGameMode (with A prefix for Actors)
@@ -32,6 +40,8 @@
  * URL Rules:
  *   - Use ? separator for ALL options (not & like web URLs)
  *   - game= option should come LAST (UE parser reads value to end-of-string)
+ *   - Mode selects gameplay/difficulty configuration
+ *   - CharacterSystem selects legacy vs modular pawn implementation independently
  *
  * UE Engine References:
  *   - UGameInstance::CreateGameModeForURL - Engine/Source/Runtime/Engine/Private/GameInstance.cpp:1490
@@ -54,21 +64,46 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void BeginPlay() override;
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 	//~ End AGameModeBase Interface
 
 	// Get the current mode configuration
 	UFUNCTION(BlueprintPure, Category = "Single Play")
 	const FSinglePlayModeConfig& GetModeConfig() const { return ModeConfig; }
 
+	ESinglePlayCharacterSystem GetActiveCharacterSystem() const { return ActiveCharacterSystem; }
+	FName GetActiveCharacterSystemName() const;
+	const FPrimaryAssetId& GetActiveCharacterDefinitionId() const { return ActiveCharacterDefinitionId; }
+
+	// Switch the active character system and optionally respawn existing players through GameMode.
+	bool SwitchCharacterSystemRuntime(
+		ESinglePlayCharacterSystem NewSystem,
+		const FPrimaryAssetId& RequestedDefinitionId = FPrimaryAssetId(),
+		bool bRespawnExistingPlayers = true);
+
 protected:
 	// Load mode configuration based on URL parameter
 	// Returns default config if ModeParam is empty or unknown
 	virtual FSinglePlayModeConfig LoadModeConfig(const FString& ModeParam);
 
+	// Parse non-mode character selection options from URL.
+	virtual void LoadCharacterSelection(const FString& CharacterSystemParam, const FString& CharacterDefinitionParam);
+
+	// Resolve the effective definition ID for the active character system.
+	virtual FPrimaryAssetId ResolveCharacterDefinitionId(
+		ESinglePlayCharacterSystem NewSystem,
+		const FPrimaryAssetId& RequestedDefinitionId) const;
+
 	// Ensure required feature plugins are loaded before proceeding
 	// Called during InitGame after ModeConfig is loaded
 	// TODO: Integrate with Orchestrator's on-demand loading API
 	virtual void EnsureFeaturePluginsLoaded();
+
+	// Shared post-spawn initialization for new pawns.
+	virtual void InitializePlayerPawn(AController* PlayerController);
+
+	// Destroy the current pawn and respawn through the active character selection.
+	virtual bool RespawnPlayerForCurrentCharacterSelection(AController* PlayerController);
 
 	// Initialize features via FFeatureRegistry
 	// Called during HandleStartingNewPlayer after pawn spawn
@@ -83,6 +118,10 @@ protected:
 	// Current mode configuration loaded during InitGame
 	UPROPERTY(BlueprintReadOnly, Category = "Single Play")
 	FSinglePlayModeConfig ModeConfig;
+
+	// Character implementation selection is independent from gameplay mode/difficulty.
+	ESinglePlayCharacterSystem ActiveCharacterSystem = ESinglePlayCharacterSystem::Modular;
+	FPrimaryAssetId ActiveCharacterDefinitionId;
 
 private:
 	// Track whether we've already verified features (for idempotency)

@@ -1,5 +1,7 @@
 #include "SinglePlayController.h"
 #include "ProjectSinglePlayLog.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
 #include "Components/ActorComponent.h"
 #include "Engine/GameViewportClient.h"
@@ -333,10 +335,17 @@ void ASinglePlayController::TryBindVitalsViewModel()
 {
 	LOG_INIT("TryBindVitalsViewModel START - Attempt=%d", VitalsUIBindAttempts + 1);
 
-	if (!IsLocalController() || VitalsViewModel || !GetWorld())
+	if (!IsLocalController() || !GetWorld())
 	{
 		LOG_INIT("TryBindVitalsViewModel: Early return - IsLocal=%d, HasVM=%d, HasWorld=%d",
 			IsLocalController(), VitalsViewModel != nullptr, GetWorld() != nullptr);
+		return;
+	}
+
+	if (VitalsViewModel)
+	{
+		SyncVitalsViewModelSourceFromPawn();
+		LOG_INIT("TryBindVitalsViewModel: Reused shared ViewModel and refreshed ASC source");
 		return;
 	}
 
@@ -361,6 +370,7 @@ void ASinglePlayController::TryBindVitalsViewModel()
 		VitalsViewModel = FoundVM;
 		VitalsViewModel->OnPropertyChanged.AddUniqueDynamic(this, &ASinglePlayController::HandleVitalsViewModelPropertyChanged);
 		LOG_INIT("TryBindVitalsViewModel: Bound to VitalsViewModel.OnPropertyChanged delegate");
+		SyncVitalsViewModelSourceFromPawn();
 
 		if (VitalsViewModel->GetbPanelVisible())
 		{
@@ -389,6 +399,25 @@ void ASinglePlayController::TryBindVitalsViewModel()
 		UE_LOG(LogProjectSinglePlay, Warning, TEXT("[Thread:%u] TryBindVitalsViewModel FAILED - No ViewModel after %d retries"),
 			FPlatformTLS::GetCurrentThreadId(), VitalsUIBindAttempts);
 	}
+}
+
+void ASinglePlayController::SyncVitalsViewModelSourceFromPawn()
+{
+	if (!VitalsViewModel)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = nullptr;
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(ControlledPawn);
+	}
+
+	VitalsViewModel->SetAbilitySystemComponent(ASC);
+	LOG_INIT("SyncVitalsViewModelSourceFromPawn: Pawn=%s, ASC=%s",
+		GetPawn() ? *GetPawn()->GetName() : TEXT("null"),
+		ASC ? *GetNameSafe(ASC->GetOwner()) : TEXT("null"));
 }
 
 void ASinglePlayController::TryBindInventoryViewModel()

@@ -211,6 +211,7 @@ protected:
 private:
 	/** Creates default Enhanced Input assets if not configured */
 	void CreateDefaultInputAssets();
+	void RemoveDefaultInputMappingContext();
 
 	// Re-applies visibility flags (Mutable resets them on mesh regeneration)
 	void ApplyFirstPersonVisibility();

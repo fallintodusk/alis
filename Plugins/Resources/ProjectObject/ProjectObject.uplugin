@@ -23,7 +23,6 @@
 	"Plugins": [
 		{ "Name": "ProjectCore", "Enabled": true },
 		{ "Name": "ProjectWorld", "Enabled": true },
-		{ "Name": "ProjectMotionSystem", "Enabled": true },
 		{ "Name": "ProjectObjectCapabilities", "Enabled": true }
 	]
 }

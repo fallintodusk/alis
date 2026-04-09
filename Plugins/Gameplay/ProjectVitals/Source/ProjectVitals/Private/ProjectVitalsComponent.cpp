@@ -2,6 +2,8 @@
 
 #include "ProjectVitalsComponent.h"
 #include "VitalsConfig.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogProjectVitals, Log, All);
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "ProjectGameplayTags.h"
@@ -101,7 +103,7 @@ void UProjectVitalsComponent::Start()
 	CachedASC = GetASC();
 	if (!CachedASC.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ProjectVitalsComponent::Start - No ASC found on %s"), *Owner->GetName());
+		UE_LOG(LogProjectVitals, Warning, TEXT("ProjectVitalsComponent::Start - No ASC found on %s"), *Owner->GetName());
 		return;
 	}
 

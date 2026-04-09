@@ -29,23 +29,15 @@ void UOrchestratorEditorBootSubsystem::Initialize(FSubsystemCollectionBase& Coll
 	}
 
 	// Preload pawn class + all deps in background so PIE starts fast.
-	// Deferred: AssetManager isn't ready during subsystem init.
-	FTSTicker::GetCoreTicker().AddTicker(
-		FTickerDelegate::CreateWeakLambda(this, [this](float)
-		{
-			if (UAssetManager::IsInitialized())
-			{
-				PreloadPawnClass();
-				return false; // Remove ticker
-			}
-			return true; // Keep ticking until AssetManager is ready
-		}),
-		0.0f
-	);
+	// OnPostEngineInit fires after AssetManager is fully initialized,
+	// unlike FTSTicker which throttles to 3 fps when editor loses focus.
+	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UOrchestratorEditorBootSubsystem::OnPostEngineInit);
 }
 
 void UOrchestratorEditorBootSubsystem::Deinitialize()
 {
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+
 	// Unhook PIE delegate
 	if (GEditor)
 	{
@@ -53,6 +45,11 @@ void UOrchestratorEditorBootSubsystem::Deinitialize()
 	}
 
 	Super::Deinitialize();
+}
+
+void UOrchestratorEditorBootSubsystem::OnPostEngineInit()
+{
+	PreloadPawnClass();
 }
 
 void UOrchestratorEditorBootSubsystem::OnBeginPIE(bool bIsSimulating)
@@ -181,6 +178,21 @@ void UOrchestratorEditorBootSubsystem::PreloadPawnClass()
 	// By requesting async load at editor startup, deps are warm by the time user hits Play.
 	const FSoftObjectPath PawnPath(TEXT("/ProjectObject/Human/Hero/BP_Hero.BP_Hero_C"));
 
+	// Disable CPU throttle while preloading so async loading runs at full speed
+	// even when the editor is in background. UE processes async-loaded UObjects on the
+	// game thread with a per-frame time budget; at 3 fps throttle that budget is ~15 ms/s
+	// vs ~300 ms/s at 60 fps, making 1.9 GB of anim content take minutes instead of seconds.
+	bPawnPreloadInProgress = true;
+	if (GEditor)
+	{
+		GEditor->ShouldDisableCPUThrottlingDelegates.Add(
+			UEditorEngine::FShouldDisableCPUThrottling::CreateWeakLambda(this, [this]()
+			{
+				return bPawnPreloadInProgress;
+			})
+		);
+	}
+
 	FNotificationInfo Info(NSLOCTEXT("Orchestrator", "PawnPreload",
 		"Preloading pawn class (faster PIE startup)"));
 	Info.bFireAndForget = false;
@@ -198,8 +210,10 @@ void UOrchestratorEditorBootSubsystem::PreloadPawnClass()
 	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
 	PawnPreloadHandle = StreamableManager.RequestAsyncLoad(
 		PawnPath,
-		FStreamableDelegate::CreateLambda([PawnPath, Notification]()
+		FStreamableDelegate::CreateLambda([this, PawnPath, Notification]()
 		{
+			bPawnPreloadInProgress = false;
+
 			UE_LOG(LogOrchestratorEditor, Log, TEXT("Pawn class preloaded: %s"),
 				*PawnPath.ToString());
 
@@ -221,6 +235,10 @@ void UOrchestratorEditorBootSubsystem::PreloadPawnClass()
 	{
 		UE_LOG(LogOrchestratorEditor, Log,
 			TEXT("  Started async preload for pawn class: %s"), *PawnPath.ToString());
+	}
+	else
+	{
+		bPawnPreloadInProgress = false;
 	}
 }
 

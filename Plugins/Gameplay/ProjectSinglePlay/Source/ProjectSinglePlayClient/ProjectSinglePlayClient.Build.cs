@@ -16,6 +16,7 @@ public class ProjectSinglePlayClient : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"EnhancedInput",
+			"GameplayAbilities",
 			"InputCore",
 			"ProjectCore",
 			"ProjectSinglePlay",

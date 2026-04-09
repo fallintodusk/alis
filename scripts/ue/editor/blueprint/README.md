@@ -19,6 +19,9 @@ If a script validates Blueprint state without owning the edit logic, put it unde
 - `helpers/set_blueprint_component_transform.py`
   - edits a Blueprint component template through `SubobjectDataSubsystem`
   - use this when inherited component overrides must be changed on the asset template itself
+- `character/create_world_body_retarget_wrapper.bat`
+  - duplicates the vendor retarget wrapper into project-owned content and narrows its retarget map
+  - also rewires known project Blueprints from `ABP_GenericRetarget` to `ABP_WorldBodyRetarget` when the editor is closed
 - `character/fix_bp_hero_character_mesh_defaults.bat`
   - aligns `BP_Hero` inherited `CharacterMesh0` transform with native `ProjectCharacter`
   - recompiles Blueprints after the template edit so generated defaults stay in sync

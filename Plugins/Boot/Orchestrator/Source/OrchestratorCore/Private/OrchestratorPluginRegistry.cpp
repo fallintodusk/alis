@@ -37,7 +37,7 @@ FPluginRegistrationResult FOrchestratorPluginRegistry::RegisterPlugin(const FStr
 	// Check if already mounted
 	if (IsPluginMounted(PluginName))
 	{
-		UE_LOG(LogOrchestratorPluginRegistry, Warning, TEXT("  Plugin already mounted, skipping registration"));
+		UE_LOG(LogOrchestratorPluginRegistry, Log, TEXT("  Plugin already mounted, skipping registration"));
 		const FString PluginDir = FPaths::GetPath(UpluginFilePath);
 		return FPluginRegistrationResult::MakeSuccess(PluginName, PluginDir);
 	}

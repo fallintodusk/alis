@@ -34,6 +34,12 @@ Multi-system validation.
 - Example: `integration\\autonomous_boot_test.bat`
 - Additional preflight helpers live in this folder as needed
 
+### `character/`
+
+Character-specific runtime debug helpers.
+
+- Example: `character\\capture_parity.ps1`
+
 ### `unit/`
 
 Fast plugin or subsystem tests.
@@ -47,4 +53,5 @@ Fast plugin or subsystem tests.
 ## Related Docs
 
 - Public testing router: [../../../docs/testing/README.md](../../../docs/testing/README.md)
+- Character animation debug guide: [../../../docs/testing/character_parity.md](../../../docs/testing/character_parity.md)
 - Build router: [../../../docs/build/README.md](../../../docs/build/README.md)

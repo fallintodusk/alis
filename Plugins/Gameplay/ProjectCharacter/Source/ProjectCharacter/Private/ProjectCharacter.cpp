@@ -241,6 +241,7 @@ void AProjectCharacter::UnPossessed()
 		VitalsComponent->Stop();
 	}
 
+	RemoveDefaultInputMappingContext();
 	RevokeStartupAbilitySets();
 	Super::UnPossessed();
 }
@@ -256,6 +257,7 @@ void AProjectCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		VitalsComponent->Stop();
 	}
 
+	RemoveDefaultInputMappingContext();
 	RevokeStartupAbilitySets();
 	Super::EndPlay(EndPlayReason);
 }
@@ -316,14 +318,6 @@ void AProjectCharacter::BeginPlay()
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-// Proxy is a member field — no heap allocation
-FAnimInstanceProxy* ULocalBodyAnimInstance::CreateAnimInstanceProxy()
-{
-	return &LocalBodyProxy;
-}
-
-void ULocalBodyAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) {}
 
 void AProjectCharacter::CreateDefaultInputAssets()
 {
@@ -403,6 +397,27 @@ void AProjectCharacter::CreateDefaultInputAssets()
 	UE_LOG(LogProjectCharacter, Log, TEXT("Created default Enhanced Input assets"));
 }
 
+void AProjectCharacter::RemoveDefaultInputMappingContext()
+{
+	if (!DefaultMappingContext || !IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (!PC || !PC->GetLocalPlayer())
+	{
+		return;
+	}
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+	{
+		Subsystem->RemoveMappingContext(DefaultMappingContext);
+		UE_LOG(LogProjectCharacter, Log, TEXT("Removed DefaultMappingContext"));
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -441,6 +456,7 @@ void AProjectCharacter::PawnClientRestart()
 		return;
 	}
 
+	Subsystem->RemoveMappingContext(DefaultMappingContext);
 	Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	UE_LOG(LogProjectCharacter, Log, TEXT("Added DefaultMappingContext (PawnClientRestart)"));
 }

@@ -59,13 +59,13 @@ DEFINE_SINGLEPLAY_MODE(Beginner)
 }
 
 // =============================================================================
-// MODE: Medium (Default single-player mode - ACTIVE)
+// MODE: Medium (Default single-player mode - ACTIVE legacy baseline)
 // =============================================================================
 DEFINE_SINGLEPLAY_MODE(Medium)
 {
 	Config.ModeName = FName(TEXT("Medium"));
 
-	// Character class (ProjectCharacter plugin)
+	// Legacy baseline stays the default until the modular path reaches parity.
 	Config.DefaultPawnClass = TSoftClassPtr<APawn>(FSoftClassPath(TEXT("/ProjectObject/Human/Hero/BP_Hero.BP_Hero_C")));
 	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 

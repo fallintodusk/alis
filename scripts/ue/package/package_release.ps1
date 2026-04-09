@@ -12,6 +12,10 @@
     - -skipencryption by default because current ALIS Shipping uses modular linking
       and encrypted startup containers fail before the game module can register the key
     - GitHub-safe split zip transport by default when creating release archives
+
+    TODO(ALIS-Release): Wire the split 7-Zip outputs into the GitHub release publish
+    workflow end-to-end so transport-size handling stays outside UE packaging settings.
+    Do not reintroduce MaxChunkSize just to satisfy GitHub asset limits.
 #>
 
 param(
@@ -51,6 +55,14 @@ if (-not $EngineRoot) {
 
 if (-not $EngineRoot) {
     throw "UE_PATH is not set. Create scripts/config/ue_path.local.conf or pass -EngineRoot."
+}
+
+# Detect source vs installed engine for Target.cs diagnostics gating
+$InstalledBuildMarker = Join-Path $EngineRoot "Engine\Build\InstalledBuild.txt"
+if (Test-Path $InstalledBuildMarker) {
+    Remove-Item Env:ENGINE_FROM_SOURCE -ErrorAction SilentlyContinue
+} else {
+    $env:ENGINE_FROM_SOURCE = "1"
 }
 
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"

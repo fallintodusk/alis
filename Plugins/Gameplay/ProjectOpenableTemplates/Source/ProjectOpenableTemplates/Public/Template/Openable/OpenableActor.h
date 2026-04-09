@@ -12,6 +12,9 @@ class ULockableComponent;
 /**
  * Base class for openable world actors (doors, windows, drawers, hatches).
  *
+ * Legacy actor template for editor placement. The data-driven path uses
+ * AInteractableActor + capabilities from JSON definitions.
+ *
  * Provides common infrastructure:
  * - Mesh: Visual representation (designer sets mesh directly on component)
  * - LockComponent: Optional key/lock (empty LockTag = unlocked)
@@ -19,11 +22,9 @@ class ULockableComponent;
  * Derived classes add motion components:
  * - AHingedOpenable: SpringRotatorComponent (rotation)
  * - ASlidingOpenable: SpringSliderComponent (linear)
- *
- * Hierarchy: AProjectWorldActor -> AInteractableActor -> AOpenableActor -> concrete
  */
 UCLASS(Abstract, Blueprintable)
-class PROJECTOBJECT_API AOpenableActor : public AInteractableActor
+class PROJECTOPENABLETEMPLATES_API AOpenableActor : public AInteractableActor
 {
 	GENERATED_BODY()
 

@@ -25,6 +25,7 @@ public:
 	// Hover state
 	int32 HoveredCellIndex = INDEX_NONE;
 	int32 HoveredCellIndexSecondary = INDEX_NONE;
+	int32 HoveredInstanceId = INDEX_NONE;
 	bool bHoveredSecondary = false;
 
 	// Quantity selection for drop/split
@@ -66,6 +67,7 @@ public:
 	{
 		bHoveredSecondary = false;
 		HoveredCellIndex = CellIndex;
+		HoveredInstanceId = INDEX_NONE;
 	}
 
 	/** Set hover on secondary grid */
@@ -73,6 +75,16 @@ public:
 	{
 		bHoveredSecondary = true;
 		HoveredCellIndexSecondary = CellIndex;
+		HoveredInstanceId = INDEX_NONE;
+	}
+
+	/** Set hover by item instance id (used by non-grid cells, e.g. hands, pockets). */
+	void SetHoveredByInstanceId(int32 InstanceId)
+	{
+		bHoveredSecondary = false;
+		HoveredCellIndex = INDEX_NONE;
+		HoveredCellIndexSecondary = INDEX_NONE;
+		HoveredInstanceId = InstanceId;
 	}
 
 	/** Clear hover state */
@@ -80,6 +92,7 @@ public:
 	{
 		HoveredCellIndex = INDEX_NONE;
 		HoveredCellIndexSecondary = INDEX_NONE;
+		HoveredInstanceId = INDEX_NONE;
 	}
 
 	/** Get effective selected index based on which grid is active */
@@ -129,6 +142,7 @@ public:
 		bSelectedSecondary = false;
 		HoveredCellIndex = INDEX_NONE;
 		HoveredCellIndexSecondary = INDEX_NONE;
+		HoveredInstanceId = INDEX_NONE;
 		bHoveredSecondary = false;
 		SelectedQuantity = 1;
 		SelectedMaxQuantity = 0;

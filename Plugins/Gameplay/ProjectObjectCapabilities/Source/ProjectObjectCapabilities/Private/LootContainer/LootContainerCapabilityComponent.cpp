@@ -380,6 +380,7 @@ bool BuildRuntimeEntryViews(
 		View.bCanUse = false;
 		View.bCanEquip = false;
 		View.bActionCapsPopulated = true;
+		View.UseMagnitudes = ResolvedEntry.ItemData.Magnitudes;
 		OutEntryViews.Add(MoveTemp(View));
 	}
 

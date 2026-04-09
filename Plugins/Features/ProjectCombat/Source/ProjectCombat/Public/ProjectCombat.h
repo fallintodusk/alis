@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
+PROJECTCOMBAT_API DECLARE_LOG_CATEGORY_EXTERN(LogProjectCombat, Log, All);
+
 /**
  * Feature plugin providing combat mechanics.
  *

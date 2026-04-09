@@ -23,6 +23,7 @@
     { "Name": "ProjectCore", "Enabled": true },
     { "Name": "ProjectFeature", "Enabled": true },
     { "Name": "ProjectGameplay", "Enabled": true },
+    { "Name": "ProjectObject", "Enabled": true },
     { "Name": "EnhancedInput", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },
     { "Name": "ProjectUI", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },
     { "Name": "ProjectVitalsUI", "Enabled": true, "TargetAllowList": [ "Client", "Editor" ] },

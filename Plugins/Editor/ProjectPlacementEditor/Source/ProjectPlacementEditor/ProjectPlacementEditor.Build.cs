@@ -33,6 +33,7 @@ public class ProjectPlacementEditor : ModuleRules
 			"ProjectWorld",              // AProjectWorldActor base class for data-driven actors
 			"ProjectObject",             // UObjectDefinition, ObjectSpawnUtility
 			"ProjectObjectCapabilities", // FCapabilityRegistry
+			"ProjectOpenableTemplates",  // AHingedOpenable, ASlidingOpenable (legacy templates)
 			"GameplayTags",              // FGameplayTag special-case in SetPropertyByName
 
 			// Editor modules

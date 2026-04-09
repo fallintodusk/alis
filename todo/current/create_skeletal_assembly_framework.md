@@ -1,1391 +1,503 @@
-# Create Skeletal Assembly Framework
+# Skeletal Assembly Framework -- Active Work
 
-Decision-complete architecture note for a new modular skeletal assembly framework.
+Remaining work items for the modular skeletal assembly framework.
 
-Status: planning only. This document defines the target architecture and migration path. It does not authorize code or asset edits by itself.
+Architecture decisions and completed phases have been extracted to permanent SOT docs:
+- [Assembly architecture](../../Plugins/Systems/ProjectSkeletalAssembly/docs/architecture.md)
+- [Capabilities rationale](../../Plugins/Gameplay/ProjectSkeletalCapabilities/docs/rationale.md)
+- [Character design (legacy vs modular)](../../Plugins/Gameplay/ProjectCharacter/docs/design.md)
+- [Layer contract (Kind/Role/Visibility)](../../Plugins/Resources/ProjectObject/docs/layer_contract.md)
+- [Parity testing](../../docs/testing/character_parity.md)
 
-Last updated: 2026-03-31
-
----
-
-## Triggering Investigation Snapshot
-
-This framework plan was triggered by the recent first-person local-body clipping investigation.
-
-The important architectural takeaways were:
-
-- the local first-person body bug exposed unstable mixed ownership between Blueprint defaults, C++ runtime policy, and Mutable rebuild state
-- repeated attempts to repair the issue with local post-copy anim math proved that the deeper problem was architecture shape, not only tuning
-- repeated PIE forensics on this PC were stable enough that the issue was not best explained as random init drift here
-- the recovered `BP_Hero_Motion` camera path showed that important behavior had lived in Blueprint asset state, not in a clear reusable runtime layer
-- this became the concrete example that justified moving skeletal assembly and lifecycle orchestration into a reusable C++ framework
-
-The practical result is: preserve the legacy Artur-era path as baseline, but stop extending the mixed Blueprint/C++ ownership model and replace it with an explicit skeletal assembly framework.
+Full CDO reference: `Saved/Inspection/BP_Hero_CDO_2026-04-03.json`
 
 ---
 
-## 1. Goal
+## Phase Status
 
-Create a strong unified C++ base for skeletal-actor setup, while keeping the current Artur-era character path as the legacy baseline until the new modular path reaches parity.
-
-The new system must:
-
-- stop relying on mixed ownership between Blueprint asset state and C++ runtime policy
-- support player-character wrappers, NPC wrappers, and future non-character skeletal actors
-- stay data-driven through stable IDs and definition assets, not hardcoded Blueprint graphs
-- keep Motion Matching and Mutable content reusable without rewriting their content graphs into C++
-- allow clean runtime switching between legacy and modular paths through project-specific console commands
-- provide built-in debug capture so parity and regressions can be compared quickly
-
-In this model, a character is a wrapper that consumes a skeletal assembly definition plus capability specs, not the identity of the framework itself.
-
-This is not a "rewrite all character Blueprints into C++" task.
-
-This is a "move orchestration, lifecycle, assembly, and switching into C++, while keeping content assets data-driven" task.
-
----
-
-## 2. Why This Is Needed
-
-The current first-person investigation exposed a structural problem, not just a bug.
-
-### 2.1. Current ownership is mixed and fragile
-
-Current `BP_Hero` is not a thin presentation wrapper. It still owns important runtime behavior:
-
-- movement tuning variables and gait thresholds
-- input-state replication variables
-- `SetupCamera`
-- multiple `UpdateSkeletalMeshAsync` calls
-- `SetLeaderPoseComponent`
-- local-body related component graph
-
-At the same time, `AProjectCharacter` owns:
-
-- camera component creation
-- driver/world/local mesh components
-- local-body visibility logic
-- Mutable rebuild recovery
-- local-body anim installation
-
-This means real behavior is split across:
-
-- C++ constructor state
-- Blueprint component defaults
-- Blueprint event graph calls
-- Mutable async rebuild state
-- local runtime possession state
-
-That is the exact shape that created the recent mismatch between remembered behavior and reproduced behavior.
-
-### 2.2. The repo already proved this is not just random init drift
-
-Repeated PIE forensics on this machine showed effectively stable runtime state:
-
-- camera parent remained `CollisionCylinder`
-- `WorldBodyMesh` and `LocalBodyMesh` remained attached to `CharacterMesh0`
-- local anim install path fired deterministically after spawn and after Mutable rebuild
-
-So the current problem is not best explained as "sometimes init differs on this PC".
-
-It is better explained as:
-
-- the current committed runtime shape is stable enough
-- but that stable shape is wrong for the intended first-person behavior
-
-### 2.3. Git and Blueprint forensics proved a real behavior difference existed
-
-Recovered `BP_Hero_Motion` showed a real older camera path that current `BP_Hero` does not have:
-
-- `UserConstructionScript` attached `FirstPersonCamera` to `Head`
-- socket name was `spine_05`
-- then applied local offset `(15, 20, 0)`
-
-Current `BP_Hero` has no equivalent construction-script camera attach path.
-
-This is the clearest proof that:
-
-- behavior changed in a meaningful way
-- the current runtime path is not the same effective path Artur demonstrated
-
-Therefore the solution is not "more ad hoc bone math inside LocalBodyAnimInstance".
-
-The solution is a new framework with strict ownership and explicit assembly policy.
+| Phase | Status |
+|-------|--------|
+| 0 - Freeze legacy | DONE |
+| 1 - Scan kernel + registry + assembly plugin | DONE |
+| 1.5 - JSON body decision | DONE |
+| 2 - Definition extension + generator | DONE |
+| 3 - Modular hero (ADefinitionCharacter) | DONE |
+| 3.5 - Decouple ProjectObject from ProjectMotionSystem | DONE |
+| 4 - Wire switching | DONE |
+| 5 - Debug capture | DONE |
+| 6a - Mutable adapter | DONE |
+| 6b - Camera/body orchestration | DONE |
+| 6c - Local first-person body | DONE |
+| 6d - MotionMatching locomotion | DONE (pass-through PostProcess ABP) |
+| 6d.1 - Camera-driven body rotation | DONE (propagation + spine yaw tracking) |
+| 6d.2 - Project-owned retarget wrapper | DONE |
+| 6d.3 - Remove per-frame rotation tick | DONE |
+| 6d.4 - Fast camera vs body desync (spine rotation layer) | DONE (spine_01/02/03 additive yaw from control-actor delta) |
+| 6d.5 - LocalBody floating above WorldBody (root offset bug) | DONE (removed RootFreezeNode camera-drift math entirely) |
+| 6d.6 - Camera height validation | DONE (matches legacy: Z=62, capsule halfHeight=86) |
+| 6d.7 - Neck clipping after sprint stop | DONE (neck_01 additive pitch anti-clip when looking down) |
+| 6d.8 - Mutable COI preset clone | DONE (MutableInstance property, deferred param apply) |
+| 6d.9 - No silent legacy fallback | DONE (modular spawn failure = error, no fallback) |
+| 6e - Movement/traversal | Future |
+| 7 - SOT extraction | DONE |
+| 7b - Repo-wide doc sweep | TODO (see checklist below) |
+| 8 - Bridge asset to data-driven reference | DONE |
+| 9 - Dead code cleanup | DONE |
+| 10 - Jump fix on modular | BASELINE (air entry works, foot range differs from legacy) |
 
 ---
 
-## 2.4. Current Blueprint landscape confirms the wrapper is too heavy
+## Remaining Architectural Debt
 
-Current relevant hero Blueprints in this repo:
+### Parent-mesh vs CSK-output routing
 
-- `BP_Hero`
-- `BP_Hero_Motion`
-- `BP_Hero_Metahuman`
+In modular path, Mutable output lives on CSK child components (BodyCustomization, HeadCustomization, LocalBodyCustomization) while parent meshes (WorldBody, LocalBody, Head) stay empty. In legacy, Mutable replaces the parent mesh directly. Both paths work visually but code reading parent-role meshes may get null.
 
-Observed `BP_Hero` component and behavior footprint includes:
+Impact: low for v1 (visual parity achieved). May need explicit parent-mesh sync for systems that query mesh by role tag and expect a non-null asset.
 
-- `FirstPersonCamera`
-- `CharacterMesh0`
-- `WorldBodyMesh`
-- `LocalBodyMesh`
-- `Body_CSK`
-- `Head_CSK`
-- `Local_Body_CSK`
-- `MotionWarping`
-- `AC_PreCMCTick`
-- `AC_TraversalLogic`
-- `AC_FoleyEvents`
-- `AC_SmartObjectAnimation`
-- `BP_VisualOverrideManager`
-- `LODSync`
+### Visibility-driven defaults scope
 
-This confirms the current wrapper is not a thin skin around a stable C++ base.
-
-It is a mixed runtime owner that combines:
-
-- skeletal assembly concerns
-- gameplay-side movement and traversal concerns
-- audio and smart-object integration
-- local first-person presentation concerns
-- customization rebuild concerns
-
-That is exactly why the new framework must separate generic skeletal assembly from gameplay wrapper logic.
+ObjectSpawnUtility applies `AlwaysTickPoseAndRefreshBones`, `FirstPersonPrimitiveType`, `NoCollision` only when explicit `Visibility` is set. This correctly scopes to hero-like characters. Future role-driven skeletal layers without visibility policy won't get these defaults. If needed, add explicit mesh properties in the definition schema.
 
 ---
 
-## 3. Placement And Naming
+## Completed: MotionMatching Locomotion (6d)
 
-### 3.1. New plugin
+**Root cause:** PostProcess AnimInstance with no AnimGraph evaluates to ref pose, overwrites primary ABP's valid locomotion pose.
 
-Create a new plugin:
+**Fix (2 parts):**
+1. C++ `MotionMatchingBridgeAnimInstance::NativeUpdateAnimation` injects CharacterProperties via reflection at correct timing (after BPI zeros, before ThreadSafe Update_Logic)
+2. BP `ABP_MotionMatchingBridge` (pass-through AnimGraph: LinkedAnimGraphInput -> OutputPose) preserves primary ABP's pose
 
-- `Plugins/Systems/ProjectSkeletalAssembly`
+**Key facts discovered during investigation:**
+- GASP ABP MovementMode enum: 0=OnGround, 1=InAir (NOT UE's EMovementMode 4/5)
+- `NoValidAnim=T` is normal (legacy also has it TRUE while animating)
+- Tick-based writes (before or after ABP) never survive to animation evaluation
+- `bDisablePostProcessBlueprint=true` prevents both update AND evaluation
+- Direct output variable writes from tick look correct in readback but don't affect state machine
 
-Do not name it `ProjectCharacterFramework`.
+**Why PostProcess timing is required (DO NOT use component tick for data injection):**
+1. ABP `BlueprintUpdateAnimation`: calls BPI (fails on DefinitionCharacter, zeros CharacterProperties), runs Update_Logic with zeros -> idle state
+2. PostProcess `NativeUpdateAnimation`: writes correct CharacterProperties (AFTER BPI zeros, BEFORE ThreadSafe)
+3. ABP `BlueprintThreadSafeUpdateAnimation`: Update_Logic reads our injected data -> correct locomotion state
+4. Evaluation: uses correct state -> locomotion pose
 
-Reason:
+Component tick writes (before or after ABP) never survive to evaluation because:
+- Before ABP: BPI call overwrites our values
+- After ABP: evaluation already happened, writes only visible in next-frame readback
 
-- the intended core is not only for player characters
-- the repo already treats `Systems/` as the place for reusable runtime services and reusable runtime infrastructure
-- character-specific policy belongs above the core, not inside it
+**Parity verified:** All 15 locomotion phases match legacy within ~1-2 units (CleanMap, 132 samples/character, zero warnings).
 
-This follows existing repo structure:
-
-- `ProjectMotionSystem` in `Plugins/Systems/` already owns skeleton-agnostic motion primitives
-- `ProjectAnimation` in `Plugins/Resources/` already owns skeleton-specific animation assets and thin runtime glue
-- `ProjectObjectCapabilities` already owns stable-ID capability registration
-- `ProjectSinglePlay` already owns mode and pawn selection orchestration
-
-### 3.2. Existing plugins keep their roles
-
-Keep:
-
-- `Plugins/Gameplay/ProjectCharacter` as the legacy gameplay-side character adapter and baseline
-- `Plugins/Resources/ProjectAnimation` as the skeleton-specific asset library
-- `Plugins/Resources/ProjectObject` as the content-definition owner
-- `Plugins/Gameplay/ProjectSinglePlay` as the mode and spawn switch host
-
-Do not fold the new core into `ProjectCharacter`.
-
-Do not create a parallel content-definition owner outside `ProjectObject`.
-
-### 3.3. Plugin category
-
-Use a systems-style category in the new `.uplugin`.
-
-Recommended:
-
-- `"Category": "Framework.Project"`
-
-Reason:
-
-- matches the intent used by `ProjectMotionSystem`
-- communicates reusable runtime framework, not game-specific content
+**Asset location:** `Plugins/Gameplay/ProjectSkeletalCapabilities/Content/MotionMatching/ABP_MotionMatchingBridge`
 
 ---
 
-## 4. Final Ownership Model
+## Baseline Restored: Camera-Driven Body Rotation (6d.1)
 
-### 4.1. Core rule
+**Status:** Propagation chain works. Baseline validated with self-contained camera-yaw test.
+Fast horizontal camera spin while idle/moving still exposes body back (see 6d.4).
+Turn-in-place steering (`ShouldTurnInPlace`, `TargetRotationDelta`) not yet proven.
 
-Assets choose configuration.
+Modular first-person body now follows camera yaw through the intended layered path:
 
-C++ owns runtime policy.
+`DriverBody -> WorldBody (ABP_WorldBodyRetarget) -> LocalBody (CopyPose)`
 
-That means the new core owns:
+Historical note:
+- `Saved/Validation/CharacterDebug/*_camera_yaw_*_20260407_164410.*` proved the visual propagation fix
+- it did NOT prove correct idle turn-state entry
+- that run used the older gate that could false-pass on idle sway and a stale phase-boundary sample
+- the corrected proof run is `Saved/Validation/CharacterDebug/*_camera_yaw_*_20260408_160232.*`
 
-- component graph assembly
-- attachment policy
-- visibility policy
-- lifecycle state transitions
-- capability registration and activation
-- Mutable rebuild orchestration
-- debug capture and comparison output
-- legacy/modular switching support hooks
+Important: legacy is not fully correct either. The current camera-yaw work uses
+legacy as a relative baseline to expose structural differences, but final signoff
+must be against intended behavior, not "matches BP_Hero".
 
-Assets and Blueprints keep:
+**Current proof setup (2026-04-08):**
+- `DefinitionCharacter` keeps `bUseControllerRotationYaw = false`
+- `DefinitionCharacter` drives rotation like the sample/legacy pre-CMC path:
+  - `bUseControllerDesiredRotation = true`
+  - `bOrientRotationToMovement = false`
+  - instant ground rotation rate, finite falling rotation rate
+- bridge baseline writes:
+  - `RotationMode = 1` (Strafe)
+  - `OrientationIntent = ActorRotation`
+  - `AimingRotation = full control/base aim`
+  - `InputState.WantsToStrafe = true`
+  - `InputState.WantsToAim = true`
+  - `InputState.WantsToCrouch = CharacterMovement->IsCrouching()`
+- Mutable rebuild promotes generated body mesh onto `WorldBody`
+- `WorldBody` keeps its data-owned `ABP_WorldBodyRetarget_C` anim class
+- `ULocalBodyAnimInstance` copies from `WorldBody` and falls back to `DriverBody` only during early init
+- dedicated test exists:
+  `ProjectIntegrationTests.Character.Parity.CameraYawTimeline`
+- `scripts/ue/test/character/capture_parity.ps1` now runs
+  `GenerateDefinitions -type=Object` before launch, so `Hero.json` changes
+  regenerate `Hero.uasset` automatically for the parity path
+- latest proof run:
+  `Saved/Validation/CharacterDebug/*_camera_yaw_*_20260408_160232.*`
 
-- Motion Matching graphs
-- retarget AnimBPs
-- Mutable content graphs
-- skeleton-specific asset choices
-- designer-tuned curves and thresholds that are still specific to the legacy wrapper
+**What is now proven:**
 
-### 4.2. What moves first to C++
+1. `bUseControllerRotationYaw = false` is active and camera yaw now catches the actor/body.
+   - The old frozen-actor state is gone.
+   - In `modular_camera_yaw_summary_20260408_160232.json`:
+     - `IdleYaw60`: `MaxAbsActorYawFromStart = 22.6`
+     - `IdleYaw100`: `30.3`
+     - `IdleBackTo0`: `75.3`
+     - `CrouchIdleYaw90`: `74.9`
 
-These responsibilities move first into the new framework or wrapper code:
+2. The earlier `RotationMode = 1 means Aim` reading was wrong.
+   - `SandboxCharacter_Mover.Get_RotationMode` proves:
+     - `NewEnumerator0 = OrientToMovement`
+     - `NewEnumerator1 = Strafe`
+     - `NewEnumerator2 = Aim`
+   - The sample graph comment explicitly describes those three modes.
 
-- camera attachment policy
-- ownership of skeletal component graph
-- local body vs world body visibility policy
-- Mutable rebuild recovery
-- lifecycle state machine around assembly readiness
-- debug capture and structured runtime snapshots
+3. The active bridge baseline is `Strafe + actor intent + full aim`, not `Aim + yaw-only intent`.
+   - `RotationMode = 1` enables the sample AO path.
+   - `OrientationIntent = ActorRotation` matches the sample/legacy target-rotation feed.
+   - `AimingRotation` stays full control/base aim.
+   - `InputState` no longer zeros out turn-relevant flags.
+   - `modular_camera_yaw_summary_20260408_160232.json` shows `BridgeTracksControlYaw = true`
+     for every yaw-sweep phase.
 
-### 4.3. What stays legacy for v1
+4. The modular world visual layer is now real, active, and owner-local parity is restored.
+   - `modular_camera_yaw_summary_20260408_160232.json` shows:
+     - `HasWorld = true`
+     - `VisibleTracksWorld = true`
+     - `SawRetargetWorldVisual = true`
+   - Runtime log proves the expected promotion:
+     - `Promoted WorldBody visual source ... AnimClass=ABP_WorldBodyRetarget_C ...`
+   - Owner-visible body now copies the same world visual source instead of the raw driver pose.
 
-These stay in the legacy path until parity is proven:
+5. Visible torso and head now respond to camera yaw in modular.
+   - `modular_camera_yaw_summary_20260408_160232.json`:
+     - `IdleYaw60`: `VisiblePelvis=13.3`, `VisibleSpine=101.0`, `VisibleHead=51.1`
+     - `IdleYaw100`: `39.2`, `33.2`, `34.4`
+     - `IdleBackTo0`: `64.3`, `20.2`, `49.5`
+     - `CrouchIdleYaw90`: `68.6`, `48.5`, `20.1`
+   - That is the actual fix for "body does not move with camera".
 
-- Motion Matching AnimBP graphs
-- retarget AnimBPs
-- Mutable content graphs and authoring
-- current `BP_Hero` movement tuning curves and thresholds
-- traversal heuristics
-- foley and smart-object behavior unless needed for wrapper parity
+6. The modular test is no longer gated by legacy behavior.
+   - Legacy is still captured for comparison artifacts.
+   - Modular pass/fail is now self-contained and does not require legacy phase parity.
+   - This avoids treating `BP_Hero` as a correctness oracle.
 
-### 4.4. Core must stay dependency-clean
+7. Large idle yaw now proves a real rotating-body state, not just idle sway.
+   - `IdleYaw60` enters `M_Neutral_Stand_Turn_045_R`.
+   - `IdleYaw100` stays on `M_Neutral_Stand_Turn_045_R` for the whole phase while:
+     - actor yaw changes by `30.3`
+     - visible pelvis changes by `39.2`
+     - visible spine changes by `33.2`
+     - visible head changes by `34.4`
+   - `IdleBackTo0` and `CrouchIdleYaw90` also keep `TurnStateObserved = true`.
 
-`ProjectSkeletalAssembly` must not hard-depend on:
+8. Legacy is also broken in absolute camera/body terms.
+   - The same camera-yaw test shows legacy never becomes a clean gold standard:
+     - `ShouldTurnInPlace` stays `false` through the idle yaw phases
+     - visible response exists, but it is still not a complete turn-in-place solution
+   - So "modular vs legacy" and "correct camera/body behavior" are separate questions.
 
-- GAS
-- Vitals
-- Mutable
-- Motion Matching content
-- specific skeletons
-- specific bone names
-- project-specific gameplay capabilities
+9. Legacy visible body is NOT the same pose source as the driver.
+   - `Saved/Inspection/BP_Hero_CDO_2026-04-03.json` proves `WorldBodyMesh` uses
+     a dedicated retarget wrapper AnimBP.
+   - Runtime parity samples prove the visible legacy meshes diverge from the driver.
+   - The world-body retarget wrapper AnimGraph is just `Retarget Pose From Mesh`, so legacy
+     is showing a dedicated visual retarget layer, not the raw motion-matching driver.
 
-It may depend on:
+10. The camera-yaw test itself needed correction.
+   - Old camera-yaw summaries could count a stale first sample from the previous phase.
+   - Old large-turn success criteria were too permissive and could treat idle upper-body sway as proof of turning.
+   - Old "root turn" reporting was using mesh component yaw instead of root bone facing.
+   - The revised gate now accepts two valid large-idle-yaw proofs:
+     - explicit turn-state evidence (`ShouldTurnInPlace`, transition history, rotation break, target delta)
+     - or an already-active turn clip plus actor/body catch-up
+   - Large turn phases also require a root/body catch-up sign:
+     - actor yaw movement
+     - root bone facing movement
+     - or non-zero `TargetRotationDelta`
 
-- `ProjectCore`
-- Engine runtime modules needed for generic component assembly and diagnostics
+**Implemented fix:**
 
-It may optionally expose integration points that adapters use from outside the core.
+- `Hero.json`
+  - `WorldBody` now carries the retarget AnimBP asset path
+- `MutableCustomizationCapability.cpp`
+  - generated body mesh is copied onto `WorldBody`
+  - `WorldBody` keeps the anim class that data or legacy Blueprint defaults assigned
+  - world-body anim re-init now happens only when mesh/anim state actually changed
+- `LocalBodyAnimInstance.cpp`
+  - copy-pose source now prefers `WorldBody`
+  - `DriverBody` is only an early-init fallback until `WorldBody` is live
+- `MotionMatchingCapability.cpp` / `LocalFirstPersonCapability.cpp`
+  - head leader-pose now prefers `WorldBody`
+- `CharacterParityCameraYawTest.cpp`
+  - gate now checks the correct architecture:
+    - bridge tracks control yaw
+    - retargeted `WorldBody` exists
+    - owner-visible mesh tracks `WorldBody`
+    - torso/head respond during yaw phases
 
 ---
 
-## 5. New Core Types And Contracts
+## Remaining Work
 
-The later implementation must define the following public types.
+### Completed: project-owned retarget wrapper (6d.2)
 
-### 5.1. `USkeletalAssemblyComponent`
+We no longer rely on third-party `ABP_GenericRetarget` as the runtime source of
+truth for modular `WorldBody`.
 
-Main runtime host for the assembled skeletal actor.
+Implemented:
+- duplicated the vendor wrapper into project-owned
+  `/ProjectSkeletalCapabilities/MotionMatching/ABP_WorldBodyRetarget`
+- narrowed its `IKRetargeter_Map` to the runtime keys we actually use:
+  `DefMeshId=WorldBody`, `AssemblyRole=WorldBody`, `RTG_AutoGenerated`
+- switched `Hero.json` to the project-owned wrapper
+- removed `MutableCustomizationCapability` hardcoded retarget-ABP override
+- removed runtime `RTG_AutoGenerated` tag promotion from Mutable rebuild flow
 
-Responsibilities:
+Result:
+- world-body retarget asset path is data-owned again
+- Mutable rebuild no longer overrides that asset path every update
+- stale `RTG_Mannequin -> IK_Mannequin` dependency is no longer required by the modular path
+- owner-visible local body still follows the same retargeted world visual layer
 
-- owns the assembly state machine
-- creates or resolves runtime component graph from definition
-- tracks registered skeletal capabilities
-- applies attachment and visibility policy
-- exposes runtime inspection state for debug capture
+### Completed: Remove per-frame rotation tick (6d.3)
 
-This is the main reusable host for:
+Removed `Tick` override and `PrimaryActorTick.bCanEverTick = true` from
+`ADefinitionCharacter`. The only dynamic rotation case (falling vs grounded
+`RotationRate`) now uses `OnMovementModeChanged` override.
 
-- player-controlled characters
-- AI/NPC skeletal actors
-- future non-character skeletal mechanisms
+- `PrimaryActorTick.bCanEverTick = false`
+- `UpdateRotationPolicy()` called from `BeginPlay`, `PossessedBy`, and `OnMovementModeChanged`
+- Magic `-1.0f` replaced with named `InstantRotationRate` and `FallingRotationRate` constants
+- Test namespace collision fixed: anonymous namespaces renamed to `CameraYawHelpers`, `CleanPathHelpers`, `LocomotionHelpers`
 
-### 5.2. `FSkeletalCapabilitySpec`
+Note: trigger coverage is better but still partial. If crouch/uncrouch ever
+needs to affect rotation policy, a new hook will be needed. Not a blocker now.
 
-Stable-ID capability entry stored in the definition.
+### Completed: LocalBody floating above WorldBody (6d.5)
 
-Fields must include:
+**Root cause was:** `RootFreezeNode` computed camera-to-neck drift in mesh space,
+pushing root bone UP ~150 units toward camera. Fundamentally wrong for grounded FP body.
 
-- `CapabilityId`
-- capability-local config payload
-- optional target component IDs
-- enabled flag
-- ordering / phase hint if needed
+**Fix applied (2026-04-08):**
+- Removed `RootFreezeNode` from the anim chain entirely
+- Root bone now copies directly from source mesh via `CopyPoseFromMesh`
+- No camera-drift compensation -- feet stay grounded at mesh origin
+- New chain: `CopyPose -> CS -> Spine01 -> Spine02 -> Spine03 -> NeckLock -> Local -> Output`
 
-This mirrors the existing capability pattern:
+**Files:** `LocalBodyAnimInstance.cpp`, `LocalBodyAnimInstance.h`
 
-- stable identifier in data
-- runtime class resolution through registry
+### Completed: Fast camera rotation exposes body back (6d.4)
 
-### 5.3. Capability registry: one registry, one path
+**Root cause was:** MM pose lags behind control rotation by at least one frame.
+No direct camera-driven upper body rotation existed.
 
-#### 5.3.1. Core principle
+**Fix applied (2026-04-08):**
+- Added 3 `FAnimNode_ModifyBone` for `spine_01/02/03` in `LocalBodyAnimInstance`
+- Each applies additive yaw rotation in component space
+- `YawDeltaDeg = FMath::FindDeltaAngleDegrees(ActorYaw, ControlYaw)`, clamped to [-90, 90]
+- Distribution: spine_01 = 40%, spine_02 = 30%, spine_03 = 30%
+- Gives instant upper body camera tracking regardless of MM pose lag
 
-All capabilities -- object and skeletal -- use the same registry: `FCapabilityRegistry`.
+**Files:** `LocalBodyAnimInstance.cpp`, `LocalBodyAnimInstance.h`
 
-A door capability and a skeletal capability are the same concept. JSON declares what the thing has, the registry finds the class, the framework attaches it. The difference is not concept -- it is runtime lifecycle. Some actors need orchestration (hero with assembly phases), most don't (door, NPC with just Mutable).
+Layer 2 (bridge orientation improvement) deferred -- not needed if spine tracking
+covers the visual gap. Revisit only if turn-in-place issues surface.
 
-There is no separate skeletal registry.
+### Completed: Neck clipping after sprint stop (6d.7)
 
-#### 5.3.2. Registry with shared kernel
+**Root cause was:** Camera-drift root offset (6d.5) pushed mesh toward camera,
+and hidden neck/head bone transforms clipped through camera near plane.
 
-`FCapabilityRegistry` uses `FRegisteredClassScan` kernel from ProjectCore for CDO scan mechanics.
+**Fix applied (2026-04-08):**
+- Removed root camera drift (6d.5 fix) eliminates the primary cause
+- Added `NeckLockNode` (`FAnimNode_ModifyBone` on `neck_01`) as safety net
+- When control pitch < -15 deg (looking down), applies additive backward pitch
+- Maps [-15, -45] pitch -> [0, -8] deg neck tilt to keep neck away from camera
+- Alpha = 1.0 when `bEnableSpineLock` is true, 0.0 otherwise
 
-```
-ProjectCore (Foundation/)
-  Public/Registry/RegisteredClassScan.h   -- stateless scan kernel
-  Private/Registry/RegisteredClassScan.cpp
+**Files:** `LocalBodyAnimInstance.cpp`, `LocalBodyAnimInstance.h`
 
-ProjectObjectCapabilities (Gameplay/)
-  Public/CapabilityRegistry.h             -- one registry for all capabilities
-  Private/CapabilityRegistry.cpp
-```
+### Completed: Camera height validation (6d.6)
 
-Built-in modules (`ProjectObjectCapabilities`, `ProjectMotionSystem`) are hardcoded in the registry scan config -- they ship with the registry and are always loaded.
+Verified against BP_Hero CDO dump:
+- Legacy camera: `(X=23, Y=0, Z=62)` -- matches DefinitionCharacter exactly
+- Capsule: radius=30, halfHeight=86 -- matches exactly
+- Eye height from ground = 148cm for 172cm character (86% of height)
+- Real human eyes at ~93%, but lower camera is common FPS design choice
+- No change needed -- camera matches legacy BP_Hero
 
-External plugins (skeletal adapters, future capability packs) call `RegisterCapabilityModule()` in their `StartupModule()` so the registry discovers their classes without hardcoding their names.
+### Turn-in-place and target rotation steering (separate from 6d.1)
 
-#### 5.3.3. How external capability modules register
+Camera/body propagation is fixed, but the full Game Animation Sample turning path is
+not yet proven:
 
-```cpp
-// In any adapter plugin's StartupModule()
-FCapabilityRegistry::RegisterCapabilityModule(TEXT("MyAdapterPlugin"));
-```
+- `ShouldTurnInPlace` stays `false`
+- `TargetRotationDelta` stays `0`
+- `RotationMode` is still a first-person baseline, not final view-mode-driven policy
 
-If called after the registry has already been built, it auto-invalidates so the next lookup rescans.
+This is follow-up tuning / steering work, not the same defect as the broken modular visual chain.
 
-#### 5.3.4. Capability IDs
+### Clean-path testing baseline (use this before full-chain guesses)
 
-All capabilities use `FPrimaryAssetId("CapabilityComponent", "MyId")`.
+Do not use `BP_Hero` as the first source of truth for this bug class.
 
-Object capabilities (existing):
+Use the same spawned modular hero in this order:
+1. vendor/sample MM contract on raw `DriverBody` only
+2. `DriverBody -> WorldBody` retarget wrapper
+3. `DriverBody -> WorldBody -> LocalBody` copy-pose chain
+4. full Mutable chain
 
-| ID | Purpose |
-|----|---------|
-| `Lockable` | Access control |
-| `Pickup` | World pickup |
-| `Hinged` | Hinged door motion |
-| `Sliding` | Sliding motion |
-| `LootContainer` | Container interaction |
-| `Audio` | Spatial audio |
-| `ActorWatcher` | Event observation |
+The first stage that breaks is the real fault line.
 
-Skeletal capabilities (new, from adapter plugin):
+Implemented automation:
+- `ProjectIntegrationTests.Character.Parity.CleanPathIsolationMatrix`
+- runner:
+  `scripts/ue/test/character/capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.Parity.CleanPathIsolationMatrix" -TimeoutSeconds 900`
 
-| ID | Purpose |
-|----|---------|
-| `MotionMatching` | Motion matching animation driver |
-| `MutableCustomization` | Mutable body customization rebuild orchestration |
-| `LocalFirstPerson` | Owner-only first-person body handling |
-| `DebugCapture` | Runtime debug capture and overlay |
+Matrix used in every mode:
+- idle
+- forward accel / steady / stop
+- backward
+- strafe left / right
+- diagonal left / right
+- crouch idle / forward
+- idle yaw 30 / 60 / 100
+- yaw back
+- move + yaw
+- jump / fall / land
 
-Same registry, same resolution, same `GetPrimaryAssetId()` contract.
+Failure classification:
+- Layer 1 - MM contract
+- Layer 2 - raw driver pose
+- Layer 3 - retarget propagation
+- Layer 4 - local/customization propagation
 
-#### 5.3.5. Assembly component is opt-in
+Latest validated run:
+- `Saved/Validation/CharacterDebug/modular_clean_path_summary_20260408_164843.json`
 
-Simple objects and simple skeletal actors: capability attached at spawn, no lifecycle needed.
+Current result:
+- Mode A passed
+- Mode B passed
+- Mode C passed
+- Mode D passed
+- no earlier break surfaced before the full chain on the current build
 
-Complex skeletal actors (hero with local/world body, rebuild phases): `USkeletalAssemblyComponent` added as opt-in orchestrator that manages capability activation, teardown, and rebuild sequencing.
+Interpretation:
+- stop using legacy `BP_Hero` as a correctness oracle
+- stop assuming retarget/local/Mutable are the first break without isolating modes A-D
+- future camera/body failures should first reproduce under this clean-path matrix, then investigate the first failing mode
 
-The assembly component is not a gate for capabilities -- it is an optional lifecycle manager.
+### Visibility fix applied (2026-04-07)
 
-#### 5.3.6. Anti-patterns to avoid
+Hero.json customization meshes now have explicit visibility:
+- BodyCustomization: `SkipOwner` (matches WorldBody parent)
+- HeadCustomization: `SkipOwner` (matches Head parent)
+- LocalBodyCustomization: `OwnerOnly` (matches LocalBody parent)
 
-- separate registry per domain -- adds complexity with no benefit
-- hardcoding external module names in the registry -- external plugins must register themselves (built-in modules are fine to hardcode)
-- making the registry a UObject -- unnecessary GC for a static lookup table
-- forcing all skeletal actors through assembly orchestration -- simple actors don't need it
+Previously missing -- player could see both world and local bodies.
 
-### 5.4. `USkeletalDebugCaptureComponent`
+### Leg sliding on local body (known, pre-existing)
 
-Runtime instrumentation component for:
+Local body shows slight leg sliding in idle. Also present on legacy BP_Hero. Not a modular regression. Separate investigation needed for CopyPose/bone restriction interaction.
 
-- overlay information
-- structured capture output
-- screenshot sidecar metadata
+### Baseline Restored: Jump on modular (phase 10)
 
-This belongs in the new core because it is framework-level instrumentation, not game-specific content logic.
+Air entry works: `EnteredAir=True` on both modular and legacy (test run 20260408_173012).
+Foot vertical range differs significantly (29.2 modular vs 79.8 legacy) -- likely
+different JumpZVelocity or jump animation selection. The originally reported
+`EnteredAir=False` was from an older build before motion matching and rotation fixes.
 
-### 5.5. `USkeletalAssemblyDefinition`
+Remaining: foot range gap needs investigation -- may be JumpZVelocity tuning
+or MM jump animation selection issue. Not blocking but not fully at parity.
 
-New data asset contract for composed skeletal actors.
+### Completed: Bridge asset path to data (phase 8)
 
-Ownership:
+Moved hardcoded ABP path to data-driven:
+- `Hero.json` MotionMatching capability now has `BridgeAnimBPPath` property
+- `UMotionMatchingCapability` has `UPROPERTY FString BridgeAnimBPPath`
+- `TryInstallPostProcessBridge` uses property with fallback to default path
+- Spawn system passes JSON property via `SetPropertyByName`
 
-- stored in `ProjectObject`
-- authored for `Human/` first
-- later reusable for `Animal/`
+Note: property contract is stringly-typed (raw path string, not TSoftClassPtr).
+Acceptable for current object-definition system, but should migrate to a typed
+soft class reference when the schema supports it.
 
-This must intentionally mirror the existing `UObjectDefinition` philosophy:
+### Completed: Dead code cleanup (phase 9)
 
-- stable primary asset ID
-- component/layout entries
-- capability list by stable ID
-- extensible sections for domain-specific data
+- Removed `FindSubProperty` alias in `MotionMatchingBridgeAnimInstance.cpp`
+- All usages replaced with `FindPropWithFallback` directly
+- `CanContainContent=true` in ProjectSkeletalCapabilities.uplugin kept (required for content)
+
+### Completed: Mutable COI preset clone (6d.8)
+
+**Root cause:** `CO->CreateInstance()` returns an instance but `GetParameterCount()`
+returns 0 because the CO is not yet compiled at init time. Mutable auto-compiles
+asynchronously, but `SetEnumParameterSelectedOption` silently ignores params on
+an uncompiled instance. Character spawned naked.
+
+**Fix (2026-04-09):**
+- Added `MutableInstance` property: soft ref to a pre-saved COI asset
+- When set, `Clone()` the saved instance (carries baked param selections)
+- When not set, `CreateInstance()` from `MutableSource` (fresh runtime path)
+- `DefaultParameters` applied as overrides on top of either path
+- If CO not compiled at init time, deferred param apply in `OnMutableInstanceUpdated`
+  after first async update (CO is compiled by then), triggers second update
+- Hero.json uses `COI_Hero` preset, no DefaultParameters needed
+
+**Files:** `MutableCustomizationCapability.cpp/h`, `Hero.json`
+
+### Completed: No silent legacy fallback (6d.9)
+
+Modular spawn failure now logs `Error` and returns nullptr instead of silently
+falling back to legacy `BP_Hero`. This was masking real bugs (e.g. JSON comment
+field being parsed as a property, causing spawn failure -> silent legacy fallback
+-> no spine tracking -> "camera doesn't move body").
+
+**File:** `SinglePlayerGameMode.cpp`
+
+### Other session fixes (2026-04-09)
+
+- Orchestrator plugin registry "already mounted" log downgraded from Warning to Log
+  (expected behavior, not a problem) -- `OrchestratorPluginRegistry.cpp`
+- LocalFirstPerson capability scope changed from `["LocalBody"]` to `["actor"]`
+  in Hero.json (capability discovers meshes via role tags, doesn't need spawn
+  system mesh target; false "interaction target interface" warning eliminated)
+- Test namespace unity build collisions fixed: latent command classes wrapped
+  inside their helper namespaces, `using namespace` directives removed --
+  `CharacterParityCameraYawTest.cpp`, `CharacterCleanPathIsolationTest.cpp`,
+  `CharacterParityLocomotionTest.cpp`
+
+### Movement tuning parity (phase 6e, deferred)
+
+Legacy BP_Hero `UpdateMovement_PreCMC` dynamically overrides MaxWalkSpeed from gait/strafe vectors. Modular uses static `RunSpeed=500`. Full parity needs a movement capability.
 
 ---
 
-## 6. Definition Model
+## Test Infrastructure
 
-### 6.1. Definition owner
-
-Definition ownership stays in `ProjectObject`, not `ProjectCharacter`.
-
-Reason:
-
-- the project already uses `ProjectObject` as the composition-definition owner for game entities
-- `ProjectObject` already owns stable-ID data-definition patterns
-- characters are content compositions, not just one gameplay class
-
-### 6.2. Authoring model
-
-Extend the existing universal generator. Do not create a skeletal-specific generator or hand-maintain DataAssets as the primary authoring path.
-
-The project data pipeline is split into three stages (see `docs/data/README.md`):
-
-- SYNC: source data acquisition
-- GENERATION: `ProjectDefinitionGenerator` converts JSON + schema into DataAssets
-- PROPAGATION: runtime systems consume generated assets by stable ID
-
-`ProjectDefinitionGenerator` is documented as a universal JSON-to-DataAsset generator. Resource plugins provide:
-
-- a runtime definition class (`USkeletalAssemblyDefinition`)
-- source JSON files
-- a JSON schema with an `x-alis-generator` block
-
-The generator owns parsing, field mapping, incremental generation, and orphan cleanup.
-
-Practical shape:
-
-- source JSON under `Plugins/Resources/ProjectObject/Content/Human/<Name>/`
-- JSON schema at `Content/Data/Schemas/SkeletalAssembly.schema.json` with `x-alis-generator` metadata
-- `ProjectDefinitionGenerator` generates `USkeletalAssemblyDefinition` DataAssets from those JSON files
-- no hand-maintained DataAssets as the main authoring flow
-- no new generator framework or forked data pipeline
-
-File and ID rule:
-
-- character ID equals authored name / filename, same spirit as object definitions
-
-### 6.3. Minimum fields of `USkeletalAssemblyDefinition`
-
-The later implementation must include these conceptual lanes.
-
-#### Lane A: component layout
-
-Component layout entries define:
-
-- component ID
-- component kind
-- parent component ID
-- attachment policy
-- default transform
-- visibility role
-- optional asset refs
-
-Example roles:
-
-- `DriverBody`
-- `WorldBody`
-- `LocalBody`
-- `Head`
-- `Camera`
-- `BodyCustomization`
-- `HeadCustomization`
-- `LocalBodyCustomization`
-
-The framework should not rely on hardcoded names like `CharacterMesh0` or `Local_Body_CSK`.
-
-It should rely on stable component IDs and roles declared in the definition.
-
-#### Lane B: capabilities
-
-Capability entries define:
-
-- stable capability ID
-- config payload
-- target component IDs if applicable
-
-Examples:
-
-- `MotionMatching` driver capability
-- `MutableCustomization` body customization capability
-- `LocalFirstPerson` owner-only first-person body capability
-- `DebugCapture` capability
-
-#### Lane C: sections
-
-Sections hold extensible, domain-specific data.
-
-Required v1 section categories:
-
-- `Animation`
-- `Customization`
-- `View`
-- `Debug`
-
-Possible later section categories:
-
-- `GameplayBridge`
-- `Ragdoll`
-- `LOD`
-
-### 6.4. Stable-ID policy
-
-Use the same style as `ObjectDefinition` plus `CapabilityRegistry`.
-
-Meaning:
-
-- definitions are referenced by stable ID
-- capabilities are referenced by stable ID
-- runtime classes are resolved by registry
-- asset paths are payload details, not orchestration identity
+- `Character.Parity.IdleSnapshot` -- idle capture (legacy + modular JSON)
+- `Character.Parity.CleanPathIsolationMatrix` -- modular-only A-D fault-line isolation on one hero
+- `Character.Parity.LocomotionTimeline` -- 15-phase movement matrix (JSONL + summary)
+- `Character.Parity.CameraYawTimeline` -- modular-only yaw/turn-state proof on the active chain
+- `Character.Parity.SimpleAnimSanity` -- bypass ABP, prove mesh evaluation
+- Runner: `scripts/ue/test/character/capture_parity.ps1 -TimeoutSeconds 300`
+- Map: `Content/Developers/<user>/CleanMap` (flat plane with project GameMode)
+- Output: `Saved/Validation/CharacterDebug/` (JSON, JSONL, PNG)
 
 ---
 
-## 6.5. Relation to the existing capability pattern
-
-Skeletal capabilities ARE object capabilities. Same registry, same contract, same `GetPrimaryAssetId("CapabilityComponent", ...)` pattern. See section 5.3.
-
-The only difference is runtime lifecycle:
-
-- simple capabilities (door, chest, simple NPC): attach at spawn, done
-- orchestrated capabilities (hero): `USkeletalAssemblyComponent` manages activation, teardown, rebuild
-
-This means:
-
-- `ProjectObject` remains the owner of skeletal definition data
-- all capability IDs live in one `FCapabilityRegistry`
-- runtime assembly is opt-in via `USkeletalAssemblyComponent`, not forced
-- a simple NPC with just `MutableCustomization` works the same as a chest with `LootContainer`
-
-Motion Matching and Mutable are not "player character only" technologies. They can apply to NPCs, creatures, and future skeletal actors. The one-registry model makes this natural.
-
----
-
-## 7. Adapter Strategy
-
-### 7.1. Core vs adapters
-
-The new core provides generic assembly and lifecycle.
-
-Capability-specific behavior stays in adapters outside the core.
-
-Initial adapters to support later:
-
-- Motion Matching adapter
-- Mutable adapter
-- local first-person body adapter
-- debug capture adapter
-
-### 7.2. Adapter residency
-
-Capability implementations live in dedicated plugins, not in character wrappers.
-
-Placement:
-
-- `FCapabilityRegistry` (registry owner) lives in `ProjectObjectCapabilities`
-- built-in object capabilities (Lockable, Pickup, Hinged, etc.) live in `ProjectObjectCapabilities`
-- skeletal adapter capabilities live in ONE bridge plugin: `ProjectSkeletalCapabilities` (Gameplay tier)
-- `DebugCapture` and `LocalFirstPerson` may live in `ProjectSkeletalAssembly` if they have no third-party deps
-
-```
-ProjectObjectCapabilities (Gameplay/)
-  FCapabilityRegistry                    -- registry owner
-  Lockable, Pickup, Hinged, etc.         -- built-in capabilities
-
-ProjectSkeletalCapabilities (Gameplay/)  -- ONE bridge plugin
-  depends on: ProjectObjectCapabilities  -- for RegisterCapabilityModule()
-  depends on: PoseSearch                 -- for Motion Matching
-  depends on: CustomizableObject         -- for Mutable
-  MotionMatchingCapability               -- adapter
-  MutableCustomizationCapability         -- adapter
-  (future skeletal adapters here)
-```
-
-Each adapter plugin calls `FCapabilityRegistry::RegisterCapabilityModule()` in `StartupModule()`.
-
-This means:
-
-- no capability classes in `ProjectCharacter`
-- no plugin-per-adapter sprawl (one bridge plugin for all skeletal adapters)
-- third-party deps isolated in the bridge plugin, not in registry or core
-- any definition can reference any capability by stable ID
-- capabilities are reusable by NPCs, creatures, and future skeletal actors
-
-### 7.3. Legacy wrapper rule
-
-Keep `ProjectCharacter` as the legacy gameplay-facing character plugin.
-
-The new modular character will be a separate pawn class that consumes `ProjectSkeletalAssembly`. Once the modular path reaches parity, the legacy path in `ProjectCharacter` can be retired.
-
-Do not extend `ProjectCharacter` with new skeletal assembly behavior. New behavior goes into the framework or into capability-owner plugins.
-
----
-
-## 8. Legacy Baseline Rule
-
-Phase 0 is mandatory:
-
-- restore and freeze the legacy baseline around the Artur merge
-- stop adding new first-person math experiments to `LocalBodyAnimInstance`
-
-Important interpretation:
-
-- legacy is the compatibility baseline
-- modular is the new implementation under comparison
-
-Default runtime behavior remains legacy until modular parity exists.
-
-`BP_Hero_Motion` is a forensic reference, not the production default.
-
-Its recovered camera attach path is useful because it proves a real older behavior existed, but it should not become the new long-term architecture by itself.
-
----
-
-## 9. Runtime Switching
-
-### 9.1. Switching model
-
-Choose respawn-based switching.
-
-Do not attempt hot live mutation of the active pawn graph.
-
-Do not require map travel for each switch.
-
-Reason:
-
-- safer than in-place mutation
-- much faster for parity testing than full travel
-- compatible with `ProjectSinglePlay` ownership of mode and pawn selection
-
-### 9.2. Command namespace
-
-Use:
-
-- `project.character.switch legacy`
-- `project.character.switch modular`
-
-Optional later:
-
-- `project.character.switch modular Hero`
-
-### 9.3. Switch host
-
-Switching is hosted by `ProjectSinglePlay`.
-
-Reason:
-
-- `ProjectSinglePlay` already owns data-driven pawn selection
-- `FSinglePlayModeConfig` already owns default pawn configuration
-- single-player runtime already decides which pawn class is spawned
-
-### 9.4. Command routing
-
-Later implementation should split responsibilities like this:
-
-- command parsing lives in client-facing single-player code
-- authoritative switch application lives in single-player runtime orchestration
-
-Practical split:
-
-- local exec or console command entry in `ProjectSinglePlayClient`
-- runtime application and respawn in `ProjectSinglePlay`
-
-### 9.5. Switch behavior
-
-Switching must:
-
-1. set the active character system selection
-2. choose the corresponding pawn or definition path
-3. perform a clean respawn
-4. preserve gameplay session when possible
-5. log the selected system and resulting pawn/definition
-
-Do not mutate a live pawn from legacy to modular in place.
-
----
-
-## 10. Debug And Capture
-
-### 10.1. Commands
-
-Later implementation must provide:
-
-- `project.character.debug 0`
-- `project.character.debug 1`
-- `project.character.capture [label]`
-
-### 10.2. Debug mode requirements
-
-Debug mode must support:
-
-- detached debug camera while the observed character continues ticking and animating
-- overlay text with high-signal state
-- compare-friendly runtime capture output
-
-The intended behavior is "inspect the active character from outside while it still simulates", not "pause and inspect components manually in the editor".
-
-### 10.3. Overlay fields
-
-Overlay must show at minimum:
-
-- active system: `legacy` or `modular`
-- pawn class
-- definition ID if modular
-- capability IDs active in the assembly
-- camera parent component and socket
-- main skeletal component parents and sockets
-- skeletal mesh asset names
-- anim class and anim instance class per relevant mesh
-- Mutable instance identity if applicable
-- selected bone transforms for quick comparison
-
-Selected bones for first-person comparison:
-
-- `root`
-- `pelvis`
-- `spine_03`
-- `spine_05`
-- `neck_01`
-- `head`
-
-If a later modular definition uses different skeleton naming, the debug adapter must expose an equivalent mapped set.
-
-### 10.4. Capture output
-
-`project.character.capture [label]` must produce:
-
-- screenshot image
-- structured sidecar text or JSON
-- console-readable summary lines
-
-Target output folder:
-
-- `Saved/Validation/CharacterDebug/`
-
-Filename requirements:
-
-- timestamp
-- active system
-- profile or definition ID
-- optional label
-
-Example intent:
-
-- `2026-03-31_22-15-03_legacy_BP_Hero_stoplean.png`
-- `2026-03-31_22-15-03_legacy_BP_Hero_stoplean.json`
-
-### 10.5. Sidecar content
-
-Structured capture must include at minimum:
-
-- system ID
-- pawn class
-- definition ID if any
-- capability list
-- camera parent/socket/transform
-- component parent/socket/mesh/anim state
-- selected bone transforms
-- current movement / locomotion summary if adapter exposes it
-- current Mutable instance / generated mesh identifiers if applicable
-
-This is required so regressions can be compared without relying only on screenshots or raw log hunting.
-
----
-
-## 11. Migration Phases
-
-### Phase 0 - Freeze legacy
-
-- restore and freeze the legacy baseline around the Artur-era merged behavior
-- stop experimental local-body math changes
-- keep `ProjectCharacter` as current production path
-
-Exit criteria:
-
-- legacy remains default
-- no new modular code is required yet
-
-### Phase 1 - Scan kernel + capability registry upgrade + `ProjectSkeletalAssembly` plugin
-
-Phase 1a: add `FRegisteredClassScan` kernel to `ProjectCore/Public/Registry/`.
-
-Phase 1b: migrate `FCapabilityRegistry` internals to use `FRegisteredClassScan`. Add `RegisterCapabilityModule()`, `DumpToLog()`, `ForEach()`, `Num()`. Public API backward-compatible.
-
-Phase 1c: create `ProjectSkeletalAssembly` in `Plugins/Systems/` with `USkeletalAssemblyComponent`.
-
-This phase adds:
-
-- `FRegisteredClassScan` shared kernel in ProjectCore
-- `FCapabilityRegistry` migrated onto kernel with `RegisterCapabilityModule()` for external plugins
-- `USkeletalAssemblyComponent` (opt-in lifecycle orchestrator)
-- `ProjectSkeletalAssembly` plugin (no separate registry -- uses `FCapabilityRegistry`)
-
-This phase does not add:
-
-- Mutable content behavior
-- Motion Matching behavior
-- character-specific heuristics
-- separate skeletal capability registry (not needed -- one registry for all)
-
-Test gate (Phase 1):
-
-- compile succeeds
-- existing object spawn flow works unchanged (spawn a door/chest with capabilities in PIE)
-- `FCapabilityRegistry::DumpToLog()` shows the same 8 entries as before migration
-- `USkeletalAssemblyComponent` can be added to a test actor in PIE without crash
-- assembly state machine initializes to idle state
-- automation test: lifecycle state transitions (idle -> assembling -> ready -> teardown)
-
-### Phase 1.5 - JSON body decision (DECIDED)
-
-#### 1.5.1. Questions answered
-
-All open questions have been researched and decided:
-
-| Question | Decision | Reason |
-|----------|----------|--------|
-| Separate definition class? | No. Extend `UObjectDefinition`. | Characters ARE objects in ALIS. GrandPa NPC already uses ObjectDefinition with skeletal mesh + animClass. One definition class, one schema, one generator. |
-| Separate `ComponentLayout`? | No. Use existing `meshes` array. | Existing `FObjectMeshEntry` already supports skeletal meshes, parent hierarchy, animClass, materials. Only needs 3 optional fields: `kind`, `role`, `visibility`. |
-| Separate capabilities format? | No. Same `capabilities` array, same `type`/`scope`/`properties` format. | One registry, one pattern. Skeletal capabilities are just capabilities. |
-| How is assembly expressed? | `SkeletalAssembly` is a capability in the capabilities array. | Industry standard: flat peer coordinator (Lyra, Fortnite ASC, Overwatch). Not a top-level field, not a wrapper. |
-| Separate sections mechanism? | No. Same `TMap<FName, FInstancedStruct>` as Item and Storage. | Add new section types: Animation, Customization, View. Same pattern. |
-| Camera in meshes? | No. Camera goes in `view` section. | Camera is view policy, not a visual body piece. |
-| Extend ObjectSpawnUtility? | Yes. Add kind/role/visibility handling + assembly lifecycle routing. | One spawn path. When SkeletalAssembly capability is present, route other capabilities through assembly lifecycle instead of simple attach. |
-
-#### 1.5.2. Why these decisions
-
-Three alternative approaches were considered and rejected:
-
-**Rejected: Separate `USkeletalAssemblyDefinition` class**
-
-Would mean two definition types, two schemas, two generator entries, two spawn paths. GrandPa (simple skeletal NPC) would use ObjectDefinition while Hero would use SkeletalAssemblyDefinition -- but they're both characters, both objects, both have skeletal meshes and capabilities. The split adds complexity with no benefit.
-
-**Rejected: Camera as a mesh entry**
-
-Camera is not a visual component. It has no asset, no materials, no physics. Putting it in `meshes` pollutes the mesh array with non-mesh entries. Camera attachment and mode belong in the `view` section as policy configuration.
-
-**Rejected: Assembly as implicit (detect from `role` presence) or top-level field (`"assembly": "skeletal"`)**
-
-Industry research across Lyra, Fortnite, Overwatch, Unity, and Game Programming Patterns shows the universal pattern: the orchestrator is a flat peer component, not a wrapper and not an implicit behavior. Making `SkeletalAssembly` a capability achieves this:
-- Explicit in JSON (you see it in the capabilities list)
-- Consistent with existing patterns (it's a capability like Hinged or Lockable)
-- Resolved via same registry (`FCapabilityRegistry`)
-- No new JSON concepts (no top-level field)
-- No magic (no implicit role-detection)
-
-**Rejected: Wrapping capabilities inside assembly in JSON (nested model)**
-
-Would break the flat peer coordinator pattern that every shipped game uses. Components are peers on the actor. The assembly component discovers and coordinates siblings at runtime, it does not contain them in data.
-
-#### 1.5.3. New fields on `FObjectMeshEntry`
-
-Three optional fields added to existing mesh entry struct:
-
-| Field | Type | Default | Purpose |
-|-------|------|---------|---------|
-| `kind` | `FName` | auto-detect from asset | Component type override. Needed for `CustomizableSkeletalMesh` (can't auto-detect from asset). Values: `SkeletalMesh`, `StaticMesh`, `CustomizableSkeletalMesh`. Omit for auto-detect. |
-| `role` | `FName` | none | Semantic role for assembly. Values: `DriverBody`, `WorldBody`, `LocalBody`, `BodyCustomization`, `HeadCustomization`, `LocalBodyCustomization`. Only valid when `SkeletalAssembly` capability is present. |
-| `visibility` | `FName` | default (all see) | Visibility policy. Values: `OwnerOnly`, `SkipOwner`. Only valid when `SkeletalAssembly` capability is present. |
-
-Validation rule: if any mesh has `role` or `visibility` but no `SkeletalAssembly` capability is present, validation fails. No half-assembly objects.
-
-#### 1.5.4. New sections
-
-| Section | Purpose | Fields (v1) |
-|---------|---------|-------------|
-| `animation` | Locomotion and traversal config | `locomotionProfile`, `traversalProfile` |
-| `customization` | Mutable source config | `mutableSource` |
-| `view` | Camera and first-person policy | `defaultMode`, `cameraParent`, `attachmentPolicy`, `relativeOffset` |
-
-Future sections: `debug`, `ragdoll`, `lod`.
-
-#### 1.5.5. Assembly spawn behavior
-
-When `ObjectSpawnUtility` processes capabilities:
-
-Without `SkeletalAssembly`:
-- all capabilities attached simple (fire-and-forget, current behavior)
-
-With `SkeletalAssembly`:
-1. create mesh components (using `kind`, `role`, `visibility`)
-2. attach `USkeletalAssemblyComponent` (the assembly capability itself)
-3. assembly reads mesh roles and builds component graph
-4. other skeletal capabilities (`MotionMatching`, `MutableCustomization`, etc.) routed through assembly lifecycle
-5. assembly activates them when state reaches Ready
-6. assembly deactivates them on TearingDown
-
-This matches the Lyra init state coordinator pattern: peer component manages sibling initialization ordering.
-
-#### 1.5.6. Capability ordering rule
-
-`SkeletalAssembly` is always processed first, regardless of JSON array order. `ObjectSpawnUtility` must:
-
-1. scan the capabilities array for `SkeletalAssembly`
-2. if found, create and initialize it before any other capability
-3. defer other capabilities that target assembly-managed meshes (those with `role`) until assembly signals readiness
-4. capabilities targeting `["actor"]` scope that are NOT assembly-managed are attached immediately (e.g. `Dialogue` on an NPC that also has assembly)
-
-This ordering is enforced at spawn time, not at JSON authoring time. Authors can list capabilities in any order.
-
-#### 1.5.7. Validation rules
-
-Negative (already stated):
-
-- if any mesh has `role` or `visibility` but no `SkeletalAssembly` capability exists, fail validation
-
-Positive (required):
-
-- if `SkeletalAssembly` capability exists, at least one mesh must have a valid `role`
-- all capability `scope` entries must reference existing mesh `id` values (or `"actor"`)
-- if `LocalFirstPerson` capability exists, require a mesh with `role: "LocalBody"` and a `view` section
-- if `MotionMatching` capability exists, require a mesh with `role: "DriverBody"`
-
-These are schema-level or generator-level validation rules. They prevent silently broken definitions.
-
-#### 1.5.8. Module registration
-
-`ProjectSkeletalAssembly` is a core systems plugin (always enabled, like `ProjectMotionSystem`). It is hardcoded in `FCapabilityRegistry::Build()` alongside the other built-in modules so the CDO scan discovers `USkeletalAssemblyComponent`.
-
-Built-in modules (hardcoded in registry scan config):
-- `ProjectObjectCapabilities` (self)
-- `ProjectMotionSystem` (motion capabilities)
-- `ProjectSkeletalAssembly` (assembly capability)
-
-External adapter plugins (like `ProjectSkeletalCapabilities` when created) call `FCapabilityRegistry::RegisterCapabilityModule()` in their `StartupModule()` to self-register.
-
-Rule: core always-enabled plugins are hardcoded. Optional/external plugins self-register.
-
-#### 1.5.9. Final JSON examples
-
-Hero (with assembly):
-
-```json
-{
-  "$schema": "../../Schemas/object.schema.json",
-  "id": "Human.Hero",
-  "spawnClass": "/Game/Characters/BP_ModularHero.BP_ModularHero_C",
-  "meshes": [
-    { "id": "DriverBody",        "kind": "SkeletalMesh",             "asset": "/Game/Characters/Human/SKM_Hero_Body", "role": "DriverBody" },
-    { "id": "WorldBody",         "kind": "SkeletalMesh",             "parent": "DriverBody", "role": "WorldBody", "animClass": "/Game/Animation/ABP_Hero_Retarget" },
-    { "id": "LocalBody",         "kind": "SkeletalMesh",             "parent": "DriverBody", "role": "LocalBody", "visibility": "OwnerOnly" },
-    { "id": "BodyCustomization", "kind": "CustomizableSkeletalMesh", "parent": "WorldBody",  "role": "BodyCustomization" },
-    { "id": "HeadCustomization", "kind": "CustomizableSkeletalMesh", "parent": "WorldBody",  "role": "HeadCustomization" }
-  ],
-  "capabilities": [
-    { "type": "SkeletalAssembly", "scope": ["actor"] },
-    { "type": "MotionMatching",       "scope": ["DriverBody"] },
-    { "type": "MutableCustomization", "scope": ["BodyCustomization", "HeadCustomization"] },
-    { "type": "LocalFirstPerson",     "scope": ["LocalBody"], "properties": { "HiddenBones": "head,neck_01" } },
-    { "type": "DebugCapture",         "scope": ["actor"] }
-  ],
-  "sections": {
-    "animation":     { "locomotionProfile": "Human.Default", "traversalProfile": "Human.Parkour" },
-    "customization": { "mutableSource": "/Game/Mutable/CO_Hero_Body" },
-    "view":          { "defaultMode": "FirstPerson", "cameraParent": "Root", "attachmentPolicy": "CapsuleFixed", "relativeOffset": "(X=23 Y=0 Z=62)" }
-  }
-}
-```
-
-Simple NPC (no assembly, no lifecycle):
-
-```json
-{
-  "$schema": "../../Schemas/object.schema.json",
-  "id": "Human.Trader",
-  "spawnClass": "/Game/Characters/BP_NPC.BP_NPC_C",
-  "meshes": [
-    { "id": "body", "asset": "/Game/Characters/Human/SKM_NPC_Body", "animClass": "/Game/Animation/ABP_NPC_Retarget" }
-  ],
-  "capabilities": [
-    { "type": "MutableCustomization", "scope": ["body"] },
-    { "type": "Dialogue", "scope": ["actor"], "properties": { "DialogueTreeAsset": "/Game/Dialogue/DLG_Trader" } }
-  ],
-  "sections": {
-    "customization": { "mutableSource": "/Game/Mutable/CO_NPC_Trader" }
-  }
-}
-```
-
-Door (unchanged, current behavior):
-
-```json
-{
-  "$schema": "../../Schemas/object.schema.json",
-  "id": "Door_Inner",
-  "meshes": [
-    { "id": "frame", "asset": "/ProjectObject/.../SM_Frame" },
-    { "id": "door",  "asset": "/ProjectObject/.../SM_Door", "parent": "frame" }
-  ],
-  "capabilities": [
-    { "type": "Hinged", "scope": ["door"], "properties": { "OpenAngle": "-85" } }
-  ]
-}
-```
-
-All three use the same schema, same definition class, same generator, same spawn entry point. The only difference is complexity: door has no assembly, NPC has simple capabilities, hero has assembly-orchestrated capabilities.
-
-### Phase 2 - Add skeletal definitions in `ProjectObject` via universal generator
-
-Add skeletal definition support under `ProjectObject`.
-
-Extend `ProjectDefinitionGenerator` to generate skeletal assembly DataAssets from JSON:
-
-- add JSON schema with `x-alis-generator` block based on Phase 1.5 decisions
-- add source JSON for `Human/Hero` as first definition
-- verify incremental generation works through existing generator flow
-
-Scope:
-
-- `Human/` first
-- `Animal/` later
-
-This phase defines:
-
-- component layout lane
-- capability lane
-- section lane
-- stable primary asset ID
-
-Test gate (Phase 2):
-
-- generator discovers skeletal assembly JSON files
-- generated `USkeletalAssemblyDefinition` DataAsset has correct ObjectId, component layout, capabilities, sections
-- incremental regeneration: modify JSON, regenerate, verify asset updates
-- orphan cleanup: delete JSON, regenerate, verify asset removed
-- automation test: `FDefinitionJsonParser` parses skeletal assembly fields correctly
-
-### Phase 3 - Build one modular hero wrapper
-
-Create one modular hero path using:
-
-- `ProjectCharacter` as the gameplay wrapper
-- `ProjectSkeletalAssembly` as the runtime core
-- one `USkeletalAssemblyDefinition` for the hero
-
-Keep `BP_Hero` as the legacy reference path.
-
-Test gate (Phase 3):
-
-- modular hero spawns in PIE with correct component graph
-- `FCapabilityRegistry::DumpToLog()` shows skeletal capabilities alongside object capabilities
-- component IDs from definition match runtime component tags
-- assembly state machine reaches ready state after spawn
-- legacy `BP_Hero` still works unchanged
-
-### Phase 4 - Wire switching in `ProjectSinglePlay`
-
-Add respawn-based switching:
-
-- default remains legacy
-- `project.character.switch modular` uses modular wrapper
-- `project.character.switch legacy` returns to legacy wrapper
-
-Test gate (Phase 4):
-
-- PIE starts with legacy hero (default unchanged)
-- `project.character.switch modular` respawns into modular pawn
-- `project.character.switch legacy` returns to legacy pawn
-- switch preserves gameplay session (no map travel)
-- switch logs selected system and resulting pawn/definition
-- rapid switch cycling (legacy -> modular -> legacy -> modular) does not leak actors or components
-
-### Phase 5 - Add debug capture
-
-Add overlay plus structured capture.
-
-Use it as the official parity harness between:
-
-- legacy hero
-- modular hero
-
-Test gate (Phase 5):
-
-- `project.character.debug 1` shows overlay with system ID, pawn class, capabilities, camera state
-- `project.character.debug 0` hides overlay
-- `project.character.capture test_label` writes screenshot + JSON sidecar to `Saved/Validation/CharacterDebug/`
-- sidecar JSON contains all fields from section 10.5
-- capture works for both legacy and modular systems
-- two captures (legacy + modular) produce diff-comparable structured output
-
-### Phase 6 - Migrate one concern at a time
-
-Only after parity instrumentation exists, migrate concerns individually:
-
-1. camera/body orchestration
-2. Mutable orchestration
-3. local first-person body handling
-4. later, broader movement/traversal pieces only if still justified
-
-Do not migrate all current Blueprint behavior in one pass.
-
-Test gate (Phase 6, per concern):
-
-- capture comparison between legacy and modular shows parity for the migrated concern
-- legacy path remains functional after each migration
-- no regressions in unmigrated concerns
-
-### Post-implementation: update all affected documentation
-
-After each phase lands, scan and update ALL documentation that references the affected architecture. This is mandatory, not optional -- stale docs cause wrong decisions in future sessions.
-
-Architecture docs to scan:
-
-- `docs/architecture/plugin_architecture.md` -- add ProjectSkeletalAssembly to plugin map
-- `docs/architecture/plugin_rules.md` -- verify tier placement is documented
-- `docs/architecture/core_principles.md` -- verify capability model description matches one-registry reality
-- `docs/architecture/data_driven.md` -- update with extended ObjectDefinition fields (kind, role, visibility)
-- `docs/architecture/conventions.md` -- add skeletal capability naming conventions
-- `docs/data/README.md` -- update generation pipeline with new section types
-- `docs/systems/loading_pipeline.md` -- if assembly affects loading phases
-
-Plugin docs to scan:
-
-- `Plugins/Foundation/ProjectCore/README.md` -- add FRegisteredClassScan kernel reference
-- `Plugins/Gameplay/ProjectObjectCapabilities/README.md` -- update registry description (now serves all capabilities, add RegisterCapabilityModule)
-- `Plugins/Resources/ProjectObject/README.md` -- update ObjectDefinition with new optional fields, new section types
-- `Plugins/Resources/ProjectObject/docs/layer_contract.md` -- update capability/section contract with skeletal additions
-- `Plugins/Systems/ProjectSkeletalAssembly/README.md` -- create (new plugin)
-- `Plugins/Gameplay/ProjectCharacter/README.md` -- update legacy vs modular status
-- `Plugins/Gameplay/ProjectCharacter/docs/design.md` -- update character architecture to reference assembly framework
-
-CLAUDE.md routing to update:
-
-- `CLAUDE.md` Quick Routes -- add skeletal assembly routing
-- `CLAUDE.md` Cross-Plugin Boundaries -- add assembly framework boundaries
-
-Rule: if a doc references capabilities, object definitions, character creation, or plugin architecture, it must be checked after each phase.
-
----
-
-## 12. Acceptance Criteria
-
-### 12.1. Static architecture acceptance
-
-- `ProjectSkeletalAssembly` lives in `Plugins/Systems/`
-- it does not depend on third-party systems (PoseSearch, Mutable, etc.)
-- no separate `USkeletalAssemblyDefinition` -- skeletal actors use extended `UObjectDefinition`
-- `FRegisteredClassScan` kernel lives in `ProjectCore/Public/Registry/`
-- `FCapabilityRegistry` is the single registry for all capabilities (object + skeletal)
-- `FCapabilityRegistry` supports `RegisterCapabilityModule()` for external adapter plugins
-- `SkeletalAssembly` is a capability in data, but `ObjectSpawnUtility` gives it coordinator semantics during spawn (processed first, routes other skeletal capabilities through assembly lifecycle)
-- no separate skeletal registry exists
-
-### 12.2. Legacy runtime acceptance
-
-- `Medium` mode still spawns legacy hero by default
-- no behavior change in legacy path before explicit system switch
-
-### 12.3. Modular runtime acceptance
-
-- `project.character.switch modular` respawns into the modular pawn cleanly
-- `project.character.switch legacy` returns cleanly
-- modular path reports the correct system and definition in debug overlay
-- capture command writes screenshot plus sidecar output
-
-### 12.4. Reuse acceptance
-
-- a non-player NPC wrapper can use the same assembly core without local-player-only capabilities
-
-### 12.5. Regression-comparison acceptance
-
-Capture output must be sufficient to compare:
-
-- camera parent
-- mesh parents
-- anim classes
-- selected bone transforms
-- active capability set
-
-without requiring manual Blueprint graph inspection.
-
----
-
-## 13. Explicit Non-Goals For V1
-
-V1 does not do the following:
-
-- rewrite Motion Matching graphs into C++
-- rewrite Mutable content graphs into C++
-- replace all `BP_Hero` gameplay tuning in one pass
-- hot-swap a live pawn between systems without respawn
-- redesign traversal, foley, or smart-object behavior unless needed for wrapper parity
-- create a separate skeletal capability registry (one registry for all capabilities)
-- force all skeletal actors through assembly orchestration (opt-in only)
-
----
-
-## 14. Naming Standard
-
-### 14.1. Naming direction
-
-Naming conventions were informed by patterns observed in Lyra, MetaHuman, and the existing ALIS capability registry.
-
-Chosen direction:
-
-- PascalCase per segment is dominant for slot and capability names
-- dot separator is dominant for hierarchical identity (FGameplayTag, Flecs paths, Lyra tags)
-- flat single-word or compound-word IDs for leaf-level entries
-- runtime resolves via integer or FName, string paths are for authoring and debug
-
-This standard aligns with the existing project pattern where capability IDs are flat PascalCase FNames (`Pickup`, `Lockable`, `Hinged`) and definition IDs are `Type:Category.Name` FPrimaryAssetIds.
-
-### 14.2. Component layout IDs
-
-Flat PascalCase. No dots. These are leaf identifiers within a single definition scope.
-
-| ID | Purpose |
-|----|---------|
-| `DriverBody` | Primary skeletal mesh that owns the skeleton |
-| `WorldBody` | Third-person visible body mesh |
-| `LocalBody` | First-person owner-only body mesh |
-| `Head` | Head mesh component |
-| `Camera` | Camera component |
-| `BodyCustomization` | Mutable customization skeletal component (world) |
-| `HeadCustomization` | Mutable customization skeletal component (head) |
-| `LocalBodyCustomization` | Mutable customization skeletal component (local) |
-| `LODSync` | LOD synchronization component |
-
-### 14.3. Capability IDs
-
-Flat PascalCase FName. Same registry as object capabilities (`FCapabilityRegistry`). Each ID is globally unique.
-
-Capabilities are optional, project-specific behaviors. Camera attachment and mesh visibility are core assembly behavior, not capabilities (see section 4.1 and 5.3.5).
-
-| ID | Purpose |
-|----|---------|
-| `MotionMatching` | Motion matching animation driver |
-| `MutableCustomization` | Mutable body customization rebuild orchestration |
-| `LocalFirstPerson` | Owner-only first-person body handling |
-| `DebugCapture` | Runtime debug capture and overlay |
-
-### 14.4. Section categories
-
-Flat PascalCase single word. These are partition keys within a definition.
-
-| ID | Purpose |
-|----|---------|
-| `Animation` | Locomotion profile, retarget ABP, montage slots |
-| `Customization` | Mutable source, appearance config |
-| `View` | Camera and first-person view config |
-| `Debug` | Debug overlay and capture config |
-
-Later additions: `Ragdoll`, `LOD`, `GameplayBridge`.
-
-### 14.5. Definition IDs
-
-`Category.Variant` using `FPrimaryAssetId` with type `ObjectDefinition` (same as all objects).
-
-| Full ID | Meaning |
-|---------|---------|
-| `ObjectDefinition:Human.Hero` | Player hero character |
-| `ObjectDefinition:Human.Trader` | NPC trader |
-| `ObjectDefinition:Human.Bandit` | NPC bandit |
-| `ObjectDefinition:Animal.Dog` | Animal (later) |
-| `ObjectDefinition:Door_GrandPa` | Door (existing) |
-
-Characters and objects share the same definition type. The presence of `SkeletalAssembly` capability differentiates complex skeletal actors from simple objects.
-
-### 14.6. Naming rules
-
-1. PascalCase everywhere -- matches existing capability IDs
-2. No underscores in IDs -- consistent with existing registry
-3. Dots only for definition IDs -- `Human.Hero` expresses category membership
-4. Singular nouns -- `Head` not `Heads`
-5. No prefixes on IDs -- no `SK_`, `SA_`, `Comp_` (those belong on asset filenames)
-6. No legacy abbreviations -- `BodyCustomization` not `Body_CSK`
-
-### 14.7. JSON authoring example (hero with assembly)
-
-```json
-{
-  "$schema": "../../Schemas/object.schema.json",
-  "id": "Human.Hero",
-  "spawnClass": "/Game/Characters/BP_ModularHero.BP_ModularHero_C",
-  "meshes": [
-    { "id": "DriverBody",        "kind": "SkeletalMesh",             "asset": "/Game/Characters/Human/SKM_Hero_Body", "role": "DriverBody" },
-    { "id": "WorldBody",         "kind": "SkeletalMesh",             "parent": "DriverBody", "role": "WorldBody", "animClass": "/Game/Animation/ABP_Hero_Retarget" },
-    { "id": "LocalBody",         "kind": "SkeletalMesh",             "parent": "DriverBody", "role": "LocalBody", "visibility": "OwnerOnly" },
-    { "id": "BodyCustomization", "kind": "CustomizableSkeletalMesh", "parent": "WorldBody",  "role": "BodyCustomization" },
-    { "id": "HeadCustomization", "kind": "CustomizableSkeletalMesh", "parent": "WorldBody",  "role": "HeadCustomization" }
-  ],
-  "capabilities": [
-    { "type": "SkeletalAssembly",     "scope": ["actor"] },
-    { "type": "MotionMatching",       "scope": ["DriverBody"] },
-    { "type": "MutableCustomization", "scope": ["BodyCustomization", "HeadCustomization"] },
-    { "type": "LocalFirstPerson",     "scope": ["LocalBody"], "properties": { "HiddenBones": "head,neck_01" } },
-    { "type": "DebugCapture",         "scope": ["actor"] }
-  ],
-  "sections": {
-    "animation":     { "locomotionProfile": "Human.Default", "traversalProfile": "Human.Parkour" },
-    "customization": { "mutableSource": "/Game/Mutable/CO_Hero_Body" },
-    "view":          { "defaultMode": "FirstPerson", "cameraParent": "Root", "attachmentPolicy": "CapsuleFixed", "relativeOffset": "(X=23 Y=0 Z=62)" }
-  }
-}
-```
-
-### 14.8. JSON authoring example (simple NPC, no assembly)
-
-```json
-{
-  "$schema": "../../Schemas/object.schema.json",
-  "id": "Human.Trader",
-  "spawnClass": "/Game/Characters/BP_NPC.BP_NPC_C",
-  "meshes": [
-    { "id": "body", "asset": "/Game/Characters/Human/SKM_NPC_Body", "animClass": "/Game/Animation/ABP_NPC_Retarget" }
-  ],
-  "capabilities": [
-    { "type": "MutableCustomization", "scope": ["body"] },
-    { "type": "Dialogue", "scope": ["actor"], "properties": { "DialogueTreeAsset": "/Game/Dialogue/DLG_Trader" } }
-  ],
-  "sections": {
-    "customization": { "mutableSource": "/Game/Mutable/CO_NPC_Trader" }
-  }
-}
-```
-
----
-
-## 15. Final Defaults
-
-Chosen defaults for this plan:
-
-- framework scope: generic skeletal core first, character wrappers on top
-- plugin name: `ProjectSkeletalAssembly`
-- plugin placement: `Plugins/Systems/`
-- definition class: extended `UObjectDefinition` (no separate skeletal definition class)
-- definition generation: extend existing `object.schema.json` with optional kind/role/visibility fields
-- JSON body: same `meshes` + `capabilities` + `sections` as all objects
-- registry: one `FCapabilityRegistry` for all capabilities, migrated onto `FRegisteredClassScan` kernel
-- `SkeletalAssembly` is a capability (flat peer coordinator, Lyra pattern)
-- `RegisterCapabilityModule()` lets adapter plugins register without hardcoding
-- assembly orchestration: opt-in via `SkeletalAssembly` capability (not every skeletal actor needs it)
-- camera: in `view` section, not in `meshes`
-- core owns: attachment policy, visibility policy, lifecycle state machine
-- capabilities are: optional behaviors (MotionMatching, MutableCustomization, LocalFirstPerson, DebugCapture, plus existing object ones)
-- switch strategy: respawn-based
-- switch host: `ProjectSinglePlay`
-- command namespace: `project.character.*`
-- legacy posture: preserve Artur-era baseline until modular parity exists
-- adapter residency: capability implementations live in reusable capability-owner plugins, not in character wrappers
-
----
-
-## 16. References Used For This Plan
-
-Current repo evidence this plan is based on:
-
-- `Plugins/Gameplay/ProjectCharacter/README.md`
-- `Plugins/Gameplay/ProjectCharacter/docs/design.md`
-- `Plugins/Systems/ProjectMotionSystem/README.md`
-- `Plugins/Resources/ProjectAnimation/README.md`
-- `Plugins/Resources/ProjectObject/README.md`
-- `Plugins/Gameplay/ProjectObjectCapabilities/README.md`
-- `Plugins/Gameplay/ProjectSinglePlay/README.md`
-- `docs/architecture/plugin_rules.md`
-- `docs/architecture/conventions.md`
-- `docs/architecture/principles.md`
-- `todo/current/fix_fp_body_clipping_v2.md`
-
-Blueprint and asset investigation facts baked into this plan:
-
-- current `BP_Hero` owns substantial runtime behavior
-- recovered `BP_Hero_Motion` proved an older camera attach path existed
-- repeated PIE forensics on this PC showed stable runtime state, so the problem is not best treated as random init drift here
+## Post-Phase Doc Scan Checklist
+
+- [ ] `docs/architecture/plugin_architecture.md` -- add ProjectSkeletalAssembly to plugin map
+- [ ] `docs/architecture/core_principles.md` -- verify capability model matches one-registry
+- [ ] `docs/architecture/data_driven.md` -- update with Kind/Role/Visibility fields
+- [ ] `docs/data/README.md` -- update generation pipeline with new section types
+- [ ] `Plugins/Foundation/ProjectCore/README.md` -- add FRegisteredClassScan, IAssemblyCapability
+- [ ] `Plugins/Gameplay/ProjectObjectCapabilities/README.md` -- update registry description
+- [ ] `Plugins/Resources/ProjectObject/README.md` -- update ObjectDefinition fields
+- [ ] `Plugins/Systems/ProjectSkeletalAssembly/README.md` -- create (new plugin)
+- [ ] `Plugins/Gameplay/ProjectSkeletalCapabilities/README.md` -- create (new plugin)
+- [ ] `Plugins/Gameplay/ProjectCharacter/README.md` -- update legacy vs modular
+- [ ] `Plugins/Gameplay/ProjectSinglePlay/README.md` -- document ESinglePlayCharacterSystem

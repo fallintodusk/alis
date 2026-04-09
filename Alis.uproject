@@ -145,7 +145,15 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectOpenableTemplates",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectSkeletalAssembly",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectSkeletalCapabilities",
 			"Enabled": true
 		},
 		{

@@ -7,6 +7,8 @@
 #include "ObjectDefinitionHostHelpers.h"
 #include "ProjectObjectModule.h"
 #include "CapabilityRegistry.h"
+#include "Interfaces/IAssemblyCapability.h"
+#include "Interfaces/IAssemblyViewConfigSource.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -186,6 +188,24 @@ namespace
 	bool HasDefinitionMeshTag(const UMeshComponent* MeshComponent, const FName MeshId)
 	{
 		return MeshComponent && MeshComponent->ComponentTags.Contains(MakeDefinitionMeshTag(MeshId));
+	}
+
+	bool HasAssemblyRoleTag(const UMeshComponent* MeshComponent)
+	{
+		if (!MeshComponent)
+		{
+			return false;
+		}
+
+		for (const FName& Tag : MeshComponent->ComponentTags)
+		{
+			if (Tag.ToString().StartsWith(TEXT("AssemblyRole=")))
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	bool IsCompatibleMeshComponent(const UObject* LoadedAsset, const UMeshComponent* MeshComponent)
@@ -781,9 +801,10 @@ AActor* SpawnFromDefinition(
 	for (const FObjectMeshEntry& Entry : Def->Meshes)
 	{
 		// Load asset as UObject - could be UStaticMesh or USkeletalMesh
-		UObject* LoadedAsset = Entry.Asset.LoadSynchronous();
-		if (!LoadedAsset)
+		UObject* LoadedAsset = Entry.Asset.IsNull() ? nullptr : Entry.Asset.LoadSynchronous();
+		if (!LoadedAsset && Entry.Kind.IsNone() && Entry.Role.IsNone())
 		{
+			// No asset and no Kind/Role hint -- can't determine component type
 			UE_LOG(LogProjectObject, Warning,
 				TEXT("Failed to load mesh '%s' for ObjectDefinition '%s'"),
 				*Entry.Asset.ToString(),
@@ -791,7 +812,11 @@ AActor* SpawnFromDefinition(
 			continue;
 		}
 
-		// Branch on loaded asset type to create the correct component
+		// Branch on loaded asset type to create the correct component.
+		// If Kind is specified, it overrides auto-detection for component type selection.
+		// Entries with Kind or Role but no asset create empty components (Mutable-driven or runtime-populated).
+		static const FName KindCustomizable(TEXT("CustomizableSkeletalMesh"));
+
 		UMeshComponent* MeshComp = FindReusableMeshComponent(
 			SpawnedActor,
 			Entry,
@@ -801,7 +826,37 @@ AActor* SpawnFromDefinition(
 			ClaimedExistingMeshComponents);
 		bool bReusedExistingComponent = (MeshComp != nullptr);
 
-		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(LoadedAsset))
+		if (Entry.Kind == KindCustomizable)
+		{
+			// CustomizableSkeletalMesh: create standard skeletal mesh component.
+			// Mutable runtime (MutableCustomization capability) will convert it
+			// to a customizable component during assembly lifecycle.
+			USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(LoadedAsset);
+			USkeletalMeshComponent* SKC = bReusedExistingComponent
+				? Cast<USkeletalMeshComponent>(MeshComp)
+				: NewObject<USkeletalMeshComponent>(SpawnedActor);
+			if (!SKC)
+			{
+				SKC = NewObject<USkeletalMeshComponent>(SpawnedActor);
+				bReusedExistingComponent = false;
+			}
+			if (SkeletalMesh)
+			{
+				SKC->SetSkeletalMesh(SkeletalMesh);
+			}
+
+			if (!Entry.AnimClass.IsNull())
+			{
+				if (UClass* AnimBPClass = Entry.AnimClass.LoadSynchronous())
+				{
+					SKC->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+					SKC->SetAnimInstanceClass(AnimBPClass);
+				}
+			}
+
+			MeshComp = SKC;
+		}
+		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(LoadedAsset))
 		{
 			UStaticMeshComponent* SMC = bReusedExistingComponent
 				? Cast<UStaticMeshComponent>(MeshComp)
@@ -844,13 +899,72 @@ AActor* SpawnFromDefinition(
 
 			MeshComp = SKC;
 		}
-		else
+		else if (!LoadedAsset && !Entry.Kind.IsNone())
+		{
+			// No asset but Kind is specified -- create empty component of the right type.
+			// Used for meshes populated at runtime (Mutable-driven, leader-pose copies).
+			static const FName KindSkeletal(TEXT("SkeletalMesh"));
+			static const FName KindStatic(TEXT("StaticMesh"));
+
+			if (Entry.Kind == KindSkeletal || Entry.Kind == KindCustomizable)
+			{
+				USkeletalMeshComponent* SKC = bReusedExistingComponent
+					? Cast<USkeletalMeshComponent>(MeshComp)
+					: NewObject<USkeletalMeshComponent>(SpawnedActor);
+				if (!SKC)
+				{
+					SKC = NewObject<USkeletalMeshComponent>(SpawnedActor);
+					bReusedExistingComponent = false;
+				}
+
+				if (!Entry.AnimClass.IsNull())
+				{
+					if (UClass* AnimBPClass = Entry.AnimClass.LoadSynchronous())
+					{
+						SKC->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+						SKC->SetAnimInstanceClass(AnimBPClass);
+						UE_LOG(LogProjectObject, Log,
+							TEXT("Empty-mesh '%s': AnimClass set to '%s'"),
+							*Entry.Id.ToString(), *AnimBPClass->GetName());
+					}
+					else
+					{
+						UE_LOG(LogProjectObject, Warning,
+							TEXT("Empty-mesh '%s': Failed to load AnimClass '%s'"),
+							*Entry.Id.ToString(), *Entry.AnimClass.ToString());
+					}
+				}
+				else
+				{
+					UE_LOG(LogProjectObject, Verbose,
+						TEXT("Empty-mesh '%s': No AnimClass specified"),
+						*Entry.Id.ToString());
+				}
+
+				MeshComp = SKC;
+			}
+			else
+			{
+				UE_LOG(LogProjectObject, Warning,
+					TEXT("Mesh '%s' has Kind '%s' with no asset -- unsupported for empty mesh creation in '%s'"),
+					*Entry.Id.ToString(),
+					*Entry.Kind.ToString(),
+					*Def->ObjectId.ToString());
+				continue;
+			}
+		}
+		else if (LoadedAsset)
 		{
 			UE_LOG(LogProjectObject, Error,
 				TEXT("Mesh '%s' loaded as unsupported type '%s' (expected StaticMesh or SkeletalMesh) in '%s'"),
 				*Entry.Id.ToString(),
 				*LoadedAsset->GetClass()->GetName(),
 				*Def->ObjectId.ToString());
+			continue;
+		}
+		else
+		{
+			// No asset, no Kind -- already filtered at top of loop
 			continue;
 		}
 
@@ -948,6 +1062,68 @@ AActor* SpawnFromDefinition(
 			MeshComp->ComponentTags.Add(DefMeshTag);
 		}
 
+		// Assembly role tag -- used by USkeletalAssemblyComponent to identify mesh purpose
+		if (!Entry.Role.IsNone())
+		{
+			const FName RoleTag = FName(*FString::Printf(TEXT("AssemblyRole=%s"), *Entry.Role.ToString()));
+			if (!MeshComp->ComponentTags.Contains(RoleTag))
+			{
+				MeshComp->ComponentTags.Add(RoleTag);
+			}
+		}
+
+		// Assembly visibility policy
+		if (!Entry.Visibility.IsNone())
+		{
+			static const FName OwnerOnly(TEXT("OwnerOnly"));
+			static const FName SkipOwner(TEXT("SkipOwner"));
+			static const FName Hidden(TEXT("Hidden"));
+
+			if (Entry.Visibility == Hidden)
+			{
+				// Fully hidden from all players, no shadow.
+				// Driver mesh exists only for skeleton/animation, not rendering.
+				MeshComp->SetHiddenInGame(true);
+				MeshComp->SetCastShadow(false);
+			}
+			else if (Entry.Visibility == OwnerOnly)
+			{
+				// Owner-only (first-person local body)
+				MeshComp->SetOnlyOwnerSee(true);
+				MeshComp->SetCastShadow(true);
+			}
+			else if (Entry.Visibility == SkipOwner)
+			{
+				// Hidden from owner but visible to others (world body)
+				MeshComp->SetOwnerNoSee(true);
+				MeshComp->SetCastHiddenShadow(true);
+			}
+		}
+
+		// Visibility-driven skeletal mesh setup.
+		// Only applied when a visibility policy is set (first-person layer system).
+		// Without explicit visibility, meshes keep engine defaults (simple NPCs, objects).
+		if (!Entry.Visibility.IsNone())
+		{
+			if (USkeletalMeshComponent* SKC = Cast<USkeletalMeshComponent>(MeshComp))
+			{
+				// Bones must tick every frame even when mesh is hidden by visibility policy.
+				// Required for: HideBoneByName, LeaderPose, CopyPose, groom attachment.
+				SKC->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+			}
+
+			// First-person primitive type for owner-visible and head meshes.
+			static const FName OwnerOnlyVis(TEXT("OwnerOnly"));
+			static const FName RoleHead(TEXT("Head"));
+			if (Entry.Visibility == OwnerOnlyVis || Entry.Role == RoleHead)
+			{
+				MeshComp->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+			}
+
+			// Visual-only layers with explicit visibility don't need collision.
+			MeshComp->SetCollisionProfileName(FName("NoCollision"));
+		}
+
 		if (!bReusedExistingComponent)
 		{
 			SpawnedActor->AddInstanceComponent(MeshComp);
@@ -957,12 +1133,42 @@ AActor* SpawnFromDefinition(
 		MeshMap.Add(Entry.Id, MeshComp);
 	}
 
-	// 4. Create capabilities
+	// 4. Create capabilities.
+	// Keep the legacy SkeletalAssembly coordinator first for current definitions,
+	// but provider discovery and managed-capability wiring no longer depend on it.
+	static const FName SkeletalAssemblyType(TEXT("SkeletalAssembly"));
+
+	TArray<const FObjectCapabilityEntry*> OrderedCapabilities;
+	OrderedCapabilities.Reserve(Def->Capabilities.Num());
+
+	// Assembly first
+	for (const FObjectCapabilityEntry& CapEntry : Def->Capabilities)
+	{
+		if (CapEntry.Type == SkeletalAssemblyType)
+		{
+			OrderedCapabilities.Insert(&CapEntry, 0);
+		}
+		else
+		{
+			OrderedCapabilities.Add(&CapEntry);
+		}
+	}
+
+	// Track assembly providers after all components exist so capability wiring
+	// does not depend on definition ordering or a specific assembly type id.
+	// Capabilities targeting assembly-managed meshes (those with roles) are
+	// deferred until the assembly reaches Ready.
+	IAssemblyCapability* AssemblyComp = nullptr;
+	IAssemblyViewConfigSource* AssemblyData = nullptr;
+	TArray<UActorComponent*> SpawnedCapabilityComponents;
+	TArray<UActorComponent*> PendingManagedCapabilities;
+
 	bool bCapabilityPropertyFailure = false;
 	FString FirstCapabilityPropertyFailure;
 
-	for (const FObjectCapabilityEntry& CapEntry : Def->Capabilities)
+	for (const FObjectCapabilityEntry* CapEntryPtr : OrderedCapabilities)
 	{
+		const FObjectCapabilityEntry& CapEntry = *CapEntryPtr;
 		// Resolve capability type -> component class via registry (CDO scan)
 		UClass* CapClass = FCapabilityRegistry::GetCapabilityClass(CapEntry.Type);
 		if (!CapClass)
@@ -1173,8 +1379,21 @@ AActor* SpawnFromDefinition(
 				}
 			}
 
+			// Capabilities targeting meshes with assembly roles are always deferred,
+			// regardless of whether the assembly provider was spawned earlier or later.
+			// Detect the current component locally so future assembly providers are
+			// excluded without relying on a specific capability type name.
+			const bool bIsAssemblyProvider = Cast<IAssemblyCapability>(Comp) != nullptr;
+			const bool bManagedByAssembly = TargetMesh && HasAssemblyRoleTag(TargetMesh) && !bIsAssemblyProvider;
+			if (bManagedByAssembly)
+			{
+				Comp->bAutoActivate = false;
+				PendingManagedCapabilities.Add(Comp);
+			}
+
 			SpawnedActor->AddInstanceComponent(Comp);
 			Comp->RegisterComponent();
+			SpawnedCapabilityComponents.Add(Comp);
 		}
 	}
 
@@ -1194,7 +1413,90 @@ AActor* SpawnFromDefinition(
 		return nullptr;
 	}
 
-	// 5. Rebuild interaction component cache for compatibility actor path.
+	// Resolve assembly providers after all capability components exist so
+	// lifecycle and data-source discovery are not coupled to iteration order.
+	int32 AssemblyProviderCount = 0;
+	int32 ViewConfigProviderCount = 0;
+
+	for (UActorComponent* Comp : SpawnedCapabilityComponents)
+	{
+		if (IAssemblyCapability* Asm = Cast<IAssemblyCapability>(Comp))
+		{
+			++AssemblyProviderCount;
+			if (!AssemblyComp)
+			{
+				AssemblyComp = Asm;
+			}
+		}
+
+		if (IAssemblyViewConfigSource* Data = Cast<IAssemblyViewConfigSource>(Comp))
+		{
+			++ViewConfigProviderCount;
+			if (!AssemblyData)
+			{
+				AssemblyData = Data;
+			}
+		}
+	}
+
+	if (AssemblyProviderCount > 1)
+	{
+		UE_LOG(LogProjectObject, Warning,
+			TEXT("ObjectDefinition '%s' resolved %d IAssemblyCapability providers; using the first one."),
+			*Def->ObjectId.ToString(),
+			AssemblyProviderCount);
+	}
+
+	if (ViewConfigProviderCount > 1)
+	{
+		UE_LOG(LogProjectObject, Warning,
+			TEXT("ObjectDefinition '%s' resolved %d IAssemblyViewConfigSource providers; using the first one."),
+			*Def->ObjectId.ToString(),
+			ViewConfigProviderCount);
+	}
+
+	if (AssemblyComp)
+	{
+		for (UActorComponent* ManagedComp : PendingManagedCapabilities)
+		{
+			if (ManagedComp && !Cast<IAssemblyCapability>(ManagedComp))
+			{
+				AssemblyComp->RegisterManagedCapability(ManagedComp);
+			}
+		}
+
+		// Composition boundary: map definition-specific FViewSection to the
+		// domain contract FAssemblyViewConfig via IAssemblyViewConfigSource.
+		if (AssemblyData)
+		{
+			if (const FViewSection* View = Def->GetSection<FViewSection>(ObjectSectionIds::View))
+			{
+				FAssemblyViewConfig ViewConfig;
+				ViewConfig.RelativeOffset = View->RelativeOffset;
+				AssemblyData->SetViewConfig(ViewConfig);
+			}
+		}
+
+		AssemblyComp->RequestAssembly();
+		AssemblyComp->CompleteAssembly();
+	}
+	else if (PendingManagedCapabilities.Num() > 0)
+	{
+		UE_LOG(LogProjectObject, Warning,
+			TEXT("ObjectDefinition '%s' has %d assembly-managed capabilities but no IAssemblyCapability provider. Activating capabilities immediately."),
+			*Def->ObjectId.ToString(),
+			PendingManagedCapabilities.Num());
+
+		for (UActorComponent* ManagedComp : PendingManagedCapabilities)
+		{
+			if (ManagedComp)
+			{
+				ManagedComp->Activate(true);
+			}
+		}
+	}
+
+	// 6. Rebuild interaction component cache for compatibility actor path.
 	if (AInteractableActor* InteractableActor = Cast<AInteractableActor>(SpawnedActor))
 	{
 		InteractableActor->RefreshInteractableComponents();

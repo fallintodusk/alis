@@ -36,6 +36,11 @@ bool FInventoryPanelState::TryGetHoveredEntry(UInventoryViewModel* ViewModel, FI
 {
 	if (!ViewModel) { return false; }
 
+	if (HoveredInstanceId != INDEX_NONE)
+	{
+		return ViewModel->TryGetEntryByInstanceId(HoveredInstanceId, OutEntry);
+	}
+
 	if (bHoveredSecondary)
 	{
 		if (HoveredCellIndexSecondary == INDEX_NONE) { return false; }

@@ -12,6 +12,7 @@ If you need:
 - isolated logic verification -> [unit_tests.md](unit_tests.md)
 - automation pipeline details -> [automation.md](automation.md)
 - UI dump and agent-readable inspection -> [agent_ue_inspection.md](agent_ue_inspection.md)
+- character and animation debug automation -> [character_parity.md](character_parity.md)
 - debugging and manual verification notes -> [troubleshooting.md](troubleshooting.md)
 
 ## Test Layers

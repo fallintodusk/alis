@@ -424,6 +424,12 @@ PublicDependencyModuleNames.AddRange(new string[] {
 - *Error:* `Plugin 'A' does not list plugin 'B' as a dependency`
 ```
 
+### Moving UCLASS Between Modules
+
+When moving a UCLASS to a different module, placed actors must be resaved to update the serialized class path. No permanent `ActiveClassRedirects` in committed config.
+
+Full procedure: [docs/editor/class_migration.md](../editor/class_migration.md)
+
 ---
 
 ## Client-Only Module Pattern

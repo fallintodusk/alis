@@ -7,7 +7,9 @@ param(
     [string]$Map = "",  # Optional map to load (required for integration tests needing a world)
     [switch]$NoRHI = $false,  # Use -NullRHI (headless, no GPU). Disable for tests needing a world.
     [switch]$Game = $false,  # Run in standalone game mode (creates real game world)
-    [int]$TimeoutSeconds = 120  # 2 minutes
+    [int]$TimeoutSeconds = 120,  # 2 minutes
+    [string]$ExtraArgs = "",  # Additional command-line args (e.g. -ProjectSkipFrontEnd)
+    [switch]$UseTestExitOnly = $false  # Omit Quit from ExecCmds; rely on -testexit sentinel only
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,7 +69,9 @@ $psi.FileName = $editorCmdPath
 $mapArg = if ($Map) { " `"$Map`"" } else { "" }
 $rhiArg = if ($NoRHI) { " -NullRHI" } else { "" }
 $gameArg = if ($Game) { " -game" } else { "" }
-$psi.Arguments = "`"$projectPath`"$mapArg$gameArg -ExecCmds=`"Automation RunTests $TestFilter; Quit`" -unattended -nopause$rhiArg -nosplash -nosound -log -stdout -FullStdOutLogOutput -testexit=`"Automation Test Queue Empty`""
+$extraArg = if ($ExtraArgs) { " $ExtraArgs" } else { "" }
+$execCmds = if ($UseTestExitOnly) { "Automation RunTests $TestFilter" } else { "Automation RunTests $TestFilter; Quit" }
+$psi.Arguments = "`"$projectPath`"$mapArg$gameArg -ExecCmds=`"$execCmds`" -unattended -nopause$rhiArg -nosplash -nosound -log -stdout -FullStdOutLogOutput -testexit=`"Automation Test Queue Empty`"$extraArg"
 $psi.UseShellExecute = $false
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true

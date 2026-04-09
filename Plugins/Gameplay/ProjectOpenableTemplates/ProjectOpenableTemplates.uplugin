@@ -1,0 +1,27 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Project Openable Templates",
+	"Description": "Legacy actor templates for openable world objects (doors, drawers, hatches). These are pre-capability convenience classes for editor placement. The data-driven path uses AInteractableActor + capabilities from JSON definitions.",
+	"Category": "Gameplay",
+	"CreatedBy": "ALIS",
+	"CreatedByURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectOpenableTemplates",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ProjectCore", "Enabled": true },
+		{ "Name": "ProjectWorld", "Enabled": true },
+		{ "Name": "ProjectObject", "Enabled": true },
+		{ "Name": "ProjectMotionSystem", "Enabled": true },
+		{ "Name": "ProjectObjectCapabilities", "Enabled": true }
+	]
+}

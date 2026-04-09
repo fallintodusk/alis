@@ -15,7 +15,6 @@ public class ProjectObject : ModuleRules
 			"GameplayTags",
 			"ProjectCore",
 			"ProjectWorld",
-			"ProjectMotionSystem",
 			"ProjectObjectCapabilities"
 		});
 	}

@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 using UnrealBuildTool;
+using System;
 using System.Collections.Generic;
 
 public class AlisTarget : TargetRules
@@ -14,18 +15,33 @@ public class AlisTarget : TargetRules
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
         ExtraModuleNames.AddRange(new string[] { "Alis" });
 
-        // CDN hot-loading requires runtime modules to stay as DLLs even in Shipping.
-        // Force modular linking so the base game does not bake every module into the exe.
-        LinkType = TargetLinkType.Modular;
+        // Shipping uses monolithic: installed/launcher engines lack Shipping .lib
+        // stubs for engine modules, so modular linking fails.
+        // Development/DebugGame stay modular for CDN hot-loading iteration.
+        LinkType = (Configuration == UnrealTargetConfiguration.Shipping)
+            ? TargetLinkType.Monolithic
+            : TargetLinkType.Modular;
 
         if (Configuration == UnrealTargetConfiguration.Shipping)
         {
             bBuildDeveloperTools = false;
 
-            // Alpha: enable game-module logging in Shipping so testers can send us logs.
-            // Engine DLLs (prebuilt) remain silent; only Project* module logs are emitted.
-            // Remove once the game reaches stable release.
-            bUseLoggingInShipping = true;
+            // Source engine diagnostics: opt-in via environment variable.
+            // Installed engine -> env var unset -> vanilla Shipping (safe).
+            // Source engine   -> env var set   -> logging + checks enabled.
+            //
+            // PowerShell: $env:ENGINE_FROM_SOURCE = "1"
+            // Bash:       export ENGINE_FROM_SOURCE=1
+            bool bSourceDiagnostics =
+                Environment.GetEnvironmentVariable("ENGINE_FROM_SOURCE") == "1";
+
+            if (bSourceDiagnostics)
+            {
+                BuildEnvironment = TargetBuildEnvironment.Unique;
+                bOverrideBuildEnvironment = true;
+                bUseLoggingInShipping = true;
+                bUseChecksInShipping = true;
+            }
         }
     }
 }

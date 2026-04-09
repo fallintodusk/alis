@@ -111,16 +111,17 @@ Current project requirements for GitHub-compatible content containers:
   - `IncludeDebugFiles=False`
   - `bUseIoStore=True`
   - `bGenerateChunks=True`
-  - `MaxChunkSize=1900000000`
+  - no `MaxChunkSize` override
 - boot map references must point to `L_OrchestratorBoot`
 - Asset Manager chunk rules must keep content out of one oversized `pakchunk0`
+- GitHub asset-size handling is done after packaging via split 7-Zip archives, not UE chunk-size limits
 
 Important implementation note:
 
-- `Source/Alis.Target.cs` sets `LinkType = TargetLinkType.Modular`
-- this keeps runtime modules as DLLs in Shipping for CDN hot-loading
-- modular Shipping increases file count, so transport must stay archive-first
-- public release packaging must currently stay unencrypted because encrypted startup containers fail before the modular game module registers the key
+- `Source/Alis.Target.cs` sets `LinkType = TargetLinkType.Monolithic` for Shipping, `Modular` otherwise
+- monolithic Shipping is required for launcher engine installs (no Shipping .lib stubs)
+- Development/DebugGame stay modular for CDN hot-loading iteration
+- public release packaging must currently stay unencrypted because encrypted startup containers fail before the game module registers the key
 
 ## Recommended Public Release Flow
 
@@ -375,7 +376,7 @@ Generated release helper:
 | --- | --- | --- |
 | Packaging fails with `AutomationTool exiting with ExitCode=5` | Stale staging or cook state | Delete `Saved/StagedBuilds/` and rerun the packaging script. |
 | Packaging fails because project modules cannot load in cook | engine/editor binaries were built against a different UE install | Build/package with the same engine root, or rebuild `AlisEditor` with the chosen engine first. |
-| One content container exceeds 2 GiB | chunking rules collapsed too much content into one chunk | verify `MaxChunkSize`, Asset Manager rules, and Primary Asset Label ownership. |
+| One content container exceeds 2 GiB | chunking rules collapsed too much content into one chunk | verify Asset Manager rules and Primary Asset Label ownership; GitHub transport limits are handled by split release archives, not `MaxChunkSize`. |
 | Release folder is huge because of debug files | staged `.pdb` files were included | keep `-nodebuginfo` enabled. |
 | Missing DLC chunks | incorrect Asset Manager chunk rules or Primary Asset Labels | verify `Config/DefaultGame.ini` chunk rules or project label assets assign expected chunk IDs. |
 | Packaged game crashes with `Failed to find requested encryption key 00000000000000000000000000000000` | encrypted containers were built for the modular Shipping target | use the release script default `-skipencryption`, or only enable `-EncryptContent` after implementing and validating a runtime key-loading path. |

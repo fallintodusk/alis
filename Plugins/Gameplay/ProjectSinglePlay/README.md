@@ -86,6 +86,7 @@ Concrete responsibilities:
 - Own experience configuration for single-player:
   - Mode presets (Beginner, Medium, Hardcore).
   - Difficulty settings, feature toggles, spawn rules.
+  - Character implementation is a separate concern: default runtime now uses modular `DefinitionCharacter`; use `?CharacterSystem=Legacy` or `project.character.switch legacy` only when you explicitly need the old `BP_Hero` path.
 - Keep rules **deterministic and world-agnostic**:
   - Generic single-player rules (movement, health, stamina, etc.) live here or in feature plugins, not in world plugins.
 
@@ -189,11 +190,16 @@ void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Opti
 {
     Super::InitGame(MapName, Options, ErrorMessage);
 
-    // Parse URL options (Mode=Medium)
+    // Parse URL options (Mode=Medium, CharacterSystem=Modular, CharacterDefinition=Hero)
     FString ModeParam = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
+    FString CharacterSystemParam = UGameplayStatics::ParseOption(Options, TEXT("CharacterSystem"));
+    FString CharacterDefinitionParam = UGameplayStatics::ParseOption(Options, TEXT("CharacterDefinition"));
 
     // Load ModeConfig struct (defines UE layer + features)
     ModeConfig = LoadModeConfig(ModeParam);
+
+    // Resolve character implementation separately from gameplay mode
+    LoadCharacterSelection(CharacterSystemParam, CharacterDefinitionParam);
 
     // Apply UE layer classes from config
     DefaultPawnClass = ModeConfig.DefaultPawnClass.LoadSynchronous();
@@ -305,11 +311,27 @@ const FSinglePlayModeConfig* Config = FSinglePlayModeRegistry::FindMode(FName("M
 // Check if mode exists
 bool bExists = FSinglePlayModeRegistry::HasMode(FName("Hardcore"));
 
-// Get all registered modes (Beginner, Medium, Hardcore)
+// Get all registered modes (for example Beginner, Medium, Hardcore)
 TArray<FName> AllModes = FSinglePlayModeRegistry::GetAllModeNames();
 ```
 
-### 8.5. JSON Override Support (Optional)
+### 8.5. Character system selection
+
+Character implementation rollout is separate from gameplay mode:
+
+- Default spawn path is modular `DefinitionCharacter`
+- Legacy path is selected with URL options:
+  - `?CharacterSystem=Legacy`
+- Modular path can still be selected explicitly with URL options:
+  - `?CharacterSystem=Modular?CharacterDefinition=Hero`
+- Runtime switching is handled by GameMode through:
+  - `project.character.switch legacy`
+  - `project.character.switch modular`
+  - `project.character.switch modular Hero`
+
+This keeps `Mode` focused on gameplay presets while GameMode still remains the authority for spawn, respawn, possession, and fallback behavior.
+
+### 8.6. JSON Override Support (Optional)
 
 Modes can be extended or overridden via JSON without recompiling.
 

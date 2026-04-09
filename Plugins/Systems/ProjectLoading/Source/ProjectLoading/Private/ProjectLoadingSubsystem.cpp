@@ -351,6 +351,16 @@ void UProjectLoadingSubsystem::StartInitialExperience()
 		return;
 	}
 
+	// Automation/CI bypass: skip front-end travel when running headless tests.
+	// Keeps the gameplay map loaded so automation tests have a possessed pawn.
+	if (FParse::Param(FCommandLine::Get(), TEXT("ProjectSkipFrontEnd")))
+	{
+		UE_LOG(LogProjectLoading, Display,
+			TEXT("ProjectLoadingSubsystem: Skipping initial experience (-ProjectSkipFrontEnd)"));
+		bInitialLoadStarted = true;
+		return;
+	}
+
 	UE_LOG(LogProjectLoading, Display, TEXT("ProjectLoadingSubsystem: Starting initial experience load..."));
 
 	if (!ExperienceLoader)

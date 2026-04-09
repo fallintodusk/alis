@@ -4,7 +4,7 @@
 #include "FeatureRegistry.h"
 #include "FeatureInitContext.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogProjectCombat, Log, All);
+DEFINE_LOG_CATEGORY(LogProjectCombat);
 
 void FProjectCombatModule::StartupModule()
 {

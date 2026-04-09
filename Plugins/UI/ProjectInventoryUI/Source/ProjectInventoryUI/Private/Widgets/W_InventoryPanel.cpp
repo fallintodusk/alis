@@ -14,6 +14,7 @@
 #include "Widgets/InventoryDragDropOperation.h"
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/SlateBlueprintLibrary.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -22,6 +23,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/VerticalBox.h"
@@ -37,6 +39,10 @@ DEFINE_LOG_CATEGORY(LogInventoryPanel);
 
 namespace
 {
+constexpr float InventoryPanelBaseWidth = 1260.0f;
+constexpr float InventoryPanelNearbyWidth = 1500.0f;
+constexpr float InventoryPanelViewportMargin = 96.0f;
+
 uint32 BuildTooltipContentHash(const FInventoryEntryView& Entry)
 {
     uint32 Hash = GetTypeHash(Entry.InstanceId);
@@ -139,6 +145,7 @@ void UW_InventoryPanel::NativeConstruct()
     FProjectUIWidgetBinder Binder(RootWidget, GetClass()->GetName());
 
     // Core layout containers
+    BackgroundWidthSizer = Binder.FindOptional<USizeBox>(TEXT("Background_AutoSizer"));
     GridHost = Binder.FindRequiredAny<UBorder>({ TEXT("GridHostPrimary"), TEXT("GridHost") });
     GridHostSecondary = Binder.FindOptional<UBorder>(TEXT("GridHostSecondary"));
     NearbyGridHost = Binder.FindOptional<UBorder>(TEXT("NearbyGridHost"));
@@ -355,6 +362,7 @@ void UW_InventoryPanel::OnViewModelChanged_Implementation(UProjectViewModel* Old
 void UW_InventoryPanel::RefreshFromViewModel_Implementation()
 {
     if (!InventoryVM) { return; }
+    UpdateResponsiveLayout();
     RebuildTabs();
     RebuildGrids();
     RebuildHandGrids();
@@ -429,6 +437,7 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
         || PropertyName == NAME_SecondaryGridHeight
         || PropertyName == NAME_bHasNearbyContainer)
     {
+        UpdateResponsiveLayout();
         RebuildGrids();
         RebuildTabs();
     }
@@ -480,6 +489,29 @@ void UW_InventoryPanel::HandleViewModelPropertyChanged(FName PropertyName)
     ReconcilePanelStateWithViewModel();
     RefreshAllText();
     UpdateAllVisuals();
+}
+
+void UW_InventoryPanel::UpdateResponsiveLayout()
+{
+    if (!BackgroundWidthSizer)
+    {
+        return;
+    }
+
+    float TargetWidth = InventoryPanelBaseWidth;
+    if (InventoryVM && InventoryVM->GetbHasNearbyContainer())
+    {
+        TargetWidth = InventoryPanelNearbyWidth;
+    }
+
+    const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
+    if (ViewportSize.X > 0.0f)
+    {
+        const float MaxUsableWidth = FMath::Max(640.0f, ViewportSize.X - InventoryPanelViewportMargin);
+        TargetWidth = FMath::Min(TargetWidth, MaxUsableWidth);
+    }
+
+    BackgroundWidthSizer->SetWidthOverride(TargetWidth);
 }
 
 void UW_InventoryPanel::ReconcilePanelStateWithViewModel()
@@ -1723,7 +1755,74 @@ FReply UW_InventoryPanel::NativeOnMouseMove(const FGeometry& InGeometry, const F
     }
     else
     {
-        PanelState.ClearHover();
+        // Try hand grids and pocket grids before clearing hover
+        int32 HandCellIndex = INDEX_NONE;
+        bool bHandOrPocketHit = false;
+
+        if (InventoryVM && LeftHandGridPanel
+            && HitDetector.ResolveGridHit(LeftHandGridPanel,
+                UInventoryViewModel::HandGridSize, UInventoryViewModel::HandGridSize,
+                ScreenPos, HandCellIndex))
+        {
+            const int32 InstanceId = InventoryVM->GetLeftHandInstanceId(HandCellIndex);
+            if (InstanceId != UInventoryViewModel::EmptyCellInstanceId)
+            {
+                PanelState.SetHoveredByInstanceId(InstanceId);
+            }
+            else
+            {
+                PanelState.ClearHover();
+            }
+            bHandOrPocketHit = true;
+        }
+
+        if (!bHandOrPocketHit && InventoryVM && RightHandGridPanel
+            && HitDetector.ResolveGridHit(RightHandGridPanel,
+                UInventoryViewModel::HandGridSize, UInventoryViewModel::HandGridSize,
+                ScreenPos, HandCellIndex))
+        {
+            const int32 InstanceId = InventoryVM->GetRightHandInstanceId(HandCellIndex);
+            if (InstanceId != UInventoryViewModel::EmptyCellInstanceId)
+            {
+                PanelState.SetHoveredByInstanceId(InstanceId);
+            }
+            else
+            {
+                PanelState.ClearHover();
+            }
+            bHandOrPocketHit = true;
+        }
+
+        if (!bHandOrPocketHit && InventoryVM)
+        {
+            for (const FPocketGridRuntime& PocketRuntime : PocketGridRuntime)
+            {
+                int32 PocketCellIndex = INDEX_NONE;
+                if (PocketRuntime.GridPanel
+                    && HitDetector.ResolveGridHit(PocketRuntime.GridPanel,
+                        PocketRuntime.GridWidth, PocketRuntime.GridHeight,
+                        ScreenPos, PocketCellIndex))
+                {
+                    const int32 InstanceId = InventoryVM->GetPocketCellInstanceId(
+                        PocketRuntime.ViewModelPocketIndex, PocketCellIndex);
+                    if (InstanceId != UInventoryViewModel::EmptyCellInstanceId)
+                    {
+                        PanelState.SetHoveredByInstanceId(InstanceId);
+                    }
+                    else
+                    {
+                        PanelState.ClearHover();
+                    }
+                    bHandOrPocketHit = true;
+                    break;
+                }
+            }
+        }
+
+        if (!bHandOrPocketHit)
+        {
+            PanelState.ClearHover();
+        }
     }
 
     // Show tooltip near cursor when hovering an item cell, hide when hovering empty

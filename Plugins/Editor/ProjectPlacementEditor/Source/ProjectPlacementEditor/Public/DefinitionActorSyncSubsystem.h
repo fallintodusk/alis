@@ -113,8 +113,8 @@ private:
 	/** Cached factory pointer to avoid repeated scans */
 	TWeakObjectPtr<UProjectObjectActorFactory> CachedObjectFactory;
 
-	/** Pending definition for countdown actor update */
-	TWeakObjectPtr<UPrimaryDataAsset> PendingUpdateDefinition;
+	/** Pending definitions for countdown actor update (accumulates when multiple fire in same frame) */
+	TArray<TWeakObjectPtr<UPrimaryDataAsset>> PendingUpdateDefinitions;
 
 	/** Countdown timer for actor update */
 	FTimerHandle ActorUpdateCountdownHandle;

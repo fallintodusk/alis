@@ -26,8 +26,36 @@ ObjectDefinition (JSON SOT)
   +-- sections{}         = data for other systems (optional)
         - item           (identity + rules + behavior refs)
         - storage        (container data for world storage and loot places)
+        - animation      (locomotionProfile, traversalProfile)
+        - customization  (mutableSource)
+        - view           (defaultMode, cameraParent, relativeOffset)
         - quest          (future)
 ```
+
+## Skeletal Assembly Extensions
+
+Optional fields on `FObjectMeshEntry` for skeletal assembly:
+
+| Field | Type | Default | Purpose |
+|-------|------|---------|---------|
+| `kind` | FName | auto-detect | Component type: `SkeletalMesh`, `StaticMesh`, `CustomizableSkeletalMesh` |
+| `role` | FName | none | Semantic role: `DriverBody`, `WorldBody`, `LocalBody`, `Head`, `BodyCustomization`, etc. |
+| `visibility` | FName | default | `Hidden`, `OwnerOnly`, `SkipOwner` |
+
+**Validation:** if any mesh has `role`/`visibility` but no `SkeletalAssembly` capability, validation fails.
+
+**Spawn behavior with `SkeletalAssembly` capability:**
+1. Create mesh components (using kind, role, visibility)
+2. Attach SkeletalAssembly coordinator first (regardless of JSON order)
+3. Defer other skeletal capabilities until assembly reaches Ready
+4. Actor-scoped capabilities (not targeting assembly-managed meshes) activate immediately
+
+**Visibility-driven mesh setup** (only when visibility is explicitly set):
+- `AlwaysTickPoseAndRefreshBones` on skeletal meshes
+- `FirstPersonPrimitiveType=FirstPerson` for OwnerOnly meshes and Head role
+- `NoCollision` profile (visual-only layers)
+
+**Empty-mesh creation:** entries with Kind/Role but no asset create empty skeletal mesh components. Used for meshes populated at runtime (Mutable-driven, leader-pose copies).
 
 ## What Makes Something an "Item"?
 

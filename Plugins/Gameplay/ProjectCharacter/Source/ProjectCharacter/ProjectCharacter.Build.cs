@@ -22,5 +22,11 @@ public class ProjectCharacter : ModuleRules
 			"AnimGraphRuntime",
 			"AnimationCore"
 		});
+
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"ProjectCore",
+			"ProjectSkeletalCapabilities"
+		});
 	}
 }

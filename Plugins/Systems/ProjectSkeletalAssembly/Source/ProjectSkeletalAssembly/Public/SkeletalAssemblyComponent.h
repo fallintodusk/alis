@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Interfaces/IAssemblyCapability.h"
+#include "Interfaces/IAssemblyViewConfigSource.h"
 #include "SkeletalAssemblyComponent.generated.h"
 
 /**
@@ -62,12 +64,18 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
  * Definition-driven assembly will be added in Phase 2.
  */
 UCLASS(ClassGroup=(Project), meta=(BlueprintSpawnableComponent))
-class PROJECTSKELETALASSEMBLY_API USkeletalAssemblyComponent : public UActorComponent
+class PROJECTSKELETALASSEMBLY_API USkeletalAssemblyComponent : public UActorComponent, public IAssemblyCapability, public IAssemblyViewConfigSource
 {
 	GENERATED_BODY()
 
 public:
 	USkeletalAssemblyComponent();
+
+	/** Registers as "SkeletalAssembly" capability so FCapabilityRegistry discovers this via CDO scan. */
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override
+	{
+		return FPrimaryAssetId(FPrimaryAssetType(TEXT("CapabilityComponent")), FName(TEXT("SkeletalAssembly")));
+	}
 
 	/** Current assembly state. */
 	UFUNCTION(BlueprintPure, Category = "SkeletalAssembly")
@@ -77,17 +85,29 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "SkeletalAssembly")
 	FOnAssemblyStateChanged OnAssemblyStateChanged;
 
-	/** Request transition to Assembling state. Returns false if transition is invalid. */
+	// IAssemblyCapability interface (also exposed to Blueprint)
 	UFUNCTION(BlueprintCallable, Category = "SkeletalAssembly")
-	bool RequestAssembly();
+	virtual bool RequestAssembly() override;
 
-	/** Signal that assembly is complete. Transitions to Ready. Returns false if not Assembling. */
 	UFUNCTION(BlueprintCallable, Category = "SkeletalAssembly")
-	bool CompleteAssembly();
+	virtual bool CompleteAssembly() override;
 
-	/** Request teardown. Transitions to TearingDown, then back to Idle. Returns false if already tearing down. */
 	UFUNCTION(BlueprintCallable, Category = "SkeletalAssembly")
-	bool RequestTeardown();
+	virtual bool RequestTeardown() override;
+
+	virtual void RegisterManagedCapability(UActorComponent* Capability) override;
+
+	virtual EAssemblyState GetCurrentAssemblyState() const override;
+	virtual FDelegateHandle AddAssemblyStateChanged(
+		const FOnAssemblyStateChangedNative::FDelegate& Callback) override;
+	virtual void RemoveAssemblyStateChanged(FDelegateHandle Handle) override;
+
+	// IAssemblyViewConfigSource
+	virtual void SetViewConfig(const FAssemblyViewConfig& Config) override;
+	virtual bool GetViewConfig(FAssemblyViewConfig& OutConfig) const override;
+
+	/** Get all managed capability components. */
+	const TArray<TWeakObjectPtr<UActorComponent>>& GetManagedCapabilities() const { return ManagedCapabilities; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -100,6 +120,23 @@ private:
 	/** Check if a transition from current state to target is valid. */
 	bool IsValidTransition(ESkeletalAssemblyState From, ESkeletalAssemblyState To) const;
 
+	/** Activate all deferred capabilities. Called when state reaches Ready. */
+	void ActivateManagedCapabilities();
+
+	/** Deactivate all managed capabilities. Called during teardown. */
+	void DeactivateManagedCapabilities();
+
 	UPROPERTY()
 	ESkeletalAssemblyState AssemblyState = ESkeletalAssemblyState::Idle;
+
+	/** Capabilities whose activation is deferred until assembly reaches Ready. */
+	UPROPERTY()
+	TArray<TWeakObjectPtr<UActorComponent>> ManagedCapabilities;
+
+	/** Native (non-dynamic) delegate for IAssemblyCapability consumers. */
+	FOnAssemblyStateChangedNative OnAssemblyStateChangedNative;
+
+	/** View config set by spawn path, read by gameplay consumers. */
+	FAssemblyViewConfig CachedViewConfig;
+	bool bHasViewConfig = false;
 };

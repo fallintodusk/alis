@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/ScopeLock.h"
+#include "ProjectLogging.h"
 
 /**
  * Lightweight service locator providing opt-in dependency injection.
@@ -58,7 +59,7 @@ public:
 			// Protects against invalid service registration (should not happen)
 			if (!Found->IsValid())
 			{
-				UE_LOG(LogCore, Warning, TEXT("ServiceLocator: Found service for type but pointer is invalid (null service registered)"));
+				UE_LOG(LogProjectCore, Warning, TEXT("ServiceLocator: Found service for type but pointer is invalid (null service registered)"));
 				return nullptr;
 			}
 

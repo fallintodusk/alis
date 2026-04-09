@@ -22,6 +22,7 @@ class UTextBlock;
 class UUniformGridPanel;
 class UHorizontalBox;
 class UVerticalBox;
+class USizeBox;
 class UProjectUIThemeData;
 class UProjectGridCell;
 class UBorder;
@@ -84,6 +85,7 @@ private:
     void RefreshAllText();
     void HandleViewModelPropertyChanged(FName PropertyName);
     void ReconcilePanelStateWithViewModel();
+    void UpdateResponsiveLayout();
 
     // Click handlers (UFUNCTION required for delegates)
     UFUNCTION() void HandleUseClicked();
@@ -119,6 +121,7 @@ private:
     UPROPERTY() TObjectPtr<UProjectUIThemeData> CurrentTheme;
 
     // Layout containers (from JSON)
+    UPROPERTY() TObjectPtr<USizeBox> BackgroundWidthSizer;
     UPROPERTY() TObjectPtr<UBorder> GridHost;
     UPROPERTY() TObjectPtr<UBorder> GridHostSecondary;
     UPROPERTY() TObjectPtr<UBorder> NearbyGridHost;

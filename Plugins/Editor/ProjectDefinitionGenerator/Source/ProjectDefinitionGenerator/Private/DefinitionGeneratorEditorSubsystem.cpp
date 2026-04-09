@@ -494,29 +494,55 @@ void UDefinitionGeneratorEditorSubsystem::ProcessDirtyFiles()
 		return;
 	}
 
-	bDismissedUntilChange = false;
 	UE_LOG(LogDefinitionGeneratorEditor, Log, TEXT("Watcher detected %d file changes, running full validation"), DirtyFiles.Num());
 
-	// Clear the watcher-detected files - we'll do a full scan instead
+	// Snapshot previous pending set (normalized) before recomputing
+	TSet<FString> PreviousPendingFiles;
+	for (const FString& File : PendingRegenerationFiles)
+	{
+		PreviousPendingFiles.Add(FSyncHashUtils::NormalizeFilePath(File));
+	}
+
+	// DirtyFiles are already normalized at ingestion (OnDirectoryChanged)
+	TSet<FString> WatcherDetectedFiles = MoveTemp(DirtyFiles);
 	DirtyFiles.Empty();
 
-	// Do a full validation of ALL JSON files (same as startup)
-	// This ensures we catch all out-of-date files, not just the ones the watcher detected
 	TArray<FDefinitionValidationResult> Results = ValidateAll();
 
-	// Collect all files that need regeneration
-	PendingRegenerationFiles.Empty();
-	OutOfDateCounts.Empty();
+	TArray<FString> NewPendingFiles;
+	TMap<FString, int32> NewOutOfDateCounts;
 
 	for (const FDefinitionValidationResult& Result : Results)
 	{
 		if (Result.bNeedsRegeneration)
 		{
-			PendingRegenerationFiles.Add(Result.JsonPath);
-			int32& Count = OutOfDateCounts.FindOrAdd(Result.TypeName);
+			NewPendingFiles.Add(Result.JsonPath);
+			int32& Count = NewOutOfDateCounts.FindOrAdd(Result.TypeName);
 			Count++;
 		}
 	}
+
+	// Reset dismiss only if the watcher detected a file that is newly out-of-date
+	// (present in NewPendingFiles but absent from previous pending set)
+	bool bHasNewOutOfDateFiles = false;
+	for (const FString& File : NewPendingFiles)
+	{
+		const FString NormalizedFile = FSyncHashUtils::NormalizeFilePath(File);
+		if (WatcherDetectedFiles.Contains(NormalizedFile) &&
+			!PreviousPendingFiles.Contains(NormalizedFile))
+		{
+			bHasNewOutOfDateFiles = true;
+			break;
+		}
+	}
+
+	if (bHasNewOutOfDateFiles)
+	{
+		bDismissedUntilChange = false;
+	}
+
+	PendingRegenerationFiles = MoveTemp(NewPendingFiles);
+	OutOfDateCounts = MoveTemp(NewOutOfDateCounts);
 
 	int32 TotalOutOfDate = PendingRegenerationFiles.Num();
 	if (TotalOutOfDate > 0)
@@ -536,8 +562,12 @@ void UDefinitionGeneratorEditorSubsystem::ProcessDirtyFiles()
 			FileList += FString::Printf(TEXT(" (+%d more)"), TotalOutOfDate - 3);
 		}
 
-		// Show notification for ALL out-of-date files
-		ShowChangedFilesNotification(TotalOutOfDate, FileList);
+		// Show notification only if user hasn't dismissed
+		if (!bDismissedUntilChange)
+		{
+			ShowChangedFilesNotification(TotalOutOfDate, FileList);
+		}
+		// else: user dismissed -- stay quiet until genuinely new files appear
 	}
 }
 
@@ -570,13 +600,12 @@ void UDefinitionGeneratorEditorSubsystem::ShowOutOfDateNotification()
 		return;
 	}
 
-	// Close existing notification
 	if (TSharedPtr<SNotificationItem> Existing = ActiveNotification.Pin())
 	{
+		Existing->SetCompletionState(SNotificationItem::CS_None);
 		Existing->ExpireAndFadeout();
 	}
 
-	// Build message showing counts per type
 	int32 TotalCount = GetTotalOutOfDateCount();
 	FString TypeBreakdown;
 	for (const auto& Pair : OutOfDateCounts)
@@ -594,9 +623,10 @@ void UDefinitionGeneratorEditorSubsystem::ShowOutOfDateNotification()
 		FText::FromString(TypeBreakdown)
 	));
 
+	// No ExpireDuration: with bFireAndForget=false the auto-fade timer
+	// disables button hit-testing before the user can click Dismiss.
 	Info.bFireAndForget = false;
 	Info.bUseSuccessFailIcons = false;
-	Info.ExpireDuration = 10.0f;
 	Info.FadeOutDuration = 1.0f;
 
 	Info.ButtonDetails.Add(FNotificationButtonInfo(
@@ -657,6 +687,7 @@ void UDefinitionGeneratorEditorSubsystem::OnDismissClicked()
 
 	if (TSharedPtr<SNotificationItem> Notification = ActiveNotification.Pin())
 	{
+		Notification->SetCompletionState(SNotificationItem::CS_None);
 		Notification->ExpireAndFadeout();
 	}
 	ActiveNotification.Reset();
@@ -664,9 +695,9 @@ void UDefinitionGeneratorEditorSubsystem::OnDismissClicked()
 
 void UDefinitionGeneratorEditorSubsystem::ShowChangedFilesNotification(int32 FileCount, const FString& FileList)
 {
-	// Close existing notification
 	if (TSharedPtr<SNotificationItem> Existing = ActiveNotification.Pin())
 	{
+		Existing->SetCompletionState(SNotificationItem::CS_None);
 		Existing->ExpireAndFadeout();
 	}
 
@@ -676,9 +707,9 @@ void UDefinitionGeneratorEditorSubsystem::ShowChangedFilesNotification(int32 Fil
 		FText::FromString(FileList)
 	));
 
+	// No ExpireDuration: auto-fade disables button hit-testing (see ShowOutOfDateNotification)
 	Info.bFireAndForget = false;
 	Info.bUseSuccessFailIcons = false;
-	Info.ExpireDuration = 15.0f;
 	Info.FadeOutDuration = 1.0f;
 
 	Info.ButtonDetails.Add(FNotificationButtonInfo(

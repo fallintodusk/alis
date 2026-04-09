@@ -11,12 +11,11 @@ class USpringSliderComponent;
 /**
  * Sliding openable actor (sliding doors, drawers, panels, garage doors).
  *
- * Behavior: Slides linearly with spring-damper motion.
- *
- * Hierarchy: AProjectWorldActor -> AInteractableActor -> AOpenableActor -> ASlidingOpenable
+ * Legacy actor template for editor placement. The data-driven path uses
+ * AInteractableActor + Sliding capability from JSON definitions.
  */
 UCLASS(Blueprintable)
-class PROJECTOBJECT_API ASlidingOpenable : public AOpenableActor
+class PROJECTOPENABLETEMPLATES_API ASlidingOpenable : public AOpenableActor
 {
 	GENERATED_BODY()
 

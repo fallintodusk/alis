@@ -9,6 +9,7 @@ class UInputMappingContext;
 class UInputAction;
 class UVitalsViewModel;
 class UMindJournalViewModel;
+class UAbilitySystemComponent;
 struct FInputActionValue;
 
 /**
@@ -48,6 +49,7 @@ private:
 
 	// Bind to VitalsViewModel from ProjectUI factory (retry if needed).
 	void TryBindVitalsViewModel();
+	void SyncVitalsViewModelSourceFromPawn();
 
 	// Bind to InventoryViewModel from ProjectUI factory (retry if needed).
 	void TryBindInventoryViewModel();

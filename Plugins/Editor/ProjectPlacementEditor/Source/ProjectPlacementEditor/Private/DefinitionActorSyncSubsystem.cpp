@@ -102,11 +102,13 @@ void UDefinitionActorSyncSubsystem::Deinitialize()
 		}
 	}
 
-	// Clear timer
+	// Clear timer and pending definitions
 	if (GEditor && ActorUpdateCountdownHandle.IsValid())
 	{
 		GEditor->GetTimerManager()->ClearTimer(ActorUpdateCountdownHandle);
 	}
+	PendingUpdateDefinitions.Empty();
+	PendingActorCount = 0;
 
 	Super::Deinitialize();
 }
@@ -276,22 +278,33 @@ void UDefinitionActorSyncSubsystem::ShowActorUpdateCountdown(UPrimaryDataAsset* 
 		return;
 	}
 
-	// Cancel any existing countdown
+	// Accumulate this definition into pending list (deduplicate)
+	const int32 PrevNum = PendingUpdateDefinitions.Num();
+	PendingUpdateDefinitions.AddUnique(Def);
+	if (PendingUpdateDefinitions.Num() != PrevNum)
+	{
+		PendingActorCount += ActorCount;
+	}
+
+	// If countdown is already running, just update the notification text
 	if (ActorUpdateCountdownHandle.IsValid())
 	{
-		GEditor->GetTimerManager()->ClearTimer(ActorUpdateCountdownHandle);
+		UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Accumulated definition %d (%d actors total)"),
+			PendingUpdateDefinitions.Num(), PendingActorCount);
+
+		if (TSharedPtr<SNotificationItem> Notification = ActorUpdateNotification.Pin())
+		{
+			Notification->SetText(FText::Format(
+				NSLOCTEXT("DefinitionActorSync", "ActorUpdateCountdownBatch", "Updating {0} definitions ({1} actors) in {2}s..."),
+				FText::AsNumber(PendingUpdateDefinitions.Num()),
+				FText::AsNumber(PendingActorCount),
+				FText::AsNumber(ActorUpdateCountdownSeconds)
+			));
+		}
+		return;
 	}
 
-	// Close existing notification
-	if (TSharedPtr<SNotificationItem> Existing = ActorUpdateNotification.Pin())
-	{
-		Existing->ExpireAndFadeout();
-	}
-
-	// Store pending update data
-	PendingUpdateDefinition = Def;
-	PendingActorCount = ActorCount;
-	ActorUpdateCountdownSeconds = 5; // 5 second countdown
+	ActorUpdateCountdownSeconds = 5;
 
 	UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Starting %d second countdown for %d actors"),
 		ActorUpdateCountdownSeconds, PendingActorCount);
@@ -350,11 +363,23 @@ void UDefinitionActorSyncSubsystem::OnActorUpdateCountdownTick()
 	{
 		if (TSharedPtr<SNotificationItem> Notification = ActorUpdateNotification.Pin())
 		{
-			Notification->SetText(FText::Format(
-				NSLOCTEXT("DefinitionActorSync", "ActorUpdateCountdown", "Updating {0} actors in {1}s..."),
-				FText::AsNumber(PendingActorCount),
-				FText::AsNumber(ActorUpdateCountdownSeconds)
-			));
+			if (PendingUpdateDefinitions.Num() > 1)
+			{
+				Notification->SetText(FText::Format(
+					NSLOCTEXT("DefinitionActorSync", "ActorUpdateCountdownBatch", "Updating {0} definitions ({1} actors) in {2}s..."),
+					FText::AsNumber(PendingUpdateDefinitions.Num()),
+					FText::AsNumber(PendingActorCount),
+					FText::AsNumber(ActorUpdateCountdownSeconds)
+				));
+			}
+			else
+			{
+				Notification->SetText(FText::Format(
+					NSLOCTEXT("DefinitionActorSync", "ActorUpdateCountdown", "Updating {0} actors in {1}s..."),
+					FText::AsNumber(PendingActorCount),
+					FText::AsNumber(ActorUpdateCountdownSeconds)
+				));
+			}
 		}
 	}
 }
@@ -368,7 +393,7 @@ void UDefinitionActorSyncSubsystem::OnCancelActorUpdate()
 		GEditor->GetTimerManager()->ClearTimer(ActorUpdateCountdownHandle);
 	}
 
-	PendingUpdateDefinition.Reset();
+	PendingUpdateDefinitions.Empty();
 	PendingActorCount = 0;
 
 	if (TSharedPtr<SNotificationItem> Notification = ActorUpdateNotification.Pin())
@@ -393,114 +418,140 @@ void UDefinitionActorSyncSubsystem::ExecutePendingActorUpdate()
 		GEditor->GetTimerManager()->ClearTimer(ActorUpdateCountdownHandle);
 	}
 
-	UPrimaryDataAsset* Def = PendingUpdateDefinition.Get();
-	if (!Def || !GEditor)
+	if (!GEditor || PendingUpdateDefinitions.Num() == 0)
 	{
-		UE_LOG(LogDefinitionActorSync, Warning, TEXT("[ActorSync] Definition no longer valid"));
+		UE_LOG(LogDefinitionActorSync, Warning, TEXT("[ActorSync] No pending definitions to process"));
 		if (TSharedPtr<SNotificationItem> Notification = ActorUpdateNotification.Pin())
 		{
 			Notification->SetCompletionState(SNotificationItem::CS_Fail);
 			Notification->ExpireAndFadeout();
 		}
+		PendingUpdateDefinitions.Empty();
+		PendingActorCount = 0;
 		return;
 	}
 
 	UWorld* World = GEditor->GetEditorWorldContext().World();
 	if (!World)
 	{
+		PendingUpdateDefinitions.Empty();
+		PendingActorCount = 0;
 		return;
 	}
 
-	const double StartTime = FPlatformTime::Seconds();
-	const FPrimaryAssetId DefId = Def->GetPrimaryAssetId();
-
-	// Find actors again (may have changed during countdown).
-	TArray<AActor*> AffectedActors;
-	for (TActorIterator<AActor> It(World); It; ++It)
+	// Collect valid definitions, skip stale weak pointers
+	TArray<UPrimaryDataAsset*> ValidDefs;
+	for (const TWeakObjectPtr<UPrimaryDataAsset>& WeakDef : PendingUpdateDefinitions)
 	{
-		FPrimaryAssetId ActorDefId;
-		FString StructureHash;
-		FString ContentHash;
-		if (ProjectWorldDefinitionHost::ReadHostState(*It, ActorDefId, StructureHash, ContentHash)
-			&& ActorDefId == DefId)
+		if (UPrimaryDataAsset* Def = WeakDef.Get())
 		{
-			AffectedActors.Add(*It);
+			ValidDefs.Add(Def);
 		}
 	}
 
-	if (AffectedActors.Num() == 0)
+	if (ValidDefs.Num() == 0)
 	{
-		UE_LOG(LogDefinitionActorSync, Warning, TEXT("[ActorSync] No actors to update"));
+		UE_LOG(LogDefinitionActorSync, Warning, TEXT("[ActorSync] All pending definitions became invalid"));
 		if (TSharedPtr<SNotificationItem> Notification = ActorUpdateNotification.Pin())
 		{
-			Notification->SetText(NSLOCTEXT("DefinitionActorSync", "NoActorsToUpdate", "No actors to update"));
 			Notification->SetCompletionState(SNotificationItem::CS_Fail);
 			Notification->ExpireAndFadeout();
 		}
-		PendingUpdateDefinition.Reset();
+		PendingUpdateDefinitions.Empty();
+		PendingActorCount = 0;
 		return;
 	}
 
-	UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Executing update for %d actors"), AffectedActors.Num());
+	UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Executing batch update for %d definitions"), ValidDefs.Num());
+
+	const double StartTime = FPlatformTime::Seconds();
+	int32 TotalReapplied = 0;
+	int32 TotalReplaced = 0;
+	int32 ProcessedDefCount = 0;
+	TArray<AActor*> AllManualFixNeeded;
 
 	FScopedTransaction Transaction(FText::Format(
-		NSLOCTEXT("DefinitionActorSync", "UpdateActors", "Update {0} actors from definition"),
-		FText::AsNumber(AffectedActors.Num())));
+		NSLOCTEXT("DefinitionActorSync", "UpdateActorsBatch", "Update actors from {0} definitions"),
+		FText::AsNumber(ValidDefs.Num())));
 
-	int32 ReappliedCount = 0;
-	int32 ReplacedCount = 0;
-	TArray<AActor*> ManualFixNeeded;
-
-	for (AActor* Actor : AffectedActors)
+	for (UPrimaryDataAsset* Def : ValidDefs)
 	{
-		// Try to apply definition via interface (actor-specific logic)
-		if (ApplyDefinitionToActor(Actor, Def))
+		const FPrimaryAssetId DefId = Def->GetPrimaryAssetId();
+
+		// Find actors matching this definition (may have changed during countdown)
+		TArray<AActor*> AffectedActors;
+		for (TActorIterator<AActor> It(World); It; ++It)
 		{
-			// Actor successfully applied definition in-place
-			ReappliedCount++;
-			UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Applied: %s"), *Actor->GetActorLabel());
-		}
-		else
-		{
-			// Apply failed (structure mismatch or interface not implemented) - need Replace
-			// Only ObjectDefinition types support Replace (via UProjectObjectActorFactory)
-			if (DefId.PrimaryAssetType == FName(TEXT("ObjectDefinition")))
+			FPrimaryAssetId ActorDefId;
+			FString StructureHash;
+			FString ContentHash;
+			if (ProjectWorldDefinitionHost::ReadHostState(*It, ActorDefId, StructureHash, ContentHash)
+				&& ActorDefId == DefId)
 			{
-				const FString OldActorName = Actor->GetName();
-				UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Replacing: %s"), *OldActorName);
-				AActor* NewActor = ReplaceActorFromDefinition(Actor, Def);
-				if (NewActor)
-				{
-					ReplacedCount++;
-					UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Replace complete: %s -> %s"),
-						*OldActorName, *NewActor->GetName());
-				}
+				AffectedActors.Add(*It);
+			}
+		}
+
+		if (AffectedActors.Num() == 0)
+		{
+			continue;
+		}
+
+		ProcessedDefCount++;
+		int32 ReappliedCount = 0;
+		int32 ReplacedCount = 0;
+
+		for (AActor* Actor : AffectedActors)
+		{
+			if (ApplyDefinitionToActor(Actor, Def))
+			{
+				ReappliedCount++;
+				UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Applied: %s"), *Actor->GetActorLabel());
 			}
 			else
 			{
-				// Unknown definition type - no factory exists
-				UE_LOG(LogDefinitionActorSync, Warning, TEXT("[ActorSync] Cannot replace: %s (no factory for type '%s')"),
-					*Actor->GetActorLabel(), *DefId.PrimaryAssetType.ToString());
-				ManualFixNeeded.Add(Actor);
+				if (DefId.PrimaryAssetType == FName(TEXT("ObjectDefinition")))
+				{
+					const FString OldActorName = Actor->GetName();
+					UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Replacing: %s"), *OldActorName);
+					AActor* NewActor = ReplaceActorFromDefinition(Actor, Def);
+					if (NewActor)
+					{
+						ReplacedCount++;
+						UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] Replace complete: %s -> %s"),
+							*OldActorName, *NewActor->GetName());
+					}
+				}
+				else
+				{
+					UE_LOG(LogDefinitionActorSync, Warning, TEXT("[ActorSync] Cannot replace: %s (no factory for type '%s')"),
+						*Actor->GetActorLabel(), *DefId.PrimaryAssetType.ToString());
+					AllManualFixNeeded.Add(Actor);
+				}
 			}
 		}
+
+		UE_LOG(LogDefinitionActorSync, Log, TEXT("  [%s] Reapplied: %d, Replaced: %d"),
+			*DefId.ToString(), ReappliedCount, ReplacedCount);
+
+		TotalReapplied += ReappliedCount;
+		TotalReplaced += ReplacedCount;
 	}
 
 	const double ElapsedMs = (FPlatformTime::Seconds() - StartTime) * 1000.0;
 
-	UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] === Update complete ==="));
-	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Definition: %s"), *DefId.ToString());
-	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Reapplied: %d actors"), ReappliedCount);
-	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Replaced: %d actors"), ReplacedCount);
-	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Manual fix needed: %d actors"), ManualFixNeeded.Num());
+	UE_LOG(LogDefinitionActorSync, Log, TEXT("[ActorSync] === Batch update complete ==="));
+	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Definitions: %d (%d with actors)"), ValidDefs.Num(), ProcessedDefCount);
+	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Reapplied: %d actors"), TotalReapplied);
+	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Replaced: %d actors"), TotalReplaced);
+	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Manual fix needed: %d actors"), AllManualFixNeeded.Num());
 	UE_LOG(LogDefinitionActorSync, Log, TEXT("  Time: %.2fms"), ElapsedMs);
 
-	// Show warning notification for actors that need manual fix (structural changes, no factory)
-	if (ManualFixNeeded.Num() > 0)
+	if (AllManualFixNeeded.Num() > 0)
 	{
 		FNotificationInfo WarningInfo(FText::Format(
 			NSLOCTEXT("DefinitionActorSync", "ManualFixNeeded", "WARNING: {0} actor(s) need manual fix!\nStructural changes require manual re-placement."),
-			FText::AsNumber(ManualFixNeeded.Num())
+			FText::AsNumber(AllManualFixNeeded.Num())
 		));
 		WarningInfo.bFireAndForget = true;
 		WarningInfo.bUseSuccessFailIcons = true;
@@ -513,14 +564,13 @@ void UDefinitionActorSyncSubsystem::ExecutePendingActorUpdate()
 			WarningNotification->SetCompletionState(SNotificationItem::CS_Pending);
 		}
 
-		// Log to Message Log with clickable actor references
 		FMessageLog MessageLog("PIE");
 		MessageLog.Warning(FText::Format(
 			NSLOCTEXT("DefinitionActorSync", "ManualFixHeader", "Definition Sync: {0} actor(s) need manual fix (click to select):"),
-			FText::AsNumber(ManualFixNeeded.Num())
+			FText::AsNumber(AllManualFixNeeded.Num())
 		));
 
-		for (AActor* Actor : ManualFixNeeded)
+		for (AActor* Actor : AllManualFixNeeded)
 		{
 			TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning);
 			Message->AddToken(FTextToken::Create(FText::Format(
@@ -550,15 +600,15 @@ void UDefinitionActorSyncSubsystem::ExecutePendingActorUpdate()
 	if (TSharedPtr<SNotificationItem> Notification = ActorUpdateNotification.Pin())
 	{
 		Notification->SetText(FText::Format(
-			NSLOCTEXT("DefinitionActorSync", "ActorsUpdated", "Updated {0} actors from '{1}'"),
-			FText::AsNumber(ReappliedCount + ReplacedCount),
-			FText::FromString(DefId.ToString())
+			NSLOCTEXT("DefinitionActorSync", "ActorsUpdatedBatch", "Updated {0} actors from {1} definitions"),
+			FText::AsNumber(TotalReapplied + TotalReplaced),
+			FText::AsNumber(ProcessedDefCount)
 		));
 		Notification->SetCompletionState(SNotificationItem::CS_Success);
 		Notification->ExpireAndFadeout();
 	}
 
-	PendingUpdateDefinition.Reset();
+	PendingUpdateDefinitions.Empty();
 	PendingActorCount = 0;
 }
 

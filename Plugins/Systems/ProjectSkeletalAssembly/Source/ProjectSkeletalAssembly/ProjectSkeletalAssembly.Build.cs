@@ -16,6 +16,8 @@ public class ProjectSkeletalAssembly : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"Json",
+			"RenderCore",
 			"ProjectCore"
 		});
 

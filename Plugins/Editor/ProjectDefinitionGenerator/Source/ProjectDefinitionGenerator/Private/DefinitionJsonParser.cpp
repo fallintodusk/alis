@@ -731,7 +731,106 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 		}
 
 		// ---------------------------------------------------------------------
-		// 6. REMOVED LOOT SECTION
+		// 6. ANIMATION SECTION (optional) - skeletal assembly animation config
+		// ---------------------------------------------------------------------
+		const TSharedPtr<FJsonObject>* AnimationObj = nullptr;
+
+		if (SectionsObj && SectionsObj->IsValid())
+		{
+			(*SectionsObj)->TryGetObjectField(TEXT("animation"), AnimationObj);
+		}
+		if (!AnimationObj || !AnimationObj->IsValid())
+		{
+			JsonObject->TryGetObjectField(TEXT("animation"), AnimationObj);
+		}
+
+		if (AnimationObj && AnimationObj->IsValid())
+		{
+			FAnimationSection AnimationData;
+			if (FJsonObjectConverter::JsonObjectToUStruct(
+				AnimationObj->ToSharedRef(), FAnimationSection::StaticStruct(), &AnimationData, 0, 0, false, nullptr, &Callback))
+			{
+				FInstancedStruct AnimationSection;
+				AnimationSection.InitializeAs(FAnimationSection::StaticStruct());
+				*AnimationSection.GetMutablePtr<FAnimationSection>() = MoveTemp(AnimationData);
+				ObjDef->Sections.Add(ObjectSectionIds::Animation, MoveTemp(AnimationSection));
+
+				UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] Parsed animation section"), *Asset->GetName());
+			}
+			else
+			{
+				UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] Failed to parse animation section"), *Asset->GetName());
+			}
+		}
+
+		// ---------------------------------------------------------------------
+		// 7. CUSTOMIZATION SECTION (optional) - Mutable customization config
+		// ---------------------------------------------------------------------
+		const TSharedPtr<FJsonObject>* CustomizationObj = nullptr;
+
+		if (SectionsObj && SectionsObj->IsValid())
+		{
+			(*SectionsObj)->TryGetObjectField(TEXT("customization"), CustomizationObj);
+		}
+		if (!CustomizationObj || !CustomizationObj->IsValid())
+		{
+			JsonObject->TryGetObjectField(TEXT("customization"), CustomizationObj);
+		}
+
+		if (CustomizationObj && CustomizationObj->IsValid())
+		{
+			FCustomizationSection CustomizationData;
+			if (FJsonObjectConverter::JsonObjectToUStruct(
+				CustomizationObj->ToSharedRef(), FCustomizationSection::StaticStruct(), &CustomizationData, 0, 0, false, nullptr, &Callback))
+			{
+				FInstancedStruct CustomizationSection;
+				CustomizationSection.InitializeAs(FCustomizationSection::StaticStruct());
+				*CustomizationSection.GetMutablePtr<FCustomizationSection>() = MoveTemp(CustomizationData);
+				ObjDef->Sections.Add(ObjectSectionIds::Customization, MoveTemp(CustomizationSection));
+
+				UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] Parsed customization section"), *Asset->GetName());
+			}
+			else
+			{
+				UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] Failed to parse customization section"), *Asset->GetName());
+			}
+		}
+
+		// ---------------------------------------------------------------------
+		// 8. VIEW SECTION (optional) - camera and first-person policy
+		// ---------------------------------------------------------------------
+		const TSharedPtr<FJsonObject>* ViewObj = nullptr;
+
+		if (SectionsObj && SectionsObj->IsValid())
+		{
+			(*SectionsObj)->TryGetObjectField(TEXT("view"), ViewObj);
+		}
+		if (!ViewObj || !ViewObj->IsValid())
+		{
+			JsonObject->TryGetObjectField(TEXT("view"), ViewObj);
+		}
+
+		if (ViewObj && ViewObj->IsValid())
+		{
+			FViewSection ViewData;
+			if (FJsonObjectConverter::JsonObjectToUStruct(
+				ViewObj->ToSharedRef(), FViewSection::StaticStruct(), &ViewData, 0, 0, false, nullptr, &Callback))
+			{
+				FInstancedStruct ViewSection;
+				ViewSection.InitializeAs(FViewSection::StaticStruct());
+				*ViewSection.GetMutablePtr<FViewSection>() = MoveTemp(ViewData);
+				ObjDef->Sections.Add(ObjectSectionIds::View, MoveTemp(ViewSection));
+
+				UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] Parsed view section"), *Asset->GetName());
+			}
+			else
+			{
+				UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] Failed to parse view section"), *Asset->GetName());
+			}
+		}
+
+		// ---------------------------------------------------------------------
+		// 9. REMOVED LOOT SECTION
 		// ---------------------------------------------------------------------
 		const TSharedPtr<FJsonObject>* LootObj = nullptr;
 		if (SectionsObj && SectionsObj->IsValid())

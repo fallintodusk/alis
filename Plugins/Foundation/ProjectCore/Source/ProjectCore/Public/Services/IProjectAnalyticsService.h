@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectLogging.h"
 
 /**
  * Analytics event data for session milestone tracking.
@@ -117,7 +118,7 @@ public:
 			return;
 		}
 
-		UE_LOG(LogCore, Verbose, TEXT("[Analytics Stub] Event: %s/%s/%s (Value: %.2f, Timestamp: %s)"),
+		UE_LOG(LogProjectCore, Verbose, TEXT("[Analytics Stub] Event: %s/%s/%s (Value: %.2f, Timestamp: %s)"),
 			*Event.Category, *Event.Action, *Event.Label, Event.Value, *Event.Timestamp.ToString());
 
 		// Log custom data if present
@@ -125,7 +126,7 @@ public:
 		{
 			for (const TPair<FString, FString>& Pair : Event.CustomData)
 			{
-				UE_LOG(LogCore, VeryVerbose, TEXT("[Analytics Stub]   %s: %s"), *Pair.Key, *Pair.Value);
+				UE_LOG(LogProjectCore, VeryVerbose, TEXT("[Analytics Stub]   %s: %s"), *Pair.Key, *Pair.Value);
 			}
 		}
 
@@ -136,7 +137,7 @@ public:
 	{
 		if (QueuedEvents.Num() > 0)
 		{
-			UE_LOG(LogCore, Log, TEXT("[Analytics Stub] Flushing %d queued events (no-op)"), QueuedEvents.Num());
+			UE_LOG(LogProjectCore, Log, TEXT("[Analytics Stub] Flushing %d queued events (no-op)"), QueuedEvents.Num());
 			QueuedEvents.Empty();
 		}
 	}
@@ -148,12 +149,12 @@ public:
 
 	virtual void StartSession(const FString& SessionId) override
 	{
-		UE_LOG(LogCore, Log, TEXT("[Analytics Stub] StartSession: %s"), *SessionId);
+		UE_LOG(LogProjectCore, Log, TEXT("[Analytics Stub] StartSession: %s"), *SessionId);
 	}
 
 	virtual void EndSession() override
 	{
-		UE_LOG(LogCore, Log, TEXT("[Analytics Stub] EndSession"));
+		UE_LOG(LogProjectCore, Log, TEXT("[Analytics Stub] EndSession"));
 		FlushEvents();
 	}
 

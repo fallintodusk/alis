@@ -109,8 +109,11 @@ void FCapabilityRegistry::Build()
 	FRegistryScanConfig Config;
 	Config.AssetType = FPrimaryAssetType(TEXT("CapabilityComponent"));
 	// TObjectIterator only sees classes from loaded DLLs.
-	// Preload built-in capability modules so the single scan discovers all
-	// capability classes from all sources into one registry map.
+	// Preload core capability modules so the single scan discovers all
+	// capability classes. These are always-enabled plugins that provide
+	// built-in capabilities. No compile-time dependency -- just module name
+	// strings for the kernel's preload step.
+	// External optional plugins self-register via RegisterCapabilityModule().
 	Config.RequiredModules = {
 		FName(TEXT("ProjectObjectCapabilities")),
 		FName(TEXT("ProjectMotionSystem")),

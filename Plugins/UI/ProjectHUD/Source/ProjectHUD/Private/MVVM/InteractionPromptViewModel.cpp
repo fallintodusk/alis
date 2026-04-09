@@ -3,6 +3,8 @@
 #include "MVVM/InteractionPromptViewModel.h"
 #include "Interfaces/IInteractionService.h"
 #include "ProjectServiceLocator.h"
+#include "Containers/Ticker.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
@@ -14,41 +16,139 @@ void UInteractionPromptViewModel::Initialize(UObject* Context)
 	Super::Initialize(Context);
 
 	// Resolve local pawn from context (needed for per-pawn subscription)
+	APlayerController* ResolvedController = nullptr;
 	APawn* ResolvedPawn = nullptr;
 
 	if (APawn* DirectPawn = Cast<APawn>(Context))
 	{
 		ResolvedPawn = DirectPawn;
+		ResolvedController = Cast<APlayerController>(DirectPawn->GetController());
 	}
 	else if (APlayerController* PC = Cast<APlayerController>(Context))
 	{
+		ResolvedController = PC;
 		ResolvedPawn = PC->GetPawn();
 	}
 	else if (UUserWidget* Widget = Cast<UUserWidget>(Context))
 	{
 		if (APlayerController* OwningPC = Widget->GetOwningPlayer())
 		{
+			ResolvedController = OwningPC;
 			ResolvedPawn = OwningPC->GetPawn();
 		}
 	}
 
+	OwningController = ResolvedController;
+	BindToOwningController();
+
 	if (ResolvedPawn)
 	{
-		LocalPawn = ResolvedPawn;
 		UE_LOG(LogInteractionPromptVM, Log, TEXT("Initialize: LocalPawn=%s"), *GetNameSafe(ResolvedPawn));
-		SubscribeToService();
+		SetObservedPawn(ResolvedPawn);
 	}
 	else
 	{
 		UE_LOG(LogInteractionPromptVM, Warning, TEXT("Initialize: Could not resolve LocalPawn from context [%s]"), *GetNameSafe(Context));
+		SetObservedPawn(nullptr);
 	}
 }
 
 void UInteractionPromptViewModel::Shutdown()
 {
+	ClearPendingPawnRefresh();
 	UnsubscribeFromService();
+	UnbindFromOwningController();
 	LocalPawn.Reset();
+	OwningController.Reset();
 	Super::Shutdown();
+}
+
+void UInteractionPromptViewModel::BindToOwningController()
+{
+	if (PawnChangedHandle.IsValid())
+	{
+		return;
+	}
+
+	APlayerController* Controller = OwningController.Get();
+	if (!Controller)
+	{
+		return;
+	}
+
+	PawnChangedHandle = Controller->GetOnNewPawnNotifier().AddUObject(
+		this, &UInteractionPromptViewModel::HandleObservedPawnChanged);
+}
+
+void UInteractionPromptViewModel::UnbindFromOwningController()
+{
+	APlayerController* Controller = OwningController.Get();
+	if (Controller && PawnChangedHandle.IsValid())
+	{
+		Controller->GetOnNewPawnNotifier().Remove(PawnChangedHandle);
+	}
+	PawnChangedHandle.Reset();
+}
+
+void UInteractionPromptViewModel::ScheduleObservedPawnRefresh()
+{
+	if (PendingPawnRefreshHandle.IsValid())
+	{
+		return;
+	}
+
+	PendingPawnRefreshHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateWeakLambda(this, [this](float)
+		{
+			PendingPawnRefreshHandle.Reset();
+			return RefreshObservedPawnFromController();
+		}),
+		0.0f);
+}
+
+void UInteractionPromptViewModel::ClearPendingPawnRefresh()
+{
+	if (PendingPawnRefreshHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(PendingPawnRefreshHandle);
+		PendingPawnRefreshHandle.Reset();
+	}
+}
+
+bool UInteractionPromptViewModel::RefreshObservedPawnFromController()
+{
+	APlayerController* Controller = OwningController.Get();
+	APawn* CurrentPawn = Controller ? Controller->GetPawn() : nullptr;
+	SetObservedPawn(CurrentPawn);
+	return false;
+}
+
+void UInteractionPromptViewModel::SetObservedPawn(APawn* NewPawn)
+{
+	ClearPendingPawnRefresh();
+
+	APawn* CurrentPawn = LocalPawn.Get();
+	if (CurrentPawn == NewPawn)
+	{
+		if (CurrentPawn)
+		{
+			PullInitialFocusState();
+		}
+		return;
+	}
+
+	UnsubscribeFromService();
+	LocalPawn = NewPawn;
+
+	if (NewPawn)
+	{
+		UE_LOG(LogInteractionPromptVM, Log, TEXT("SetObservedPawn: %s"), *GetNameSafe(NewPawn));
+		SubscribeToService();
+	}
+	else
+	{
+		HandlePromptStateChanged(FInteractionPromptState());
+	}
 }
 
 void UInteractionPromptViewModel::SubscribeToService()
@@ -112,6 +212,23 @@ void UInteractionPromptViewModel::PullInitialFocusState()
 			break;
 		}
 	}
+}
+
+void UInteractionPromptViewModel::HandleObservedPawnChanged(APawn* NewPawn)
+{
+	UE_LOG(LogInteractionPromptVM, Log, TEXT("HandleObservedPawnChanged: NewPawn=%s"),
+		*GetNameSafe(NewPawn));
+
+	if (!NewPawn)
+	{
+		// Possession can briefly report null during respawn or duplicate
+		// PIE possession churn. Resolve the controller's final pawn next tick
+		// before clearing the HUD prompt subscription.
+		ScheduleObservedPawnRefresh();
+		return;
+	}
+
+	SetObservedPawn(NewPawn);
 }
 
 void UInteractionPromptViewModel::HandlePromptStateChanged(const FInteractionPromptState& State)

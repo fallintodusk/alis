@@ -19,6 +19,7 @@
 	"Plugins": [
 		{ "Name": "ProjectObject", "Enabled": true },
 		{ "Name": "ProjectEditorCore", "Enabled": true },
-		{ "Name": "ProjectDefinitionGenerator", "Enabled": true }
+		{ "Name": "ProjectDefinitionGenerator", "Enabled": true },
+		{ "Name": "ProjectOpenableTemplates", "Enabled": true }
 	]
 }

@@ -20,7 +20,8 @@ public class ProjectSinglePlay : ModuleRules
 		{
 			"Json",           // For JSON override loading
 			"JsonUtilities",  // For JSON parsing utilities
-			"ProjectGameplay"
+			"ProjectGameplay",
+			"ProjectObject"   // SpawnFromDefinition (used in SinglePlayerGameMode.cpp only)
 		});
 
 		StageDataDir(Target);

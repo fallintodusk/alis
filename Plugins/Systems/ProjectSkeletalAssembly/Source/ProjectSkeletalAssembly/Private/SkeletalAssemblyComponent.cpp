@@ -40,13 +40,15 @@ void USkeletalAssemblyComponent::BeginPlay()
 
 void USkeletalAssemblyComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Broadcast teardown so listeners can clean up before the actor is destroyed.
+	// Broadcast teardown and deactivate managed capabilities before destruction.
 	// Skip if already Idle or already TearingDown (RequestTeardown was called earlier).
 	if (AssemblyState == ESkeletalAssemblyState::Assembling
 		|| AssemblyState == ESkeletalAssemblyState::Ready)
 	{
 		const ESkeletalAssemblyState OldState = AssemblyState;
 		AssemblyState = ESkeletalAssemblyState::TearingDown;
+
+		DeactivateManagedCapabilities();
 
 		UE_LOG(LogSkeletalAssembly, Log,
 			TEXT("[%s] EndPlay during state %s. Transitioning through TearingDown -> Idle."),
@@ -71,7 +73,13 @@ bool USkeletalAssemblyComponent::RequestAssembly()
 
 bool USkeletalAssemblyComponent::CompleteAssembly()
 {
-	return TransitionTo(ESkeletalAssemblyState::Ready);
+	if (!TransitionTo(ESkeletalAssemblyState::Ready))
+	{
+		return false;
+	}
+
+	ActivateManagedCapabilities();
+	return true;
 }
 
 bool USkeletalAssemblyComponent::RequestTeardown()
@@ -81,13 +89,54 @@ bool USkeletalAssemblyComponent::RequestTeardown()
 		return false;
 	}
 
-	// TearingDown is synchronous in Phase 1: all teardown work must complete
-	// inside the OnAssemblyStateChanged delegate handler for TearingDown.
-	// Re-entrant transitions (e.g. calling RequestAssembly from a TearingDown
-	// handler) are rejected by IsValidTransition -- TearingDown only allows Idle.
-	// When Phase 2 adds async feature deactivation, this should become deferred.
+	DeactivateManagedCapabilities();
+
+	// TearingDown is synchronous: all teardown work completes within this call.
+	// Re-entrant transitions are rejected by IsValidTransition.
 	TransitionTo(ESkeletalAssemblyState::Idle);
 	return true;
+}
+
+void USkeletalAssemblyComponent::RegisterManagedCapability(UActorComponent* Capability)
+{
+	if (!Capability)
+	{
+		return;
+	}
+
+	ManagedCapabilities.Add(Capability);
+
+	UE_LOG(LogSkeletalAssembly, Verbose,
+		TEXT("[%s] Registered managed capability: %s"),
+		*GetOwnerName(this), *Capability->GetClass()->GetName());
+}
+
+void USkeletalAssemblyComponent::ActivateManagedCapabilities()
+{
+	for (const TWeakObjectPtr<UActorComponent>& WeakCap : ManagedCapabilities)
+	{
+		if (UActorComponent* Cap = WeakCap.Get())
+		{
+			Cap->Activate();
+			UE_LOG(LogSkeletalAssembly, Log,
+				TEXT("[%s] Activated managed capability: %s"),
+				*GetOwnerName(this), *Cap->GetClass()->GetName());
+		}
+	}
+}
+
+void USkeletalAssemblyComponent::DeactivateManagedCapabilities()
+{
+	for (const TWeakObjectPtr<UActorComponent>& WeakCap : ManagedCapabilities)
+	{
+		if (UActorComponent* Cap = WeakCap.Get())
+		{
+			Cap->Deactivate();
+			UE_LOG(LogSkeletalAssembly, Log,
+				TEXT("[%s] Deactivated managed capability: %s"),
+				*GetOwnerName(this), *Cap->GetClass()->GetName());
+		}
+	}
 }
 
 bool USkeletalAssemblyComponent::TransitionTo(ESkeletalAssemblyState NewState)
@@ -112,6 +161,11 @@ bool USkeletalAssemblyComponent::TransitionTo(ESkeletalAssemblyState NewState)
 		StateToString(NewState));
 
 	OnAssemblyStateChanged.Broadcast(OldState, NewState);
+
+	// Fire native delegate for IAssemblyCapability consumers (DIP boundary)
+	const EAssemblyState MappedState = GetCurrentAssemblyState();
+	OnAssemblyStateChangedNative.Broadcast(MappedState);
+
 	return true;
 }
 
@@ -135,4 +189,46 @@ bool USkeletalAssemblyComponent::IsValidTransition(ESkeletalAssemblyState From, 
 	default:
 		return false;
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// IAssemblyCapability + IAssemblyViewConfigSource
+
+EAssemblyState USkeletalAssemblyComponent::GetCurrentAssemblyState() const
+{
+	switch (AssemblyState)
+	{
+	case ESkeletalAssemblyState::Idle:         return EAssemblyState::Idle;
+	case ESkeletalAssemblyState::Assembling:   return EAssemblyState::Assembling;
+	case ESkeletalAssemblyState::Ready:        return EAssemblyState::Ready;
+	case ESkeletalAssemblyState::TearingDown:  return EAssemblyState::TearingDown;
+	default:                                   return EAssemblyState::Idle;
+	}
+}
+
+FDelegateHandle USkeletalAssemblyComponent::AddAssemblyStateChanged(
+	const FOnAssemblyStateChangedNative::FDelegate& Callback)
+{
+	return OnAssemblyStateChangedNative.Add(Callback);
+}
+
+void USkeletalAssemblyComponent::RemoveAssemblyStateChanged(FDelegateHandle Handle)
+{
+	OnAssemblyStateChangedNative.Remove(Handle);
+}
+
+void USkeletalAssemblyComponent::SetViewConfig(const FAssemblyViewConfig& Config)
+{
+	CachedViewConfig = Config;
+	bHasViewConfig = true;
+}
+
+bool USkeletalAssemblyComponent::GetViewConfig(FAssemblyViewConfig& OutConfig) const
+{
+	if (!bHasViewConfig)
+	{
+		return false;
+	}
+	OutConfig = CachedViewConfig;
+	return true;
 }
