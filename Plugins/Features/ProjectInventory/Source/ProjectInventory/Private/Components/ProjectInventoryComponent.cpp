@@ -236,16 +236,66 @@ bool UProjectInventoryComponent::ContainsItem(FPrimaryAssetId ItemId, int32 MinQ
 // IProjectActionReceiver
 // -------------------------------------------------------------------------
 
+namespace
+{
+// Parse "ItemId:N" into TargetId and Quantity. Colon-separated, quantity defaults to 1.
+void ParseActionArgs(const FString& Raw, FString& OutTargetId, int32& OutQuantity)
+{
+	OutQuantity = 1;
+	OutTargetId = Raw;
+	OutTargetId.TrimStartAndEndInline();
+
+	int32 ColonIdx = INDEX_NONE;
+	if (OutTargetId.FindLastChar(TEXT(':'), ColonIdx) && ColonIdx > 0)
+	{
+		const int32 Parsed = FCString::Atoi(*OutTargetId.Mid(ColonIdx + 1));
+		if (Parsed > 0)
+		{
+			OutQuantity = Parsed;
+			OutTargetId.LeftInline(ColonIdx);
+			OutTargetId.TrimStartAndEndInline();
+		}
+	}
+}
+}
+
 void UProjectInventoryComponent::HandleAction(const FString& Context, const FString& Action)
 {
-	// "inventory.consume:<ObjectId>" - remove 1 item matching ObjectId
+	// -------------------------------------------------------------------------
+	// inventory.give:<ObjectId>[:Quantity] — add item(s) to inventory.
+	// Examples: "inventory.give:KeyPlayerApartment", "inventory.give:Bandage:3"
+	// -------------------------------------------------------------------------
+	if (Action.StartsWith(TEXT("inventory.give:")))
+	{
+		FString TargetId;
+		int32 Quantity = 1;
+		ParseActionArgs(Action.Mid(15), TargetId, Quantity);
+
+		const FPrimaryAssetId ItemId(FPrimaryAssetType(TEXT("ObjectDefinition")), FName(*TargetId));
+
+		UE_LOG(LogProjectInventory, Log,
+			TEXT("[HandleAction] inventory.give: Adding %dx '%s' (Context='%s')"),
+			Quantity, *TargetId, *Context);
+
+		RequestAddItem(ItemId, Quantity);
+		return;
+	}
+
+	// -------------------------------------------------------------------------
+	// inventory.consume:<ObjectId>[:Quantity] — remove item(s) from inventory.
+	// Supports wildcard prefix and optional quantity.
+	// Examples: "inventory.consume:WaterBottle*", "inventory.consume:Cigarette*:3"
+	// -------------------------------------------------------------------------
 	if (!Action.StartsWith(TEXT("inventory.consume:")))
 	{
 		return;
 	}
 
-	FString ItemIdStr = Action.Mid(18);
-	ItemIdStr.TrimStartAndEndInline();
+	FString RawArgs = Action.Mid(18);
+	FString ItemIdStr;
+	int32 Quantity = 1;
+	ParseActionArgs(RawArgs, ItemIdStr, Quantity);
+
 	const bool bPrefixMatch = ItemIdStr.RemoveFromEnd(TEXT("*"));
 	ItemIdStr.TrimStartAndEndInline();
 
@@ -254,8 +304,7 @@ void UProjectInventoryComponent::HandleAction(const FString& Context, const FStr
 	FInventoryEntry FoundEntry;
 	if (!FindEntryByItemId(TargetId, FoundEntry))
 	{
-		// Explicit family fallback: inventory.consume:WaterBottle* consumes first WaterBottle*
-		// variant (WaterBottleBig/WaterBottleSmall/etc.) when exact id is absent.
+		// Prefix match fallback for item families (wildcard *).
 		if (bPrefixMatch)
 		{
 			const FPrimaryAssetType ObjectType(TEXT("ObjectDefinition"));
@@ -283,12 +332,19 @@ void UProjectInventoryComponent::HandleAction(const FString& Context, const FStr
 		}
 	}
 
-	UE_LOG(LogProjectInventory, Log,
-		TEXT("[HandleAction] inventory.consume: Removing 1x '%s' (InstanceId=%d, Context='%s')"),
-		*ItemIdStr, FoundEntry.InstanceId, *Context);
+	if (FoundEntry.Quantity < Quantity)
+	{
+		UE_LOG(LogProjectInventory, Warning,
+			TEXT("[HandleAction] inventory.consume: Not enough '%s' (have %d, need %d)"),
+			*ItemIdStr, FoundEntry.Quantity, Quantity);
+		return;
+	}
 
-	// Route through server RPC for proper authority
-	RequestRemoveItem(FoundEntry.InstanceId, 1);
+	UE_LOG(LogProjectInventory, Log,
+		TEXT("[HandleAction] inventory.consume: Removing %dx '%s' (InstanceId=%d, Context='%s')"),
+		Quantity, *ItemIdStr, FoundEntry.InstanceId, *Context);
+
+	RequestRemoveItem(FoundEntry.InstanceId, Quantity);
 }
 
 void UProjectInventoryComponent::OnRep_Inventory()

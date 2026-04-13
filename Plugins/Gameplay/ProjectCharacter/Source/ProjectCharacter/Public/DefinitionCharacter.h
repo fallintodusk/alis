@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayTagAssetInterface.h"
 #include "DefinitionCharacter.generated.h"
 
 class UCameraComponent;
@@ -37,7 +38,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDefinitionCharacter, Log, All);
  * via OnAssemblyStateChanged delegate.
  */
 UCLASS(config = Game)
-class PROJECTCHARACTER_API ADefinitionCharacter : public ACharacter, public IAbilitySystemInterface
+class PROJECTCHARACTER_API ADefinitionCharacter : public ACharacter, public IAbilitySystemInterface, public IGameplayTagAssetInterface
 {
 	GENERATED_BODY()
 
@@ -114,6 +115,11 @@ public:
 
 	// IAbilitySystemInterface
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	// IGameplayTagAssetInterface
+	// Today: forwards to ASC. Later: may aggregate ASC + quest + trust + faction tags
+	// without any change to consumers (e.g. ProjectDialogue).
+	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override;
 
 	FORCEINLINE UCameraComponent* GetFirstPersonCamera() const { return FirstPersonCamera; }
 

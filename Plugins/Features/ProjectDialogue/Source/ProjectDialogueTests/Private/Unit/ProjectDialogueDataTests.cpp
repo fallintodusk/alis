@@ -26,7 +26,7 @@ bool FProjectDialogueData_Option_DefaultEmpty::RunTest(const FString& Parameters
 	FDialogueOption Option;
 	TestTrue(TEXT("Text is empty"), Option.Text.IsEmpty());
 	TestTrue(TEXT("Next is empty"), Option.Next.IsEmpty());
-	TestTrue(TEXT("Condition is empty"), Option.Condition.IsEmpty());
+	TestTrue(TEXT("Condition is not valid"), !Option.Condition.IsValid());
 	TestTrue(TEXT("Default is end option (empty next)"), Option.IsEndOption());
 
 	return true;

@@ -95,20 +95,24 @@ Log note:
 
 ## Option Conditions
 
-Options support `condition` field for availability gating:
-- GameplayTag string -- player ASC has matching tag (e.g. `"Quest.ElderTrust"`)
-- `inventory:<ObjectId>` -- player inventory has exact item (e.g. `"inventory:WaterBottle"`)
-- `inventory:<ObjectId>*` -- player inventory has any matching family variant (e.g. `"inventory:WaterBottle*"`)
+Options support structured `condition` field (object) for availability gating.
 
-Condition behavior:
-- Options stay visible even when condition fails.
-- Failed condition -> option is disabled/greyed as `(Unavailable)`.
-- Condition becomes true -> option is enabled and subtly highlighted while condition remains true.
+Structured object with `type`, `id`, `quantity` (optional), `exact` (optional).
+- Schema: `Data/Schemas/dialogue.schema.json` (condition field definition)
+- Struct: `FDialogueCondition` in `ProjectDialogueTypes.h`
+- Logic: `CheckCondition()` in `ProjectDialogueComponent.cpp`
+- Inventory queries: `IInventoryReadOnly` (ProjectCore)
 
-Inventory condition notes:
-- Queries `IInventoryReadOnly` (ProjectCore) on instigator components.
-- Supports exact object id (`inventory:WaterBottle` -> `ObjectDefinition:WaterBottle`).
-- Supports explicit family wildcard (`inventory:WaterBottle*` matches `WaterBottleBig`, `WaterBottleSmall`).
+## Inventory Actions
+
+String-based: `inventory.give` and `inventory.consume` with optional quantity.
+- Handler: `HandleAction()` in `ProjectInventoryComponent.cpp`
+- Parser: `ParseActionArgs()` in same file
+
+## Same-Actor Door Dialogue
+
+Doors with `Dialogue` + `Lockable` on one actor: Lockable denies access -> dialogue auto-starts.
+- See `LockableComponent.cpp` for event dispatch.
 
 ## JSON Data (co-located with objects)
 

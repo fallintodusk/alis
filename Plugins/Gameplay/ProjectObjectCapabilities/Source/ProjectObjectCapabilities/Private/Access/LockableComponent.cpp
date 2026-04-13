@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "ProjectObjectCapabilitiesModule.h"
 #include "Interfaces/IProjectActionReceiver.h"
+#include "Interfaces/IActorWatchEventListener.h"
 
 namespace
 {
@@ -135,6 +136,33 @@ bool ULockableComponent::OnComponentInteract_Implementation(AActor* Instigator)
 		*LockTag.ToString(),
 		*GetNameSafe(Instigator));
 	OnAccessDenied.Broadcast(LockTag, Instigator);
+
+	// Notify sibling IActorWatchEventListener components on the same actor.
+	// This allows DialogueComponent on the same door to auto-start dialogue
+	// without requiring a separate ActorWatcher actor.
+	if (AActor* OwnerActor = GetOwner())
+	{
+		FActorWatchEvent Event;
+		Event.EventName = FName(TEXT("lock.access_denied"));
+		Event.EventTag = LockTag;
+		Event.EventText = LockTag.ToString();
+		Event.SourceActor = OwnerActor;
+		Event.Instigator = Instigator;
+
+		TInlineComponentArray<UActorComponent*> Components;
+		OwnerActor->GetComponents(Components);
+		for (UActorComponent* Comp : Components)
+		{
+			if (!Comp || Comp == this || !Comp->GetClass()->ImplementsInterface(UActorWatchEventListener::StaticClass()))
+			{
+				continue;
+			}
+			if (IActorWatchEventListener* Listener = Cast<IActorWatchEventListener>(Comp))
+			{
+				Listener->HandleActorWatchEvent(Event);
+			}
+		}
+	}
 
 	// Block further interaction
 	return false;

@@ -328,6 +328,18 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 			Result.bSkipped = true;
 			return Result;
 		}
+
+		// Log why regeneration is needed
+		if (ExistingHash != FileHash)
+		{
+			UE_LOG(LogDefinitionGenerator, Log, TEXT("[%s] Hash mismatch for %s: stored='%s' computed='%s'"),
+				*TypeName, *Result.AssetId, *ExistingHash, *FileHash);
+		}
+		else if (ExistingVersion < TypeInfo->GeneratorVersion)
+		{
+			UE_LOG(LogDefinitionGenerator, Log, TEXT("[%s] Version mismatch for %s: stored=%d current=%d"),
+				*TypeName, *Result.AssetId, ExistingVersion, TypeInfo->GeneratorVersion);
+		}
 	}
 
 	// Create or update asset

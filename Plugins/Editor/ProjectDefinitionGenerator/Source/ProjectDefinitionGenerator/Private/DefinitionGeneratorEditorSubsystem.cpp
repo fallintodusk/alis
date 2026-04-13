@@ -248,21 +248,47 @@ TArray<FDefinitionValidationResult> UDefinitionGeneratorEditorSubsystem::Validat
 			continue;
 		}
 
-		// Find existing asset and check hash/version
-		UObject* ExistingAsset = Generator->FindExistingAssetForType(TypeName, Result.AssetId);
-		if (ExistingAsset)
+		// Find existing asset via registry (read tags WITHOUT loading the object
+		// to avoid races with async package loading that can return partially
+		// deserialized objects with empty property values)
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+		FARFilter Filter;
+		Filter.ClassPaths.Add(TypeInfo.DefinitionClass->GetClassPathName());
+		Filter.PackagePaths.Add(FName(*TypeInfo.GeneratedContentPath));
+		Filter.bRecursivePaths = true;
+
+		TArray<FAssetData> AssetDataList;
+		AssetRegistry.GetAssets(Filter, AssetDataList);
+
+		const FAssetData* FoundAssetData = nullptr;
+		for (const FAssetData& AssetData : AssetDataList)
 		{
-			// Get stored hash and version via reflection
+			if (AssetData.AssetName.ToString() == Result.AssetId)
+			{
+				FoundAssetData = &AssetData;
+				break;
+			}
+		}
+
+		if (FoundAssetData)
+		{
+			// Read hash and version from asset registry tags (race-free)
 			FString StoredHash;
 			int32 StoredVersion = 0;
 
-			if (FStrProperty* HashProp = CastField<FStrProperty>(TypeInfo.DefinitionClass->FindPropertyByName(*TypeInfo.HashPropertyName)))
+			FAssetTagValueRef HashTag = FoundAssetData->TagsAndValues.FindTag(*TypeInfo.HashPropertyName);
+			if (HashTag.IsSet())
 			{
-				StoredHash = HashProp->GetPropertyValue_InContainer(ExistingAsset);
+				StoredHash = HashTag.GetValue();
 			}
-			if (FIntProperty* VersionProp = CastField<FIntProperty>(TypeInfo.DefinitionClass->FindPropertyByName(*TypeInfo.VersionPropertyName)))
+
+			FAssetTagValueRef VersionTag = FoundAssetData->TagsAndValues.FindTag(*TypeInfo.VersionPropertyName);
+			if (VersionTag.IsSet())
 			{
-				StoredVersion = VersionProp->GetPropertyValue_InContainer(ExistingAsset);
+				FString VersionStr = VersionTag.GetValue();
+				StoredVersion = FCString::Atoi(*VersionStr);
 			}
 
 			// Compare hash
@@ -273,6 +299,9 @@ TArray<FDefinitionValidationResult> UDefinitionGeneratorEditorSubsystem::Validat
 				{
 					Result.bNeedsRegeneration = true;
 					Result.Reason = TEXT("JSON content changed");
+					UE_LOG(LogDefinitionGeneratorEditor, Warning,
+						TEXT("[%s] Hash mismatch for %s: stored='%s' computed='%s'"),
+						*TypeName, *Result.AssetId, *StoredHash, *CurrentHash);
 				}
 				else if (StoredVersion < TypeInfo.GeneratorVersion)
 				{
@@ -291,6 +320,9 @@ TArray<FDefinitionValidationResult> UDefinitionGeneratorEditorSubsystem::Validat
 		{
 			Result.bNeedsRegeneration = true;
 			Result.Reason = TEXT("No generated asset exists");
+			UE_LOG(LogDefinitionGeneratorEditor, Warning,
+				TEXT("[%s] No existing asset found for %s (expected in %s)"),
+				*TypeName, *Result.AssetId, *TypeInfo.GeneratedContentPath);
 		}
 
 		Results.Add(Result);

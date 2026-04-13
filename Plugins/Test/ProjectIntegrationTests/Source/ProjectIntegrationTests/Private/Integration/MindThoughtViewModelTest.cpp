@@ -182,7 +182,7 @@ namespace
 			TEXT("\"$schema\":\"dialogue_thought_mappings.schema.json\",")
 			TEXT("\"entries\":[")
 			TEXT("{")
-			TEXT("\"signal_tag\":\"Dialogue.DLG_GrandPa_Door.greeting\",")
+			TEXT("\"signal_tag\":\"Dialogue.DLG_GrandPa_Entry.greeting\",")
 			TEXT("\"thought_id\":\"%s\",")
 			TEXT("\"text\":\"First thought\",")
 			TEXT("\"time_to_live_sec\":8.0,")
@@ -194,7 +194,7 @@ namespace
 			TEXT("\"source_type\":\"Dialogue\"")
 			TEXT("},")
 			TEXT("{")
-			TEXT("\"signal_tag\":\"Dialogue.DLG_GrandPa_Door.backstory\",")
+			TEXT("\"signal_tag\":\"Dialogue.DLG_GrandPa_Entry.backstory\",")
 			TEXT("\"thought_id\":\"%s\",")
 			TEXT("\"text\":\"Second thought\",")
 			TEXT("\"time_to_live_sec\":8.0,")
@@ -415,7 +415,7 @@ bool FMindDialogueToThoughtViewModelIntegrationTest::RunTest(const FString& Para
 	VM->Initialize(nullptr);
 
 	MockDialogueService->bIsActive = true;
-	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Door"));
+	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 	MockDialogueService->BroadcastStateChanged();
 
@@ -462,7 +462,7 @@ bool FMindDialogueRecordResolutionIntegrationTest::RunTest(const FString& Parame
 	RuntimeMindService->Start();
 
 	MockDialogueService->bIsActive = true;
-	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Door"));
+	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 	MockDialogueService->BroadcastStateChanged();
@@ -519,7 +519,7 @@ bool FMindDialogueOptionSignalIntegrationTest::RunTest(const FString& Parameters
 	RuntimeMindService->SetGlobalEmitCooldownForTests(0.0);
 	RuntimeMindService->Start();
 
-	MockDialogueService->BroadcastSignal(FName(TEXT("Dialogue.Option.DLG_GrandPa_Door.greeting.Next.give_water")));
+	MockDialogueService->BroadcastSignal(FName(TEXT("Dialogue.Option.DLG_GrandPa_Entry.greeting.Next.give_water")));
 
 	TArray<FMindThoughtView> Thoughts;
 	RuntimeMindService->GetThoughtHistory(Thoughts);
@@ -554,7 +554,7 @@ bool FMindDialogueMappingFailSoftTest::RunTest(const FString& Parameters)
 	FProjectServiceLocator::Register<IDialogueService>(StaticCastSharedRef<IDialogueService>(MockDialogueService));
 
 	MockDialogueService->bIsActive = true;
-	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Door"));
+	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 
 	{
@@ -964,7 +964,7 @@ bool FMindDialogueCooldownBehaviorTest::RunTest(const FString& Parameters)
 	RuntimeMindService->Start();
 
 	MockDialogueService->bIsActive = true;
-	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Door"));
+	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 	MockDialogueService->BroadcastStateChanged();
 
@@ -1014,7 +1014,7 @@ bool FMindDialogueDedupeBehaviorTest::RunTest(const FString& Parameters)
 	RuntimeMindService->Start();
 
 	MockDialogueService->bIsActive = true;
-	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Door"));
+	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 	MockDialogueService->BroadcastStateChanged();
 
@@ -1065,7 +1065,7 @@ bool FMindDialogueGlobalRateLimitBehaviorTest::RunTest(const FString& Parameters
 	RuntimeMindService->Start();
 
 	MockDialogueService->bIsActive = true;
-	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Door"));
+	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 	MockDialogueService->BroadcastStateChanged();
 

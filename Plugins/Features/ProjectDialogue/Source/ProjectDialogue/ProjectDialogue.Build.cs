@@ -15,10 +15,5 @@ public class ProjectDialogue : ModuleRules
 			"ProjectCore",
 			"ProjectFeature"  // Feature registry
 		});
-
-		PrivateDependencyModuleNames.AddRange(new[]
-		{
-			"GameplayAbilities"  // For IAbilitySystemInterface (condition checks)
-		});
 	}
 }

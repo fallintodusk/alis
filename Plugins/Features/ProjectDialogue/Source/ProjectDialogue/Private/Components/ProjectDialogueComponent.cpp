@@ -7,8 +7,7 @@
 #include "Interfaces/IDialogueService.h"
 #include "ProjectServiceLocator.h"
 #include "GameplayTagContainer.h"
-#include "AbilitySystemInterface.h"
-#include "AbilitySystemComponent.h"
+#include "GameplayTagAssetInterface.h"
 #include "Engine/StreamableManager.h"
 #include "Misc/Paths.h"
 
@@ -59,16 +58,14 @@ bool UProjectDialogueComponent::OnComponentInteract_Implementation(AActor* InIns
 		return true;
 	}
 
-	// BypassCondition: if instigator has this tag, skip dialogue entirely.
-	// Returns true to pass through to next capability in the chain
-	// (e.g. door opens normally after scenario is complete).
-	if (!BypassCondition.IsEmpty())
+	// BypassCondition: if met, skip dialogue and pass through to next capability.
+	if (BypassCondition.IsValid())
 	{
 		if (CheckCondition(BypassCondition))
 		{
 			UE_LOG(LogDialogueComponent, Log,
-				TEXT("[%s] Bypass condition '%s' met - skipping dialogue"),
-				*GetNameSafe(GetOwner()), *BypassCondition);
+				TEXT("[%s] Bypass condition met (type='%s', id='%s') - skipping dialogue"),
+				*GetNameSafe(GetOwner()), *BypassCondition.Type, *BypassCondition.Id);
 			return true;
 		}
 	}
@@ -243,8 +240,8 @@ void UProjectDialogueComponent::SelectOption(int32 OptionIndex)
 	if (!IsOptionConditionMet(Selected))
 	{
 		UE_LOG(LogDialogueComponent, Log,
-			TEXT("[%s::SelectOption] Option %d blocked by condition '%s'"),
-			*GetNameSafe(GetOwner()), RawOptionIndex, *Selected.Condition);
+			TEXT("[%s::SelectOption] Option %d blocked by condition (type='%s', id='%s')"),
+			*GetNameSafe(GetOwner()), RawOptionIndex, *Selected.Condition.Type, *Selected.Condition.Id);
 		return;
 	}
 
@@ -396,7 +393,7 @@ void UProjectDialogueComponent::GetOptionsForView(TArray<FDialogueOptionView>& O
 	for (int32 i = 0; i < Node->Options.Num(); ++i)
 	{
 		const FDialogueOption& Option = Node->Options[i];
-		const bool bHasCondition = !Option.Condition.IsEmpty();
+		const bool bHasCondition = Option.Condition.IsValid();
 		const bool bConditionMet = IsOptionConditionMet(Option);
 
 		FDialogueOptionView View;
@@ -486,111 +483,98 @@ bool UProjectDialogueComponent::EnsureTreeLoaded()
 	return true;
 }
 
-bool UProjectDialogueComponent::CheckCondition(const FString& ConditionStr) const
+bool UProjectDialogueComponent::CheckCondition(const FDialogueCondition& CondData) const
 {
-	if (ConditionStr.IsEmpty())
-	{
-		return true;
-	}
-
-	// Inventory condition: "inventory:<ObjectId>" checks if instigator has the item
-	if (ConditionStr.StartsWith(TEXT("inventory:")))
-	{
-		FString ItemIdStr = ConditionStr.Mid(10);
-		ItemIdStr.TrimStartAndEndInline();
-		const bool bPrefixMatch = ItemIdStr.RemoveFromEnd(TEXT("*"));
-		ItemIdStr.TrimStartAndEndInline();
-
-		AActor* InstigatorActor = Instigator.Get();
-		if (!InstigatorActor)
-		{
-			return false;
-		}
-
-		// IInventoryReadOnly is on UProjectInventoryComponent, NOT on the actor.
-		// Search components -- same pattern as DispatchActions.
-		TInlineComponentArray<UActorComponent*> Components;
-		InstigatorActor->GetComponents(Components);
-
-		const FPrimaryAssetId TargetId(FPrimaryAssetType(TEXT("ObjectDefinition")), FName(*ItemIdStr));
-		bool bFoundInventorySource = false;
-
-		for (UActorComponent* Comp : Components)
-		{
-			if (!Comp || !Comp->GetClass()->ImplementsInterface(UInventoryReadOnly::StaticClass()))
-			{
-				continue;
-			}
-
-			const IInventoryReadOnly* Inventory = Cast<IInventoryReadOnly>(Comp);
-			if (!Inventory)
-			{
-				continue;
-			}
-			bFoundInventorySource = true;
-
-			// 1) Exact object id match (existing behavior).
-			if (Inventory->ContainsItem(TargetId))
-			{
-				return true;
-			}
-
-			// 2) Explicit family fallback for content variants:
-			//    inventory:WaterBottle* matches WaterBottleBig/WaterBottleSmall/etc.
-			if (bPrefixMatch && InventoryContainsByObjectNamePrefix(Inventory, ItemIdStr))
-			{
-				UE_LOG(LogDialogueComponent, Verbose,
-					TEXT("[%s::CheckCondition] inventory prefix match '%s*' satisfied"),
-					*GetNameSafe(GetOwner()), *ItemIdStr);
-				return true;
-			}
-		}
-
-		if (!bFoundInventorySource)
-		{
-			UE_LOG(LogDialogueComponent, Warning,
-				TEXT("[%s::CheckCondition] No IInventoryReadOnly found on instigator '%s'"),
-				*GetNameSafe(GetOwner()), *GetNameSafe(InstigatorActor));
-		}
-		else
-		{
-			UE_LOG(LogDialogueComponent, Verbose,
-				TEXT("[%s::CheckCondition] Inventory condition '%s' not satisfied for instigator '%s'"),
-				*GetNameSafe(GetOwner()), *ConditionStr, *GetNameSafe(InstigatorActor));
-		}
-		return false;
-	}
-
-	// GameplayTag condition (existing behavior)
-	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*ConditionStr), /*bErrorIfNotFound=*/false);
-	if (!Tag.IsValid())
-	{
-		UE_LOG(LogDialogueComponent, Warning,
-			TEXT("[%s::CheckCondition] Unknown condition '%s' (not a tag, not inventory:)"),
-			*GetNameSafe(GetOwner()), *ConditionStr);
-		return false;
-	}
-
 	AActor* InstigatorActor = Instigator.Get();
 	if (!InstigatorActor)
 	{
-		return true;
+		return false;
 	}
 
-	if (const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(InstigatorActor))
+	if (CondData.Type == TEXT("inventory"))
 	{
-		if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+		return CheckInventoryCondition(*InstigatorActor, CondData);
+	}
+
+	if (CondData.Type == TEXT("tag"))
+	{
+		return CheckTagCondition(*InstigatorActor, CondData);
+	}
+
+	UE_LOG(LogDialogueComponent, Warning,
+		TEXT("[%s::CheckCondition] Unknown condition type '%s' (id='%s')"),
+		*GetNameSafe(GetOwner()), *CondData.Type, *CondData.Id);
+	return false;
+}
+
+bool UProjectDialogueComponent::CheckInventoryCondition(AActor& InstigatorActor, const FDialogueCondition& CondData)
+{
+	TInlineComponentArray<UActorComponent*> Components;
+	InstigatorActor.GetComponents(Components);
+
+	for (UActorComponent* Comp : Components)
+	{
+		if (!Comp || !Comp->GetClass()->ImplementsInterface(UInventoryReadOnly::StaticClass()))
 		{
-			return ASC->HasMatchingGameplayTag(Tag);
+			continue;
+		}
+
+		const IInventoryReadOnly* Inventory = Cast<IInventoryReadOnly>(Comp);
+		if (!Inventory)
+		{
+			continue;
+		}
+
+		if (CondData.Exact)
+		{
+			const FPrimaryAssetId TargetId(FPrimaryAssetType(TEXT("ObjectDefinition")), FName(*CondData.Id));
+			if (Inventory->ContainsItem(TargetId, CondData.Quantity))
+			{
+				return true;
+			}
+		}
+		else
+		{
+			if (InventoryContainsByObjectNamePrefix(Inventory, CondData.Id, CondData.Quantity))
+			{
+				return true;
+			}
 		}
 	}
 
-	return true;
+	return false;
+}
+
+bool UProjectDialogueComponent::CheckTagCondition(AActor& InstigatorActor, const FDialogueCondition& CondData)
+{
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*CondData.Id), false);
+	if (!Tag.IsValid())
+	{
+		return false;
+	}
+
+	const IGameplayTagAssetInterface* TagSource = Cast<IGameplayTagAssetInterface>(&InstigatorActor);
+	if (!TagSource)
+	{
+		return false;
+	}
+
+	FGameplayTagContainer OwnedTags;
+	TagSource->GetOwnedGameplayTags(OwnedTags);
+
+	return CondData.Exact
+		? OwnedTags.HasTagExact(Tag)
+		: OwnedTags.HasTag(Tag);
 }
 
 bool UProjectDialogueComponent::IsOptionConditionMet(const FDialogueOption& Option) const
 {
-	return Option.Condition.IsEmpty() || CheckCondition(Option.Condition);
+	if (Option.Condition.IsValid())
+	{
+		return CheckCondition(Option.Condition);
+	}
+	// No condition = always visible
+	return true;
 }
 
 void UProjectDialogueComponent::HandleAction(const FString& Context, const FString& Action)

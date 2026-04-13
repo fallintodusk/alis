@@ -22,6 +22,11 @@
 #include "Interfaces/IAssemblyCapability.h"
 #include "Interfaces/IAssemblyViewConfigSource.h"
 #include "Interfaces/AssemblyTypes.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Dom/JsonObject.h"
 
 DEFINE_LOG_CATEGORY(LogDefinitionCharacter);
 
@@ -44,9 +49,10 @@ ADefinitionCharacter::ADefinitionCharacter()
 	VitalsComponent = CreateDefaultSubobject<UProjectVitalsComponent>(TEXT("VitalsComponent"));
 
 	// -------------------------------------------------------------------------
-	// Capsule -- match legacy BP_Hero (CDO: radius=30, halfHeight=86)
+	// Capsule -- match legacy AProjectCharacter runtime (23, 88)
+	// CDO shows 30/86 but runtime uses 23/88 for tight corridor navigation
 	// -------------------------------------------------------------------------
-	GetCapsuleComponent()->InitCapsuleSize(30.f, 86.0f);
+	GetCapsuleComponent()->InitCapsuleSize(23.f, 88.0f);
 
 	// First-person rotation: GASP MM ABP owns body yaw via RootYawOffset
 	// and turn-in-place. Capsule must NOT snap to camera yaw instantly.
@@ -94,13 +100,59 @@ ADefinitionCharacter::ADefinitionCharacter()
 	GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 
 	// -------------------------------------------------------------------------
-	// Camera -- default offset, overridden by view section when assembly Ready
+	// Camera -- load offset from Hero.json (SOT)
 	// -------------------------------------------------------------------------
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(RootComponent);
-	FirstPersonCamera->SetRelativeLocation(FVector(23.f, 0.f, 62.0f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	FirstPersonCamera->FieldOfView = 90.0f;
+
+	{
+		const FString HeroJsonPath = FPaths::ProjectPluginsDir() / TEXT("Resources/ProjectObject/Content/Human/Hero/Hero.json");
+		FString JsonStr;
+		if (!FFileHelper::LoadFileToString(JsonStr, *HeroJsonPath))
+		{
+			UE_LOG(LogDefinitionCharacter, Error,
+				TEXT("[DefinitionCharacter] FAILED to load Hero.json from: %s"), *HeroJsonPath);
+		}
+		else
+		{
+			TSharedPtr<FJsonObject> Root;
+			if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(JsonStr), Root) || !Root.IsValid())
+			{
+				UE_LOG(LogDefinitionCharacter, Error,
+					TEXT("[DefinitionCharacter] FAILED to parse Hero.json"));
+			}
+			else
+			{
+				const TSharedPtr<FJsonObject>* Sections = nullptr;
+				const TSharedPtr<FJsonObject>* View = nullptr;
+				FString OffsetStr;
+				if (Root->TryGetObjectField(TEXT("sections"), Sections) &&
+					(*Sections)->TryGetObjectField(TEXT("view"), View) &&
+					(*View)->TryGetStringField(TEXT("relativeOffset"), OffsetStr))
+				{
+					FVector Parsed;
+					if (Parsed.InitFromString(OffsetStr))
+					{
+						FirstPersonCamera->SetRelativeLocation(Parsed);
+						UE_LOG(LogDefinitionCharacter, Log,
+							TEXT("[DefinitionCharacter] Camera offset loaded from Hero.json: %s"), *Parsed.ToString());
+					}
+					else
+					{
+						UE_LOG(LogDefinitionCharacter, Error,
+							TEXT("[DefinitionCharacter] FAILED to parse relativeOffset: '%s'"), *OffsetStr);
+					}
+				}
+				else
+				{
+					UE_LOG(LogDefinitionCharacter, Error,
+						TEXT("[DefinitionCharacter] Hero.json missing sections.view.relativeOffset"));
+				}
+			}
+		}
+	}
 
 	// NO WorldBodyMesh/LocalBodyMesh -- definition meshes come from ObjectSpawnUtility
 }
@@ -111,6 +163,17 @@ ADefinitionCharacter::ADefinitionCharacter()
 UAbilitySystemComponent* ADefinitionCharacter::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// IGameplayTagAssetInterface
+
+void ADefinitionCharacter::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
+{
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->GetOwnedGameplayTags(TagContainer);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

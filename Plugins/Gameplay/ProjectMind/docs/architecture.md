@@ -120,7 +120,7 @@ Integration direction:
 - feed dialogue thoughts into the same ranked stream as beacons and quest guidance
 
 Example expectation:
-- grandpa asks for water in `DLG_GrandPa_Door` -> emit high-priority internal hint
+- grandpa asks for water in `DLG_GrandPa_Entry` -> emit high-priority internal hint
 
 Hard rule:
 - do not key logic by localized dialogue text

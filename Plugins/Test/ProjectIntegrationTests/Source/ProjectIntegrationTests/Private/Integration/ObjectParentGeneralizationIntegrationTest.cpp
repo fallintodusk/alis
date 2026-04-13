@@ -2018,7 +2018,7 @@ bool FObjectParentGeneralization_DoorGrandPaWatchStartsDialogueTest::RunTest(con
 			TestEqual(
 				TEXT("Watcher-started dialogue should expose expected tree id"),
 				DialogueService->GetCurrentTreeId(),
-				FName(TEXT("DLG_GrandPa_Door")));
+				FName(TEXT("DLG_GrandPa_Entry")));
 			TestEqual(
 				TEXT("Watcher-started dialogue should begin at greeting node"),
 				DialogueService->GetCurrentNodeId(),
@@ -2161,7 +2161,7 @@ bool FObjectParentGeneralization_DoorGrandPaScenarioEndToEndTest::RunTest(const 
 		TestEqual(
 			TEXT("Scenario should start from expected dialogue tree"),
 			DialogueService->GetCurrentTreeId(),
-			FName(TEXT("DLG_GrandPa_Door")));
+			FName(TEXT("DLG_GrandPa_Entry")));
 		const FName InitialNodeId = DialogueService->GetCurrentNodeId();
 		TestEqual(TEXT("Scenario should start from greeting node"), InitialNodeId, FName(TEXT("greeting")));
 		TestTrue(
@@ -2215,7 +2215,7 @@ bool FObjectParentGeneralization_DoorGrandPaScenarioEndToEndTest::RunTest(const 
 		TestEqual(
 			TEXT("GrandPa dialogue tree should switch to follow-up tree after conversation end"),
 			GrandpaDialogue->DialogueTreeAsset.ToSoftObjectPath().ToString(),
-			FString(TEXT("/ProjectObject/Human/GrandPa/DLG_GrandPa_Test.DLG_GrandPa_Test")));
+			FString(TEXT("/ProjectObject/Human/GrandPa/DLG_GrandPa_Inside.DLG_GrandPa_Inside")));
 	}
 
 	if (DialogueService->IsDialogueActive())

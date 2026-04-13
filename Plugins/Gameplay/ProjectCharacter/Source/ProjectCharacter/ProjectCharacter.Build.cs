@@ -26,7 +26,8 @@ public class ProjectCharacter : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"ProjectCore",
-			"ProjectSkeletalCapabilities"
+			"ProjectSkeletalCapabilities",
+			"Json"
 		});
 	}
 }

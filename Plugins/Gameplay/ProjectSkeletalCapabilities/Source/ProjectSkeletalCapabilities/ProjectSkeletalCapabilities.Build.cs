@@ -8,6 +8,8 @@ public class ProjectSkeletalCapabilities : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		PublicIncludePaths.Add(System.IO.Path.Combine(ModuleDirectory, "Public/LocalBody"));
+
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
@@ -21,7 +23,9 @@ public class ProjectSkeletalCapabilities : ModuleRules
 			"ProjectObjectCapabilities",
 			"CustomizableObject",
 			"AnimGraphRuntime",
-			"AnimationCore"
+			"AnimationCore",
+			"Json",
+			"JsonUtilities"
 		});
 	}
 }

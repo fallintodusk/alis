@@ -457,6 +457,10 @@ field being parsed as a property, causing spawn failure -> silent legacy fallbac
 
 **File:** `SinglePlayerGameMode.cpp`
 
+### Failed: FP body clipping fix attempt (2026-04-09)
+
+See [fix_fp_body_clipping.md](fix_fp_body_clipping.md) for full problem analysis, failed attempts, and next-step plan.
+
 ### Other session fixes (2026-04-09)
 
 - Orchestrator plugin registry "already mounted" log downgraded from Warning to Log

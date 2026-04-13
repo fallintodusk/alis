@@ -22,8 +22,8 @@ Design rule:
 ## Dialogue Signal Contract
 
 Runtime contract:
-- dialogue provider emits stable `SignalTag` values (example: `Dialogue.DLG_GrandPa_Door.greeting`)
-- dialogue provider also emits option-selection signals (example: `Dialogue.Option.DLG_GrandPa_Door.greeting.Next.give_water`)
+- dialogue provider emits stable `SignalTag` values (example: `Dialogue.DLG_GrandPa_Entry.greeting`)
+- dialogue provider also emits option-selection signals (example: `Dialogue.Option.DLG_GrandPa_Entry.greeting.Next.give_water`)
 - mind runtime maps signal tags to thought templates
 - signal tags are logic keys, not localized text
 
@@ -49,8 +49,8 @@ Recommended mapping value:
 - `RecordState` (`Active` or `Resolved`)
 
 Example intent:
-- `Dialogue.DLG_GrandPa_Door.greeting` -> `Mind.Dialogue.Grandpa.NeedsWater` (P1)
-- `Dialogue.DLG_GrandPa_Door.thanks` -> same `RecordId` with `RecordState=Resolved`
+- `Dialogue.DLG_GrandPa_Entry.greeting` -> `Mind.Dialogue.Grandpa.NeedsWater` (P1)
+- `Dialogue.DLG_GrandPa_Entry.thanks` -> same `RecordId` with `RecordState=Resolved`
 
 Legacy compatibility:
 - old `tree_id + node_id` entries are still accepted as fallback

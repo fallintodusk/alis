@@ -157,12 +157,14 @@ public:
 	FName AutoStartWatchEventName = FName(TEXT("lock.access_denied"));
 
 	/**
-	 * If instigator has this GameplayTag, skip dialogue and pass through to next
+	 * If this condition is met, skip dialogue and pass through to the next
 	 * capability in the chain. Used for "already completed" scenarios (e.g. door
 	 * already unlocked -> dialogue skips -> door opens normally).
+	 *
+	 * Example: { type="tag", id="Scenario.GrandpaDoor", exact=true }
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
-	FString BypassCondition;
+	FDialogueCondition BypassCondition;
 
 private:
 	bool bInConversation = false;
@@ -188,7 +190,9 @@ private:
 	const FDialogueNode* GetCurrentNode() const;
 	void NavigateToNode(const FString& NodeId);
 	bool EnsureTreeLoaded();
-	bool CheckCondition(const FString& ConditionStr) const;
+	bool CheckCondition(const FDialogueCondition& CondData) const;
+	static bool CheckInventoryCondition(AActor& InstigatorActor, const FDialogueCondition& CondData);
+	static bool CheckTagCondition(AActor& InstigatorActor, const FDialogueCondition& CondData);
 	bool IsOptionConditionMet(const FDialogueOption& Option) const;
 	void DispatchActions(const FString& Context, const TArray<FString>& Actions);
 	void DispatchToActor(AActor* Actor, const FString& Context, const TArray<FString>& Actions);

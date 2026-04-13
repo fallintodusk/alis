@@ -9,7 +9,7 @@
 
 param(
     [int]$TimeoutSeconds = 300,
-    [string]$Map = "/Game/Developers/<user>/CleanMap.CleanMap",
+    [string]$Map = "/Game/Project/Maps/Test/ClipMatrix_CleanMap.ClipMatrix_CleanMap",
     [string]$TestFilter = "ProjectIntegrationTests.Character.Parity",
     [switch]$SkipDefinitionGeneration = $false
 )
