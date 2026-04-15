@@ -48,7 +48,7 @@ Current ownership:
   consumable guidance (hydration/calories) and overweight hints
 - scene scan uses existing actor tags only (`World.*`, `Item.*`, `Scenario.*`)
 - scan/beacon hint policy is data-driven from
-  `Content/Data/Schema/Gameplay/ProjectMind/scan_thought_rules.json`
+  `Plugins/Gameplay/ProjectMind/Data/scan_thought_rules.json`
 - do not require new world actors/components to support scan hints
 - no repeated scan polling loop; scan runs once after idle timeout and waits for next input pulse
 

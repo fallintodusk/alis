@@ -53,6 +53,10 @@ ADefinitionCharacter::ADefinitionCharacter()
 	// CDO shows 30/86 but runtime uses 23/88 for tight corridor navigation
 	// -------------------------------------------------------------------------
 	GetCapsuleComponent()->InitCapsuleSize(23.f, 88.0f);
+	// Pawn profile ignores Visibility by default. Override so interaction
+	// traces (ECC_Visibility) can hit NPC characters for dialogue/pickup.
+	// Player's InteractionComponent ignores self via AddIgnoredActor.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	// First-person rotation: GASP MM ABP owns body yaw via RootYawOffset
 	// and turn-in-place. Capsule must NOT snap to camera yaw instantly.

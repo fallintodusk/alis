@@ -38,8 +38,6 @@
  * - Text should describe the state without hard numbers (avoid drift)
  * - Good: "Hungry - stamina regen reduced"
  * - Bad: "Hungry - stamina regen -20%" (will drift from tuning)
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 11)
  */
 UCLASS()
 class PROJECTUI_API UProjectTagTextSubsystem : public UGameInstanceSubsystem

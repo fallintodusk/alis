@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Validate ProjectMind data files with lightweight schema checks."""
+"""Validate ProjectMind data files with schema checks and cross-reference validation."""
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -20,9 +21,21 @@ ALLOWED_SOURCE_TYPES = {
     "System",
 }
 
+# Signal tag patterns emitted by DialogueServiceImpl:
+#   Node entered:    Dialogue.<TreeId>.<NodeId>
+#   Option selected: Dialogue.Option.<TreeId>.<FromNodeId>.Next.<NextNodeId>
+_SIGNAL_NODE_RE = re.compile(r"^Dialogue\.([^.]+)\.([^.]+)$")
+_SIGNAL_OPTION_RE = re.compile(
+    r"^Dialogue\.Option\.([^.]+)\.([^.]+)\.Next\.([^.]+)$"
+)
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[5]
+
+
+def _mind_data_dir() -> Path:
+    return _repo_root() / "Plugins/Gameplay/ProjectMind/Data"
 
 
 def _error(errors: list[str], message: str) -> None:
@@ -44,6 +57,128 @@ def _load_json(path: Path, errors: list[str]) -> dict[str, Any] | None:
     return loaded
 
 
+# ---------------------------------------------------------------------------
+# Dialogue tree discovery
+# ---------------------------------------------------------------------------
+
+def _discover_dialogue_trees(root: Path) -> dict[str, dict[str, Any]]:
+    """Return {tree_id: {node_id: node_data, ...}} for all DLG_*.json files."""
+    trees: dict[str, dict[str, Any]] = {}
+    content_dir = root / "Plugins/Resources/ProjectObject/Content"
+    if not content_dir.exists():
+        return trees
+
+    for dlg_file in content_dir.rglob("DLG_*.json"):
+        try:
+            with dlg_file.open("r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except Exception:
+            continue
+
+        tree_id = data.get("id")
+        nodes = data.get("nodes")
+        if isinstance(tree_id, str) and isinstance(nodes, dict):
+            trees[tree_id] = nodes
+
+    return trees
+
+
+def _collect_valid_option_transitions(
+    nodes: dict[str, Any],
+) -> set[tuple[str, str]]:
+    """Return set of (from_node_id, next_node_id) from all options in tree."""
+    transitions: set[tuple[str, str]] = set()
+    for node_id, node_data in nodes.items():
+        if not isinstance(node_data, dict):
+            continue
+        options = node_data.get("options")
+        if not isinstance(options, list):
+            continue
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            next_id = option.get("next")
+            if isinstance(next_id, str) and next_id:
+                # $end is valid but not a real node
+                sanitized = "end" if next_id == "$end" else next_id
+                transitions.add((node_id, sanitized))
+    return transitions
+
+
+# ---------------------------------------------------------------------------
+# Cross-reference: signal tags vs dialogue trees
+# ---------------------------------------------------------------------------
+
+def _validate_signal_tags_against_trees(
+    signal_tags: list[str],
+    trees: dict[str, dict[str, Any]],
+    label: str,
+    errors: list[str],
+) -> None:
+    """Check that every signal tag references a real tree/node."""
+    for tag in signal_tags:
+        m_node = _SIGNAL_NODE_RE.match(tag)
+        if m_node:
+            tree_id, node_id = m_node.group(1), m_node.group(2)
+            if tree_id not in trees:
+                _error(
+                    errors,
+                    f"{label}: signal_tag '{tag}' references unknown "
+                    f"dialogue tree '{tree_id}'",
+                )
+            elif node_id not in trees[tree_id]:
+                _error(
+                    errors,
+                    f"{label}: signal_tag '{tag}' references unknown "
+                    f"node '{node_id}' in tree '{tree_id}'",
+                )
+            continue
+
+        m_opt = _SIGNAL_OPTION_RE.match(tag)
+        if m_opt:
+            tree_id = m_opt.group(1)
+            from_node = m_opt.group(2)
+            next_node = m_opt.group(3)
+            if tree_id not in trees:
+                _error(
+                    errors,
+                    f"{label}: signal_tag '{tag}' references unknown "
+                    f"dialogue tree '{tree_id}'",
+                )
+            else:
+                nodes = trees[tree_id]
+                if from_node not in nodes:
+                    _error(
+                        errors,
+                        f"{label}: signal_tag '{tag}' references unknown "
+                        f"from-node '{from_node}' in tree '{tree_id}'",
+                    )
+                else:
+                    valid_transitions = _collect_valid_option_transitions(nodes)
+                    if (from_node, next_node) not in valid_transitions:
+                        _error(
+                            errors,
+                            f"{label}: signal_tag '{tag}' references "
+                            f"non-existent option transition "
+                            f"'{from_node}' -> '{next_node}' "
+                            f"in tree '{tree_id}'",
+                        )
+            continue
+
+        # Unknown signal format -- not necessarily an error (could be
+        # a custom signal), but warn so authors notice typos.
+        _error(
+            errors,
+            f"{label}: signal_tag '{tag}' does not match known "
+            f"dialogue signal format (Dialogue.<Tree>.<Node> or "
+            f"Dialogue.Option.<Tree>.<From>.Next.<To>)",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Field-level validators
+# ---------------------------------------------------------------------------
+
 def _validate_thought_common(
     entry: dict[str, Any],
     idx: int,
@@ -51,14 +186,17 @@ def _validate_thought_common(
     path: Path,
     required_fields: tuple[str, ...],
 ) -> None:
-    label = f"{path}: entries[{idx}]"
+    label = f"{path.name}: entries[{idx}]"
 
     for key in required_fields:
         value = entry.get(key)
         if value is None:
             _error(errors, f"{label}: missing required field '{key}'")
             continue
-        if key in {"tree_id", "node_id", "state_tag", "thought_id", "text", "channel", "source_type"}:
+        if key in {
+            "tree_id", "node_id", "state_tag", "thought_id",
+            "text", "channel", "source_type",
+        }:
             if not isinstance(value, str) or not value.strip():
                 _error(errors, f"{label}: field '{key}' must be a non-empty string")
 
@@ -92,28 +230,65 @@ def _validate_thought_common(
             _error(errors, f"{label}: field 'dedupe_key' must be a non-empty string")
 
 
-def _validate_dialogue_entry(entry: dict[str, Any], idx: int, errors: list[str], path: Path) -> None:
+def _validate_dialogue_entry(
+    entry: dict[str, Any],
+    idx: int,
+    errors: list[str],
+    path: Path,
+    trees: dict[str, dict[str, Any]],
+) -> None:
     _validate_thought_common(
-        entry,
-        idx,
-        errors,
-        path,
-        ("tree_id", "node_id", "thought_id", "text", "channel", "priority", "source_type"),
+        entry, idx, errors, path,
+        ("thought_id", "text", "channel", "priority", "source_type"),
     )
 
+    # Collect signal tags from entry
+    signal_tags: list[str] = []
+    tag = entry.get("signal_tag")
+    if isinstance(tag, str) and tag.strip():
+        signal_tags.append(tag.strip())
 
-def _validate_vitals_entry(entry: dict[str, Any], idx: int, errors: list[str], path: Path) -> None:
+    tags = entry.get("signal_tags")
+    if isinstance(tags, list):
+        for t in tags:
+            if isinstance(t, str) and t.strip():
+                signal_tags.append(t.strip())
+
+    # Legacy tree_id/node_id form
+    tree_id = entry.get("tree_id")
+    node_id = entry.get("node_id")
+    if not signal_tags and isinstance(tree_id, str) and isinstance(node_id, str):
+        signal_tags.append(f"Dialogue.{tree_id}.{node_id}")
+
+    if not signal_tags:
+        _error(errors, f"{path.name}: entries[{idx}]: no signal key (signal_tag, signal_tags, or tree_id+node_id)")
+        return
+
+    label = f"{path.name}: entries[{idx}]"
+    _validate_signal_tags_against_trees(signal_tags, trees, label, errors)
+
+
+def _validate_vitals_entry(
+    entry: dict[str, Any],
+    idx: int,
+    errors: list[str],
+    path: Path,
+    trees: dict[str, dict[str, Any]],
+) -> None:
     _validate_thought_common(
-        entry,
-        idx,
-        errors,
-        path,
+        entry, idx, errors, path,
         ("state_tag", "thought_id", "text", "channel", "priority", "source_type"),
     )
 
 
-def _validate_scan_rule_entry(entry: dict[str, Any], idx: int, errors: list[str], path: Path) -> None:
-    label = f"{path}: entries[{idx}]"
+def _validate_scan_rule_entry(
+    entry: dict[str, Any],
+    idx: int,
+    errors: list[str],
+    path: Path,
+    trees: dict[str, dict[str, Any]],
+) -> None:
+    label = f"{path.name}: entries[{idx}]"
 
     required_strings = ("rule_id", "thought_id_prefix", "text_template", "channel", "source_type")
     for key in required_strings:
@@ -186,10 +361,15 @@ def _validate_scan_rule_entry(entry: dict[str, Any], idx: int, errors: list[str]
             _error(errors, f"{label}: field 'dedupe_key_prefix' must be a non-empty string")
 
 
+# ---------------------------------------------------------------------------
+# File-level validation
+# ---------------------------------------------------------------------------
+
 def _validate_mapping_file(
     data_path: Path,
     errors: list[str],
     entry_validator,
+    trees: dict[str, dict[str, Any]],
 ) -> None:
     if not data_path.exists():
         _error(errors, f"{data_path}: file is missing")
@@ -216,49 +396,64 @@ def _validate_mapping_file(
         if not isinstance(raw_entry, dict):
             _error(errors, f"{data_path}: entries[{idx}] must be an object")
             continue
-        entry_validator(raw_entry, idx, errors, data_path)
+        entry_validator(raw_entry, idx, errors, data_path, trees)
 
 
-def validate_dialogue_thought_mappings(errors: list[str]) -> None:
-    root = _repo_root()
+def validate_dialogue_thought_mappings(
+    errors: list[str],
+    trees: dict[str, dict[str, Any]],
+) -> None:
     _validate_mapping_file(
-        root / "Content/Data/Schema/Gameplay/ProjectMind/dialogue_thought_mappings.json",
+        _mind_data_dir() / "dialogue_thought_mappings.json",
         errors,
         _validate_dialogue_entry,
+        trees,
     )
 
 
-def validate_vitals_thought_mappings(errors: list[str]) -> None:
-    root = _repo_root()
+def validate_vitals_thought_mappings(
+    errors: list[str],
+    trees: dict[str, dict[str, Any]],
+) -> None:
     _validate_mapping_file(
-        root / "Content/Data/Schema/Gameplay/ProjectMind/vitals_thought_mappings.json",
+        _mind_data_dir() / "vitals_thought_mappings.json",
         errors,
         _validate_vitals_entry,
+        trees,
     )
 
 
-def validate_scan_thought_rules(errors: list[str]) -> None:
-    root = _repo_root()
+def validate_scan_thought_rules(
+    errors: list[str],
+    trees: dict[str, dict[str, Any]],
+) -> None:
     _validate_mapping_file(
-        root / "Content/Data/Schema/Gameplay/ProjectMind/scan_thought_rules.json",
+        _mind_data_dir() / "scan_thought_rules.json",
         errors,
         _validate_scan_rule_entry,
+        trees,
     )
 
 
 def main() -> int:
+    root = _repo_root()
     errors: list[str] = []
-    validate_dialogue_thought_mappings(errors)
-    validate_vitals_thought_mappings(errors)
-    validate_scan_thought_rules(errors)
+
+    print("Discovering dialogue trees...")
+    trees = _discover_dialogue_trees(root)
+    print(f"  Found {len(trees)} dialogue trees")
+
+    validate_dialogue_thought_mappings(errors, trees)
+    validate_vitals_thought_mappings(errors, trees)
+    validate_scan_thought_rules(errors, trees)
 
     if errors:
-        print("ProjectMind data validation failed:")
+        print(f"\nProjectMind data validation FAILED ({len(errors)} errors):")
         for error in errors:
-            print(f"  - {error}")
+            print(f"  [X] {error}")
         return 1
 
-    print("ProjectMind data validation passed.")
+    print("\nProjectMind data validation passed.")
     return 0
 
 

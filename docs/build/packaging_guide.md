@@ -259,7 +259,7 @@ Package into an explicit directory:
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
   -EngineRoot <ue-path> `
-  -OutputDir <build-dir> `
+  -OutputDir Saved\PackageRelease\MyBuild `
   -CreateReleaseArchive
 ```
 
@@ -268,11 +268,11 @@ Package and sign in one flow:
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
   -EngineRoot <ue-path> `
-  -OutputDir <build-dir> `
+  -OutputDir Saved\PackageRelease\MyBuild `
   -CreateReleaseArchive
 
 .\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir <build-dir>
+  -ReleaseDir Saved\PackageRelease\MyBuild
 ```
 
 Package, sign, and verify in one flow:
@@ -280,14 +280,14 @@ Package, sign, and verify in one flow:
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
   -EngineRoot <ue-path> `
-  -OutputDir <build-dir> `
+  -OutputDir Saved\PackageRelease\MyBuild `
   -CreateReleaseArchive
 
 .\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir <build-dir>
+  -ReleaseDir Saved\PackageRelease\MyBuild
 
 .\scripts\ue\package\verify_release.ps1 `
-  -ReleaseDir <build-dir>
+  -ReleaseDir Saved\PackageRelease\MyBuild
 ```
 
 Force split archives:

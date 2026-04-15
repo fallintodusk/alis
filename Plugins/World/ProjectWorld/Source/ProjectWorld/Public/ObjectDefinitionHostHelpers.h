@@ -36,7 +36,8 @@ namespace ProjectWorldDefinitionHost
 		const FPrimaryAssetId& DefinitionId,
 		const FString& StructureHash,
 		const FString& ContentHash,
-		bool bAllowInjectComponent);
+		bool bAllowInjectComponent,
+		const FSoftObjectPath& DefinitionAssetPath = FSoftObjectPath());
 
 	/** Convenience: read host DefinitionId only. */
 	PROJECTWORLD_API FPrimaryAssetId GetDefinitionId(const AActor* Actor);

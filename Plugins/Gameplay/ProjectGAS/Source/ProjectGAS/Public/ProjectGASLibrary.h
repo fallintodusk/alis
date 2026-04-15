@@ -79,8 +79,6 @@ enum class EApplyMagnitudesResult : uint8
  *   Effects.Add({ ProjectTags::SetByCaller_Calories, 250.f });
  *
  *   EApplyMagnitudesResult Result = UProjectGASLibrary::ApplyMagnitudes(ASC, Effects);
- *
- * SOT: docs/gameplay/character.md, todo/current/gas_ui_mechanics.md
  */
 UCLASS()
 class PROJECTGAS_API UProjectGASLibrary : public UBlueprintFunctionLibrary

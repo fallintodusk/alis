@@ -173,4 +173,4 @@ bool FProjectLoadMyFeatureTest::RunTest(const FString& Parameters)
 
 - **[docs/testing/index.md](../../../../docs/testing/index.md)** - Complete testing standards
 - **[docs/loading_pipeline.md](../../../../docs/loading_pipeline.md)** - Loading system documentation
-- **[todo/create_testing.md](../../../../todo/create_testing.md)** - Testing implementation plan
+- **[docs/testing/README.md](../../../../docs/testing/README.md)** - Testing standards

@@ -33,7 +33,7 @@ Hard rule:
 ## Data-Driven Mapping
 
 Dialogue to thought mapping should live in plugin data:
-- `Content/Data/Schema/Gameplay/ProjectMind/`
+- `Plugins/Gameplay/ProjectMind/Data/`
 
 Recommended mapping key:
 - `signal_tag` (single signal)

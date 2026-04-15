@@ -31,8 +31,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLayerStack, Log, All);
  * - Add to viewport as root UI widget
  * - Push widgets via UIExtensionSubsystem or directly via PushWidgetToLayer
  * - Layers auto-create their containers on first use
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 10.5)
  */
 UCLASS()
 class PROJECTUI_API UW_LayerStack : public UCommonUserWidget

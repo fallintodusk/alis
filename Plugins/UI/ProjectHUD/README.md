@@ -87,11 +87,7 @@ Add `Config/UI/ui_definitions.json` with a slot entry:
 - ProjectCore (gameplay tags)
 - ProjectUI (registry, factory, ProjectUserWidget, ProjectWidgetHelpers)
 
-## SOT
-
-`todo/current/gas_ui_mechanics.md` (Phase 10)
-
-Related behavior docs
+## Related behavior docs
 - Interaction flow: `Plugins/Gameplay/ProjectInteraction/README.md`
 - Inventory/world-storage behavior:
   `Plugins/Features/ProjectInventory/docs/design_vision.md`

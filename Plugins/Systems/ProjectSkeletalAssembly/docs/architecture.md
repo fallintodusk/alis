@@ -164,7 +164,7 @@ FPrimaryAssetId with type ObjectDefinition: `ObjectDefinition:Hero`, `ObjectDefi
 
 ## Cross-References
 
-- [Capability rationale](../../Gameplay/ProjectSkeletalCapabilities/docs/rationale.md) - adapter dependency isolation
+- [Skeletal capabilities architecture](../../Gameplay/ProjectSkeletalCapabilities/docs/architecture.md) - adapters, LocalBody correction, dependency isolation
 - [Layer contract](../../Resources/ProjectObject/docs/layer_contract.md) - Kind/Role/Visibility, spawn behavior
 - [Character design](../../Gameplay/ProjectCharacter/docs/design.md) - legacy vs modular, switching
 - [Parity testing](../../../../docs/testing/character_parity.md) - automated capture, debug commands

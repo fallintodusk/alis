@@ -7,11 +7,7 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-
-namespace
-{
-const TCHAR* DefaultVitalsThoughtMappingRelativePath = TEXT("Data/Schema/Gameplay/ProjectMind/vitals_thought_mappings.json");
-}
+#include "ProjectPaths.h"
 
 FDefaultVitalsMindThoughtSource::FDefaultVitalsMindThoughtSource()
 {
@@ -136,13 +132,7 @@ void FDefaultVitalsMindThoughtSource::LoadMappings()
 
 FString FDefaultVitalsMindThoughtSource::ResolveMappingPath() const
 {
-	const FString MappingPathToUse = FString(DefaultVitalsThoughtMappingRelativePath);
-	if (FPaths::IsRelative(MappingPathToUse))
-	{
-		return FPaths::ProjectContentDir() / MappingPathToUse;
-	}
-
-	return MappingPathToUse;
+	return FProjectPaths::GetPluginDataDir(TEXT("ProjectMind")) / TEXT("vitals_thought_mappings.json");
 }
 
 EMindThoughtChannel FDefaultVitalsMindThoughtSource::ParseMindThoughtChannel(const FString& ChannelString)

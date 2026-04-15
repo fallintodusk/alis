@@ -52,12 +52,22 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Definition")
 	FPrimaryAssetId ObjectDefinitionId;
 
+	/**
+	 * Soft path to the ObjectDefinition asset.
+	 * Enables Asset Registry reference tracking (Map -> Definition link).
+	 * Set alongside ObjectDefinitionId by spawn utility.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "Definition")
+	FSoftObjectPath DefinitionAssetPath;
+
 	// --- IDefinitionIdProvider ---
 	virtual FPrimaryAssetId GetObjectDefinitionId_Implementation() const override { return ObjectDefinitionId; }
 
 	// --- IObjectDefinitionHostInterface ---
 	virtual FPrimaryAssetId GetHostedObjectDefinitionId_Implementation() const override { return ObjectDefinitionId; }
 	virtual void SetHostedObjectDefinitionId_Implementation(const FPrimaryAssetId& DefinitionId) override { ObjectDefinitionId = DefinitionId; }
+	virtual FSoftObjectPath GetHostedDefinitionAssetPath_Implementation() const override { return DefinitionAssetPath; }
+	virtual void SetHostedDefinitionAssetPath_Implementation(const FSoftObjectPath& AssetPath) override { DefinitionAssetPath = AssetPath; }
 	virtual FString GetHostedAppliedStructureHash_Implementation() const override { return AppliedStructureHash; }
 	virtual void SetHostedAppliedStructureHash_Implementation(const FString& StructureHash) override { AppliedStructureHash = StructureHash; }
 	virtual FString GetHostedAppliedContentHash_Implementation() const override { return AppliedContentHash; }

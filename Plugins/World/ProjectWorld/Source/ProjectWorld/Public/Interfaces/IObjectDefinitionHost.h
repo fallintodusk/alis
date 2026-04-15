@@ -31,6 +31,14 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Definition Host")
 	void SetHostedObjectDefinitionId(const FPrimaryAssetId& DefinitionId);
 
+	/** Soft asset path to the ObjectDefinition asset (for Asset Registry ref tracking). */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Definition Host")
+	FSoftObjectPath GetHostedDefinitionAssetPath() const;
+
+	/** Set soft asset path to the ObjectDefinition asset. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Definition Host")
+	void SetHostedDefinitionAssetPath(const FSoftObjectPath& AssetPath);
+
 	/** Last applied structural hash (meshes/capabilities shape). */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Definition Host")
 	FString GetHostedAppliedStructureHash() const;

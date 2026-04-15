@@ -23,6 +23,7 @@
 	"Plugins": [
 		{ "Name": "ProjectCore", "Enabled": true },
 		{ "Name": "ProjectWorld", "Enabled": true },
-		{ "Name": "ProjectObjectCapabilities", "Enabled": true }
+		{ "Name": "ProjectObjectCapabilities", "Enabled": true },
+		{ "Name": "HairStrands", "Enabled": true }
 	]
 }

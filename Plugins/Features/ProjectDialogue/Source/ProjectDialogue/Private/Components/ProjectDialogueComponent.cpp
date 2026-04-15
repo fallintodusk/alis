@@ -577,6 +577,8 @@ bool UProjectDialogueComponent::IsOptionConditionMet(const FDialogueOption& Opti
 	return true;
 }
 
+// Consumed by DLG_*.json action strings. Asset path must match a real DLG file.
+// Validate: scripts/ue/check/data/validate_all.py
 void UProjectDialogueComponent::HandleAction(const FString& Context, const FString& Action)
 {
 	if (!Action.StartsWith(TEXT("dialogue.set_tree:")))

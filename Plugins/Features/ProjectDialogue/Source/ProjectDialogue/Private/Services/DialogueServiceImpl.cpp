@@ -225,6 +225,9 @@ void FDialogueServiceImpl::HandleConversationEnded()
 	ClearActiveComponent();
 }
 
+// Consumed by ProjectMind dialogue_thought_mappings.json signal_tags.
+// Renaming tree IDs or node IDs requires updating those mappings.
+// Validate: python scripts/ue/check/gameplay/projectmind/validate_data.py
 FName FDialogueServiceImpl::BuildSignalTagForNode(const FString& NodeId) const
 {
 	if (NodeId.IsEmpty())

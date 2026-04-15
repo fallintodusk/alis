@@ -36,8 +36,6 @@ class UProjectViewModel;
  *     }
  * };
  * @endcode
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 10)
  */
 UINTERFACE(MinimalAPI, Blueprintable)
 class UProjectViewModelConsumer : public UInterface

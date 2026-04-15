@@ -8,7 +8,7 @@ Purpose
 
 Behavior SOT
 - Inventory behavior and UI layout rules live only in `docs/design_vision.md`.
-- Track code-vs-vision gaps in `../../../todo/current/implement_inventory_vision.md`.
+- Track code-vs-vision gaps in the inventory gap tracker (see TODO.md for route).
 - Do not duplicate inventory behavior rules in other docs.
 
 Activation
@@ -58,8 +58,6 @@ Dependencies
 
 Related docs
 - Behavior SOT: `docs/design_vision.md`
-- Gap tracker: `../../../todo/current/implement_inventory_vision.md`
-- World-storage delivery note: `../../../todo/done/improve_loot_places.md`
 - Implementation architecture: `docs/architecture.md`
 - UI consumer: `Plugins/UI/ProjectInventoryUI/README.md`
 - ProjectInteraction: `Plugins/Gameplay/ProjectInteraction/README.md`

@@ -114,6 +114,20 @@ String-based: `inventory.give` and `inventory.consume` with optional quantity.
 Doors with `Dialogue` + `Lockable` on one actor: Lockable denies access -> dialogue auto-starts.
 - See `LockableComponent.cpp` for event dispatch.
 
+## Cross-Plugin Consumers (check before renaming)
+
+Renaming a tree `id` or node key breaks downstream signal mappings:
+- **ProjectMind** -- `Plugins/Gameplay/ProjectMind/Data/dialogue_thought_mappings.json`
+  references `Dialogue.<TreeId>.<NodeId>` signal tags
+
+Validate after any rename:
+```bash
+python scripts/ue/check/gameplay/projectmind/validate_data.py
+```
+
+Pre-commit hook (`.githooks/pre-commit`) runs this automatically when
+`DLG_*.json` or `dialogue_thought_mappings.json` are staged.
+
 ## JSON Data (co-located with objects)
 
 Dialogue JSON files live alongside their owning entity in `Plugins/Resources/ProjectObject/Content/`.

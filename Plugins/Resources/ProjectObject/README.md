@@ -56,6 +56,30 @@ Plugins/Resources/ProjectObject/
                 `-- *.cpp
 ```
 
+## Cross-Reference Consumers (check before renaming)
+
+Object definition IDs, dialogue tree IDs, loot profile IDs, and audio preset IDs
+are referenced across multiple plugins. Renaming any of these breaks downstream
+consumers silently at runtime.
+
+Consumers:
+- **seedEntries objectId** -- loot containers and object defs reference object IDs
+- **lootProfileId** -- object defs reference loot profile profileId
+- **DialogueTreeAsset** -- object capabilities reference DLG_*.json asset paths
+- **AudioPresetAsset** -- object capabilities reference AUDIO_*.json asset paths
+- **Dialogue actions** -- DLG_*.json actions reference object IDs and other DLG trees
+- **Dialogue conditions** -- DLG_*.json options reference object IDs for inventory checks
+- **ProjectMind signal_tags** -- thought mappings reference dialogue tree/node IDs
+
+Validate after any rename:
+```bash
+python scripts/ue/check/data/validate_all.py
+python scripts/ue/check/gameplay/projectmind/validate_data.py
+```
+
+Pre-commit hook (`.githooks/pre-commit`) runs these automatically when
+relevant JSON files are staged.
+
 ## Content Categories
 
 | Folder | Purpose | Examples |

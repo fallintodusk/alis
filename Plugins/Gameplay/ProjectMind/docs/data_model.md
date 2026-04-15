@@ -26,7 +26,7 @@ Use project data conventions:
 Dialogue integration should be data-driven and identifier-based.
 
 Recommended placement:
-- `Content/Data/Schema/Gameplay/ProjectMind/`
+- `Plugins/Gameplay/ProjectMind/Data/`
 
 Recommended mapping fields:
 - `signal_tag` (single dialogue signal key)
@@ -46,10 +46,16 @@ Design rule:
 - do not map by localized text
 - keep mapping stable across localization changes
 
+Cross-reference dependency:
+- signal_tags reference dialogue tree IDs and node IDs from `DLG_*.json`
+- renaming a tree `id` or node key without updating signal_tags causes silent failure
+- validate after changes: `python scripts/ue/check/gameplay/projectmind/validate_data.py`
+- pre-commit hook (`.githooks/pre-commit`) runs this automatically
+
 ## Idle Scan Rule Data
 
 Idle scan/beacon guidance is data-driven:
-- `Content/Data/Schema/Gameplay/ProjectMind/scan_thought_rules.json`
+- `Plugins/Gameplay/ProjectMind/Data/scan_thought_rules.json`
 
 Rule fields:
 - `rule_id`

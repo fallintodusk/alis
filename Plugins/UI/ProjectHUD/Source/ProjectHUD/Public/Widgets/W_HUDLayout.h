@@ -30,8 +30,6 @@ class UW_InteractionPrompt;
  *
  * Usage:
  * ProjectUI creates W_HUDLayout and populates slot widgets from definitions.
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 10)
  */
 UCLASS()
 class PROJECTHUD_API UW_HUDLayout : public UProjectUserWidget, public IProjectHUDSlotHost

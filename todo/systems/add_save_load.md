@@ -1,1 +1,0 @@
-- [ ] Save/load of thought history

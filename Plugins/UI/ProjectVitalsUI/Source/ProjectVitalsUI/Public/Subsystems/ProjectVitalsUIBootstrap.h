@@ -15,8 +15,6 @@
  * Key points:
  * - Uses InitializeDependency to ensure ProjectTagTextSubsystem is ready
  * - No widget registration here (ProjectUI loads ui_definitions.json)
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 10)
  */
 UCLASS()
 class PROJECTVITALSUI_API UProjectVitalsUIBootstrap : public UGameInstanceSubsystem

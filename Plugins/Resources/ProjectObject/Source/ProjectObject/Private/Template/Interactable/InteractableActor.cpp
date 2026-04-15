@@ -596,6 +596,7 @@ bool AInteractableActor::ApplyDefinition_Implementation(UPrimaryDataAsset* Defin
 
 	// Update hash values to match applied definition
 	ObjectDefinitionId = ObjDef->GetPrimaryAssetId();
+	DefinitionAssetPath = FSoftObjectPath(ObjDef);
 	AppliedStructureHash = ObjDef->DefinitionStructureHash;
 	AppliedContentHash = ObjDef->DefinitionContentHash;
 

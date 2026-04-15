@@ -21,13 +21,12 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "ProjectPaths.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectMindService, Log, All);
 
 namespace
 {
-const TCHAR* DefaultDialogueThoughtMappingRelativePath = TEXT("Data/Schema/Gameplay/ProjectMind/dialogue_thought_mappings.json");
-const TCHAR* DefaultIdleScanRulesRelativePath = TEXT("Data/Schema/Gameplay/ProjectMind/scan_thought_rules.json");
 
 EMindThoughtChannel ParseMindThoughtChannel(const FString& ChannelString)
 {
@@ -977,17 +976,21 @@ bool FMindServiceImpl::TryBindDialogue(float /*DeltaTime*/)
 {
 	if (DialogueSignalHandle.IsValid())
 	{
+		UE_LOG(LogProjectMindService, Verbose, TEXT("TryBindDialogue: Already bound, skipping"));
 		return false;
 	}
 
 	const TSharedPtr<IDialogueService> DialogueService = FProjectServiceLocator::Resolve<IDialogueService>();
 	if (!DialogueService.IsValid())
 	{
+		UE_LOG(LogProjectMindService, Verbose, TEXT("TryBindDialogue: IDialogueService not available yet"));
 		return true;
 	}
 
 	DialogueSignalHandle = DialogueService->OnDialogueSignal().AddRaw(
 		this, &FMindServiceImpl::HandleDialogueSignal);
+
+	UE_LOG(LogProjectMindService, Log, TEXT("TryBindDialogue: Bound to IDialogueService OnDialogueSignal"));
 
 	// Catch current state immediately in case dialogue was already active before binding.
 	HandleDialogueStateChanged();
@@ -1115,14 +1118,16 @@ void FMindServiceImpl::HandleDialogueSignal(const FName& SignalTag)
 		return;
 	}
 
+	UE_LOG(LogProjectMindService, Log, TEXT("HandleDialogueSignal: Received signal: %s"), *SignalTag.ToString());
+
 	const FDialogueThoughtMappingEntry* MappingEntry = DialogueThoughtMappingsBySignal.Find(SignalTag);
 	if (!MappingEntry)
 	{
-		UE_LOG(LogProjectMindService, Verbose, TEXT("Dialogue signal ignored (no mapping): %s"), *SignalTag.ToString());
+		UE_LOG(LogProjectMindService, Log, TEXT("Dialogue signal ignored (no mapping): %s"), *SignalTag.ToString());
 		return;
 	}
 
-	UE_LOG(LogProjectMindService, Verbose, TEXT("Dialogue signal matched mapping: %s"), *SignalTag.ToString());
+	UE_LOG(LogProjectMindService, Log, TEXT("Dialogue signal matched mapping: %s"), *SignalTag.ToString());
 	EmitThought(*MappingEntry);
 }
 
@@ -1672,27 +1677,28 @@ FName FMindServiceImpl::ResolveDedupeKey(const FMindThoughtTemplate& ThoughtTemp
 
 FString FMindServiceImpl::ResolveDialogueMappingPath() const
 {
-	const FString MappingPathToUse = DialogueMappingPath.IsEmpty()
-		? FString(DefaultDialogueThoughtMappingRelativePath)
-		: DialogueMappingPath;
-
-	if (FPaths::IsRelative(MappingPathToUse))
+	if (!DialogueMappingPath.IsEmpty())
 	{
-		return FPaths::ProjectContentDir() / MappingPathToUse;
+		if (FPaths::IsRelative(DialogueMappingPath))
+		{
+			return FPaths::ProjectContentDir() / DialogueMappingPath;
+		}
+		return DialogueMappingPath;
 	}
 
-	return MappingPathToUse;
+	return FProjectPaths::GetPluginDataDir(TEXT("ProjectMind")) / TEXT("dialogue_thought_mappings.json");
 }
 
 FString FMindServiceImpl::ResolveIdleScanRulePath() const
 {
-	const FString MappingPathToUse = IdleScanRulePath.IsEmpty()
-		? FString(DefaultIdleScanRulesRelativePath)
-		: IdleScanRulePath;
-	if (FPaths::IsRelative(MappingPathToUse))
+	if (!IdleScanRulePath.IsEmpty())
 	{
-		return FPaths::ProjectContentDir() / MappingPathToUse;
+		if (FPaths::IsRelative(IdleScanRulePath))
+		{
+			return FPaths::ProjectContentDir() / IdleScanRulePath;
+		}
+		return IdleScanRulePath;
 	}
 
-	return MappingPathToUse;
+	return FProjectPaths::GetPluginDataDir(TEXT("ProjectMind")) / TEXT("scan_thought_rules.json");
 }

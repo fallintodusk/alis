@@ -27,8 +27,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogProjectActivatableWidget, Log, All);
  * - Override GetDesiredInputConfig() for custom input handling
  * - Use InputModeOverride for simple preset selection
  * - CommonUI handles input blocking automatically
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 10.5)
  */
 UCLASS(Abstract, Blueprintable)
 class PROJECTUI_API UProjectActivatableWidget : public UCommonActivatableWidget

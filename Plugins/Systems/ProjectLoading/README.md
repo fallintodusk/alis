@@ -40,7 +40,7 @@ Module boundary: lives in Systems tier, depends on ProjectCore for interfaces an
 3. ProjectLoading fetches descriptors from the registry, resolves AssetManager paths, and builds `FLoadRequest`.
 4. Game code calls `ILoadingService::StartLoad()` via service locator (no IOrchestrator interface involved).
 
-**Full implementation:** See `../../todo/current/loading.md` for complete pattern with code examples.
+**Full implementation:** See ProjectLoading source for complete pattern with code examples.
 
 ## 6-Phase Loading Pipeline
  
@@ -108,7 +108,7 @@ ProjectLoading provides infrastructure for loading screens (Slate/UMG):
 
 **Implementation:** Bind UMG widget to `UProjectLoadingSubsystem` delegates (`OnPhaseChanged`, `OnProgress`).
 
-**Full example:** See `../../todo/current/loading.md` for complete loading widget implementation.
+**Full example:** See ProjectLoading source for complete loading widget implementation.
 
 ## Dependencies
 

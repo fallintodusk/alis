@@ -49,8 +49,6 @@
  * - SetByCaller.Hydration (water, 0-3.0L)
  * - SetByCaller.Calories (food energy, 0-2500 kcal)
  * - SetByCaller.Fatigue (sleep debt, 0-100%)
- *
- * SOT: docs/gameplay/character.md, todo/current/gas_ui_mechanics.md
  */
 UCLASS()
 class PROJECTGAS_API UGE_GenericInstant : public UGameplayEffect

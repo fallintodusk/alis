@@ -12,9 +12,21 @@ Current status
 - Initial dialogue listener is wired through `IDialogueService`.
 - Default vitals/inventory thought sources are registered by ProjectMind.
 - Quest source is optional and fail-soft. No mandatory centralized quest controller is required.
-- Dialogue thought mapping is signal-driven and loaded from `Content/Data/Schema/Gameplay/ProjectMind/dialogue_thought_mappings.json`.
-- Idle scan/beacon rules are loaded from `Content/Data/Schema/Gameplay/ProjectMind/scan_thought_rules.json`.
+- Dialogue thought mapping is signal-driven and loaded from `Plugins/Gameplay/ProjectMind/Data/dialogue_thought_mappings.json`.
+- Idle scan/beacon rules are loaded from `Plugins/Gameplay/ProjectMind/Data/scan_thought_rules.json`.
 - Idle scan is input-driven: one-shot 3 second callback, re-armed by input pulses, no repeated scan polling timer.
+
+Cross-reference dependencies (check before renaming)
+- `dialogue_thought_mappings.json` signal_tags reference DLG_*.json tree IDs and node IDs
+- `vitals_thought_mappings.json` state_tag references ProjectVitals hysteresis tags
+- `scan_thought_rules.json` match_any_tags references gameplay tags on world actors
+
+Validate after renaming dialogue trees/nodes:
+```bash
+python scripts/ue/check/gameplay/projectmind/validate_data.py
+```
+
+Pre-commit hook (`.githooks/pre-commit`) runs this automatically.
 
 Router
 - Vision: [docs/vision.md](docs/vision.md)

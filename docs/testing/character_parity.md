@@ -217,7 +217,7 @@ Read these in order before making conclusions from runtime data.
 | `Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json` | Modular hero runtime definition SOT |
 | `Plugins/Resources/ProjectObject/docs/layer_contract.md` | JSON `meshes`, `capabilities`, `sections`, Kind/Role/Visibility |
 | `Plugins/Systems/ProjectSkeletalAssembly/docs/architecture.md` | Assembly lifecycle, registry, debug capture ownership |
-| `Plugins/Gameplay/ProjectSkeletalCapabilities/docs/rationale.md` | Mutable, Motion Matching, LocalFirstPerson boundaries |
+| `Plugins/Gameplay/ProjectSkeletalCapabilities/docs/architecture.md` | Mutable, Motion Matching, LocalFirstPerson boundaries |
 | `Plugins/Gameplay/ProjectCharacter/docs/design.md` | Legacy vs modular character responsibilities |
 | `Plugins/Gameplay/ProjectSinglePlay/README.md` | Spawn policy and `project.character.switch` routing |
 | `docs/animation/README.md` | High-level animation layering only |
@@ -411,7 +411,7 @@ Do not file these as regressions without stronger evidence:
 ## Cross-References
 
 - [Assembly architecture](../../Plugins/Systems/ProjectSkeletalAssembly/docs/architecture.md) - framework design
-- [Capability rationale](../../Plugins/Gameplay/ProjectSkeletalCapabilities/docs/rationale.md) - adapter boundaries
+- [Capability rationale](../../Plugins/Gameplay/ProjectSkeletalCapabilities/docs/architecture.md) - adapter boundaries
 - [Capture script](../../scripts/ue/test/character/capture_parity.ps1) - automation wrapper
 - [Test class](../../Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityTest.cpp) - C++ latent test
 - [UE inspection guide](agent_ue_inspection.md) - broader dump and inspection patterns

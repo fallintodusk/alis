@@ -45,7 +45,7 @@ Do not do:
 Preferred:
 - implement default sources inside ProjectMind
 - use domain read-only interfaces/events from ProjectCore
-- keep mappings/data in `Content/Data/Schema/Gameplay/ProjectMind/`
+- keep mappings/data in `Plugins/Gameplay/ProjectMind/Data/`
 
 Optional advanced path:
 - if a custom source override is needed, place it in a dedicated integration module/plugin

@@ -206,9 +206,6 @@ Planned capability components:
 
 ## Legacy Paths
 
-Canonical ID registry for this refactor:
-- [todo/done/generalize_placeable_actor_parent.md](../../../todo/done/generalize_placeable_actor_parent.md)
-
 Code marker format:
 - `// LEGACY_OBJECT_PARENT_GENERALIZATION(L###): <reason>. Remove when <condition>.`
 

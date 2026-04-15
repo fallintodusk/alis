@@ -19,6 +19,16 @@ void UObjectDefinitionHostComponent::SetHostedObjectDefinitionId_Implementation(
 	ObjectDefinitionId = DefinitionId;
 }
 
+FSoftObjectPath UObjectDefinitionHostComponent::GetHostedDefinitionAssetPath_Implementation() const
+{
+	return DefinitionAssetPath;
+}
+
+void UObjectDefinitionHostComponent::SetHostedDefinitionAssetPath_Implementation(const FSoftObjectPath& AssetPath)
+{
+	DefinitionAssetPath = AssetPath;
+}
+
 FString UObjectDefinitionHostComponent::GetHostedAppliedStructureHash_Implementation() const
 {
 	return AppliedStructureHash;
@@ -49,6 +59,7 @@ void UObjectDefinitionHostComponent::GetLifetimeReplicatedProps(TArray<FLifetime
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(UObjectDefinitionHostComponent, ObjectDefinitionId);
+	DOREPLIFETIME(UObjectDefinitionHostComponent, DefinitionAssetPath);
 	DOREPLIFETIME(UObjectDefinitionHostComponent, AppliedStructureHash);
 	DOREPLIFETIME(UObjectDefinitionHostComponent, AppliedContentHash);
 }

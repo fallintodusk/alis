@@ -27,7 +27,8 @@ Scripts for fast validation and compile-adjacent checks without running a full p
 ### Specialized validation
 
 - `blueprint/validate_fp_body_defaults.bat` - targeted guard for `BP_Hero` inherited defaults vs native `ProjectCharacter`
-- `gameplay/projectmind/validate_data.bat` - ProjectMind data-schema validation
+- `data/validate_all.bat` - cross-reference data validation (objectId, lootProfileId, DialogueTreeAsset, AudioPresetAsset, dialogue actions/conditions)
+- `gameplay/projectmind/validate_data.bat` - ProjectMind data-schema validation (signal_tags vs dialogue trees)
 - `gamefeatures/validate_registration.bat` - static GameFeature registration/configuration check
 - `governance/validate_legacy_object_parent_generalization.bat` - legacy marker and docs registry audit
 

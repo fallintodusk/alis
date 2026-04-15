@@ -13,7 +13,7 @@ class UAbilitySystemComponent;
  * Built-in vitals source for ProjectMind.
  *
  * Reads state tags from local pawn ASC and maps them to thoughts via
- * data-driven config in Content/Data/Schema/Gameplay/ProjectMind.
+ * data-driven config in Plugins/Gameplay/ProjectMind/Data.
  */
 class FDefaultVitalsMindThoughtSource : public IMindVitalsThoughtSource
 {

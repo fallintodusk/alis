@@ -114,7 +114,8 @@ namespace ProjectWorldDefinitionHost
 		const FPrimaryAssetId& DefinitionId,
 		const FString& StructureHash,
 		const FString& ContentHash,
-		bool bAllowInjectComponent)
+		bool bAllowInjectComponent,
+		const FSoftObjectPath& DefinitionAssetPath)
 	{
 		// LEGACY_OBJECT_PARENT_GENERALIZATION(L004): AProjectWorldActor still owns definition metadata fields directly.
 		// Write those fields first so spawn-path host write/read roundtrip cannot diverge during placement.
@@ -122,6 +123,7 @@ namespace ProjectWorldDefinitionHost
 		if (AProjectWorldActor* ProjectWorldActor = Cast<AProjectWorldActor>(Actor))
 		{
 			ProjectWorldActor->ObjectDefinitionId = DefinitionId;
+			ProjectWorldActor->DefinitionAssetPath = DefinitionAssetPath;
 			ProjectWorldActor->AppliedStructureHash = StructureHash;
 			ProjectWorldActor->AppliedContentHash = ContentHash;
 			return true;
@@ -134,6 +136,7 @@ namespace ProjectWorldDefinitionHost
 		}
 
 		IObjectDefinitionHostInterface::Execute_SetHostedObjectDefinitionId(HostObject, DefinitionId);
+		IObjectDefinitionHostInterface::Execute_SetHostedDefinitionAssetPath(HostObject, DefinitionAssetPath);
 		IObjectDefinitionHostInterface::Execute_SetHostedAppliedStructureHash(HostObject, StructureHash);
 		IObjectDefinitionHostInterface::Execute_SetHostedAppliedContentHash(HostObject, ContentHash);
 		return true;

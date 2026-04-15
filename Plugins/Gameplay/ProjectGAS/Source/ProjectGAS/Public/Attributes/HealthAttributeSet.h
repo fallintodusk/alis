@@ -23,8 +23,6 @@
  * GAS ignores missing attributes, so GE_Damage works on any actor with Condition.
  *
  * SetByCaller tag: SetByCaller.Condition
- *
- * SOT: docs/gameplay/character.md, todo/current/gas_ui_mechanics.md
  */
 UCLASS()
 class PROJECTGAS_API UHealthAttributeSet : public UAttributeSet

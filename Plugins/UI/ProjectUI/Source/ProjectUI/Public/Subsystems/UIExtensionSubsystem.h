@@ -92,8 +92,6 @@ struct FStoredSlotExtension
  * // Unregister (typically in Deinitialize)
  * ExtSub->UnregisterExtension(Handle);
  * @endcode
- *
- * SOT: todo/current/gas_ui_mechanics.md (Phase 10)
  */
 UCLASS()
 class PROJECTUI_API UUIExtensionSubsystem : public UGameInstanceSubsystem

@@ -116,5 +116,5 @@ Two character systems coexist:
 - [ProjectVitals README](../ProjectVitals/README.md) - Vitals rules and calculations
 - [ProjectVitalsUI README](../../UI/ProjectVitalsUI/README.md) - Vitals UI display
 - [Assembly architecture](../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - Framework design
-- [Capabilities rationale](../ProjectSkeletalCapabilities/docs/rationale.md) - Adapter dependency isolation
+- [Capabilities rationale](../ProjectSkeletalCapabilities/docs/architecture.md) - Adapter dependency isolation
 - [Parity testing](../../../../docs/testing/character_parity.md) - Automated capture test

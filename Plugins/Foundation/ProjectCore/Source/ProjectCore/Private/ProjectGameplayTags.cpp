@@ -266,4 +266,5 @@ namespace ProjectTags
 	UE_DEFINE_GAMEPLAY_TAG(Scenario_GrandpaDoor, "Scenario.GrandpaDoor");
 	UE_DEFINE_GAMEPLAY_TAG(Scenario_HandymanDoor, "Scenario.HandymanDoor");
 	UE_DEFINE_GAMEPLAY_TAG(Scenario_FamilyApartmentDoor, "Scenario.FamilyApartmentDoor");
+	UE_DEFINE_GAMEPLAY_TAG(Scenario_LuxuryApartmentDoor, "Scenario.LuxuryApartmentDoor");
 }

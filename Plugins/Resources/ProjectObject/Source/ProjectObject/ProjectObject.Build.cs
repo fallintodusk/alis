@@ -13,6 +13,7 @@ public class ProjectObject : ModuleRules
 			"Engine",
 			"NetCore",
 			"GameplayTags",
+			"HairStrandsCore",
 			"ProjectCore",
 			"ProjectWorld",
 			"ProjectObjectCapabilities"

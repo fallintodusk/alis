@@ -27,8 +27,6 @@
  *   - SetByCaller.Hydration
  *   - SetByCaller.Calories
  *   - SetByCaller.Fatigue
- *
- * SOT: docs/gameplay/character.md, todo/current/gas_ui_mechanics.md
  */
 UCLASS()
 class PROJECTGAS_API USurvivalAttributeSet : public UAttributeSet

@@ -11,6 +11,9 @@
 #include "Interfaces/IAssemblyViewConfigSource.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GroomComponent.h"
+#include "GroomAsset.h"
+#include "GroomBindingAsset.h"
 #include "Components/SceneComponent.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Controller.h"
@@ -314,6 +317,9 @@ namespace
 		return SingleCompatible;
 	}
 
+	// Consumed by object definitions (lootProfileId, seedEntries).
+	// Renaming profile IDs or object IDs breaks cross-references silently.
+	// Validate: scripts/ue/check/data/validate_all.py
 	ULootProfileDefinition* ResolveLootProfileDefinition(const FPrimaryAssetId& ProfileId)
 	{
 		if (!ProfileId.IsValid())
@@ -724,13 +730,21 @@ AActor* SpawnFromDefinition(
 		}
 	}
 
+	// Apply optional uniform actor scale.
+	if (!FMath::IsNearlyEqual(Def->ActorScale, 1.0f) && Def->ActorScale > 0.0f)
+	{
+		SpawnedActor->SetActorScale3D(FVector(Def->ActorScale));
+	}
+
 	// Write definition tracking metadata through host abstraction.
+	const FSoftObjectPath DefAssetPath(Def);
 	if (!ProjectWorldDefinitionHost::WriteHostState(
 		SpawnedActor,
 		DefinitionId,
 		Def->DefinitionStructureHash,
 		Def->DefinitionContentHash,
-		true))
+		true,
+		DefAssetPath))
 	{
 		SetError(OutError, FText::Format(
 			NSLOCTEXT("ObjectSpawn", "MissingDefinitionHost",
@@ -826,7 +840,54 @@ AActor* SpawnFromDefinition(
 			ClaimedExistingMeshComponents);
 		bool bReusedExistingComponent = (MeshComp != nullptr);
 
-		if (Entry.Kind == KindCustomizable)
+		static const FName KindGroom(TEXT("Groom"));
+
+		if (Entry.Kind == KindGroom)
+		{
+			// Groom: create UGroomComponent attached to parent skeletal mesh.
+			// Asset = UGroomAsset, BindingAsset = UGroomBindingAsset.
+			UGroomAsset* GroomAsset = Cast<UGroomAsset>(LoadedAsset);
+			if (!GroomAsset)
+			{
+				UE_LOG(LogProjectObject, Warning,
+					TEXT("Groom mesh '%s' asset is not a UGroomAsset in '%s'"),
+					*Entry.Id.ToString(), *Def->ObjectId.ToString());
+				continue;
+			}
+
+			UGroomComponent* GroomComp = NewObject<UGroomComponent>(SpawnedActor);
+			GroomComp->SetGroomAsset(GroomAsset);
+
+			if (!Entry.BindingAsset.IsNull())
+			{
+				if (UGroomBindingAsset* Binding = Cast<UGroomBindingAsset>(Entry.BindingAsset.LoadSynchronous()))
+				{
+					GroomComp->BindingAsset = Binding;
+				}
+				else
+				{
+					UE_LOG(LogProjectObject, Warning,
+						TEXT("Failed to load GroomBindingAsset '%s' for groom '%s' in '%s'"),
+						*Entry.BindingAsset.ToString(), *Entry.Id.ToString(), *Def->ObjectId.ToString());
+				}
+			}
+
+			// Attach to parent mesh (Face skeletal mesh)
+			USceneComponent* GroomAttachParent = DefaultAttachRoot;
+			if (!Entry.Parent.IsNone())
+			{
+				if (UMeshComponent** ParentMesh = MeshMap.Find(Entry.Parent))
+				{
+					GroomAttachParent = *ParentMesh;
+				}
+			}
+			GroomComp->AttachToComponent(GroomAttachParent, FAttachmentTransformRules::KeepRelativeTransform);
+			GroomComp->RegisterComponent();
+
+			// Grooms are not UMeshComponent -- skip MeshMap registration but continue loop
+			continue;
+		}
+		else if (Entry.Kind == KindCustomizable)
 		{
 			// CustomizableSkeletalMesh: create standard skeletal mesh component.
 			// Mutable runtime (MutableCustomization capability) will convert it
@@ -1056,6 +1117,12 @@ AActor* SpawnFromDefinition(
 			MeshComp->SetEnableGravity(Entry.Physics.EnableGravity);
 		}
 
+		// Retarget tag -- must be first so ABP_WorldBodyRetarget reads ComponentTags[0]
+		if (!Entry.RetargetTag.IsNone())
+		{
+			MeshComp->ComponentTags.Insert(Entry.RetargetTag, 0);
+		}
+
 		const FName DefMeshTag = MakeDefinitionMeshTag(Entry.Id);
 		if (!MeshComp->ComponentTags.Contains(DefMeshTag))
 		{
@@ -1258,6 +1325,8 @@ AActor* SpawnFromDefinition(
 
 			// Special handling: LootContainer gets InstanceLoot from canonical
 			// storage seed entries plus optional shared loot profile contents.
+			// seedEntries.objectId and lootProfileId are cross-plugin references.
+			// Validate: scripts/ue/check/data/validate_all.py
 			if (CapEntry.Type == FName(TEXT("LootContainer")))
 			{
 				const FStorageSection* StorageSection = Def->GetStorageSection();

@@ -30,6 +30,8 @@ public:
 
 	virtual FPrimaryAssetId GetHostedObjectDefinitionId_Implementation() const override;
 	virtual void SetHostedObjectDefinitionId_Implementation(const FPrimaryAssetId& DefinitionId) override;
+	virtual FSoftObjectPath GetHostedDefinitionAssetPath_Implementation() const override;
+	virtual void SetHostedDefinitionAssetPath_Implementation(const FSoftObjectPath& AssetPath) override;
 	virtual FString GetHostedAppliedStructureHash_Implementation() const override;
 	virtual void SetHostedAppliedStructureHash_Implementation(const FString& StructureHash) override;
 	virtual FString GetHostedAppliedContentHash_Implementation() const override;
@@ -44,6 +46,10 @@ public:
 	/** Stored ObjectDefinition id for this actor instance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Definition")
 	FPrimaryAssetId ObjectDefinitionId;
+
+	/** Soft path to the ObjectDefinition asset (for Asset Registry ref tracking). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Definition")
+	FSoftObjectPath DefinitionAssetPath;
 
 	/** Stored structural hash for replace/reapply decisions. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Definition")
