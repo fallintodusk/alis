@@ -94,7 +94,7 @@
 	"Modules": [
 		{
 			"Name": "ProjectIntegrationTests",
-			"Type": "DeveloperTool",
+			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
 		}
 	],

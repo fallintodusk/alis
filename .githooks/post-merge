@@ -1,3 +1,15 @@
 #!/bin/sh
+# post-merge: Git LFS + UBT cache invalidation
+# Git sets ORIG_HEAD=pre-merge, HEAD=post-merge
+
+# 1. Git LFS
 command -v git-lfs >/dev/null 2>&1 || { printf >&2 "\n%s\n\n" "This repository is configured for Git LFS but 'git-lfs' was not found on your path. If you no longer wish to use Git LFS, remove this hook by deleting the 'post-merge' file in the hooks directory (set by 'core.hookspath'; usually '.git/hooks')."; exit 2; }
 git lfs post-merge "$@"
+
+# 2. UBT cache invalidation
+# Find repo root and the invalidation script
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+CORE_SCRIPT="$PROJECT_ROOT/scripts/git/hooks/invalidate_ubt_cache.sh"
+# Diff pre-merge (ORIG_HEAD) vs post-merge (HEAD) for C++ changes
+# If any found, deletes UBT ActionHistory.bin so next build recompiles
+[ -f "$CORE_SCRIPT" ] && bash "$CORE_SCRIPT" ORIG_HEAD HEAD

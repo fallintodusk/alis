@@ -4,6 +4,7 @@
 #include "ProjectLoadingLog.h"
 #include "Experience/ProjectExperienceDescriptorBase.h"
 #include "Experience/ProjectExperienceRegistry.h"
+#include "Experience/GlobalAssetScanRegistry.h"
 #include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -207,6 +208,9 @@ void FInitialExperienceLoader::EnsureAssetScans(const UProjectExperienceDescript
 		return;
 	}
 
+	// Global types first (ObjectDefinition, LootProfileDefinition, etc.)
+	EnsureGlobalAssetScans();
+
 	// Runtime scan for cooked builds - plugin configs may not merge reliably
 	// See: docs/asset_manager_registration.md for architecture details
 	TArray<FExperienceAssetScanSpec> Specs;
@@ -269,6 +273,118 @@ void FInitialExperienceLoader::EnsureAssetScans(const UProjectExperienceDescript
 			{
 				UE_LOG(LogProjectLoading, Display, TEXT("    ... and %d more"), FoundIds.Num() - MaxToLog);
 			}
+		}
+	}
+}
+
+void FInitialExperienceLoader::EnsureGlobalAssetScans()
+{
+	const FGlobalAssetScanRegistry& GlobalRegistry = FGlobalAssetScanRegistry::Get();
+	const int32 TotalSpecCount = GlobalRegistry.GetSpecCount();
+
+	if (TotalSpecCount == AppliedGlobalSpecCount)
+	{
+		return;
+	}
+
+	const TArray<FExperienceAssetScanSpec>& AllSpecs = GlobalRegistry.GetAllSpecs();
+	const int32 NewSpecCount = TotalSpecCount - AppliedGlobalSpecCount;
+
+	UE_LOG(LogProjectLoading, Display,
+		TEXT("EnsureGlobalAssetScans: Applying %d new specs (index %d -> %d)"),
+		NewSpecCount, AppliedGlobalSpecCount, TotalSpecCount);
+
+	UAssetManager& AssetManager = UAssetManager::Get();
+
+	for (int32 i = AppliedGlobalSpecCount; i < TotalSpecCount; ++i)
+	{
+		const FExperienceAssetScanSpec& Spec = AllSpecs[i];
+
+		UE_LOG(LogProjectLoading, Display,
+			TEXT("EnsureGlobalAssetScans: Scanning Type='%s'"),
+			*Spec.PrimaryAssetType.ToString());
+
+		for (const FString& Dir : Spec.Directories)
+		{
+			UE_LOG(LogProjectLoading, Display, TEXT("  Directory: %s"), *Dir);
+		}
+
+		const int32 NumFound = AssetManager.ScanPathsForPrimaryAssets(
+			FPrimaryAssetType(Spec.PrimaryAssetType),
+			Spec.Directories,
+			Spec.BaseClass ? Spec.BaseClass.Get() : UObject::StaticClass(),
+			Spec.bHasBlueprintClasses,
+			Spec.bIsEditorOnly,
+			Spec.bForceSynchronousScan);
+
+		UE_LOG(LogProjectLoading, Display,
+			TEXT("EnsureGlobalAssetScans: Found %d assets of type '%s'"),
+			NumFound, *Spec.PrimaryAssetType.ToString());
+
+		if (NumFound > 0)
+		{
+			TArray<FPrimaryAssetId> FoundIds;
+			AssetManager.GetPrimaryAssetIdList(FPrimaryAssetType(Spec.PrimaryAssetType), FoundIds);
+			const int32 MaxToLog = FMath::Min(FoundIds.Num(), 10);
+			for (int32 j = 0; j < MaxToLog; ++j)
+			{
+				UE_LOG(LogProjectLoading, Display, TEXT("    [%d] %s"), j, *FoundIds[j].ToString());
+			}
+			if (FoundIds.Num() > MaxToLog)
+			{
+				UE_LOG(LogProjectLoading, Display, TEXT("    ... and %d more"), FoundIds.Num() - MaxToLog);
+			}
+		}
+	}
+
+	AppliedGlobalSpecCount = TotalSpecCount;
+
+	// Hard verification: prove registration actually worked for known global types.
+	// If a type was scanned but zero assets discovered, the cooked content is broken.
+	VerifyGlobalScanResults(AssetManager);
+}
+
+void FInitialExperienceLoader::VerifyGlobalScanResults(UAssetManager& AssetManager)
+{
+	const TArray<FExperienceAssetScanSpec>& AllSpecs = FGlobalAssetScanRegistry::Get().GetAllSpecs();
+
+	for (const FExperienceAssetScanSpec& Spec : AllSpecs)
+	{
+		TArray<FPrimaryAssetId> FoundIds;
+		AssetManager.GetPrimaryAssetIdList(FPrimaryAssetType(Spec.PrimaryAssetType), FoundIds);
+
+		if (FoundIds.Num() == 0)
+		{
+			if (Spec.bRequireNonEmpty)
+			{
+				UE_LOG(LogProjectLoading, Error,
+					TEXT("EnsureGlobalAssetScans: VERIFICATION FAILED - mandatory type '%s' has 0 registered assets after scan. "
+					     "Cooked content may be missing or scan directories are wrong."),
+					*Spec.PrimaryAssetType.ToString());
+			}
+			else
+			{
+				UE_LOG(LogProjectLoading, Display,
+					TEXT("EnsureGlobalAssetScans: Type '%s' has 0 assets (not mandatory, skipping verification)"),
+					*Spec.PrimaryAssetType.ToString());
+			}
+			continue;
+		}
+
+		// Spot-check: first discovered asset must have a valid path
+		const FSoftObjectPath FirstPath = AssetManager.GetPrimaryAssetPath(FoundIds[0]);
+		if (FirstPath.IsNull())
+		{
+			UE_LOG(LogProjectLoading, Error,
+				TEXT("EnsureGlobalAssetScans: VERIFICATION FAILED - asset '%s' registered but GetPrimaryAssetPath() is null. "
+				     "AssetManager state is inconsistent."),
+				*FoundIds[0].ToString());
+		}
+		else
+		{
+			UE_LOG(LogProjectLoading, Display,
+				TEXT("EnsureGlobalAssetScans: Verified '%s' - %d assets, first path: %s"),
+				*Spec.PrimaryAssetType.ToString(), FoundIds.Num(), *FirstPath.ToString());
 		}
 	}
 }

@@ -130,7 +130,7 @@ Write-Host "ZIP_RELEASE  = $CreateReleaseArchive"
 Write-Host "SPLIT_SIZE   = $SplitSizeMB MiB"
 Write-Host ""
 
-& $RunUAT @Args *> $LogFile
+& $RunUAT @Args 2>&1 | Tee-Object -FilePath $LogFile
 $ExitCode = $LASTEXITCODE
 
 if ($ExitCode -ne 0) {
@@ -175,9 +175,15 @@ if ($CreateReleaseArchive) {
     if (-not $SevenZip) {
         $SevenZip = Get-Command "7z" -ErrorAction SilentlyContinue
     }
+    if (-not $SevenZip) {
+        $DefaultPath = Join-Path $env:ProgramFiles "7-Zip\7z.exe"
+        if (Test-Path $DefaultPath) {
+            $SevenZip = Get-Command $DefaultPath
+        }
+    }
 
     if (-not $SevenZip) {
-        throw "7-Zip was not found in PATH. Install 7-Zip or omit -CreateReleaseArchive."
+        throw "7-Zip was not found in PATH or at '$env:ProgramFiles\7-Zip'. Install 7-Zip or omit -CreateReleaseArchive."
     }
 
     $ArchiveBase = Join-Path $OutputDir ("ALIS_Win64_{0}.zip" -f (Get-Date -Format "yyyyMMdd_HHmmss"))

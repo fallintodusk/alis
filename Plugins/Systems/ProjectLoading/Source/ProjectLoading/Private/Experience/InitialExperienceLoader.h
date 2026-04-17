@@ -83,6 +83,19 @@ private:
 	void LogLoadRequestDetails(const FLoadRequest& Request) const;
 
 	/**
+	 * Apply global (non-experience-specific) asset scan specs.
+	 * Processes only specs from FGlobalAssetScanRegistry that haven't been
+	 * applied yet (append-only, tracked by spec count).
+	 */
+	void EnsureGlobalAssetScans();
+
+	/**
+	 * Hard verification after global scans: prove each registered type has
+	 * discoverable assets with valid paths. Logs errors on failure.
+	 */
+	void VerifyGlobalScanResults(UAssetManager& AssetManager);
+
+	/**
 	 * Dynamically discover map dependencies using AssetRegistry.
 	 * Finds all StaticMesh, Texture, Material, SkeletalMesh assets referenced by the map.
 	 *
@@ -94,6 +107,9 @@ private:
 
 	/** Registry for descriptor lookup (not owned) */
 	UProjectExperienceRegistry* Registry = nullptr;
+
+	/** Tracks how many global scan specs have been applied (append-only index) */
+	int32 AppliedGlobalSpecCount = 0;
 
 	/** Last resolved experience name (for observability) */
 	mutable FName LastResolvedExperience;

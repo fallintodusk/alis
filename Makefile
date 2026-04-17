@@ -33,7 +33,7 @@ ifneq ($(FORCE_WSL),)
   IS_WSL := $(FORCE_WSL)
 endif
 
-.PHONY: help check check-uht check-syntax check-blueprints check-assets full-build clean generate open test test-all test-unit test-integration test-quick prepare-tests merge-ai mirror build-module build-editor build-game build-server structurizr-start structurizr-stop structurizr-open
+.PHONY: help check check-uht check-syntax check-blueprints check-assets full-build clean generate open test test-all test-unit test-integration test-quick prepare-tests merge-ai mirror build-module build-editor build-game build-server package structurizr-start structurizr-stop structurizr-open
 
 # Default target
 help:
@@ -61,6 +61,7 @@ help:
 	@echo "    make build-module MODULE=<name> - Build specific module (fast iteration)"
 	@echo "    make build-game        - Build game (standalone)"
 	@echo "    make build-server      - Build dedicated server"
+	@echo "    make package           - Package Shipping build (source engine, release archive)"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make open              - Open project in Unreal Editor"
@@ -357,6 +358,17 @@ else
 	@echo [INFO] mirror args: --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
 	@$(if $(MIRROR_GIT_SSH_COMMAND),set "MIRROR_GIT_SSH_COMMAND=$(MIRROR_GIT_SSH_COMMAND)" && )powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
 endif
+
+# Source engine path for Shipping builds (override via UE_SOURCE_PATH=...)
+UE_SOURCE_PATH ?= G:/UnrealEngine-5.7
+
+# Package Shipping build with source engine + release archive
+package:
+	@echo "Packaging Shipping build (source engine)..."
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+		-File "scripts/ue/package/package_release.ps1" \
+		-EngineRoot "$(UE_SOURCE_PATH)" \
+		-CreateReleaseArchive
 
 # Documentation: Structurizr Lite (C4 Architecture Diagrams)
 structurizr-start:

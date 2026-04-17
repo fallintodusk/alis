@@ -21,7 +21,9 @@ When finishing or starting a task, keep the same category subfolder.
   diagnostics/  FPS counter, dev overlay, in-game monitoring
   editor/       thumbnails, asset pickers, editor UX
   gameplay/     character, combat, dialogue, interaction, vitals
+  rendering/    anti-aliasing, post-process, TSR, visual artifacts
   systems/      save/load, multiplayer, loading, networking
+  test/         packaged build reports, QA, test results
   tools/        build scripts, MCP, workflow, automation
   ui/           layout, panels, widgets, HUD
   world/        environment, foliage, landscape, vehicles, lighting

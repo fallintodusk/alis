@@ -8,6 +8,7 @@
 
 #include "LocalBodyCorrectionChainIK.h"
 #include "LocalBodyAnimInstance.h"
+#include "UObject/UnrealType.h"
 
 void FLocalBodyCorrectionChainIK::InitializeNodes(
 	UAnimInstance* AnimInstance,
@@ -30,7 +31,32 @@ void FLocalBodyCorrectionChainIK::InitializeNodes(
 	CCDIKNode.bStartFromTail = true;
 	CCDIKNode.EffectorLocationSpace = BCS_ComponentSpace;
 	CCDIKNode.bEnableRotationLimit = false;
-	CCDIKNode.ResizeRotationLimitPerJoints(3);
+	
+	// RotationLimitPerJoints MUST be pre-filled even when bEnableRotationLimit=false.
+	// Engine bug: CCDIK.cpp reads the array unconditionally before checking the flag.
+	// Empty array -> null data pointer -> ACCESS_VIOLATION in Shipping.
+	// ResizeRotationLimitPerJoints() is editor-only in UE 5.7, so we fill via reflection.
+	{
+		// Find the private "RotationLimitPerJoints" array inside the CCDIK struct using UE reflection
+		FArrayProperty* ArrayProp = CastField<FArrayProperty>(
+			FAnimNode_CCDIK::StaticStruct()->FindPropertyByName(TEXT("RotationLimitPerJoints")));
+
+		// If the property was found (it always should be)
+		if (ArrayProp)
+		{
+			// Create a helper that lets us read/write the array inside our CCDIKNode instance
+			FScriptArrayHelper Helper(ArrayProp, ArrayProp->ContainerPtrToValuePtr<void>(&CCDIKNode));
+
+			// Set array size to 3 — one slot per spine joint (spine_03, spine_04, spine_05)
+			Helper.Resize(3);
+
+			// Fill each slot with 30 degrees — same default value Epic uses in the editor
+			for (int32 i = 0; i < 3; ++i)
+			{
+				*reinterpret_cast<float*>(Helper.GetRawPtr(i)) = 30.f;
+			}
+		}
+	}
 	CCDIKNode.Alpha = 0.f;
 
 	// TwoBoneIK left arm

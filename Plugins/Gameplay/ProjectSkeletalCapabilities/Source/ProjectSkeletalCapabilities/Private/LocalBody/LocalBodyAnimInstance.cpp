@@ -18,7 +18,9 @@
 
 static FVector LoadNeckOffsetFromHeroJson()
 {
-	FVector Result(-8.f, 0.f, -10.f);
+	// Packaged builds can't read Hero.json (FPaths::ProjectPluginsDir() fails).
+	// Default must match Hero.json neckOffset to avoid body blocking camera.
+	FVector Result(-23.f, -1.f, -23.f);
 	const FString Path = FPaths::ProjectPluginsDir() / TEXT("Resources/ProjectObject/Content/Human/Hero/Hero.json");
 	FString JsonStr;
 	if (!FFileHelper::LoadFileToString(JsonStr, *Path)) return Result;

@@ -359,6 +359,16 @@ void ADefinitionCharacter::ApplyViewConfig()
 
 		UE_LOG(LogDefinitionCharacter, Log,
 			TEXT("ApplyViewConfig: Camera created (definition has view section)"));
+
+		// Limit downward pitch to prevent seeing the neck/upper torso
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			if (PC->PlayerCameraManager)
+			{
+				PC->PlayerCameraManager->ViewPitchMin = -79.f;  // limit looking down
+				PC->PlayerCameraManager->ViewPitchMax = 80.f;   // limit looking up
+			}
+		}
 	}
 
 	if (!ViewConfig.RelativeOffset.IsNearlyZero())

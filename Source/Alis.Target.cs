@@ -25,22 +25,23 @@ public class AlisTarget : TargetRules
         if (Configuration == UnrealTargetConfiguration.Shipping)
         {
             bBuildDeveloperTools = false;
+            bUseLoggingInShipping = true;
 
-            // Source engine diagnostics: opt-in via environment variable.
-            // Installed engine -> env var unset -> vanilla Shipping (safe).
-            // Source engine   -> env var set   -> logging + checks enabled.
-            //
-            // PowerShell: $env:ENGINE_FROM_SOURCE = "1"
-            // Bash:       export ENGINE_FROM_SOURCE=1
-            bool bSourceDiagnostics =
+            // DO NOT enable bUseChecksInShipping - crashes at RHI init.
+            // Engine bug UE-86148: GraphicsContext is null because
+            // CAN_TOGGLE_COMMAND_LIST_BYPASS=false in Shipping.
+            // Use Test config for diagnostic builds with assertions.
+            // bUseChecksInShipping = true;
+
+            // Source engine needs Unique build env to avoid UBT binary
+            // sharing mismatch. Set by build/packaging scripts automatically.
+            bool bSourceEngine =
                 Environment.GetEnvironmentVariable("ENGINE_FROM_SOURCE") == "1";
 
-            if (bSourceDiagnostics)
+            if (bSourceEngine)
             {
                 BuildEnvironment = TargetBuildEnvironment.Unique;
                 bOverrideBuildEnvironment = true;
-                bUseLoggingInShipping = true;
-                bUseChecksInShipping = true;
             }
         }
     }

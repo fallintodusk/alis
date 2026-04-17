@@ -38,6 +38,15 @@ struct PROJECTCORE_API FExperienceAssetScanSpec
 	/** Whether to force synchronous scan. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Experience")
 	bool bForceSynchronousScan = true;
+
+	/**
+	 * When true, verification logs an error if zero assets are discovered
+	 * after scanning. Use for mandatory global types (ObjectDefinition, etc.).
+	 * Default false so optional or platform-conditional types do not cause
+	 * false failures.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Experience")
+	bool bRequireNonEmpty = false;
 };
 
 /**
