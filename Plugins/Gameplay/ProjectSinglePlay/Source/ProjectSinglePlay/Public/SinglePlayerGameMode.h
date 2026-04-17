@@ -21,6 +21,7 @@ enum class ESinglePlayCharacterSystem : uint8
  * - Loads UE layer classes (Pawn, PlayerController) from config
  * - Initializes features via FFeatureRegistry (features attach own components)
  * - Configures gameplay input mode for players
+ * - Listens for death (via VitalsComponent delegate) and reloads map
  *
  * URL Game Mode Syntax:
  *   Full class path WITHOUT 'A' prefix (UClass name != C++ class name):
@@ -126,4 +127,31 @@ protected:
 private:
 	// Track whether we've already verified features (for idempotency)
 	bool bHasVerifiedFeatures = false;
+
+	// -------------------------------------------------------------------------
+	// Death Response (single-player specific: fade + reload)
+	// -------------------------------------------------------------------------
+
+	// Bind to VitalsComponent delegates on the pawn
+	void BindVitalsResponse(APlayerController* PC);
+
+	// Damage taken: brief red camera flash
+	UFUNCTION()
+	void HandleDamageTaken(float Amount);
+
+	// VitalsComponent fires this when Condition reaches zero
+	UFUNCTION()
+	void HandleConditionDepleted();
+
+	// Reload the current experience/map via ILoadingService
+	void ReloadCurrentExperience();
+
+	// Timer for delayed reload after death
+	FTimerHandle DeathReloadTimerHandle;
+
+	// Guard against multiple death triggers
+	bool bDeathSequenceStarted = false;
+
+	// Damage flash cooldown (prevents constant red from bleeding tick)
+	double LastDamageFlashTimeSec = 0.0;
 };

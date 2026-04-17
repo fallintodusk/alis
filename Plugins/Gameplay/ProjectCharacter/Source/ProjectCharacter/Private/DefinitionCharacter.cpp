@@ -103,60 +103,9 @@ ADefinitionCharacter::ADefinitionCharacter()
 	GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
 	GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 
-	// -------------------------------------------------------------------------
-	// Camera -- load offset from Hero.json (SOT)
-	// -------------------------------------------------------------------------
-	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	FirstPersonCamera->SetupAttachment(RootComponent);
-	FirstPersonCamera->bUsePawnControlRotation = true;
-	FirstPersonCamera->FieldOfView = 90.0f;
-
-	{
-		const FString HeroJsonPath = FPaths::ProjectPluginsDir() / TEXT("Resources/ProjectObject/Content/Human/Hero/Hero.json");
-		FString JsonStr;
-		if (!FFileHelper::LoadFileToString(JsonStr, *HeroJsonPath))
-		{
-			UE_LOG(LogDefinitionCharacter, Error,
-				TEXT("[DefinitionCharacter] FAILED to load Hero.json from: %s"), *HeroJsonPath);
-		}
-		else
-		{
-			TSharedPtr<FJsonObject> Root;
-			if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(JsonStr), Root) || !Root.IsValid())
-			{
-				UE_LOG(LogDefinitionCharacter, Error,
-					TEXT("[DefinitionCharacter] FAILED to parse Hero.json"));
-			}
-			else
-			{
-				const TSharedPtr<FJsonObject>* Sections = nullptr;
-				const TSharedPtr<FJsonObject>* View = nullptr;
-				FString OffsetStr;
-				if (Root->TryGetObjectField(TEXT("sections"), Sections) &&
-					(*Sections)->TryGetObjectField(TEXT("view"), View) &&
-					(*View)->TryGetStringField(TEXT("relativeOffset"), OffsetStr))
-				{
-					FVector Parsed;
-					if (Parsed.InitFromString(OffsetStr))
-					{
-						FirstPersonCamera->SetRelativeLocation(Parsed);
-						UE_LOG(LogDefinitionCharacter, Log,
-							TEXT("[DefinitionCharacter] Camera offset loaded from Hero.json: %s"), *Parsed.ToString());
-					}
-					else
-					{
-						UE_LOG(LogDefinitionCharacter, Error,
-							TEXT("[DefinitionCharacter] FAILED to parse relativeOffset: '%s'"), *OffsetStr);
-					}
-				}
-				else
-				{
-					UE_LOG(LogDefinitionCharacter, Error,
-						TEXT("[DefinitionCharacter] Hero.json missing sections.view.relativeOffset"));
-				}
-			}
-		}
-	}
+	// Camera is created dynamically in ApplyViewConfig when the definition
+	// contains a view section. NPCs (no view) get no camera component.
+	FirstPersonCamera = nullptr;
 
 	// NO WorldBodyMesh/LocalBodyMesh -- definition meshes come from ObjectSpawnUtility
 }
@@ -381,7 +330,7 @@ void ADefinitionCharacter::ApplyViewConfig()
 	if (!CachedDataSourceComponent.IsValid())
 	{
 		UE_LOG(LogDefinitionCharacter, Verbose,
-			TEXT("ApplyViewConfig: No data source, keeping camera defaults"));
+			TEXT("ApplyViewConfig: No data source -- no camera"));
 		return;
 	}
 
@@ -395,8 +344,21 @@ void ADefinitionCharacter::ApplyViewConfig()
 	if (!DataSource->GetViewConfig(ViewConfig))
 	{
 		UE_LOG(LogDefinitionCharacter, Verbose,
-			TEXT("ApplyViewConfig: No view config from provider, keeping camera defaults"));
+			TEXT("ApplyViewConfig: No view config -- no camera"));
 		return;
+	}
+
+	// Create camera on demand (only for characters with a view section)
+	if (!FirstPersonCamera)
+	{
+		FirstPersonCamera = NewObject<UCameraComponent>(this, TEXT("FirstPersonCamera"));
+		FirstPersonCamera->SetupAttachment(RootComponent);
+		FirstPersonCamera->bUsePawnControlRotation = true;
+		FirstPersonCamera->FieldOfView = 90.0f;
+		FirstPersonCamera->RegisterComponent();
+
+		UE_LOG(LogDefinitionCharacter, Log,
+			TEXT("ApplyViewConfig: Camera created (definition has view section)"));
 	}
 
 	if (!ViewConfig.RelativeOffset.IsNearlyZero())

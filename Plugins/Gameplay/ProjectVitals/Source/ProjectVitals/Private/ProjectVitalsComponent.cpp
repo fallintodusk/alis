@@ -8,6 +8,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogProjectVitals, Log, All);
 #include "AbilitySystemInterface.h"
 #include "ProjectGameplayTags.h"
 #include "ProjectGASLibrary.h"
+#include "ProjectServiceLocator.h"
+#include "Interfaces/IMindService.h"
 #include "Attributes/HealthAttributeSet.h"
 #include "Attributes/StaminaAttributeSet.h"
 #include "Attributes/SurvivalAttributeSet.h"
@@ -122,6 +124,9 @@ void UProjectVitalsComponent::Start()
 		);
 		bIsRunning = true;
 
+		// Bind death detection (ASC attribute change, not tick-based)
+		BindConditionDeathDetection();
+
 		// Initial state update
 		TickVitals();
 	}
@@ -138,6 +143,9 @@ void UProjectVitalsComponent::Stop()
 	{
 		World->GetTimerManager().ClearTimer(VitalsTickTimerHandle);
 	}
+
+	// Unbind death detection before clearing ASC
+	UnbindConditionDeathDetection();
 
 	// Remove any active debuffs to prevent leaking effects after component stops
 	RemoveAllDebuffs();
@@ -848,5 +856,73 @@ void UProjectVitalsComponent::ApplyConditionDelta(UAbilitySystemComponent* ASC, 
 			ProjectTags::SetByCaller_Condition,
 			Delta
 		);
+	}
+}
+
+// -------------------------------------------------------------------------
+// Death Detection (ASC attribute change, not tick-based)
+// -------------------------------------------------------------------------
+
+void UProjectVitalsComponent::BindConditionDeathDetection()
+{
+	UAbilitySystemComponent* ASC = CachedASC.Get();
+	if (!ASC)
+	{
+		return;
+	}
+
+	ConditionDeathDelegateHandle = ASC->GetGameplayAttributeValueChangeDelegate(
+		UHealthAttributeSet::GetConditionAttribute()
+	).AddUObject(this, &ThisClass::HandleConditionAttributeChanged);
+
+	bConditionDepletedFired = false;
+}
+
+void UProjectVitalsComponent::UnbindConditionDeathDetection()
+{
+	UAbilitySystemComponent* ASC = CachedASC.Get();
+	if (!ASC)
+	{
+		return;
+	}
+
+	ASC->GetGameplayAttributeValueChangeDelegate(
+		UHealthAttributeSet::GetConditionAttribute()
+	).Remove(ConditionDeathDelegateHandle);
+
+	ConditionDeathDelegateHandle.Reset();
+}
+
+void UProjectVitalsComponent::HandleConditionAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	// Damage taken (any decrease in Condition)
+	if (Data.NewValue < Data.OldValue)
+	{
+		const float DamageAmount = Data.OldValue - Data.NewValue;
+		OnDamageTaken.Broadcast(DamageAmount);
+	}
+
+	if (bConditionDepletedFired)
+	{
+		return;
+	}
+
+	if (Data.OldValue > 0.0f && Data.NewValue <= 0.0f)
+	{
+		bConditionDepletedFired = true;
+
+		UE_LOG(LogProjectVitals, Log,
+			TEXT("[%s] Condition depleted (%.1f -> %.1f). Broadcasting OnConditionDepleted."),
+			*GetNameSafe(GetOwner()), Data.OldValue, Data.NewValue);
+
+		// Push death thought via Mind system (vitals owns the message, mode owns the response)
+		if (TSharedPtr<IMindService> MindService = FProjectServiceLocator::Resolve<IMindService>())
+		{
+			MindService->PushSystemThought(
+				NSLOCTEXT("ProjectVitals", "ConditionDepleted", "I will try again"),
+				1.5f);
+		}
+
+		OnConditionDepleted.Broadcast();
 	}
 }

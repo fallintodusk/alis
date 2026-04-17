@@ -13,6 +13,11 @@
 #include "HAL/IConsoleManager.h"
 #include "Spawning/ObjectSpawnUtility.h"
 #include "Data/ObjectDefinition.h"
+#include "ProjectServiceLocator.h"
+#include "Services/ILoadingService.h"
+#include "Types/ProjectLoadRequest.h"
+#include "ProjectVitalsComponent.h"
+#include "Camera/PlayerCameraManager.h"
 
 namespace SinglePlayCharacterRuntime
 {
@@ -143,6 +148,9 @@ void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Opti
 	// Load mode configuration
 	ModeConfig = LoadModeConfig(ModeParam);
 	LoadCharacterSelection(CharacterSystemParam, CharacterDefinitionParam);
+
+	// Experience name for death/reload is resolved from ILoadingService at reload time.
+	// No need to capture here -- authoritative source is the loading subsystem.
 
 	UE_LOG(LogProjectSinglePlay, Log,
 		TEXT("Loaded ModeConfig: ModeName=%s, RequiredPlugins=%d, FeatureNames=%d, CharacterSystem=%s, CharacterDefinition=%s"),
@@ -484,6 +492,12 @@ void ASinglePlayerGameMode::InitializePlayerPawn(AController* PlayerController)
 			TEXT("InitializePlayerPawn: Initializing features for pawn %s"),
 			*Pawn->GetName());
 		InitializeFeatures(Pawn);
+
+		// Bind death response after features are initialized (VitalsComponent must be ready)
+		if (APlayerController* PC = Cast<APlayerController>(PlayerController))
+		{
+			BindVitalsResponse(PC);
+		}
 	}
 	else if (!Pawn)
 	{
@@ -625,4 +639,142 @@ void ASinglePlayerGameMode::VerifyFeatures()
 		UE_LOG(LogProjectSinglePlay, Log, TEXT("Feature verification: All %d features registered"),
 			RegisteredCount);
 	}
+}
+
+// -------------------------------------------------------------------------
+// Death Response (single-player: fade + reload)
+// -------------------------------------------------------------------------
+
+void ASinglePlayerGameMode::BindVitalsResponse(APlayerController* PC)
+{
+	if (!PC)
+	{
+		return;
+	}
+
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+	{
+		return;
+	}
+
+	UProjectVitalsComponent* Vitals = Pawn->FindComponentByClass<UProjectVitalsComponent>();
+	if (!Vitals)
+	{
+		UE_LOG(LogProjectSinglePlay, Verbose,
+			TEXT("[Death] No VitalsComponent on pawn '%s', skipping death response binding"),
+			*Pawn->GetName());
+		return;
+	}
+
+	// Unbind previous if any (prevents duplicates on re-init)
+	Vitals->OnDamageTaken.RemoveDynamic(this, &ThisClass::HandleDamageTaken);
+	Vitals->OnDamageTaken.AddDynamic(this, &ThisClass::HandleDamageTaken);
+	Vitals->OnConditionDepleted.RemoveDynamic(this, &ThisClass::HandleConditionDepleted);
+	Vitals->OnConditionDepleted.AddDynamic(this, &ThisClass::HandleConditionDepleted);
+
+	UE_LOG(LogProjectSinglePlay, Log,
+		TEXT("[Vitals] Bound damage + death delegates for '%s'"),
+		*PC->GetName());
+}
+
+void ASinglePlayerGameMode::HandleDamageTaken(float Amount)
+{
+	if (bDeathSequenceStarted)
+	{
+		return;
+	}
+
+	// Skip tiny damage (bleeding drain ~0.05/tick)
+	if (Amount < 1.0f)
+	{
+		return;
+	}
+
+	// Cooldown: one flash per second max
+	const double NowSec = FPlatformTime::Seconds();
+	if (NowSec - LastDamageFlashTimeSec < 1.0)
+	{
+		return;
+	}
+	LastDamageFlashTimeSec = NowSec;
+
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (APlayerCameraManager* CamMgr = PC->PlayerCameraManager)
+		{
+			const float Alpha = FMath::Clamp(Amount / 50.0f, 0.15f, 0.5f);
+			CamMgr->StartCameraFade(Alpha, 0.0f, 0.4f, FLinearColor::Red, false, false);
+		}
+	}
+}
+
+void ASinglePlayerGameMode::HandleConditionDepleted()
+{
+	if (bDeathSequenceStarted)
+	{
+		return;
+	}
+	bDeathSequenceStarted = true;
+
+	UE_LOG(LogProjectSinglePlay, Log, TEXT("[Death] Condition depleted, starting death sequence"));
+
+	// Local presentation: fade + disable input + death message
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		PC->SetIgnoreMoveInput(true);
+		PC->SetIgnoreLookInput(true);
+
+		if (APlayerCameraManager* CamMgr = PC->PlayerCameraManager)
+		{
+			CamMgr->StartCameraFade(0.0f, 1.0f, 1.0f, FLinearColor::Black, false, true);
+		}
+
+	}
+
+	// Authority: reload map after delay (1.0s fade + 0.5s hold on black)
+	GetWorldTimerManager().SetTimer(
+		DeathReloadTimerHandle,
+		this,
+		&ThisClass::ReloadCurrentExperience,
+		1.5f,
+		false);
+}
+
+void ASinglePlayerGameMode::ReloadCurrentExperience()
+{
+	TSharedPtr<ILoadingService> LoadingService =
+		FProjectServiceLocator::Resolve<ILoadingService>();
+	if (!LoadingService)
+	{
+		UE_LOG(LogProjectSinglePlay, Error,
+			TEXT("[Death] Cannot reload: ILoadingService not available"));
+		return;
+	}
+
+	// Authoritative experience name from loading subsystem (set on last successful load)
+	const FName ExperienceName = LoadingService->GetLastLoadedExperienceName();
+	if (ExperienceName.IsNone())
+	{
+		UE_LOG(LogProjectSinglePlay, Error,
+			TEXT("[Death] Cannot reload: no last loaded experience name available"));
+		return;
+	}
+
+	FLoadRequest Request;
+	FText Error;
+
+	if (!LoadingService->BuildLoadRequestForExperience(ExperienceName, Request, Error))
+	{
+		UE_LOG(LogProjectSinglePlay, Error,
+			TEXT("[Death] Failed to build reload request for '%s': %s"),
+			*ExperienceName.ToString(), *Error.ToString());
+		return;
+	}
+
+	UE_LOG(LogProjectSinglePlay, Log,
+		TEXT("[Death] Reloading experience '%s'"),
+		*ExperienceName.ToString());
+
+	LoadingService->StartLoad(Request);
 }

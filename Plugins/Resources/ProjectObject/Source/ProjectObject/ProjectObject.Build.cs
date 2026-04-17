@@ -14,6 +14,8 @@ public class ProjectObject : ModuleRules
 			"NetCore",
 			"GameplayTags",
 			"HairStrandsCore",
+			"Json",
+			"JsonUtilities",
 			"ProjectCore",
 			"ProjectWorld",
 			"ProjectObjectCapabilities"

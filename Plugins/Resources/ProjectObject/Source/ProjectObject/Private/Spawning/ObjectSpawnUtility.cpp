@@ -15,6 +15,11 @@
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
 #include "Components/SceneComponent.h"
+#include "Components/BoxComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/PostProcessComponent.h"
+#include "JsonObjectConverter.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameModeBase.h"
@@ -858,11 +863,19 @@ AActor* SpawnFromDefinition(
 			UGroomComponent* GroomComp = NewObject<UGroomComponent>(SpawnedActor);
 			GroomComp->SetGroomAsset(GroomAsset);
 
+			UE_LOG(LogProjectObject, Log,
+				TEXT("[Groom] Created '%s' on '%s' (asset=%s)"),
+				*Entry.Id.ToString(), *Def->ObjectId.ToString(),
+				*GroomAsset->GetPathName());
+
 			if (!Entry.BindingAsset.IsNull())
 			{
 				if (UGroomBindingAsset* Binding = Cast<UGroomBindingAsset>(Entry.BindingAsset.LoadSynchronous()))
 				{
 					GroomComp->BindingAsset = Binding;
+					UE_LOG(LogProjectObject, Log,
+						TEXT("[Groom] '%s' binding set: %s"),
+						*Entry.Id.ToString(), *Binding->GetPathName());
 				}
 				else
 				{
@@ -870,6 +883,12 @@ AActor* SpawnFromDefinition(
 						TEXT("Failed to load GroomBindingAsset '%s' for groom '%s' in '%s'"),
 						*Entry.BindingAsset.ToString(), *Entry.Id.ToString(), *Def->ObjectId.ToString());
 				}
+			}
+			else
+			{
+				UE_LOG(LogProjectObject, Warning,
+					TEXT("[Groom] '%s' on '%s' has NO binding asset"),
+					*Entry.Id.ToString(), *Def->ObjectId.ToString());
 			}
 
 			// Attach to parent mesh (Face skeletal mesh)
@@ -880,9 +899,29 @@ AActor* SpawnFromDefinition(
 				{
 					GroomAttachParent = *ParentMesh;
 				}
+				else
+				{
+					UE_LOG(LogProjectObject, Warning,
+						TEXT("[Groom] '%s' parent mesh '%s' not found in MeshMap"),
+						*Entry.Id.ToString(), *Entry.Parent.ToString());
+				}
 			}
+			// Hide groom from owner camera (first-person). For NPCs this is
+			// harmless (no owner). Prevents 1-frame flash before
+			// LocalFirstPersonCapability reinforces the same flags.
+			GroomComp->SetOwnerNoSee(true);
+			GroomComp->SetCastShadow(false);
+
 			GroomComp->AttachToComponent(GroomAttachParent, FAttachmentTransformRules::KeepRelativeTransform);
+			SpawnedActor->AddInstanceComponent(GroomComp);
 			GroomComp->RegisterComponent();
+
+			UE_LOG(LogProjectObject, Log,
+				TEXT("[Groom] '%s' attached to '%s', registered=%s, visible=%s"),
+				*Entry.Id.ToString(),
+				GroomAttachParent ? *GroomAttachParent->GetName() : TEXT("NULL"),
+				GroomComp->IsRegistered() ? TEXT("true") : TEXT("false"),
+				GroomComp->IsVisible() ? TEXT("true") : TEXT("false"));
 
 			// Grooms are not UMeshComponent -- skip MeshMap registration but continue loop
 			continue;
@@ -1198,6 +1237,110 @@ AActor* SpawnFromDefinition(
 		}
 
 		MeshMap.Add(Entry.Id, MeshComp);
+	}
+
+	// 3b. Create trigger shape components.
+	// Capabilities reference triggers by FName (e.g., EnvironmentEffect::TriggerComponentName).
+	for (const FObjectTriggerEntry& TriggerEntry : Def->Triggers)
+	{
+		UShapeComponent* Shape = nullptr;
+
+		switch (TriggerEntry.Kind)
+		{
+		case EObjectTriggerKind::Box:
+		{
+			UBoxComponent* Box = NewObject<UBoxComponent>(SpawnedActor, TriggerEntry.Id);
+			Box->SetBoxExtent(TriggerEntry.Extent);
+			Shape = Box;
+			break;
+		}
+		case EObjectTriggerKind::Sphere:
+		{
+			USphereComponent* Sphere = NewObject<USphereComponent>(SpawnedActor, TriggerEntry.Id);
+			Sphere->SetSphereRadius(TriggerEntry.Radius);
+			Shape = Sphere;
+			break;
+		}
+		case EObjectTriggerKind::Capsule:
+		{
+			UCapsuleComponent* Capsule = NewObject<UCapsuleComponent>(SpawnedActor, TriggerEntry.Id);
+			Capsule->SetCapsuleSize(TriggerEntry.Radius, TriggerEntry.HalfHeight);
+			Shape = Capsule;
+			break;
+		}
+		}
+
+		if (Shape)
+		{
+			// Tag for reapply lookup (same pattern as DefMeshId on meshes)
+			Shape->ComponentTags.Add(FName(*FString::Printf(TEXT("DefTriggerId=%s"), *TriggerEntry.Id.ToString())));
+
+			Shape->SetCollisionProfileName(
+				TriggerEntry.CollisionProfile.IsNone()
+					? FName(TEXT("OverlapAllDynamic"))
+					: TriggerEntry.CollisionProfile);
+			Shape->SetGenerateOverlapEvents(true);
+
+			// Apply relative transform
+			if (!TriggerEntry.Transform.IsIdentity())
+			{
+				Shape->SetRelativeLocation(TriggerEntry.Transform.Location);
+				Shape->SetRelativeRotation(TriggerEntry.Transform.Rotation);
+			}
+
+			Shape->AttachToComponent(
+				SpawnedActor->GetRootComponent(),
+				FAttachmentTransformRules::KeepRelativeTransform);
+
+			SpawnedActor->AddInstanceComponent(Shape);
+			Shape->RegisterComponent();
+
+			UE_LOG(LogProjectObject, Verbose,
+				TEXT("  Trigger '%s' (%s) created on '%s'"),
+				*TriggerEntry.Id.ToString(),
+				*UEnum::GetValueAsString(TriggerEntry.Kind),
+				*SpawnedActor->GetName());
+
+			// Create post-process component if configured.
+			// Attached to the shape -> inherits volume bounds automatically (UE built-in).
+			if (TriggerEntry.PostProcess.IsValid())
+			{
+				UPostProcessComponent* PPComp = NewObject<UPostProcessComponent>(SpawnedActor);
+				PPComp->bUnbound = false;
+				PPComp->Priority = TriggerEntry.PostProcess.Priority;
+				PPComp->BlendRadius = TriggerEntry.PostProcess.BlendRadius;
+				PPComp->BlendWeight = TriggerEntry.PostProcess.BlendWeight;
+				PPComp->bEnabled = true;
+
+				// Auto-parse FPostProcessSettings from raw JSON (any UE PP property is valid)
+				if (TriggerEntry.PostProcess.SettingsJson.IsValid())
+				{
+					FJsonObjectConverter::JsonObjectToUStruct(
+						TriggerEntry.PostProcess.SettingsJson.ToSharedRef(),
+						FPostProcessSettings::StaticStruct(),
+						&PPComp->Settings, 0, 0);
+				}
+
+				// Post process material blendable
+				if (!TriggerEntry.PostProcess.Material.IsNull())
+				{
+					UMaterialInterface* PPMaterial = TriggerEntry.PostProcess.Material.LoadSynchronous();
+					if (PPMaterial)
+					{
+						PPComp->Settings.AddBlendable(PPMaterial, TriggerEntry.PostProcess.MaterialWeight);
+					}
+				}
+
+				// Attach to shape -> UPostProcessComponent uses parent UShapeComponent as bounds
+				PPComp->AttachToComponent(Shape, FAttachmentTransformRules::KeepRelativeTransform);
+				SpawnedActor->AddInstanceComponent(PPComp);
+				PPComp->RegisterComponent();
+
+				UE_LOG(LogProjectObject, Verbose,
+					TEXT("  PostProcess attached to trigger '%s'"),
+					*TriggerEntry.Id.ToString());
+			}
+		}
 	}
 
 	// 4. Create capabilities.

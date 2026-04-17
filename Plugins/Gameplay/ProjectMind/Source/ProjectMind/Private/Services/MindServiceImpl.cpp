@@ -1702,3 +1702,37 @@ FString FMindServiceImpl::ResolveIdleScanRulePath() const
 
 	return FProjectPaths::GetPluginDataDir(TEXT("ProjectMind")) / TEXT("scan_thought_rules.json");
 }
+
+void FMindServiceImpl::PushSystemThought(const FText& Text, float TimeToLiveSec, int32 Priority)
+{
+	if (Text.IsEmpty())
+	{
+		return;
+	}
+
+	const double NowSec = FPlatformTime::Seconds();
+
+	FMindThoughtView Thought;
+	Thought.ThoughtId = FName(TEXT("SystemThought"));
+	Thought.Channel = EMindThoughtChannel::Toast;
+	Thought.Priority = Priority;
+	Thought.SourceType = EMindThoughtSourceType::System;
+	Thought.Text = Text;
+	Thought.TimeToLiveSec = TimeToLiveSec;
+	Thought.CreatedAtUtc = FDateTime::UtcNow();
+	Thought.CreatedAtSec = static_cast<float>(NowSec);
+
+	ThoughtHistory.Add(Thought);
+	if (ThoughtHistory.Num() > MaxThoughtHistory)
+	{
+		const int32 NumToRemove = ThoughtHistory.Num() - MaxThoughtHistory;
+		ThoughtHistory.RemoveAt(0, NumToRemove, EAllowShrinking::No);
+	}
+
+	ThoughtAddedDelegate.Broadcast(Thought);
+	FeedChangedDelegate.Broadcast();
+
+	UE_LOG(LogProjectMindService, Log,
+		TEXT("System thought pushed: Priority=%d Text=\"%s\""),
+		Priority, *Text.ToString());
+}

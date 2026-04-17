@@ -3,7 +3,6 @@
 #include "Audio/AudioCapabilityComponent.h"
 #include "Audio/AudioPresetDefinition.h"
 #include "Components/AudioComponent.h"
-#include "Engine/StreamableManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAudioCapability, Log, All);
 
@@ -28,8 +27,8 @@ void UAudioCapabilityComponent::BeginPlay()
 		return;
 	}
 
-	UAudioPresetDefinition* Preset = AudioPresetAsset.LoadSynchronous();
-	if (!Preset)
+	CachedPreset = AudioPresetAsset.LoadSynchronous();
+	if (!CachedPreset)
 	{
 		UE_LOG(LogAudioCapability, Warning,
 			TEXT("[%s::BeginPlay] Failed to load '%s'"),
@@ -38,19 +37,14 @@ void UAudioCapabilityComponent::BeginPlay()
 	}
 
 	// Build track lookup map
-	for (const FAudioTrack& Track : Preset->Tracks)
+	for (const FAudioTrack& Track : CachedPreset->Tracks)
 	{
 		TrackMap.Add(Track.Id, Track.Sound);
 	}
 
-	// Cache attenuation from preset
-	InnerRadius = Preset->InnerRadius;
-	FalloffDistance = Preset->FalloffDistance;
-
 	UE_LOG(LogAudioCapability, Log,
-		TEXT("[%s::BeginPlay] Loaded %d tracks from '%s' (radius=%.0f, falloff=%.0f)"),
-		*GetNameSafe(GetOwner()), TrackMap.Num(), *Preset->AudioId.ToString(),
-		InnerRadius, FalloffDistance);
+		TEXT("[%s::BeginPlay] Loaded %d tracks from '%s'"),
+		*GetNameSafe(GetOwner()), TrackMap.Num(), *CachedPreset->AudioId.ToString());
 }
 
 void UAudioCapabilityComponent::EndPlay(EEndPlayReason::Type Reason)
@@ -65,7 +59,6 @@ void UAudioCapabilityComponent::HandleAction(const FString& Context, const FStri
 		TEXT("[%s::HandleAction] Context='%s', Action='%s'"),
 		*GetNameSafe(GetOwner()), *Context, *Action);
 
-	// $end = dialogue closed. Don't stop - let the gramophone keep playing
 	if (Action == TEXT("$end"))
 	{
 		return;
@@ -106,15 +99,14 @@ void UAudioCapabilityComponent::PlayTrack(const FString& TrackId)
 		return;
 	}
 
-	// Stop current playback before switching tracks
 	StopTrack();
 
 	USoundBase* Sound = FoundSound->LoadSynchronous();
 	if (!Sound)
 	{
 		UE_LOG(LogAudioCapability, Warning,
-			TEXT("[%s::PlayTrack] Failed to load sound for track '%s' ('%s')"),
-			*GetNameSafe(GetOwner()), *TrackId, *FoundSound->ToString());
+			TEXT("[%s::PlayTrack] Failed to load sound for track '%s'"),
+			*GetNameSafe(GetOwner()), *TrackId);
 		return;
 	}
 
@@ -124,32 +116,96 @@ void UAudioCapabilityComponent::PlayTrack(const FString& TrackId)
 		return;
 	}
 
-	// Create audio component manually for full attenuation control
 	ActiveAudioComp = NewObject<UAudioComponent>(Owner);
 	ActiveAudioComp->SetupAttachment(Owner->GetRootComponent());
 	ActiveAudioComp->SetSound(Sound);
 	ActiveAudioComp->bAutoDestroy = false;
 	ActiveAudioComp->bIsUISound = false;
 
-	// Spatial attenuation from preset
-	ActiveAudioComp->bOverrideAttenuation = true;
-	ActiveAudioComp->AttenuationOverrides.bAttenuate = true;
-	ActiveAudioComp->AttenuationOverrides.AttenuationShapeExtents = FVector(InnerRadius);
-	ActiveAudioComp->AttenuationOverrides.FalloffDistance = FalloffDistance;
+	// Apply source transform from preset (relative to actor)
+	if (CachedPreset && CachedPreset->HasSourceTransform())
+	{
+		ActiveAudioComp->SetRelativeLocation(CachedPreset->SourceOffset);
+		ActiveAudioComp->SetRelativeRotation(CachedPreset->SourceRotation);
+	}
+
+	// Apply attenuation from preset
+	if (CachedPreset && CachedPreset->Attenuation.IsValid())
+	{
+		const FAudioAttenuationConfig& Att = CachedPreset->Attenuation;
+
+		ActiveAudioComp->bOverrideAttenuation = true;
+		ActiveAudioComp->AttenuationOverrides.bAttenuate = true;
+
+		if (Att.InnerRadius > 0.0f)
+		{
+			ActiveAudioComp->AttenuationOverrides.AttenuationShapeExtents = FVector(Att.InnerRadius);
+		}
+		if (Att.FalloffDistance > 0.0f)
+		{
+			ActiveAudioComp->AttenuationOverrides.FalloffDistance = Att.FalloffDistance;
+		}
+
+		// Shape
+		if (!Att.Shape.IsEmpty())
+		{
+			if (Att.Shape == TEXT("Sphere"))
+				ActiveAudioComp->AttenuationOverrides.AttenuationShape = EAttenuationShape::Sphere;
+			else if (Att.Shape == TEXT("Capsule"))
+				ActiveAudioComp->AttenuationOverrides.AttenuationShape = EAttenuationShape::Capsule;
+			else if (Att.Shape == TEXT("Box"))
+				ActiveAudioComp->AttenuationOverrides.AttenuationShape = EAttenuationShape::Box;
+			else if (Att.Shape == TEXT("Cone"))
+				ActiveAudioComp->AttenuationOverrides.AttenuationShape = EAttenuationShape::Cone;
+		}
+
+		// Cone angles
+		if (Att.ConeAngle > 0.0f)
+		{
+			ActiveAudioComp->AttenuationOverrides.ConeOffset = Att.ConeAngle;
+		}
+		if (Att.ConeFalloffAngle > 0.0f)
+		{
+			ActiveAudioComp->AttenuationOverrides.FalloffDistance = Att.ConeFalloffAngle;
+		}
+
+		// Spatialization
+		if (!Att.Spatialization.IsEmpty())
+		{
+			ActiveAudioComp->AttenuationOverrides.bSpatialize = true;
+			if (Att.Spatialization == TEXT("Binaural"))
+			{
+				ActiveAudioComp->AttenuationOverrides.SpatializationAlgorithm =
+					ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF;
+				if (Att.BinauralRadius > 0.0f)
+				{
+					ActiveAudioComp->AttenuationOverrides.BinauralRadius = Att.BinauralRadius;
+				}
+			}
+		}
+	}
+	else
+	{
+		// No preset attenuation: use sound asset's own settings
+		ActiveAudioComp->bOverrideAttenuation = false;
+		ActiveAudioComp->bAllowSpatialization = true;
+	}
 
 	ActiveAudioComp->RegisterComponent();
 	ActiveAudioComp->OnAudioFinished.AddDynamic(this, &UAudioCapabilityComponent::HandleAudioFinished);
 	ActiveAudioComp->Play();
 
 	UE_LOG(LogAudioCapability, Log,
-		TEXT("[%s::PlayTrack] Playing '%s' (inner=%.0f, falloff=%.0f)"),
-		*GetNameSafe(GetOwner()), *TrackId, InnerRadius, FalloffDistance);
+		TEXT("[%s::PlayTrack] Playing '%s' (hasAttenuationOverride=%s, hasSourceTransform=%s)"),
+		*GetNameSafe(GetOwner()), *TrackId,
+		CachedPreset && CachedPreset->Attenuation.IsValid() ? TEXT("true") : TEXT("false"),
+		CachedPreset && CachedPreset->HasSourceTransform() ? TEXT("true") : TEXT("false"));
 }
 
 void UAudioCapabilityComponent::HandleAudioFinished()
 {
 	UE_LOG(LogAudioCapability, Log,
-		TEXT("[%s::HandleAudioFinished] Song finished naturally"),
+		TEXT("[%s::HandleAudioFinished] Sound finished"),
 		*GetNameSafe(GetOwner()));
 
 	if (ActiveAudioComp)

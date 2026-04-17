@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "ActiveGameplayEffectHandle.h"
+#include "GameplayEffectTypes.h"
 #include "ProjectVitalsComponent.generated.h"
 
 class UAbilitySystemComponent;
@@ -190,6 +191,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Vitals")
 	bool IsRunning() const { return bIsRunning; }
 
+	// -------------------------------------------------------------------------
+	// Death Detection
+	// -------------------------------------------------------------------------
+
+	// Fired when Condition decreases (any damage source).
+	// Amount is the absolute decrease (always positive).
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageTaken, float, Amount);
+
+	UPROPERTY(BlueprintAssignable, Category = "Vitals")
+	FOnDamageTaken OnDamageTaken;
+
+	// Fired once when Condition transitions from >0 to <=0.
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConditionDepleted);
+
+	UPROPERTY(BlueprintAssignable, Category = "Vitals")
+	FOnConditionDepleted OnConditionDepleted;
+
 #if WITH_DEV_AUTOMATION_TESTS
 	// Test-only wrappers for internal hysteresis and debuff cleanup behavior.
 	EVitalState TestComputeVitalStateWithHysteresis(float Percent, EVitalState PrevState) const;
@@ -210,6 +228,13 @@ private:
 
 	// Running state
 	bool bIsRunning = false;
+
+	// Death detection: bind ASC Condition attribute change delegate
+	void BindConditionDeathDetection();
+	void UnbindConditionDeathDetection();
+	void HandleConditionAttributeChanged(const FOnAttributeChangeData& Data);
+	FDelegateHandle ConditionDeathDelegateHandle;
+	bool bConditionDepletedFired = false;
 
 	// Cached ASC reference
 	UPROPERTY()

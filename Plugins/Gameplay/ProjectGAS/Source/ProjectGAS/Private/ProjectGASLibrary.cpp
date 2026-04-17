@@ -43,6 +43,10 @@ EApplyMagnitudesResult UProjectGASLibrary::ApplyMagnitudes(
 	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_Hydration.GetTag(), 0.0f);
 	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_Calories.GetTag(), 0.0f);
 	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_Fatigue.GetTag(), 0.0f);
+	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_Bleeding.GetTag(), 0.0f);
+	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_Poisoned.GetTag(), 0.0f);
+	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_Radiation.GetTag(), 0.0f);
+	SpecHandle.Data->SetSetByCallerMagnitude(ProjectTags::SetByCaller_MovementSpeedMultiplier.GetTag(), 0.0f);
 
 	// Now set the caller's specific magnitudes (overriding the 0 defaults)
 	for (const FAttributeMagnitude& Mag : Magnitudes)

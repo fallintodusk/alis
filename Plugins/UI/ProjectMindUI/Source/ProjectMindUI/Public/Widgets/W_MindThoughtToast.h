@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Widgets/ProjectUserWidget.h"
 #include "W_MindThoughtToast.generated.h"
 
@@ -31,4 +32,6 @@ private:
 	TWeakObjectPtr<UTextBlock> ThoughtText;
 	TWeakObjectPtr<UTextBlock> ThoughtMetaText;
 	FTimerHandle AutoHideTimerHandle;
+	FSlateFontInfo DefaultThoughtFont;
+	bool bDefaultFontCached = false;
 };

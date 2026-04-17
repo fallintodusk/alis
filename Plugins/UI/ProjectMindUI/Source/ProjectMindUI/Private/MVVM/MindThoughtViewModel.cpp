@@ -193,6 +193,7 @@ void UMindThoughtViewModel::ApplyThought(const FMindThoughtView& Thought, bool b
 	UpdateThoughtText(Thought.Text);
 	UpdateThoughtMetaText(BuildThoughtMetaText(Thought));
 	UpdateThoughtTimeToLiveSec(EffectiveTtlSec);
+	UpdatebIsSystemThought(Thought.SourceType == EMindThoughtSourceType::System);
 	UpdatebHasThought(true);
 }
 

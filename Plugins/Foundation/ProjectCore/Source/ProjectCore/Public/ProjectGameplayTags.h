@@ -136,6 +136,7 @@ namespace ProjectTags
 	PROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Bleeding);
 	PROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Poisoned);
 	PROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Radiation);
+	PROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_MovementSpeedMultiplier);
 
 	// -------------------------------------------------------------------------
 	// Damage Types

@@ -114,4 +114,12 @@ public:
 	 * @return True if request was built successfully
 	 */
 	virtual bool BuildLoadRequestForExperience(FName ExperienceName, FLoadRequest& OutRequest, FText& OutError) = 0;
+
+	/**
+	 * Get the experience name from the last successfully completed load.
+	 * Returns NAME_None if no load has completed yet.
+	 *
+	 * Consumed by death/reload flow to avoid guessing experience from map name.
+	 */
+	virtual FName GetLastLoadedExperienceName() const = 0;
 };

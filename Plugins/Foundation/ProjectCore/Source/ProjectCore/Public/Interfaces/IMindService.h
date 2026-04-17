@@ -118,4 +118,15 @@ public:
 	virtual ~IMindService() = default;
 
 	static FName ServiceKey() { return FName(TEXT("IMindService")); }
+
+	/**
+	 * Push a system thought directly into the feed.
+	 * Bypasses source adapters -- for death, tutorials, scripted events.
+	 * SourceType is set to System; consumers can style accordingly.
+	 *
+	 * @param Text Message text
+	 * @param TimeToLiveSec Duration before auto-hide (default 3.0)
+	 * @param Priority Priority for ordering (default 0)
+	 */
+	virtual void PushSystemThought(const FText& Text, float TimeToLiveSec = 3.0f, int32 Priority = 0) = 0;
 };

@@ -79,6 +79,15 @@ public:
 		return false;
 	}
 
+	virtual FName GetLastLoadedExperienceName() const override
+	{
+		if (UProjectLoadingSubsystem* Sub = Subsystem.Get())
+		{
+			return Sub->GetLastLoadedExperienceName();
+		}
+		return NAME_None;
+	}
+
 private:
 	TWeakObjectPtr<UProjectLoadingSubsystem> Subsystem;
 };
@@ -492,6 +501,33 @@ bool UProjectLoadingSubsystem::CancelActiveLoad(bool bForce)
 	return true;
 }
 
+FName UProjectLoadingSubsystem::GetLastLoadedExperienceName() const
+{
+	if (!LastLoadedExperienceName.IsNone())
+	{
+		return LastLoadedExperienceName;
+	}
+
+	// PIE fallback: loading pipeline wasn't used, derive from current world map package.
+	// Map package is e.g. "/City17/Maps/City17_Persistent_WP" -> first segment = "City17"
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		const FString MapPackageName = World->GetOutermost()->GetName();
+		TArray<FString> Segments;
+		MapPackageName.ParseIntoArray(Segments, TEXT("/"));
+		if (Segments.Num() > 0)
+		{
+			UE_LOG(LogProjectLoading, Log,
+				TEXT("GetLastLoadedExperienceName: PIE fallback from map package '%s' -> '%s'"),
+				*MapPackageName, *Segments[0]);
+			return FName(*Segments[0]);
+		}
+	}
+
+	return NAME_None;
+}
+
 bool UProjectLoadingSubsystem::BuildLoadRequestForExperience(FName ExperienceName, FLoadRequest& OutRequest, FText& OutError)
 {
 	UE_LOG(LogProjectLoading, Display, TEXT("BuildLoadRequestForExperience: Building request for '%s'"), *ExperienceName.ToString());
@@ -638,6 +674,7 @@ void UProjectLoadingSubsystem::CompleteActiveLoad(ELoadingState FinalState, cons
 		switch (FinalState)
 		{
 		case ELoadingState::Completed:
+			LastLoadedExperienceName = ActiveRequest.ExperienceName;
 			EventBroadcaster->BroadcastProgress(1.0f);
 			EventBroadcaster->BroadcastCompleted(ActiveRequest, Telemetry);
 			break;

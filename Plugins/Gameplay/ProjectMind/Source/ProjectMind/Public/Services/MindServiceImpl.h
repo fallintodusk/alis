@@ -39,6 +39,7 @@ public:
 	virtual bool GetLatestThought(FMindThoughtView& OutThought) const override;
 	virtual FOnMindThoughtAdded& OnThoughtAdded() override;
 	virtual FOnMindFeedChanged& OnMindFeedChanged() override;
+	virtual void PushSystemThought(const FText& Text, float TimeToLiveSec = 3.0f, int32 Priority = 0) override;
 
 	// IMindRuntimeControl
 	virtual void SetLocalPlayerPawn(APawn* InPawn) override;

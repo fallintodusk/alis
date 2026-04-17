@@ -95,6 +95,7 @@ public:
 	virtual bool IsLoadInProgress() const override { return ActiveHandle.IsValid() && ActiveHandle->IsInProgress(); }
 	virtual TSharedPtr<ILoadingHandle> GetActiveLoadHandle() const override { return ActiveHandle; }
 	virtual bool BuildLoadRequestForExperience(FName ExperienceName, FLoadRequest& OutRequest, FText& OutError) override;
+	virtual FName GetLastLoadedExperienceName() const override;
 	//~End ILoadingService interface
 
 	/** Reads initial entry experience name from config/state and triggers the first load. */
@@ -180,6 +181,7 @@ private:
 	TSharedPtr<ILoadingHandle> ActiveHandle;
 	FLoadRequest ActiveRequest;
 	FProjectLoadTelemetry Telemetry;
+	FName LastLoadedExperienceName;
 	double LoadStartTimeSeconds = 0.0;
 
 	// Async task handle for pipeline execution

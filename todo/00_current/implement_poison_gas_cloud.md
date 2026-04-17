@@ -1,6 +1,12 @@
 # Poison Gas Cloud (Environmental Hazard via GAS)
 
-## Problem
+**SUPERSEDED** by `UEnvironmentEffectComponent` in `ProjectObjectCapabilities`.
+See `todo/00_current/city17_implement_hazards_and_death.md`.
+Delete this file after the EnvironmentEffect capability is merged and verified.
+
+---
+
+## Problem (original)
 
 Need poisonous fog zones where the player enters a gas cloud (box collision) and dies within 3-5 seconds. Currently the level has visual fog (`BP_FogSheet`) and trigger boxes placed, but no gameplay logic wired — entering the cloud does nothing.
 

@@ -4,6 +4,9 @@
 #include "Data/ObjectDefinition.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/BoxComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameplayTagContainer.h"
 #include "CapabilityRegistry.h"
 #include "CapabilityHierarchyHelpers.h"
@@ -464,6 +467,80 @@ bool AInteractableActor::ApplyDefinition_Implementation(UPrimaryDataAsset* Defin
 			UE_LOG(LogInteractableActor, Warning,
 				TEXT("  Mesh '%s' not found on actor (missing DefMeshId tag?)"), *Entry.Id.ToString());
 		}
+	}
+
+	// Update trigger shape components (extent, collision, post-process).
+	// Transform is only updated when bOverrideTransform=true (default: level placement preserved).
+	for (const FObjectTriggerEntry& TriggerEntry : ObjDef->Triggers)
+	{
+		// Find existing trigger by DefTriggerId tag
+		UShapeComponent* Shape = nullptr;
+		FName TriggerTag = FName(*FString::Printf(TEXT("DefTriggerId=%s"), *TriggerEntry.Id.ToString()));
+
+		for (UActorComponent* Comp : GetComponents())
+		{
+			UShapeComponent* Candidate = Cast<UShapeComponent>(Comp);
+			if (Candidate && Candidate->ComponentTags.Contains(TriggerTag))
+			{
+				Shape = Candidate;
+				break;
+			}
+		}
+
+		if (!Shape)
+		{
+			UE_LOG(LogInteractableActor, Warning,
+				TEXT("  Trigger '%s' not found on actor (missing DefTriggerId tag?)"),
+				*TriggerEntry.Id.ToString());
+			continue;
+		}
+
+		Shape->Modify();
+
+		// Update shape extent/radius
+		switch (TriggerEntry.Kind)
+		{
+		case EObjectTriggerKind::Box:
+			if (UBoxComponent* Box = Cast<UBoxComponent>(Shape))
+			{
+				Box->SetBoxExtent(TriggerEntry.Extent);
+			}
+			break;
+		case EObjectTriggerKind::Sphere:
+			if (USphereComponent* Sphere = Cast<USphereComponent>(Shape))
+			{
+				Sphere->SetSphereRadius(TriggerEntry.Radius);
+			}
+			break;
+		case EObjectTriggerKind::Capsule:
+			if (UCapsuleComponent* Capsule = Cast<UCapsuleComponent>(Shape))
+			{
+				Capsule->SetCapsuleSize(TriggerEntry.Radius, TriggerEntry.HalfHeight);
+			}
+			break;
+		}
+
+		// Update collision profile
+		if (!TriggerEntry.CollisionProfile.IsNone())
+		{
+			Shape->SetCollisionProfileName(TriggerEntry.CollisionProfile);
+		}
+
+		// Transform: only override if JSON defines a non-identity transform.
+		// No transform in JSON = designer placement wins.
+		if (!TriggerEntry.Transform.IsIdentity())
+		{
+			Shape->SetRelativeLocation(TriggerEntry.Transform.Location);
+			Shape->SetRelativeRotation(TriggerEntry.Transform.Rotation);
+
+			UE_LOG(LogInteractableActor, Verbose,
+				TEXT("  Trigger '%s' transform overridden from JSON"),
+				*TriggerEntry.Id.ToString());
+		}
+
+		UE_LOG(LogInteractableActor, Log,
+			TEXT("  Trigger '%s' updated"),
+			*TriggerEntry.Id.ToString());
 	}
 
 	// Create and configure capability components

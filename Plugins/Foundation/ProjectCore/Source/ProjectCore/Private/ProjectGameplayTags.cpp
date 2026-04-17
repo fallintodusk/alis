@@ -116,6 +116,7 @@ namespace ProjectTags
 	UE_DEFINE_GAMEPLAY_TAG(SetByCaller_Bleeding, "SetByCaller.Bleeding");
 	UE_DEFINE_GAMEPLAY_TAG(SetByCaller_Poisoned, "SetByCaller.Poisoned");
 	UE_DEFINE_GAMEPLAY_TAG(SetByCaller_Radiation, "SetByCaller.Radiation");
+	UE_DEFINE_GAMEPLAY_TAG(SetByCaller_MovementSpeedMultiplier, "SetByCaller.MovementSpeedMultiplier");
 
 	// -------------------------------------------------------------------------
 	// Damage Types

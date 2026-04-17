@@ -3,6 +3,7 @@
 #include "DefinitionJsonParser.h"
 #include "Data/ObjectDefinition.h"
 #include "Data/LootProfileDefinition.h"
+#include "Audio/AudioPresetDefinition.h"
 
 #include "Dom/JsonObject.h"
 #include "GameplayTagsManager.h"
@@ -416,6 +417,15 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 		}
 
 		UE_LOG(LogDefinitionJsonParser, Verbose, TEXT("Auto-parsed %s using JsonObjectToUStruct"), *Asset->GetName());
+
+		// Post-parse: set bIsSet flag on nested structs when their JSON block was present
+		if (UAudioPresetDefinition* AudioDef = Cast<UAudioPresetDefinition>(Asset))
+		{
+			if (JsonObject->HasField(TEXT("Attenuation")) || JsonObject->HasField(TEXT("attenuation")))
+			{
+				AudioDef->Attenuation.bIsSet = true;
+			}
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -509,7 +519,7 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 		}
 
 		// ---------------------------------------------------------------------
-		// 2. MESHES (required)
+		// 2. MESHES (optional -- trigger-only objects may have no meshes)
 		// ---------------------------------------------------------------------
 		const TArray<TSharedPtr<FJsonValue>>* MeshesArray = nullptr;
 		if (JsonObject->TryGetArrayField(TEXT("meshes"), MeshesArray) && MeshesArray && MeshesArray->Num() > 0)
@@ -556,9 +566,49 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 		}
 		else
 		{
-			UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] Missing required field 'meshes' or array is empty"), *Asset->GetName());
-			OutError = TEXT("Missing required field: meshes");
-			return false;
+			// No meshes -- valid for trigger-only objects (hazard zones, etc.)
+			UE_LOG(LogDefinitionJsonParser, Verbose, TEXT("[%s] No meshes defined (trigger-only object)"), *Asset->GetName());
+		}
+
+		// ---------------------------------------------------------------------
+		// 2b. TRIGGERS (optional -- shape components for overlap detection)
+		// ---------------------------------------------------------------------
+		const TArray<TSharedPtr<FJsonValue>>* TriggersArray = nullptr;
+		if (JsonObject->TryGetArrayField(TEXT("triggers"), TriggersArray) && TriggersArray && TriggersArray->Num() > 0)
+		{
+			ObjDef->Triggers.Empty();
+			for (const TSharedPtr<FJsonValue>& Element : *TriggersArray)
+			{
+				const TSharedPtr<FJsonObject>* TriggerObj;
+				if (Element->TryGetObject(TriggerObj))
+				{
+					FObjectTriggerEntry Entry;
+					FJsonObjectConverter::JsonObjectToUStruct(
+						TriggerObj->ToSharedRef(), FObjectTriggerEntry::StaticStruct(), &Entry, 0, 0, false, nullptr, &Callback);
+
+					// Parse post-process block if present
+					if ((*TriggerObj)->HasField(TEXT("postProcess")))
+					{
+						Entry.PostProcess.bIsSet = true;
+
+						const TSharedPtr<FJsonObject>* PPObj = nullptr;
+						if ((*TriggerObj)->TryGetObjectField(TEXT("postProcess"), PPObj) && PPObj)
+						{
+							// Capture raw 'settings' sub-object for FPostProcessSettings auto-parse at spawn
+							const TSharedPtr<FJsonObject>* SettingsObj = nullptr;
+							if ((*PPObj)->TryGetObjectField(TEXT("settings"), SettingsObj) && SettingsObj)
+							{
+								Entry.PostProcess.SettingsJson = *SettingsObj;
+							}
+						}
+					}
+
+					ObjDef->Triggers.Add(Entry);
+				}
+			}
+
+			UE_LOG(LogDefinitionJsonParser, Verbose, TEXT("[%s] Parsed %d triggers"),
+				*Asset->GetName(), ObjDef->Triggers.Num());
 		}
 
 		// ---------------------------------------------------------------------

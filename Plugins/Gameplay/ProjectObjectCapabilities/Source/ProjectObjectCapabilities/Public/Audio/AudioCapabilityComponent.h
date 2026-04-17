@@ -12,18 +12,16 @@ class UAudioComponent;
 class USoundBase;
 
 /**
- * Audio playback capability for interactable objects (gramophone, radio, etc.).
+ * Audio playback capability for interactable objects.
  *
- * Receives actions via IProjectActionReceiver from other capabilities (e.g. Dialogue).
+ * Receives actions via IProjectActionReceiver from other capabilities.
  * Actions filtered by "audio." namespace:
- * - "audio.play:<track_id>" - play a track from the preset (one-shot, spatial)
+ * - "audio.play:<track_id>" - play a track from the preset (spatial)
  * - "audio.stop" - stop current playback
- * - "$end" - ignored (song keeps playing until it finishes naturally)
  *
- * Spatial audio: distance-based attenuation configured via InnerRadius/FalloffDistance
- * in the AUDIO_*.json preset. Simulates a physical sound source (gramophone horn, radio speaker).
- *
- * Track definitions loaded from UAudioPresetDefinition (generated from AUDIO_*.json).
+ * All audio settings (tracks, attenuation, spatialization, source transform)
+ * come from UAudioPresetDefinition (AUDIO_*.json). The preset is the single
+ * source of truth -- no audio properties exposed on this component.
  */
 UCLASS(ClassGroup = (ProjectCapabilities), meta = (BlueprintSpawnableComponent))
 class PROJECTOBJECTCAPABILITIES_API UAudioCapabilityComponent
@@ -59,10 +57,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UAudioComponent> ActiveAudioComp;
 
+	// Cached preset (loaded in BeginPlay)
+	UPROPERTY()
+	TObjectPtr<UAudioPresetDefinition> CachedPreset;
+
 	// TrackId -> SoftPtr<USoundBase>, built from preset in BeginPlay
 	TMap<FString, TSoftObjectPtr<USoundBase>> TrackMap;
-
-	// Cached attenuation from preset (cm)
-	float InnerRadius = 200.f;
-	float FalloffDistance = 1500.f;
 };

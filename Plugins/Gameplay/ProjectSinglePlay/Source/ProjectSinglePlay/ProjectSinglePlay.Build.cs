@@ -21,7 +21,8 @@ public class ProjectSinglePlay : ModuleRules
 			"Json",           // For JSON override loading
 			"JsonUtilities",  // For JSON parsing utilities
 			"ProjectGameplay",
-			"ProjectObject"   // SpawnFromDefinition (used in SinglePlayerGameMode.cpp only)
+			"ProjectObject",  // SpawnFromDefinition (used in SinglePlayerGameMode.cpp only)
+			"ProjectVitals"   // VitalsComponent::OnConditionDepleted for death response
 		});
 
 		StageDataDir(Target);

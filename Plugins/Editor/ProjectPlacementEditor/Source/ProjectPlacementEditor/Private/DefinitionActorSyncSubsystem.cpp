@@ -642,20 +642,24 @@ void UDefinitionActorSyncSubsystem::OnActorsLoadedIntoLevel(const TArray<AActor*
 			continue;
 		}
 
-		// Check if update needed (content hash mismatch)
+		// Check if update needed (content OR structure hash mismatch)
 		UObjectDefinition* ObjDef = Cast<UObjectDefinition>(Def);
 		if (ObjDef && !ObjDef->DefinitionContentHash.IsEmpty())
 		{
-			if (AppliedContentHash == ObjDef->DefinitionContentHash)
+			const bool bContentMatch = (AppliedContentHash == ObjDef->DefinitionContentHash);
+			const bool bStructureMatch = AppliedStructureHash.IsEmpty()
+				|| (AppliedStructureHash == ObjDef->DefinitionStructureHash);
+
+			if (bContentMatch && bStructureMatch)
 			{
 				// Already up to date
 				continue;
 			}
 
-			UE_LOG(LogDefinitionActorSync, Log, TEXT("[Mode1] Actor %s needs update: %s -> %s"),
+			UE_LOG(LogDefinitionActorSync, Log, TEXT("[Mode1] Actor %s needs update: content=%s structure=%s"),
 				*Actor->GetActorLabel(),
-				*AppliedContentHash.Left(8),
-				*ObjDef->DefinitionContentHash.Left(8));
+				bContentMatch ? TEXT("match") : TEXT("mismatch"),
+				bStructureMatch ? TEXT("match") : TEXT("mismatch"));
 
 			// Try to apply silently
 			if (ApplyDefinitionToActor(Actor, Def))

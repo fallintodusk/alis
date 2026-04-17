@@ -93,6 +93,18 @@ namespace
 			FeedChangedDelegate.Broadcast();
 		}
 
+		virtual void PushSystemThought(const FText& Text, float TimeToLiveSec, int32 Priority) override
+		{
+			FMindThoughtView Thought;
+			Thought.ThoughtId = FName(TEXT("SystemThought"));
+			Thought.Channel = EMindThoughtChannel::Toast;
+			Thought.SourceType = EMindThoughtSourceType::System;
+			Thought.Priority = Priority;
+			Thought.Text = Text;
+			Thought.TimeToLiveSec = TimeToLiveSec;
+			EmitThought(Thought);
+		}
+
 		TArray<FMindThoughtView> ThoughtHistory;
 		FOnMindThoughtAdded ThoughtAddedDelegate;
 		FOnMindFeedChanged FeedChangedDelegate;

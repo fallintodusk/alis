@@ -4,10 +4,10 @@
 #include "ProjectGameplayTags.h"
 #include "GameplayEffect.h"
 
-// Forward declare attribute classes for GetAttribute()
 #include "Attributes/HealthAttributeSet.h"
 #include "Attributes/StaminaAttributeSet.h"
 #include "Attributes/SurvivalAttributeSet.h"
+#include "Attributes/StatusAttributeSet.h"
 
 namespace
 {
@@ -72,6 +72,43 @@ UGE_GenericInstant::UGE_GenericInstant()
 		Modifier.Attribute = USurvivalAttributeSet::GetFatigueAttribute();
 		Modifier.ModifierOp = EGameplayModOp::Additive;
 		Modifier.ModifierMagnitude = MakeSetByCallerMagnitude(ProjectTags::SetByCaller_Fatigue.GetTag());
+		Modifiers.Add(Modifier);
+	}
+
+	// === Bleeding Modifier ===
+	{
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = UStatusAttributeSet::GetBleedingAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = MakeSetByCallerMagnitude(ProjectTags::SetByCaller_Bleeding.GetTag());
+		Modifiers.Add(Modifier);
+	}
+
+	// === Poisoned Modifier ===
+	{
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = UStatusAttributeSet::GetPoisonedAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = MakeSetByCallerMagnitude(ProjectTags::SetByCaller_Poisoned.GetTag());
+		Modifiers.Add(Modifier);
+	}
+
+	// === Radiation Modifier ===
+	{
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = UStatusAttributeSet::GetRadiationAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = MakeSetByCallerMagnitude(ProjectTags::SetByCaller_Radiation.GetTag());
+		Modifiers.Add(Modifier);
+	}
+
+	// === MovementSpeedMultiplier Modifier ===
+	// Additive: -0.75 means 25% speed (base 1.0 - 0.75 = 0.25)
+	{
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = UStatusAttributeSet::GetMovementSpeedMultiplierAttribute();
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = MakeSetByCallerMagnitude(ProjectTags::SetByCaller_MovementSpeedMultiplier.GetTag());
 		Modifiers.Add(Modifier);
 	}
 

@@ -274,8 +274,31 @@ void UProjectUILayerHostSubsystem::InitializeDefaultLayers()
 
 void UProjectUILayerHostSubsystem::EnsureHUDLayout(APlayerController* PlayerController)
 {
-	if (HUDLayout.IsValid() || !PlayerController)
+	// Check if existing HUD is still alive AND in viewport.
+	// After ServerTravel, the widget is destructed but GC may not have run yet,
+	// so IsValid() can return true on a dead widget. IsInViewport() catches this.
+	const bool bHUDAlive = HUDLayout.IsValid()
+		&& Cast<UUserWidget>(HUDLayout.Get())
+		&& Cast<UUserWidget>(HUDLayout.Get())->IsInViewport();
+
+	UE_LOG(LogProjectUILayerHost, Log,
+		TEXT("[EnsureHUDLayout] Called. HUDLayout.IsValid=%s, IsInViewport=%s, PC=%s"),
+		HUDLayout.IsValid() ? TEXT("true") : TEXT("false"),
+		bHUDAlive ? TEXT("true") : TEXT("false"),
+		PlayerController ? *PlayerController->GetName() : TEXT("null"));
+
+	if (bHUDAlive)
 	{
+		UE_LOG(LogProjectUILayerHost, Log, TEXT("[EnsureHUDLayout] HUD alive and in viewport, skipping"));
+		return;
+	}
+
+	// Clear stale reference
+	HUDLayout.Reset();
+
+	if (!PlayerController)
+	{
+		UE_LOG(LogProjectUILayerHost, Warning, TEXT("[EnsureHUDLayout] No PlayerController"));
 		return;
 	}
 
@@ -284,26 +307,34 @@ void UProjectUILayerHostSubsystem::EnsureHUDLayout(APlayerController* PlayerCont
 		const UProjectUISettings* Settings = GetDefault<UProjectUISettings>();
 		if (!Settings || !Settings->HUDLayoutClass.IsValid())
 		{
-			UE_LOG(LogProjectUILayerHost, Warning, TEXT("HUDLayoutClass is not set in ProjectUISettings"));
+			UE_LOG(LogProjectUILayerHost, Warning, TEXT("[EnsureHUDLayout] HUDLayoutClass is not set in ProjectUISettings"));
 			return;
 		}
 
 		UClass* LayoutClass = Settings->HUDLayoutClass.TryLoadClass<UUserWidget>();
 		if (!LayoutClass)
 		{
-			UE_LOG(LogProjectUILayerHost, Warning, TEXT("HUDLayoutClass failed to load: %s"),
+			UE_LOG(LogProjectUILayerHost, Warning, TEXT("[EnsureHUDLayout] HUDLayoutClass failed to load: %s"),
 				*Settings->HUDLayoutClass.ToString());
 			return;
 		}
 
 		if (UUserWidget* Widget = Factory->CreateWidgetByClass(PlayerController, LayoutClass))
 		{
-			// Use stretch anchors to fill viewport - don't set DesiredSize (conflicts with stretch)
 			Widget->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 1.f));
 			Widget->SetAlignmentInViewport(FVector2D(0.f, 0.f));
 			Widget->AddToViewport(0);
 			HUDLayout = Widget;
+			UE_LOG(LogProjectUILayerHost, Log, TEXT("[EnsureHUDLayout] HUD created and added to viewport"));
 		}
+		else
+		{
+			UE_LOG(LogProjectUILayerHost, Error, TEXT("[EnsureHUDLayout] CreateWidgetByClass returned null"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogProjectUILayerHost, Error, TEXT("[EnsureHUDLayout] ProjectUIFactorySubsystem not found"));
 	}
 }
 

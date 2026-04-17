@@ -1517,6 +1517,90 @@ bool FObjectParentGeneralization_SyncPassiveLoadReplaceTest::RunTest(const FStri
 	return true;
 }
 
+// Structure hash mismatch with matching content hash should trigger replace.
+// Covers the case where a capability is added to JSON, definition regenerated,
+// but the placed actor still has the old structure hash.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FObjectParentGeneralization_SyncPassiveLoadStructureMismatchTest,
+	"ProjectIntegrationTests.ObjectParentGeneralization.Sync.PassiveLoad.StructureMismatchReplace",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FObjectParentGeneralization_SyncPassiveLoadStructureMismatchTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = OPG_ResolveAutomationTestWorld();
+	TestNotNull(TEXT("Automation world should be available"), World);
+	if (!World)
+	{
+		return false;
+	}
+
+	UDefinitionActorSyncSubsystem* SyncSubsystem = OPG_ResolveDefinitionActorSyncSubsystem();
+	TestNotNull(TEXT("DefinitionActorSyncSubsystem should be available"), SyncSubsystem);
+	if (!SyncSubsystem)
+	{
+		return false;
+	}
+
+	// Definition has structure hash "S_New" and content hash "C_Same"
+	UObjectDefinition* Def = OPG_MakeTransientObjectDefinition(FName(TEXT("StructMismatchDef")), TEXT("S_New"), TEXT("C_Same"));
+	const FPrimaryAssetId DefId = Def->GetPrimaryAssetId();
+	TestTrue(TEXT("Definition id should be valid"), DefId.IsValid());
+	if (!DefId.IsValid())
+	{
+		return false;
+	}
+
+	UDefinitionActorSyncSubsystem::TestOnly_RegisterDefinitionOverride(DefId, Def);
+
+	AProjectSyncDefinitionApplicableTestActor* Actor = World->SpawnActor<AProjectSyncDefinitionApplicableTestActor>(
+		AProjectSyncDefinitionApplicableTestActor::StaticClass(),
+		FTransform::Identity);
+	TestNotNull(TEXT("Actor should spawn"), Actor);
+	if (!Actor)
+	{
+		UDefinitionActorSyncSubsystem::TestOnly_ClearDefinitionOverrides();
+		return false;
+	}
+
+	const FString TestLabel = TEXT("StructMismatchActor");
+	Actor->SetActorLabel(TestLabel);
+	Actor->bApplyDefinitionResult = false;
+
+	// Actor has OLD structure hash "S_Old" but SAME content hash "C_Same"
+	const bool bWroteHost = ProjectWorldDefinitionHost::WriteHostState(
+		Actor,
+		DefId,
+		TEXT("S_Old"),     // structure mismatch
+		TEXT("C_Same"),    // content match
+		true);
+	TestTrue(TEXT("Actor should have host state"), bWroteHost);
+
+	AddExpectedError(TEXT("The Editor is currently in a play mode."), EAutomationExpectedErrorFlags::Contains, 1);
+
+	TArray<AActor*> LoadedActors;
+	LoadedActors.Add(Actor);
+	SyncSubsystem->TestOnly_OnActorsLoadedIntoLevel(LoadedActors);
+
+	// Structure mismatch should trigger ApplyDefinition (which returns false) then replace
+	TestEqual(TEXT("ApplyDefinition should be called once before replace fallback"),
+		Actor->ApplyDefinitionCallCount, 1);
+
+	AActor* Replacement = OPG_FindActorByLabel(World, TestLabel, Actor);
+	TestNotNull(TEXT("Structure mismatch should trigger auto-replace"), Replacement);
+	if (Replacement)
+	{
+		TestFalse(TEXT("Replacement should be a new actor"), Replacement == Actor);
+		Replacement->Destroy();
+	}
+
+	UDefinitionActorSyncSubsystem::TestOnly_ClearDefinitionOverrides();
+	if (IsValid(Actor) && !Actor->IsActorBeingDestroyed())
+	{
+		Actor->Destroy();
+	}
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FObjectParentGeneralization_SyncLegacyAndHostPathTest,
 	"ProjectIntegrationTests.ObjectParentGeneralization.Sync.PassiveLoad.LegacyAndHostPath",

@@ -54,7 +54,28 @@ void UW_MindThoughtToast::RefreshFromViewModel_Implementation()
 
 	if (ThoughtText.IsValid())
 	{
+		// Cache default font on first use
+		if (!bDefaultFontCached)
+		{
+			DefaultThoughtFont = ThoughtText->GetFont();
+			bDefaultFontCached = true;
+		}
+
 		ThoughtText->SetText(MindVM->GetThoughtText());
+
+		// System thoughts (death, critical events): 3x font, red
+		if (MindVM->GetbIsSystemThought())
+		{
+			FSlateFontInfo SystemFont = DefaultThoughtFont;
+			SystemFont.Size = DefaultThoughtFont.Size * 3;
+			ThoughtText->SetFont(SystemFont);
+			ThoughtText->SetColorAndOpacity(FSlateColor(FLinearColor::Red));
+		}
+		else
+		{
+			ThoughtText->SetFont(DefaultThoughtFont);
+			ThoughtText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		}
 	}
 	if (ThoughtMetaText.IsValid())
 	{

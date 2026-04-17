@@ -32,6 +32,7 @@ public:
 	VIEWMODEL_PROPERTY(FText, ThoughtText)
 	VIEWMODEL_PROPERTY(FText, ThoughtMetaText)
 	VIEWMODEL_PROPERTY(float, ThoughtTimeToLiveSec)
+	VIEWMODEL_PROPERTY(bool, bIsSystemThought)
 
 private:
 	void SubscribeToService();
