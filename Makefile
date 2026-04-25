@@ -33,18 +33,21 @@ ifneq ($(FORCE_WSL),)
   IS_WSL := $(FORCE_WSL)
 endif
 
-.PHONY: help check check-uht check-syntax check-blueprints check-assets full-build clean generate open test test-all test-unit test-integration test-quick prepare-tests merge-ai mirror build-module build-editor build-game build-server package structurizr-start structurizr-stop structurizr-open
+.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package structurizr-start structurizr-stop structurizr-open
 
 # Default target
 help:
 	@echo "Alis Project - Available Commands:"
 	@echo ""
 	@echo "  Fast Checks (no full build):"
-	@echo "    make check             - Run all fast checks (UHT + BP + assets)"
+	@echo "    make check             - Run all fast checks (UHT + BP + assets + config)"
 	@echo "    make check-uht         - Validate C++ reflection markup only"
 	@echo "    make check-syntax      - Validate build without compiling"
 	@echo "    make check-blueprints  - Compile all Blueprints"
 	@echo "    make check-assets      - Run data validation on assets"
+	@echo "    make check-config      - Validate shipping ini settings (no editor)"
+	@echo "    make check-refs        - Validate null materials/soft refs (needs editor)"
+	@echo "    make check-primary-assets - Verify primary asset classes exist (needs editor)"
 	@echo ""
 	@echo "  Testing Commands:"
 	@echo "    make test              - Run all tests (unit + integration)"
@@ -52,6 +55,7 @@ help:
 	@echo "    make test-integration  - Run integration tests only (Tier 2: cross-plugin)"
 	@echo "    make test-integration-batch - Run ProjectIntegrationTests (Windows headless)"
 	@echo "    make test-quick        - Run quick smoke tests"
+	@echo "    make test-package EXE=<path> - Run packaged build hitch smoke test"
 	@echo "    make prepare-tests     - Prepare plugins and generate code before tests"
 	@echo ""
 	@echo "  Build Commands:"
@@ -83,6 +87,8 @@ help:
 # Fast check suite (recommended before commits)
 check:
 	@echo "Running fast check suite..."
+	@$(MAKE) check-config
+	@$(MAKE) check-primary-assets
 	@$(MAKE) check-uht
 	@$(MAKE) check-blueprints
 	@$(MAKE) check-assets
@@ -176,6 +182,34 @@ else
 		-log="$(REPORTS_DIR)/data_validation.log"
 	@echo "✓ Data validation complete"
 endif
+
+# Shipping ini validation (pure Python, no editor, <1s)
+check-config:
+	@echo "Validating shipping ini settings..."
+	@python scripts/ue/check/config/validate_shipping_ini.py
+
+# Null material / soft reference validation (needs editor)
+check-refs:
+	@echo "Validating soft references and null materials..."
+	@cmd /C "scripts\\ue\\check\\assets\\validate_soft_refs.bat"
+
+# Primary asset directory presence (pure Python, no editor, <1s)
+check-primary-assets:
+	@echo "Verifying primary asset directories..."
+	@python scripts/ue/check/assets/check_primary_assets.py
+
+# Packaged build hitch smoke test (needs packaged exe)
+# Usage: make test-package EXE=C:\builds\Alis\Alis.exe
+test-package:
+ifndef EXE
+	@echo "ERROR: EXE parameter required"
+	@echo "Usage: make test-package EXE=<path-to-packaged-Alis.exe>"
+	@exit 1
+endif
+	@echo "Running packaged build hitch smoke test..."
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+		-File "scripts/ue/test/smoke/packaged_boot_test.ps1" \
+		-ExePath "$(EXE)"
 
 # Generate project files
 generate:

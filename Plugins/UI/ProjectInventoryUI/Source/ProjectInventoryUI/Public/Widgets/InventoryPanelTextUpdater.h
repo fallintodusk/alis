@@ -29,21 +29,19 @@ public:
         UTextBlock* QtyValueText = nullptr;
         UTextBlock* RotateStateText = nullptr;
         UTextBlock* ItemIcon = nullptr;
-        UTextBlock* NearbyTitleText = nullptr;
-        UTextBlock* NearbyStatsText = nullptr;
         UButton* QtyDownButton = nullptr;
         UButton* QtyUpButton = nullptr;
         UButton* UseButton = nullptr;
         UButton* DropButton = nullptr;
         UButton* EquipButton = nullptr;
-        UButton* TakeAllButton = nullptr;
     };
 
     void Initialize(const FWidgetRefs& InRefs);
 
     // Update methods - each has single responsibility
     void UpdateStatsText(UInventoryViewModel* VM);
-    void UpdateNearbyContainerInfo(UInventoryViewModel* VM);
+    // UpdateNearbyContainerInfo moved to FNearbyContainerPresentation, owned
+    // by UW_NearbyContainerPanel.
     void UpdateSelectionInfo(UInventoryViewModel* VM, FInventoryPanelState& PanelState);
     void UpdateCommandButtons(UInventoryViewModel* VM, const FInventoryPanelState& PanelState);
     void UpdateQuantityControls(const FInventoryPanelState& PanelState);

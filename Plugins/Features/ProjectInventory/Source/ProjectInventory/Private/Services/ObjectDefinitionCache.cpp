@@ -5,7 +5,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectDefinitionCache, Log, All);
 
-UObject* UObjectDefinitionCache::GetLoaded(FPrimaryAssetId ObjectId) const
+UObject* UObjectDefinitionCache::FindInMemoryObject(FPrimaryAssetId ObjectId) const
 {
 	if (!ObjectId.IsValid())
 	{
@@ -16,9 +16,68 @@ UObject* UObjectDefinitionCache::GetLoaded(FPrimaryAssetId ObjectId) const
 	return AM.GetPrimaryAssetObject<UObject>(ObjectId);
 }
 
+void UObjectDefinitionCache::CaptureResolvedObject(FPrimaryAssetId ObjectId, TSharedPtr<FStreamableHandle> ResidentHandle)
+{
+	if (!ObjectId.IsValid())
+	{
+		return;
+	}
+
+	if (ResidentHandle.IsValid())
+	{
+		ResidentHandles.Add(ObjectId, ResidentHandle);
+	}
+
+	if (UObject* LoadedObject = FindInMemoryObject(ObjectId))
+	{
+		ResolvedDefinitions.Add(ObjectId, LoadedObject);
+	}
+}
+
+UObject* UObjectDefinitionCache::GetLoaded(FPrimaryAssetId ObjectId) const
+{
+	if (!ObjectId.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (const TObjectPtr<UObject>* ExistingObject = ResolvedDefinitions.Find(ObjectId))
+	{
+		return ExistingObject->Get();
+	}
+
+	if (UObject* LoadedObject = FindInMemoryObject(ObjectId))
+	{
+		const_cast<UObjectDefinitionCache*>(this)->CaptureResolvedObject(ObjectId, nullptr);
+		return LoadedObject;
+	}
+
+	return nullptr;
+}
+
+EObjectDefinitionLoadState UObjectDefinitionCache::GetLoadState(FPrimaryAssetId ObjectId) const
+{
+	if (!ObjectId.IsValid())
+	{
+		return EObjectDefinitionLoadState::Missing;
+	}
+
+	if (GetLoaded(ObjectId))
+	{
+		return EObjectDefinitionLoadState::Loaded;
+	}
+
+	if (PendingLoads.Contains(ObjectId))
+	{
+		return EObjectDefinitionLoadState::Loading;
+	}
+
+	return EObjectDefinitionLoadState::Missing;
+}
+
 bool UObjectDefinitionCache::IsLoaded(FPrimaryAssetId ObjectId) const
 {
-	return GetLoaded(ObjectId) != nullptr;
+	return GetLoadState(ObjectId) == EObjectDefinitionLoadState::Loaded;
 }
 
 void UObjectDefinitionCache::RequestLoad(FPrimaryAssetId ObjectId, FOnObjectDefinitionLoaded OnLoaded)
@@ -77,6 +136,7 @@ void UObjectDefinitionCache::OnObjectLoaded(FPrimaryAssetId ObjectId)
 		return;
 	}
 
+	CaptureResolvedObject(ObjectId, PendingLoad.Handle);
 	UObject* LoadedObject = GetLoaded(ObjectId);
 	UE_LOG(LogObjectDefinitionCache, Verbose, TEXT("Loaded %s: %s"),
 		*ObjectId.ToString(), LoadedObject ? TEXT("Success") : TEXT("Failed"));
@@ -100,10 +160,22 @@ void UObjectDefinitionCache::Warmup(const TArray<FPrimaryAssetId>& ObjectIds, FO
 	TArray<FPrimaryAssetId> ToLoad;
 	for (const FPrimaryAssetId& ObjectId : ObjectIds)
 	{
-		if (ObjectId.IsValid() && !IsLoaded(ObjectId))
+		if (!ObjectId.IsValid())
 		{
-			ToLoad.Add(ObjectId);
+			continue;
 		}
+
+		if (GetLoadState(ObjectId) == EObjectDefinitionLoadState::Loaded)
+		{
+			continue;
+		}
+
+		if (PendingLoads.Contains(ObjectId))
+		{
+			continue;
+		}
+
+		ToLoad.Add(ObjectId);
 	}
 
 	if (ToLoad.Num() == 0)
@@ -117,10 +189,17 @@ void UObjectDefinitionCache::Warmup(const TArray<FPrimaryAssetId>& ObjectIds, FO
 		ToLoad.Num(), ObjectIds.Num());
 
 	UAssetManager& AM = UAssetManager::Get();
+	WarmupObjectIds = ToLoad;
 
 	FStreamableDelegate WarmupDelegate = FStreamableDelegate::CreateLambda(
 		[this, OnComplete, NumObjects = ToLoad.Num()]()
 		{
+			for (const FPrimaryAssetId& ObjectId : WarmupObjectIds)
+			{
+				CaptureResolvedObject(ObjectId, WarmupHandle);
+			}
+
+			WarmupObjectIds.Reset();
 			UE_LOG(LogObjectDefinitionCache, Log, TEXT("Warmup complete: %d objects loaded"), NumObjects);
 			WarmupHandle.Reset();
 			OnComplete.ExecuteIfBound();
@@ -131,7 +210,45 @@ void UObjectDefinitionCache::Warmup(const TArray<FPrimaryAssetId>& ObjectIds, FO
 
 	if (!WarmupHandle.IsValid())
 	{
+		WarmupObjectIds.Reset();
 		UE_LOG(LogObjectDefinitionCache, Warning, TEXT("Warmup: Failed to start batch load"));
 		OnComplete.ExecuteIfBound();
+	}
+}
+
+void UObjectDefinitionCache::GetDiagnostics(TArray<FObjectDefinitionCacheEntryDiagnostic>& OutDiagnostics) const
+{
+	TSet<FPrimaryAssetId> KnownIds;
+	for (const TPair<FPrimaryAssetId, TObjectPtr<UObject>>& Pair : ResolvedDefinitions)
+	{
+		KnownIds.Add(Pair.Key);
+	}
+	for (const TPair<FPrimaryAssetId, TSharedPtr<FStreamableHandle>>& Pair : ResidentHandles)
+	{
+		KnownIds.Add(Pair.Key);
+	}
+	for (const TPair<FPrimaryAssetId, FPendingLoad>& Pair : PendingLoads)
+	{
+		KnownIds.Add(Pair.Key);
+	}
+
+	TArray<FPrimaryAssetId> SortedIds = KnownIds.Array();
+	SortedIds.Sort([](const FPrimaryAssetId& A, const FPrimaryAssetId& B)
+	{
+		return A.ToString() < B.ToString();
+	});
+
+	OutDiagnostics.Reset();
+	OutDiagnostics.Reserve(SortedIds.Num());
+
+	for (const FPrimaryAssetId& ObjectId : SortedIds)
+	{
+		FObjectDefinitionCacheEntryDiagnostic Entry;
+		Entry.ObjectId = ObjectId;
+		Entry.State = GetLoadState(ObjectId);
+		Entry.bHasResolvedObject = ResolvedDefinitions.Contains(ObjectId);
+		Entry.bHasResidentHandle = ResidentHandles.Contains(ObjectId);
+		Entry.bHasPendingLoad = PendingLoads.Contains(ObjectId);
+		OutDiagnostics.Add(Entry);
 	}
 }

@@ -8,13 +8,23 @@
 #include "Types/ContainerSessionTypes.h"
 #include "ProjectContainerSessionSubsystem.generated.h"
 
-class UProjectInventoryComponent;
-
 /**
- * Local-player-owned world-container session manager.
+ * Local-player-owned CLIENT-SIDE UI cache for world-container sessions.
  *
- * This subsystem owns the player-side runtime session handle and defers
- * authority-side single-opener enforcement to the world container source.
+ * Pure view cache. Populated by Client RPC delivery (the authority side
+ * runs in UProjectWorldContainerAuthoritySubsystem). Consumed by inventory
+ * UI widgets (nearby-container panel, session-aware hints).
+ *
+ * This class has no authoritative behavior: no TryBegin/End handshake,
+ * no take/store/move/take-all dispatch. Use
+ * UProjectWorldContainerAuthoritySubsystem (server-only UWorldSubsystem)
+ * for those. See Epic docs on UWorldSubsystem::ShouldCreateSubsystem for
+ * the callspace split rationale.
+ *
+ * Creation is client-scoped: ShouldCreateSubsystem returns false on a
+ * pure dedicated server. On listen server the local player gets this
+ * subsystem too, and the authority layer populates the cache via the
+ * usual Client_* RPC path.
  */
 UCLASS()
 class PROJECTINVENTORY_API UProjectContainerSessionSubsystem : public ULocalPlayerSubsystem
@@ -25,13 +35,11 @@ public:
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Deinitialize() override;
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|ContainerSession")
-	bool OpenWorldContainerSession(
-		AActor* TargetActor,
-		EContainerSessionMode Mode,
-		FContainerSessionHandle& OutHandle,
-		FText& OutError);
-
+	/**
+	 * Populate the local cache from a Client RPC delivery. Called after
+	 * the server's Client_WorldContainerSessionOpened RPC fires on the
+	 * owning client (or the listen-server's local player).
+	 */
 	bool RegisterOpenedSession(
 		AActor* TargetActor,
 		UObject* SourceObject,
@@ -39,53 +47,38 @@ public:
 		const FContainerSessionHandle& Handle,
 		FText& OutError);
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|ContainerSession")
-	bool CloseSession(const FContainerSessionHandle& Handle);
-
+	/**
+	 * Remove the handle from the local cache. Called after the server's
+	 * Client_WorldContainerSessionClosed RPC fires. Does NOT run the
+	 * authoritative End handshake (that lives on the authority subsystem).
+	 */
 	bool CloseSessionLocal(const FContainerSessionHandle& Handle);
-	void CloseAllSessions();
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|ContainerSession")
-	bool TakeAllFromWorldContainerSession(
-		const FContainerSessionHandle& Handle,
-		UProjectInventoryComponent* Inventory,
-		FText& OutError);
-
-	UFUNCTION(BlueprintCallable, Category = "Inventory|ContainerSession")
-	bool TakeEntryFromWorldContainerSession(
-		const FContainerSessionHandle& Handle,
-		UProjectInventoryComponent* Inventory,
-		int32 EntryInstanceId,
-		int32 Quantity,
-		FGameplayTag TargetContainerId,
-		FIntPoint TargetGridPos,
-		bool bTargetRotated,
-		FText& OutError);
-
-	UFUNCTION(BlueprintCallable, Category = "Inventory|ContainerSession")
-	bool StoreInventoryEntryInWorldContainerSession(
-		const FContainerSessionHandle& Handle,
-		UProjectInventoryComponent* Inventory,
-		int32 InventoryInstanceId,
-		int32 Quantity,
-		FIntPoint TargetGridPos,
-		bool bTargetRotated,
-		FText& OutError);
-
+	/** UI helper: read the active container view for this cached session. */
 	bool GetSessionContainerView(
 		const FContainerSessionHandle& Handle,
 		FText& OutLabel,
 		FInventoryContainerView& OutContainerView,
 		TArray<FInventoryEntryView>& OutEntries) const;
 
+	/** UI hint: does the local player have any cached session? */
 	UFUNCTION(BlueprintPure, Category = "Inventory|ContainerSession")
 	bool HasAnyActiveSession() const;
 
+	/** UI hint: does the local player have a cached FullOpen session? */
 	UFUNCTION(BlueprintPure, Category = "Inventory|ContainerSession")
 	bool HasActiveFullOpenSession() const;
 
+	/** UI hint: is this handle cached locally? */
 	UFUNCTION(BlueprintPure, Category = "Inventory|ContainerSession")
 	bool IsSessionActive(const FContainerSessionHandle& Handle) const;
+
+	/**
+	 * Return the first cached session, if any. Used by UI restoration flows
+	 * (e.g., a new ViewModel binding to an inventory that already has an
+	 * open session). Returns false when the cache is empty.
+	 */
+	bool GetFirstActiveSession(FContainerSessionHandle& OutHandle, AActor*& OutTargetActor) const;
 
 private:
 	struct FActiveContainerSession
@@ -96,8 +89,6 @@ private:
 		TWeakObjectPtr<AActor> Instigator;
 	};
 
-	UObject* ResolveSessionSource(AActor* TargetActor) const;
-	AActor* ResolveSessionInstigator() const;
-
+	/** Client-side cache. Authoritative state lives on the authority subsystem. */
 	TMap<FGuid, FActiveContainerSession> ActiveSessions;
 };

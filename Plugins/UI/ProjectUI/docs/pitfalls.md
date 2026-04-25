@@ -196,7 +196,30 @@ UE_LOG(LogMyUI, Log, TEXT("Item icon: %s"), *SafeIcon);
 
 **Applies to:** Any code using icon fonts with PUA codepoints (game-icons.ttf, FontAwesome, Material Icons, etc.)
 
-**Case study:** [ProjectInventoryUI common_pitfalls.md](../../ProjectInventoryUI/docs/common_pitfalls.md#ue_log-with-pua-icon-chars-triggers-slate-glyph-warnings) - took 6 failed widget-level fixes before identifying UE_LOG as the source
+**Case study:** [ProjectInventoryUI pitfalls.md](../../ProjectInventoryUI/docs/pitfalls.md) - took 6 failed widget-level fixes before identifying UE_LOG as the source
+
+---
+
+## 8. Unknown Anchor Preset Silently Falls Back to TopLeft (CRITICAL!)
+
+**Symptom:** Layout JSON specifies `"anchor": "RightCenter"` (or any other unregistered preset name). Widget constructs successfully and is in the viewport, but renders at (0,0) — usually hidden under the editor toolbar or behind another widget. No visible error to the player.
+
+**Root cause:** `LayoutWidgetRegistry::GetAnchorPreset` falls back to `FAnchors(0,0)` (TopLeft) for any name not in its preset map. Common typos: `RightCenter` ↔ `CenterRight`, `MiddleRight`, `RightMiddle`, `BottomMid`, etc. The keys are:
+
+```
+TopLeft, TopCenter, TopRight,
+CenterLeft, Center, CenterRight,
+BottomLeft, BottomCenter, BottomRight,
+Fill
+```
+
+(`Center<Side>`, NOT `<Side>Center`.)
+
+**Fix:** Use the correct key. The registry now logs `Error` with the canonical list when an unknown preset is requested — search the editor log for `LogLayoutRegistry: Error: Unknown anchor preset` after a layout load to surface typos.
+
+**File:** [LayoutWidgetRegistry.cpp](../Source/ProjectUI/Private/Layout/LayoutWidgetRegistry.cpp) - `GetAnchorPreset()`
+
+**Regression test:** `ProjectIntegrationTests.UI.Framework.Inventory.NearbyPanelAnchoredCenterRight` constructs the nearby widget from real JSON and asserts the resolved `CanvasPanelSlot.GetAnchors()` lands at the expected position. Mirror this pattern for any new layer-host widget whose position matters.
 
 ---
 

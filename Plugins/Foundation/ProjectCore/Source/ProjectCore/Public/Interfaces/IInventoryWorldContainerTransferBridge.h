@@ -72,6 +72,23 @@ public:
 		bool bTargetRotated,
 		FText& OutError);
 
+	/**
+	 * Rearrange an entry already in the open world-container session to a
+	 * new grid position/rotation, without routing through the player
+	 * inventory. Atomic: Consume-then-Store pattern with rollback on
+	 * failure. Self-overlap with the source position is handled
+	 * automatically because Consume removes the entry before Store runs.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Inventory|WorldContainer")
+	bool MoveWithinWorldContainer(
+		UObject* WorldContainerSource,
+		const FContainerSessionHandle& SessionHandle,
+		int32 EntryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError);
+
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Inventory|WorldContainer")
 	bool TakeAllFromWorldContainer(
 		UObject* WorldContainerSource,

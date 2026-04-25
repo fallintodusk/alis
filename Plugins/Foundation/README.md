@@ -6,7 +6,7 @@ This folder contains Tier 1 (foundation) plugins that provide base types, interf
 
 Foundation plugins are the architectural base layer that all other plugins depend on. They provide:
 - Pure interfaces and abstract contracts
-- Shared types and data structures
+- Shared primitive types and data structures
 - Service locator and DI infrastructure
 - Logging categories and utilities
 - Core helpers (no concrete systems)
@@ -18,6 +18,9 @@ Foundation plugins are the architectural base layer that all other plugins depen
 - Service discovery patterns (e.g., service locator)
 - Abstract interfaces that define contracts
 - Foundation logging and diagnostics
+- Data-only or pure primitive cross-plugin shapes belong in `ProjectSharedTypes`,
+  not in `ProjectCore`, unless they are part of a ProjectCore interface
+  contract.
 
 **What does NOT belong here:**
 - Concrete game systems (those go in `Systems/`)
@@ -27,7 +30,8 @@ Foundation plugins are the architectural base layer that all other plugins depen
 
 ## Current Plugins
 
-- [ProjectCore](ProjectCore/README.md) - service locator, interfaces, shared types, configuration helpers
+- [ProjectCore](ProjectCore/README.md) - service locator, interfaces, configuration helpers
+- [ProjectSharedTypes](ProjectSharedTypes/README.md) - shared data-only types and pure primitive helpers
 
 ## Related Documentation
 

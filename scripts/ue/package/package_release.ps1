@@ -130,6 +130,43 @@ Write-Host "ZIP_RELEASE  = $CreateReleaseArchive"
 Write-Host "SPLIT_SIZE   = $SplitSizeMB MiB"
 Write-Host ""
 
+# --- Pre-package validation (fast, no editor) ---
+Write-Host "Pre-package validation..." -ForegroundColor Cyan
+$CheckDir = Join-Path $ProjectRoot "scripts\ue\check"
+
+# 1. Shipping ini audit (pure Python, <1s)
+$IniCheckScript = Join-Path $CheckDir "config\validate_shipping_ini.py"
+if (Test-Path $IniCheckScript) {
+    $pythonExe = $null
+    if (Get-Command python -ErrorAction SilentlyContinue) {
+        $pythonExe = "python"
+    } elseif (Test-Path (Join-Path $EngineRoot "Engine\Binaries\ThirdParty\Python3\Win64\python.exe")) {
+        $pythonExe = Join-Path $EngineRoot "Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+    }
+    if ($pythonExe) {
+        & $pythonExe $IniCheckScript --config-dir (Join-Path $ProjectRoot "Config")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Pre-package validation failed: shipping ini check found unsafe settings. Fix before packaging."
+        }
+    } else {
+        Write-Host "  [!] Python not found - skipping ini validation" -ForegroundColor Yellow
+    }
+}
+
+# 2. Data cross-reference validation (<5s)
+$DataCheckScript = Join-Path $CheckDir "data\validate_all.py"
+if (Test-Path $DataCheckScript) {
+    if ($pythonExe) {
+        & $pythonExe $DataCheckScript
+        if ($LASTEXITCODE -ne 0) {
+            throw "Pre-package validation failed: data cross-reference errors found. Fix before packaging."
+        }
+    }
+}
+
+Write-Host "Pre-package validation passed." -ForegroundColor Green
+Write-Host ""
+
 & $RunUAT @Args 2>&1 | Tee-Object -FilePath $LogFile
 $ExitCode = $LASTEXITCODE
 

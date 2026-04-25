@@ -1,5 +1,7 @@
 # Test Automation Guide
 
+> See also: [docs/agents/canonical.md](../agents/canonical.md) for agent/dev quick reference.
+
 **Running tests, CI/CD integration, and troubleshooting**
 
 This guide covers automated test execution, continuous integration, and common issues.

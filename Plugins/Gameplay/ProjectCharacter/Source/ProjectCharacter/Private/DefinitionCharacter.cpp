@@ -46,6 +46,12 @@ ADefinitionCharacter::ADefinitionCharacter()
 	StaminaAttributes = CreateDefaultSubobject<UStaminaAttributeSet>(TEXT("StaminaAttributes"));
 	StatusAttributes = CreateDefaultSubobject<UStatusAttributeSet>(TEXT("StatusAttributes"));
 
+	// NOTE (DIP exception - intentional composition ownership):
+	// CreateDefaultSubobject<T> requires a concrete type at compile time. The
+	// ProjectVitals dependency is therefore composition, not consumption.
+	// Consumer plugins that only observe vitals events go through
+	// IVitalsEventsSource in ProjectCore. See docs/architecture/plugin_rules.md
+	// (Composition Ownership vs Consumption).
 	VitalsComponent = CreateDefaultSubobject<UProjectVitalsComponent>(TEXT("VitalsComponent"));
 
 	// -------------------------------------------------------------------------

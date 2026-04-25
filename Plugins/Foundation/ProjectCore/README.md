@@ -1,6 +1,6 @@
 # ProjectCore Plugin - Abstraction Layer
 
-Foundation module that owns stable interfaces, shared types, and light utilities for the whole project.
+Foundation module that owns stable interfaces and light utilities for the whole project.
 
 ## Start Here
 
@@ -12,10 +12,13 @@ Foundation module that owns stable interfaces, shared types, and light utilities
 - Single place for abstractions (DIP guardrail).
 - Data-only experience descriptors and registry live here so plugins do not depend on ProjectLoading.
 - No AssetManager calls and no content logic in this module.
+- Do not add general shared data buckets here. Data-only cross-plugin shapes
+  belong in `ProjectSharedTypes` unless they are part of a ProjectCore
+  interface contract.
 
 ## What It Provides
 - Interfaces (`Interfaces/`) for loading, session, feature activation, etc.
-- Shared types (`Types/`) used by systems and features.
+- Contract types (`Types/`) used by ProjectCore interfaces and services.
 - Experience descriptors (`Experience/ProjectExperienceDescriptorBase`) and registry/registration helpers.
 - Service locator for runtime interface lookups.
 - Config helpers for consistent INI access.

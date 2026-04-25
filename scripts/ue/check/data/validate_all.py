@@ -19,6 +19,8 @@ from _lib.discovery import (
     discover_object_definitions,
 )
 from _lib.reporting import ErrorCollector
+from _lib.schema_validator import report as schema_report
+from _lib.schema_validator import validate_all_data_files
 from validate_audio_refs import validate_audio_refs
 from validate_dialogue_refs import validate_dialogue_refs
 from validate_object_refs import validate_object_refs
@@ -42,7 +44,14 @@ def main() -> int:
     validate_dialogue_refs(errors)
     validate_audio_refs(errors)
 
-    return errors.print_summary("Cross-reference data validation")
+    xref_rc = errors.print_summary("Cross-reference data validation")
+
+    # Inline $schema presence + shape validation (AGENTS.md mandate).
+    print()
+    file_count, schema_errors = validate_all_data_files()
+    schema_rc = schema_report(schema_errors, "Inline $schema validation", file_count)
+
+    return max(xref_rc, schema_rc)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "ProjectVitalsComponent.h"
-#include "VitalsConfig.h"
+#include "Types/VitalsConfig.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectVitals, Log, All);
 #include "AbilitySystemComponent.h"

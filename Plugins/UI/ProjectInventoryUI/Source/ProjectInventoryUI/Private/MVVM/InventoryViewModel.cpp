@@ -1,8 +1,12 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "MVVM/InventoryViewModel.h"
+#include "MVVM/InventoryViewModelActionRules.h"
 #include "MVVM/InventoryViewModelCellBuilder.h"
 #include "MVVM/InventoryViewModelEquipSlotBuilder.h"
+#include "MVVM/InventoryViewModelPlacement.h"
+#include "MVVM/InventoryViewModelSurfaceDispatch.h"
+#include "Interaction/ProjectUIGridDragDropController.h"
 #include "Interfaces/IInventoryWorldContainerTransferBridge.h"
 #include "ProjectGameplayTags.h"
 #include "Components/ActorComponent.h"
@@ -17,11 +21,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogInventoryVM, Log, All);
 
 namespace
 {
-const FName NAME_ActionUse(TEXT("Use"));
-const FName NAME_ActionEquip(TEXT("Equip"));
-const FName NAME_ActionDrop(TEXT("Drop"));
-const FName NAME_ActionSplit(TEXT("Split"));
-
 bool IsHandContainerTag(const FGameplayTag& ContainerId)
 {
     return ContainerId == ProjectTags::Item_Container_Hands
@@ -69,14 +68,6 @@ bool BuildEnabledCellsForContainer(const FInventoryContainerView& Container, TAr
     return CellCount > 0;
 }
 
-bool DoGridRectsOverlap(FIntPoint PosA, FIntPoint SizeA, FIntPoint PosB, FIntPoint SizeB)
-{
-    return PosA.X < (PosB.X + SizeB.X)
-        && (PosA.X + SizeA.X) > PosB.X
-        && PosA.Y < (PosB.Y + SizeB.Y)
-        && (PosA.Y + SizeA.Y) > PosB.Y;
-}
-
 FString MakeContainerShortName(const FGameplayTag& Tag)
 {
     FString Name = Tag.IsValid() ? Tag.ToString() : TEXT("Container");
@@ -91,64 +82,6 @@ FString MakeContainerShortName(const FGameplayTag& Tag)
         Name = Name.Mid(ColonIndex + 1);
     }
     return Name;
-}
-
-void AddActionDescriptor(
-    TArray<FProjectUIActionDescriptor>& OutActions,
-    FName ActionId,
-    const FText& Label,
-    bool bVisible,
-    bool bEnabled,
-    int32 Priority)
-{
-    FProjectUIActionDescriptor Descriptor;
-    Descriptor.ActionId = ActionId;
-    Descriptor.Label = Label;
-    Descriptor.bVisible = bVisible;
-    Descriptor.bEnabled = bEnabled;
-    Descriptor.Priority = Priority;
-    OutActions.Add(MoveTemp(Descriptor));
-}
-
-struct FInventoryActionCapabilityState
-{
-    bool bCanUse = false;
-    bool bCanEquip = false;
-    bool bCanDrop = false;
-    bool bCanSplit = false;
-};
-
-FInventoryActionCapabilityState BuildActionCapabilityState(const FInventoryEntryView& Entry)
-{
-    FInventoryActionCapabilityState CapabilityState;
-
-    // SOT: action visibility/enabling must come from explicit producer flags only.
-    // Do not reintroduce legacy inference from bIsConsumable or EquipSlotTag here.
-    CapabilityState.bCanUse = Entry.bCanUse;
-    CapabilityState.bCanEquip = Entry.bCanEquip;
-    if (!Entry.bActionCapsPopulated)
-    {
-        static bool bLoggedMissingCapsMarker = false;
-        if (!bLoggedMissingCapsMarker)
-        {
-            UE_LOG(
-                LogInventoryVM,
-                Warning,
-                TEXT("BuildActionCapabilityState: entry producer did not set bActionCapsPopulated; capabilities default to explicit values only."));
-            bLoggedMissingCapsMarker = true;
-        }
-    }
-
-    CapabilityState.bCanDrop = Entry.bCanBeDropped;
-    CapabilityState.bCanSplit = Entry.MaxStack > 1 && Entry.Quantity > 1;
-
-    // Current UX contract: "Use" and "Equip" are mutually exclusive in menu/buttons.
-    if (CapabilityState.bCanUse && CapabilityState.bCanEquip)
-    {
-        CapabilityState.bCanEquip = false;
-    }
-
-    return CapabilityState;
 }
 
 IInventoryWorldContainerTransferBridge* GetWorldContainerTransferBridge(UObject* SourceObject)
@@ -636,6 +569,67 @@ void UInventoryViewModel::RequestStoreItemInNearbyContainerAt(
     RefreshFromInventory();
 }
 
+void UInventoryViewModel::RequestMoveItemInNearbyContainer(
+    int32 InstanceId,
+    FIntPoint TargetGridPos,
+    bool bTargetRotated,
+    int32 Quantity)
+{
+    if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
+    {
+        UE_LOG(LogInventoryVM, Warning,
+            TEXT("RequestMoveItemInNearbyContainer ignored: Nearby source/session missing. HasSource=%d HasSession=%d"),
+            NearbyContainerSource ? 1 : 0,
+            NearbySessionHandle.IsValid() ? 1 : 0);
+        return;
+    }
+
+    IInventoryWorldContainerTransferBridge* TransferBridge = GetWorldContainerTransferBridge(InventorySource.GetObject());
+    if (!TransferBridge)
+    {
+        UE_LOG(LogInventoryVM, Warning,
+            TEXT("RequestMoveItemInNearbyContainer ignored: Inventory source has no world-container transfer bridge"));
+        return;
+    }
+
+    UE_LOG(LogInventoryVM, Log,
+        TEXT("RequestMoveItemInNearbyContainer: InstanceId=%d Qty=%d Pos=(%d,%d) Rot=%d"),
+        InstanceId,
+        Quantity,
+        TargetGridPos.X,
+        TargetGridPos.Y,
+        bTargetRotated ? 1 : 0);
+
+    FText ErrorMessage;
+    if (!IInventoryWorldContainerTransferBridge::Execute_MoveWithinWorldContainer(
+            InventorySource.GetObject(),
+            NearbyContainerSource.GetObject(),
+            NearbySessionHandle,
+            InstanceId,
+            Quantity,
+            TargetGridPos,
+            bTargetRotated,
+            ErrorMessage))
+    {
+        RefreshFromInventory();
+        UE_LOG(LogInventoryVM, Warning,
+            TEXT("RequestMoveItemInNearbyContainer failed: InstanceId=%d Qty=%d Pos=(%d,%d) Rot=%d Error=%s"),
+            InstanceId,
+            Quantity,
+            TargetGridPos.X,
+            TargetGridPos.Y,
+            bTargetRotated ? 1 : 0,
+            *ErrorMessage.ToString());
+        if (!ErrorMessage.IsEmpty())
+        {
+            OnInventoryError.Broadcast(ErrorMessage);
+        }
+        return;
+    }
+
+    RefreshFromInventory();
+}
+
 void UInventoryViewModel::RequestTakeAllNearbyContainer()
 {
     if (!NearbyContainerSource || !NearbySessionHandle.IsValid())
@@ -723,68 +717,14 @@ bool UInventoryViewModel::HasCommands() const
 
 void UInventoryViewModel::BuildActionDescriptors(const FInventoryEntryView& Entry, TArray<FProjectUIActionDescriptor>& OutActions) const
 {
-    // SOT guardrail:
-    // Action visibility and enabling rules must be authored only in this function.
-    // Widgets consume descriptors and must not re-implement business rules.
-    const bool bCanSendCommands = HasCommands();
-    const bool bIsNearbyEntry = IsNearbyEntryInstanceId(Entry.InstanceId);
-    const FInventoryActionCapabilityState CapabilityState = BuildActionCapabilityState(Entry);
-
-    OutActions.Reset();
-    OutActions.Reserve(4);
-
-    if (bIsNearbyEntry)
-    {
-        const bool bCanTake = InventorySource
-            && NearbyContainerSource
-            && NearbySessionHandle.IsValid()
-            && GetWorldContainerTransferBridge(InventorySource.GetObject()) != nullptr;
-
-        AddActionDescriptor(
-            OutActions,
-            NAME_ActionUse,
-            NSLOCTEXT("Inventory", "ActionTake", "Take"),
-            true,
-            bCanTake,
-            100);
-        return;
-    }
-
-    AddActionDescriptor(
-        OutActions,
-        NAME_ActionUse,
-        NSLOCTEXT("Inventory", "ActionUse", "Use"),
-        CapabilityState.bCanUse,
-        CapabilityState.bCanUse && bCanSendCommands,
-        100);
-
-    // Show "Unequip" when item is currently equipped, "Equip" otherwise
-    const bool bIsEquipped = Entry.EquippedSlot.IsValid();
-    const bool bShowEquipAction = bIsEquipped || CapabilityState.bCanEquip;
-    AddActionDescriptor(
-        OutActions,
-        NAME_ActionEquip,
-        bIsEquipped ? NSLOCTEXT("Inventory", "ActionUnequip", "Unequip")
-                    : NSLOCTEXT("Inventory", "ActionEquip", "Equip"),
-        bShowEquipAction,
-        bShowEquipAction && bCanSendCommands,
-        90);
-
-    AddActionDescriptor(
-        OutActions,
-        NAME_ActionDrop,
-        NSLOCTEXT("Inventory", "ActionDrop", "Drop"),
-        CapabilityState.bCanDrop,
-        CapabilityState.bCanDrop && bCanSendCommands,
-        80);
-
-    AddActionDescriptor(
-        OutActions,
-        NAME_ActionSplit,
-        NSLOCTEXT("Inventory", "ActionSplit", "Split"),
-        CapabilityState.bCanSplit,
-        CapabilityState.bCanSplit && bCanSendCommands,
-        70);
+    InventoryViewModelActionRules::FActionBuildContext Context;
+    Context.bHasCommands = HasCommands();
+    Context.bIsNearbyEntry = IsNearbyEntryInstanceId(Entry.InstanceId);
+    Context.bCanTakeNearby = InventorySource
+        && NearbyContainerSource
+        && NearbySessionHandle.IsValid()
+        && GetWorldContainerTransferBridge(InventorySource.GetObject()) != nullptr;
+    InventoryViewModelActionRules::BuildActionDescriptors(Entry, Context, OutActions);
 }
 
 bool UInventoryViewModel::TryGetActionDescriptorsByInstanceId(int32 InstanceId, TArray<FProjectUIActionDescriptor>& OutActions) const
@@ -800,54 +740,27 @@ bool UInventoryViewModel::TryGetActionDescriptorsByInstanceId(int32 InstanceId, 
     return true;
 }
 
-const FName& UInventoryViewModel::GetActionIdUse()
-{
-    return NAME_ActionUse;
-}
+const FName& UInventoryViewModel::GetActionIdUse() { return InventoryViewModelActionRules::GetActionIdUse(); }
 
-const FName& UInventoryViewModel::GetActionIdEquip()
-{
-    return NAME_ActionEquip;
-}
+const FName& UInventoryViewModel::GetActionIdEquip() { return InventoryViewModelActionRules::GetActionIdEquip(); }
 
-const FName& UInventoryViewModel::GetActionIdDrop()
-{
-    return NAME_ActionDrop;
-}
+const FName& UInventoryViewModel::GetActionIdDrop() { return InventoryViewModelActionRules::GetActionIdDrop(); }
 
-const FName& UInventoryViewModel::GetActionIdSplit()
-{
-    return NAME_ActionSplit;
-}
+const FName& UInventoryViewModel::GetActionIdSplit() { return InventoryViewModelActionRules::GetActionIdSplit(); }
 
 const FProjectUIActionDescriptor* UInventoryViewModel::FindActionDescriptor(const TArray<FProjectUIActionDescriptor>& Actions, FName ActionId)
 {
-    for (const FProjectUIActionDescriptor& Descriptor : Actions)
-    {
-        if (Descriptor.ActionId == ActionId)
-        {
-            return &Descriptor;
-        }
-    }
-    return nullptr;
+    return InventoryViewModelActionRules::FindActionDescriptor(Actions, ActionId);
 }
 
 bool UInventoryViewModel::IsActionEnabled(const TArray<FProjectUIActionDescriptor>& Actions, FName ActionId)
 {
-    const FProjectUIActionDescriptor* Descriptor = FindActionDescriptor(Actions, ActionId);
-    return Descriptor && Descriptor->bVisible && Descriptor->bEnabled;
+    return InventoryViewModelActionRules::IsActionEnabled(Actions, ActionId);
 }
 
 bool UInventoryViewModel::HasEnabledActions(const TArray<FProjectUIActionDescriptor>& Actions)
 {
-    for (const FProjectUIActionDescriptor& Descriptor : Actions)
-    {
-        if (Descriptor.bVisible && Descriptor.bEnabled)
-        {
-            return true;
-        }
-    }
-    return false;
+    return InventoryViewModelActionRules::HasEnabledActions(Actions);
 }
 
 void UInventoryViewModel::HandleInventoryViewChanged()
@@ -937,15 +850,17 @@ void UInventoryViewModel::RefreshFromInventory()
         SecondaryCellEnabled.Reset();
         NearbyCellInstanceIds.Reset();
         NearbyCellEnabled.Reset();
-        PocketCellTexts.Reset();
+        PocketCellVisuals.Reset();
         PocketCellInstanceIds.Reset();
         PocketCellEnabled.Reset();
         EquipSlotTags.Reset();
         EquipSlotInstanceIds.Reset();
         ClearNearbyContainerData();
-        SetCellTexts(TArray<FText>());
-        SetSecondaryCellTexts(TArray<FText>());
-        NotifyPocketCellTextsChanged();
+        SetLeftHandCellVisuals(TArray<FInventoryCellVisualState>());
+        SetRightHandCellVisuals(TArray<FInventoryCellVisualState>());
+        SetCellVisuals(TArray<FInventoryCellVisualState>());
+        SetSecondaryCellVisuals(TArray<FInventoryCellVisualState>());
+        NotifyPocketCellVisualsChanged();
         return;
     }
 
@@ -976,14 +891,14 @@ void UInventoryViewModel::RefreshFromInventory()
     UpdateMaxWeight(InventorySource->GetMaxWeight());
     UpdateCurrentVolume(InventorySource->GetCurrentVolume());
     UpdateMaxVolume(InventorySource->GetMaxVolume());
-    BuildCellTexts(Entries);
-    BuildSecondaryCellTexts(Entries);
-    BuildHandCellTexts(Entries);
-    BuildPocketCellTexts(Entries);
+    BuildCellVisuals(Entries);
+    BuildSecondaryCellVisuals(Entries);
+    BuildHandCellVisuals(Entries);
+    BuildPocketCellVisuals(Entries);
     BuildEquipSlotLabels(Entries);
 
-    UE_LOG(LogInventoryVM, Log, TEXT("RefreshFromInventory: Grid=%dx%d, StorageContainers=%d, LHand=%d texts, RHand=%d texts"),
-        GridWidth, GridHeight, CachedContainers.Num(), LeftHandCellTexts.Num(), RightHandCellTexts.Num());
+    UE_LOG(LogInventoryVM, Log, TEXT("RefreshFromInventory: Grid=%dx%d, StorageContainers=%d, LHand=%d visuals, RHand=%d visuals"),
+        GridWidth, GridHeight, CachedContainers.Num(), LeftHandCellVisuals.Num(), RightHandCellVisuals.Num());
 }
 
 void UInventoryViewModel::TogglePanel()
@@ -1192,18 +1107,18 @@ void UInventoryViewModel::BuildContainerData(const TArray<FInventoryContainerVie
 }
 
 // Cell text building delegated to FInventoryViewModelCellBuilder (SOLID)
-void UInventoryViewModel::BuildCellTexts(const TArray<FInventoryEntryView>& Entries)
+void UInventoryViewModel::BuildCellVisuals(const TArray<FInventoryEntryView>& Entries)
 {
-    TArray<FText> NewTexts;
+    TArray<FInventoryCellVisualState> NewVisuals;
     const FGameplayTag ContainerId = CachedContainers.IsValidIndex(SelectedContainerIndex)
         ? CachedContainers[SelectedContainerIndex].ContainerId : FGameplayTag();
-    FInventoryViewModelCellBuilder::Build(Entries, ContainerId, GridWidth, GridHeight, CellInstanceIds, NewTexts);
-    SetCellTexts(NewTexts);
+    FInventoryViewModelCellBuilder::Build(Entries, ContainerId, GridWidth, GridHeight, CellInstanceIds, NewVisuals);
+    SetCellVisuals(NewVisuals);
 }
 
-void UInventoryViewModel::BuildSecondaryCellTexts(const TArray<FInventoryEntryView>& Entries)
+void UInventoryViewModel::BuildSecondaryCellVisuals(const TArray<FInventoryEntryView>& Entries)
 {
-    TArray<FText> NewTexts;
+    TArray<FInventoryCellVisualState> NewVisuals;
     if (bHasNearbyContainer)
     {
         FInventoryViewModelCellBuilder::Build(
@@ -1212,21 +1127,21 @@ void UInventoryViewModel::BuildSecondaryCellTexts(const TArray<FInventoryEntryVi
             SecondaryGridWidth,
             SecondaryGridHeight,
             NearbyCellInstanceIds,
-            NewTexts);
+            NewVisuals);
         SecondaryCellInstanceIds = NearbyCellInstanceIds;
     }
     else
     {
         const FGameplayTag ContainerId = CachedContainers.IsValidIndex(SecondaryContainerIndex)
             ? CachedContainers[SecondaryContainerIndex].ContainerId : FGameplayTag();
-        FInventoryViewModelCellBuilder::Build(Entries, ContainerId, SecondaryGridWidth, SecondaryGridHeight, SecondaryCellInstanceIds, NewTexts);
+        FInventoryViewModelCellBuilder::Build(Entries, ContainerId, SecondaryGridWidth, SecondaryGridHeight, SecondaryCellInstanceIds, NewVisuals);
     }
-    SetSecondaryCellTexts(NewTexts);
+    SetSecondaryCellVisuals(NewVisuals);
 }
 
-void UInventoryViewModel::BuildPocketCellTexts(const TArray<FInventoryEntryView>& Entries)
+void UInventoryViewModel::BuildPocketCellVisuals(const TArray<FInventoryEntryView>& Entries)
 {
-    PocketCellTexts.SetNum(CachedPocketContainers.Num());
+    PocketCellVisuals.SetNum(CachedPocketContainers.Num());
     PocketCellInstanceIds.SetNum(CachedPocketContainers.Num());
 
     for (int32 PocketIndex = 0; PocketIndex < CachedPocketContainers.Num(); ++PocketIndex)
@@ -1238,29 +1153,29 @@ void UInventoryViewModel::BuildPocketCellTexts(const TArray<FInventoryEntryView>
             PocketContainer.GridSize.X,
             PocketContainer.GridSize.Y,
             PocketCellInstanceIds[PocketIndex],
-            PocketCellTexts[PocketIndex]);
+            PocketCellVisuals[PocketIndex]);
     }
 
-    NotifyPocketCellTextsChanged();
+    NotifyPocketCellVisualsChanged();
 }
 
-void UInventoryViewModel::NotifyPocketCellTextsChanged()
+void UInventoryViewModel::NotifyPocketCellVisualsChanged()
 {
-    NotifyPropertyChanged(FName(TEXT("PocketCellTexts")));
+    NotifyPropertyChanged(FName(TEXT("PocketCellVisuals")));
 }
 
-void UInventoryViewModel::BuildHandCellTexts(const TArray<FInventoryEntryView>& Entries)
+void UInventoryViewModel::BuildHandCellVisuals(const TArray<FInventoryEntryView>& Entries)
 {
     // Dedicated hand containers are real 2x2 micro-grids.
-    TArray<FText> LeftTexts;
+    TArray<FInventoryCellVisualState> LeftVisuals;
     TArray<int32> LeftIds;
     FInventoryViewModelCellBuilder::Build(Entries, ProjectTags::Item_Container_LeftHand,
-        HandGridSize, HandGridSize, LeftIds, LeftTexts);
+        HandGridSize, HandGridSize, LeftIds, LeftVisuals);
 
-    TArray<FText> RightTexts;
+    TArray<FInventoryCellVisualState> RightVisuals;
     TArray<int32> RightIds;
     FInventoryViewModelCellBuilder::Build(Entries, ProjectTags::Item_Container_RightHand,
-        HandGridSize, HandGridSize, RightIds, RightTexts);
+        HandGridSize, HandGridSize, RightIds, RightVisuals);
 
     for (const FInventoryEntryView& Entry : Entries)
     {
@@ -1269,14 +1184,14 @@ void UInventoryViewModel::BuildHandCellTexts(const TArray<FInventoryEntryView>& 
             continue;
         }
 
-        if (LeftTexts.Num() < HandCellCount)
+        if (LeftVisuals.Num() < HandCellCount)
         {
-            LeftTexts.Init(FText::GetEmpty(), HandCellCount);
+            LeftVisuals.Init(FInventoryCellVisualState(), HandCellCount);
             LeftIds.Init(EmptyCellInstanceId, HandCellCount);
         }
-        if (RightTexts.Num() < HandCellCount)
+        if (RightVisuals.Num() < HandCellCount)
         {
-            RightTexts.Init(FText::GetEmpty(), HandCellCount);
+            RightVisuals.Init(FInventoryCellVisualState(), HandCellCount);
             RightIds.Init(EmptyCellInstanceId, HandCellCount);
         }
 
@@ -1284,22 +1199,27 @@ void UInventoryViewModel::BuildHandCellTexts(const TArray<FInventoryEntryView>& 
             ? Entry.IconCode
             : FInventoryViewModelCellBuilder::BuildEntryLabel(Entry.DisplayName, Entry.Quantity, Entry.ItemId);
 
-        TArray<FText>& TargetTexts = (Entry.GridPos.X == 0) ? LeftTexts : RightTexts;
+        TArray<FInventoryCellVisualState>& TargetVisuals = (Entry.GridPos.X == 0) ? LeftVisuals : RightVisuals;
         TArray<int32>& TargetIds = (Entry.GridPos.X == 0) ? LeftIds : RightIds;
-        if (TargetTexts[0].IsEmpty())
+        if (TargetVisuals[0].IsEmpty())
         {
-            TargetTexts[0] = FText::FromString(Label);
+            TargetVisuals[0].InstanceId = Entry.InstanceId;
+            TargetVisuals[0].PrimaryText = FText::FromString(Label);
+            TargetVisuals[0].QuantityText = Entry.Quantity > 1 ? FText::AsNumber(Entry.Quantity) : FText::GetEmpty();
+            TargetVisuals[0].bUseIconFont = !Entry.IconCode.IsEmpty();
+            TargetVisuals[0].bShowQuantity = Entry.Quantity > 1;
+            TargetVisuals[0].bIsAnchorCell = true;
             TargetIds[0] = Entry.InstanceId;
         }
     }
 
-    SetLeftHandCellTexts(LeftTexts);
+    SetLeftHandCellVisuals(LeftVisuals);
     SetLeftHandCellInstanceIds(LeftIds);
-    SetRightHandCellTexts(RightTexts);
+    SetRightHandCellVisuals(RightVisuals);
     SetRightHandCellInstanceIds(RightIds);
 
-    UE_LOG(LogInventoryVM, Log, TEXT("BuildHandCellTexts: L=%d texts, R=%d texts"),
-        LeftTexts.Num(), RightTexts.Num());
+    UE_LOG(LogInventoryVM, Log, TEXT("BuildHandCellVisuals: L=%d visuals, R=%d visuals"),
+        LeftVisuals.Num(), RightVisuals.Num());
 }
 
 UObject* UInventoryViewModel::FindInventorySourceFromActor(AActor* Actor) const
@@ -1332,9 +1252,9 @@ void UInventoryViewModel::SetSelectedContainerIndex(int32 NewIndex)
 
     UpdateSelectedContainerIndex(NewIndex);
     BuildContainerData(CachedAllContainers);
-    BuildCellTexts(CachedEntries);
-    BuildSecondaryCellTexts(CachedEntries);
-    BuildPocketCellTexts(CachedEntries);
+    BuildCellVisuals(CachedEntries);
+    BuildSecondaryCellVisuals(CachedEntries);
+    BuildPocketCellVisuals(CachedEntries);
 }
 
 void UInventoryViewModel::SetSecondaryContainerIndex(int32 NewIndex)
@@ -1351,9 +1271,9 @@ void UInventoryViewModel::SetSecondaryContainerIndex(int32 NewIndex)
 
     UpdateSecondaryContainerIndex(NewIndex);
     BuildContainerData(CachedAllContainers);
-    BuildCellTexts(CachedEntries);
-    BuildSecondaryCellTexts(CachedEntries);
-    BuildPocketCellTexts(CachedEntries);
+    BuildCellVisuals(CachedEntries);
+    BuildSecondaryCellVisuals(CachedEntries);
+    BuildPocketCellVisuals(CachedEntries);
 }
 
 FGameplayTag UInventoryViewModel::GetSelectedContainerId() const
@@ -1414,10 +1334,10 @@ int32 UInventoryViewModel::GetPocketGridHeight(int32 PocketIndex) const
         : 0;
 }
 
-const TArray<FText>& UInventoryViewModel::GetPocketCellTexts(int32 PocketIndex) const
+const TArray<FInventoryCellVisualState>& UInventoryViewModel::GetPocketCellVisuals(int32 PocketIndex) const
 {
-    static const TArray<FText> EmptyTexts;
-    return PocketCellTexts.IsValidIndex(PocketIndex) ? PocketCellTexts[PocketIndex] : EmptyTexts;
+    static const TArray<FInventoryCellVisualState> EmptyVisuals;
+    return PocketCellVisuals.IsValidIndex(PocketIndex) ? PocketCellVisuals[PocketIndex] : EmptyVisuals;
 }
 
 int32 UInventoryViewModel::GetPocketCellInstanceId(int32 PocketIndex, int32 CellIndex) const
@@ -1438,6 +1358,21 @@ bool UInventoryViewModel::IsPocketCellEnabled(int32 PocketIndex, int32 CellIndex
     }
     const TArray<bool>& EnabledCells = PocketCellEnabled[PocketIndex];
     return EnabledCells.IsValidIndex(CellIndex) ? EnabledCells[CellIndex] : false;
+}
+
+int32 UInventoryViewModel::FindPocketIndexByContainerTag(FGameplayTag ContainerTag) const
+{
+    return InventoryViewModelSurfaceDispatch::FindPocketIndexByContainerTag(*this, ContainerTag);
+}
+
+bool UInventoryViewModel::IsCellEnabledForSurface(FGameplayTag SurfaceTag, int32 CellIndex) const
+{
+    return InventoryViewModelSurfaceDispatch::IsCellEnabledForSurface(*this, SurfaceTag, CellIndex);
+}
+
+int32 UInventoryViewModel::GetCellOccupant(FGameplayTag SurfaceTag, int32 CellIndex) const
+{
+    return InventoryViewModelSurfaceDispatch::GetCellOccupant(*this, SurfaceTag, CellIndex);
 }
 
 bool UInventoryViewModel::TryGetEntryByCellIndex(int32 CellIndex, FInventoryEntryView& OutEntry) const
@@ -1567,47 +1502,7 @@ bool UInventoryViewModel::IsNearbyEntryInstanceId(int32 InstanceId) const
 
 bool UInventoryViewModel::ResolveHandDropTarget(bool bLeftHand, FGameplayTag& OutContainerId, FIntPoint& OutGridPos) const
 {
-    OutContainerId = FGameplayTag();
-    OutGridPos = FIntPoint(-1, -1);
-
-    const FGameplayTag DedicatedHandContainer = bLeftHand
-        ? ProjectTags::Item_Container_LeftHand
-        : ProjectTags::Item_Container_RightHand;
-
-    for (const FInventoryContainerView& Container : CachedAllContainers)
-    {
-        if (Container.ContainerId == DedicatedHandContainer)
-        {
-            OutContainerId = DedicatedHandContainer;
-            for (int32 Y = 0; Y < FMath::Max(1, Container.GridSize.Y); ++Y)
-            {
-                for (int32 X = 0; X < FMath::Max(1, Container.GridSize.X); ++X)
-                {
-                    const FIntPoint CandidatePos(X, Y);
-                    if (!DoesCachedInventoryPlacementOverlap(DedicatedHandContainer, CandidatePos, FIntPoint(1, 1), EmptyCellInstanceId))
-                    {
-                        OutGridPos = CandidatePos;
-                        return true;
-                    }
-                }
-            }
-
-            OutGridPos = FIntPoint::ZeroValue;
-            return true;
-        }
-    }
-
-    for (const FInventoryContainerView& Container : CachedAllContainers)
-    {
-        if (Container.ContainerId == ProjectTags::Item_Container_Hands)
-        {
-            OutContainerId = ProjectTags::Item_Container_Hands;
-            OutGridPos = FIntPoint(bLeftHand ? 0 : 1, 0);
-            return true;
-        }
-    }
-
-    return false;
+    return InventoryViewModelPlacement::ResolveHandDropTarget(CachedAllContainers, CachedEntries, bLeftHand, OutContainerId, OutGridPos);
 }
 
 bool UInventoryViewModel::TryResolveFreePlacementInContainer(
@@ -1616,44 +1511,7 @@ bool UInventoryViewModel::TryResolveFreePlacementInContainer(
     FIntPoint& OutGridPos,
     TOptional<FIntPoint> ExcludedGridPos) const
 {
-    OutGridPos = FIntPoint(-1, -1);
-
-    if (!ContainerId.IsValid() || ItemSize.X <= 0 || ItemSize.Y <= 0)
-    {
-        return false;
-    }
-
-    const FInventoryContainerView* TargetContainer = CachedAllContainers.FindByPredicate(
-        [&ContainerId](const FInventoryContainerView& Container)
-        {
-            return Container.ContainerId == ContainerId;
-        });
-    if (!TargetContainer)
-    {
-        return false;
-    }
-
-    const int32 MaxWidth = FMath::Max(1, TargetContainer->GridSize.X);
-    const int32 MaxHeight = FMath::Max(1, TargetContainer->GridSize.Y);
-    for (int32 Y = 0; Y <= MaxHeight - ItemSize.Y; ++Y)
-    {
-        for (int32 X = 0; X <= MaxWidth - ItemSize.X; ++X)
-        {
-            const FIntPoint CandidatePos(X, Y);
-            if (ExcludedGridPos.IsSet() && CandidatePos == ExcludedGridPos.GetValue())
-            {
-                continue;
-            }
-
-            if (!DoesCachedInventoryPlacementOverlap(ContainerId, CandidatePos, ItemSize, EmptyCellInstanceId))
-            {
-                OutGridPos = CandidatePos;
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return InventoryViewModelPlacement::TryResolveFreePlacementInContainer(CachedAllContainers, CachedEntries, ContainerId, ItemSize, OutGridPos, ExcludedGridPos);
 }
 
 bool UInventoryViewModel::TryResolveAlternateHandDropTarget(
@@ -1663,66 +1521,7 @@ bool UInventoryViewModel::TryResolveAlternateHandDropTarget(
     FGameplayTag& OutContainerId,
     FIntPoint& OutGridPos) const
 {
-    OutContainerId = FGameplayTag();
-    OutGridPos = FIntPoint(-1, -1);
-
-    if (CurrentContainerId == ProjectTags::Item_Container_LeftHand
-        || CurrentContainerId == ProjectTags::Item_Container_RightHand)
-    {
-        FIntPoint SameHandGridPos = FIntPoint(-1, -1);
-        if (TryResolveFreePlacementInContainer(CurrentContainerId, ItemSize, SameHandGridPos, CurrentGridPos))
-        {
-            OutContainerId = CurrentContainerId;
-            OutGridPos = SameHandGridPos;
-            return true;
-        }
-    }
-
-    FGameplayTag AlternateContainerId;
-    if (CurrentContainerId == ProjectTags::Item_Container_LeftHand)
-    {
-        AlternateContainerId = ProjectTags::Item_Container_RightHand;
-    }
-    else if (CurrentContainerId == ProjectTags::Item_Container_RightHand)
-    {
-        AlternateContainerId = ProjectTags::Item_Container_LeftHand;
-    }
-    else
-    {
-        FGameplayTag LeftContainerId;
-        FIntPoint LeftGridPos = FIntPoint(-1, -1);
-        const bool bHasLeft = ResolveHandDropTarget(true, LeftContainerId, LeftGridPos);
-
-        FGameplayTag RightContainerId;
-        FIntPoint RightGridPos = FIntPoint(-1, -1);
-        const bool bHasRight = ResolveHandDropTarget(false, RightContainerId, RightGridPos);
-
-        if (bHasLeft && CurrentContainerId == LeftContainerId && CurrentGridPos == LeftGridPos)
-        {
-            OutContainerId = RightContainerId;
-            OutGridPos = RightGridPos;
-            return bHasRight;
-        }
-
-        if (bHasRight && CurrentContainerId == RightContainerId && CurrentGridPos == RightGridPos)
-        {
-            OutContainerId = LeftContainerId;
-            OutGridPos = LeftGridPos;
-            return bHasLeft;
-        }
-
-        return false;
-    }
-
-    FIntPoint AlternateGridPos = FIntPoint(-1, -1);
-    if (TryResolveFreePlacementInContainer(AlternateContainerId, ItemSize, AlternateGridPos))
-    {
-        OutContainerId = AlternateContainerId;
-        OutGridPos = AlternateGridPos;
-        return true;
-    }
-
-    return false;
+    return InventoryViewModelPlacement::TryResolveAlternateHandDropTarget(CachedAllContainers, CachedEntries, CurrentContainerId, CurrentGridPos, ItemSize, OutContainerId, OutGridPos);
 }
 
 bool UInventoryViewModel::DoesCachedInventoryPlacementOverlap(
@@ -1731,52 +1530,12 @@ bool UInventoryViewModel::DoesCachedInventoryPlacementOverlap(
     FIntPoint ItemSize,
     int32 IgnoreInstanceId) const
 {
-    if (!ContainerId.IsValid() || GridPos.X < 0 || GridPos.Y < 0 || ItemSize.X <= 0 || ItemSize.Y <= 0)
-    {
-        return false;
-    }
-
-    for (const FInventoryEntryView& Entry : CachedEntries)
-    {
-        if (Entry.InstanceId == IgnoreInstanceId || Entry.ContainerId != ContainerId)
-        {
-            continue;
-        }
-
-        const FIntPoint EntrySize = Entry.bRotated
-            ? FIntPoint(FMath::Max(1, Entry.GridSize.Y), FMath::Max(1, Entry.GridSize.X))
-            : FIntPoint(FMath::Max(1, Entry.GridSize.X), FMath::Max(1, Entry.GridSize.Y));
-
-        if (DoGridRectsOverlap(GridPos, ItemSize, Entry.GridPos, EntrySize))
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return InventoryViewModelPlacement::DoesCachedInventoryPlacementOverlap(CachedEntries, ContainerId, GridPos, ItemSize, IgnoreInstanceId);
 }
 
 bool UInventoryViewModel::IsContainerEmpty(FGameplayTag ContainerId, int32 IgnoreInstanceId) const
 {
-    if (!ContainerId.IsValid())
-    {
-        return true;
-    }
-
-    for (const FInventoryEntryView& Entry : CachedEntries)
-    {
-        if (Entry.InstanceId == IgnoreInstanceId)
-        {
-            continue;
-        }
-
-        if (Entry.ContainerId == ContainerId)
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return InventoryViewModelPlacement::IsContainerEmpty(CachedEntries, ContainerId, IgnoreInstanceId);
 }
 
 int32 UInventoryViewModel::GetEquipSlotCount() const
@@ -1816,16 +1575,16 @@ void UInventoryViewModel::SetEquipSlotShortLabels(const TArray<FText>& InLabels)
     NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, EquipSlotShortLabels));
 }
 
-void UInventoryViewModel::SetLeftHandCellTexts(const TArray<FText>& InValue)
+void UInventoryViewModel::SetLeftHandCellVisuals(const TArray<FInventoryCellVisualState>& InValue)
 {
-    LeftHandCellTexts = InValue;
-    NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, LeftHandCellTexts));
+    LeftHandCellVisuals = InValue;
+    NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, LeftHandCellVisuals));
 }
 
-void UInventoryViewModel::SetRightHandCellTexts(const TArray<FText>& InValue)
+void UInventoryViewModel::SetRightHandCellVisuals(const TArray<FInventoryCellVisualState>& InValue)
 {
-    RightHandCellTexts = InValue;
-    NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, RightHandCellTexts));
+    RightHandCellVisuals = InValue;
+    NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, RightHandCellVisuals));
 }
 
 void UInventoryViewModel::SetLeftHandCellInstanceIds(const TArray<int32>& InValue)
@@ -1838,6 +1597,18 @@ void UInventoryViewModel::SetRightHandCellInstanceIds(const TArray<int32>& InVal
 {
     RightHandCellInstanceIds = InValue;
     NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, RightHandCellInstanceIds));
+}
+
+void UInventoryViewModel::UpdateCellVisuals(const TArray<FInventoryCellVisualState>& InValue)
+{
+    CellVisuals = InValue;
+    NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, CellVisuals));
+}
+
+void UInventoryViewModel::UpdateSecondaryCellVisuals(const TArray<FInventoryCellVisualState>& InValue)
+{
+    SecondaryCellVisuals = InValue;
+    NotifyPropertyChanged(GET_MEMBER_NAME_CHECKED(UInventoryViewModel, SecondaryCellVisuals));
 }
 
 int32 UInventoryViewModel::GetEquipSlotInstanceId(int32 Index) const
@@ -1863,4 +1634,23 @@ void UInventoryViewModel::BuildEquipSlotLabels(const TArray<FInventoryEntryView>
     EquipSlotItemIconCodes = MoveTemp(Result.ItemIconCodes);
     UpdateEquipSlotLabels(Result.Labels);
     NotifyPropertyChanged(FName(TEXT("EquipSlotItemIconCodes")));
+}
+
+// ============================================================================
+// IInventorySurfacePolicyProvider
+// ----------------------------------------------------------------------------
+// Consumed by UInventoryUIDragHostSubsystem::RegisterSurface via a
+// subsystem-local closure that forwards here; widgets no longer build
+// lambdas that reach into global Slate state. The SurfaceTag arg IS the
+// policy key: the VM dispatches by tag to the surface-local rule, then
+// falls back to the generic "empty-or-self" default for any surface whose
+// tag is not a player-side tabbed grid (hands, pockets, nearby world).
+// ============================================================================
+bool UInventoryViewModel::IsPayloadAllowedOnOccupant(
+    FGameplayTag SurfaceTag,
+    const FProjectUIGridDragPayload& Payload,
+    int32 OccupantId,
+    int32 CellIndex) const
+{
+    return InventoryViewModelSurfaceDispatch::IsPayloadAllowedOnOccupant(*this, SurfaceTag, Payload, OccupantId, CellIndex);
 }

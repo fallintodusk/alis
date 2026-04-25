@@ -1,5 +1,7 @@
 # Plugin Architecture
 
+> See also: [docs/agents/canonical.md](../agents/canonical.md) for agent/dev quick reference.
+
 > **Source of Truth:** [architecture/source_of_truth.md](architecture/source_of_truth.md) + C4 DSL (`architecture/diagrams/workspace.dsl` and `architecture/diagrams/views/`). Use these as the map; implementation lives with each plugin.
 
 **Universal modular game architecture for Unreal Engine 5. Keep docs code-free: reference the class/method in the owning plugin instead of pasting snippets.**
@@ -113,6 +115,12 @@ Guardrails
 - Immutable rule: do not add new plugins to `Alis.uproject`. Boot stays minimal; Orchestrator registers plugin paths at runtime via `IPluginManager` and activates by manifest.
 - No global FSM: Use native GameMode/MatchState for match lifecycle. Menu coordinates via ILoadingService.
 
+Composition Ownership vs Consumption
+- Composition ownership (`CreateDefaultSubobject<T>` in a constructor) requires a concrete type at compile time and therefore a hard module dependency on the owning plugin. This is distinct from component consumption.
+- Consumers that only read state or bind events MUST go through an interface in `ProjectCore` (e.g. `IVitalsEventsSource` for vitals death/damage events), discovered via `UClass::ImplementsInterface(...)`, not via the concrete class.
+- Example: `ProjectCharacter` constructs `UProjectVitalsComponent` (composition -> hard dep on `ProjectVitals`), while `ProjectSinglePlay` binds death handlers through `IVitalsEventsSource` (consumption -> no dep on `ProjectVitals`).
+- Anti-pattern: adding `ProjectVitals` (or any provider plugin) to a consumer module's Build.cs just to reach its delegates or enums. Hoist the shared types/interfaces to `ProjectCore` instead.
+
 Dependency Rules (Updated)
 ```
 Foundation/              # No deps on anything below
@@ -192,6 +200,35 @@ Core (foundation)
 - UI -> Systems
 - Systems -> UI
 - Content -> direct code dependencies
+
+---
+
+## UI plugin dependency pattern (clarified 2026-04-22)
+
+**Rule**: a UI plugin for feature X MAY depend on feature X for its public domain types (enums, tags, read-only data structs). It MUST NOT reach into X's internal implementation (private components, non-public helpers, global state).
+
+Cross-plugin services + events + commands must route through interfaces in `ProjectCore` (`IVitalsReadOnly`, `IInventoryReadOnly`, `IVitalsEventsSource`, `IInventoryDropCommandTarget`, etc.). Consumers that are NOT "the UI of X" (other gameplay plugins, gamemode, ai, etc.) must never declare a direct Build.cs dep on X.
+
+### Pattern comparison
+
+| Scenario | UI depends on Feature? | Consume via Core? |
+|---|---|---|
+| `ProjectInventoryUI` → `ProjectInventory` | NO (interfaces cover 100% of UI needs) | YES (IInventoryReadOnly / IInventoryCommands / IInventoryDropCommandTarget) |
+| `ProjectVitalsUI` → `ProjectVitals` | YES (for `EVitalState` / `EFatigueState` domain enums shared by feature + UI hysteresis state) | YES for events + config (IVitalsEventsSource, FVitalsConfig) |
+| `ProjectSinglePlay` → `ProjectVitals` | N/A (not a UI plugin) | YES ONLY (IVitalsEventsSource in Core; no direct dep) |
+| `ProjectCharacter` → `ProjectVitals` | N/A (not a UI plugin) | Composition owner — `CreateDefaultSubobject<UProjectVitalsComponent>` requires concrete type; DIP cannot abstract component construction. Keep the dep, document it. |
+
+### Why the split
+
+Enums and primitive value types that are part of the feature's PUBLIC CONTRACT (not its internal implementation) legitimately belong with the owning feature plugin. Hoisting them to Core pollutes Core with domain types ("vitals" is not foundation concern). The cost — a Build.cs dep from the UI plugin onto its own feature plugin — is architecturally honest: UI-for-X is naturally tied to X.
+
+Forcing the UI-zero-dep pattern universally leads to type-placement gymnastics (enum hoisting) and the UE serialization trap it implies (CoreRedirects that can't be merged to main per `docs/editor/class_migration.md`). ProjectInventoryUI is zero-dep because its interfaces are rich enough to denormalize every UI-relevant field to a primitive — not because the rule is universal.
+
+### Decision rule for new UI plugins
+
+1. If the feature exposes a complete-enough interface (read-only queries return primitives only), keep the UI plugin zero-dep on its feature.
+2. If the UI needs domain types (enums, flags, shared state) that would require artificial denormalization to flatten, accept the feature dep. Document why in `Plugins/UI/<Name>/README.md`.
+3. Events + commands always route through ProjectCore interfaces (never via direct component reference from consumers outside the feature).
 
 ---
 

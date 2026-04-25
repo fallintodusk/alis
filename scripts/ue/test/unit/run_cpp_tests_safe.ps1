@@ -9,15 +9,70 @@ param(
     [switch]$Game = $false,  # Run in standalone game mode (creates real game world)
     [int]$TimeoutSeconds = 120,  # 2 minutes
     [string]$ExtraArgs = "",  # Additional command-line args (e.g. -ProjectSkipFrontEnd)
-    [switch]$UseTestExitOnly = $false  # Omit Quit from ExecCmds; rely on -testexit sentinel only
+    [switch]$UseTestExitOnly = $false,  # Omit Quit from ExecCmds; rely on -testexit sentinel only
+    [ValidateSet("Dev", "Gate")]
+    [string]$Mode = "Dev",  # Dev (default) rejects broad filters; Gate accepts them (CI/end-of-slice).
+    [switch]$AllowBroadFilter = $false  # Explicit per-call override even in Dev mode.
 )
 
 $ErrorActionPreference = "Stop"
+
+# --------------------------------------------------------------------------
+# Dev Loop Contract:
+# In Dev mode (default) the wrapper refuses broad filters. Override via
+# -Mode Gate (end-of-slice / CI) or -AllowBroadFilter (one-off). Full
+# contract: docs/agents/canonical.md "Dev Loop Contract" + AGENTS.md
+# "Dev Loop Rule".
+# --------------------------------------------------------------------------
+. (Join-Path $PSScriptRoot "Test-FilterShape.ps1")
+if ($Mode -eq "Dev" -and -not $AllowBroadFilter) {
+    $shape = Test-ExactFilter -Filter $TestFilter
+    if (-not $shape.IsExact) {
+        Write-BroadFilterRejection -Filter $TestFilter -Reason $shape.Reason `
+            -Example $shape.Example -ScriptName "run_cpp_tests_safe.ps1"
+        exit 2
+    }
+}
 $root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $stepN = $env:OVERNIGHT_STEP
 if (-not $stepN) { $stepN = "manual" }
 $logDir = Join-Path $root "artifacts\overnight\step-$stepN"
 New-Item -Force -ItemType Directory -Path $logDir | Out-Null
+
+# --------------------------------------------------------------------------
+# Persistent-editor fast path. If a persistent editor is running (PID file
+# exists AND points to a live UnrealEditor process), dispatch via the
+# file-watcher instead of cold-booting. The cold path below stays the
+# single-source-of-truth for first-run / CI / no-warm-editor callers.
+#
+# Env opt-out: set ALIS_NO_PERSISTENT_EDITOR=1 to force the cold path.
+# --------------------------------------------------------------------------
+if ($env:ALIS_NO_PERSISTENT_EDITOR -ne "1") {
+    $persistentPid = Join-Path $root "artifacts\persistent\editor.pid"
+    if (Test-Path $persistentPid) {
+        $editorPid = (Get-Content $persistentPid -ErrorAction SilentlyContinue | Select-Object -First 1)
+        if ($editorPid) {
+            $aliveProc = $null
+            try {
+                $aliveProc = Get-Process -Id $editorPid -ErrorAction Stop
+            } catch { }
+            if ($aliveProc -and ($aliveProc.ProcessName -like "UnrealEditor*")) {
+                Write-Host "[run_cpp_tests_safe] Persistent editor detected (PID $editorPid); dispatching via persistent_editor_run." -ForegroundColor Cyan
+                $persistentRun = Join-Path $PSScriptRoot "persistent_editor_run.ps1"
+                # Forward at least 300s hard cap to persistent_editor_run. The
+                # caller's $TimeoutSeconds default (120) was sized for the
+                # cold-boot path where the editor exits between runs; a
+                # persistent dispatch can legitimately exceed that on its
+                # first post-boot call (JIT + first Slate paint). The idle-
+                # timeout guard inside persistent_editor_run still catches
+                # real hangs.
+                $persistentTimeout = [Math]::Max($TimeoutSeconds, 300)
+                & $persistentRun -TestFilter $TestFilter -TimeoutSeconds $persistentTimeout
+                exit $LASTEXITCODE
+            }
+        }
+    }
+}
 
 $startTime = Get-Date
 $warnThresholdSeconds = 60  # Warn if test takes longer than this

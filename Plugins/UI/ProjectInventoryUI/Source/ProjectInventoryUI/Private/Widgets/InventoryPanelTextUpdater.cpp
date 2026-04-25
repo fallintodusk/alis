@@ -62,46 +62,12 @@ void FInventoryPanelTextUpdater::UpdateStatsText(UInventoryViewModel* VM)
     }
 }
 
-void FInventoryPanelTextUpdater::UpdateNearbyContainerInfo(UInventoryViewModel* VM)
-{
-    if (Refs.NearbyTitleText)
-    {
-        FText Title = NSLOCTEXT("Inventory", "NearbyLootFallbackTitle", "Nearby Loot");
-        if (VM && VM->GetbHasNearbyContainer() && !VM->GetNearbyContainerLabel().IsEmpty())
-        {
-            Title = VM->GetNearbyContainerLabel();
-        }
-        Refs.NearbyTitleText->SetText(Title);
-    }
-
-    if (Refs.NearbyStatsText)
-    {
-        if (VM && VM->GetbHasNearbyContainer())
-        {
-            FString StatsText = FText::Format(
-                NSLOCTEXT("Inventory", "NearbyLootStats", "{0}   {1}"),
-                FormatWeight(VM->GetNearbyContainerCurrentWeight(), VM->GetNearbyContainerMaxWeight()),
-                FormatVolume(VM->GetNearbyContainerCurrentVolume(), VM->GetNearbyContainerMaxVolume())).ToString();
-
-            if (VM->GetNearbyContainerCellDepthUnits() > 1)
-            {
-                StatsText += FString::Printf(TEXT("   Depth: %d/cell"), VM->GetNearbyContainerCellDepthUnits());
-            }
-
-            Refs.NearbyStatsText->SetText(FText::FromString(StatsText));
-        }
-        else
-        {
-            Refs.NearbyStatsText->SetText(FText::GetEmpty());
-        }
-    }
-}
-
 void FInventoryPanelTextUpdater::UpdateSelectionInfo(UInventoryViewModel* VM, FInventoryPanelState& PanelState)
 {
     FInventoryEntryView Entry;
     if (!PanelState.TryGetSelectedEntry(VM, Entry))
     {
+        PanelState.ResetQuantity();
         // No selection: show placeholder text, collapse icon and stats
         if (Refs.SelectionText) Refs.SelectionText->SetText(NSLOCTEXT("Inventory", "NoSelection", "No item selected"));
         if (Refs.SelectionStatsText) Refs.SelectionStatsText->SetVisibility(ESlateVisibility::Collapsed);
@@ -149,8 +115,7 @@ void FInventoryPanelTextUpdater::UpdateSelectionInfo(UInventoryViewModel* VM, FI
         }
     }
 
-    PanelState.SelectedMaxQuantity = Entry.Quantity;
-    PanelState.ClampQuantity();
+    PanelState.SyncQuantityToEntry(Entry.InstanceId, Entry.Quantity);
 }
 
 void FInventoryPanelTextUpdater::UpdateCommandButtons(UInventoryViewModel* VM, const FInventoryPanelState& PanelState)
@@ -191,14 +156,7 @@ void FInventoryPanelTextUpdater::UpdateCommandButtons(UInventoryViewModel* VM, c
     {
         ApplyActionState(Refs.EquipButton, UInventoryViewModel::GetActionIdEquip());
     }
-
-    if (Refs.TakeAllButton)
-    {
-        const bool bShowTakeAll = VM && VM->GetbHasNearbyContainer();
-        const bool bEnableTakeAll = bShowTakeAll && VM->HasNearbyEntries();
-        Refs.TakeAllButton->SetVisibility(bShowTakeAll ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-        Refs.TakeAllButton->SetIsEnabled(bEnableTakeAll);
-    }
+    // TakeAll button lives in UW_NearbyContainerPanel now; no main-panel binding.
 }
 
 void FInventoryPanelTextUpdater::UpdateQuantityControls(const FInventoryPanelState& PanelState)

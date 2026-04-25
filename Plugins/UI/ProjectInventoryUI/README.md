@@ -15,6 +15,13 @@ Purpose
 Current implementation notes
 - `InventoryViewModel` splits containers into dedicated hands, compact storage, and large storage.
 - The default runtime `Item.Container.Hands` container is projected into left and right hand grids by the ViewModel.
+- `InventoryViewModel` projects resolved entry data into
+  `FInventoryCellVisualState` arrays. Widgets render these DTOs and do not
+  resolve object definitions.
+- Visual DTO arrays are the only cell presentation path. Do not add parallel
+  text-array compatibility state.
+- Inventory cells render a primary icon/text layer plus a separate quantity
+  badge so stacked icon-backed items do not compete for one text slot.
 - Container layout, group ordering, and empty-host collapse behavior are defined
   only in the behavior SOT above.
 - Nearby world storage is presented inside the same screen as a distinct
@@ -23,6 +30,7 @@ Current implementation notes
 
 Not responsible for
 - Inventory rules, item semantics, or overflow policy.
+- Object-definition loading, cache residency, or resolver fallback policy.
 - ASC or vitals state.
 - World pickup or world-storage rules.
 

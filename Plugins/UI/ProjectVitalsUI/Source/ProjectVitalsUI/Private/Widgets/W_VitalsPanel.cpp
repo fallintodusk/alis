@@ -10,7 +10,7 @@
 #include "Theme/ProjectUIThemeData.h"
 #include "Layout/ProjectWidgetLayoutLoader.h"
 #include "Presentation/ProjectUIWidgetBinder.h"
-#include "VitalsConfig.h"
+#include "Types/VitalsConfig.h"
 
 DEFINE_LOG_CATEGORY(LogVitalsPanel);
 
@@ -629,7 +629,7 @@ FText UW_VitalsPanel::FormatCaloriesValue(float Current)
 
 FText UW_VitalsPanel::FormatHydrationValue(float Current)
 {
-	return FText::FromString(FString::Printf(TEXT("%.1f L"), Current));
+	return FText::FromString(FString::Printf(TEXT("%.2f L"), Current));
 }
 
 FText UW_VitalsPanel::FormatFatigueValue(float Percent)

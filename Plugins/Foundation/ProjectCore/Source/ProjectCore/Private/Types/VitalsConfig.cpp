@@ -1,6 +1,6 @@
 // Copyright ALIS. All Rights Reserved.
 
-#include "VitalsConfig.h"
+#include "Types/VitalsConfig.h"
 #include "ProjectPaths.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonReader.h"

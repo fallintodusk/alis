@@ -18,7 +18,8 @@ public class ProjectIntegrationTests : ModuleRules
 			"Json",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"CommonUI"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new[]
@@ -49,6 +50,7 @@ public class ProjectIntegrationTests : ModuleRules
 			"InputCore",
 			"EditorSubsystem",
 			"AutomationController",
+			"AutomationDriver",     // Phase 5 / separate correctness track - smoke test only for now
 			"Projects"
 		});
 

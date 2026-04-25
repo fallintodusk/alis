@@ -270,7 +270,7 @@ Write-Host ""
 Write-Host "[1/4] Cleaning up UE processes..." -ForegroundColor Yellow
 
 # Check for zombie processes (running > 30 minutes)
-$processNames = @("UnrealEditor*", "UnrealEditor-Cmd*", "UEBuildWorker*", "ShaderCompileWorker*", "UnrealLightmass*")
+$processNames = @("UnrealEditor*", "UnrealEditor-Cmd*", "UEBuildWorker*", "ShaderCompileWorker*", "UnrealLightmass*", "UnrealBuildTool*")
 $zombies = @()
 $now = Get-Date
 
@@ -287,10 +287,31 @@ foreach ($pattern in $processNames) {
     }
 }
 
+# Also detect orphaned UBT-bearing dotnet.exe / Build.bat / cmd.exe instances.
+# Canonical pitfall #7: TaskStop on a previous wrapper leaves these behind
+# holding the global UE build mutex; new Build.bats hang on -WaitMutex.
+$orphans = @()
+try {
+    $orphans += Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            ($_.Name -eq 'dotnet.exe' -and $_.CommandLine -match 'UnrealBuildTool\.dll') -or
+            ($_.Name -eq 'cmd.exe' -and $_.CommandLine -match 'Build\.bat')
+        }
+}
+catch {}
+
 if ($zombies.Count -gt 0) {
     Write-Host "  Found $($zombies.Count) zombie process(es) (age > 30 min):" -ForegroundColor Yellow
     foreach ($z in $zombies) {
         Write-Host "    - $($z.Name) (PID: $($z.Id), age: $($z.Age) min)" -ForegroundColor Yellow
+    }
+}
+
+if ($orphans.Count -gt 0) {
+    Write-Host "  Found $($orphans.Count) orphaned UBT/Build.bat process(es) - killing to release the global build mutex:" -ForegroundColor Yellow
+    foreach ($o in $orphans) {
+        Write-Host "    - $($o.Name) (PID: $($o.ProcessId))" -ForegroundColor Yellow
+        try { Stop-Process -Id $o.ProcessId -Force -ErrorAction Stop } catch {}
     }
 }
 
@@ -302,6 +323,7 @@ foreach ($pattern in $processNames) {
     $processes | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
+$killed += $orphans.Count
 Write-Host "  Killed $killed process(es)" -ForegroundColor Green
 
 # Step 2: Clean Intermediate if requested
@@ -339,10 +361,21 @@ $ubtPath = Join-Path $uePath "Engine\Build\BatchFiles\Build.bat"
 $projectPath = Join-Path $root "Alis.uproject"
 $buildLog = Join-Path $logDir "build.log"
 
+# Build args: append -Module=<Name> when ModuleName is set so we actually
+# rebuild only the requested module instead of the full editor. Prior to
+# 2026-04-25 this script accepted -ModuleName, printed it in the header,
+# but never passed it to UBT - every "module rebuild" was a full editor
+# rebuild that took 877+ seconds. Verified by inspecting the script and
+# Task Manager (only cmd.exe spinning, dotnet UBT silent).
+$ubtArgs = "AlisEditor Win64 Development `"$projectPath`" -WaitMutex"
+if ($ModuleName) {
+    $ubtArgs += " -Module=$ModuleName"
+}
+
 $buildAction = {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $ubtPath
-    $psi.Arguments = "AlisEditor Win64 Development `"$projectPath`" -WaitMutex"
+    $psi.Arguments = $ubtArgs
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
@@ -350,19 +383,53 @@ $buildAction = {
 
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo = $psi
-    $proc.Start() | Out-Null
 
-    # Wait for build with timeout
+    # Async stdio capture. Without this, WaitForExit() can deadlock when
+    # UBT's stdout/stderr pipe buffers fill (UE builds emit a lot of
+    # output): UBT blocks on write, the script blocks on WaitForExit,
+    # neither makes progress. ReadToEnd() AFTER WaitForExit only works
+    # when output stays under the pipe buffer cap (~64KB on Windows).
+    $stdoutSb = New-Object System.Text.StringBuilder
+    $stderrSb = New-Object System.Text.StringBuilder
+    $stdoutHandler = {
+        if ($null -ne $EventArgs.Data) { [void]$Event.MessageData.AppendLine($EventArgs.Data) }
+    }
+    $stderrHandler = {
+        if ($null -ne $EventArgs.Data) { [void]$Event.MessageData.AppendLine($EventArgs.Data) }
+    }
+    $stdoutEvent = Register-ObjectEvent -InputObject $proc -EventName OutputDataReceived -Action $stdoutHandler -MessageData $stdoutSb
+    $stderrEvent = Register-ObjectEvent -InputObject $proc -EventName ErrorDataReceived  -Action $stderrHandler -MessageData $stderrSb
+
+    $proc.Start() | Out-Null
+    $proc.BeginOutputReadLine()
+    $proc.BeginErrorReadLine()
+
     $ok = $proc.WaitForExit($TimeoutSeconds * 1000)
-    $stdout = $proc.StandardOutput.ReadToEnd()
-    $stderr = $proc.StandardError.ReadToEnd()
-    $buildOutput = $stdout + "`n`n--- STDERR ---`n" + $stderr
+
+    if ($ok) {
+        # Drain any final buffered events the runtime hasn't dispatched yet.
+        $proc.WaitForExit()
+    }
+
+    Unregister-Event -SourceIdentifier $stdoutEvent.Name -ErrorAction SilentlyContinue
+    Unregister-Event -SourceIdentifier $stderrEvent.Name -ErrorAction SilentlyContinue
+    Remove-Job -Id $stdoutEvent.Id -Force -ErrorAction SilentlyContinue
+    Remove-Job -Id $stderrEvent.Id -Force -ErrorAction SilentlyContinue
+
+    $buildOutput = $stdoutSb.ToString() + "`n`n--- STDERR ---`n" + $stderrSb.ToString()
     Set-Content -Path $buildLog -Value $buildOutput
 
     if (-not $ok) {
         Write-Host "  TIMEOUT: Build did not complete in $TimeoutSeconds seconds" -ForegroundColor Red
-        $proc.Kill($true)
+        try { $proc.Kill($true) } catch {}
+        # Also kill the orphaned UBT subtree so the next attempt is not
+        # blocked on the global build mutex (canonical pitfall #7).
         Get-Process | Where-Object { $_.ProcessName -like "UEBuildWorker*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+        Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {
+                ($_.Name -eq 'dotnet.exe' -and $_.CommandLine -match 'UnrealBuildTool\.dll') -or
+                ($_.Name -eq 'cmd.exe' -and $_.CommandLine -match 'Build\.bat')
+            } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {} }
         throw "Build timeout after $TimeoutSeconds seconds"
     }
 
@@ -401,10 +468,15 @@ catch {
         Write-Host "========================================" -ForegroundColor Yellow
         Write-Host "Trying build without -WaitMutex flag..." -ForegroundColor Yellow
 
+        # Same -Module= fix and async stdio as the primary path.
+        $degradedArgs = "AlisEditor Win64 Development `"$projectPath`""  # No -WaitMutex
+        if ($ModuleName) {
+            $degradedArgs += " -Module=$ModuleName"
+        }
         $degradedBuildAction = {
             $psi = New-Object System.Diagnostics.ProcessStartInfo
             $psi.FileName = $ubtPath
-            $psi.Arguments = "AlisEditor Win64 Development `"$projectPath`""  # No -WaitMutex
+            $psi.Arguments = $degradedArgs
             $psi.UseShellExecute = $false
             $psi.RedirectStandardOutput = $true
             $psi.RedirectStandardError = $true
@@ -412,16 +484,30 @@ catch {
 
             $proc = New-Object System.Diagnostics.Process
             $proc.StartInfo = $psi
+
+            $stdoutSb = New-Object System.Text.StringBuilder
+            $stderrSb = New-Object System.Text.StringBuilder
+            $h1 = { if ($null -ne $EventArgs.Data) { [void]$Event.MessageData.AppendLine($EventArgs.Data) } }
+            $h2 = { if ($null -ne $EventArgs.Data) { [void]$Event.MessageData.AppendLine($EventArgs.Data) } }
+            $e1 = Register-ObjectEvent -InputObject $proc -EventName OutputDataReceived -Action $h1 -MessageData $stdoutSb
+            $e2 = Register-ObjectEvent -InputObject $proc -EventName ErrorDataReceived  -Action $h2 -MessageData $stderrSb
+
             $proc.Start() | Out-Null
+            $proc.BeginOutputReadLine()
+            $proc.BeginErrorReadLine()
 
             $ok = $proc.WaitForExit($TimeoutSeconds * 1000)
-            $stdout = $proc.StandardOutput.ReadToEnd()
-            $stderr = $proc.StandardError.ReadToEnd()
-            $buildOutput = $stdout + "`n`n--- STDERR ---`n" + $stderr
+            if ($ok) { $proc.WaitForExit() }
+            Unregister-Event -SourceIdentifier $e1.Name -ErrorAction SilentlyContinue
+            Unregister-Event -SourceIdentifier $e2.Name -ErrorAction SilentlyContinue
+            Remove-Job -Id $e1.Id -Force -ErrorAction SilentlyContinue
+            Remove-Job -Id $e2.Id -Force -ErrorAction SilentlyContinue
+
+            $buildOutput = $stdoutSb.ToString() + "`n`n--- STDERR ---`n" + $stderrSb.ToString()
             Set-Content -Path "$buildLog.degraded" -Value $buildOutput
 
             if (-not $ok) {
-                $proc.Kill($true)
+                try { $proc.Kill($true) } catch {}
                 throw "Degraded build timeout"
             }
 

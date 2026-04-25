@@ -1,8 +1,9 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "Widgets/InventoryPanelGridBuilder.h"
-#include "Widgets/W_InventoryPanel.h"
 #include "Widgets/ProjectGridCell.h"
+#include "Widgets/W_InventoryCellDropTarget.h"
+#include "Widgets/W_InventoryEquipSlotDropTarget.h"
 #include "MVVM/InventoryViewModel.h"
 #include "Layout/ProjectWidgetLayoutLoader.h"
 #include "Theme/ProjectUIThemeData.h"
@@ -10,6 +11,8 @@
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/SizeBox.h"
@@ -22,6 +25,14 @@
 
 namespace
 {
+	// Single SOT for grid sizing constants. Host pixel size and cell font size
+	// derive from these so every grid (hands, storage, nearby, equip) lays out
+	// identically. Keep BuildGrid/BuildEquipSlots aligned with these names -
+	// do not hardcode 1.f / 4.f / 4.f locally.
+	constexpr float GridSlotLineWidth = 1.f;     // UniformGridPanel slot padding
+	constexpr float GridCellInnerPadding = 4.f;  // Cell content padding inside UProjectGridCell
+	constexpr float GridHostOuterPadding = 4.f;  // Border padding around UniformGrid host
+
 	// Body-position layout: maps slot tag to (col, row) in equipment grid
 	// Layout: 5 rows x 3 columns representing body silhouette
 	//   Row0:          [HEAD]
@@ -74,7 +85,24 @@ namespace
 	}
 }
 
-void FInventoryPanelGridBuilder::Initialize(UW_InventoryPanel* InOwner, UWidgetTree* InWidgetTree)
+float FInventoryPanelGridBuilder::GetCellFrameOverhead()
+{
+	// Both sides combined: 1px grid line + 4px cell inner padding = 5 per side, 10 total.
+	return 2.f * (GridSlotLineWidth + GridCellInnerPadding);
+}
+
+FIntPoint FInventoryPanelGridBuilder::ComputeGridHostPixelSize(int32 GridWidth, int32 GridHeight, float CellSize)
+{
+	const int32 SafeW = FMath::Max(0, GridWidth);
+	const int32 SafeH = FMath::Max(0, GridHeight);
+	const float CellPitch = CellSize + 2.f * GridSlotLineWidth;
+	const float OuterSlack = 2.f * GridHostOuterPadding;
+	return FIntPoint(
+		FMath::RoundToInt(CellPitch * SafeW + OuterSlack),
+		FMath::RoundToInt(CellPitch * SafeH + OuterSlack));
+}
+
+void FInventoryPanelGridBuilder::Initialize(UUserWidget* InOwner, UWidgetTree* InWidgetTree)
 {
 	Owner = InOwner;
 	WidgetTree = InWidgetTree;
@@ -150,8 +178,35 @@ void FInventoryPanelGridBuilder::BuildContainerTabs(
 UUniformGridPanel* FInventoryPanelGridBuilder::BuildGrid(
 	int32 GridWidth,
 	int32 GridHeight,
-	TArray<TObjectPtr<UTextBlock>>& OutCellWidgets,
+	const FGameplayTag& SurfaceTag,
+	TArray<TObjectPtr<UTextBlock>>& OutPrimaryCellWidgets,
+	TArray<TObjectPtr<UTextBlock>>& OutQuantityCellWidgets,
+	TArray<TObjectPtr<UBorder>>& OutQuantityBadgeWidgets,
 	TArray<TObjectPtr<UProjectGridCell>>& OutCellBorders,
+	bool bIsSecondary)
+{
+	TArray<TObjectPtr<UW_InventoryCellDropTarget>> Discard;
+	return BuildGrid(
+		GridWidth,
+		GridHeight,
+		SurfaceTag,
+		OutPrimaryCellWidgets,
+		OutQuantityCellWidgets,
+		OutQuantityBadgeWidgets,
+		OutCellBorders,
+		Discard,
+		bIsSecondary);
+}
+
+UUniformGridPanel* FInventoryPanelGridBuilder::BuildGrid(
+	int32 GridWidth,
+	int32 GridHeight,
+	const FGameplayTag& SurfaceTag,
+	TArray<TObjectPtr<UTextBlock>>& OutPrimaryCellWidgets,
+	TArray<TObjectPtr<UTextBlock>>& OutQuantityCellWidgets,
+	TArray<TObjectPtr<UBorder>>& OutQuantityBadgeWidgets,
+	TArray<TObjectPtr<UProjectGridCell>>& OutCellBorders,
+	TArray<TObjectPtr<UW_InventoryCellDropTarget>>& OutCellHosts,
 	bool bIsSecondary)
 {
 	if (!Owner || GridWidth <= 0 || GridHeight <= 0)
@@ -163,14 +218,16 @@ UUniformGridPanel* FInventoryPanelGridBuilder::BuildGrid(
 		? WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass())
 		: NewObject<UUniformGridPanel>(Owner);
 
-	// Set slot padding to create visible grid lines between cells
-	const float GridLineWidth = 1.f;
-	GridPanel->SetSlotPadding(FMargin(GridLineWidth));
+	// Slot padding creates visible grid lines between cells.
+	GridPanel->SetSlotPadding(FMargin(GridSlotLineWidth));
 
-	OutCellWidgets.Reset();
+	OutPrimaryCellWidgets.Reset();
+	OutQuantityCellWidgets.Reset();
+	OutQuantityBadgeWidgets.Reset();
 	OutCellBorders.Reset();
+	OutCellHosts.Reset();
 
-	const float CellPadding = 4.f;
+	const float CellPadding = GridCellInnerPadding;
 
 	for (int32 Row = 0; Row < GridHeight; ++Row)
 	{
@@ -194,7 +251,14 @@ UUniformGridPanel* FInventoryPanelGridBuilder::BuildGrid(
 			CellBorder->SetPadding(FMargin(CellPadding));
 			CellBorder->SetCellIndex(CellIndex);
 			CellBorder->SetSecondaryGrid(bIsSecondary);
-			CellBorder->SetGridMouseDownHandler(UProjectGridCell::FOnGridCellMouseDown::CreateUObject(Owner, &UW_InventoryPanel::HandleCellMouseDown));
+			if (CellMouseDownHandler.IsBound())
+			{
+				CellBorder->SetGridMouseDownHandler(CellMouseDownHandler);
+			}
+
+			UOverlay* CellOverlay = WidgetTree
+				? WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass())
+				: NewObject<UOverlay>(Owner);
 
 			UTextBlock* CellText = WidgetTree
 				? WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass())
@@ -205,17 +269,78 @@ UUniformGridPanel* FInventoryPanelGridBuilder::BuildGrid(
 			const FLinearColor TextColor = Theme ? Theme->Colors.TextSecondary : FLinearColor::White;
 			CellText->SetColorAndOpacity(FSlateColor(TextColor));
 
-			CellBorder->SetContent(CellText);
+			UBorder* QuantityBadge = WidgetTree
+				? WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass())
+				: NewObject<UBorder>(Owner);
+			QuantityBadge->SetBrushColor(Theme ? Theme->Colors.Primary : FLinearColor(0.2f, 0.6f, 1.0f, 0.95f));
+			QuantityBadge->SetPadding(FMargin(5.f, 1.f, 5.f, 1.f));
+			QuantityBadge->SetVisibility(ESlateVisibility::Collapsed);
+
+			UTextBlock* QuantityText = WidgetTree
+				? WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass())
+				: NewObject<UTextBlock>(Owner);
+			QuantityText->SetJustification(ETextJustify::Center);
+			QuantityText->SetText(FText::GetEmpty());
+			QuantityText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+			QuantityBadge->SetContent(QuantityText);
+
+			if (CellOverlay)
+			{
+				if (UOverlaySlot* PrimarySlot = CellOverlay->AddChildToOverlay(CellText))
+				{
+					PrimarySlot->SetHorizontalAlignment(HAlign_Center);
+					PrimarySlot->SetVerticalAlignment(VAlign_Center);
+				}
+				if (UOverlaySlot* BadgeSlot = CellOverlay->AddChildToOverlay(QuantityBadge))
+				{
+					BadgeSlot->SetHorizontalAlignment(HAlign_Right);
+					BadgeSlot->SetVerticalAlignment(VAlign_Bottom);
+					BadgeSlot->SetPadding(FMargin(0.f, 0.f, 1.f, 1.f));
+				}
+			}
+
+			CellBorder->SetContent(CellOverlay ? static_cast<UWidget*>(CellOverlay) : static_cast<UWidget*>(CellText));
 			CellBorder->SetHorizontalAlignment(HAlign_Center);
 			CellBorder->SetVerticalAlignment(VAlign_Center);
-			SizeBox->SetContent(CellBorder);
+
+			// Slice 17: wrap the UProjectGridCell inside a per-cell
+			// UW_InventoryCellDropTarget. The wrapper is the smallest
+			// semantic drop target - Slate routes NativeOnDragOver /
+			// NativeOnDrop to this per-cell UUserWidget, bypassing the
+			// user-widget root. Visual layout is unchanged because the
+			// wrapper adds no padding and places the cell as its root
+			// content; the hierarchy becomes
+			//   SizeBox -> CellHost -> UProjectGridCell.
+			// SizeBox still owns the pixel dimensions so the grid is a
+			// zero-pixel-shift drop-in replacement (verified by
+			// InventoryHands.DumpTree / InventoryNearbyLoot.DumpTree).
+			UW_InventoryCellDropTarget* CellHost = WidgetTree
+				? WidgetTree->ConstructWidget<UW_InventoryCellDropTarget>(UW_InventoryCellDropTarget::StaticClass())
+				: NewObject<UW_InventoryCellDropTarget>(Owner);
+			if (CellHost)
+			{
+				CellHost->SetCellIdentity(SurfaceTag, CellIndex, GridWidth);
+				CellHost->SetHostedCell(CellBorder);
+				SizeBox->SetContent(CellHost);
+			}
+			else
+			{
+				// Fallback (NewObject path with no WidgetTree): drop the
+				// wrapper and parent the cell directly so the grid still
+				// renders. The fitness test covers the WidgetTree-backed
+				// path which is the only runtime path.
+				SizeBox->SetContent(CellBorder);
+			}
 
 			UUniformGridSlot* GridSlot = GridPanel->AddChildToUniformGrid(SizeBox, Row, Col);
 			GridSlot->SetHorizontalAlignment(HAlign_Fill);
 			GridSlot->SetVerticalAlignment(VAlign_Fill);
 
-			OutCellWidgets.Add(CellText);
+			OutPrimaryCellWidgets.Add(CellText);
+			OutQuantityCellWidgets.Add(QuantityText);
+			OutQuantityBadgeWidgets.Add(QuantityBadge);
 			OutCellBorders.Add(CellBorder);
+			OutCellHosts.Add(CellHost);
 		}
 	}
 
@@ -227,6 +352,16 @@ void FInventoryPanelGridBuilder::BuildEquipSlots(
 	UInventoryViewModel* ViewModel,
 	TArray<TObjectPtr<UProjectGridCell>>& OutSlotCells)
 {
+	TArray<TObjectPtr<UW_InventoryEquipSlotDropTarget>> Unused;
+	BuildEquipSlots(SlotsHost, ViewModel, OutSlotCells, Unused);
+}
+
+void FInventoryPanelGridBuilder::BuildEquipSlots(
+	UVerticalBox* SlotsHost,
+	UInventoryViewModel* ViewModel,
+	TArray<TObjectPtr<UProjectGridCell>>& OutSlotCells,
+	TArray<TObjectPtr<UW_InventoryEquipSlotDropTarget>>& OutSlotDropTargets)
+{
 	if (!SlotsHost || !ViewModel || !Owner)
 	{
 		return;
@@ -234,6 +369,7 @@ void FInventoryPanelGridBuilder::BuildEquipSlots(
 
 	SlotsHost->ClearChildren();
 	OutSlotCells.Reset();
+	OutSlotDropTargets.Reset();
 
 	const int32 SlotCount = ViewModel->GetEquipSlotCount();
 	if (SlotCount <= 0)
@@ -244,10 +380,10 @@ void FInventoryPanelGridBuilder::BuildEquipSlots(
 	constexpr int32 NumRows = 5;
 	constexpr int32 NumCols = 3;
 	const float SlotSize = CellSize;
-	const float GridLineWidth = 1.f;
-	const float CellPadding = 4.f;
-	const float RowSpacing = 4.f;
-	const float ColSpacing = 4.f;
+	const float GridLineWidth = GridSlotLineWidth;
+	const float CellPadding = GridCellInnerPadding;
+	const float RowSpacing = GridHostOuterPadding;
+	const float ColSpacing = GridHostOuterPadding;
 
 	// Map grid positions to slot indices (-1 = empty/spacer)
 	TArray<TArray<int32>> GridSlotIndices;
@@ -344,8 +480,30 @@ void FInventoryPanelGridBuilder::BuildEquipSlots(
 
 				SlotCell->SetContent(SlotText);
 				OuterBorder->SetContent(SlotCell);
-				CellSizeBox->SetContent(OuterBorder);
+
+				// Slice 19: wrap the visual tree in UW_InventoryEquipSlotDropTarget
+				// so the slot is the smallest-semantic drop target for equip
+				// drags. The wrapper owns NativeOnDragOver / NativeOnDrop and
+				// forwards to the drag host subsystem with its SlotTag as target.
+				UW_InventoryEquipSlotDropTarget* SlotDropTarget = WidgetTree
+					? WidgetTree->ConstructWidget<UW_InventoryEquipSlotDropTarget>(UW_InventoryEquipSlotDropTarget::StaticClass())
+					: CreateWidget<UW_InventoryEquipSlotDropTarget>(Owner, UW_InventoryEquipSlotDropTarget::StaticClass());
+				if (SlotDropTarget)
+				{
+					SlotDropTarget->SetSlotIdentity(SlotTag);
+					SlotDropTarget->SetHostedContent(OuterBorder);
+					CellSizeBox->SetContent(SlotDropTarget);
+				}
+				else
+				{
+					// Defensive fallback: if the wrapper couldn't be created
+					// (shouldn't happen in production), keep the visual tree
+					// working without drop support.
+					CellSizeBox->SetContent(OuterBorder);
+				}
+
 				OutSlotCells.Add(SlotCell);
+				OutSlotDropTargets.Add(SlotDropTarget);
 			}
 
 			UHorizontalBoxSlot* ColSlot = RowBox->AddChildToHorizontalBox(CellSizeBox);
@@ -366,9 +524,11 @@ void FInventoryPanelGridBuilder::BuildEquipSlots(
 	}
 }
 
-void FInventoryPanelGridBuilder::UpdateGridTexts(
-	const TArray<FText>& CellTexts,
-	TArray<TObjectPtr<UTextBlock>>& CellWidgets)
+void FInventoryPanelGridBuilder::UpdateGridVisuals(
+	const TArray<FInventoryCellVisualState>& CellVisuals,
+	TArray<TObjectPtr<UTextBlock>>& PrimaryCellWidgets,
+	TArray<TObjectPtr<UTextBlock>>& QuantityCellWidgets,
+	TArray<TObjectPtr<UBorder>>& QuantityBadgeWidgets)
 {
 	// Lazy-resolve fonts (can be called before NativeConstruct/Initialize).
 	// Never skip text assignment entirely here: the widget tree may rebuild
@@ -376,8 +536,9 @@ void FInventoryPanelGridBuilder::UpdateGridTexts(
 	// grids visually blank even though the ViewModel has valid cell data.
 	EnsureFontsResolved();
 
-	// Icon font sized to ~80% of cell content area (cell - 2*(padding + gridline))
-	const float ContentArea = CellSize - 10.f;
+	// Icon font sized to ~80% of cell content area.
+	// Overhead = 2 * (grid line + inner padding) via GetCellFrameOverhead().
+	const float ContentArea = CellSize - GetCellFrameOverhead();
 
 	FSlateFontInfo IconFont = CachedIconFont;
 	IconFont.Size = FMath::Clamp(FMath::RoundToInt(ContentArea * 0.8f), 12, 128);
@@ -385,7 +546,9 @@ void FInventoryPanelGridBuilder::UpdateGridTexts(
 	FSlateFontInfo TextFont = CachedTextFont;
 	TextFont.Size = FMath::Clamp(FMath::RoundToInt(ContentArea * 0.55f), 10, 64);
 
-	const int32 Count = FMath::Min(CellWidgets.Num(), CellTexts.Num());
+	const int32 Count = FMath::Min(
+		FMath::Min(PrimaryCellWidgets.Num(), QuantityCellWidgets.Num()),
+		FMath::Min(QuantityBadgeWidgets.Num(), CellVisuals.Num()));
 
 	static const FSlateColor IconColor(FLinearColor(0.4f, 0.7f, 1.0f, 1.0f));
 	static const FSlateColor TextColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -393,23 +556,53 @@ void FInventoryPanelGridBuilder::UpdateGridTexts(
 
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		if (CellWidgets[Index])
+		if (PrimaryCellWidgets[Index])
 		{
-			const FString Str = CellTexts[Index].ToString();
-			const bool bIsIcon = !Str.IsEmpty() && Str[0] >= 0xF000;
+			const FInventoryCellVisualState& Visual = CellVisuals[Index];
+			const FString Str = Visual.PrimaryText.ToString();
+			const bool bIsIcon = Visual.bUseIconFont;
 
-			CellWidgets[Index]->SetFont(bIsIcon ? IconFont : TextFont);
-			CellWidgets[Index]->SetText(CellTexts[Index]);
-			CellWidgets[Index]->SetColorAndOpacity(bIsIcon ? IconColor : (Str.IsEmpty() ? EmptyColor : TextColor));
+			PrimaryCellWidgets[Index]->SetFont(bIsIcon ? IconFont : TextFont);
+			PrimaryCellWidgets[Index]->SetText(Visual.PrimaryText);
+			PrimaryCellWidgets[Index]->SetColorAndOpacity(bIsIcon ? IconColor : (Str.IsEmpty() ? EmptyColor : TextColor));
+		}
+
+		if (QuantityCellWidgets[Index])
+		{
+			QuantityCellWidgets[Index]->SetFont(TextFont);
+			QuantityCellWidgets[Index]->SetText(CellVisuals[Index].QuantityText);
+		}
+
+		if (QuantityBadgeWidgets[Index])
+		{
+			QuantityBadgeWidgets[Index]->SetVisibility(CellVisuals[Index].bShowQuantity
+				? ESlateVisibility::SelfHitTestInvisible
+				: ESlateVisibility::Collapsed);
 		}
 	}
 
-	for (int32 Index = Count; Index < CellWidgets.Num(); ++Index)
+	for (int32 Index = Count; Index < PrimaryCellWidgets.Num(); ++Index)
 	{
-		if (CellWidgets[Index])
+		if (PrimaryCellWidgets[Index])
 		{
-			CellWidgets[Index]->SetText(FText::GetEmpty());
-			CellWidgets[Index]->SetColorAndOpacity(EmptyColor);
+			PrimaryCellWidgets[Index]->SetText(FText::GetEmpty());
+			PrimaryCellWidgets[Index]->SetColorAndOpacity(EmptyColor);
+		}
+	}
+
+	for (int32 Index = Count; Index < QuantityCellWidgets.Num(); ++Index)
+	{
+		if (QuantityCellWidgets[Index])
+		{
+			QuantityCellWidgets[Index]->SetText(FText::GetEmpty());
+		}
+	}
+
+	for (int32 Index = Count; Index < QuantityBadgeWidgets.Num(); ++Index)
+	{
+		if (QuantityBadgeWidgets[Index])
+		{
+			QuantityBadgeWidgets[Index]->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 }

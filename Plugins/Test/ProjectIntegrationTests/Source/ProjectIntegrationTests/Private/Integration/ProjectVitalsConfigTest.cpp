@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "VitalsConfig.h"
+#include "Types/VitalsConfig.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

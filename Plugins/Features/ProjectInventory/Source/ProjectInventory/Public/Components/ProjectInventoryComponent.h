@@ -22,6 +22,68 @@ class UAbilitySystemComponent;
 class UObjectDefinitionCache;
 class UProjectSaveSubsystem;
 class UProjectContainerSessionSubsystem;
+class UProjectWorldContainerAuthoritySubsystem;
+
+enum class EInventoryItemDataResolveState : uint8
+{
+	Invalid,
+	Missing,
+	Loading,
+	Loaded,
+	InvalidProvider,
+	InvalidData
+};
+
+enum class EInventoryMoveRejectReason : uint8
+{
+	None,
+	InvalidRequest,
+	ItemDataMissing,
+	ItemDataLoading,
+	TargetContainerMissing,
+	ItemRejectedByContainer,
+	QuantityExceedsTargetStack,
+	OutOfBounds,
+	SplitSourceOverlap,
+	MultipleTargetOverlaps,
+	StackRejected,
+	TargetWeightExceeded,
+	TargetVolumeExceeded
+};
+
+/**
+ * Terminal failure reason for the internal add path.
+ * Distinct from the "deferred" state, which is not a failure.
+ */
+enum class EInventoryAddFailReason : uint8
+{
+	None,
+	InvalidRequest,        // ObjectId invalid or Quantity <= 0
+	CacheUnavailable,      // ObjectDefinition cache not bound; hard fail (not deferrable)
+	InvalidProvider,       // Loaded object does not implement IItemDataProvider
+	InvalidData,           // Loaded item data view is not valid
+	NoCapacity,            // Weight/volume capacity rejected
+	NoContainersAvailable, // No containers could accept any quantity
+	QuantityRejected       // Placement produced zero accepted quantity
+};
+
+/**
+ * Internal outcome struct for the detailed add path.
+ *
+ * Consumed only by InventoryInteractionHandler and related server-side callers.
+ * Public Blueprint API (TryAddItem) returns only AddedQuantity for backward compatibility.
+ *
+ * Semantics:
+ * - AddedQuantity > 0 && !bDeferred && Fail == None -> authoritative add succeeded.
+ * - AddedQuantity == 0 && bDeferred == true         -> async load pending; caller must re-enter.
+ * - AddedQuantity == 0 && Fail != None              -> terminal failure; no retry.
+ */
+struct FInventoryAddOutcome
+{
+	int32 AddedQuantity = 0;
+	bool bDeferred = false;
+	EInventoryAddFailReason Fail = EInventoryAddFailReason::None;
+};
 
 // -------------------------------------------------------------------------
 // Inventory Component
@@ -61,7 +123,10 @@ class PROJECTINVENTORY_API UProjectInventoryComponent : public UActorComponent, 
 {
 	GENERATED_BODY()
 
-	friend class UProjectContainerSessionSubsystem;
+	// Authority subsystem calls protected Resolved helpers. The client-side
+	// ULocalPlayerSubsystem never touches protected state (it is a pure UI
+	// view cache).
+	friend class UProjectWorldContainerAuthoritySubsystem;
 
 public:
 	UProjectInventoryComponent();
@@ -72,6 +137,7 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PostInitProperties() override;
+	virtual void OnRegister() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -141,8 +207,25 @@ public:
 	 * Directly add item on server. Returns quantity actually added.
 	 * Use this when you need to know if the add succeeded (e.g., pickup).
 	 * @return Quantity actually added (0 = failed, may be less than requested if partial)
+	 *
+	 * NOTE: Deferred loads (item data still streaming) appear as 0 here for
+	 * backward compatibility. Callers that need to distinguish deferred from
+	 * hard-failed (for retry bookkeeping) must use TryAddItemDetailed.
 	 */
 	int32 TryAddItem(FPrimaryAssetId ObjectId, int32 Quantity);
+
+	/**
+	 * Server-side detailed add path used by pickup orchestration (interaction
+	 * handler) to distinguish deferred from terminal outcomes.
+	 *
+	 * The returned outcome carries one of three states:
+	 * - AddedQuantity > 0            -> authoritative add succeeded
+	 * - bDeferred == true            -> async load dispatched; caller must re-enter
+	 * - Fail != None                 -> terminal failure; do not retry
+	 *
+	 * Consumed by: FInventoryInteractionHandler (pending-pickup bookkeeping).
+	 */
+	FInventoryAddOutcome TryAddItemDetailed(FPrimaryAssetId ObjectId, int32 Quantity);
 
 	/**
 	 * Add item with magnitude overrides (unique instance, won't stack).
@@ -179,6 +262,9 @@ public:
 	/** Get item data view for an entry. Returns false if not loaded or not an item. */
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	bool GetItemDataView(FPrimaryAssetId ObjectId, FItemDataView& OutData) const;
+
+	/** Resolve item data state without allowing gameplay callers to bypass the cache. */
+	EInventoryItemDataResolveState ResolveItemDataView(FPrimaryAssetId ObjectId, FItemDataView& OutData) const;
 
 	/** Check if inventory has space for a 1x1 item. */
 	UFUNCTION(BlueprintPure, Category = "Inventory")
@@ -261,6 +347,15 @@ public:
 		UObject* WorldContainerSource,
 		const FContainerSessionHandle& SessionHandle,
 		int32 InventoryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated,
+		FText& OutError) override;
+
+	virtual bool MoveWithinWorldContainer_Implementation(
+		UObject* WorldContainerSource,
+		const FContainerSessionHandle& SessionHandle,
+		int32 EntryInstanceId,
 		int32 Quantity,
 		FIntPoint TargetGridPos,
 		bool bTargetRotated,
@@ -417,6 +512,15 @@ protected:
 		bool bTargetRotated);
 
 	UFUNCTION(Server, Reliable)
+	void Server_RequestMoveWithinWorldContainer(
+		AActor* TargetActor,
+		FContainerSessionHandle SessionHandle,
+		int32 EntryInstanceId,
+		int32 Quantity,
+		FIntPoint TargetGridPos,
+		bool bTargetRotated);
+
+	UFUNCTION(Server, Reliable)
 	void Server_RequestTakeAllFromWorldContainer(AActor* TargetActor, FContainerSessionHandle SessionHandle);
 
 	// -------------------------------------------------------------------------
@@ -430,8 +534,18 @@ protected:
 	// Internal Implementation
 	// -------------------------------------------------------------------------
 
-	/** Actually add item (server-side). Returns quantity actually added. */
-	int32 Internal_AddItem(FPrimaryAssetId ObjectId, int32 Quantity);
+	/**
+	 * Actually add item (server-side). Returns the detailed outcome.
+	 *
+	 * Outcome contract:
+	 * - AddedQuantity > 0       -> authoritative add succeeded (possibly partial).
+	 * - bDeferred == true       -> item data still streaming; caller must defer
+	 *                              and re-enter after the load callback fires.
+	 * - Fail != None            -> terminal failure; no retry.
+	 *
+	 * Callers that want the legacy "int32 added" shape can read outcome.AddedQuantity.
+	 */
+	FInventoryAddOutcome Internal_AddItem(FPrimaryAssetId ObjectId, int32 Quantity);
 
 	/** Actually remove item (server-side). */
 	bool Internal_RemoveItem(uint32 InstanceId, int32 Quantity);
@@ -447,6 +561,58 @@ protected:
 
 	/** Actually unequip item (server-side). */
 	bool Internal_UnequipItem(FGameplayTag EquipSlot);
+
+	/**
+	 * Validate-only check: can InstanceId be revoked from its equip slot
+	 * prior to a removal/drop? Read-only - does NOT mutate
+	 * EquippedItems or release GAS handles. Pair with
+	 * Internal_CommitRevokeEquipSlotForRemoval AFTER all other failure
+	 * paths (spawn service resolve, world spawn, etc.) have succeeded
+	 * so the equipped state and inventory state stay atomic on failure.
+	 *
+	 * Mirrors Internal_UnequipItem's storage-empty validation but
+	 * skips the rehome-to-hand step (the caller is destroying the
+	 * item, not stowing it).
+	 *
+	 * @param InstanceId       item being removed/dropped
+	 * @param ItemData         resolved item data for the same instance
+	 * @param OutEquipSlot     populated with the slot to revoke when
+	 *                         the item is currently equipped; left
+	 *                         invalid when the item is not equipped
+	 *                         (caller proceeds with no commit needed)
+	 * @return true  - not equipped (OutEquipSlot invalid), or equipped
+	 *                 AND validation passed (OutEquipSlot set; caller
+	 *                 must call Internal_CommitRevokeEquipSlotForRemoval
+	 *                 after success)
+	 * @return false - equipped but blocked (granted storage non-empty);
+	 *                 caller must abort. Player-facing error already
+	 *                 broadcast via BroadcastError.
+	 */
+	bool Internal_CanRevokeEquipSlotForRemoval(int32 InstanceId, const FItemDataView& ItemData, FGameplayTag& OutEquipSlot);
+
+	/**
+	 * Commit step: actually revoke the equip slot. Pair with
+	 * Internal_CanRevokeEquipSlotForRemoval. Pure mutation -
+	 * releases GAS abilities and removes the EquippedItems map entry.
+	 * No-op when EquipSlot is invalid (i.e. the item was not equipped).
+	 *
+	 * Without this commit step, dropping an equipped backpack from the
+	 * silhouette leaves its granted container in the UI - the cells
+	 * the equipped item added do not disappear after the drop.
+	 *
+	 * Re-entrancy guard: ExpectedInstanceId is the InstanceId the
+	 * caller validated against. If the slot has been swapped to a
+	 * different item between validate and commit (unusual on the
+	 * server-authority RPC path, but cheap to guard), the commit is
+	 * skipped with a warning rather than revoking a stranger's slot.
+	 *
+	 * @param EquipSlot           slot to revoke; obtained from
+	 *                            Internal_CanRevokeEquipSlotForRemoval
+	 * @param ExpectedInstanceId  the instance the caller validated for;
+	 *                            commit is skipped if the slot now
+	 *                            holds a different InstanceId
+	 */
+	void Internal_CommitRevokeEquipSlotForRemoval(FGameplayTag EquipSlot, int32 ExpectedInstanceId);
 
 	/** Get ASC from owner. */
 	UAbilitySystemComponent* GetOwnerASC() const;
@@ -501,26 +667,6 @@ protected:
 
 	UObject* ResolveWorldContainerSessionSource(AActor* TargetActor) const;
 	AActor* ResolveWorldContainerActor(UObject* WorldContainerSource) const;
-	bool OpenWorldContainerSessionAuthority(AActor* TargetActor, EContainerSessionMode Mode, FContainerSessionHandle& OutHandle, FText& OutError);
-	bool CloseWorldContainerSessionAuthority(AActor* TargetActor, const FContainerSessionHandle& SessionHandle, FText& OutError);
-	bool TakeEntryFromWorldContainerAuthority(
-		AActor* TargetActor,
-		const FContainerSessionHandle& SessionHandle,
-		int32 EntryInstanceId,
-		int32 Quantity,
-		FGameplayTag TargetContainerId,
-		FIntPoint TargetGridPos,
-		bool bTargetRotated,
-		FText& OutError);
-	bool StoreInventoryEntryInWorldContainerAuthority(
-		AActor* TargetActor,
-		const FContainerSessionHandle& SessionHandle,
-		int32 InventoryInstanceId,
-		int32 Quantity,
-		FIntPoint TargetGridPos,
-		bool bTargetRotated,
-		FText& OutError);
-	bool TakeAllFromWorldContainerAuthority(AActor* TargetActor, const FContainerSessionHandle& SessionHandle, FText& OutError);
 	void CaptureInventoryStateSnapshot(FInventoryStateSnapshot& OutSnapshot) const;
 	void RestoreInventoryStateSnapshot(const FInventoryStateSnapshot& Snapshot);
 	bool TakeEntryFromWorldContainerResolved(
@@ -553,6 +699,13 @@ protected:
 		FText& OutError);
 	void HandleWorldContainerSessionOpenedLocal(AActor* TargetActor, const FContainerSessionHandle& SessionHandle);
 	void HandleWorldContainerSessionClosedLocal(const FContainerSessionHandle& SessionHandle);
+	void BindObjectDefinitionCache();
+	void LogItemDataResolveState(FPrimaryAssetId ObjectId, EInventoryItemDataResolveState ResolveState) const;
+	void LogMoveReject(const TCHAR* Context, EInventoryMoveRejectReason RejectReason, int32 InstanceId) const;
+	void RejectMove(const TCHAR* Context, EInventoryMoveRejectReason RejectReason, int32 InstanceId);
+	static const TCHAR* LexToString(EInventoryItemDataResolveState ResolveState);
+	static const TCHAR* LexToString(EInventoryMoveRejectReason RejectReason);
+	static FText MakeMoveRejectText(EInventoryMoveRejectReason RejectReason);
 
 	/** Update weight state tag on ASC based on current weight ratio. */
 	void UpdateWeightStateTag();
@@ -644,6 +797,11 @@ protected:
 	FOnInventoryWorldContainerSessionOpenedNative WorldContainerSessionOpenedNative;
 	FOnInventoryWorldContainerSessionClosedNative WorldContainerSessionClosedNative;
 
-	FContainerSessionHandle ActiveWorldContainerSessionHandle;
-	TWeakObjectPtr<AActor> ActiveWorldContainerTargetActor;
+	// Session state (active session handle, target actor, instigator) is
+	// owned by UProjectWorldContainerAuthoritySubsystem on the server and
+	// cached by UProjectContainerSessionSubsystem on the client. The
+	// component does not hold a "current session" member -- it queries
+	// the authority subsystem when it needs to answer session questions.
+
+	mutable TMap<FPrimaryAssetId, EInventoryItemDataResolveState> LoggedItemResolveStates;
 };

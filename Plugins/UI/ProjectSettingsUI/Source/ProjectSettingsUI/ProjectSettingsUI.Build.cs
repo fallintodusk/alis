@@ -21,7 +21,8 @@ public class ProjectSettingsUI : ModuleRules
 			"Slate",
 			"SlateCore",
 			"Json",
-			"JsonUtilities"
+			"JsonUtilities",
+			"ApplicationCore"
 		});
 
 		StageDataDir(Target);

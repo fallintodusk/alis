@@ -8,7 +8,7 @@ public class Alis : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "ApplicationCore"});
         PublicDependencyModuleNames.AddRange(new string[] { "ProjectCore", "ProjectLoading" });
 	}
 }

@@ -4,6 +4,8 @@
 #include "ProjectLoadingLog.h"
 #include "ProjectLoadingSubsystem.h"
 #include "ShaderPipelineCache.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
 
@@ -45,6 +47,50 @@ FProjectPhaseResult FWarmupPhaseExecutor::Execute(FProjectPhaseContext& Context)
 		UE_LOG(LogProjectLoading, Verbose, TEXT("Phase 6: Warmup - Skipped (disabled in request, handles released)"));
 		ReportProgress(Context, 1.0f, LOCTEXT("WarmupSkipped", "Warmup skipped"));
 		return FProjectPhaseResult::Skipped();
+	}
+
+	// Slice 1: honor declared warmup primary asset ids. Best-effort: we fire
+	// an async batch load but do NOT block on its completion. Phase 6 stays
+	// within its 30s budget; Slice 2 (deferred-retry at the inventory
+	// boundary) covers anything that isn't resident by the time the player
+	// reaches a pickup.
+	//
+	// Boundary: this executor stays a generic id consumer — it does not know
+	// about ObjectCatalog, ObjectDefinition, or ProjectInventory. The
+	// experience loader expands catalogs into concrete ids upstream.
+	//
+	// Lifetime: AssetManager tracks primary assets as "managed" for the
+	// session once loaded, so we do not need to hold the streamable handle
+	// past this phase. ObjectDefinitionCache::Warmup will still run during
+	// inventory feature init; its per-id IsLoaded() short-circuit makes the
+	// second pass effectively free once Phase 6's batch finishes.
+	if (Context.Request.WarmupAssetIds.Num() > 0)
+	{
+		UE_LOG(LogProjectLoading, Display,
+			TEXT("Phase 6: Warmup - Batch-loading %d warmup primary asset(s) (best-effort)"),
+			Context.Request.WarmupAssetIds.Num());
+
+		UAssetManager& AM = UAssetManager::Get();
+		TSharedPtr<FStreamableHandle> WarmupHandle =
+			AM.LoadPrimaryAssets(Context.Request.WarmupAssetIds, TArray<FName>());
+		if (!WarmupHandle.IsValid())
+		{
+			UE_LOG(LogProjectLoading, Warning,
+				TEXT("Phase 6: Warmup - LoadPrimaryAssets returned null handle (all already resident or invalid ids)"));
+		}
+		else
+		{
+			// Keep the handle alive through this phase via PreloadHandles.
+			// The pipeline orchestrator releases any remaining entries on
+			// scope exit, at which point AssetManager's managed-asset set
+			// (and the inventory cache's own Warmup handle) own the objects.
+			Context.Runtime.PreloadHandles.Add(WarmupHandle);
+		}
+	}
+	else
+	{
+		UE_LOG(LogProjectLoading, Verbose,
+			TEXT("Phase 6: Warmup - No warmup primary asset ids declared"));
 	}
 
 	// Shader warmup implementation

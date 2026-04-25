@@ -1,6 +1,7 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "Components/ProjectInventoryComponent.h"
+#include "Components/ProjectInventoryComponentInternals.h"
 #include "Helpers/InventoryGridPlacement.h"
 #include "Helpers/InventoryContainerHelper.h"
 #include "Helpers/InventorySaveHelper.h"
@@ -14,6 +15,7 @@
 #include "Types/InventoryStackRules.h"
 #include "ProjectInventory.h"
 #include "Subsystems/ProjectContainerSessionSubsystem.h"
+#include "Subsystems/ProjectObjectDefinitionCacheSubsystem.h"
 #include "Services/ObjectDefinitionCache.h"
 #include "Services/IObjectSpawnService.h"
 #include "Interfaces/IPickupSource.h"
@@ -24,7 +26,6 @@
 #include "AbilitySystemGlobals.h"
 #include "ProjectGASLibrary.h"
 #include "ProjectSaveSubsystem.h"
-#include "Engine/AssetManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
@@ -33,73 +34,7 @@
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
-namespace
-{
-UProjectContainerSessionSubsystem* ResolveLocalPlayerSessionSubsystem(const UProjectInventoryComponent* Inventory)
-{
-	if (!Inventory)
-	{
-		return nullptr;
-	}
-
-	const APawn* OwnerPawn = Cast<APawn>(Inventory->GetOwner());
-	APlayerController* PlayerController = OwnerPawn ? Cast<APlayerController>(OwnerPawn->GetController()) : nullptr;
-	if (!PlayerController)
-	{
-		PlayerController = Cast<APlayerController>(Inventory->GetOwner());
-	}
-
-	if (!PlayerController)
-	{
-		return nullptr;
-	}
-
-	ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
-	return LocalPlayer ? LocalPlayer->GetSubsystem<UProjectContainerSessionSubsystem>() : nullptr;
-}
-
-AActor* ResolveWorldContainerActorFromSource(UObject* WorldContainerSource)
-{
-	if (AActor* Actor = Cast<AActor>(WorldContainerSource))
-	{
-		return Actor;
-	}
-
-	if (const UActorComponent* Component = Cast<UActorComponent>(WorldContainerSource))
-	{
-		return Component->GetOwner();
-	}
-
-	return nullptr;
-}
-
-int32 GetTotalItemQuantity(const TArray<FInventoryEntry>& Entries, const FPrimaryAssetId& ObjectId)
-{
-	int32 TotalQuantity = 0;
-	for (const FInventoryEntry& Entry : Entries)
-	{
-		if (Entry.ItemId == ObjectId)
-		{
-			TotalQuantity += Entry.Quantity;
-		}
-	}
-	return TotalQuantity;
-}
-
-void BuildExpectedLootQuantities(const TArray<FLootEntry>& Items, TMap<FPrimaryAssetId, int32>& OutExpectedQuantities)
-{
-	OutExpectedQuantities.Reset();
-	for (const FLootEntry& Item : Items)
-	{
-		if (!Item.IsValid())
-		{
-			continue;
-		}
-
-		OutExpectedQuantities.FindOrAdd(Item.ObjectId) += Item.Quantity;
-	}
-}
-}
+using namespace ProjectInventoryInternal;
 
 // -------------------------------------------------------------------------
 // Constructor & Lifecycle
@@ -162,9 +97,16 @@ void UProjectInventoryComponent::PostInitProperties()
 	Inventory.OwnerComponent = this;
 }
 
+void UProjectInventoryComponent::OnRegister()
+{
+	Super::OnRegister();
+	BindObjectDefinitionCache();
+}
+
 void UProjectInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	BindObjectDefinitionCache();
 
 	TryLoadInventoryFromSave();
 
@@ -402,12 +344,21 @@ void UProjectInventoryComponent::RequestSplitStack(int32 InstanceId, int32 Split
 	if (!Entry)
 	{
 		UE_LOG(LogProjectInventory, Warning, TEXT("RequestSplitStack: InstanceId %d not found"), InstanceId);
+		BroadcastError(NSLOCTEXT("Inventory", "SplitItemMissing", "Cannot split item"));
 		return;
 	}
 
-	if (SplitQuantity <= 0 || SplitQuantity >= Entry->Quantity)
+	if (SplitQuantity <= 0)
 	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("RequestSplitStack: Invalid split quantity %d (entry has %d)"), SplitQuantity, Entry->Quantity);
+		UE_LOG(LogProjectInventory, Verbose, TEXT("RequestSplitStack: Invalid split quantity %d (entry has %d)"), SplitQuantity, Entry->Quantity);
+		BroadcastError(NSLOCTEXT("Inventory", "SplitQuantityInvalid", "Choose a split quantity"));
+		return;
+	}
+
+	if (SplitQuantity >= Entry->Quantity)
+	{
+		UE_LOG(LogProjectInventory, Verbose, TEXT("RequestSplitStack: Split quantity %d consumes full stack of %d"), SplitQuantity, Entry->Quantity);
+		BroadcastError(NSLOCTEXT("Inventory", "SplitQuantityConsumesFullStack", "Split amount must be less than stack size"));
 		return;
 	}
 
@@ -415,28 +366,41 @@ void UProjectInventoryComponent::RequestSplitStack(int32 InstanceId, int32 Split
 	if (!GetContainerConfig(Entry->ContainerId, ContainerConfig))
 	{
 		UE_LOG(LogProjectInventory, Warning, TEXT("RequestSplitStack: Container %s not found"), *Entry->ContainerId.ToString());
+		BroadcastError(NSLOCTEXT("Inventory", "SplitContainerMissing", "Container is not available"));
 		return;
 	}
 
 	FItemDataView ItemData;
-	if (!GetItemDataView(Entry->ItemId, ItemData))
+	const EInventoryItemDataResolveState ResolveState = ResolveItemDataView(Entry->ItemId, ItemData);
+	if (ResolveState != EInventoryItemDataResolveState::Loaded)
 	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("RequestSplitStack: ItemData not found for %s"), *Entry->ItemId.ToString());
+		UE_LOG(
+			LogProjectInventory,
+			Warning,
+			TEXT("RequestSplitStack: ItemData unavailable for %s (%s)"),
+			*Entry->ItemId.ToString(),
+			LexToString(ResolveState));
+		BroadcastError(NSLOCTEXT("Inventory", "SplitItemDataUnavailable", "Item data is not ready"));
 		return;
 	}
 
-	// Use FindFreeGridPos - automatically handles slot-based, width-only, and MaxCells
+	// Use FindFreeGridPos - automatically handles slot-based, width-only, and MaxCells.
+	// Must NOT ignore the source entry: splits keep the source stack in place and
+	// spawn a new entry in a separate cell. Ignoring the source would let the
+	// search treat the source cell as free, return it as the split target, and
+	// the subsequent self-overlap check in Internal_MoveItem would reject with
+	// SplitSourceOverlap ("Split needs a free cell").
 	const FIntPoint ItemSize = GetItemGridSize(ItemData, Entry->bRotated);
 	FIntPoint EmptyPos(-1, -1);
 	bool bRotated = Entry->bRotated;
 
-	if (!FindFreeGridPos(ContainerConfig, ItemSize, InstanceId, EmptyPos))
+	if (!FindFreeGridPos(ContainerConfig, ItemSize, INDEX_NONE, EmptyPos))
 	{
 		// Try rotated if allowed
 		if (ContainerConfig.bAllowRotation)
 		{
 			const FIntPoint RotatedSize = GetItemGridSize(ItemData, !Entry->bRotated);
-			if (RotatedSize != ItemSize && FindFreeGridPos(ContainerConfig, RotatedSize, InstanceId, EmptyPos))
+			if (RotatedSize != ItemSize && FindFreeGridPos(ContainerConfig, RotatedSize, INDEX_NONE, EmptyPos))
 			{
 				bRotated = !Entry->bRotated;
 			}
@@ -612,18 +576,8 @@ void UProjectInventoryComponent::Client_InventoryError_Implementation(const FTex
 	BroadcastErrorLocal(ErrorMessage);
 }
 
-void UProjectInventoryComponent::Client_WorldContainerSessionOpened_Implementation(
-	AActor* TargetActor,
-	FContainerSessionHandle SessionHandle)
-{
-	HandleWorldContainerSessionOpenedLocal(TargetActor, SessionHandle);
-}
-
-void UProjectInventoryComponent::Client_WorldContainerSessionClosed_Implementation(
-	FContainerSessionHandle SessionHandle)
-{
-	HandleWorldContainerSessionClosedLocal(SessionHandle);
-}
+// Client_WorldContainerSessionOpened/Closed_Implementation defined in
+// ProjectInventoryComponent_WorldContainer.cpp.
 
 void UProjectInventoryComponent::BroadcastError(const FText& ErrorMessage)
 {
@@ -782,58 +736,263 @@ void UProjectInventoryComponent::GetContainersView(TArray<FInventoryContainerVie
 
 bool UProjectInventoryComponent::GetItemDataView(FPrimaryAssetId ObjectId, FItemDataView& OutData) const
 {
+	return ResolveItemDataView(ObjectId, OutData) == EInventoryItemDataResolveState::Loaded;
+}
+
+EInventoryItemDataResolveState UProjectInventoryComponent::ResolveItemDataView(FPrimaryAssetId ObjectId, FItemDataView& OutData) const
+{
 	OutData = FItemDataView();
 
 	if (!ObjectId.IsValid())
 	{
-		return false;
+		return EInventoryItemDataResolveState::Invalid;
 	}
 
-	auto LogMissingItemDataOnce = [](const FPrimaryAssetId& MissingId, const TCHAR* Reason)
+	const_cast<UProjectInventoryComponent*>(this)->BindObjectDefinitionCache();
+
+	if (!ObjectDefinitionCache)
 	{
-		static TSet<FPrimaryAssetId> LoggedMissingItemData;
-		if (MissingId.IsValid() && !LoggedMissingItemData.Contains(MissingId))
+		LogItemDataResolveState(ObjectId, EInventoryItemDataResolveState::Missing);
+		return EInventoryItemDataResolveState::Missing;
+	}
+
+	if (UObject* LoadedObject = ObjectDefinitionCache->GetLoaded(ObjectId))
+	{
+		if (!LoadedObject->Implements<UItemDataProvider>())
 		{
-			UE_LOG(LogProjectInventory, Warning, TEXT("GetItemDataView: Missing item data for %s (%s)"),
-				*MissingId.ToString(), Reason);
-			LoggedMissingItemData.Add(MissingId);
+			LogItemDataResolveState(ObjectId, EInventoryItemDataResolveState::InvalidProvider);
+			return EInventoryItemDataResolveState::InvalidProvider;
 		}
-	};
 
-	UObject* LoadedObject = nullptr;
+		OutData = IItemDataProvider::Execute_GetItemDataView(LoadedObject);
+		if (!OutData.IsValid())
+		{
+			LogItemDataResolveState(ObjectId, EInventoryItemDataResolveState::InvalidData);
+			return EInventoryItemDataResolveState::InvalidData;
+		}
 
-	if (ObjectDefinitionCache)
-	{
-		LoadedObject = ObjectDefinitionCache->GetLoaded(ObjectId);
+		LoggedItemResolveStates.Remove(ObjectId);
+		return EInventoryItemDataResolveState::Loaded;
 	}
 
-	if (!LoadedObject)
+	const EObjectDefinitionLoadState LoadState = ObjectDefinitionCache->GetLoadState(ObjectId);
+	if (LoadState == EObjectDefinitionLoadState::Loading)
 	{
-		// Fallback to direct AssetManager access (may return nullptr if not loaded)
-		UAssetManager& AM = UAssetManager::Get();
-		LoadedObject = AM.GetPrimaryAssetObject<UObject>(ObjectId);
+		LogItemDataResolveState(ObjectId, EInventoryItemDataResolveState::Loading);
+		return EInventoryItemDataResolveState::Loading;
 	}
 
-	if (!LoadedObject)
+	LogItemDataResolveState(ObjectId, EInventoryItemDataResolveState::Missing);
+	return EInventoryItemDataResolveState::Missing;
+}
+
+void UProjectInventoryComponent::BindObjectDefinitionCache()
+{
+	UWorld* World = GetWorld();
+	if (!World)
 	{
-		LogMissingItemDataOnce(ObjectId, TEXT("not loaded"));
-		return false;
+		return;
 	}
 
-	if (!LoadedObject->Implements<UItemDataProvider>())
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!GameInstance)
 	{
-		LogMissingItemDataOnce(ObjectId, TEXT("no IItemDataProvider"));
-		return false;
+		return;
 	}
 
-	OutData = IItemDataProvider::Execute_GetItemDataView(LoadedObject);
-	if (!OutData.IsValid())
+	UProjectObjectDefinitionCacheSubsystem* CacheSubsystem =
+		GameInstance->GetSubsystem<UProjectObjectDefinitionCacheSubsystem>();
+	if (!CacheSubsystem)
 	{
-		LogMissingItemDataOnce(ObjectId, TEXT("invalid data"));
-		return false;
+		return;
 	}
 
-	return true;
+	if (UObjectDefinitionCache* SharedCache = CacheSubsystem->GetCache())
+	{
+		ObjectDefinitionCache = SharedCache;
+	}
+}
+
+void UProjectInventoryComponent::LogItemDataResolveState(
+	FPrimaryAssetId ObjectId,
+	EInventoryItemDataResolveState ResolveState) const
+{
+	if (!ObjectId.IsValid() || ResolveState == EInventoryItemDataResolveState::Loaded)
+	{
+		return;
+	}
+
+	if (const EInventoryItemDataResolveState* ExistingState = LoggedItemResolveStates.Find(ObjectId))
+	{
+		if (*ExistingState == ResolveState)
+		{
+			return;
+		}
+	}
+
+	if (ResolveState == EInventoryItemDataResolveState::Loading)
+	{
+		UE_LOG(
+			LogProjectInventory,
+			Verbose,
+			TEXT("GetItemDataView: %s -> %s"),
+			*ObjectId.ToString(),
+			LexToString(ResolveState));
+	}
+	else
+	{
+		UE_LOG(
+			LogProjectInventory,
+			Warning,
+			TEXT("GetItemDataView: %s -> %s"),
+			*ObjectId.ToString(),
+			LexToString(ResolveState));
+	}
+	LoggedItemResolveStates.Add(ObjectId, ResolveState);
+}
+
+void UProjectInventoryComponent::LogMoveReject(
+	const TCHAR* Context,
+	EInventoryMoveRejectReason RejectReason,
+	int32 InstanceId) const
+{
+	if (RejectReason == EInventoryMoveRejectReason::None)
+	{
+		return;
+	}
+
+	const bool bExpectedUserReject =
+		RejectReason == EInventoryMoveRejectReason::ItemDataLoading
+		|| RejectReason == EInventoryMoveRejectReason::ItemRejectedByContainer
+		|| RejectReason == EInventoryMoveRejectReason::QuantityExceedsTargetStack
+		|| RejectReason == EInventoryMoveRejectReason::OutOfBounds
+		|| RejectReason == EInventoryMoveRejectReason::SplitSourceOverlap
+		|| RejectReason == EInventoryMoveRejectReason::MultipleTargetOverlaps
+		|| RejectReason == EInventoryMoveRejectReason::StackRejected
+		|| RejectReason == EInventoryMoveRejectReason::TargetWeightExceeded
+		|| RejectReason == EInventoryMoveRejectReason::TargetVolumeExceeded;
+
+	if (bExpectedUserReject)
+	{
+		UE_LOG(
+			LogProjectInventory,
+			Verbose,
+			TEXT("%s: Reject %s (InstanceId=%d)"),
+			Context,
+			LexToString(RejectReason),
+			InstanceId);
+	}
+	else
+	{
+		UE_LOG(
+			LogProjectInventory,
+			Warning,
+			TEXT("%s: Reject %s (InstanceId=%d)"),
+			Context,
+			LexToString(RejectReason),
+			InstanceId);
+	}
+}
+
+void UProjectInventoryComponent::RejectMove(
+	const TCHAR* Context,
+	EInventoryMoveRejectReason RejectReason,
+	int32 InstanceId)
+{
+	LogMoveReject(Context, RejectReason, InstanceId);
+	const FText ErrorMessage = MakeMoveRejectText(RejectReason);
+	if (!ErrorMessage.IsEmpty())
+	{
+		BroadcastError(ErrorMessage);
+	}
+}
+
+const TCHAR* UProjectInventoryComponent::LexToString(EInventoryItemDataResolveState ResolveState)
+{
+	switch (ResolveState)
+	{
+	case EInventoryItemDataResolveState::Invalid:
+		return TEXT("InvalidId");
+	case EInventoryItemDataResolveState::Missing:
+		return TEXT("Missing");
+	case EInventoryItemDataResolveState::Loading:
+		return TEXT("Loading");
+	case EInventoryItemDataResolveState::Loaded:
+		return TEXT("Loaded");
+	case EInventoryItemDataResolveState::InvalidProvider:
+		return TEXT("InvalidProvider");
+	case EInventoryItemDataResolveState::InvalidData:
+		return TEXT("InvalidData");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+const TCHAR* UProjectInventoryComponent::LexToString(EInventoryMoveRejectReason RejectReason)
+{
+	switch (RejectReason)
+	{
+	case EInventoryMoveRejectReason::None:
+		return TEXT("None");
+	case EInventoryMoveRejectReason::InvalidRequest:
+		return TEXT("InvalidRequest");
+	case EInventoryMoveRejectReason::ItemDataMissing:
+		return TEXT("ItemDataMissing");
+	case EInventoryMoveRejectReason::ItemDataLoading:
+		return TEXT("ItemDataLoading");
+	case EInventoryMoveRejectReason::TargetContainerMissing:
+		return TEXT("TargetContainerMissing");
+	case EInventoryMoveRejectReason::ItemRejectedByContainer:
+		return TEXT("ItemRejectedByContainer");
+	case EInventoryMoveRejectReason::QuantityExceedsTargetStack:
+		return TEXT("QuantityExceedsTargetStack");
+	case EInventoryMoveRejectReason::OutOfBounds:
+		return TEXT("OutOfBounds");
+	case EInventoryMoveRejectReason::SplitSourceOverlap:
+		return TEXT("SplitSourceOverlap");
+	case EInventoryMoveRejectReason::MultipleTargetOverlaps:
+		return TEXT("MultipleTargetOverlaps");
+	case EInventoryMoveRejectReason::StackRejected:
+		return TEXT("StackRejected");
+	case EInventoryMoveRejectReason::TargetWeightExceeded:
+		return TEXT("TargetWeightExceeded");
+	case EInventoryMoveRejectReason::TargetVolumeExceeded:
+		return TEXT("TargetVolumeExceeded");
+	default:
+		return TEXT("Unknown");
+	}
+}
+
+FText UProjectInventoryComponent::MakeMoveRejectText(EInventoryMoveRejectReason RejectReason)
+{
+	switch (RejectReason)
+	{
+	case EInventoryMoveRejectReason::InvalidRequest:
+		return NSLOCTEXT("Inventory", "MoveRejectedInvalidRequest", "Inventory action is no longer valid");
+	case EInventoryMoveRejectReason::ItemDataMissing:
+	case EInventoryMoveRejectReason::ItemDataLoading:
+		return NSLOCTEXT("Inventory", "MoveRejectedItemDataUnavailable", "Item data is not ready");
+	case EInventoryMoveRejectReason::TargetContainerMissing:
+		return NSLOCTEXT("Inventory", "MoveRejectedContainerMissing", "Container is not available");
+	case EInventoryMoveRejectReason::ItemRejectedByContainer:
+		return NSLOCTEXT("Inventory", "MoveRejectedByContainer", "Item cannot go in that container");
+	case EInventoryMoveRejectReason::QuantityExceedsTargetStack:
+		return NSLOCTEXT("Inventory", "MoveRejectedStackTooLarge", "Stack is too large for that cell");
+	case EInventoryMoveRejectReason::OutOfBounds:
+		return NSLOCTEXT("Inventory", "MoveRejectedOutOfBounds", "Item does not fit there");
+	case EInventoryMoveRejectReason::SplitSourceOverlap:
+		return NSLOCTEXT("Inventory", "MoveRejectedSplitSourceOverlap", "Split needs a free cell");
+	case EInventoryMoveRejectReason::MultipleTargetOverlaps:
+	case EInventoryMoveRejectReason::StackRejected:
+		return NSLOCTEXT("Inventory", "MoveRejectedCellOccupied", "That cell is occupied");
+	case EInventoryMoveRejectReason::TargetWeightExceeded:
+		return NSLOCTEXT("Inventory", "MoveRejectedTargetWeightExceeded", "Container is too heavy");
+	case EInventoryMoveRejectReason::TargetVolumeExceeded:
+		return NSLOCTEXT("Inventory", "MoveRejectedTargetVolumeExceeded", "Container is too full");
+	case EInventoryMoveRejectReason::None:
+	default:
+		return FText::GetEmpty();
+	}
 }
 
 bool UProjectInventoryComponent::IsItemEquipped(int32 InstanceId) const
@@ -1064,7 +1223,7 @@ void UProjectInventoryComponent::AddItemsBatch(const TArray<FLootEntry>& Items)
 			continue;
 		}
 
-		const int32 Added = Internal_AddItem(LootEntry.ObjectId, LootEntry.Quantity);
+		const int32 Added = Internal_AddItem(LootEntry.ObjectId, LootEntry.Quantity).AddedQuantity;
 		if (Added < LootEntry.Quantity)
 		{
 			UE_LOG(LogProjectInventory, Warning, TEXT("AddItemsBatch: Only added %d/%d of %s"),
@@ -1112,1022 +1271,6 @@ bool UProjectInventoryComponent::TryExtractContainerTransferEntry(
 	return true;
 }
 
-UObject* UProjectInventoryComponent::ResolveWorldContainerSessionSource(AActor* TargetActor) const
-{
-	if (!TargetActor)
-	{
-		return nullptr;
-	}
-
-	if (TargetActor->Implements<UWorldContainerSessionSource>())
-	{
-		return TargetActor;
-	}
-
-	TInlineComponentArray<UActorComponent*> Components;
-	TargetActor->GetComponents(Components);
-
-	for (UActorComponent* Component : Components)
-	{
-		if (Component && Component->Implements<UWorldContainerSessionSource>())
-		{
-			return Component;
-		}
-	}
-
-	return nullptr;
-}
-
-AActor* UProjectInventoryComponent::ResolveWorldContainerActor(UObject* WorldContainerSource) const
-{
-	return ResolveWorldContainerActorFromSource(WorldContainerSource);
-}
-
-bool UProjectInventoryComponent::OpenWorldContainerSessionAuthority(
-	AActor* TargetActor,
-	EContainerSessionMode Mode,
-	FContainerSessionHandle& OutHandle,
-	FText& OutError)
-{
-	OutHandle.Reset();
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionAuthorityRequired", "World-container session open requires authority.");
-		return false;
-	}
-
-	if (!TargetActor)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionMissingTarget", "World-container target is required.");
-		return false;
-	}
-
-	if (ActiveWorldContainerSessionHandle.IsValid())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionAlreadyActive", "A world-container session is already active.");
-		return false;
-	}
-
-	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
-	if (!SourceObject)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionMissingSource", "Target does not expose a world-container session source.");
-		return false;
-	}
-
-	if (!IWorldContainerSessionSource::Execute_SupportsContainerSession(SourceObject, Mode))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionUnsupportedMode", "Target does not support the requested world-container mode.");
-		return false;
-	}
-
-	FContainerSessionHandle Handle;
-	Handle.SessionId = FGuid::NewGuid();
-	Handle.ContainerKey = IWorldContainerSessionSource::Execute_GetWorldContainerKey(SourceObject);
-	Handle.Mode = Mode;
-	if (!Handle.IsValid())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionInvalidKey", "Target world-container key is invalid.");
-		return false;
-	}
-
-	if (!IWorldContainerSessionSource::Execute_TryBeginContainerSession(
-		SourceObject,
-		OwnerActor,
-		Handle.SessionId,
-		Mode,
-		OutError))
-	{
-		if (OutError.IsEmpty())
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "OpenWorldSessionRejected", "World-container session open was rejected.");
-		}
-		return false;
-	}
-
-	ActiveWorldContainerSessionHandle = Handle;
-	ActiveWorldContainerTargetActor = TargetActor;
-	OutHandle = Handle;
-	return true;
-}
-
-bool UProjectInventoryComponent::CloseWorldContainerSessionAuthority(
-	AActor* TargetActor,
-	const FContainerSessionHandle& SessionHandle,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "CloseWorldSessionAuthorityRequired", "World-container session close requires authority.");
-		return false;
-	}
-
-	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "CloseWorldSessionUnknown", "World-container session handle is not active.");
-		return false;
-	}
-
-	if (!TargetActor)
-	{
-		TargetActor = ActiveWorldContainerTargetActor.Get();
-	}
-
-	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
-	if (SourceObject && ActiveWorldContainerSessionHandle.Mode == EContainerSessionMode::FullOpen)
-	{
-		if (!IWorldContainerSessionSource::Execute_EndContainerSession(SourceObject, SessionHandle.SessionId))
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "CloseWorldSessionRejected", "World-container session close was rejected.");
-			return false;
-		}
-	}
-
-	ActiveWorldContainerSessionHandle.Reset();
-	ActiveWorldContainerTargetActor.Reset();
-	return true;
-}
-
-bool UProjectInventoryComponent::TakeEntryFromWorldContainerAuthority(
-	AActor* TargetActor,
-	const FContainerSessionHandle& SessionHandle,
-	int32 EntryInstanceId,
-	int32 Quantity,
-	FGameplayTag TargetContainerId,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryAuthorityRequired", "World-container take requires authority.");
-		return false;
-	}
-
-	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryUnknownSession", "World-container session handle is not active.");
-		return false;
-	}
-
-	if (!TargetActor)
-	{
-		TargetActor = ActiveWorldContainerTargetActor.Get();
-	}
-
-	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
-	if (!SourceObject)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryMissingSource", "World-container source is no longer valid.");
-		return false;
-	}
-
-	return TakeEntryFromWorldContainerResolved(
-		SourceObject,
-		SessionHandle,
-		EntryInstanceId,
-		Quantity,
-		TargetContainerId,
-		TargetGridPos,
-		bTargetRotated,
-		OutError);
-}
-
-bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainerAuthority(
-	AActor* TargetActor,
-	const FContainerSessionHandle& SessionHandle,
-	int32 InventoryInstanceId,
-	int32 Quantity,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryAuthorityRequired", "World-container store requires authority.");
-		return false;
-	}
-
-	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryUnknownSession", "World-container session handle is not active.");
-		return false;
-	}
-
-	if (!TargetActor)
-	{
-		TargetActor = ActiveWorldContainerTargetActor.Get();
-	}
-
-	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
-	if (!SourceObject)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryMissingSource", "World-container source is no longer valid.");
-		return false;
-	}
-
-	return StoreInventoryEntryInWorldContainerResolved(
-		SourceObject,
-		SessionHandle,
-		InventoryInstanceId,
-		Quantity,
-		TargetGridPos,
-		bTargetRotated,
-		OutError);
-}
-
-bool UProjectInventoryComponent::TakeAllFromWorldContainerAuthority(
-	AActor* TargetActor,
-	const FContainerSessionHandle& SessionHandle,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldAuthorityRequired", "World-container take-all requires authority.");
-		return false;
-	}
-
-	if (!ActiveWorldContainerSessionHandle.IsValid() || ActiveWorldContainerSessionHandle.SessionId != SessionHandle.SessionId)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldUnknownSession", "World-container session handle is not active.");
-		return false;
-	}
-
-	if (!TargetActor)
-	{
-		TargetActor = ActiveWorldContainerTargetActor.Get();
-	}
-
-	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
-	if (!SourceObject)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldMissingSource", "World-container source is no longer valid.");
-		return false;
-	}
-
-	return TakeAllFromWorldContainerResolved(SourceObject, SessionHandle, OutError);
-}
-
-void UProjectInventoryComponent::CaptureInventoryStateSnapshot(FInventoryStateSnapshot& OutSnapshot) const
-{
-	OutSnapshot.Entries = Inventory.Entries;
-	OutSnapshot.NextInstanceId = Inventory.NextInstanceId;
-}
-
-void UProjectInventoryComponent::RestoreInventoryStateSnapshot(const FInventoryStateSnapshot& Snapshot)
-{
-	Inventory.Entries = Snapshot.Entries;
-	Inventory.NextInstanceId = Snapshot.NextInstanceId;
-	Inventory.MarkArrayDirty();
-	for (FInventoryEntry& Entry : Inventory.Entries)
-	{
-		Inventory.MarkEntryDirty(Entry);
-	}
-}
-
-bool UProjectInventoryComponent::TakeEntryFromWorldContainerResolved(
-	UObject* SourceObject,
-	const FContainerSessionHandle& SessionHandle,
-	int32 EntryInstanceId,
-	int32 Quantity,
-	FGameplayTag TargetContainerId,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryResolvedAuthorityRequired", "World-container take requires authority.");
-		return false;
-	}
-
-	if (!SourceObject || !SourceObject->Implements<UWorldContainerSessionSource>())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryResolvedMissingSource", "World-container source is no longer valid.");
-		return false;
-	}
-
-	const TArray<FInventoryEntryView> EntryViews = IWorldContainerSessionSource::Execute_GetContainerEntryViews(SourceObject);
-	const FInventoryEntryView* EntryView = EntryViews.FindByPredicate([EntryInstanceId](const FInventoryEntryView& Entry)
-	{
-		return Entry.InstanceId == EntryInstanceId;
-	});
-
-	if (!EntryView)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryResolvedMissingEntry", "World-container entry is no longer available.");
-		return false;
-	}
-
-	const int32 TakeQuantity = FMath::Clamp(Quantity, 1, EntryView->Quantity);
-	const bool bHasExplicitPlacement =
-		TargetContainerId.IsValid() && TargetGridPos.X >= 0 && TargetGridPos.Y >= 0;
-
-	TArray<FLootEntry> LootItems;
-	if (!bHasExplicitPlacement)
-	{
-		FLootEntry LootItem;
-		LootItem.ObjectId = EntryView->ItemId;
-		LootItem.Quantity = TakeQuantity;
-		LootItems.Add(LootItem);
-		if (!CanFitItems(LootItems))
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryNoSpace", "Inventory does not have enough free space.");
-			return false;
-		}
-	}
-
-	FInventoryStateSnapshot Snapshot;
-	CaptureInventoryStateSnapshot(Snapshot);
-	const int32 QuantityBefore = GetTotalItemQuantity(Snapshot.Entries, EntryView->ItemId);
-
-	if (bHasExplicitPlacement)
-	{
-		if (!TryAddItemAtPosition(
-				EntryView->ItemId,
-				TakeQuantity,
-				TargetContainerId,
-				TargetGridPos,
-				bTargetRotated,
-				OutError))
-		{
-			return false;
-		}
-	}
-	else
-	{
-		AddItemsBatch(LootItems);
-	}
-
-	const int32 QuantityAfter = GetTotalItemQuantity(Inventory.Entries, EntryView->ItemId);
-	if (QuantityAfter - QuantityBefore != TakeQuantity)
-	{
-		RestoreInventoryStateSnapshot(Snapshot);
-		OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryInventoryMutationMismatch", "Inventory add did not commit the expected quantity.");
-		return false;
-	}
-
-	FContainerEntryTransfer ConsumeEntry;
-	ConsumeEntry.EntryInstanceId = EntryInstanceId;
-	ConsumeEntry.ObjectId = EntryView->ItemId;
-	ConsumeEntry.Quantity = TakeQuantity;
-
-	TArray<FContainerEntryTransfer> ConsumeEntries;
-	ConsumeEntries.Add(ConsumeEntry);
-	if (!IWorldContainerSessionSource::Execute_ConsumeContainerEntries(
-			SourceObject,
-			SessionHandle.SessionId,
-			ConsumeEntries,
-			OutError))
-	{
-		RestoreInventoryStateSnapshot(Snapshot);
-		if (OutError.IsEmpty())
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "TakeWorldEntryConsumeRejected", "World-container failed to consume the transferred entry.");
-		}
-		return false;
-	}
-
-	return true;
-}
-
-bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainerResolved(
-	UObject* SourceObject,
-	const FContainerSessionHandle& SessionHandle,
-	int32 InventoryInstanceId,
-	int32 Quantity,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryResolvedAuthorityRequired", "World-container store requires authority.");
-		return false;
-	}
-
-	if (!SourceObject || !SourceObject->Implements<UWorldContainerSessionSource>())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryResolvedMissingSource", "World-container source is no longer valid.");
-		return false;
-	}
-
-	FInventoryEntry InventoryEntry;
-	if (!FindEntry(InventoryInstanceId, InventoryEntry))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryMissingInventoryEntry", "Inventory entry is no longer available.");
-		return false;
-	}
-
-	FContainerEntryTransfer CandidateEntry;
-	CandidateEntry.ObjectId = InventoryEntry.ItemId;
-	CandidateEntry.Quantity = FMath::Clamp(Quantity, 1, InventoryEntry.Quantity);
-	if (TargetGridPos.X >= 0 && TargetGridPos.Y >= 0)
-	{
-		CandidateEntry.GridPos = TargetGridPos;
-		CandidateEntry.bRotated = bTargetRotated;
-	}
-
-	TArray<FContainerEntryTransfer> CandidateEntries;
-	CandidateEntries.Add(CandidateEntry);
-	if (!IWorldContainerSessionSource::Execute_CanStoreContainerEntries(
-		SourceObject,
-		SessionHandle.SessionId,
-		CandidateEntries,
-		OutError))
-	{
-		UE_LOG(
-			LogProjectInventory,
-			Warning,
-			TEXT("StoreInventoryEntryInWorldContainerResolved: CanStore rejected %s x%d for %s at (%d,%d) rot:%d - %s"),
-			*CandidateEntry.ObjectId.ToString(),
-			CandidateEntry.Quantity,
-			*GetNameSafe(SourceObject),
-			CandidateEntry.GridPos.X,
-			CandidateEntry.GridPos.Y,
-			CandidateEntry.bRotated ? 1 : 0,
-			*OutError.ToString());
-		return false;
-	}
-
-	FInventoryStateSnapshot Snapshot;
-	CaptureInventoryStateSnapshot(Snapshot);
-
-	FContainerEntryTransfer ExtractedEntry;
-	if (!TryExtractContainerTransferEntry(InventoryInstanceId, CandidateEntry.Quantity, ExtractedEntry, OutError))
-	{
-		return false;
-	}
-	ExtractedEntry.GridPos = CandidateEntry.GridPos;
-	ExtractedEntry.bRotated = CandidateEntry.bRotated;
-
-	TArray<FContainerEntryTransfer> StoreEntries;
-	StoreEntries.Add(ExtractedEntry);
-	if (!IWorldContainerSessionSource::Execute_StoreContainerEntries(
-			SourceObject,
-			SessionHandle.SessionId,
-			StoreEntries,
-			OutError))
-	{
-		RestoreInventoryStateSnapshot(Snapshot);
-		UE_LOG(
-			LogProjectInventory,
-			Warning,
-			TEXT("StoreInventoryEntryInWorldContainerResolved: Store rejected %s x%d for %s at (%d,%d) rot:%d - %s"),
-			*ExtractedEntry.ObjectId.ToString(),
-			ExtractedEntry.Quantity,
-			*GetNameSafe(SourceObject),
-			ExtractedEntry.GridPos.X,
-			ExtractedEntry.GridPos.Y,
-			ExtractedEntry.bRotated ? 1 : 0,
-			*OutError.ToString());
-		if (OutError.IsEmpty())
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "StoreWorldEntryRejected", "World-container failed to store the extracted inventory entry.");
-		}
-		return false;
-	}
-
-	UE_LOG(
-		LogProjectInventory,
-		Log,
-		TEXT("StoreInventoryEntryInWorldContainerResolved: Stored %s x%d into %s at (%d,%d) rot:%d"),
-		*ExtractedEntry.ObjectId.ToString(),
-		ExtractedEntry.Quantity,
-		*GetNameSafe(SourceObject),
-		ExtractedEntry.GridPos.X,
-		ExtractedEntry.GridPos.Y,
-		ExtractedEntry.bRotated ? 1 : 0);
-
-	return true;
-}
-
-bool UProjectInventoryComponent::TakeAllFromWorldContainerResolved(
-	UObject* SourceObject,
-	const FContainerSessionHandle& SessionHandle,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldResolvedAuthorityRequired", "World-container take-all requires authority.");
-		return false;
-	}
-
-	TArray<FContainerEntryTransfer> ConsumeEntries;
-	TArray<FLootEntry> LootItems;
-	if (!FInventoryWorldContainerTransferHelper::BuildLootEntries(SourceObject, ConsumeEntries, LootItems, OutError))
-	{
-		return false;
-	}
-
-	if (!CanFitItems(LootItems))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TakeAllWorldNoSpace", "Inventory does not have enough free space.");
-		return false;
-	}
-
-	FInventoryStateSnapshot Snapshot;
-	CaptureInventoryStateSnapshot(Snapshot);
-
-	TMap<FPrimaryAssetId, int32> ExpectedQuantities;
-	BuildExpectedLootQuantities(LootItems, ExpectedQuantities);
-
-	AddItemsBatch(LootItems);
-
-	for (const TPair<FPrimaryAssetId, int32>& Pair : ExpectedQuantities)
-	{
-		const int32 QuantityBefore = GetTotalItemQuantity(Snapshot.Entries, Pair.Key);
-		const int32 QuantityAfter = GetTotalItemQuantity(Inventory.Entries, Pair.Key);
-		if (QuantityAfter - QuantityBefore != Pair.Value)
-		{
-			RestoreInventoryStateSnapshot(Snapshot);
-			OutError = NSLOCTEXT("ProjectInventory", "TakeAllInventoryMutationMismatch", "Inventory add did not commit the expected take-all quantity.");
-			return false;
-		}
-	}
-
-	if (!IWorldContainerSessionSource::Execute_ConsumeContainerEntries(
-			SourceObject,
-			SessionHandle.SessionId,
-			ConsumeEntries,
-			OutError))
-	{
-		RestoreInventoryStateSnapshot(Snapshot);
-		if (OutError.IsEmpty())
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "TakeAllConsumeRejected", "World-container failed to consume transferred entries.");
-		}
-		return false;
-	}
-
-	return true;
-}
-
-bool UProjectInventoryComponent::TryAddItemAtPosition(
-	FPrimaryAssetId ObjectId,
-	int32 Quantity,
-	FGameplayTag TargetContainerId,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	AActor* OwnerActor = GetOwner();
-	if (!OwnerActor || !OwnerActor->HasAuthority())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionAuthorityRequired", "Exact inventory placement requires authority.");
-		return false;
-	}
-
-	if (!ObjectId.IsValid() || Quantity <= 0)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionInvalidPayload", "Target item payload is invalid.");
-		return false;
-	}
-
-	if (!TargetContainerId.IsValid() || TargetGridPos.X < 0 || TargetGridPos.Y < 0)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionInvalidTarget", "Target inventory placement is invalid.");
-		return false;
-	}
-
-	FItemDataView ItemData;
-	if (!GetItemDataView(ObjectId, ItemData))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionMissingItemData", "Target item data is missing.");
-		return false;
-	}
-
-	FInventoryContainerConfig TargetContainer;
-	if (!GetContainerConfig(TargetContainerId, TargetContainer))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionMissingContainer", "Target inventory container is unavailable.");
-		return false;
-	}
-
-	if (!ContainerAllowsItem(TargetContainer, ItemData))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionRejectedByContainer", "Target inventory container does not accept this item.");
-		return false;
-	}
-
-	const int32 EffectiveMaxStack = GetEffectiveMaxStackForContainer(TargetContainer, ItemData);
-	if (Quantity > EffectiveMaxStack)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionDepthRejected", "Target inventory cell cannot hold that many items.");
-		return false;
-	}
-
-	const int32 AllowedQuantity = FInventoryStackHelper::CalculateAllowedQuantity(
-		ItemData,
-		GetMaxWeight(),
-		GetMaxVolume(),
-		GetCurrentWeight(),
-		GetCurrentVolume(),
-		Quantity);
-	if (AllowedQuantity < Quantity)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionCapacityExceeded", "Inventory does not have enough carrying capacity.");
-		return false;
-	}
-
-	TMap<FPrimaryAssetId, FItemDataView> ItemDataCache;
-	ItemDataCache.Add(ObjectId, ItemData);
-	if (TargetContainer.MaxWeight > 0.f)
-	{
-		const float TargetWeight = GetContainerCurrentWeight(TargetContainerId, ItemDataCache);
-		if (TargetWeight + (ItemData.Weight * Quantity) > TargetContainer.MaxWeight)
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionWeightExceeded", "Target inventory container would exceed its weight limit.");
-			return false;
-		}
-	}
-
-	if (TargetContainer.MaxVolume > 0.f)
-	{
-		const float TargetVolume = GetContainerCurrentVolume(TargetContainerId, ItemDataCache);
-		if (TargetVolume + (ItemData.Volume * Quantity) > TargetContainer.MaxVolume)
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionVolumeExceeded", "Target inventory container would exceed its volume limit.");
-			return false;
-		}
-	}
-
-	const bool bEffectiveRotated = bTargetRotated && TargetContainer.bAllowRotation;
-	const FIntPoint ItemSize = GetItemGridSize(ItemData, bEffectiveRotated);
-	if (!IsRectWithinContainer(TargetContainer, TargetGridPos, ItemSize))
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionOutOfBounds", "Target inventory placement is outside the container grid.");
-		return false;
-	}
-
-	FInventoryMoveHelper::FMoveCallbacks MoveCallbacks;
-	MoveCallbacks.GetEffectivePlacement = [this](const FInventoryEntry& E, FGameplayTag& C, FIntPoint& P, bool& R) {
-		return GetEffectiveEntryPlacement(E, C, P, R);
-	};
-	MoveCallbacks.GetItemDataView = [this](FPrimaryAssetId Id, FItemDataView& D) {
-		return GetItemDataView(Id, D);
-	};
-	MoveCallbacks.GetItemGridSize = [this](const FItemDataView& D, bool R) {
-		return GetItemGridSize(D, R);
-	};
-
-	const FInventoryMoveHelper::FOverlapResult OverlapResult = FInventoryMoveHelper::FindOverlapAtTarget(
-		Inventory.Entries,
-		TargetContainerId,
-		TargetGridPos,
-		ItemSize,
-		INDEX_NONE,
-		MoveCallbacks);
-	if (OverlapResult.bMultipleOverlaps)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionMultipleOverlaps", "Target inventory placement overlaps multiple entries.");
-		return false;
-	}
-
-	if (OverlapResult.bHasOverlap)
-	{
-		FInventoryEntry* OverlapEntry = Inventory.FindEntry(OverlapResult.OverlapInstanceId);
-		if (!OverlapEntry
-			|| OverlapEntry->ItemId != ObjectId
-			|| OverlapEntry->OverrideMagnitudes.Num() > 0
-			|| EffectiveMaxStack <= 1
-			|| OverlapEntry->Quantity + Quantity > EffectiveMaxStack)
-		{
-			OutError = NSLOCTEXT("ProjectInventory", "TryAddAtPositionOverlapRejected", "Target inventory entry cannot accept this stack.");
-			return false;
-		}
-
-		OverlapEntry->Quantity += Quantity;
-		Inventory.MarkEntryDirty(*OverlapEntry);
-		return true;
-	}
-
-	const int32 SlotIndex = ComputeSlotIndex(TargetContainerId, TargetGridPos);
-	Inventory.AddEntry(ObjectId, Quantity, TargetContainerId, TargetGridPos, bEffectiveRotated, SlotIndex);
-	return true;
-}
-
-void UProjectInventoryComponent::HandleWorldContainerSessionOpenedLocal(
-	AActor* TargetActor,
-	const FContainerSessionHandle& SessionHandle)
-{
-	if (!TargetActor || !SessionHandle.IsValid())
-	{
-		return;
-	}
-
-	UObject* SourceObject = ResolveWorldContainerSessionSource(TargetActor);
-	if (!SourceObject)
-	{
-		return;
-	}
-
-	if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
-	{
-		FText RegisterError;
-		if (!SessionSubsystem->RegisterOpenedSession(TargetActor, SourceObject, GetOwner(), SessionHandle, RegisterError))
-		{
-			if (!RegisterError.IsEmpty())
-			{
-				BroadcastErrorLocal(RegisterError);
-			}
-			return;
-		}
-	}
-
-	WorldContainerSessionOpenedNative.Broadcast(SourceObject, SessionHandle);
-}
-
-void UProjectInventoryComponent::HandleWorldContainerSessionClosedLocal(const FContainerSessionHandle& SessionHandle)
-{
-	if (!SessionHandle.IsValid())
-	{
-		return;
-	}
-
-	if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
-	{
-		SessionSubsystem->CloseSessionLocal(SessionHandle);
-	}
-
-	WorldContainerSessionClosedNative.Broadcast(SessionHandle);
-}
-
-bool UProjectInventoryComponent::RequestOpenWorldContainerSession_Implementation(
-	AActor* TargetActor,
-	EContainerSessionMode Mode,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	if (!TargetActor)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "RequestOpenWorldSessionMissingTarget", "World-container target is required.");
-		return false;
-	}
-
-	AActor* OwnerActor = GetOwner();
-	if (OwnerActor && OwnerActor->HasAuthority())
-	{
-		FContainerSessionHandle Handle;
-		if (!OpenWorldContainerSessionAuthority(TargetActor, Mode, Handle, OutError))
-		{
-			return false;
-		}
-
-		HandleWorldContainerSessionOpenedLocal(TargetActor, Handle);
-		if (APawn* OwnerPawn = Cast<APawn>(OwnerActor))
-		{
-			if (APlayerController* OwningPC = Cast<APlayerController>(OwnerPawn->GetController()))
-			{
-				if (!OwningPC->IsLocalController())
-				{
-					Client_WorldContainerSessionOpened(TargetActor, Handle);
-				}
-			}
-		}
-		return true;
-	}
-
-	Server_RequestOpenWorldContainerSession(TargetActor, Mode);
-	return true;
-}
-
-bool UProjectInventoryComponent::RequestCloseWorldContainerSession_Implementation(
-	const FContainerSessionHandle& SessionHandle,
-	FText& OutError)
-{
-	OutError = FText::GetEmpty();
-
-	if (!SessionHandle.IsValid())
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "RequestCloseWorldSessionInvalidHandle", "World-container session handle is invalid.");
-		return false;
-	}
-
-	AActor* TargetActor = ActiveWorldContainerTargetActor.Get();
-	AActor* OwnerActor = GetOwner();
-	if (OwnerActor && OwnerActor->HasAuthority())
-	{
-		if (!CloseWorldContainerSessionAuthority(TargetActor, SessionHandle, OutError))
-		{
-			return false;
-		}
-
-		HandleWorldContainerSessionClosedLocal(SessionHandle);
-		return true;
-	}
-
-	Server_RequestCloseWorldContainerSession(TargetActor, SessionHandle);
-	return true;
-}
-
-bool UProjectInventoryComponent::GetActiveWorldContainerSession_Implementation(
-	AActor*& OutTargetActor,
-	FContainerSessionHandle& OutSessionHandle) const
-{
-	OutTargetActor = ActiveWorldContainerTargetActor.Get();
-	OutSessionHandle = ActiveWorldContainerSessionHandle;
-	return OutTargetActor != nullptr && OutSessionHandle.IsValid();
-}
-
-bool UProjectInventoryComponent::TransferWorldContainerEntryToInventory_Implementation(
-	UObject* WorldContainerSource,
-	const FContainerSessionHandle& SessionHandle,
-	int32 EntryInstanceId,
-	int32 Quantity,
-	FGameplayTag TargetContainerId,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	AActor* TargetActor = ResolveWorldContainerActor(WorldContainerSource);
-	if (!TargetActor)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "MissingWorldContainerActorForTake", "World-container actor is unavailable.");
-		return false;
-	}
-
-	AActor* OwnerActor = GetOwner();
-	if (OwnerActor && OwnerActor->HasAuthority())
-	{
-		if (ActiveWorldContainerSessionHandle.IsValid()
-			&& ActiveWorldContainerSessionHandle.SessionId == SessionHandle.SessionId)
-		{
-			return TakeEntryFromWorldContainerAuthority(
-				TargetActor,
-				SessionHandle,
-				EntryInstanceId,
-				Quantity,
-				TargetContainerId,
-				TargetGridPos,
-				bTargetRotated,
-				OutError);
-		}
-
-		if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
-		{
-			if (SessionSubsystem->IsSessionActive(SessionHandle))
-			{
-				return SessionSubsystem->TakeEntryFromWorldContainerSession(
-					SessionHandle,
-					this,
-					EntryInstanceId,
-					Quantity,
-					TargetContainerId,
-					TargetGridPos,
-					bTargetRotated,
-					OutError);
-			}
-		}
-
-		return TakeEntryFromWorldContainerAuthority(
-			TargetActor,
-			SessionHandle,
-			EntryInstanceId,
-			Quantity,
-			TargetContainerId,
-			TargetGridPos,
-			bTargetRotated,
-			OutError);
-	}
-
-	Server_RequestTakeEntryFromWorldContainer(
-		TargetActor,
-		SessionHandle,
-		EntryInstanceId,
-		Quantity,
-		TargetContainerId,
-		TargetGridPos,
-		bTargetRotated);
-	OutError = FText::GetEmpty();
-	return true;
-}
-
-bool UProjectInventoryComponent::StoreInventoryEntryInWorldContainer_Implementation(
-	UObject* WorldContainerSource,
-	const FContainerSessionHandle& SessionHandle,
-	int32 InventoryInstanceId,
-	int32 Quantity,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated,
-	FText& OutError)
-{
-	AActor* TargetActor = ResolveWorldContainerActor(WorldContainerSource);
-	if (!TargetActor)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "MissingWorldContainerActorForStore", "World-container actor is unavailable.");
-		return false;
-	}
-
-	AActor* OwnerActor = GetOwner();
-	if (OwnerActor && OwnerActor->HasAuthority())
-	{
-		if (ActiveWorldContainerSessionHandle.IsValid()
-			&& ActiveWorldContainerSessionHandle.SessionId == SessionHandle.SessionId)
-		{
-			return StoreInventoryEntryInWorldContainerAuthority(
-				TargetActor,
-				SessionHandle,
-				InventoryInstanceId,
-				Quantity,
-				TargetGridPos,
-				bTargetRotated,
-				OutError);
-		}
-
-		if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
-		{
-			if (SessionSubsystem->IsSessionActive(SessionHandle))
-			{
-				return SessionSubsystem->StoreInventoryEntryInWorldContainerSession(
-					SessionHandle,
-					this,
-					InventoryInstanceId,
-					Quantity,
-					TargetGridPos,
-					bTargetRotated,
-					OutError);
-			}
-		}
-
-		return StoreInventoryEntryInWorldContainerAuthority(
-			TargetActor,
-			SessionHandle,
-			InventoryInstanceId,
-			Quantity,
-			TargetGridPos,
-			bTargetRotated,
-			OutError);
-	}
-
-	Server_RequestStoreInventoryEntryInWorldContainer(
-		TargetActor,
-		SessionHandle,
-		InventoryInstanceId,
-		Quantity,
-		TargetGridPos,
-		bTargetRotated);
-	OutError = FText::GetEmpty();
-	return true;
-}
-
-bool UProjectInventoryComponent::TakeAllFromWorldContainer_Implementation(
-	UObject* WorldContainerSource,
-	const FContainerSessionHandle& SessionHandle,
-	FText& OutError)
-{
-	AActor* TargetActor = ResolveWorldContainerActor(WorldContainerSource);
-	if (!TargetActor)
-	{
-		OutError = NSLOCTEXT("ProjectInventory", "MissingWorldContainerActorForTakeAll", "World-container actor is unavailable.");
-		return false;
-	}
-
-	AActor* OwnerActor = GetOwner();
-	if (OwnerActor && OwnerActor->HasAuthority())
-	{
-		if (UProjectContainerSessionSubsystem* SessionSubsystem = ResolveLocalPlayerSessionSubsystem(this))
-		{
-			if (SessionSubsystem->IsSessionActive(SessionHandle))
-			{
-				return SessionSubsystem->TakeAllFromWorldContainerSession(SessionHandle, this, OutError);
-			}
-		}
-
-		return TakeAllFromWorldContainerAuthority(TargetActor, SessionHandle, OutError);
-	}
-
-	Server_RequestTakeAllFromWorldContainer(TargetActor, SessionHandle);
-	OutError = FText::GetEmpty();
-	return true;
-}
 
 // -------------------------------------------------------------------------
 // FFastArraySerializer Callbacks
@@ -2166,140 +1309,6 @@ void UProjectInventoryComponent::OnEntryChanged(const FInventoryEntry& Entry)
 // Server RPCs
 // -------------------------------------------------------------------------
 
-void UProjectInventoryComponent::Server_RequestOpenWorldContainerSession_Implementation(
-	AActor* TargetActor,
-	EContainerSessionMode Mode)
-{
-	FText OpenError;
-	FContainerSessionHandle Handle;
-	if (!OpenWorldContainerSessionAuthority(TargetActor, Mode, Handle, OpenError))
-	{
-		if (!OpenError.IsEmpty())
-		{
-			BroadcastError(OpenError);
-		}
-		return;
-	}
-
-	Client_WorldContainerSessionOpened(TargetActor, Handle);
-}
-
-void UProjectInventoryComponent::Server_RequestCloseWorldContainerSession_Implementation(
-	AActor* TargetActor,
-	FContainerSessionHandle SessionHandle)
-{
-	FText CloseError;
-	if (!CloseWorldContainerSessionAuthority(TargetActor, SessionHandle, CloseError))
-	{
-		if (!CloseError.IsEmpty())
-		{
-			BroadcastError(CloseError);
-		}
-		return;
-	}
-
-	Client_WorldContainerSessionClosed(SessionHandle);
-}
-
-void UProjectInventoryComponent::Server_RequestTakeEntryFromWorldContainer_Implementation(
-	AActor* TargetActor,
-	FContainerSessionHandle SessionHandle,
-	int32 EntryInstanceId,
-	int32 Quantity,
-	FGameplayTag TargetContainerId,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated)
-{
-	FText TakeError;
-	if (!TakeEntryFromWorldContainerAuthority(
-			TargetActor,
-			SessionHandle,
-			EntryInstanceId,
-			Quantity,
-			TargetContainerId,
-			TargetGridPos,
-			bTargetRotated,
-			TakeError))
-	{
-		if (!TakeError.IsEmpty())
-		{
-			BroadcastError(TakeError);
-		}
-		return;
-	}
-
-	InventoryViewChanged.Broadcast();
-}
-
-void UProjectInventoryComponent::Server_RequestStoreInventoryEntryInWorldContainer_Implementation(
-	AActor* TargetActor,
-	FContainerSessionHandle SessionHandle,
-	int32 InventoryInstanceId,
-	int32 Quantity,
-	FIntPoint TargetGridPos,
-	bool bTargetRotated)
-{
-	FText StoreError;
-	if (!StoreInventoryEntryInWorldContainerAuthority(
-			TargetActor,
-			SessionHandle,
-			InventoryInstanceId,
-			Quantity,
-			TargetGridPos,
-			bTargetRotated,
-			StoreError))
-	{
-		if (!StoreError.IsEmpty())
-		{
-			BroadcastError(StoreError);
-		}
-		return;
-	}
-
-	InventoryViewChanged.Broadcast();
-}
-
-void UProjectInventoryComponent::Server_RequestTakeAllFromWorldContainer_Implementation(
-	AActor* TargetActor,
-	FContainerSessionHandle SessionHandle)
-{
-	FText TakeAllError;
-	if (!TakeAllFromWorldContainerAuthority(TargetActor, SessionHandle, TakeAllError))
-	{
-		if (!TakeAllError.IsEmpty())
-		{
-			BroadcastError(TakeAllError);
-		}
-		return;
-	}
-
-	InventoryViewChanged.Broadcast();
-}
-
-void UProjectInventoryComponent::Server_AddItem_Implementation(FPrimaryAssetId ObjectId, int32 Quantity)
-{
-	Internal_AddItem(ObjectId, Quantity);
-	// FFastArraySerializer callbacks only fire on receiving clients, not on
-	// the authority (listen server / standalone). Broadcast explicitly so
-	// local ViewModel listeners refresh immediately.
-	UE_LOG(LogProjectInventory, Verbose, TEXT("Server_AddItem: authority broadcast"));
-	InventoryViewChanged.Broadcast();
-}
-
-void UProjectInventoryComponent::Server_RemoveItem_Implementation(int32 InstanceId, int32 Quantity)
-{
-	Internal_RemoveItem(InstanceId, Quantity);
-	UE_LOG(LogProjectInventory, Verbose, TEXT("Server_RemoveItem: authority broadcast"));
-	InventoryViewChanged.Broadcast();
-}
-
-void UProjectInventoryComponent::Server_MoveItem_Implementation(int32 InstanceId, FGameplayTag FromContainer, FIntPoint FromPos, FGameplayTag ToContainer, FIntPoint ToPos, int32 Quantity, bool bRotated)
-{
-	Internal_MoveItem(InstanceId, FromContainer, FromPos, ToContainer, ToPos, Quantity, bRotated);
-	UE_LOG(LogProjectInventory, Verbose, TEXT("Server_MoveItem: authority broadcast"));
-	InventoryViewChanged.Broadcast();
-}
-
 void UProjectInventoryComponent::Server_UseItem_Implementation(int32 InstanceId)
 {
 	Internal_UseItem(InstanceId);
@@ -2318,117 +1327,6 @@ void UProjectInventoryComponent::Server_UnequipItem_Implementation(FGameplayTag 
 {
 	Internal_UnequipItem(EquipSlot);
 	UE_LOG(LogProjectInventory, Verbose, TEXT("Server_UnequipItem: authority broadcast"));
-	InventoryViewChanged.Broadcast();
-}
-
-void UProjectInventoryComponent::Server_DropItem_Implementation(int32 InstanceId, int32 Quantity)
-{
-	FInventoryEntry* Entry = Inventory.FindEntry(InstanceId);
-	if (!Entry)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Server_DropItem: InstanceId %d not found"), InstanceId);
-		return;
-	}
-
-	FItemDataView ItemData;
-	if (!GetItemDataView(Entry->ItemId, ItemData) || !ItemData.bCanBeDropped)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Server_DropItem: Item cannot be dropped"));
-		return;
-	}
-
-	// Clamp quantity to available
-	const int32 DropQuantity = FMath::Min(Quantity, Entry->Quantity);
-	if (DropQuantity <= 0)
-	{
-		return;
-	}
-
-	// Copy ItemId before any modification (Entry* may become invalid)
-	const FPrimaryAssetId DroppedItemId = Entry->ItemId;
-
-	// Calculate drop transform (in front of owner)
-	AActor* Owner = GetOwner();
-	if (!Owner)
-	{
-		return;
-	}
-
-	FVector DropLocation = Owner->GetActorLocation();
-	FRotator DropRotation = Owner->GetActorRotation();
-
-	// Offset forward and down
-	const FVector ForwardOffset = Owner->GetActorForwardVector() * 100.f;
-	const FVector DownOffset = FVector(0.f, 0.f, -50.f);
-	DropLocation += ForwardOffset + DownOffset;
-
-	const FTransform DropTransform(DropRotation, DropLocation);
-
-	// Resolve spawn service (lazy-load module if needed)
-	TSharedPtr<IObjectSpawnService> SpawnService = FProjectServiceLocator::Resolve<IObjectSpawnService>();
-	if (!SpawnService)
-	{
-		// Try loading module (string-only, no compile-time dependency)
-		FModuleManager::Get().LoadModule(TEXT("ProjectObject"));
-		SpawnService = FProjectServiceLocator::Resolve<IObjectSpawnService>();
-	}
-	if (!SpawnService)
-	{
-		UE_LOG(LogProjectInventory, Error, TEXT("Server_DropItem: IObjectSpawnService not available after module load"));
-		return;
-	}
-
-	// Spawn BEFORE removing (transactional - don't lose item on spawn failure)
-	FText SpawnError;
-	AActor* DroppedActor = SpawnService->SpawnFromDefinition(
-		GetWorld(),
-		DroppedItemId,
-		DropTransform,
-		&SpawnError
-	);
-
-	if (!DroppedActor)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Server_DropItem: Spawn failed - %s (item NOT removed)"), *SpawnError.ToString());
-		return;
-	}
-
-	auto FindPickupSourceOnActor = [](AActor* Actor) -> UObject*
-	{
-		if (!Actor)
-		{
-			return nullptr;
-		}
-
-		if (Actor->Implements<UPickupSource>())
-		{
-			return Actor;
-		}
-
-		TInlineComponentArray<UActorComponent*> Components;
-		Actor->GetComponents(Components);
-		for (UActorComponent* Component : Components)
-		{
-			if (Component && Component->Implements<UPickupSource>())
-			{
-				return Component;
-			}
-		}
-
-		return nullptr;
-	};
-
-	if (UObject* PickupSource = FindPickupSourceOnActor(DroppedActor))
-	{
-		IPickupSource::Execute_SetQuantity(PickupSource, DropQuantity);
-	}
-
-	// Spawn succeeded - now remove from inventory
-	Internal_RemoveItem(InstanceId, DropQuantity);
-
-	UE_LOG(LogProjectInventory, Log, TEXT("Dropped %d x %s at %s"),
-		DropQuantity, *DroppedItemId.ToString(), *DropLocation.ToString());
-	UE_LOG(LogProjectInventory, Verbose, TEXT("Server_DropItem: authority broadcast"));
 	InventoryViewChanged.Broadcast();
 }
 
@@ -2472,459 +1370,18 @@ void UProjectInventoryComponent::Server_SwapHands_Implementation()
 // Internal Implementation
 // -------------------------------------------------------------------------
 
-int32 UProjectInventoryComponent::TryAddItem(FPrimaryAssetId ObjectId, int32 Quantity)
-{
-	// Server-only: public API must enforce authority
-	AActor* Owner = GetOwner();
-	if (!Owner || !Owner->HasAuthority())
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("TryAddItem: Called without authority"));
-		return 0;
-	}
-
-	return Internal_AddItem(ObjectId, Quantity);
-}
-
-// SOLID: Uses FInventoryStackHelper + FInventoryAddHelper for placement
-uint32 UProjectInventoryComponent::TryAddItemWithOverrides(FPrimaryAssetId ObjectId, int32 Quantity, const TArray<FMagnitudeOverride>& Overrides)
-{
-	AActor* Owner = GetOwner();
-	if (!Owner || !Owner->HasAuthority())
-	{
-		return 0;
-	}
-
-	if (!ObjectId.IsValid() || Quantity <= 0)
-	{
-		return 0;
-	}
-
-	FItemDataView ItemData;
-	if (!GetItemDataView(ObjectId, ItemData))
-	{
-		return 0;
-	}
-
-	// Calculate allowed quantity
-	const int32 AllowedQuantity = FInventoryStackHelper::CalculateAllowedQuantity(
-		ItemData, GetMaxWeight(), GetMaxVolume(), GetCurrentWeight(), GetCurrentVolume(), Quantity);
-	if (AllowedQuantity <= 0)
-	{
-		return 0;
-	}
-
-	// Build container states and find placement (no stacking - items with overrides are unique)
-	TArray<FInventoryContainerConfig> ContainerOrder;
-	if (!GetContainerOrder(ContainerOrder))
-	{
-		return 0;
-	}
-
-	TMap<FPrimaryAssetId, FItemDataView> ItemDataCache;
-	ItemDataCache.Add(ObjectId, ItemData);
-
-	TArray<FInventoryAddHelper::FContainerState> ContainerStates;
-	for (const FInventoryContainerConfig& Container : ContainerOrder)
-	{
-		FInventoryAddHelper::FContainerState State;
-		State.Config = Container;
-		State.CurrentWeight = GetContainerCurrentWeight(Container.ContainerId, ItemDataCache);
-		State.CurrentVolume = GetContainerCurrentVolume(Container.ContainerId, ItemDataCache);
-		ContainerStates.Add(State);
-	}
-
-	FInventoryAddHelper::FAddCallbacks Callbacks;
-	Callbacks.FindFreeGridPos = [this](const FInventoryContainerConfig& C, FIntPoint S, int32 I, FIntPoint& P) {
-		return FindFreeGridPos(C, S, I, P);
-	};
-	Callbacks.ContainerAllowsItem = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
-		return ContainerAllowsItem(C, D);
-	};
-	Callbacks.GetEffectiveMaxStack = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
-		return GetEffectiveMaxStackForContainer(C, D);
-	};
-
-	// Add entries one at a time to avoid overlapping placements
-	uint32 FirstInstanceId = 0;
-	int32 RemainingQuantity = AllowedQuantity;
-
-	while (RemainingQuantity > 0)
-	{
-		TArray<FInventoryAddHelper::FNewStackPlacement> Placements;
-		FInventoryAddHelper::CalculateNewPlacements(ItemData, RemainingQuantity, ContainerStates, Callbacks, Placements);
-
-		if (Placements.Num() == 0)
-		{
-			break;
-		}
-
-		const FInventoryAddHelper::FNewStackPlacement& Placement = Placements[0];
-		const int32 SlotIndex = ComputeSlotIndex(Placement.ContainerId, Placement.GridPos);
-		const uint32 InstanceId = Inventory.AddEntry(ObjectId, Placement.Quantity, Placement.ContainerId, Placement.GridPos, Placement.bRotated, SlotIndex);
-
-		if (FInventoryEntry* Entry = Inventory.FindEntry(InstanceId))
-		{
-			Entry->OverrideMagnitudes = Overrides;
-			Inventory.MarkEntryDirty(*Entry);
-		}
-
-		if (FirstInstanceId == 0)
-		{
-			FirstInstanceId = InstanceId;
-		}
-
-		RemainingQuantity -= Placement.Quantity;
-		UE_LOG(LogProjectInventory, Log, TEXT("Added item with overrides: %d x %s (InstanceId: %d, %d overrides)"),
-			Placement.Quantity, *ObjectId.ToString(), InstanceId, Overrides.Num());
-	}
-
-	return FirstInstanceId;
-}
 
 // SOLID: Uses FInventoryAddHelper for stacking/placement computation
-int32 UProjectInventoryComponent::Internal_AddItem(FPrimaryAssetId ObjectId, int32 Quantity)
-{
-	if (!ObjectId.IsValid() || Quantity <= 0)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_AddItem: Invalid ObjectId or Quantity"));
-		return 0;
-	}
-
-	FItemDataView ItemData;
-	if (!GetItemDataView(ObjectId, ItemData))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_AddItem: Missing item data for %s"), *ObjectId.ToString());
-		return 0;
-	}
-
-	// Calculate allowed quantity based on weight/volume
-	const int32 AllowedQuantity = FInventoryStackHelper::CalculateAllowedQuantity(
-		ItemData, GetMaxWeight(), GetMaxVolume(), GetCurrentWeight(), GetCurrentVolume(), Quantity);
-
-	UE_LOG(LogProjectInventory, Log, TEXT("Internal_AddItem: %s x%d (size: %dx%d, weight: %.2f) -> allowed: %d"),
-		*ObjectId.ToString(), Quantity, ItemData.GridSize.X, ItemData.GridSize.Y, ItemData.Weight, AllowedQuantity);
-
-	if (AllowedQuantity <= 0)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_AddItem: No capacity for %s (weight: %.2f/%.2f, volume: %.2f/%.2f)"),
-			*ObjectId.ToString(), GetCurrentWeight(), GetMaxWeight(), GetCurrentVolume(), GetMaxVolume());
-		BroadcastError(NSLOCTEXT("Inventory", "NoCapacity", "Cannot carry more"));
-		return 0;
-	}
-
-	TArray<FInventoryContainerConfig> ContainerOrder;
-	if (!GetContainerOrder(ContainerOrder))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_AddItem: No containers available"));
-		return 0;
-	}
-
-	// Build container states for helper
-	TMap<FPrimaryAssetId, FItemDataView> ItemDataCache;
-	ItemDataCache.Add(ObjectId, ItemData);
-
-	TArray<FInventoryAddHelper::FContainerState> ContainerStates;
-	ContainerStates.Reserve(ContainerOrder.Num());
-	for (const FInventoryContainerConfig& Container : ContainerOrder)
-	{
-		FInventoryAddHelper::FContainerState State;
-		State.Config = Container;
-		State.CurrentWeight = GetContainerCurrentWeight(Container.ContainerId, ItemDataCache);
-		State.CurrentVolume = GetContainerCurrentVolume(Container.ContainerId, ItemDataCache);
-		ContainerStates.Add(State);
-
-		UE_LOG(LogProjectInventory, Log, TEXT("  Container: %s (%dx%d, slot:%d, w:%.1f/%.1f, v:%.1f/%.1f)"),
-			*Container.ContainerId.ToString(), Container.GridSize.X, Container.GridSize.Y,
-			Container.bSlotBased ? 1 : 0,
-			State.CurrentWeight, Container.MaxWeight, State.CurrentVolume, Container.MaxVolume);
-	}
-
-	// Setup callbacks
-	FInventoryAddHelper::FAddCallbacks Callbacks;
-	Callbacks.GetEffectivePlacement = [this](const FInventoryEntry& E, FGameplayTag& C, FIntPoint& P, bool& R) {
-		return GetEffectiveEntryPlacement(E, C, P, R);
-	};
-	Callbacks.FindFreeGridPos = [this](const FInventoryContainerConfig& C, FIntPoint S, int32 I, FIntPoint& P) {
-		return FindFreeGridPos(C, S, I, P);
-	};
-	Callbacks.ContainerAllowsItem = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
-		return ContainerAllowsItem(C, D);
-	};
-	Callbacks.GetEffectiveMaxStack = [this](const FInventoryContainerConfig& C, const FItemDataView& D) {
-		return GetEffectiveMaxStackForContainer(C, D);
-	};
-
-	const bool bIsStackable = FMath::Max(1, ItemData.MaxStack) > 1;
-	int32 RemainingQuantity = AllowedQuantity;
-
-	// Phase 1: Stack with existing entries
-	if (bIsStackable)
-	{
-		TArray<FInventoryAddHelper::FStackTarget> StackTargets;
-		RemainingQuantity = FInventoryAddHelper::CalculateStackTargets(
-			ObjectId, ItemData, AllowedQuantity, Inventory.Entries, ContainerStates, Callbacks, StackTargets);
-
-		// Apply stack targets to state
-		for (const FInventoryAddHelper::FStackTarget& Target : StackTargets)
-		{
-			if (FInventoryEntry* Entry = Inventory.FindEntry(Target.InstanceId))
-			{
-				Entry->Quantity += Target.Quantity;
-				Inventory.MarkEntryDirty(*Entry);
-				UE_LOG(LogProjectInventory, Log, TEXT("Stacked %d x %s (Total: %d)"),
-					Target.Quantity, *ItemData.DisplayName.ToString(), Entry->Quantity);
-			}
-		}
-	}
-
-	// Phase 2: Create new stacks one at a time
-	// Add entries immediately so FindFreeGridPos sees them for next iteration
-	while (RemainingQuantity > 0)
-	{
-		TArray<FInventoryAddHelper::FNewStackPlacement> Placements;
-		const int32 BeforeRemaining = RemainingQuantity;
-		RemainingQuantity = FInventoryAddHelper::CalculateNewPlacements(
-			ItemData, RemainingQuantity, ContainerStates, Callbacks, Placements);
-
-		if (Placements.Num() == 0)
-		{
-			break; // No more placements possible
-		}
-
-		// Add first placement immediately so next iteration sees it
-		const FInventoryAddHelper::FNewStackPlacement& Placement = Placements[0];
-		const int32 SlotIndex = ComputeSlotIndex(Placement.ContainerId, Placement.GridPos);
-		const uint32 InstanceId = Inventory.AddEntry(
-			ObjectId, Placement.Quantity, Placement.ContainerId, Placement.GridPos, Placement.bRotated, SlotIndex);
-		UE_LOG(LogProjectInventory, Log, TEXT("Placed %d x %s -> %s at (%d,%d) rot:%d (InstanceId: %d)"),
-			Placement.Quantity, *ItemData.DisplayName.ToString(), *Placement.ContainerId.ToString(),
-			Placement.GridPos.X, Placement.GridPos.Y, Placement.bRotated ? 1 : 0, InstanceId);
-
-		// Only process one placement per iteration to avoid overlaps
-		RemainingQuantity = BeforeRemaining - Placement.Quantity;
-	}
-
-	const int32 QuantityAdded = AllowedQuantity - RemainingQuantity;
-	if (RemainingQuantity > 0)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_AddItem: Could not add %d remaining items"), RemainingQuantity);
-	}
-	return QuantityAdded;
-}
-
-bool UProjectInventoryComponent::Internal_RemoveItem(uint32 InstanceId, int32 Quantity)
-{
-	FInventoryEntry* Entry = Inventory.FindEntry(InstanceId);
-	if (!Entry)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_RemoveItem: InstanceId %d not found"), InstanceId);
-		return false;
-	}
-
-	Entry->Quantity -= Quantity;
-	if (Entry->Quantity <= 0)
-	{
-		Inventory.RemoveEntry(InstanceId);
-	}
-	else
-	{
-		Inventory.MarkEntryDirty(*Entry);
-	}
-
-	return true;
-}
-
-bool UProjectInventoryComponent::Internal_MoveItem(uint32 InstanceId, FGameplayTag FromContainer, FIntPoint FromPos, FGameplayTag ToContainer, FIntPoint ToPos, int32 Quantity, bool bRotated)
-{
-	FInventoryEntry* Entry = Inventory.FindEntry(InstanceId);
-	if (!Entry)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: InstanceId %d not found"), InstanceId);
-		return false;
-	}
-
-	if (Quantity <= 0 || Quantity > Entry->Quantity)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Invalid quantity %d for InstanceId %d"), Quantity, InstanceId);
-		return false;
-	}
-
-	FGameplayTag CurrentContainerId;
-	FIntPoint CurrentPos;
-	bool bCurrentRotated = false;
-	if (!GetEffectiveEntryPlacement(*Entry, CurrentContainerId, CurrentPos, bCurrentRotated))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Invalid current placement for InstanceId %d"), InstanceId);
-		return false;
-	}
-
-	if (FromContainer.IsValid() && FromContainer != CurrentContainerId)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: FromContainer mismatch for InstanceId %d"), InstanceId);
-		return false;
-	}
-
-	if (FromPos.X >= 0 && FromPos.Y >= 0 && FromPos != CurrentPos)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: FromPos mismatch for InstanceId %d"), InstanceId);
-		return false;
-	}
-
-	FItemDataView ItemData;
-	if (!GetItemDataView(Entry->ItemId, ItemData))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Missing item data"));
-		return false;
-	}
-
-	FInventoryContainerConfig TargetContainer;
-	if (!GetContainerConfig(ToContainer, TargetContainer))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Invalid target container"));
-		return false;
-	}
-
-	if (!ContainerAllowsItem(TargetContainer, ItemData))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Item not allowed in target container"));
-		return false;
-	}
-
-	const int32 EffectiveMaxStack = GetEffectiveMaxStackForContainer(TargetContainer, ItemData);
-	if (Quantity > EffectiveMaxStack)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Quantity %d exceeds target stack/depth limit %d"), Quantity, EffectiveMaxStack);
-		return false;
-	}
-
-	const bool bTargetRotated = bRotated && TargetContainer.bAllowRotation;
-	const FIntPoint ItemSize = GetItemGridSize(ItemData, bTargetRotated);
-	const FIntPoint CurrentItemSize = GetItemGridSize(ItemData, bCurrentRotated);
-
-	if (!IsRectWithinContainer(TargetContainer, ToPos, ItemSize))
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Target position out of bounds"));
-		return false;
-	}
-
-	// SOLID: Delegated to FInventoryMoveHelper
-	if (Quantity < Entry->Quantity && CurrentContainerId == ToContainer)
-	{
-		if (FInventoryMoveHelper::CheckSelfOverlap(CurrentPos, CurrentItemSize, ToPos, ItemSize))
-		{
-			UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Target overlaps source when splitting"));
-			return false;
-		}
-	}
-
-	// No-op move
-	if (CurrentContainerId == ToContainer && CurrentPos == ToPos && bCurrentRotated == bTargetRotated && Quantity == Entry->Quantity)
-	{
-		return true;
-	}
-
-	TMap<FPrimaryAssetId, FItemDataView> ItemDataCache;
-	ItemDataCache.Add(Entry->ItemId, ItemData);
-
-	// Capacity check when moving across containers
-	if (CurrentContainerId != ToContainer)
-	{
-		if (TargetContainer.MaxWeight > 0.f && ItemData.Weight > 0.f)
-		{
-			const float TargetWeight = GetContainerCurrentWeight(ToContainer, ItemDataCache);
-			if (TargetWeight + (ItemData.Weight * Quantity) > TargetContainer.MaxWeight)
-			{
-				UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Target container weight exceeded"));
-				return false;
-			}
-		}
-
-		if (TargetContainer.MaxVolume > 0.f && ItemData.Volume > 0.f)
-		{
-			const float TargetVolume = GetContainerCurrentVolume(ToContainer, ItemDataCache);
-			if (TargetVolume + (ItemData.Volume * Quantity) > TargetContainer.MaxVolume)
-			{
-				UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Target container volume exceeded"));
-				return false;
-			}
-		}
-	}
-
-	// SOLID: Overlap detection delegated to FInventoryMoveHelper
-	FInventoryMoveHelper::FMoveCallbacks MoveCallbacks;
-	MoveCallbacks.GetEffectivePlacement = [this](const FInventoryEntry& E, FGameplayTag& C, FIntPoint& P, bool& R) {
-		return GetEffectiveEntryPlacement(E, C, P, R);
-	};
-	MoveCallbacks.GetItemDataView = [this](FPrimaryAssetId Id, FItemDataView& D) {
-		return GetItemDataView(Id, D);
-	};
-	MoveCallbacks.GetItemGridSize = [this](const FItemDataView& D, bool R) {
-		return GetItemGridSize(D, R);
-	};
-
-	const FInventoryMoveHelper::FOverlapResult OverlapResult = FInventoryMoveHelper::FindOverlapAtTarget(
-		Inventory.Entries, ToContainer, ToPos, ItemSize, InstanceId, MoveCallbacks);
-
-	if (OverlapResult.bMultipleOverlaps)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Multiple overlaps at target"));
-		return false;
-	}
-
-	FInventoryEntry* OverlapEntry = OverlapResult.bHasOverlap ? Inventory.FindEntry(OverlapResult.OverlapInstanceId) : nullptr;
-
-	// SOLID: Stack validation delegated to FInventoryMoveHelper
-	if (OverlapEntry)
-	{
-		if (!FInventoryMoveHelper::CanStackWith(*Entry, *OverlapEntry, EffectiveMaxStack, Quantity))
-		{
-			UE_LOG(LogProjectInventory, Warning, TEXT("Internal_MoveItem: Cannot stack at target"));
-			return false;
-		}
-
-		OverlapEntry->Quantity += Quantity;
-		Inventory.MarkEntryDirty(*OverlapEntry);
-
-		if (Quantity >= Entry->Quantity)
-		{
-			Inventory.RemoveEntry(InstanceId);
-		}
-		else
-		{
-			Entry->Quantity -= Quantity;
-			Inventory.MarkEntryDirty(*Entry);
-		}
-
-		return true;
-	}
-
-	if (Quantity < Entry->Quantity)
-	{
-		// Split stack into new entry
-		const int32 SlotIndex = ComputeSlotIndex(ToContainer, ToPos);
-		const uint32 NewInstanceId = Inventory.AddEntry(Entry->ItemId, Quantity, ToContainer, ToPos, bTargetRotated, SlotIndex);
-		FInventoryEntry* NewEntry = Inventory.FindEntry(NewInstanceId);
-		if (NewEntry)
-		{
-			NewEntry->InstanceData = Entry->InstanceData;
-			NewEntry->OverrideMagnitudes = Entry->OverrideMagnitudes;
-			Inventory.MarkEntryDirty(*NewEntry);
-		}
-
-		Entry->Quantity -= Quantity;
-		Inventory.MarkEntryDirty(*Entry);
-		return true;
-	}
-
-	// Move entire entry
-	Entry->ContainerId = ToContainer;
-	Entry->GridPos = ToPos;
-	Entry->bRotated = bTargetRotated;
-	Entry->SlotIndex = ComputeSlotIndex(ToContainer, ToPos);
-	Inventory.MarkEntryDirty(*Entry);
-	return true;
-}
-
+//
+// Returns detailed outcome (FInventoryAddOutcome) so callers can distinguish:
+//   - authoritative add success (AddedQuantity > 0)
+//   - deferred async load  (bDeferred, retry on callback)
+//   - terminal failure     (Fail != None, show toast; do not retry)
+//
+// Consumed by: FInventoryInteractionHandler (via TryAddItemDetailed), which
+// owns the pending-pickup map and defers Consume() until an authoritative add
+// lands. Legacy int32 callers (Server_AddItem, AddItemsBatch, TryAddItem) only
+// read outcome.AddedQuantity.
 bool UProjectInventoryComponent::Internal_UseItem(uint32 InstanceId)
 {
 	FInventoryEntry* Entry = Inventory.FindEntry(InstanceId);
@@ -2935,9 +1392,10 @@ bool UProjectInventoryComponent::Internal_UseItem(uint32 InstanceId)
 	}
 
 	FItemDataView ItemData;
-	if (!GetItemDataView(Entry->ItemId, ItemData))
+	const EInventoryItemDataResolveState ResolveState = ResolveItemDataView(Entry->ItemId, ItemData);
+	if (ResolveState != EInventoryItemDataResolveState::Loaded)
 	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_UseItem: Missing item data"));
+		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_UseItem: Item data unavailable (%s)"), LexToString(ResolveState));
 		return false;
 	}
 
@@ -3003,9 +1461,15 @@ bool UProjectInventoryComponent::Internal_EquipItem(uint32 InstanceId, FGameplay
 	}
 
 	FItemDataView ItemData;
-	if (!GetItemDataView(Entry->ItemId, ItemData) || !ItemData.IsEquipment())
+	const EInventoryItemDataResolveState ResolveState = ResolveItemDataView(Entry->ItemId, ItemData);
+	if (ResolveState != EInventoryItemDataResolveState::Loaded || !ItemData.IsEquipment())
 	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_EquipItem: Item is not equipment"));
+		UE_LOG(
+			LogProjectInventory,
+			Warning,
+			TEXT("Internal_EquipItem: Item is not equipment (state=%s, ItemId=%s)"),
+			LexToString(ResolveState),
+			*Entry->ItemId.ToString());
 		return false;
 	}
 
@@ -3122,12 +1586,22 @@ bool UProjectInventoryComponent::Internal_UnequipItem(FGameplayTag EquipSlot)
 		}
 	}
 
+	// Hand grants are destinations for the unequipped item, not storage
+	// extensions that lose their home when the source is removed. Their
+	// occupancy is handled below by the free-hand-cell search.
 	for (const FGameplayTag& ContainerId : GrantedContainerIds)
 	{
+		if (IsHandDestinationContainer(ContainerId))
+		{
+			continue;
+		}
 		if (!IsContainerEmpty(ContainerId))
 		{
-			UE_LOG(LogProjectInventory, Warning, TEXT("Internal_UnequipItem: Container not empty for slot %s"), *EquipSlot.ToString());
-			BroadcastError(NSLOCTEXT("Inventory", "UnequipBlocked", "Cannot unequip - pockets not empty"));
+			UE_LOG(LogProjectInventory, Warning,
+				TEXT("Internal_UnequipItem: granted storage %s not empty, blocking unequip of slot %s"),
+				*ContainerId.ToString(), *EquipSlot.ToString());
+			BroadcastError(NSLOCTEXT("Inventory", "UnequipBlockedByStorage",
+				"Cannot unequip - empty the equipped item's storage first"));
 			return false;
 		}
 	}
@@ -3156,7 +1630,7 @@ bool UProjectInventoryComponent::Internal_UnequipItem(FGameplayTag EquipSlot)
 	if (!TargetHand.IsValid())
 	{
 		UE_LOG(LogProjectInventory, Warning, TEXT("Internal_UnequipItem: No free hand space, cannot unequip slot %s"), *EquipSlot.ToString());
-		BroadcastError(NSLOCTEXT("Inventory", "UnequipHandsFull", "Cannot unequip - hands full"));
+		BroadcastError(NSLOCTEXT("Inventory", "UnequipNoSpace", "Cannot unequip - no space to stow the item"));
 		return false;
 	}
 
@@ -3187,442 +1661,3 @@ UAbilitySystemComponent* UProjectInventoryComponent::GetOwnerASC() const
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
 }
 
-void UProjectInventoryComponent::GetEffectiveContainers(TArray<FInventoryContainerConfig>& OutContainers) const
-{
-	OutContainers.Reset();
-
-	if (bIncludeConfiguredContainersAsBase && Containers.Num() > 0)
-	{
-		OutContainers = Containers;
-	}
-	else
-	{
-		// Vision SOT: naked baseline is hands only.
-		// Represent hands as two real 2x2 containers so small items can share a hand grid.
-		const FGameplayTag EffectiveDefaultContainerId = GetDefaultContainerId();
-		if (EffectiveDefaultContainerId == ProjectTags::Item_Container_LeftHand
-			|| EffectiveDefaultContainerId == ProjectTags::Item_Container_RightHand
-			|| EffectiveDefaultContainerId == ProjectTags::Item_Container_Hands)
-		{
-			auto AddHandContainer = [&OutContainers](const FGameplayTag& ContainerId)
-			{
-				FInventoryContainerConfig HandContainer;
-				HandContainer.ContainerId = ContainerId;
-				HandContainer.GridSize = FIntPoint(2, 2);
-				HandContainer.MaxCells = 4;
-				HandContainer.CellDepthUnits = 4;
-				HandContainer.bWidthOnlyValidation = true;
-				OutContainers.Add(HandContainer);
-			};
-
-			AddHandContainer(ProjectTags::Item_Container_LeftHand);
-			AddHandContainer(ProjectTags::Item_Container_RightHand);
-		}
-		else
-		{
-			FInventoryContainerConfig DefaultContainer;
-			DefaultContainer.ContainerId = EffectiveDefaultContainerId;
-			DefaultContainer.MaxWeight = MaxWeight;
-			DefaultContainer.MaxVolume = MaxVolume;
-			DefaultContainer.MaxCells = MaxSlots;
-
-			int32 Width = FMath::Max(1, DefaultContainerGridWidth);
-			if (MaxSlots > 0)
-			{
-				Width = FMath::Min(Width, MaxSlots);
-			}
-			const int32 Height = (Width > 0) ? FMath::DivideAndRoundUp(MaxSlots, Width) : 0;
-			DefaultContainer.GridSize = FIntPoint(Width, Height);
-			OutContainers.Add(DefaultContainer);
-		}
-	}
-
-	for (const auto& Pair : EquippedItems)
-	{
-		const uint32 InstanceId = Pair.Value.InstanceId;
-		if (const FInventoryEntry* Entry = Inventory.FindEntry(InstanceId))
-		{
-			FItemDataView ItemData;
-			if (GetItemDataView(Entry->ItemId, ItemData) && ItemData.ContainerGrants.Num() > 0)
-			{
-				// Item-driven grants are the primary source of container expansion.
-				// This keeps pocket/backpack sizes attached to the item definition.
-				for (const FInventoryContainerGrantView& Grant : ItemData.ContainerGrants)
-				{
-					if (!Grant.ContainerId.IsValid())
-					{
-						continue;
-					}
-					UpsertContainerConfig(BuildContainerConfigFromGrant(Grant), OutContainers);
-				}
-				continue;
-			}
-		}
-
-		TArray<FInventoryContainerConfig> SlotGrants;
-		if (GetEquipSlotContainerGrants(Pair.Key, SlotGrants))
-		{
-			for (const FInventoryContainerConfig& GrantConfig : SlotGrants)
-			{
-				if (GrantConfig.ContainerId.IsValid())
-				{
-					UpsertContainerConfig(GrantConfig, OutContainers);
-				}
-			}
-		}
-	}
-}
-
-bool UProjectInventoryComponent::GetContainerConfig(FGameplayTag ContainerId, FInventoryContainerConfig& OutConfig) const
-{
-	if (!ContainerId.IsValid())
-	{
-		return false;
-	}
-
-	TArray<FInventoryContainerConfig> EffectiveContainers;
-	GetEffectiveContainers(EffectiveContainers);
-
-	for (const FInventoryContainerConfig& Container : EffectiveContainers)
-	{
-		if (Container.ContainerId == ContainerId)
-		{
-			OutConfig = Container;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-FGameplayTag UProjectInventoryComponent::GetDefaultContainerId() const
-{
-	if (!DefaultContainerId.IsValid() || DefaultContainerId == ProjectTags::Item_Container_Hands)
-	{
-		return ProjectTags::Item_Container_LeftHand;
-	}
-
-	return DefaultContainerId;
-}
-
-// SOLID: Delegated to FInventoryContainerHelper
-int32 UProjectInventoryComponent::GetContainerIndex(FGameplayTag ContainerId, const TArray<FInventoryContainerConfig>& ContainersList) const
-{
-	return FInventoryContainerHelper::GetContainerIndex(ContainerId, ContainersList);
-}
-
-int32 UProjectInventoryComponent::GetContainerSlotOffset(FGameplayTag ContainerId, const TArray<FInventoryContainerConfig>& ContainersList) const
-{
-	return FInventoryContainerHelper::GetContainerSlotOffset(ContainerId, ContainersList);
-}
-
-int32 UProjectInventoryComponent::GetContainerCellCount(const FInventoryContainerConfig& Container) const
-{
-	return FInventoryContainerHelper::GetContainerCellCount(Container);
-}
-
-int32 UProjectInventoryComponent::ComputeSlotIndex(FGameplayTag ContainerId, FIntPoint GridPos) const
-{
-	TArray<FInventoryContainerConfig> EffectiveContainers;
-	GetEffectiveContainers(EffectiveContainers);
-	return FInventoryContainerHelper::ComputeSlotIndex(ContainerId, GridPos, EffectiveContainers);
-}
-
-bool UProjectInventoryComponent::TryGetGridPosFromSlot(FGameplayTag ContainerId, int32 SlotIndex, FIntPoint& OutGridPos) const
-{
-	TArray<FInventoryContainerConfig> EffectiveContainers;
-	GetEffectiveContainers(EffectiveContainers);
-	return FInventoryContainerHelper::TryGetGridPosFromSlot(ContainerId, SlotIndex, EffectiveContainers, OutGridPos);
-}
-
-// SOLID: Delegated to FInventoryGridPlacement
-FIntPoint UProjectInventoryComponent::SanitizeGridSize(FIntPoint InSize) const
-{
-	return FInventoryGridPlacement::SanitizeGridSize(InSize);
-}
-
-FIntPoint UProjectInventoryComponent::GetItemGridSize(const FItemDataView& ItemData, bool bRotated) const
-{
-	return FInventoryGridPlacement::GetItemGridSize(ItemData.GridSize, bRotated);
-}
-
-int32 UProjectInventoryComponent::GetContainerCellDepthUnits(const FInventoryContainerConfig& Container) const
-{
-	return FMath::Max(1, Container.CellDepthUnits);
-}
-
-int32 UProjectInventoryComponent::GetEffectiveMaxStackForContainer(
-	const FInventoryContainerConfig& Container,
-	const FItemDataView& ItemData) const
-{
-	return FInventoryStackRules::CalculateMaxStackForContainer(ItemData, GetContainerCellDepthUnits(Container));
-}
-
-FInventoryContainerConfig UProjectInventoryComponent::BuildContainerConfigFromGrant(const FInventoryContainerGrantView& Grant) const
-{
-	FInventoryContainerConfig Config;
-	Config.ContainerId = Grant.ContainerId;
-	Config.MaxWeight = Grant.MaxWeight;
-	Config.MaxVolume = Grant.MaxVolume;
-	Config.MaxCells = Grant.MaxCells;
-	Config.CellDepthUnits = FMath::Max(1, Grant.CellDepthUnits);
-	Config.AllowedTags = Grant.AllowedTags;
-	Config.bAllowRotation = Grant.bAllowRotation;
-
-	if (Grant.GridSize.X > 0 && Grant.GridSize.Y > 0)
-	{
-		Config.GridSize = SanitizeGridSize(Grant.GridSize);
-	}
-	else if (Grant.MaxCells > 0)
-	{
-		int32 Width = FMath::Max(1, DefaultContainerGridWidth);
-		Width = FMath::Min(Width, Grant.MaxCells);
-		const int32 Height = FMath::DivideAndRoundUp(Grant.MaxCells, Width);
-		Config.GridSize = FIntPoint(Width, Height);
-	}
-	else
-	{
-		Config.GridSize = FIntPoint(1, 1);
-	}
-
-	return Config;
-}
-
-// SOLID: Delegated to FInventoryContainerHelper
-void UProjectInventoryComponent::UpsertContainerConfig(const FInventoryContainerConfig& GrantConfig, TArray<FInventoryContainerConfig>& OutContainers) const
-{
-	FInventoryContainerHelper::UpsertContainerConfig(GrantConfig, OutContainers);
-}
-
-// SOLID: Delegated to FInventoryGridPlacement
-bool UProjectInventoryComponent::IsRectWithinContainer(const FInventoryContainerConfig& Container, FIntPoint GridPos, FIntPoint ItemSize) const
-{
-	return FInventoryGridPlacement::IsRectWithinContainer(Container, GridPos, ItemSize);
-}
-
-bool UProjectInventoryComponent::DoesRectOverlap(FGameplayTag ContainerId, FIntPoint GridPos, FIntPoint ItemSize, int32 IgnoreInstanceId) const
-{
-	// Check container config for special handling.
-	FInventoryContainerConfig ContainerConfig;
-	const bool bHasConfig = GetContainerConfig(ContainerId, ContainerConfig);
-	const bool bSlotBased = bHasConfig && ContainerConfig.bSlotBased;
-
-	// SOLID: Use helper for size clamping (width-only containers)
-	const FIntPoint EffectiveItemSize = bHasConfig
-		? FInventoryGridPlacement::ClampSizeForContainer(ContainerConfig, ItemSize)
-		: ItemSize;
-
-	for (const FInventoryEntry& Entry : Inventory.Entries)
-	{
-		if (Entry.InstanceId == IgnoreInstanceId)
-		{
-			continue;
-		}
-
-		FGameplayTag EntryContainerId;
-		FIntPoint EntryPos;
-		bool bEntryRotated = false;
-		if (!GetEffectiveEntryPlacement(Entry, EntryContainerId, EntryPos, bEntryRotated))
-		{
-			continue;
-		}
-
-		if (EntryContainerId != ContainerId)
-		{
-			continue;
-		}
-
-		// Slot-based: items overlap only if same slot index (GridPos.X).
-		if (bSlotBased)
-		{
-			if (GridPos.X == EntryPos.X)
-			{
-				return true;
-			}
-			continue;
-		}
-
-		// Grid-based: AABB intersection test.
-		FItemDataView EntryData;
-		if (!GetItemDataView(Entry.ItemId, EntryData))
-		{
-			continue;
-		}
-
-		FIntPoint EntrySize = GetItemGridSize(EntryData, bEntryRotated);
-		// SOLID: Clamp entry size for width-only containers
-		if (bHasConfig)
-		{
-			EntrySize = FInventoryGridPlacement::ClampSizeForContainer(ContainerConfig, EntrySize);
-		}
-
-		// SOLID: Use helper for AABB test
-		if (FInventoryGridPlacement::DoRectsOverlap(GridPos, EffectiveItemSize, EntryPos, EntrySize))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-// SOLID: Uses FInventoryGridPlacement with occupancy callback
-bool UProjectInventoryComponent::FindFreeGridPos(const FInventoryContainerConfig& Container, FIntPoint ItemSize, int32 IgnoreInstanceId, FIntPoint& OutPos) const
-{
-	// Slot-based: log warning if no slot count defined
-	if (Container.bSlotBased && Container.MaxCells <= 0 && Container.GridSize.X <= 0)
-	{
-		UE_LOG(LogProjectInventory, Warning, TEXT("FindFreeGridPos: Slot-based container '%s' has no MaxCells or GridSize.X"),
-			*Container.ContainerId.ToString());
-		return false;
-	}
-
-	// Use helper with occupancy callback that checks our inventory state
-	return FInventoryGridPlacement::FindFreeGridPos(
-		Container,
-		ItemSize,
-		[this, &Container, IgnoreInstanceId](FIntPoint TestPos, FIntPoint TestSize) {
-			return DoesRectOverlap(Container.ContainerId, TestPos, TestSize, IgnoreInstanceId);
-		},
-		OutPos);
-}
-
-bool UProjectInventoryComponent::GetEffectiveEntryPlacement(const FInventoryEntry& Entry, FGameplayTag& OutContainerId, FIntPoint& OutGridPos, bool& bOutRotated) const
-{
-	// Equipped items have no grid placement (ContainerId cleared, GridPos = -1,-1)
-	if (!Entry.ContainerId.IsValid() && Entry.GridPos == FIntPoint(-1, -1))
-	{
-		return false;
-	}
-
-	OutContainerId = Entry.ContainerId.IsValid() ? Entry.ContainerId : GetDefaultContainerId();
-	OutGridPos = Entry.GridPos;
-	bOutRotated = Entry.bRotated;
-
-	if (OutGridPos.X >= 0 && OutGridPos.Y >= 0)
-	{
-		return true;
-	}
-
-	if (Entry.SlotIndex >= 0)
-	{
-		return TryGetGridPosFromSlot(OutContainerId, Entry.SlotIndex, OutGridPos);
-	}
-
-	return false;
-}
-
-// SOLID: Delegated to FInventoryWeightHelper
-float UProjectInventoryComponent::GetContainerCurrentWeight(FGameplayTag ContainerId, TMap<FPrimaryAssetId, FItemDataView>& ItemDataCache) const
-{
-	FInventoryWeightHelper::FWeightCallbacks Callbacks;
-	Callbacks.GetEffectivePlacement = [this](const FInventoryEntry& E, FGameplayTag& C, FIntPoint& P, bool& R) {
-		return GetEffectiveEntryPlacement(E, C, P, R);
-	};
-	Callbacks.GetItemDataView = [this](FPrimaryAssetId Id, FItemDataView& D) {
-		return GetItemDataView(Id, D);
-	};
-	return FInventoryWeightHelper::CalculateContainerWeight(Inventory.Entries, ContainerId, ItemDataCache, Callbacks);
-}
-
-// SOLID: Delegated to FInventoryWeightHelper
-float UProjectInventoryComponent::GetContainerCurrentVolume(FGameplayTag ContainerId, TMap<FPrimaryAssetId, FItemDataView>& ItemDataCache) const
-{
-	FInventoryWeightHelper::FWeightCallbacks Callbacks;
-	Callbacks.GetEffectivePlacement = [this](const FInventoryEntry& E, FGameplayTag& C, FIntPoint& P, bool& R) {
-		return GetEffectiveEntryPlacement(E, C, P, R);
-	};
-	Callbacks.GetItemDataView = [this](FPrimaryAssetId Id, FItemDataView& D) {
-		return GetItemDataView(Id, D);
-	};
-	return FInventoryWeightHelper::CalculateContainerVolume(Inventory.Entries, ContainerId, ItemDataCache, Callbacks);
-}
-
-bool UProjectInventoryComponent::ContainerAllowsItem(const FInventoryContainerConfig& Container, const FItemDataView& ItemData) const
-{
-	if (Container.AllowedTags.Num() == 0)
-	{
-		return true;
-	}
-
-	return ItemData.Tags.HasAny(Container.AllowedTags);
-}
-
-bool UProjectInventoryComponent::GetContainerOrder(TArray<FInventoryContainerConfig>& OutContainers) const
-{
-	GetEffectiveContainers(OutContainers);
-	if (OutContainers.Num() == 0)
-	{
-		return false;
-	}
-
-	// Sort by placement priority: Backpack > Jacket pockets > Pants pockets > Hands
-	// Lower value = higher priority (tried first for auto-placement)
-	auto GetContainerPriority = [](const FGameplayTag& ContainerId) -> int32
-	{
-		if (ContainerId == ProjectTags::Item_Container_Backpack) return 0;
-		if (ContainerId == ProjectTags::Item_Container_Pockets3) return 1;
-		if (ContainerId == ProjectTags::Item_Container_Pockets4) return 2;
-		if (ContainerId == ProjectTags::Item_Container_Pockets1) return 3;
-		if (ContainerId == ProjectTags::Item_Container_Pockets2) return 4;
-		if (ContainerId == ProjectTags::Item_Container_LeftHand) return 10;
-		if (ContainerId == ProjectTags::Item_Container_RightHand) return 11;
-		if (ContainerId == ProjectTags::Item_Container_Hands) return 12;
-		return 5; // Unknown containers between pockets and hands
-	};
-
-	OutContainers.Sort([&GetContainerPriority](const FInventoryContainerConfig& A, const FInventoryContainerConfig& B)
-	{
-		return GetContainerPriority(A.ContainerId) < GetContainerPriority(B.ContainerId);
-	});
-
-	UE_LOG(LogProjectInventory, Verbose, TEXT("GetContainerOrder: %d containers sorted:"), OutContainers.Num());
-	for (int32 i = 0; i < OutContainers.Num(); ++i)
-	{
-		UE_LOG(LogProjectInventory, Verbose, TEXT("  [%d] %s (%dx%d)"),
-			i, *OutContainers[i].ContainerId.ToString(), OutContainers[i].GridSize.X, OutContainers[i].GridSize.Y);
-	}
-
-	return true;
-}
-
-bool UProjectInventoryComponent::GetEquipSlotContainerGrants(FGameplayTag EquipSlot, TArray<FInventoryContainerConfig>& OutConfigs) const
-{
-	OutConfigs.Reset();
-
-	for (const FEquipSlotContainerGrant& Grant : EquipSlotContainerGrants)
-	{
-		if (Grant.EquipSlot == EquipSlot)
-		{
-			OutConfigs.Add(Grant.Container);
-		}
-	}
-
-	return OutConfigs.Num() > 0;
-}
-
-bool UProjectInventoryComponent::IsContainerEmpty(FGameplayTag ContainerId) const
-{
-	if (!ContainerId.IsValid())
-	{
-		return true;
-	}
-
-	for (const FInventoryEntry& Entry : Inventory.Entries)
-	{
-		FGameplayTag EntryContainerId;
-		FIntPoint EntryPos;
-		bool bEntryRotated = false;
-		if (!GetEffectiveEntryPlacement(Entry, EntryContainerId, EntryPos, bEntryRotated))
-		{
-			continue;
-		}
-
-		if (EntryContainerId == ContainerId)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}

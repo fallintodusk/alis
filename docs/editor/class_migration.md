@@ -1,5 +1,7 @@
 # Moving UCLASS Between Modules
 
+> See also: [docs/agents/canonical.md](../agents/canonical.md) for agent/dev quick reference.
+
 When a UCLASS moves from one module to another, placed actors in levels have the old `/Script/OldModule.ClassName` path serialized. UE cannot find the class at the old path and falls back to `AActor` (losing all components and data).
 
 ---

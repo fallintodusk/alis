@@ -25,7 +25,9 @@ __pycache__
 # --- agentic ---
 .langgraph_api
 .mcp.json
+.claude/settings.json
 .claude/settings.local.json
+.claude/settings.local.json.backup
 scripts/config/tools.conf
 
 # --- tmp / logs ---
@@ -148,6 +150,9 @@ nul
 # --- CI overnight artifacts (circuit breaker state, logs, metrics) ---
 artifacts/overnight/
 scripts/ue/artifacts/overnight/
+
+# --- Persistent-editor test harness runtime state (PID, ready marker, IPC command file, rolling log) ---
+scripts/ue/artifacts/persistent/
 /Releases
 .vsconfig
 Alis.code-workspace.backup

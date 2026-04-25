@@ -51,6 +51,56 @@ bool FProjectUIHoverTooltipPresenter::IsVisible() const
     return TooltipWidget && TooltipWidget->GetVisibility() != ESlateVisibility::Collapsed;
 }
 
+FVector2D FProjectUIHoverTooltipPresenter::ResolveViewportSize() const
+{
+    FVector2D ViewportSize(1920.f, 1080.f);
+    if (GEngine && GEngine->GameViewport)
+    {
+        GEngine->GameViewport->GetViewportSize(ViewportSize);
+    }
+    return ViewportSize;
+}
+
+FVector2D FProjectUIHoverTooltipPresenter::ResolveTooltipSize() const
+{
+    if (!TooltipWidget)
+    {
+        return FVector2D(220.f, 120.f);
+    }
+
+    TooltipWidget->ForceLayoutPrepass();
+    FVector2D TooltipSize = TooltipWidget->GetDesiredSize();
+    if (TooltipSize.IsNearlyZero())
+    {
+        TooltipSize = FVector2D(220.f, 120.f);
+    }
+    return TooltipSize;
+}
+
+FVector2D FProjectUIHoverTooltipPresenter::ClampTooltipPosition(
+    const FVector2D& Position,
+    const FVector2D& TooltipSize,
+    const FVector2D& ViewportSize,
+    float MinMargin)
+{
+    const float MaxX = FMath::Max(MinMargin, ViewportSize.X - TooltipSize.X - MinMargin);
+    const float MaxY = FMath::Max(MinMargin, ViewportSize.Y - TooltipSize.Y - MinMargin);
+    return FVector2D(
+        FMath::Clamp(Position.X, MinMargin, MaxX),
+        FMath::Clamp(Position.Y, MinMargin, MaxY));
+}
+
+void FProjectUIHoverTooltipPresenter::ApplyPosition(const FVector2D& Position)
+{
+    if (TooltipWidget)
+    {
+        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(TooltipWidget->Slot))
+        {
+            Slot->SetPosition(Position);
+        }
+    }
+}
+
 void FProjectUIHoverTooltipPresenter::PositionNearCursor(
     const FVector2D& ViewportPos,
     const FVector2D& CursorOffset,
@@ -61,18 +111,8 @@ void FProjectUIHoverTooltipPresenter::PositionNearCursor(
         return;
     }
 
-    FVector2D ViewportSize(1920.f, 1080.f);
-    if (GEngine && GEngine->GameViewport)
-    {
-        GEngine->GameViewport->GetViewportSize(ViewportSize);
-    }
-
-    TooltipWidget->ForceLayoutPrepass();
-    FVector2D TooltipSize = TooltipWidget->GetDesiredSize();
-    if (TooltipSize.IsNearlyZero())
-    {
-        TooltipSize = FVector2D(220.f, 120.f);
-    }
+    const FVector2D ViewportSize = ResolveViewportSize();
+    const FVector2D TooltipSize = ResolveTooltipSize();
 
     FVector2D FinalPos = ViewportPos + CursorOffset;
 
@@ -85,13 +125,23 @@ void FProjectUIHoverTooltipPresenter::PositionNearCursor(
         FinalPos.Y = ViewportPos.Y - TooltipSize.Y - 8.f;
     }
 
-    const float MaxX = FMath::Max(MinMargin, ViewportSize.X - TooltipSize.X - MinMargin);
-    const float MaxY = FMath::Max(MinMargin, ViewportSize.Y - TooltipSize.Y - MinMargin);
-    FinalPos.X = FMath::Clamp(FinalPos.X, MinMargin, MaxX);
-    FinalPos.Y = FMath::Clamp(FinalPos.Y, MinMargin, MaxY);
+    ApplyPosition(ClampTooltipPosition(FinalPos, TooltipSize, ViewportSize, MinMargin));
+}
 
-    if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(TooltipWidget->Slot))
+void FProjectUIHoverTooltipPresenter::PositionAtAnchor(
+    const FVector2D& AnchorViewportPos,
+    const FVector2D& Pivot,
+    const FVector2D& AnchorOffset,
+    float MinMargin)
+{
+    if (!TooltipWidget)
     {
-        Slot->SetPosition(FinalPos);
+        return;
     }
+
+    const FVector2D TooltipSize = ResolveTooltipSize();
+    const FVector2D ViewportSize = ResolveViewportSize();
+    const FVector2D PivotOffset(TooltipSize.X * Pivot.X, TooltipSize.Y * Pivot.Y);
+    const FVector2D FinalPos = AnchorViewportPos + AnchorOffset - PivotOffset;
+    ApplyPosition(ClampTooltipPosition(FinalPos, TooltipSize, ViewportSize, MinMargin));
 }

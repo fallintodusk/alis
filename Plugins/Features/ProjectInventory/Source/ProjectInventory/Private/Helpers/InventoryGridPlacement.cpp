@@ -2,6 +2,7 @@
 
 #include "Helpers/InventoryGridPlacement.h"
 #include "Types/InventoryContainerConfig.h"
+#include "Geometry/InventoryGridGeometry.h"
 
 FIntPoint FInventoryGridPlacement::SanitizeGridSize(FIntPoint InSize)
 {
@@ -85,10 +86,7 @@ bool FInventoryGridPlacement::DoRectsOverlap(
     FIntPoint Pos1, FIntPoint Size1,
     FIntPoint Pos2, FIntPoint Size2)
 {
-    return Pos1.X < (Pos2.X + Size2.X) &&
-           (Pos1.X + Size1.X) > Pos2.X &&
-           Pos1.Y < (Pos2.Y + Size2.Y) &&
-           (Pos1.Y + Size1.Y) > Pos2.Y;
+    return FInventoryGridGeometry::DoRectsOverlap(Pos1, Size1, Pos2, Size2);
 }
 
 FIntPoint FInventoryGridPlacement::ClampSizeForContainer(

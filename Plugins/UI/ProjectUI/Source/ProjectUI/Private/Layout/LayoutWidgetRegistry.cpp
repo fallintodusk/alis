@@ -127,7 +127,17 @@ namespace LayoutWidgetRegistry
 			return *Preset;
 		}
 
-		UE_LOG(LogLayoutRegistry, Warning, TEXT("Unknown anchor preset: %s, using TopLeft"), *AnchorName);
+		// Loud failure: silent TopLeft fallback hid a JSON typo that placed
+		// the nearby loot panel at the editor toolbar instead of CenterRight.
+		// Build the canonical key list once so authors see exactly what is
+		// supported, alongside the typo they wrote.
+		TArray<FString> ValidPresets;
+		AnchorPresets.GetKeys(ValidPresets);
+		ValidPresets.Sort();
+		UE_LOG(LogLayoutRegistry, Error,
+			TEXT("Unknown anchor preset '%s'. Valid: [%s]. Falling back to TopLeft - "
+			     "fix the data file; this fallback exists only to keep the editor open."),
+			*AnchorName, *FString::Join(ValidPresets, TEXT(", ")));
 		return FAnchors(0.0f, 0.0f);
 	}
 

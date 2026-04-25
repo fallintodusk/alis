@@ -156,7 +156,7 @@ struct FVitalsConfig
  * Reads Data/vitals_config.json via FProjectPaths, parses once, caches result.
  * Falls back to struct defaults if file is missing or malformed.
  */
-class PROJECTVITALS_API FVitalsConfigLoader
+class PROJECTCORE_API FVitalsConfigLoader
 {
 public:
 	// Cached singleton access (parses on first call)

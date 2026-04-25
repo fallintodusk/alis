@@ -44,6 +44,17 @@ public:
         const FVector2D& CursorOffset = FVector2D(16.f, 16.f),
         float MinMargin = 4.f);
 
+    /**
+     * Position tooltip from an anchor point with an explicit pivot.
+     * Example: Pivot=(0.5,1.0) places the bottom center of the tooltip at
+     * AnchorViewportPos + AnchorOffset, suitable for above-cell hover cards.
+     */
+    void PositionAtAnchor(
+        const FVector2D& AnchorViewportPos,
+        const FVector2D& Pivot = FVector2D(0.5f, 1.0f),
+        const FVector2D& AnchorOffset = FVector2D::ZeroVector,
+        float MinMargin = 4.f);
+
     /** Access tooltip widget as typed class. */
     template<typename TWidget>
     TWidget* GetTooltipWidget() const
@@ -52,6 +63,15 @@ public:
     }
 
 private:
+    FVector2D ResolveViewportSize() const;
+    FVector2D ResolveTooltipSize() const;
+    static FVector2D ClampTooltipPosition(
+        const FVector2D& Position,
+        const FVector2D& TooltipSize,
+        const FVector2D& ViewportSize,
+        float MinMargin);
+    void ApplyPosition(const FVector2D& Position);
+
     UUserWidget* TooltipWidget = nullptr;
     UCanvasPanel* Canvas = nullptr;
 };

@@ -18,5 +18,8 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 call "%SCRIPT_DIR%gameplay\projectmind\validate_data.bat"
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
+call "%SCRIPT_DIR%config\validate_shipping_ini.bat"
+if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+
 echo [OK] All fast project validations passed
 exit /b 0

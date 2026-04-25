@@ -6,6 +6,64 @@ Setup (one-time per clone):
 """
 import os, re, subprocess, sys
 
+
+_resolved_python_cache = None
+
+
+def resolve_python():
+    """Pick a Python that has our deps (jsonschema) installed.
+
+    VS Code / GitHub Desktop / some Windows git UIs invoke the hook via a
+    Python that lacks project deps. Prefer (in order): the interpreter
+    currently running this hook (if jsonschema is importable), UE's
+    bundled Python, then a `python`/`python3`/`py` on PATH. Failing all
+    that, return sys.executable and let the subprocess report the error.
+
+    Memoized at module scope - probing up to 5 candidates per call and
+    spawning a subprocess each time is wasted work when the hook fires
+    two validators back-to-back.
+    """
+    global _resolved_python_cache
+    if _resolved_python_cache is not None:
+        return _resolved_python_cache
+
+    def has_jsonschema(exe):
+        try:
+            r = subprocess.run(
+                [exe, "-c", "import jsonschema"],
+                capture_output=True, text=True, timeout=10,
+            )
+            return r.returncode == 0
+        except Exception:
+            return False
+
+    candidates = [sys.executable]
+    # UE bundled Python (Windows) — scripts/config/ue_path.conf is the SOT,
+    # but a hook can't read that without re-implementing shell parsing; try
+    # the common install roots instead.
+    for ue_root in (
+        os.environ.get("UE_PATH"),
+        r"C:\UnrealEngine\UE_5.7",
+        r"C:\Program Files\Epic Games\UE_5.7",
+    ):
+        if ue_root:
+            ue_py = os.path.join(
+                ue_root, "Engine", "Binaries", "ThirdParty",
+                "Python3", "Win64", "python.exe",
+            )
+            if os.path.exists(ue_py):
+                candidates.append(ue_py)
+    # Fall back to PATH.
+    for name in ("python", "python3", "py"):
+        candidates.append(name)
+
+    for c in candidates:
+        if has_jsonschema(c):
+            _resolved_python_cache = c
+            return c
+    _resolved_python_cache = sys.executable  # let the failure surface
+    return _resolved_python_cache
+
 # ---------------------------------------------------------------------------
 # 1. Windows reserved-name and path checks
 # ---------------------------------------------------------------------------
@@ -63,7 +121,7 @@ if needs_mind_check:
     )
     if os.path.exists(validator):
         result = subprocess.run(
-            [sys.executable, validator],
+            [resolve_python(), validator],
             capture_output=True,
             text=True,
         )
@@ -79,9 +137,12 @@ if needs_mind_check:
 OBJECT_DATA_PATTERN = re.compile(
     r"Plugins/Resources/ProjectObject/(Content|Data)/.*\.json$"
 )
+# Any data JSON (or schema file) staged triggers the inline $schema check.
+PLUGIN_DATA_JSON_PATTERN = re.compile(r"^Plugins/[^/]+/[^/]+/Data/.+\.json$")
 
 needs_object_ref_check = any(
-    OBJECT_DATA_PATTERN.search(p) for p in staged
+    OBJECT_DATA_PATTERN.search(p) or PLUGIN_DATA_JSON_PATTERN.search(p)
+    for p in staged
 )
 
 if needs_object_ref_check:
@@ -91,15 +152,19 @@ if needs_object_ref_check:
         "scripts", "ue", "check", "data", "validate_all.py",
     )
     if os.path.exists(data_validator):
+        py = resolve_python()
         result = subprocess.run(
-            [sys.executable, data_validator],
+            [py, data_validator],
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
+            detail = (result.stdout.strip() + "\n" + result.stderr.strip()).strip()
+            if not detail:
+                detail = f"(validator exited {result.returncode} with no output; python={py})"
             errors.append(
-                "Data cross-reference check failed:\n"
-                + result.stdout.strip()
+                f"Data cross-reference check failed (python={py}, rc={result.returncode}):\n"
+                + detail
             )
 
 # ---------------------------------------------------------------------------

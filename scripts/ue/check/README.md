@@ -8,7 +8,9 @@ Scripts for fast validation and compile-adjacent checks without running a full p
 - `check.bat` - legacy compatibility router for older `--uht/--all` style usage
 - `bp_compile.bat` - legacy compatibility wrapper for Blueprint validation
 - `project_validate.bat` - legacy compatibility wrapper for asset validation
+- `assets/` - asset-level validation (null materials, soft references, primary asset completeness)
 - `blueprint/` - targeted Blueprint validators for project-specific runtime contracts
+- `config/` - ini config validation (shipping-unsafe settings, debug overrides)
 - `gameplay/` - gameplay-plugin-specific validation checks
 - `gamefeatures/` - static GameFeature configuration checks
 - `governance/` - architectural or registry audits that are not generic engine validation
@@ -32,6 +34,12 @@ Scripts for fast validation and compile-adjacent checks without running a full p
 - `gamefeatures/validate_registration.bat` - static GameFeature registration/configuration check
 - `governance/validate_legacy_object_parent_generalization.bat` - legacy marker and docs registry audit
 
+### Build-time prevention (pre-package)
+
+- `config/validate_shipping_ini.bat` - pure Python ini audit: flags disabled PSO cache, PathTracing=1, TSR > 100%, missing asset registry deps. No editor required.
+- `assets/validate_primary_assets.bat` - editor commandlet: verifies known primary-asset backing classes exist in asset registry (presence check, not full Asset Manager scan validation). Optional-empty types like ProjectAbilitySet warn instead of failing.
+- `assets/validate_soft_refs.bat` - editor commandlet: scans level actors for null material slots on StaticMeshComponent and SkeletalMeshComponent (catches "Invalid ShaderMap material (None)" errors)
+
 ### Compatibility wrappers
 
 - `check.bat [--uht|--syntax|--blueprints|--assets|--all]` - compatibility router to the explicit `validate_*.bat` scripts
@@ -51,6 +59,10 @@ Use the root `validate_*.bat` scripts when you want generic fast validation.
 Use `blueprint/validate_fp_body_defaults.bat` only when working on the legacy first-person hero path or its native component defaults. It is intentionally not part of the generic asset-validation flow.
 
 Use the subfolder validators only when you are working in that domain or when `validate_all.bat` explicitly includes them as a project-gating check.
+
+### Packaged build smoke test
+
+- `../test/smoke/packaged_boot_test.ps1` - launches packaged Shipping exe, parses log for PSO hitches (max cumulative), ShaderMap errors, Mutable overflows, CVar spam. Supports `-SecondRun` for comparison, `-NoForceResolution` to observe packaged defaults. NOTE: smoke test, not benchmark - does not clear PSO caches between runs.
 
 ## Related Docs
 

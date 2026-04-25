@@ -16,7 +16,7 @@
 #include "ProjectServiceLocator.h"
 #include "Services/ILoadingService.h"
 #include "Types/ProjectLoadRequest.h"
-#include "ProjectVitalsComponent.h"
+#include "Interfaces/IVitalsEventsSource.h"
 #include "Camera/PlayerCameraManager.h"
 
 namespace SinglePlayCharacterRuntime
@@ -658,20 +658,40 @@ void ASinglePlayerGameMode::BindVitalsResponse(APlayerController* PC)
 		return;
 	}
 
-	UProjectVitalsComponent* Vitals = Pawn->FindComponentByClass<UProjectVitalsComponent>();
-	if (!Vitals)
+	// Discover vitals source via interface (DIP: no hard dep on ProjectVitals).
+	// The provider is an ActorComponent implementing IVitalsEventsSource.
+	UActorComponent* VitalsSourceComp = nullptr;
+	for (UActorComponent* Comp : Pawn->GetComponents())
+	{
+		if (Comp && Comp->GetClass()->ImplementsInterface(UVitalsEventsSource::StaticClass()))
+		{
+			VitalsSourceComp = Comp;
+			break;
+		}
+	}
+
+	if (!VitalsSourceComp)
 	{
 		UE_LOG(LogProjectSinglePlay, Verbose,
-			TEXT("[Death] No VitalsComponent on pawn '%s', skipping death response binding"),
+			TEXT("[Death] No IVitalsEventsSource component on pawn '%s', skipping death response binding"),
 			*Pawn->GetName());
 		return;
 	}
 
-	// Unbind previous if any (prevents duplicates on re-init)
-	Vitals->OnDamageTaken.RemoveDynamic(this, &ThisClass::HandleDamageTaken);
-	Vitals->OnDamageTaken.AddDynamic(this, &ThisClass::HandleDamageTaken);
-	Vitals->OnConditionDepleted.RemoveDynamic(this, &ThisClass::HandleConditionDepleted);
-	Vitals->OnConditionDepleted.AddDynamic(this, &ThisClass::HandleConditionDepleted);
+	IVitalsEventsSource* EventsSource = Cast<IVitalsEventsSource>(VitalsSourceComp);
+	if (!EventsSource)
+	{
+		return;
+	}
+
+	// Unbind previous if any (prevents duplicates on re-init).
+	FOnVitalsDamageTaken& DamageDelegate = EventsSource->GetOnDamageTakenDelegate();
+	DamageDelegate.RemoveDynamic(this, &ThisClass::HandleDamageTaken);
+	DamageDelegate.AddDynamic(this, &ThisClass::HandleDamageTaken);
+
+	FOnVitalsConditionDepleted& DepletedDelegate = EventsSource->GetOnConditionDepletedDelegate();
+	DepletedDelegate.RemoveDynamic(this, &ThisClass::HandleConditionDepleted);
+	DepletedDelegate.AddDynamic(this, &ThisClass::HandleConditionDepleted);
 
 	UE_LOG(LogProjectSinglePlay, Log,
 		TEXT("[Vitals] Bound damage + death delegates for '%s'"),

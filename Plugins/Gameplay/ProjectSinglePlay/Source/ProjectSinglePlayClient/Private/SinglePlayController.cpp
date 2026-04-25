@@ -14,6 +14,7 @@
 #include "Subsystems/ProjectUILayerHostSubsystem.h"
 #include "Subsystems/ProjectUIFactorySubsystem.h"
 #include "Subsystems/ProjectUIRegistrySubsystem.h"
+#include "UI/InventoryUIVisibilityCoordinator.h"
 #include "HAL/PlatformTLS.h"
 #include "Interfaces/IInteractionService.h"
 #include "Interfaces/IInventoryCommands.h"
@@ -619,16 +620,13 @@ void ASinglePlayController::HandleInventoryViewModelPropertyChanged(FName Proper
 			if (UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel))
 			{
 				const bool bVisible = InventoryVM->GetbPanelVisible();
-				LOG_INIT("HandleInventoryViewModelPropertyChanged - bPanelVisible=%d, calling %s",
-					bVisible, bVisible ? TEXT("ShowDefinition") : TEXT("HideDefinition"));
-				if (bVisible)
-				{
-					LayerHost->ShowDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
-				}
-				else
-				{
-					LayerHost->HideDefinition(TEXT("ProjectInventoryUI.InventoryPanel"));
-				}
+				LOG_INIT("HandleInventoryViewModelPropertyChanged - bPanelVisible=%d, toggling inventory UI",
+					bVisible);
+				// Both inventory widgets toggle as a single unit via the
+				// coordinator; calling ShowDefinition for the main panel
+				// alone leaves the nearby loot sibling unspawned and
+				// breaks loot sessions silently.
+				InventoryUIVisibilityCoordinator::SetInventoryUIVisible(LayerHost, bVisible);
 				LOG_INIT("HandleInventoryViewModelPropertyChanged - Done, IgnoreMoveInput=%d, IgnoreLookInput=%d",
 					IsMoveInputIgnored(), IsLookInputIgnored());
 			}

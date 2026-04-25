@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MVVM/InventoryCellVisualState.h"
 #include "MVVM/ProjectViewModel.h"
+#include "Interaction/IInventoryDropCommandTarget.h"
+#include "Interaction/IInventorySurfacePolicyProvider.h"
 #include "Interfaces/IInventoryCommands.h"
 #include "Interfaces/IInventoryReadOnly.h"
 #include "Interfaces/IWorldContainerSessionSource.h"
@@ -12,6 +15,7 @@
 #include "InventoryViewModel.generated.h"
 
 class AActor;
+struct FProjectUIGridDragPayload;
 
 /**
  * ViewModel for inventory UI (read-only scaffold).
@@ -24,11 +28,11 @@ class AActor;
  * - Panel visibility toggle
  *
  * SOLID: Complex building logic extracted to helpers:
- * - FInventoryViewModelCellBuilder (cell text arrays)
+ * - FInventoryViewModelCellBuilder (cell visual arrays)
  * - FInventoryViewModelEquipSlotBuilder (equip slot labels)
  */
 UCLASS(BlueprintType)
-class PROJECTINVENTORYUI_API UInventoryViewModel : public UProjectViewModel
+class PROJECTINVENTORYUI_API UInventoryViewModel : public UProjectViewModel, public IInventorySurfacePolicyProvider, public IInventoryDropCommandTarget
 {
     GENERATED_BODY()
 
@@ -158,9 +162,18 @@ public:
     FGameplayTag GetPocketContainerId(int32 PocketIndex) const;
     int32 GetPocketGridWidth(int32 PocketIndex) const;
     int32 GetPocketGridHeight(int32 PocketIndex) const;
-    const TArray<FText>& GetPocketCellTexts(int32 PocketIndex) const;
+    const TArray<FInventoryCellVisualState>& GetPocketCellVisuals(int32 PocketIndex) const;
     int32 GetPocketCellInstanceId(int32 PocketIndex, int32 CellIndex) const;
     bool IsPocketCellEnabled(int32 PocketIndex, int32 CellIndex) const;
+
+    /**
+     * Reverse-lookup: find the pocket index whose container tag equals
+     * ContainerTag, or INDEX_NONE. Used by the subsystem-scoped policy
+     * fan-out (see IsCellEnabledForSurface / GetCellOccupant) so widgets
+     * no longer need to capture PocketIndex in surface-registration
+     * closures.
+     */
+    int32 FindPocketIndexByContainerTag(FGameplayTag ContainerTag) const;
 
     /** Set secondary grid dimensions for testing/synthetic viewmodels. */
     void SetSecondaryGridDimensions(int32 InWidth, int32 InHeight)
@@ -175,10 +188,10 @@ public:
 
 protected:
     UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
-    TArray<FText> LeftHandCellTexts;
+    TArray<FInventoryCellVisualState> LeftHandCellVisuals;
 
     UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
-    TArray<FText> RightHandCellTexts;
+    TArray<FInventoryCellVisualState> RightHandCellVisuals;
 
     UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
     TArray<int32> LeftHandCellInstanceIds;
@@ -190,13 +203,13 @@ public:
     /** Shared sentinel for empty grid cells in inventory instance-id arrays. */
     static constexpr int32 EmptyCellInstanceId = INDEX_NONE;
 
-    FORCEINLINE const TArray<FText>& GetLeftHandCellTexts() const { return LeftHandCellTexts; }
-    FORCEINLINE const TArray<FText>& GetRightHandCellTexts() const { return RightHandCellTexts; }
+    FORCEINLINE const TArray<FInventoryCellVisualState>& GetLeftHandCellVisuals() const { return LeftHandCellVisuals; }
+    FORCEINLINE const TArray<FInventoryCellVisualState>& GetRightHandCellVisuals() const { return RightHandCellVisuals; }
     FORCEINLINE int32 GetLeftHandInstanceId(int32 CellIndex) const { return LeftHandCellInstanceIds.IsValidIndex(CellIndex) ? LeftHandCellInstanceIds[CellIndex] : EmptyCellInstanceId; }
     FORCEINLINE int32 GetRightHandInstanceId(int32 CellIndex) const { return RightHandCellInstanceIds.IsValidIndex(CellIndex) ? RightHandCellInstanceIds[CellIndex] : EmptyCellInstanceId; }
 
-    void SetLeftHandCellTexts(const TArray<FText>& InValue);
-    void SetRightHandCellTexts(const TArray<FText>& InValue);
+    void SetLeftHandCellVisuals(const TArray<FInventoryCellVisualState>& InValue);
+    void SetRightHandCellVisuals(const TArray<FInventoryCellVisualState>& InValue);
     void SetLeftHandCellInstanceIds(const TArray<int32>& InValue);
     void SetRightHandCellInstanceIds(const TArray<int32>& InValue);
 
@@ -225,43 +238,48 @@ public:
 
 protected:
     UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
-    TArray<FText> CellTexts;
+    TArray<FInventoryCellVisualState> CellVisuals;
 
     UPROPERTY(BlueprintReadOnly, Category = "ViewModel")
-    TArray<FText> SecondaryCellTexts;
+    TArray<FInventoryCellVisualState> SecondaryCellVisuals;
 
-    void UpdateCellTexts(const TArray<FText>& InValue)
-    {
-        CellTexts = InValue;
-        NotifyPropertyChanged(FName(TEXT("CellTexts")));
-    }
-
-    void UpdateSecondaryCellTexts(const TArray<FText>& InValue)
-    {
-        SecondaryCellTexts = InValue;
-        NotifyPropertyChanged(FName(TEXT("SecondaryCellTexts")));
-    }
+    void UpdateCellVisuals(const TArray<FInventoryCellVisualState>& InValue);
+    void UpdateSecondaryCellVisuals(const TArray<FInventoryCellVisualState>& InValue);
 
 public:
-    FORCEINLINE const TArray<FText>& GetCellTexts() const { return CellTexts; }
-    FORCEINLINE const TArray<FText>& GetSecondaryCellTexts() const { return SecondaryCellTexts; }
-    void SetCellTexts(const TArray<FText>& InValue)
+    FORCEINLINE const TArray<FInventoryCellVisualState>& GetCellVisuals() const { return CellVisuals; }
+    FORCEINLINE const TArray<FInventoryCellVisualState>& GetSecondaryCellVisuals() const { return SecondaryCellVisuals; }
+    FORCEINLINE const TArray<FInventoryEntryView>& GetCachedEntriesForDiagnostics() const { return CachedEntries; }
+    FORCEINLINE const TArray<FInventoryEntryView>& GetCachedNearbyEntriesForDiagnostics() const { return CachedNearbyEntries; }
+    FORCEINLINE const TArray<FInventoryContainerView>& GetCachedContainersForDiagnostics() const { return CachedContainers; }
+    FORCEINLINE const TArray<FInventoryContainerView>& GetCachedPocketContainersForDiagnostics() const { return CachedPocketContainers; }
+    /**
+     * Runtime accessor for the VM's cached pocket containers.  Used by
+     * InventoryViewModelSurfaceDispatch::FindPocketIndexByContainerTag
+     * during the drag-host surface lookup - NOT diagnostics-only,
+     * despite the ForDiagnostics sibling.
+     */
+    FORCEINLINE const TArray<FInventoryContainerView>& GetCachedPocketContainers() const { return CachedPocketContainers; }
+    FORCEINLINE const FInventoryContainerView& GetCachedNearbyContainerForDiagnostics() const { return CachedNearbyContainer; }
+    FORCEINLINE UObject* GetInventorySourceObjectForDiagnostics() const { return InventorySource.GetObject(); }
+    FORCEINLINE UObject* GetNearbyContainerSourceObjectForDiagnostics() const { return NearbyContainerSource.GetObject(); }
+    void SetCellVisuals(const TArray<FInventoryCellVisualState>& InValue)
     {
-        UpdateCellTexts(InValue);
+        UpdateCellVisuals(InValue);
     }
-    void SetSecondaryCellTexts(const TArray<FText>& InValue)
+    void SetSecondaryCellVisuals(const TArray<FInventoryCellVisualState>& InValue)
     {
-        UpdateSecondaryCellTexts(InValue);
+        UpdateSecondaryCellVisuals(InValue);
     }
-    void ClearCellTexts()
+    void ClearCellVisuals()
     {
-        CellTexts.Empty();
-        NotifyPropertyChanged(FName(TEXT("CellTexts")));
+        CellVisuals.Empty();
+        NotifyPropertyChanged(FName(TEXT("CellVisuals")));
     }
-    void ClearSecondaryCellTexts()
+    void ClearSecondaryCellVisuals()
     {
-        SecondaryCellTexts.Empty();
-        NotifyPropertyChanged(FName(TEXT("SecondaryCellTexts")));
+        SecondaryCellVisuals.Empty();
+        NotifyPropertyChanged(FName(TEXT("SecondaryCellVisuals")));
     }
 
     // Panel visibility
@@ -300,8 +318,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestRemoveItem(int32 InstanceId, int32 Quantity = 1);
 
+    // Virtual so FInventoryDropRouter dispatch can be spy-verified in tests.
+    // Production callers route through the router (or the method directly);
+    // subclasses must forward to Super:: if they want real inventory writes
+    // to happen.
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
-    void RequestMoveItem(int32 InstanceId, FGameplayTag FromContainer, FIntPoint FromPos, FGameplayTag ToContainer, FIntPoint ToPos, int32 Quantity, bool bRotated);
+    virtual void RequestMoveItem(int32 InstanceId, FGameplayTag FromContainer, FIntPoint FromPos, FGameplayTag ToContainer, FIntPoint ToPos, int32 Quantity, bool bRotated) override;
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestUseItem(int32 InstanceId);
@@ -309,29 +331,40 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestTakeNearbyItem(int32 InstanceId, int32 Quantity = 1);
 
+    // Virtual - see comment on RequestMoveItem.
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
-    void RequestTakeNearbyItemToContainer(
+    virtual void RequestTakeNearbyItemToContainer(
         int32 InstanceId,
         FGameplayTag TargetContainerId,
         FIntPoint TargetGridPos,
         bool bTargetRotated,
-        int32 Quantity = 1);
+        int32 Quantity = 1) override;
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestStoreItemInNearbyContainer(int32 InstanceId, int32 Quantity = 1);
 
+    // Virtual - see comment on RequestMoveItem.
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
-    void RequestStoreItemInNearbyContainerAt(
+    virtual void RequestStoreItemInNearbyContainerAt(
         int32 InstanceId,
         FIntPoint TargetGridPos,
         bool bTargetRotated,
-        int32 Quantity = 1);
+        int32 Quantity = 1) override;
 
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
     void RequestTakeAllNearbyContainer();
 
+    // Virtual - same rationale as RequestMoveItem. Dispatches a world-to-world
+    // rearrangement within the active nearby container session.
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
-    void RequestEquipItem(int32 InstanceId, FGameplayTag EquipSlot);
+    virtual void RequestMoveItemInNearbyContainer(
+        int32 InstanceId,
+        FIntPoint TargetGridPos,
+        bool bTargetRotated,
+        int32 Quantity = 1) override;
+
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
+    virtual void RequestEquipItem(int32 InstanceId, FGameplayTag EquipSlot) override;
 
     /** Equip item using its default equip slot (looks up slot from cached entry). */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Commands")
@@ -409,6 +442,29 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Inventory")
     int32 GetSecondaryCellInstanceId(int32 CellIndex) const;
+
+    // -------------------------------------------------------------------
+    // IInventorySurfacePolicyProvider
+    // -------------------------------------------------------------------
+    // Slice 18: tag-keyed validation used by UInventoryUIDragHostSubsystem
+    // for drop-footprint checks. Replaces per-surface OccupantAllowedChecker
+    // lambdas that previously lived in widget code. The surface tag is the
+    // policy key; the VM dispatches internally to the right surface-local
+    // rule (primary, secondary, pocket, hand, nearby). Self-contained: does
+    // not reach global Slate state.
+    virtual bool IsPayloadAllowedOnOccupant(
+        FGameplayTag SurfaceTag,
+        const FProjectUIGridDragPayload& Payload,
+        int32 OccupantId,
+        int32 CellIndex) const override;
+
+    // Follow-up #2: tag-keyed cell state queries replace widget-owned
+    // EnabledChecker/OccupantChecker closures. Surface registration becomes
+    // closure-free - the subsystem installs a fan-out to these overrides
+    // keyed on SurfaceTag when the checkers on FProjectUIGridSurface are
+    // left unset (the Slice 18 contract).
+    virtual bool IsCellEnabledForSurface(FGameplayTag SurfaceTag, int32 CellIndex) const override;
+    virtual int32 GetCellOccupant(FGameplayTag SurfaceTag, int32 CellIndex) const override;
 
     UFUNCTION(BlueprintPure, Category = "Inventory")
     bool IsNearbyEntryInstanceId(int32 InstanceId) const;
@@ -492,11 +548,11 @@ private:
         int32 IgnoreInstanceId) const;
 
     void BuildContainerData(const TArray<FInventoryContainerView>& Containers);
-    void BuildCellTexts(const TArray<FInventoryEntryView>& Entries);       // SOLID: uses FInventoryViewModelCellBuilder
-    void BuildSecondaryCellTexts(const TArray<FInventoryEntryView>& Entries); // SOLID: uses FInventoryViewModelCellBuilder
-    void BuildHandCellTexts(const TArray<FInventoryEntryView>& Entries);  // SOLID: uses FInventoryViewModelCellBuilder
-    void BuildPocketCellTexts(const TArray<FInventoryEntryView>& Entries);
-    void NotifyPocketCellTextsChanged();
+    void BuildCellVisuals(const TArray<FInventoryEntryView>& Entries);       // SOLID: uses FInventoryViewModelCellBuilder
+    void BuildSecondaryCellVisuals(const TArray<FInventoryEntryView>& Entries); // SOLID: uses FInventoryViewModelCellBuilder
+    void BuildHandCellVisuals(const TArray<FInventoryEntryView>& Entries);  // SOLID: uses FInventoryViewModelCellBuilder
+    void BuildPocketCellVisuals(const TArray<FInventoryEntryView>& Entries);
+    void NotifyPocketCellVisualsChanged();
     void BuildEquipSlotLabels(const TArray<FInventoryEntryView>& Entries); // SOLID: uses FInventoryViewModelEquipSlotBuilder
 
     UObject* FindInventorySourceFromActor(AActor* Actor) const;
@@ -513,7 +569,7 @@ private:
     TArray<bool> SecondaryCellEnabled;
     TArray<int32> NearbyCellInstanceIds;
     TArray<bool> NearbyCellEnabled;
-    TArray<TArray<FText>> PocketCellTexts;
+    TArray<TArray<FInventoryCellVisualState>> PocketCellVisuals;
     TArray<TArray<int32>> PocketCellInstanceIds;
     TArray<TArray<bool>> PocketCellEnabled;
     TArray<FGameplayTag> EquipSlotTags;

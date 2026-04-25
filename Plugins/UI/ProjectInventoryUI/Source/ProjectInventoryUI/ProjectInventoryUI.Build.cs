@@ -21,6 +21,7 @@ public class ProjectInventoryUI : ModuleRules
             "GameplayTags",
             "Json",
             "ProjectCore",
+            "ProjectSharedTypes",
             "ProjectUI"
         });
 

@@ -36,6 +36,12 @@ public:
 
     void SetGridMouseDownHandler(FOnGridCellMouseDown InHandler) { GridMouseDownHandler = MoveTemp(InHandler); }
 
+    // Test/diagnostics: regression tests assert that grid cells of widgets
+    // expecting drag-detect (W_InventoryPanel, W_NearbyContainerPanel) have
+    // a bound handler after rebuild. An unbound handler means clicks on
+    // those cells silently do nothing.
+    bool IsGridMouseDownHandlerBound() const { return GridMouseDownHandler.IsBound(); }
+
     FOnCellClicked OnCellClicked;
     FOnCellRightClicked OnCellRightClicked;
 

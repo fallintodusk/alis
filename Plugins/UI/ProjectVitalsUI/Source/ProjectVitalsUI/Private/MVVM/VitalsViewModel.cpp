@@ -12,7 +12,7 @@
 #include "Attributes/StatusAttributeSet.h"
 #include "ProjectGameplayTags.h"
 #include "Subsystems/ProjectTagTextSubsystem.h"
-#include "VitalsConfig.h"
+#include "Types/VitalsConfig.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 

@@ -7,35 +7,12 @@
 #include "GameplayTagContainer.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayEffectTypes.h"
+#include "VitalsEnums.h"
+#include "Interfaces/IVitalsEventsSource.h"
 #include "ProjectVitalsComponent.generated.h"
 
 class UAbilitySystemComponent;
 class UGameplayEffect;
-
-/**
- * Vital state enum for threshold-based states.
- * Used by UI to show appropriate icons/effects.
- */
-UENUM(BlueprintType)
-enum class EVitalState : uint8
-{
-	OK,       // >70%
-	Low,      // 40-70%
-	Critical, // 20-40%
-	Empty     // <=20%
-};
-
-/**
- * Fatigue state enum (inverted: 0=good, 100=bad).
- */
-UENUM(BlueprintType)
-enum class EFatigueState : uint8
-{
-	Rested,    // <30%
-	Tired,     // 30-60%
-	Exhausted, // 60-85%
-	Critical   // >=85%
-};
 
 /**
  * Vitals component: metabolism tick, threshold states, threshold debuffs.
@@ -81,12 +58,16 @@ enum class EFatigueState : uint8
  * SOT: ProjectVitals/README.md, gas_ui_mechanics.md
  */
 UCLASS(ClassGroup=(Gameplay), meta=(BlueprintSpawnableComponent))
-class PROJECTVITALS_API UProjectVitalsComponent : public UActorComponent
+class PROJECTVITALS_API UProjectVitalsComponent : public UActorComponent, public IVitalsEventsSource
 {
 	GENERATED_BODY()
 
 public:
 	UProjectVitalsComponent();
+
+	// IVitalsEventsSource
+	virtual FOnVitalsDamageTaken& GetOnDamageTakenDelegate() override { return OnDamageTaken; }
+	virtual FOnVitalsConditionDepleted& GetOnConditionDepletedDelegate() override { return OnConditionDepleted; }
 
 	// -------------------------------------------------------------------------
 	// Configuration
@@ -197,16 +178,15 @@ public:
 
 	// Fired when Condition decreases (any damage source).
 	// Amount is the absolute decrease (always positive).
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDamageTaken, float, Amount);
-
+	// Delegate type defined in ProjectCore (IVitalsEventsSource) so consumers
+	// can bind through the interface without depending on ProjectVitals.
 	UPROPERTY(BlueprintAssignable, Category = "Vitals")
-	FOnDamageTaken OnDamageTaken;
+	FOnVitalsDamageTaken OnDamageTaken;
 
 	// Fired once when Condition transitions from >0 to <=0.
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConditionDepleted);
-
+	// Delegate type defined in ProjectCore (IVitalsEventsSource).
 	UPROPERTY(BlueprintAssignable, Category = "Vitals")
-	FOnConditionDepleted OnConditionDepleted;
+	FOnVitalsConditionDepleted OnConditionDepleted;
 
 #if WITH_DEV_AUTOMATION_TESTS
 	// Test-only wrappers for internal hysteresis and debuff cleanup behavior.

@@ -205,6 +205,62 @@ This keeps rendering logic universal:
 - any equipped item can grant any grid size (2x2, 1x3, 4x5, 6x8, etc.)
 - UI placement is data-driven by descriptor group/order, not by special-case code
 
+### Runtime Data Ownership Contract
+
+Inventory behavior depends on resolved item-definition data, but widgets must
+not resolve assets or infer gameplay semantics.
+
+Ownership:
+- `ProjectInventory` owns item-definition resolution, cache residency, stack
+  and placement validation, action capability defaults, and authoritative
+  move/drop/use rules.
+- A game instance owns exactly one inventory definition cache through
+  `UProjectObjectDefinitionCacheSubsystem`. Inventory components bind to that
+  cache and must not create their own cache objects.
+- `ProjectInventoryUI` owns presentation projection only. It receives resolved
+  inventory entry views and turns them into visual state for widgets.
+- `ProjectUI` owns generic mechanics only: layer hosts, grid cells, drag/drop
+  infrastructure, popups, tooltips, themes, and layout loading.
+
+Rules:
+- Runtime inventory code resolves item data through the inventory definition
+  cache, not through ad-hoc `AssetManager` lookups in gameplay or widget paths.
+- Definition warmup/load orchestration happens at bootstrap or session
+  boundaries. Gameplay getters observe cache state; they do not start loads on
+  first touch.
+- Resolver outcomes must be explicit: Loaded, Loading, or Missing.
+- Missing data must produce deterministic unavailable capabilities and a useful
+  diagnostic state, not partial defaults or repeated generic warnings.
+- UI cells must support a primary icon/text layer plus a separate quantity
+  badge. Do not overload one text field to mean both icon and stack count.
+  Visual DTO arrays are the presentation SOT. Do not add parallel legacy text
+  arrays or compatibility write paths.
+- A same-cell split or self-overlap drag is a local cancel/no-op. Real invalid
+  moves remain server-authoritative rejects with explicit reasons.
+- Default drag quantity is the whole stack. Partial-stack movement requires an
+  explicit split or quantity override. A split quantity must be greater than
+  zero and lower than the source stack quantity.
+- Same-item occupied-cell stack previews are allowed only for 1x1 entries when
+  the resolved target view reports enough remaining stack capacity. The
+  authoritative stack decision still belongs to ProjectInventory move rules.
+- Expected user-denied actions must produce one explicit reason and a
+  user-facing error message, not warning spam. Warnings are reserved for
+  missing services, missing definitions, invalid bootstrap, and other likely
+  code/data bugs.
+- Automation for inventory UI failures should dump definition-cache state and
+  cell visual state alongside the widget tree.
+
+ProjectCore SOC:
+- ProjectCore exposes semantic contracts only, such as inventory read models,
+  service interfaces, and shared identifiers.
+- Authored gameplay data stays in the owning plugin `Data/` folders and is
+  loaded by the owning data/runtime service. Do not move item definitions,
+  storage definitions, UI layouts, or feature-specific policy tables into
+  ProjectCore.
+- Feature-specific presentation policy stays in the feature UI plugin. Do not
+  put inventory stack-preview policy or item semantics into ProjectUI or
+  ProjectCore.
+
 ## World Storage and Loot Places
 
 World item storage uses the same gameplay truth as player storage.

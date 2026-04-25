@@ -16,6 +16,13 @@ FInventoryEntryView FInventoryViewHelper::BuildEntryView(
     View.ItemId = Entry.ItemId;
     View.InstanceId = Entry.InstanceId;
     View.Quantity = Entry.Quantity;
+    View.DisplayName = FText::FromString(Entry.ItemId.ToString());
+    View.GridSize = FIntPoint(1, 1);
+    View.MaxStack = 1;
+    View.bCanBeDropped = false;
+    View.bCanUse = false;
+    View.bCanEquip = false;
+    View.bActionCapsPopulated = true;
 
     // Get effective placement
     FGameplayTag EffectiveContainerId;
@@ -50,8 +57,6 @@ FInventoryEntryView FInventoryViewHelper::BuildEntryView(
         // Explicit action capability contract for UI: do not infer these in widgets/viewmodel.
         View.bCanUse = ItemData.bIsConsumable;
         View.bCanEquip = ItemData.EquipSlotTag.IsValid();
-        // Must be set whenever explicit capabilities are populated by producers.
-        View.bActionCapsPopulated = true;
         View.UseMagnitudes = ItemData.Magnitudes;
 
         if (bHasPlacement && Callbacks.GetContainerConfig)

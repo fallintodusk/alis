@@ -25,6 +25,10 @@
 		{
 			"Name": "ProjectCore",
 			"Enabled": true
+		},
+		{
+			"Name": "ProjectSharedTypes",
+			"Enabled": true
 		}
   ]
 }

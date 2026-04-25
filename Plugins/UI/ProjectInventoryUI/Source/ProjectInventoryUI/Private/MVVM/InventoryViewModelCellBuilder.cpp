@@ -3,15 +3,17 @@
 #include "MVVM/InventoryViewModelCellBuilder.h"
 #include "MVVM/InventoryViewModel.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogInventoryViewModelCellBuilder, Log, All);
+
 void FInventoryViewModelCellBuilder::Build(
     const TArray<FInventoryEntryView>& Entries,
     FGameplayTag ContainerId,
     int32 GridWidth,
     int32 GridHeight,
     TArray<int32>& OutCellInstanceIds,
-    TArray<FText>& OutCellTexts)
+    TArray<FInventoryCellVisualState>& OutCellVisuals)
 {
-    OutCellTexts.Reset();
+    OutCellVisuals.Reset();
     OutCellInstanceIds.Reset();
 
     if (!ContainerId.IsValid() || GridWidth <= 0 || GridHeight <= 0)
@@ -20,12 +22,12 @@ void FInventoryViewModelCellBuilder::Build(
     }
 
     const int32 CellCount = GridWidth * GridHeight;
-    OutCellTexts.SetNum(CellCount);
+    OutCellVisuals.SetNum(CellCount);
     OutCellInstanceIds.SetNum(CellCount);
 
     for (int32 Index = 0; Index < CellCount; ++Index)
     {
-        OutCellTexts[Index] = FText::GetEmpty();
+        OutCellVisuals[Index] = FInventoryCellVisualState();
         OutCellInstanceIds[Index] = UInventoryViewModel::EmptyCellInstanceId;
     }
 
@@ -56,13 +58,15 @@ void FInventoryViewModelCellBuilder::Build(
 
         // Prefer icon codepoint; fall back to text label if missing
         FString CellLabel;
+        bool bUseIconFont = false;
         if (!Entry.IconCode.IsEmpty())
         {
             CellLabel = Entry.IconCode;
+            bUseIconFont = true;
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("[CellBuilder] Item '%s' has no IconCode - using text fallback"),
+            UE_LOG(LogInventoryViewModelCellBuilder, Verbose, TEXT("Item '%s' has no IconCode - using text fallback"),
                 *Entry.ItemId.ToString());
             CellLabel = BuildEntryLabel(Entry.DisplayName, Entry.Quantity, Entry.ItemId);
         }
@@ -83,9 +87,16 @@ void FInventoryViewModelCellBuilder::Build(
                     continue;
                 }
                 OutCellInstanceIds[Index] = Entry.InstanceId;
+                OutCellVisuals[Index].InstanceId = Entry.InstanceId;
                 if (OffsetX == 0 && OffsetY == 0)
                 {
-                    OutCellTexts[Index] = FText::FromString(CellLabel);
+                    OutCellVisuals[Index].PrimaryText = FText::FromString(CellLabel);
+                    OutCellVisuals[Index].QuantityText = Entry.Quantity > 1
+                        ? FText::AsNumber(Entry.Quantity)
+                        : FText::GetEmpty();
+                    OutCellVisuals[Index].bUseIconFont = bUseIconFont;
+                    OutCellVisuals[Index].bShowQuantity = Entry.Quantity > 1;
+                    OutCellVisuals[Index].bIsAnchorCell = true;
                 }
             }
         }
@@ -94,10 +105,7 @@ void FInventoryViewModelCellBuilder::Build(
 
 FString FInventoryViewModelCellBuilder::BuildEntryLabel(const FText& DisplayName, int32 Quantity, const FPrimaryAssetId& ItemId)
 {
+    (void)Quantity;
     FString Name = DisplayName.IsEmpty() ? ItemId.ToString() : DisplayName.ToString();
-    if (Quantity > 1)
-    {
-        return FString::Printf(TEXT("%s x%d"), *Name, Quantity);
-    }
     return Name;
 }

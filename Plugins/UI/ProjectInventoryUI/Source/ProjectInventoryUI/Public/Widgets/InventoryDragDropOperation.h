@@ -17,6 +17,10 @@ class PROJECTINVENTORYUI_API UInventoryDragDropOperation : public UDragDropOpera
 	GENERATED_BODY()
 
 public:
+	virtual void Drop_Implementation(const FPointerEvent& PointerEvent) override;
+	virtual void DragCancelled_Implementation(const FPointerEvent& PointerEvent) override;
+	virtual void Dragged_Implementation(const FPointerEvent& PointerEvent) override;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory")
 	int32 InstanceId = 0;
 

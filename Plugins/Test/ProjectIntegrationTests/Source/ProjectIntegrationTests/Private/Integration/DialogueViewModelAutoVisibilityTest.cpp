@@ -16,7 +16,9 @@
 #include "Widgets/W_DialoguePanel.h"
 #include "Interfaces/IDialogueService.h"
 #include "ProjectServiceLocator.h"
+#include "Subsystems/ProjectUILayerHostSubsystem.h"
 #include "Subsystems/ProjectUIDebugSubsystem.h"
+#include "GameFramework/PlayerController.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -365,6 +367,60 @@ bool FDialogueWidgetDumpTreeTest::RunTest(const FString& Parameters)
 		MakeShared<FDumpDialogueTreeAfterLayout>(
 			this, DebugSub, Panel, VM, OriginalService));
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FDialogueLayerHostHideDefinitionIdempotentTest,
+	"ProjectIntegrationTests.UI.Dialogue.LayerHost.HideDefinitionIdempotent",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter
+)
+
+bool FDialogueLayerHostHideDefinitionIdempotentTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = AutomationCommon::GetAnyGameWorld();
+	if (!World)
+	{
+		if (!AutomationOpenMap(TEXT("/MainMenuWorld/Maps/MainMenu_Persistent.MainMenu_Persistent")))
+		{
+			AddError(TEXT("Failed to open MainMenu_Persistent for LayerHost test"));
+			return false;
+		}
+
+		World = AutomationCommon::GetAnyGameWorld();
+	}
+
+	if (!TestNotNull(TEXT("World should exist"), World))
+	{
+		return false;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!TestNotNull(TEXT("GameInstance should exist"), GameInstance))
+	{
+		return false;
+	}
+
+	UProjectUILayerHostSubsystem* LayerHost = GameInstance->GetSubsystem<UProjectUILayerHostSubsystem>();
+	if (!TestNotNull(TEXT("LayerHost should exist"), LayerHost))
+	{
+		return false;
+	}
+
+	APlayerController* PlayerController = World->GetFirstPlayerController();
+	if (!TestNotNull(TEXT("PlayerController should exist"), PlayerController))
+	{
+		return false;
+	}
+
+	LayerHost->InitializeForPlayer(PlayerController, true);
+
+	LayerHost->HideDefinition(TEXT("ProjectDialogueUI.DialoguePanel"));
+
+	UUserWidget* DialogueWidget = LayerHost->ShowDefinition(TEXT("ProjectDialogueUI.DialoguePanel"));
+	TestNotNull(TEXT("DialoguePanel should still be spawnable after pre-hide"), DialogueWidget);
+
+	LayerHost->HideDefinition(TEXT("ProjectDialogueUI.DialoguePanel"));
 	return true;
 }
 

@@ -2,6 +2,7 @@
 
 #include "Experience/InitialExperienceLoader.h"
 #include "ProjectLoadingLog.h"
+#include "Data/ObjectCatalog.h"
 #include "Experience/ProjectExperienceDescriptorBase.h"
 #include "Experience/ProjectExperienceRegistry.h"
 #include "Experience/GlobalAssetScanRegistry.h"
@@ -11,6 +12,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture.h"
+#include "Engine/StreamableManager.h"
 #include "Materials/MaterialInterface.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ConfigCacheIni.h"
@@ -30,6 +32,103 @@ namespace
 					To.Add(Id);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Expand any UObjectCatalog declared in WarmupAssets into its concrete
+	 * ObjectDefinition primary asset ids, and append those ids to OutAssetIds.
+	 *
+	 * Contract (Slice 1 of inventory_objectdef_load_race.md):
+	 * - Boundary direction: ProjectLoading depends on ProjectCore's UObjectCatalog.
+	 *   WarmupPhaseExecutor stays generic — this expansion happens here, before
+	 *   phase execution, so the executor only ever batch-loads ids it is handed.
+	 * - Catalogs are loaded synchronously via StreamableManager so their
+	 *   Objects array can be read immediately.
+	 * - On failure (catalog not resolvable, load failed, empty), this function
+	 *   is a no-op — the warmup request keeps whatever ids came in through
+	 *   the regular WarmupAssets path. The Slice 2 deferred-retry path still
+	 *   covers any resulting gaps at pickup time.
+	 */
+	void ExpandObjectCatalogsIntoWarmup(
+		const TArray<FSoftObjectPath>& WarmupSoftPaths,
+		TArray<FPrimaryAssetId>& OutAssetIds,
+		UAssetManager& AssetManager)
+	{
+		if (WarmupSoftPaths.Num() == 0)
+		{
+			return;
+		}
+
+		int32 CatalogsExpanded = 0;
+		int32 ObjectsAppended = 0;
+
+		for (const FSoftObjectPath& Path : WarmupSoftPaths)
+		{
+			if (Path.IsNull())
+			{
+				continue;
+			}
+
+			const FPrimaryAssetId Id = AssetManager.GetPrimaryAssetIdForPath(Path);
+			if (!Id.IsValid() || Id.PrimaryAssetType.ToString() != TEXT("ObjectCatalog"))
+			{
+				// Not a catalog — handled by the generic AddAssetIds pass.
+				continue;
+			}
+
+			// Sync-load the catalog so we can read Objects immediately. The
+			// StreamableManager handle is held only for the duration of this
+			// call; the catalog itself stays in memory because AddAssetIds
+			// already queued it into OutAssetIds via the generic warmup path.
+			TSharedPtr<FStreamableHandle> SyncHandle =
+				AssetManager.GetStreamableManager().RequestSyncLoad(Path);
+			if (!SyncHandle.IsValid())
+			{
+				UE_LOG(LogProjectLoading, Warning,
+					TEXT("ExpandObjectCatalogsIntoWarmup: Failed to sync-load catalog %s"),
+					*Id.ToString());
+				continue;
+			}
+
+			const UObjectCatalog* Catalog = Cast<UObjectCatalog>(SyncHandle->GetLoadedAsset());
+			if (!Catalog)
+			{
+				UE_LOG(LogProjectLoading, Warning,
+					TEXT("ExpandObjectCatalogsIntoWarmup: Loaded asset %s is not a UObjectCatalog"),
+					*Id.ToString());
+				continue;
+			}
+
+			if (Catalog->Objects.Num() == 0)
+			{
+				UE_LOG(LogProjectLoading, Display,
+					TEXT("ExpandObjectCatalogsIntoWarmup: Catalog %s is empty"),
+					*Id.ToString());
+				continue;
+			}
+
+			for (const FPrimaryAssetId& ObjectId : Catalog->Objects)
+			{
+				if (!ObjectId.IsValid())
+				{
+					continue;
+				}
+				OutAssetIds.AddUnique(ObjectId);
+				++ObjectsAppended;
+			}
+
+			++CatalogsExpanded;
+			UE_LOG(LogProjectLoading, Display,
+				TEXT("ExpandObjectCatalogsIntoWarmup: Catalog %s contributed %d ObjectDefinition(s) to warmup"),
+				*Id.ToString(), Catalog->Objects.Num());
+		}
+
+		if (CatalogsExpanded > 0)
+		{
+			UE_LOG(LogProjectLoading, Display,
+				TEXT("ExpandObjectCatalogsIntoWarmup: Expanded %d catalog(s), appended %d id(s) to warmup set"),
+				CatalogsExpanded, ObjectsAppended);
 		}
 	}
 }
@@ -110,6 +209,11 @@ bool FInitialExperienceLoader::BuildLoadRequest(FName ExperienceName, FLoadReque
 	AddAssetIds(Descriptor->LoadAssets.CriticalAssets, OutRequest.CriticalAssetIds, AssetManager);
 	AddAssetIds(Descriptor->LoadAssets.WarmupAssets, OutRequest.WarmupAssetIds, AssetManager);
 	AddAssetIds(Descriptor->LoadAssets.BackgroundAssets, OutRequest.BackgroundAssetIds, AssetManager);
+
+	// Slice 1 boundary: any ObjectCatalog listed in WarmupAssets is expanded
+	// into concrete ObjectDefinition ids here, in ProjectLoading's loader.
+	// The phase executor stays generic and never reaches into ProjectInventory.
+	ExpandObjectCatalogsIntoWarmup(Descriptor->LoadAssets.WarmupAssets, OutRequest.WarmupAssetIds, AssetManager);
 
 	// Auto-discover map dependencies if no explicit CriticalAssets defined
 	OutRequest.CriticalSoftPaths.Reset();

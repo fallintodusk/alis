@@ -58,11 +58,12 @@ if (-not $SkipDump) {
         exit 2
     }
 
-    # Run the DumpTree test in game mode with a real map
+    # Run the DumpTree test in editor automation with a real map.
+    # Inventory dump tests open their own world if needed; -game does not
+    # reliably enumerate these tests in this project automation harness.
     & $testScript `
         -TestFilter $testFilter `
         -Map "/MainMenuWorld/Maps/MainMenu_Persistent.MainMenu_Persistent" `
-        -Game `
         -TimeoutSeconds $TimeoutSeconds
 
     $testExitCode = $LASTEXITCODE

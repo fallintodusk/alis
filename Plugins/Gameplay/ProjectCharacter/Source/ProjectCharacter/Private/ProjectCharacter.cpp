@@ -51,7 +51,14 @@ AProjectCharacter::AProjectCharacter()
 	StatusAttributes = CreateDefaultSubobject<UStatusAttributeSet>(TEXT("StatusAttributes"));
 
 	// Vitals tick component (server-only: metabolism, thresholds, condition regen/drain)
-	// See ProjectVitals README for design
+	// See ProjectVitals README for design.
+	// NOTE (DIP exception - intentional composition ownership):
+	// CreateDefaultSubobject<T> requires a concrete type at compile time, so
+	// ProjectCharacter keeps a hard dependency on ProjectVitals for component
+	// construction. This is ownership, not consumption. Consumer plugins that
+	// only observe events (e.g., ProjectSinglePlay) go through
+	// IVitalsEventsSource in ProjectCore. See docs/architecture/plugin_rules.md
+	// (Composition Ownership vs Consumption).
 	VitalsComponent = CreateDefaultSubobject<UProjectVitalsComponent>(TEXT("VitalsComponent"));
 
 	// -------------------------------------------------------------------------

@@ -85,6 +85,23 @@ If you can't reproduce in PIE, run from CLI with extra logging:
 - **Audio:** CI often uses `-NoSound`.
 - **Resolution:** CI might have different screen size. Use explicit resolution adjustments.
 
+### 5. `iterate.ps1` aborts with `LC_TIMEOUT` (exit 5)
+**Symptom:** Warm editor is alive, `-CompileMode Auto` or `LiveCoding` aborts after ~60s with:
+```
+LogLiveCodingServer: Warning: No PDB file found for module UnrealEditor-<Module>.dll
+...
+[compile] LC_TIMEOUT (no terminal marker) - refusing to dispatch against stale editor state.
+```
+**Cause:** A prior packaging run (`-nodebuginfo`) stripped the base PDB for the module you just edited. Live Coding silently disables itself for modules without a PDB, so the compile never reaches a terminal state.
+
+**Fix:** rebuild the affected module.
+```powershell
+scripts\ue\build\rebuild_module_safe.ps1 -ModuleName ProjectIntegrationTests
+```
+First rebuild attempt can take up to 10 min and occasionally hits the 600s timeout; the script auto-retries. Restart the persistent editor after the rebuild completes.
+
+**SOT:** [docs/agents/canonical.md](../agents/canonical.md) "Dev loop pitfalls (verified 2026-04-23)" item 1.
+
 ---
 
 ## Manual Verification

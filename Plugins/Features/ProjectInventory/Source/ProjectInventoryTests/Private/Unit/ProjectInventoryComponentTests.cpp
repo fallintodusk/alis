@@ -9,7 +9,12 @@
 
 #include "Misc/AutomationTest.h"
 #include "Components/ProjectInventoryComponent.h"
+#include "Helpers/InventoryMoveHelper.h"
 #include "Inventory/InventoryTypes.h"
+#include "Services/ObjectDefinitionCache.h"
+#include "Subsystems/ProjectObjectDefinitionCacheSubsystem.h"
+#include "Engine/AssetManager.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -149,6 +154,196 @@ bool FProjectInventoryComponent_Cache_DefaultNull::RunTest(const FString& Parame
 	UProjectInventoryComponent* Component = NewObject<UProjectInventoryComponent>();
 
 	TestNull(TEXT("ObjectDefinitionCache is null by default"), Component->GetObjectDefinitionCache());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectInventoryCacheSubsystem_SingleGameInstanceOwner,
+	"ProjectInventory.CacheSubsystem.SingleGameInstanceOwner",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectInventoryCacheSubsystem_SingleGameInstanceOwner::RunTest(const FString& Parameters)
+{
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	TestNotNull(TEXT("GameInstance should be created"), GameInstance);
+	if (!GameInstance)
+	{
+		return false;
+	}
+
+	GameInstance->Init();
+
+	UProjectObjectDefinitionCacheSubsystem* Subsystem =
+		GameInstance->GetSubsystem<UProjectObjectDefinitionCacheSubsystem>();
+	TestNotNull(TEXT("Definition cache subsystem should exist"), Subsystem);
+	if (!Subsystem)
+	{
+		return false;
+	}
+
+	UObjectDefinitionCache* CacheA = Subsystem->GetCache();
+	UObjectDefinitionCache* CacheB = Subsystem->GetCache();
+	TestNotNull(TEXT("Subsystem should own a cache"), CacheA);
+	TestEqual(TEXT("Subsystem should return a stable cache instance"), CacheA, CacheB);
+	TestTrue(TEXT("Cache outer should be the subsystem"), CacheA && CacheA->GetOuter() == Subsystem);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectInventoryComponent_ResolveMissingDoesNotStartLoad,
+	"ProjectInventory.Component.Cache.ResolveMissingDoesNotStartLoad",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectInventoryComponent_ResolveMissingDoesNotStartLoad::RunTest(const FString& Parameters)
+{
+	UObjectDefinitionCache* Cache = NewObject<UObjectDefinitionCache>(GetTransientPackage());
+	UProjectInventoryComponent* Component = NewObject<UProjectInventoryComponent>();
+	TestNotNull(TEXT("Cache should be created"), Cache);
+	TestNotNull(TEXT("Component should be created"), Component);
+	if (!Cache || !Component)
+	{
+		return false;
+	}
+
+	Component->SetObjectDefinitionCache(Cache);
+
+	const FPrimaryAssetId MissingId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:ArchitectureMissingDefinition"));
+	TestTrue(TEXT("Missing test id should still be a valid primary asset id"), MissingId.IsValid());
+
+	FItemDataView ItemData;
+	const EInventoryItemDataResolveState ResolveState = Component->ResolveItemDataView(MissingId, ItemData);
+	TestTrue(TEXT("Read resolver should report Missing for unknown definitions"),
+		ResolveState == EInventoryItemDataResolveState::Missing);
+	TestTrue(TEXT("Read resolver should not start an async load for missing definitions"),
+		Cache->GetLoadState(MissingId) == EObjectDefinitionLoadState::Missing);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectInventoryCache_CapturesLoadedDefinition,
+	"ProjectInventory.Cache.CapturesLoadedDefinition",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectInventoryCache_CapturesLoadedDefinition::RunTest(const FString& Parameters)
+{
+	UObjectDefinitionCache* Cache = NewObject<UObjectDefinitionCache>(GetTransientPackage());
+	TestNotNull(TEXT("ObjectDefinitionCache should be created"), Cache);
+	if (!Cache)
+	{
+		return false;
+	}
+
+	const FPrimaryAssetId CigaretteId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Cigarette"));
+	TestTrue(TEXT("Cigarette asset id should be valid"), CigaretteId.IsValid());
+	if (!CigaretteId.IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<FStreamableHandle> LoadHandle = UAssetManager::Get().LoadPrimaryAsset(CigaretteId, TArray<FName>());
+	TestTrue(TEXT("AssetManager should return a load handle for Cigarette"), LoadHandle.IsValid());
+	if (!LoadHandle.IsValid())
+	{
+		return false;
+	}
+
+	LoadHandle->WaitUntilComplete();
+
+	UObject* LoadedObject = Cache->GetLoaded(CigaretteId);
+	TestNotNull(TEXT("Cache should resolve the loaded Cigarette definition"), LoadedObject);
+	TestTrue(TEXT("Cache should report Cigarette as loaded"), Cache->IsLoaded(CigaretteId));
+
+	TArray<FObjectDefinitionCacheEntryDiagnostic> Diagnostics;
+	Cache->GetDiagnostics(Diagnostics);
+
+	const FObjectDefinitionCacheEntryDiagnostic* Diagnostic = Diagnostics.FindByPredicate(
+		[&CigaretteId](const FObjectDefinitionCacheEntryDiagnostic& Entry)
+		{
+			return Entry.ObjectId == CigaretteId;
+		});
+
+	TestNotNull(TEXT("Diagnostics should include Cigarette"), Diagnostic);
+	if (Diagnostic)
+	{
+		TestTrue(TEXT("Diagnostic state should be Loaded"), Diagnostic->State == EObjectDefinitionLoadState::Loaded);
+		TestTrue(TEXT("Diagnostic should record a resolved object"), Diagnostic->bHasResolvedObject);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectInventoryCache_LoadStateTransitions,
+	"ProjectInventory.Cache.LoadStateTransitions",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectInventoryCache_LoadStateTransitions::RunTest(const FString& Parameters)
+{
+	UObjectDefinitionCache* Cache = NewObject<UObjectDefinitionCache>(GetTransientPackage());
+	TestNotNull(TEXT("ObjectDefinitionCache should be created"), Cache);
+	if (!Cache)
+	{
+		return false;
+	}
+
+	const FPrimaryAssetId CigaretteId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Cigarette"));
+	TestTrue(TEXT("Cigarette asset id should be valid"), CigaretteId.IsValid());
+	if (!CigaretteId.IsValid())
+	{
+		return false;
+	}
+
+	TestTrue(
+		TEXT("Initial load state should be Missing or Loaded if already resident"),
+		Cache->GetLoadState(CigaretteId) == EObjectDefinitionLoadState::Missing
+			|| Cache->GetLoadState(CigaretteId) == EObjectDefinitionLoadState::Loaded);
+
+	bool bCallbackInvoked = false;
+	Cache->RequestLoad(
+		CigaretteId,
+		FOnObjectDefinitionLoaded::CreateLambda([&bCallbackInvoked](UObject* LoadedObject)
+		{
+			bCallbackInvoked = (LoadedObject != nullptr);
+		}));
+
+	const EObjectDefinitionLoadState AfterRequestState = Cache->GetLoadState(CigaretteId);
+	TestTrue(
+		TEXT("After RequestLoad the state should be Loading or Loaded"),
+		AfterRequestState == EObjectDefinitionLoadState::Loading
+			|| AfterRequestState == EObjectDefinitionLoadState::Loaded);
+
+	const double DeadlineSeconds = FPlatformTime::Seconds() + 5.0;
+	while (Cache->GetLoadState(CigaretteId) != EObjectDefinitionLoadState::Loaded
+		&& FPlatformTime::Seconds() < DeadlineSeconds)
+	{
+		FlushAsyncLoading();
+		FPlatformProcess::Sleep(0.01f);
+	}
+
+	UObject* LoadedObject = Cache->GetLoaded(CigaretteId);
+	TestNotNull(TEXT("Cache should resolve Cigarette after load completion"), LoadedObject);
+	TestTrue(TEXT("Cache should report Cigarette as Loaded"), Cache->GetLoadState(CigaretteId) == EObjectDefinitionLoadState::Loaded);
+	TestTrue(TEXT("Cache callback should be invoked with the resolved object"), bCallbackInvoked);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectInventoryMoveHelper_SelfOverlapDetection,
+	"ProjectInventory.MoveHelper.SelfOverlapDetection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectInventoryMoveHelper_SelfOverlapDetection::RunTest(const FString& Parameters)
+{
+	TestTrue(
+		TEXT("Identical source/target rects should overlap"),
+		FInventoryMoveHelper::CheckSelfOverlap(FIntPoint(0, 0), FIntPoint(1, 1), FIntPoint(0, 0), FIntPoint(1, 1)));
+
+	TestTrue(
+		TEXT("Partially overlapping rects should overlap"),
+		FInventoryMoveHelper::CheckSelfOverlap(FIntPoint(0, 0), FIntPoint(2, 1), FIntPoint(1, 0), FIntPoint(2, 1)));
+
+	TestFalse(
+		TEXT("Adjacent non-overlapping rects should not overlap"),
+		FInventoryMoveHelper::CheckSelfOverlap(FIntPoint(0, 0), FIntPoint(1, 1), FIntPoint(1, 0), FIntPoint(1, 1)));
 
 	return true;
 }

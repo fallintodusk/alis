@@ -31,6 +31,7 @@ public:
 	// Quantity selection for drop/split
 	int32 SelectedQuantity = 1;
 	int32 SelectedMaxQuantity = 0;
+	int32 QuantitySelectionInstanceId = INDEX_NONE;
 
 	// Pending drag state
 	int32 PendingDragCellIndex = INDEX_NONE;
@@ -118,6 +119,20 @@ public:
 	{
 		SelectedQuantity = 1;
 		SelectedMaxQuantity = 0;
+		QuantitySelectionInstanceId = INDEX_NONE;
+	}
+
+	/** Sync quantity controls to the selected entry. New selections default to the whole stack. */
+	void SyncQuantityToEntry(int32 InstanceId, int32 Quantity)
+	{
+		SelectedMaxQuantity = FMath::Max(0, Quantity);
+		if (QuantitySelectionInstanceId != InstanceId)
+		{
+			QuantitySelectionInstanceId = InstanceId;
+			SelectedQuantity = SelectedMaxQuantity > 0 ? SelectedMaxQuantity : 1;
+			return;
+		}
+		ClampQuantity();
 	}
 
 	/** Clamp quantity within valid range */
@@ -146,6 +161,7 @@ public:
 		bHoveredSecondary = false;
 		SelectedQuantity = 1;
 		SelectedMaxQuantity = 0;
+		QuantitySelectionInstanceId = INDEX_NONE;
 		PendingDragCellIndex = INDEX_NONE;
 		bPendingDragSecondary = false;
 		bRotateNextDrop = false;

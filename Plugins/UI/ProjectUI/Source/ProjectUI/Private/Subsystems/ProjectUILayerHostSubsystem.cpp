@@ -147,7 +147,21 @@ void UProjectUILayerHostSubsystem::HideDefinition(FName DefinitionId)
 	FActiveWidgetEntry* Entry = ActiveWidgets.Find(DefinitionId);
 	if (!Entry)
 	{
-		UE_LOG(LogProjectUILayerHost, Warning, TEXT("HideDefinition - Entry not found for Id=%s"), *DefinitionId.ToString());
+		if (UProjectUIRegistrySubsystem* Registry = GetGameInstance()->GetSubsystem<UProjectUIRegistrySubsystem>())
+		{
+			if (const FProjectUIDefinition* Definition = Registry->FindDefinition(DefinitionId))
+			{
+				UE_LOG(
+					LogProjectUILayerHost,
+					Verbose,
+					TEXT("HideDefinition - No active entry for Id=%s (spawn policy=%d, treating as already hidden)"),
+					*DefinitionId.ToString(),
+					static_cast<int32>(Definition->SpawnPolicy));
+				return;
+			}
+		}
+
+		UE_LOG(LogProjectUILayerHost, Warning, TEXT("HideDefinition - Definition not found for Id=%s"), *DefinitionId.ToString());
 		return;
 	}
 

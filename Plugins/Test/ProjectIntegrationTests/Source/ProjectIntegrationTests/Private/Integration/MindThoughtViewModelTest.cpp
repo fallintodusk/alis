@@ -22,6 +22,7 @@
 #include "GameFramework/Pawn.h"
 #include "ProjectGameplayTags.h"
 #include "Components/BoxComponent.h"
+#include "Components/SceneComponent.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -227,6 +228,22 @@ namespace
 			CooldownSec,
 			DedupeWindowSec,
 			SecondDedupeKey);
+	}
+
+	// Default AActor and default APawn do NOT come with a scene root
+	// component. Without a root, SetActorLocation silently leaves the
+	// actor at (0,0,0), which causes the idle-scan distance filter to
+	// drop the test fixtures before rule matching. Attach a SceneComponent
+	// before positioning so location math is correct.
+	void AttachSceneRootToTestActor(AActor* Actor, FName ComponentName)
+	{
+		if (!Actor || Actor->GetRootComponent() != nullptr)
+		{
+			return;
+		}
+		USceneComponent* Root = NewObject<USceneComponent>(Actor, ComponentName);
+		Actor->SetRootComponent(Root);
+		Root->RegisterComponent();
 	}
 
 	UWorld* ResolveMindTestWorld()
@@ -476,10 +493,14 @@ bool FMindDialogueRecordResolutionIntegrationTest::RunTest(const FString& Parame
 	MockDialogueService->bIsActive = true;
 	MockDialogueService->CurrentTreeId = FName(TEXT("DLG_GrandPa_Entry"));
 
+	// greeting maps to Record.Dialogue.Grandpa.NeedsWater (Active).
 	MockDialogueService->CurrentNodeId = FName(TEXT("greeting"));
 	MockDialogueService->BroadcastStateChanged();
 
-	MockDialogueService->CurrentNodeId = FName(TEXT("thanks"));
+	// open_door maps to the same record in (Resolved) state. We use a node
+	// that actually exists in dialogue_thought_mappings.json so the test
+	// stays coupled to production data, not a test-only mapping.
+	MockDialogueService->CurrentNodeId = FName(TEXT("open_door"));
 	MockDialogueService->BroadcastStateChanged();
 
 	TArray<FMindThoughtView> Thoughts;
@@ -762,6 +783,7 @@ bool FMindScanToastDoesNotPromoteToImportantTest::RunTest(const FString& Paramet
 	{
 		return false;
 	}
+	AttachSceneRootToTestActor(TestPawn, TEXT("MindScanPawnRoot"));
 	TestPawn->SetActorLocation(FixtureOrigin);
 	TestPawn->SetActorRotation(FRotator::ZeroRotator);
 
@@ -771,6 +793,7 @@ bool FMindScanToastDoesNotPromoteToImportantTest::RunTest(const FString& Paramet
 		TestPawn->Destroy();
 		return false;
 	}
+	AttachSceneRootToTestActor(ScanTarget, TEXT("MindScanTargetRoot"));
 	ScanTarget->SetActorLocation(FixtureOrigin + FVector(220.0f, 0.0f, 0.0f));
 	ScanTarget->Tags.Add(FName(TEXT("World.Interactable")));
 
@@ -847,6 +870,7 @@ bool FMindScanRequiresLineOfSightTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	AttachSceneRootToTestActor(TestPawn, TEXT("MindLOSPawnRoot"));
 	TestPawn->SetActorLocation(FixtureOrigin);
 	TestPawn->SetActorRotation(FRotator::ZeroRotator);
 
@@ -856,6 +880,7 @@ bool FMindScanRequiresLineOfSightTest::RunTest(const FString& Parameters)
 		TestPawn->Destroy();
 		return false;
 	}
+	AttachSceneRootToTestActor(ScanTarget, TEXT("MindLOSTargetRoot"));
 	ScanTarget->SetActorLocation(FixtureOrigin + FVector(250.0f, 0.0f, 0.0f));
 	ScanTarget->Tags.Add(FName(TEXT("World.Interactable")));
 

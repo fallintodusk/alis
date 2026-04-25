@@ -5,6 +5,7 @@
 #include "FeatureInitContext.h"
 #include "Components/ProjectInventoryComponent.h"
 #include "Services/ObjectDefinitionCache.h"
+#include "Subsystems/ProjectObjectDefinitionCacheSubsystem.h"
 #include "Data/ObjectCatalog.h"
 #include "Engine/AssetManager.h"
 #include "Dom/JsonObject.h"
@@ -49,10 +50,19 @@ void FProjectInventoryModule::StartupModule()
 			return;
 		}
 
-		// Create cache with GameInstance outer for stable lifetime
 		UGameInstance* GameInstance = Context.World ? Context.World->GetGameInstance() : nullptr;
-		UObject* CacheOuter = GameInstance ? static_cast<UObject*>(GameInstance) : GetTransientPackage();
-		UObjectDefinitionCache* Cache = NewObject<UObjectDefinitionCache>(CacheOuter);
+		UProjectObjectDefinitionCacheSubsystem* CacheSubsystem = GameInstance
+			? GameInstance->GetSubsystem<UProjectObjectDefinitionCacheSubsystem>()
+			: nullptr;
+		UObjectDefinitionCache* Cache = CacheSubsystem ? CacheSubsystem->GetCache() : nullptr;
+		if (!Cache)
+		{
+			UE_LOG(LogProjectInventory, Error, TEXT("Inventory feature: Object definition cache subsystem unavailable"));
+#if !UE_BUILD_SHIPPING
+			ensureMsgf(false, TEXT("Inventory requires ProjectObjectDefinitionCacheSubsystem before feature startup"));
+#endif
+			return;
+		}
 
 		UProjectInventoryComponent* Inventory = NewObject<UProjectInventoryComponent>(Pawn);
 		Inventory->SetObjectDefinitionCache(Cache);
@@ -84,10 +94,14 @@ void FProjectInventoryModule::StartupModule()
 							{
 								UAssetManager& AMInner = UAssetManager::Get();
 								UObjectCatalog* Catalog = AMInner.GetPrimaryAssetObject<UObjectCatalog>(CatalogId);
-								if (Catalog && Catalog->Objects.Num() > 0)
+								if (Catalog && Catalog->Objects.Num() > 0 && Cache)
 								{
 									UE_LOG(LogProjectInventory, Log, TEXT("ObjectCatalog loaded: %d objects"), Catalog->Objects.Num());
 									Cache->Warmup(Catalog->Objects);
+								}
+								else if (!Cache)
+								{
+									UE_LOG(LogProjectInventory, Warning, TEXT("ObjectCatalog loaded but object definition cache is unavailable: %s"), *CatalogId.ToString());
 								}
 								else
 								{

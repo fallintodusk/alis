@@ -13,6 +13,8 @@ Build reusable UI once in `ProjectUI`, then reuse it in inventory, menus, settin
    - Popup and tooltip lifecycle
    - Grid hit detection, drag/drop validation, visual state coloring
    - Layer host, factory, theme, JSON layout loading
+   - Idempotent generic layer operations, such as hiding a known definition
+     that has no active widget instance yet
 
 2. Feature plugins own domain meaning only.
    - Inventory item semantics and command routing
@@ -28,6 +30,24 @@ Build reusable UI once in `ProjectUI`, then reuse it in inventory, menus, settin
    - Avoid hardcoded branches like "if backpack then..." in shared UI mechanics.
    - Descriptor groups with no entries should collapse their host widgets (no empty placeholder panels).
 
+5. Keep feature-specific data resolution out of `ProjectUI`.
+   - Generic widgets may render text, badges, colors, and layout state supplied
+     by feature view models.
+   - Generic widgets must not load feature assets, resolve gameplay
+     definitions, or infer feature semantics.
+   - Feature plugins should provide small presentation DTOs when one primitive
+     value is not expressive enough.
+   - Generic drag/drop may accept feature-supplied predicates for occupancy
+     allowance, but the predicate must live in the feature plugin. ProjectUI
+     must not learn inventory stack semantics.
+
+6. Shared low-level geometry belongs below feature plugins.
+   - If both gameplay and UI need the same primitive math, put the primitive in
+     ProjectSharedTypes or another neutral shared-types module.
+   - Do not copy rectangle/grid overlap rules into widgets.
+   - Do not put data-only shared shapes into ProjectCore unless they are part
+     of a ProjectCore interface contract.
+
 ## Required Framework Primitives
 
 Use these first before writing new helpers:
@@ -41,6 +61,19 @@ Use these first before writing new helpers:
 - `UProjectGridCell`
 
 Do not reintroduce inventory-named generic helpers (`FInventoryPanelDragDrop`, `FInventoryGridHitDetector`, `UInventoryGridCell`, etc.).
+
+## Tooltip and Drag/Drop Extension Points
+
+- `FProjectUIHoverTooltipPresenter` supports anchor/pivot positioning for
+  tooltips that should avoid covering the hovered target. Feature widgets pass
+  viewport-space anchors; ProjectUI only clamps and applies the resulting
+  position.
+- `FProjectUIGridDragDropController` owns grid hit, footprint, and preview
+  mechanics. Feature widgets may pass an occupancy allowance predicate so a
+  domain can preview legal drops onto occupied cells without ProjectUI knowing
+  domain rules.
+- If a rule needs item ids, stack limits, capabilities, or feature state, keep
+  that rule outside ProjectUI and pass the result through the extension point.
 
 ## Menu + Settings Best Practices
 
@@ -72,5 +105,8 @@ The following automation tests must pass for UI framework changes:
 - Is container/grid rendering descriptor-driven instead of per-container branch logic?
 - Is action visibility/enabling sourced from one view-model/domain policy?
 - Are required layout bindings validated once at construct time?
+- Are layer show/hide operations idempotent for expected auto-visibility flows?
+- Does `ProjectUI` remain free of feature asset resolution and gameplay
+  semantics?
 - Are popup and tooltip lifecycles using presenters (not custom widget-local flows)?
 - Are new docs/tests updated with the same ownership boundaries?

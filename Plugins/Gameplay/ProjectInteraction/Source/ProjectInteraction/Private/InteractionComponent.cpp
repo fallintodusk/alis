@@ -306,6 +306,21 @@ void UInteractionComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 		}
 	}
 
+	// Dynamic-camera pawns (e.g. ADefinitionCharacter) create their camera
+	// AFTER BeginPlay via ApplyViewConfig, so the one-shot SetupPostProcess
+	// from BeginPlay can miss it. Retry once per tick until the camera is
+	// available, then bPostProcessReady gates this out permanently.
+	if (bEnableHighlight && !bPostProcessReady)
+	{
+		if (AActor* Owner = GetOwner())
+		{
+			if (Owner->FindComponentByClass<UCameraComponent>())
+			{
+				SetupPostProcess();
+			}
+		}
+	}
+
 	// Skip frames for performance (trace every N frames)
 	++FrameCounter;
 	if (FrameCounter < TraceFrameInterval)
@@ -794,7 +809,15 @@ void UInteractionComponent::SetupPostProcess()
 	UE_LOG(LogInteraction, Log, TEXT("[%s] SetupPostProcess: Starting setup, bEnableHighlight=%s"),
 		*GetName(), bEnableHighlight ? TEXT("true") : TEXT("false"));
 
-	if (!OutlineMaterial.IsNull())
+	if (OutlineMaterial.IsNull())
+	{
+		UE_LOG(LogInteraction, Log, TEXT("[%s] SetupPostProcess: No OutlineMaterial configured, highlight disabled"),
+			*GetName());
+		return;
+	}
+
+	// Reuse a previously-loaded material across tick-retries.
+	if (!LoadedOutlineMaterial)
 	{
 		UE_LOG(LogInteraction, Log, TEXT("[%s] SetupPostProcess: Loading material from path '%s'"),
 			*GetName(), *OutlineMaterial.ToString());
@@ -809,12 +832,6 @@ void UInteractionComponent::SetupPostProcess()
 
 		UE_LOG(LogInteraction, Log, TEXT("[%s] SetupPostProcess: Loaded material '%s' (Class=%s)"),
 			*GetName(), *LoadedOutlineMaterial->GetName(), *LoadedOutlineMaterial->GetClass()->GetName());
-	}
-	else
-	{
-		UE_LOG(LogInteraction, Log, TEXT("[%s] SetupPostProcess: No OutlineMaterial configured, highlight disabled"),
-			*GetName());
-		return;
 	}
 
 	AActor* Owner = GetOwner();
