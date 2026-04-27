@@ -1,211 +1,23 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "InteractionComponent.h"
+#include "InteractionCapabilitySelector.h"
+#include "InteractionTargetResolver.h"
 #include "InteractionService.h"
 #include "Interfaces/IInteractionService.h"
 #include "Interfaces/IInteractableTarget.h"
 #include "ProjectServiceLocator.h"
-#include "GameFramework/PlayerController.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Camera/CameraComponent.h"
-#include "Components/PrimitiveComponent.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Engine/StreamableManager.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogInteraction, Log, All);
+#include "GameFramework/Pawn.h"
 
 namespace
 {
-	void CollectAttachmentHierarchy(USceneComponent* HitNode, TSet<UPrimitiveComponent*>& OutMeshes)
-	{
-		if (!HitNode)
-		{
-			return;
-		}
-
-		AActor* Owner = HitNode->GetOwner();
-		if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(HitNode))
-		{
-			OutMeshes.Add(Prim);
-		}
-
-		USceneComponent* Parent = HitNode->GetAttachParent();
-		while (Parent && Parent->GetOwner() == Owner)
-		{
-			if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Parent))
-			{
-				OutMeshes.Add(Prim);
-			}
-			Parent = Parent->GetAttachParent();
-		}
-
-		TArray<USceneComponent*> Descendants;
-		HitNode->GetChildrenComponents(true, Descendants);
-		for (USceneComponent* Child : Descendants)
-		{
-			if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Child))
-			{
-				OutMeshes.Add(Prim);
-			}
-		}
-	}
-
-	UPrimitiveComponent* GetCapabilityTargetMesh(UActorComponent* Capability)
-	{
-		if (!Capability || !Capability->Implements<UInteractableComponentTargetInterface>())
-		{
-			return nullptr;
-		}
-
-		return IInteractableComponentTargetInterface::Execute_GetInteractTargetMesh(Capability);
-	}
-
-	bool CapabilityMatchesHierarchy(
-		UActorComponent* Capability,
-		const TSet<UPrimitiveComponent*>& HierarchyMeshes,
-		bool& OutHasMeshProperty)
-	{
-		OutHasMeshProperty = false;
-		if (!Capability)
-		{
-			return false;
-		}
-
-		if (UPrimitiveComponent* TargetMesh = GetCapabilityTargetMesh(Capability))
-		{
-			OutHasMeshProperty = true;
-			return HierarchyMeshes.Contains(TargetMesh);
-		}
-		return false;
-	}
-
-	void GatherInteractableComponents(AActor* Target, TArray<UActorComponent*>& OutComponents)
-	{
-		OutComponents.Reset();
-		if (!Target)
-		{
-			return;
-		}
-
-		for (UActorComponent* Comp : Target->GetComponents())
-		{
-			if (Comp && Comp->Implements<UInteractableComponentTargetInterface>())
-			{
-				OutComponents.Add(Comp);
-			}
-		}
-
-		OutComponents.Sort([](const UActorComponent& A, const UActorComponent& B)
-		{
-			const int32 PriorityA = IInteractableComponentTargetInterface::Execute_GetInteractPriority(&A);
-			const int32 PriorityB = IInteractableComponentTargetInterface::Execute_GetInteractPriority(&B);
-			return PriorityA > PriorityB;
-		});
-	}
-
-	UActorComponent* SelectBestInteractableComponent(AActor* Target, UPrimitiveComponent* HitComponent)
-	{
-		if (!Target)
-		{
-			return nullptr;
-		}
-
-		TArray<UActorComponent*> InteractableComponents;
-		GatherInteractableComponents(Target, InteractableComponents);
-		if (InteractableComponents.Num() == 0)
-		{
-			return nullptr;
-		}
-
-		// No hit component: use highest-priority interactable component.
-		if (!HitComponent)
-		{
-			return InteractableComponents[0];
-		}
-
-		TSet<UPrimitiveComponent*> HierarchyMeshes;
-		CollectAttachmentHierarchy(HitComponent, HierarchyMeshes);
-
-		UActorComponent* BestMeshScoped = nullptr;
-		int32 BestMeshPriority = MIN_int32;
-		UActorComponent* BestActorScoped = nullptr;
-		int32 BestActorPriority = MIN_int32;
-
-		for (UActorComponent* Comp : InteractableComponents)
-		{
-			bool bHasMeshProperty = false;
-			const bool bMatchesHierarchy = CapabilityMatchesHierarchy(Comp, HierarchyMeshes, bHasMeshProperty);
-			const int32 Priority = IInteractableComponentTargetInterface::Execute_GetInteractPriority(Comp);
-
-			if (bMatchesHierarchy)
-			{
-				if (!BestMeshScoped || Priority > BestMeshPriority)
-				{
-					BestMeshScoped = Comp;
-					BestMeshPriority = Priority;
-				}
-			}
-			else if (!bHasMeshProperty)
-			{
-				if (!BestActorScoped || Priority > BestActorPriority)
-				{
-					BestActorScoped = Comp;
-					BestActorPriority = Priority;
-				}
-			}
-		}
-
-		return BestMeshScoped ? BestMeshScoped : BestActorScoped;
-	}
-
-	bool ResolveFocusFromComponents(AActor* Target, UPrimitiveComponent* HitComponent, FInteractionFocusInfo& OutFocus)
-	{
-		if (!Target || !HitComponent)
-		{
-			return false;
-		}
-
-		UActorComponent* Selected = SelectBestInteractableComponent(Target, HitComponent);
-		if (!Selected)
-		{
-			return false;
-		}
-
-		OutFocus.Label = IInteractableComponentTargetInterface::Execute_GetInteractionLabel(Selected);
-		if (OutFocus.Label.IsEmpty())
-		{
-			OutFocus.Label = NSLOCTEXT("Interaction", "Interact", "Interact");
-		}
-		OutFocus.HighlightMesh = GetCapabilityTargetMesh(Selected);
-		if (!OutFocus.HighlightMesh)
-		{
-			OutFocus.HighlightMesh = HitComponent;
-		}
-
-		return true;
-	}
-
-	bool ResolveInteractionExecutionSpecFromComponents(
-		AActor* Target,
-		UPrimitiveComponent* HitComponent,
-		AActor* Instigator,
-		FInteractionExecutionSpec& OutSpec)
-	{
-		OutSpec = FInteractionExecutionSpec();
-		if (!Target)
-		{
-			return false;
-		}
-
-		UActorComponent* Selected = SelectBestInteractableComponent(Target, HitComponent);
-		if (!Selected)
-		{
-			return false;
-		}
-
-		OutSpec = IInteractableComponentTargetInterface::Execute_GetInteractionExecutionSpec(Selected, Instigator);
-		return true;
-	}
+	static TAutoConsoleVariable<int32> CVarInteractionDraw(
+		TEXT("alis.Interaction.Draw"),
+		0,
+		TEXT("Draw interaction targeting debug shapes: 0 off, 1 sphere/winner, 2 include rejected rays."),
+		ECVF_Default);
 
 	bool HasHoldTargetChanged(
 		const TWeakObjectPtr<AActor>& HoldActor,
@@ -226,28 +38,12 @@ namespace
 		return false;
 	}
 
-	bool ExecuteInteractionViaComponents(AActor* Target, AActor* Instigator, UPrimitiveComponent* HitComponent)
-	{
-		if (!Target || !Instigator)
-		{
-			return false;
-		}
-
-		// Keep execution target selection consistent with focus selection.
-		UActorComponent* Selected = SelectBestInteractableComponent(Target, HitComponent);
-		if (!Selected)
-		{
-			return false;
-		}
-
-		return IInteractableComponentTargetInterface::Execute_OnComponentInteract(Selected, Instigator);
-	}
 }
 
 UInteractionComponent::UInteractionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 
 	OutlineMaterial = TSoftObjectPtr<UMaterialInterface>(
 		FSoftObjectPath(TEXT("/ProjectMaterial/Effect/MI_Outline.MI_Outline"))
@@ -255,8 +51,14 @@ UInteractionComponent::UInteractionComponent()
 
 	// bDrawDebug = false; // Enable for debug trace visualization
 
-	UE_LOG(LogInteraction, Verbose, TEXT("[%s] Constructor: TraceDistance=%.0f, TraceRadius=%.0f"),
-		*GetName(), TraceDistance, TraceRadius);
+	UE_LOG(
+		LogInteraction,
+		Verbose,
+		TEXT("[%s] Constructor: InteractionRadius=%.0f, MinAimDot=%.2f, FocusSwitchHysteresis=%.2f"),
+		*GetName(),
+		InteractionRadius,
+		MinAimDot,
+		FocusSwitchHysteresis);
 }
 
 void UInteractionComponent::BeginPlay()
@@ -264,12 +66,46 @@ void UInteractionComponent::BeginPlay()
 	Super::BeginPlay();
 
 	const FString OwnerName = GetOwner() ? GetOwner()->GetName() : TEXT("NULL");
-	UE_LOG(LogInteraction, Log, TEXT("[%s] BeginPlay: Owner=%s, TraceDistance=%.0f, TraceRadius=%.0f, Channel=%d, FrameInterval=%d"),
-		*GetName(), *OwnerName, TraceDistance, TraceRadius, (int32)TraceChannel.GetValue(), TraceFrameInterval);
+	UE_LOG(
+		LogInteraction,
+		Log,
+		TEXT("[%s] BeginPlay: Owner=%s, InteractionRadius=%.0f, MinAimDot=%.2f, FocusSwitchHysteresis=%.2f, Channel=%d, TraceInterval=%.2fs"),
+		*GetName(),
+		*OwnerName,
+		InteractionRadius,
+		MinAimDot,
+		FocusSwitchHysteresis,
+		(int32)TraceChannel.GetValue(),
+		TraceIntervalSeconds);
 
-	if (bEnableHighlight)
+	if (APawn* PawnOwner = Cast<APawn>(GetOwner()))
 	{
-		SetupPostProcess();
+		PawnOwner->ReceiveRestartedDelegate.AddUniqueDynamic(this, &UInteractionComponent::HandlePawnRestarted);
+	}
+
+	ActivateLocalPresentationIfNeeded();
+}
+
+void UInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (APawn* PawnOwner = Cast<APawn>(GetOwner()))
+	{
+		PawnOwner->ReceiveRestartedDelegate.RemoveDynamic(this, &UInteractionComponent::HandlePawnRestarted);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PassiveTraceTimerHandle);
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void UInteractionComponent::HandlePawnRestarted(APawn* Pawn)
+{
+	if (Pawn == GetOwner())
+	{
+		ActivateLocalPresentationIfNeeded();
 	}
 }
 
@@ -321,19 +157,73 @@ void UInteractionComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 		}
 	}
 
-	// Skip frames for performance (trace every N frames)
-	++FrameCounter;
-	if (FrameCounter < TraceFrameInterval)
+	RefreshComponentTickEnabled();
+}
+
+void UInteractionComponent::StartPassiveTraceTimer()
+{
+	UWorld* World = GetWorld();
+	if (!World)
 	{
 		return;
 	}
-	FrameCounter = 0;
 
-	UpdateTrace();
+	const float IntervalSeconds = FMath::Max(TraceIntervalSeconds, 0.05f);
+	World->GetTimerManager().SetTimer(
+		PassiveTraceTimerHandle,
+		this,
+		&UInteractionComponent::UpdateTrace,
+		IntervalSeconds,
+		true,
+		0.0f);
+}
+
+void UInteractionComponent::ActivateLocalPresentationIfNeeded()
+{
+	if (!ShouldRunPassiveFocus())
+	{
+		return;
+	}
+
+	if (bEnableHighlight && !bPostProcessReady)
+	{
+		SetupPostProcess();
+	}
+
+	UWorld* World = GetWorld();
+	if (World && !World->GetTimerManager().IsTimerActive(PassiveTraceTimerHandle))
+	{
+		StartPassiveTraceTimer();
+	}
+
+	RefreshComponentTickEnabled();
+}
+
+void UInteractionComponent::RefreshComponentTickEnabled()
+{
+	const bool bNeedsPostProcessRetry = ShouldRunPassiveFocus() && bEnableHighlight && !bPostProcessReady;
+	const bool bNeedsTick = bHoldInteractionActive || bNeedsPostProcessRetry;
+	SetComponentTickEnabled(bNeedsTick);
+}
+
+bool UInteractionComponent::ShouldRunPassiveFocus() const
+{
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		return false;
+	}
+
+	const APawn* PawnOwner = Cast<APawn>(GetOwner());
+	return PawnOwner && PawnOwner->IsLocallyControlled();
 }
 
 void UInteractionComponent::UpdateTrace()
 {
+	if (!ShouldRunPassiveFocus())
+	{
+		return;
+	}
+
 	AActor* Owner = GetOwner();
 	if (!Owner)
 	{
@@ -346,32 +236,54 @@ void UInteractionComponent::UpdateTrace()
 		return;
 	}
 
-	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
-	if (!PC || !PC->PlayerCameraManager)
+	FVector ViewOrigin = FVector::ZeroVector;
+	FVector ViewForward = FVector::ZeroVector;
+	if (!FInteractionTargetResolver::ResolvePlayerCameraView(Pawn, ViewOrigin, ViewForward))
 	{
 		return;
 	}
 
-	TraceStart = PC->PlayerCameraManager->GetCameraLocation();
-	FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
-	TraceEnd = TraceStart + (CameraForward * TraceDistance);
+	UpdateFocusFromView(ViewOrigin, ViewForward);
+}
 
-	// Line trace only (same as interaction trace for consistency)
-	FHitResult HitResult;
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(Owner);
-
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(
-		HitResult,
-		TraceStart,
-		TraceEnd,
+bool UInteractionComponent::UpdateFocusFromView(const FVector& ViewOrigin, const FVector& ViewForward)
+{
+	const FInteractionTargetingWeights Weights = FInteractionTargetResolver::BuildWeights(*this);
+	const int32 DrawMode = CVarInteractionDraw.GetValueOnGameThread();
+	FInteractionTargetDebugSnapshot Debug;
+	FInteractionTargetDebugSnapshot* DebugPtr = (DrawMode != 0) ? &Debug : nullptr;
+	FInteractionTargetCandidate Winner;
+	FInteractionTargetCandidate CurrentFocusCandidate;
+	const bool bFoundWinner = FInteractionTargetResolver(
+		GetWorld(),
+		ViewOrigin,
+		ViewForward,
 		TraceChannel,
-		QueryParams
-	);
+		GetOwner(),
+		Weights)
+		.Resolve(Winner, DebugPtr, FocusedActor.Get(), &CurrentFocusCandidate);
 
-	AActor* HitActor = bHit ? HitResult.GetActor() : nullptr;
-	UPrimitiveComponent* HitComponent = bHit ? HitResult.GetComponent() : nullptr;
-	SetFocusedActor(HitActor, HitComponent);
+	FInteractionTargetCandidate FinalWinner = Winner;
+	if (bFoundWinner && FInteractionTargetResolver::ShouldKeepCurrentCandidate(CurrentFocusCandidate, Winner, FocusSwitchHysteresis, MinAimDot))
+	{
+		FinalWinner = CurrentFocusCandidate;
+	}
+
+	TraceStart = ViewOrigin;
+	TraceEnd = bFoundWinner ? FinalWinner.TargetPoint : (ViewOrigin + (ViewForward * Weights.InteractionRadius));
+
+	if (DrawMode != 0)
+	{
+		FInteractionTargetResolver::DrawDebug(
+			GetWorld(),
+			Debug,
+			bFoundWinner ? &FinalWinner : nullptr,
+			FInteractionTargetResolver::GetDebugLifetime(*this),
+			DrawMode > 1);
+	}
+
+	SetFocusedActor(bFoundWinner ? FinalWinner.Actor : nullptr, bFoundWinner ? FinalWinner.Component : nullptr);
+	return bFoundWinner;
 }
 
 // Default fallback label
@@ -394,11 +306,11 @@ void UInteractionComponent::SetFocusedActor(AActor* NewFocus, UPrimitiveComponen
 	}
 	if (NewFocus && !FocusInfo.IsValid())
 	{
-		ResolveFocusFromComponents(NewFocus, HitComponent, FocusInfo);
+		FInteractionCapabilitySelector::ResolveFocus(NewFocus, HitComponent, FocusInfo);
 	}
 	if (NewFocus && !bResolvedExecutionSpecFromActor)
 	{
-		ResolveInteractionExecutionSpecFromComponents(NewFocus, HitComponent, GetOwner(), NewExecutionSpec);
+		FInteractionCapabilitySelector::ResolveExecutionSpec(NewFocus, HitComponent, GetOwner(), NewExecutionSpec);
 	}
 
 	// Not interactable if no valid focus info
@@ -492,7 +404,40 @@ bool UInteractionComponent::TestOnly_ExecuteInteraction(AActor* Target, UPrimiti
 		return IInteractableTargetInterface::Execute_OnInteract(Target, Instigator, HitComponent);
 	}
 
-	return ExecuteInteractionViaComponents(Target, Instigator, HitComponent);
+	return FInteractionCapabilitySelector::ExecuteInteraction(Target, Instigator, HitComponent);
+}
+
+bool UInteractionComponent::TestOnly_ResolveBestInteractionTarget(
+	const FVector& ViewOrigin,
+	const FVector& ViewForward,
+	AActor*& OutActor,
+	UPrimitiveComponent*& OutHitComponent) const
+{
+	OutActor = nullptr;
+	OutHitComponent = nullptr;
+
+	FInteractionTargetCandidate Winner;
+	const bool bFoundWinner = FInteractionTargetResolver(
+		GetWorld(),
+		ViewOrigin,
+		ViewForward,
+		TraceChannel,
+		GetOwner(),
+		FInteractionTargetResolver::BuildWeights(*this))
+		.Resolve(Winner);
+
+	if (bFoundWinner)
+	{
+		OutActor = Winner.Actor;
+		OutHitComponent = Winner.Component;
+	}
+
+	return bFoundWinner;
+}
+
+bool UInteractionComponent::TestOnly_UpdateFocusFromView(const FVector& ViewOrigin, const FVector& ViewForward)
+{
+	return UpdateFocusFromView(ViewOrigin, ViewForward);
 }
 #endif
 
@@ -512,7 +457,7 @@ void UInteractionComponent::BroadcastFocusChangedToService()
 void UInteractionComponent::DrawInteractionDebugTraceOnInput()
 {
 #if WITH_EDITOR
-	if (!bDrawDebug && !GIsEditor)
+	if (!bDrawDebug)
 	{
 		return;
 	}
@@ -525,40 +470,46 @@ void UInteractionComponent::DrawInteractionDebugTraceOnInput()
 		return;
 	}
 
-	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
-	if (!PC || !PC->PlayerCameraManager)
+	FVector ViewOrigin = FVector::ZeroVector;
+	FVector ViewForward = FVector::ZeroVector;
+	if (!FInteractionTargetResolver::ResolvePlayerCameraView(Pawn, ViewOrigin, ViewForward))
 	{
 		UE_LOG(LogInteraction, Verbose, TEXT("[%s] DrawInteractionDebugTraceOnInput: Skipped - no PlayerController or CameraManager"), *GetName());
 		return;
 	}
 
-	const FVector DebugTraceStart = PC->PlayerCameraManager->GetCameraLocation();
-	const FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
-	const FVector DebugTraceEnd = DebugTraceStart + (CameraForward * TraceDistance);
-
-	FHitResult HitResult;
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(Owner);
-
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(
-		HitResult,
-		DebugTraceStart,
-		DebugTraceEnd,
+	FInteractionTargetDebugSnapshot Debug;
+	FInteractionTargetCandidate Winner;
+	FInteractionTargetCandidate CurrentFocusCandidate;
+	const bool bFoundWinner = FInteractionTargetResolver(
+		GetWorld(),
+		ViewOrigin,
+		ViewForward,
 		TraceChannel,
-		QueryParams
-	);
+		Owner,
+		FInteractionTargetResolver::BuildWeights(*this))
+		.Resolve(Winner, &Debug, FocusedActor.Get(), &CurrentFocusCandidate);
 
-	const FColor LineColor = bHit ? FColor::Green : FColor::Red;
-	const FVector EndPoint = bHit ? HitResult.ImpactPoint : DebugTraceEnd;
-	UKismetSystemLibrary::DrawDebugLine(this, DebugTraceStart, EndPoint, LineColor, 5.0f, 0.3f);
+	FInteractionTargetCandidate FinalWinner = Winner;
+	if (bFoundWinner && FInteractionTargetResolver::ShouldKeepCurrentCandidate(CurrentFocusCandidate, Winner, FocusSwitchHysteresis, MinAimDot))
+	{
+		FinalWinner = CurrentFocusCandidate;
+	}
+
+	FInteractionTargetResolver::DrawDebug(
+		GetWorld(),
+		Debug,
+		bFoundWinner ? &FinalWinner : nullptr,
+		5.0f,
+		CVarInteractionDraw.GetValueOnGameThread() > 1);
 
 	UE_LOG(
 		LogInteraction,
 		Log,
-		TEXT("[%s] DrawInteractionDebugTraceOnInput: Drawn %s line to '%s'"),
+		TEXT("[%s] DrawInteractionDebugTraceOnInput: Drawn %s resolver debug for '%s'"),
 		*GetName(),
-		bHit ? TEXT("hit") : TEXT("miss"),
-		bHit && HitResult.GetActor() ? *HitResult.GetActor()->GetActorNameOrLabel() : TEXT("None"));
+		bFoundWinner ? TEXT("winner") : TEXT("miss"),
+		bFoundWinner && FinalWinner.Actor ? *FinalWinner.Actor->GetActorNameOrLabel() : TEXT("None"));
 #endif
 }
 
@@ -566,23 +517,40 @@ bool UInteractionComponent::TryInteract_Implementation()
 {
 	UE_LOG(LogInteraction, Verbose, TEXT("[%s] TryInteract: Called"), *GetName());
 
-	AActor* Owner = GetOwner();
-	if (!Owner)
+	// The client's focused (Actor, Component) is the single source of truth -
+	// highlight and interaction must converge on the same primitive. The server
+	// will validate the target on its side but NOT re-resolve from a different
+	// view (which is what produced the dresser regression: client highlighted
+	// drawer slot A, server resolved a sibling slot from its eye view).
+	return DispatchInteract(FocusedActor.Get(), FocusedComponent.Get());
+}
+
+bool UInteractionComponent::DispatchInteract(AActor* Target, UPrimitiveComponent* HitComponent)
+{
+	if (!Target)
 	{
-		UE_LOG(LogInteraction, Warning, TEXT("[%s] TryInteract: FAILED - No owner"), *GetName());
+		UE_LOG(LogInteraction, Verbose, TEXT("[%s] DispatchInteract: No focused target"), *GetName());
 		return false;
 	}
 
-	// Server-authoritative: if we have authority, execute directly; otherwise send RPC
+	AActor* Owner = GetOwner();
+	if (!Owner)
+	{
+		UE_LOG(LogInteraction, Warning, TEXT("[%s] DispatchInteract: FAILED - No owner"), *GetName());
+		return false;
+	}
+
 	if (Owner->HasAuthority())
 	{
-		UE_LOG(LogInteraction, Log, TEXT("[%s] TryInteract: Has authority, executing locally"), *GetName());
-		ExecuteInteraction_ServerAuth();
+		UE_LOG(LogInteraction, Log, TEXT("[%s] DispatchInteract: Has authority, executing locally on '%s'"),
+			*GetName(), *Target->GetActorNameOrLabel());
+		ExecuteInteraction_ServerAuth(Target, HitComponent);
 	}
 	else
 	{
-		UE_LOG(LogInteraction, Log, TEXT("[%s] TryInteract: No authority, sending Server RPC"), *GetName());
-		Server_TryInteract();
+		UE_LOG(LogInteraction, Log, TEXT("[%s] DispatchInteract: No authority, sending Server RPC for '%s'"),
+			*GetName(), *Target->GetActorNameOrLabel());
+		Server_TryInteract(Target, HitComponent);
 	}
 
 	return true;
@@ -590,6 +558,7 @@ bool UInteractionComponent::TryInteract_Implementation()
 
 bool UInteractionComponent::BeginInteractInput_Implementation()
 {
+	UpdateTrace();
 	DrawInteractionDebugTraceOnInput();
 
 	if (!FocusedActor.IsValid())
@@ -613,6 +582,7 @@ bool UInteractionComponent::BeginInteractInput_Implementation()
 	bHoldInteractionActive = true;
 	HoldTargetActor = FocusedActor;
 	HoldTargetComponent = FocusedComponent;
+	RefreshComponentTickEnabled();
 
 	UE_LOG(LogInteraction, Log, TEXT("[%s] BeginInteractInput: Started timed interaction '%s' (Duration=%.2fs)"),
 		*GetName(),
@@ -636,15 +606,16 @@ FInteractionPromptState UInteractionComponent::GetInteractionPromptState_Impleme
 	return BuildPromptState();
 }
 
-void UInteractionComponent::Server_TryInteract_Implementation()
+void UInteractionComponent::Server_TryInteract_Implementation(AActor* TargetActor, UPrimitiveComponent* TargetComponent)
 {
-	UE_LOG(LogInteraction, Log, TEXT("[%s] Server_TryInteract: RPC received"), *GetName());
-	ExecuteInteraction_ServerAuth();
+	UE_LOG(LogInteraction, Log, TEXT("[%s] Server_TryInteract: RPC received target='%s'"),
+		*GetName(),
+		TargetActor ? *TargetActor->GetActorNameOrLabel() : TEXT("NULL"));
+	ExecuteInteraction_ServerAuth(TargetActor, TargetComponent);
 }
 
-void UInteractionComponent::ExecuteInteraction_ServerAuth()
+void UInteractionComponent::ExecuteInteraction_ServerAuth(AActor* Target, UPrimitiveComponent* HitComponent)
 {
-	// Re-trace on server (don't trust client's cached FocusedActor)
 	AActor* Owner = GetOwner();
 	if (!Owner)
 	{
@@ -659,44 +630,49 @@ void UInteractionComponent::ExecuteInteraction_ServerAuth()
 		return;
 	}
 
-	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
-	if (!PC || !PC->PlayerCameraManager)
+	// SOT validation: client passed the highlighted target; server confirms it
+	// is non-null, interactable, and within a reasonable range from the pawn.
+	// The server does NOT re-resolve from a different view - that would split
+	// highlight from interaction (dresser regression).
+	if (!Target)
 	{
-		UE_LOG(LogInteraction, Warning, TEXT("[%s] ExecuteInteraction_ServerAuth: No PlayerController or CameraManager"), *GetName());
+		UE_LOG(LogInteraction, Log, TEXT("[%s] ExecuteInteraction_ServerAuth: No target supplied"), *GetName());
 		return;
 	}
 
-	// Server-side trace (authoritative)
-	FVector ServerTraceStart = PC->PlayerCameraManager->GetCameraLocation();
-	FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
-	FVector ServerTraceEnd = ServerTraceStart + (CameraForward * TraceDistance);
-
-	// Setup trace parameters
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(Owner);
-
-	const ETraceTypeQuery TraceType = UEngineTypes::ConvertToTraceType(TraceChannel);
-
-	// Line trace only (no sphere trace for cleaner debug visualization)
-	FHitResult HitResult;
-	const bool bHit = UKismetSystemLibrary::LineTraceSingle(
-		this,
-		ServerTraceStart,
-		ServerTraceEnd,
-		TraceType,
-		false,
-		ActorsToIgnore,
-		EDrawDebugTrace::None,
-		HitResult,
-		true
-	);
-
-	AActor* Target = bHit ? HitResult.GetActor() : nullptr;
-	UPrimitiveComponent* HitComponent = bHit ? HitResult.GetComponent() : nullptr;
-
-	if (!Target)
+	// Anti-cheat range gate. The client picked this target under aim cone + LOS;
+	// here we only need a generous bound so a malicious or stale client can't
+	// trigger interactions across the map. Use 1.5x InteractionRadius to absorb
+	// timing and pawn-vs-actor-origin offsets.
+	const float MaxInteractRange = FMath::Max(InteractionRadius, 1.0f) * 1.5f;
+	const float DistSq = FVector::DistSquared(Pawn->GetActorLocation(), Target->GetActorLocation());
+	if (DistSq > MaxInteractRange * MaxInteractRange)
 	{
-		UE_LOG(LogInteraction, Log, TEXT("[%s] ExecuteInteraction_ServerAuth: No target found (server trace)"), *GetName());
+		UE_LOG(LogInteraction, Warning,
+			TEXT("[%s] ExecuteInteraction_ServerAuth: Target '%s' out of range (%.1f > %.1f cm)"),
+			*GetName(),
+			*Target->GetActorNameOrLabel(),
+			FMath::Sqrt(DistSq),
+			MaxInteractRange);
+		return;
+	}
+
+	// Anti-cheat interactability gate. The Target must either implement the
+	// actor-level interface or carry at least one capability the selector
+	// recognises - the same gates the client resolver applied.
+	bool bIsInteractable = Target->Implements<UInteractableTargetInterface>();
+	if (!bIsInteractable)
+	{
+		TArray<UActorComponent*> InteractableComponents;
+		FInteractionCapabilitySelector::GatherComponents(Target, InteractableComponents);
+		bIsInteractable = InteractableComponents.Num() > 0;
+	}
+	if (!bIsInteractable)
+	{
+		UE_LOG(LogInteraction, Warning,
+			TEXT("[%s] ExecuteInteraction_ServerAuth: Target '%s' is not interactable"),
+			*GetName(),
+			*Target->GetActorNameOrLabel());
 		return;
 	}
 
@@ -725,7 +701,7 @@ void UInteractionComponent::ExecuteInteraction_ServerAuth()
 	}
 	else
 	{
-		bHandled = ExecuteInteractionViaComponents(Target, Owner, HitComponent);
+		bHandled = FInteractionCapabilitySelector::ExecuteInteraction(Target, Owner, HitComponent);
 	}
 
 	if (bHandled)
@@ -780,6 +756,7 @@ void UInteractionComponent::CancelHoldInteraction()
 	HoldInteractionStartTime = 0.0f;
 	HoldTargetActor.Reset();
 	HoldTargetComponent.Reset();
+	RefreshComponentTickEnabled();
 
 	UE_LOG(LogInteraction, Verbose, TEXT("[%s] CancelHoldInteraction: Timed interaction cancelled"), *GetName());
 	BroadcastPromptStateToService();
@@ -792,15 +769,23 @@ void UInteractionComponent::CompleteHoldInteraction()
 		return;
 	}
 
+	// Capture hold target BEFORE clearing - the SOT for this interaction is the
+	// (Actor, Component) the player started the hold on, not whatever happens
+	// to be focused at the instant the hold completes (focus may have drifted
+	// within hysteresis tolerance during the hold).
+	AActor* HoldTarget = HoldTargetActor.Get();
+	UPrimitiveComponent* HoldComp = HoldTargetComponent.Get();
+
 	bHoldInteractionActive = false;
 	HoldInteractionProgress = 0.0f;
 	HoldInteractionStartTime = 0.0f;
 	HoldTargetActor.Reset();
 	HoldTargetComponent.Reset();
+	RefreshComponentTickEnabled();
 	BroadcastPromptStateToService();
 
 	UE_LOG(LogInteraction, Log, TEXT("[%s] CompleteHoldInteraction: Timed interaction completed"), *GetName());
-	TryInteract_Implementation();
+	DispatchInteract(HoldTarget, HoldComp);
 }
 
 

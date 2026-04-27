@@ -2,9 +2,35 @@
 
 #include "Pickup/PickupCapabilityComponent.h"
 #include "CapabilityValidationRegistry.h"
+#include "Engine/AssetManager.h"
 #include "Interfaces/IDefinitionIdProvider.h"
+#include "Interfaces/IItemDataProvider.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectObjectCapabilitiesModule.h"
+
+namespace
+{
+	FText MakeFallbackDisplayName(const FPrimaryAssetId& ObjectDefinitionId)
+	{
+		if (!ObjectDefinitionId.IsValid())
+		{
+			return FText::GetEmpty();
+		}
+
+		FString Name = ObjectDefinitionId.PrimaryAssetName.ToString();
+		Name.ReplaceInline(TEXT("_"), TEXT(" "));
+		for (int32 Index = 1; Index < Name.Len(); ++Index)
+		{
+			if (FChar::IsUpper(Name[Index]) && FChar::IsLower(Name[Index - 1]))
+			{
+				Name.InsertAt(Index, TEXT(" "));
+				++Index;
+			}
+		}
+
+		return FText::FromString(Name);
+	}
+}
 
 // Self-registration: component owns its validation registration
 #if WITH_EDITOR
@@ -210,7 +236,41 @@ bool UPickupCapabilityComponent::OnComponentInteract_Implementation(AActor* Inst
 
 FText UPickupCapabilityComponent::GetInteractionLabel_Implementation() const
 {
+	const FText DisplayName = ResolvePickupDisplayName();
+	if (!DisplayName.IsEmpty())
+	{
+		return FText::Format(
+			NSLOCTEXT("PickupCapability", "PickupNamedLabel", "Pick up {0}"),
+			DisplayName);
+	}
+
 	return NSLOCTEXT("PickupCapability", "PickupLabel", "Pick up");
+}
+
+FText UPickupCapabilityComponent::ResolvePickupDisplayName() const
+{
+	const FPrimaryAssetId ObjectDefinitionId = GetObjectDefinitionId_Implementation();
+	if (!ObjectDefinitionId.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+
+	if (UAssetManager::IsInitialized())
+	{
+		if (UObject* LoadedObject = UAssetManager::Get().GetPrimaryAssetObject(ObjectDefinitionId))
+		{
+			if (LoadedObject->GetClass()->ImplementsInterface(UItemDataProvider::StaticClass()))
+			{
+				const FItemDataView ItemData = IItemDataProvider::Execute_GetItemDataView(LoadedObject);
+				if (ItemData.IsValid() && !ItemData.DisplayName.IsEmpty())
+				{
+					return ItemData.DisplayName;
+				}
+			}
+		}
+	}
+
+	return MakeFallbackDisplayName(ObjectDefinitionId);
 }
 
 FInteractionExecutionSpec UPickupCapabilityComponent::GetInteractionExecutionSpec_Implementation(AActor* Instigator) const

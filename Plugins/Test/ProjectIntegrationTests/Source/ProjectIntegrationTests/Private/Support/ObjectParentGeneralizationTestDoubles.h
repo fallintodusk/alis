@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
+#include "Components/BoxComponent.h"
 #include "Interfaces/IInteractableTarget.h"
 #include "Interfaces/IInventoryReadOnly.h"
 #include "Interfaces/IProjectActionReceiver.h"
@@ -14,6 +15,32 @@
 class UStaticMeshComponent;
 class USceneComponent;
 class UPrimaryDataAsset;
+
+// Test double: a UBoxComponent whose render/query bounds are deliberately
+// looser than its physics collision shape. Simulates the real-world case where
+// a visible mesh has sparse collision (window glass on a frame-only collision
+// body, decorative meshes, the backpack regression where the rendered bounds
+// AABB extends well past where the physics shape actually is).
+//
+// LineTraceComponent still hits only the underlying box collision (extent =
+// SetBoxExtent(...)), but Bounds.GetBox() returns BoxExtent + ExtraBoundsExtent
+// in each axis. Drives the resolver's Bounds bucket without affecting the
+// Collision bucket.
+UCLASS()
+class PROJECTINTEGRATIONTESTS_API UProjectLooseBoundsBoxComponent
+	: public UBoxComponent
+{
+	GENERATED_BODY()
+
+public:
+	// Half-extent (per axis) added to the world-space AABB on top of BoxExtent.
+	// Set BEFORE registering the component (or call MarkRenderStateDirty +
+	// UpdateBounds afterwards) so the larger bounds takes effect.
+	UPROPERTY(EditAnywhere, Category = "Test")
+	FVector ExtraBoundsExtent = FVector(100.0f, 100.0f, 100.0f);
+
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+};
 
 UCLASS()
 class PROJECTINTEGRATIONTESTS_API UProjectInteractionCounterCapabilityComponent

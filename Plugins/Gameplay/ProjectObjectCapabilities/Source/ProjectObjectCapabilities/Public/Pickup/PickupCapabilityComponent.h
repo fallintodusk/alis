@@ -105,6 +105,9 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
+	/** Resolve item identity for hover labels without depending on ProjectObject types. */
+	FText ResolvePickupDisplayName() const;
+
 	/** Log once when ObjectDefinitionId cannot be resolved. */
 	mutable bool bLoggedMissingDefinitionId = false;
 };

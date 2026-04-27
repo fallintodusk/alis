@@ -7,8 +7,10 @@
 #include "Interfaces/IInteractableTarget.h"
 #include "Interfaces/IInteractionService.h"
 #include "Engine/PostProcessVolume.h"
+#include "TimerManager.h"
 #include "InteractionComponent.generated.h"
 
+class APawn;
 class UMaterialInterface;
 
 /**
@@ -43,22 +45,34 @@ public:
 	virtual FText GetFocusedLabel_Implementation() const override { return FocusedLabel; }
 	virtual FInteractionPromptState GetInteractionPromptState_Implementation() const override;
 
+	/** Starts local-only presentation targeting/highlight once possession/local control is valid. */
+	void ActivateLocalPresentationIfNeeded();
+
 	// -------------------------------------------------------------------------
 	// Server-Authoritative Interaction
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Server RPC for interaction. Re-traces on server (doesn't trust client's Target).
+	 * Server RPC for interaction. Carries the client's currently focused
+	 * (Actor, Component) - the same target that was highlighted by the local
+	 * targeting resolver. The server validates plausibility (interactable,
+	 * within range) but does NOT re-resolve a different target: highlight
+	 * and interaction share a single source of truth on the client.
+	 *
 	 * Called automatically by TryInteract() when not authority.
 	 */
 	UFUNCTION(Server, Reliable)
-	void Server_TryInteract();
+	void Server_TryInteract(AActor* TargetActor, UPrimitiveComponent* TargetComponent);
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** Perform trace to find interactable actors */
 	void UpdateTrace();
+
+	/** Resolve from an explicit view and apply focus/hysteresis side effects. */
+	bool UpdateFocusFromView(const FVector& ViewOrigin, const FVector& ViewForward);
 
 	/** Set new focused actor/component (handles focus/unfocus events, part-level filtering) */
 	void SetFocusedActor(AActor* NewFocus, UPrimitiveComponent* HitComponent);
@@ -76,28 +90,68 @@ public:
 	 * Executes the same actor-interface -> component-fallback routing used at runtime.
 	 */
 	bool TestOnly_ExecuteInteraction(AActor* Target, UPrimitiveComponent* HitComponent, AActor* OverrideInstigator = nullptr);
+
+	/**
+	 * Test hook for deterministic targeting coverage using an explicit view.
+	 * Runs the same slice-1 resolver used by UpdateTrace without touching focus state.
+	 */
+	bool TestOnly_ResolveBestInteractionTarget(
+		const FVector& ViewOrigin,
+		const FVector& ViewForward,
+		AActor*& OutActor,
+		UPrimitiveComponent*& OutHitComponent) const;
+
+	/** Test hook for resolver-to-focus coverage with hysteresis applied. */
+	bool TestOnly_UpdateFocusFromView(const FVector& ViewOrigin, const FVector& ViewForward);
 #endif
 
 public:
-	/** Max distance for interaction detection */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
-	float TraceDistance = 300.0f;
+	/**
+	 * Default tuning values - single source of truth for both the per-component
+	 * UPROPERTY defaults below and the resolver-side `FInteractionTargetingWeights`
+	 * struct in `InteractionTargetResolver.h`. Designers override per-pawn via
+	 * Blueprint; runtime code MUST NOT bake new defaults elsewhere.
+	 */
+	static constexpr float DefaultInteractionRadius = 200.0f;
+	static constexpr float DefaultShortCircuitRadius = 60.0f;
+	static constexpr float DefaultMinAimDot = 0.85f;
+	static constexpr float DefaultFocusSwitchHysteresis = 0.10f;
+
+	/** Sphere radius for overlap-based interaction candidate gathering. ~2 m: arm's
+	 *  reach plus enough margin for floor pickups when the player bends. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "0.0"))
+	float InteractionRadius = DefaultInteractionRadius;
+
+	/** Within this distance LOS is bypassed, but the aim gate still applies. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "0.0"))
+	float ShortCircuitRadius = DefaultShortCircuitRadius;
+
+	/** Minimum forward-dot required for a candidate to remain focusable. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "-1.0", ClampMax = "0.999"))
+	float MinAimDot = DefaultMinAimDot;
+
+	/**
+	 * Anti-flicker hysteresis applied within a single bucket - both view-ray-hit
+	 * (collision or bounds intersection) or both fallback (closest-point only).
+	 * Within a bucket the incumbent keeps focus unless the challenger beats it on
+	 * the relevant discriminator (`ViewRayHitDistance` for view-ray-hit, `AimDot`
+	 * for fallback) by more than this fraction. Cross-bucket switches are deliberate
+	 * aim transitions and are never smoothed.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "0.0", ClampMax = "0.95"))
+	float FocusSwitchHysteresis = DefaultFocusSwitchHysteresis;
 
 	/** Trace channel for interaction detection */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
 
-	/** Sphere trace radius (0 = line trace) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
-	float TraceRadius = 20.0f;
-
 	/** Debug draw traces */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Debug")
 	bool bDrawDebug = true;
 
-	/** Trace every N frames (6 = ~10 traces/sec at 60fps) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Performance", meta = (ClampMin = "1", ClampMax = "60"))
-	int32 TraceFrameInterval = 6;
+	/** Passive focus refresh cadence. Input refreshes immediately before interaction. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Performance", meta = (ClampMin = "0.05", ClampMax = "5.0"))
+	float TraceIntervalSeconds = 0.15f;
 
 	/** Enable outline highlight on focused actors */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Highlight")
@@ -110,6 +164,9 @@ public:
 private:
 	void DrawInteractionDebugTraceOnInput();
 
+	UFUNCTION()
+	void HandlePawnRestarted(APawn* Pawn);
+
 	/** Broadcast focus change through IInteractionService (for HUD prompts). */
 	void BroadcastFocusChangedToService();
 	void BroadcastPromptStateToService() const;
@@ -118,10 +175,23 @@ private:
 	void CompleteHoldInteraction();
 	/**
 	 * Server-authoritative interaction execution.
-	 * Re-traces to find target, validates, then broadcasts.
-	 * Called by both local authority path and Server_TryInteract RPC.
+	 *
+	 * The client's targeting resolver is the single source of truth for what
+	 * the player is pointing at - highlighting and interaction MUST converge on
+	 * the same primitive, otherwise the player sees a drawer outlined and a
+	 * different drawer opens (the dresser regression). This function therefore
+	 * does NOT re-run the resolver. It validates the (Target, HitComponent) the
+	 * caller passed (anti-cheat: target is non-null, interactable, within
+	 * reasonable range from the pawn) and then dispatches via actor interface
+	 * or capability selector.
+	 *
+	 * Called by both the local authority path (`TryInteract`) and the
+	 * `Server_TryInteract` RPC.
 	 */
-	void ExecuteInteraction_ServerAuth();
+	void ExecuteInteraction_ServerAuth(AActor* Target, UPrimitiveComponent* HitComponent);
+
+	/** Common dispatch: route a focused target to local-auth or RPC path. */
+	bool DispatchInteract(AActor* Target, UPrimitiveComponent* HitComponent);
 
 	/** Currently focused interactable actor */
 	TWeakObjectPtr<AActor> FocusedActor;
@@ -135,14 +205,14 @@ private:
 	/** Current interaction execution behavior for the focused target. */
 	FInteractionExecutionSpec FocusedExecutionSpec;
 
-	/** Cached trace start (updated each tick) */
+	/** Cached trace start (updated by the passive trace timer or input refresh) */
 	FVector TraceStart;
 
-	/** Cached trace end (updated each tick) */
+	/** Cached trace end (updated by the passive trace timer or input refresh) */
 	FVector TraceEnd;
 
-	/** Frame counter for trace interval */
-	int32 FrameCounter = 0;
+	/** Timer for passive focus refresh. */
+	FTimerHandle PassiveTraceTimerHandle;
 
 	/** True while interact input is held for a timed interaction. */
 	bool bHoldInteractionActive = false;
@@ -159,6 +229,15 @@ private:
 
 	/** Setup post-process material on camera */
 	void SetupPostProcess();
+
+	/** Start or restart passive focus refresh on a world timer. */
+	void StartPassiveTraceTimer();
+
+	/** Passive focus/highlight state is local-presentation work, not server/remote-pawn work. */
+	bool ShouldRunPassiveFocus() const;
+
+	/** Enable ticking only while hold progress or post-process retry needs it. */
+	void RefreshComponentTickEnabled();
 
 	/** Enable/disable custom depth rendering on component */
 	void SetComponentCustomDepth(UPrimitiveComponent* Component, bool bEnable);

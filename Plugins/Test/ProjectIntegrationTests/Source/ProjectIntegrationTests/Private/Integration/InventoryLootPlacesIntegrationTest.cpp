@@ -3875,9 +3875,9 @@ bool FInventoryLootPlaces_InteractionHoldOpensWorldContainerSessionTest::RunTest
 
 	UInteractionComponent* Interaction = NewObject<UInteractionComponent>(Pawn, TEXT("InteractionHoldComponent"));
 	Pawn->AddInstanceComponent(Interaction);
-	Interaction->RegisterComponent();
-	Interaction->TraceFrameInterval = 1;
+	Interaction->TraceIntervalSeconds = 0.05f;
 	Interaction->bDrawDebug = false;
+	Interaction->RegisterComponent();
 
 	FDefinitionTypeInfo TypeInfo;
 	TypeInfo.DefinitionClass = UObjectDefinition::StaticClass();

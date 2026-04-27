@@ -5,6 +5,16 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/DataAsset.h"
 
+FBoxSphereBounds UProjectLooseBoundsBoxComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	// Start from the regular box bounds (matches collision shape), then expand by
+	// ExtraBoundsExtent so the AABB extends past the physics geometry. Mirrors
+	// real meshes where rendered bounds include decorative or frame-only mesh
+	// volume that has no underlying collision.
+	const FVector LooseLocalExtent = GetUnscaledBoxExtent() + ExtraBoundsExtent;
+	return FBoxSphereBounds(FBox(-LooseLocalExtent, LooseLocalExtent)).TransformBy(LocalToWorld);
+}
+
 UProjectInteractionCounterCapabilityComponent::UProjectInteractionCounterCapabilityComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;

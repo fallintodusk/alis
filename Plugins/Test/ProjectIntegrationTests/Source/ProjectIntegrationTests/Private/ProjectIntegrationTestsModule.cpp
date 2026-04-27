@@ -163,19 +163,22 @@ private:
             return true; // keep ticking
         }
 
-        // Read-then-delete before dispatching, so a stale command from a
-        // previous dispatch cycle cannot be double-executed if reading the
-        // file completes faster than dispatch.
+        // Try to read; if the writer (PowerShell run script) is still finalizing
+        // the file or briefly holds an exclusive lock, the read fails. We must
+        // NOT delete the file in that case, or the command is silently dropped
+        // forever and the dispatcher times out waiting for a result. Leave the
+        // file in place so the next tick can retry.
         FString Contents;
-        const bool bLoaded = FFileHelper::LoadFileToString(Contents, *Path);
-        PF.DeleteFile(*Path);
-
-        if (!bLoaded)
+        if (!FFileHelper::LoadFileToString(Contents, *Path))
         {
-            UE_LOG(LogProjectIntegrationTestsPersistent, Warning,
-                TEXT("[PersistentEditor] Found command file but failed to read: %s"), *Path);
+            UE_LOG(LogProjectIntegrationTestsPersistent, Verbose,
+                TEXT("[PersistentEditor] command file not yet readable, will retry next tick: %s"), *Path);
             return true;
         }
+
+        // Read-then-delete only after success, so a stale command from a previous
+        // dispatch cycle cannot be double-executed and a transient lock cannot lose it.
+        PF.DeleteFile(*Path);
 
         ProjectIntegrationTestsPersistentImpl::ExecuteCommandLines(Contents);
         return true;
