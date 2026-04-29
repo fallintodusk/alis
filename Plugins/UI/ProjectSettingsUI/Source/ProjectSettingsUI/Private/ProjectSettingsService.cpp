@@ -220,12 +220,16 @@ void UProjectSettingsService::ApplyGraphics(const FProjectUserSettings& S, const
 			}
 		}
 
-		// Fullscreen - use true Fullscreen (not WindowedFullscreen) to support resolution changes
+		// Fullscreen - WindowedFullscreen (borderless) instead of exclusive Fullscreen.
+		// Why: under a hard GPU stall (e.g. RT SBT rebuild during streaming), Windows
+		// DWM force-breaks exclusive fullscreen and the engine's restore retry loop
+		// shows up as repeated swapchain resizes (1 -> 0 -> 1) that can land mid
+		// device-removed recovery. Borderless removes that cascade. Custom resolutions
+		// are now driven via internal upscaling (TSR / DLSS) rather than panel mode.
+		// See todo/00_current/investigate_shipping_crash_sprint_jump.md.
 		if (D.IsChanged(GET_MEMBER_NAME_CHECKED(FProjectUserSettings, bFullscreen)))
 		{
-			// Fullscreen = exclusive fullscreen (supports custom resolution)
-			// WindowedFullscreen = borderless window at desktop res (ignores resolution setting)
-			const EWindowMode::Type Mode = S.bFullscreen ? EWindowMode::Fullscreen : EWindowMode::Windowed;
+			const EWindowMode::Type Mode = S.bFullscreen ? EWindowMode::WindowedFullscreen : EWindowMode::Windowed;
 			UE_LOG(LogSettingsService, Display, TEXT("ApplyGraphics: Setting fullscreen=%d (Mode=%d)"), S.bFullscreen, static_cast<int32>(Mode));
 			UserSettings->SetFullscreenMode(Mode);
 			bNeedApplyResolution = true;

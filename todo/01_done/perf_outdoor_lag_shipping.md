@@ -1,31 +1,94 @@
 # Performance - Outdoor Lag in Shipping Build
 
-**Status:** Verified 10/11 landed; 1 city-17 shipping test + sync-load fixes residual
-**Priority:** Major
-**Date:** 2026-04-17 (initial); 2026-04-22 (sync-load audit landed)
+**Status:** CLOSED. User-visible outdoor lag resolved. All 11 original log items + R1-R4 verified closed in `ALIS_20260428_113909` Shipping log. Forward-facing items moved to backlog with explicit reopen criteria.
+**Priority:** N/A (closed; reference only)
+**Date:** 2026-04-17 (initial); 2026-04-22 (sync-load audit); 2026-04-27 (re-verification on City17); 2026-04-28 (R1+R3+R4 closure verified, R2 closed as accepted noise, R5+R6 spun out to backlog, archived to `01_done/`)
 **Original build:** ALIS_20260417_173648 (Shipping, Win64)
-**Verified build:** ALIS_20260417_220924 (Shipping, Win64)
-**Log:** `<local-app-data>\Alis\Saved\Logs\Alis.log`
+**Final verified build:** ALIS_20260428_113909 (Shipping, Win64)
+**Final log:** `<local-app-data>\Alis\Saved\Logs\Alis.log` (2026-04-28 11:53; verifies R1+R3+R4 clean)
 
-## Current state (triage 2026-04-22, autonomous watcher tick)
+The headline perf bug was a cluster of 11 log items contributing to outdoor
+entry stutter. All addressed. R1 (save-load reapplied Epic scalability) was
+the only real engineering bug; clamping save-applied graphics quality to High
+in `UProjectSaveSubsystem::ApplyGameSettings` closed it. Verified in Shipping
+log: save load now keeps `ViewDistanceQuality@2` and `r.TSR.History.ScreenPercentage:100`.
 
-10 of 11 primary fixes landed and verified (see "Recommended Actions"
-below). Checklist #3 (sync-load audit) was the only self-contained
-autonomous-mode task remaining; audit completed and findings recorded in
-the "Sync-load audit (2026-04-22)" section below. Actual LoadSynchronous
--> async conversions are buildable C++ refactors and are deferred to the
-next warm-build session, per `docs/agents/overnight_mode.md`.
+Forward-facing items spun out to backlog so they survive this archive:
 
-Remaining work (human-required):
-- Run Shipping build on City17 to confirm #3 (Phase 3 preloading) helps.
-- Convert the 3 HOT LoadSynchronous sites in `ObjectSpawnUtility.cpp`
-  (873 groom binding, 823 mesh, 1088/1327 materials) to
-  `FStreamableManager::RequestAsyncLoad` with a pending-completion gate
-  at the spawn site. Start with groom binding since it has the clearest
-  runtime log signal.
-- Separately, `ProjectInventoryComponent::Internal_EquipItem:3411` uses
-  `TryLoad` for AbilitySet on every equip; this is HOT per equip action
-  but cheap per call. Lower priority than the spawn-path fixes.
+- `todo/02_backlog/systems/perf_spawn_path_async_loads.md` (R5 - sync-load conversions; reopen if spawn-path stalls become user-visible).
+- `todo/02_backlog/systems/perf_mutable_insights_capture.md` (R6 - Mutable Insights right-sizing; reopen if Mutable spills past 256 MiB budget again).
+
+This file is kept in `01_done/` as reference: the verification cheat-sheet,
+engine-backed standards, key log lines, and the original symptom investigation
+remain useful for future perf work in similar territory.
+
+---
+
+## Done
+
+Verified clean in `ALIS_20260427_200846` log unless noted otherwise.
+
+- **#1 OffsetRootBone CVar spam:** 72,534 -> 0 (CVar registered in `GASPConsoleVariables.cpp`).
+- **#2 PSO precache + disk cache:** 33/50 -> 40/50 precached. `D3D12.PSO.DiskCache=1`, `DriverOptimizedDiskCache=1`, `PSOPrecache.Resources=1`, `PSOPrecache.ProxyCreationWhenPSOReady=1` all confirmed in log.
+- **#3 Phase 3 preload (City17):** 0 -> 20/928 heavy assets preloaded. `bSerializeDependencies=True` produces runtime deps. (MainMenu still empty - expected, light scene.)
+- **#5 (partial) Invalid ShaderMap (8 editor nulls):** Original 8 mesh-component nulls assigned in editor. A different ShaderMap error remains - tracked as R2.
+- **#6 AbilitySet scan failure:** 0 occurrences. Scan spec removed from `ProjectGASModule.cpp`; re-add with `bRequireNonEmpty=true` once `DefinitionGenerator` produces real assets.
+- **#7 HairStrands missing package:** 0 occurrences. `/HairStrands` added to `DirectoriesToAlwaysCook` in `DefaultGame.ini`.
+- **#8 PathTracing in Shipping:** `r.PathTracing:0` confirmed in log.
+- **#9 (partial) TSR clamp on first run:** `EnsureFirstRunDefaults` correctly clamps to 100 at first launch. Save-load reverts it - tracked as R1.
+- **#10 r.setres 1280x720 startup CVar:** Still set at startup (line 387) but immediately overridden by `EnsureFirstRunDefaults` (desktop res + windowed fullscreen). Cosmetic only.
+- **#11 SM_Tree_Hornbeam variants + AmurCork (R3 closed 2026-04-28):** RT disabled on all 5 Hornbeam variants (Medium, Big_Single via editor; Big, Big_Double, Small via MCP Python) and SM_Tree_AmurCork_Big. Audit/fix records: `Saved/Logs/sm_rt_audit.json` + `sm_rt_disable.json`. Other Nature foliage was already correctly configured (Nanite=true, RT=false).
+- **R4 Mutable budget bumped to 256 MiB (2026-04-28):** `mutable.WorkingMemory=262144` in `DefaultEngine.ini`. ~7% headroom over observed 240 MiB peak. R6 (Insights capture) only if future logs still spill - see Remaining.
+- **R1 TSR save-load revert closed + verified (2026-04-28, build `ALIS_20260428_113909`):** `UProjectSaveSubsystem::ApplyGameSettings` now clamps `Settings.GraphicsQuality` to `[0, 2]` (High) before `SetOverallScalabilityLevel`, mirroring `EnsureFirstRunDefaults` policy. Struct default also dropped from `3` (Epic) to `2`. Both [Plugins/Systems/ProjectSave/Source/ProjectSave/Public/Data/ProjectSaveData.h:65](../../Plugins/Systems/ProjectSave/Source/ProjectSave/Public/Data/ProjectSaveData.h) and [Plugins/Systems/ProjectSave/Source/ProjectSave/Private/ProjectSaveSubsystem.cpp:332-361](../../Plugins/Systems/ProjectSave/Source/ProjectSave/Private/ProjectSaveSubsystem.cpp). **Verified in Shipping log:** line 2206 `Loading save from slot: SaveSlot_AutoSave` -> 2207 `ViewDistanceQuality@2` (not @3) -> 2212 `r.TSR.History.ScreenPercentage:100` (not 200) -> 2296 `Applied graphics settings (Quality: 2, Resolution: 1920x1080, VSync: 1)`.
+- **R2 closed as accepted log noise (2026-04-28):** Once-per-session `LogMaterial: Error: Loading a material resource None with an invalid ShaderMap!` fires during MainMenu -> City17 transition, immediately after `FlushAsyncLoading(102): 1 QueuedPackages`. Engine source [`MaterialShared.cpp:1531`](<ue-path>/Engine/Source/Runtime/Engine/Private/Materials/MaterialShared.cpp): inline ShaderMap deserializes with `bValid=false`; `GetFriendlyName()` returns "None" because owning UMaterial is null. **Diagnosed not actionable:** (1) Python audit of 1328 MICs found 10 with broken parent in editor source, but **0 of the 10 cooked into Shipping** ([Saved/Logs/mi_broken_triage.json](../../Saved/Logs/mi_broken_triage.json)) - they're not the culprit; (2) `[Core.Log] LogMaterial=Verbose` added for build `ALIS_20260428_113909` produced ZERO additional context (only 2 LogMaterial lines in 4199, the warning still says "None"); (3) one occurrence per session, no visual artifact, no perf cost. Per Epic forum guidance ([thread](https://forums.unrealengine.com/t/valid-shadermap-and-not-returned-true-errors/772084)) this bug class is unresolved when UE only prints "None". Verbose flag removed from `DefaultEngine.ini` after capture. **Reopen if:** warning starts repeating (>1/session) or visual checker-pattern appears.
+
+**Follow-up (separate decision, not bundled in R1):** [ProjectSettingsService.cpp:264-273](../../Plugins/UI/ProjectSettingsUI/Source/ProjectSettingsUI/Private/ProjectSettingsService.cpp) currently allows GraphicsQuality up to Epic (`[0, 3]`) on the user-driven settings UI path. If ALIS policy is "High max **by default**" (current patch is sufficient), no change needed. If policy is "High max **always**" (Epic forbidden everywhere), the UI save/apply path must clamp to 2 too. Decide policy before bundling further work.
+
+---
+
+## Verification cheat-sheet (per item)
+
+Run each check after a fresh Shipping run against
+`<local-app-data>\Alis\Saved\Logs\Alis.log`. All commands assume the repo
+working directory and a bash shell (git-bash). For PowerShell substitute
+`Select-String -Path $env:LOCALAPPDATA\Alis\Saved\Logs\Alis.log -Pattern '...'`.
+
+Variable: `L="$LOCALAPPDATA/Alis/Saved/Logs/Alis.log"` (or paste the absolute path).
+
+### Closed items - regression sentinels (these MUST stay clean)
+
+- **#1 OffsetRootBone CVar spam** — `grep -c "a.animnode.offsetrootbone.enable" "$L"` -> expect `0`
+- **#2 PSO precache + disk cache** — `grep -E "PSO\.DiskCache=1|DriverOptimizedDiskCache=1|PSOPrecache\.Resources=1|PSOPrecache\.ProxyCreationWhenPSOReady=1" "$L"` -> all four lines present; `grep "PSO creation hitches" "$L"` -> precached ratio should be `>= 40/50` (improving over time as disk cache populates)
+- **#3 Phase 3 preload (City17)** — `grep "DiscoverMapDependencies.*City17.*Found" "$L"` -> non-zero direct deps; `grep "Phase 3.*Preload Critical Assets - Starting" "$L"` followed by a `Preloading [N]` line with `N >= 1` for City17 (not `NO ASSETS TO PRELOAD`)
+- **#6 AbilitySet scan** — `grep "ProjectAbilitySet.*0 registered" "$L"` -> expect empty
+- **#7 HairStrands missing** — `grep -E "/HairStrands.*SkipPackage|StableRodsSystem.*does not exist" "$L"` -> expect empty
+- **#8 PathTracing in Shipping** — `grep "r.PathTracing:" "$L"` -> only matches should be `r.PathTracing:0`; never `:1`
+- **#10 r.setres** — `grep "r.setres:" "$L"` -> startup line `1280x720` is acceptable IF followed by `LogConfig: Set CVar [[r.setres:` at desktop res from `EnsureFirstRunDefaults`. Cosmetic only.
+- **R1 TSR save-load** — `awk '/LogProjectSave: Loading save from slot:/{p=1} p && /ViewDistanceQuality@3/{print "FAIL@3"; exit 1} p && /TSR.History.ScreenPercentage:200/{print "FAIL TSR=200"; exit 1}' "$L"` -> expect no FAIL output; also `grep "Applied graphics settings (Quality: 2," "$L"` -> at least one match per save load
+- **R3 Hornbeam + AmurCork (Nanite+WPO+RT)** — `grep "Nanite instanced static mesh using World Position Offset not supported in ray tracing" "$L"` -> expect empty
+- **R4 Mutable budget** — `grep "Failed to keep memory budget" "$L"` -> expect empty (or, if hits, all should show `Budget: 262144` and confirm we still need R6 Insights). Confirm budget applied: `grep "mutable.WorkingMemory:262144" "$L"` -> 1 match.
+
+### Remaining items - check whether they have moved
+
+- **R2 Invalid ShaderMap on City17** — `grep "Loading a material resource None with an invalid ShaderMap" "$L"` -> when 0, R2 closes. Until then count should not grow.
+- **R5 Sync-load conversions in spawn path** — no direct log signal. Soft check: City17 outdoor entry frame time / hitch count via Insights or `stat unit`. Reopen if a new map shows visible spawn-path stalls.
+- **R6 Mutable Insights** — only run if R4 sentinel above shows budget spills again (i.e. `grep "Failed to keep memory budget" "$L"` returns hits despite the 256 MiB cap).
+
+### One-shot pass/fail (run all sentinels at once)
+
+```bash
+L="$LOCALAPPDATA/Alis/Saved/Logs/Alis.log"
+fail=0
+test "$(grep -c 'a.animnode.offsetrootbone.enable' "$L")" = "0" || { echo "FAIL #1 CVar spam"; fail=1; }
+grep -q 'ProjectAbilitySet.*0 registered' "$L" && { echo "FAIL #6 AbilitySet"; fail=1; }
+grep -qE '/HairStrands.*SkipPackage|StableRodsSystem.*does not exist' "$L" && { echo "FAIL #7 HairStrands"; fail=1; }
+grep -q 'r.PathTracing:1' "$L" && { echo "FAIL #8 PathTracing on"; fail=1; }
+grep -q 'Nanite instanced static mesh using World Position Offset not supported in ray tracing' "$L" && { echo "FAIL R3 Nanite+WPO+RT"; fail=1; }
+awk '/LogProjectSave: Loading save from slot:/{p=1} p && (/ViewDistanceQuality@3/ || /TSR.History.ScreenPercentage:200/){exit 1}' "$L" || { echo "FAIL R1 TSR revert"; fail=1; }
+grep -q 'Failed to keep memory budget' "$L" && { echo "WARN R4 Mutable still spilling - consider R6 Insights"; }
+grep -q 'Loading a material resource None with an invalid ShaderMap' "$L" && { echo "WARN R2 ShaderMap still firing"; }
+test $fail -eq 0 && echo "OK: closed sentinels clean"
+```
 
 ---
 
@@ -196,8 +259,9 @@ Affects `SM_Tree_Hornbeam_Medium`. Quality issue (wrong RT reflections/shadows),
 2. **PSO precaching + disk cache enabled** in `DefaultEngine.ini [ConsoleVariables]`:
    - `r.PSOPrecache.Resources=1` - resource-based precaching during postload (first-run help)
    - `r.PSOPrecache.ProxyCreationWhenPSOReady=1` - delay proxy until PSO compiled (no pop-in)
-   - `r.D3D12.PSO.DiskCache=1` - persist compiled PSOs across sessions (second+ run help)
-   - `r.D3D12.PSO.DriverOptimizedDiskCache=1` - driver-optimized disk cache
+   - `D3D12.PSO.DiskCache=1` - persist compiled PSOs across sessions (second+ run help)
+   - `D3D12.PSO.DriverOptimizedDiskCache=1` - driver-optimized disk cache
+   Note: D3D12.* CVars take no `r.` prefix; render-layer ones do.
    Precaching reduces first-encounter hitches; disk cache eliminates recompilation on later runs.
    If outdoor hitches persist after repackage, test `D3D12.PSOPrecache.KeepLowLevel=1`.
 
@@ -206,13 +270,18 @@ Affects `SM_Tree_Hornbeam_Medium`. Quality issue (wrong RT reflections/shadows),
    `DiscoverMapDependencies()` can find map assets at runtime. Executor code was already enabled.
    **Risk:** UE docs do not explicitly confirm this is the correct lever for cooked-runtime deps.
 
-4. **Mutable budget raised** - `mutable.WorkingMemory=215040` (210MB, was 100MB).
-   Observed peak 180MB; 210MB gives ~15% headroom.
+4. **Mutable budget raised** - `mutable.WorkingMemory=262144` (256 MiB, was 210 MiB after the first fix).
+   This gives ~7% headroom over the observed City17 pending demand
+   (Current 180621 + New 65535 = 246156 KiB, ~240 MiB).
+   R6 remains conditional: capture Unreal Insights Mutable channels only if
+   future logs still show budget spills. The working-memory limit is a flush
+   hint, not a hard cap.
 
 7. **HairStrands cook rule added** - `+DirectoriesToAlwaysCook=(Path="/HairStrands")`
    in `DefaultGame.ini`. Missing Niagara system `StableRodsSystem` should now cook.
 
-8. **PathTracing disabled** - `r.PathTracing=False` in `DefaultEngine.ini`.
+8. **PathTracing disabled** - `r.PathTracing=0` in `DefaultEngine.ini`
+   (numeric form; canonical for CVars and matches UE log output).
    Was enabled "for cinematics" but adds GPU overhead in all Shipping sessions.
    Can be re-enabled at runtime via console.
 
@@ -237,9 +306,9 @@ Use Unreal's full PSO precache pipeline, not a single toggle.
 - Keep `r.PSOPrecaching=1` (default).
 - Keep component precache on.
 - Test `r.PSOPrecache.Resources=1` for City17 or other outdoor-heavy maps if memory budget allows.
-- Enable persisted D3D12 caches:
+- Enable persisted D3D12 caches (D3D12.* CVars take no `r.` prefix):
   - `D3D12.PSO.DriverOptimizedDiskCache=1`
-  - `r.D3D12.PSO.DiskCache=1`
+  - `D3D12.PSO.DiskCache=1`
 - If second-run stutter remains, test:
   - `D3D12.PSOPrecache.KeepLowLevel=1`
   - `r.PSOPrecache.KeepInMemoryUntilUsed`
@@ -390,7 +459,7 @@ Ref: [Data Validation](https://dev.epicgames.com/documentation/unreal-engine/dat
 5. DONE - PathTracing=False, PSO disk cache + precache enabled, TSR clamped via first-run High cap,
    SM_Tree_Hornbeam_Medium RT disabled.
 
-6. NOT DONE - Insights capture with Mutable CPU/memory channels on outdoor entry.
+6. NOT DONE - Insights capture with Mutable CPU/memory channels on outdoor entry. See R6 above; required to right-size R4 (Mutable budget overflow) from data.
 
 7. DONE - CI validators wired:
    - shipping config flags -> `make check-config` (in `make check`)

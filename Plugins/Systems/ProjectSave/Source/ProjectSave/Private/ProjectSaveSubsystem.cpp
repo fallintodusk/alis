@@ -338,17 +338,24 @@ void UProjectSaveSubsystem::ApplyGameSettings(const FProjectGameSettings& Settin
 		return;
 	}
 
-	// Apply graphics settings
-	UserSettings->SetOverallScalabilityLevel(Settings.GraphicsQuality);
+	// Apply graphics settings.
+	// ALIS policy caps save-applied gameplay scalability at High (2). Legacy
+	// saves may carry Epic (3), which reapplies r.TSR.History.ScreenPercentage:200 on load.
+	const int32 ClampedGraphicsQuality = FMath::Clamp(Settings.GraphicsQuality, 0, 2);
+	UserSettings->SetOverallScalabilityLevel(ClampedGraphicsQuality);
 	UserSettings->SetVSyncEnabled(Settings.bVSync);
 	UserSettings->SetScreenResolution(FIntPoint(Settings.ResolutionWidth, Settings.ResolutionHeight));
-	UserSettings->SetFullscreenMode(Settings.bFullscreen ? EWindowMode::Fullscreen : EWindowMode::Windowed);
+	// WindowedFullscreen instead of exclusive Fullscreen: avoids DWM force-break /
+	// restore cascade under GPU stalls. Matches AlisGI::EnsureFirstRunDefaults and
+	// ProjectSettingsService::ApplyGraphics. See
+	// todo/00_current/investigate_shipping_crash_sprint_jump.md.
+	UserSettings->SetFullscreenMode(Settings.bFullscreen ? EWindowMode::WindowedFullscreen : EWindowMode::Windowed);
 
 	// Apply settings
 	UserSettings->ApplySettings(false);
 
 	UE_LOG(LogProjectSave, Log, TEXT("Applied graphics settings (Quality: %d, Resolution: %dx%d, VSync: %d)"),
-		Settings.GraphicsQuality,
+		ClampedGraphicsQuality,
 		Settings.ResolutionWidth,
 		Settings.ResolutionHeight,
 		Settings.bVSync);

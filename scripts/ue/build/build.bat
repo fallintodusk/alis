@@ -29,6 +29,16 @@ set EXTRA_ARGS=%3 %4 %5 %6 %7 %8 %9
 echo Building %TARGET% (%CONFIG%)...
 echo.
 
+REM Materialize project-local UBT config (Saved/ is gitignored and gets cleaned;
+REM this restores BuildConfiguration.xml from its committed SOT before UBT reads
+REM it). Required to avoid cold-build PCH OOM (C3859/C1076).
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    ". '%~dp0..\..\config\Sync-UBTConfig.ps1'; Sync-UBTConfig -ProjectRoot '%PROJECT_ROOT%'"
+if errorlevel 1 (
+    echo Sync-UBTConfig failed
+    exit /b 1
+)
+
 "%UE_PATH%\Engine\Build\BatchFiles\Build.bat" %TARGET% Win64 %CONFIG% "%PROJECT_FILE%" %EXTRA_ARGS%
 
 if %ERRORLEVEL% EQU 0 (

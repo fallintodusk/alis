@@ -361,6 +361,12 @@ $ubtPath = Join-Path $uePath "Engine\Build\BatchFiles\Build.bat"
 $projectPath = Join-Path $root "Alis.uproject"
 $buildLog = Join-Path $logDir "build.log"
 
+# Materialize project-local UBT config (Saved/ is gitignored and gets cleaned;
+# this restores BuildConfiguration.xml from its committed SOT before UBT reads
+# it). Required to avoid cold-build PCH OOM (C3859/C1076) on this workstation.
+. (Join-Path $configDir "Sync-UBTConfig.ps1")
+Sync-UBTConfig -ProjectRoot $root
+
 # Build args: append -Module=<Name> when ModuleName is set so we actually
 # rebuild only the requested module instead of the full editor. Prior to
 # 2026-04-25 this script accepted -ModuleName, printed it in the header,

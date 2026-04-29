@@ -21,5 +21,8 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 call "%SCRIPT_DIR%config\validate_shipping_ini.bat"
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
+call "%SCRIPT_DIR%governance\validate_plugin_data_staging.bat"
+if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+
 echo [OK] All fast project validations passed
 exit /b 0

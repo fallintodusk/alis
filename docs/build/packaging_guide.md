@@ -359,6 +359,11 @@ Generated release helper:
 
 ## Validation Checklist
 
+- pre-package guards passed (run automatically by the canonical script):
+  - `scripts/ue/check/config/validate_shipping_ini.py`
+  - `scripts/ue/check/data/validate_all.py`
+  - `scripts/ue/check/governance/validate_plugin_data_staging.py` (catches plugins that read JSON via `FProjectPaths::GetPluginDataDir` but forgot to declare `RuntimeDependencies` for `Data/` in `.Build.cs` -- silent regression class, see [docs/agents/canonical.md section 8.5](../agents/canonical.md))
+- post-package smoke check passed (`validate_plugin_data_staging.py --archive-root <output>`) -- confirms cook actually copied runtime-read JSONs into the staged build
 - package build completed through the project script
 - `package_summary.txt` exists
 - `sign_release_summary.txt` exists

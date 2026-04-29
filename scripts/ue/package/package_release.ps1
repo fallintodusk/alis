@@ -57,6 +57,12 @@ if (-not $EngineRoot) {
     throw "UE_PATH is not set. Create scripts/config/ue_path.local.conf or pass -EngineRoot."
 }
 
+# Materialize project-local UBT config. Saved/ is gitignored and gets cleaned
+# periodically; this sync restores BuildConfiguration.xml from its committed
+# SOT before UBT reads it. Required to avoid cold-build PCH OOM (C3859/C1076).
+. (Join-Path $ConfigDir "Sync-UBTConfig.ps1")
+Sync-UBTConfig -ProjectRoot $ProjectRoot
+
 # Detect source vs installed engine for Target.cs diagnostics gating
 $InstalledBuildMarker = Join-Path $EngineRoot "Engine\Build\InstalledBuild.txt"
 if (Test-Path $InstalledBuildMarker) {
@@ -164,6 +170,21 @@ if (Test-Path $DataCheckScript) {
     }
 }
 
+# 3. Plugin Data/ staging audit (<1s)
+# Catches the silent class of bug where a plugin parses JSON via
+# FProjectPaths::GetPluginDataDir at runtime but its Build.cs forgets to
+# add RuntimeDependencies for Plugins/<X>/Data/ -- file ships only in
+# Editor, Shipping falls back to defaults with a Warning log.
+$StagingCheckScript = Join-Path $CheckDir "governance\validate_plugin_data_staging.py"
+if (Test-Path $StagingCheckScript) {
+    if ($pythonExe) {
+        & $pythonExe $StagingCheckScript
+        if ($LASTEXITCODE -ne 0) {
+            throw "Pre-package validation failed: plugin data staging gap. Fix before packaging."
+        }
+    }
+}
+
 Write-Host "Pre-package validation passed." -ForegroundColor Green
 Write-Host ""
 
@@ -180,6 +201,20 @@ if ($ExitCode -ne 0) {
 $WindowsDir = Join-Path $OutputDir "Windows"
 if (-not (Test-Path $WindowsDir)) {
     throw "Packaging succeeded but output folder was not found: $WindowsDir"
+}
+
+# Post-package smoke check: confirm runtime-read JSON files survived the cook.
+# Catches the case where staging is declared but the cook quietly dropped them
+# (e.g. plugin disabled in target, glob mismatch, IoStore quirk).
+if (Test-Path $StagingCheckScript) {
+    if ($pythonExe) {
+        Write-Host ""
+        Write-Host "Post-package archive verification..." -ForegroundColor Cyan
+        & $pythonExe $StagingCheckScript --archive-root $OutputDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "Post-package verification failed: a plugin's runtime data is missing from the archive."
+        }
+    }
 }
 
 $AllFiles = Get-ChildItem $WindowsDir -Recurse -File

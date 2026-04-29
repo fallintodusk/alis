@@ -83,6 +83,12 @@ if (-not (Test-Path $UEBuildBat)) {
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $ProjectFile = Join-Path $ProjectRoot "Alis.uproject"
 
+# Materialize project-local UBT config (Saved/ is gitignored and gets cleaned;
+# this restores BuildConfiguration.xml from its committed SOT before UBT reads
+# it). Required to avoid cold-build PCH OOM (C3859/C1076).
+. (Join-Path $ProjectRoot "scripts\config\Sync-UBTConfig.ps1")
+Sync-UBTConfig -ProjectRoot $ProjectRoot
+
 # ============================================================
 # Print Configuration
 # ============================================================
