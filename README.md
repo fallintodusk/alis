@@ -36,6 +36,19 @@ Concrete systems implemented as plugins in this repository:
 
 Each system has its own plugin README with architecture and entry points.
 
+## Editor tools and data pipeline
+
+Editor-side plugins that make the JSON-first workflow practical at scale:
+
+- **Definition Generator** - universal JSON-to-DataAsset generation; resource plugins ship a runtime class plus JSON schema with an `x-alis-generator` extension, the generator handles parsing, field mapping, incremental builds, and orphan cleanup
+- **Placement Editor** - dockable panel for spawning template actors and DataAssets, with two-level filtering driven by `ALIS.Cap.<Name>` gameplay tags and `Item.Type`, evaluated on AssetRegistry metadata so filters never trigger asset loads
+- **Asset Sync** - automatic JSON path updates and redirector cleanup when assets are renamed in the Content Browser, so text references stay consistent without manual fix-up
+- **Editor Core** - shared delegates and interfaces (e.g. `FDefinitionEvents::OnDefinitionRegenerated`) so editor plugins compose without depending on each other (DIP)
+
+Pipeline split is intentional: **SYNC** (mechanical path updates) -> **GENERATION** (JSON to DataAsset) -> **PROPAGATION** (cascading actor updates in placed scenes). Each step is its own plugin and communicates via broadcast events.
+
+Entry points: [Plugins/Editor/ProjectDefinitionGenerator/README.md](Plugins/Editor/ProjectDefinitionGenerator/README.md), [Plugins/Editor/ProjectPlacementEditor/README.md](Plugins/Editor/ProjectPlacementEditor/README.md), [Plugins/Editor/ProjectAssetSync/README.md](Plugins/Editor/ProjectAssetSync/README.md), [Plugins/Editor/ProjectEditorCore/README.md](Plugins/Editor/ProjectEditorCore/README.md).
+
 ## Why This Repo Is Distinct
 
 The public codebase is organized around explicit technical decisions:
