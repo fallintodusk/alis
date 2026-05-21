@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "Interfaces/IInteractableTarget.h"
 #include "Interfaces/IInteractionService.h"
+#include "Interfaces/IInteractionVisualSuppressor.h"
 #include "Engine/PostProcessVolume.h"
 #include "TimerManager.h"
 #include "InteractionComponent.generated.h"
@@ -26,7 +27,10 @@ class UMaterialInterface;
  *   3. Component broadcasts focus changes via IInteractionService (SOLID decoupling)
  */
 UCLASS(ClassGroup=(Gameplay), meta=(BlueprintSpawnableComponent))
-class PROJECTINTERACTION_API UInteractionComponent : public UActorComponent, public IInteractionComponentInterface
+class PROJECTINTERACTION_API UInteractionComponent
+	: public UActorComponent
+	, public IInteractionComponentInterface
+	, public IInteractionVisualSuppressor
 {
 	GENERATED_BODY()
 
@@ -37,6 +41,7 @@ public:
 
 	//~ IInteractionComponentInterface
 	virtual bool TryInteract_Implementation() override;
+	virtual bool TryInteractWithActor_Implementation(AActor* Target) override;
 	virtual bool BeginInteractInput_Implementation() override;
 	virtual void EndInteractInput_Implementation() override;
 	virtual AActor* GetFocusedActor_Implementation() const override { return FocusedActor.Get(); }
@@ -47,6 +52,10 @@ public:
 
 	/** Starts local-only presentation targeting/highlight once possession/local control is valid. */
 	void ActivateLocalPresentationIfNeeded();
+
+	//~ IInteractionVisualSuppressor (interface lives in ProjectCore so cinematic
+	// code can call this without ProjectInteraction <-> ProjectCinematic coupling)
+	virtual void SuppressInteractionVisuals() override;
 
 	// -------------------------------------------------------------------------
 	// Server-Authoritative Interaction

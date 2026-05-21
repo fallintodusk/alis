@@ -1,0 +1,17 @@
+; A/B profile: BASE
+; Resets all Phase 1 Lumen knobs back to engine defaults / pre-tuning values.
+; Use this as the "before" side of the A/B vs cvar_clean.txt and cvar_full.txt.
+; Companion todo: todo/00_current/fix_lumen_indoor_noise.md
+;
+; Invoke (PIE console, UE 5.7 syntax):
+;   execfile <project-root>/scripts/ue/editor/render/cvar_base.txt
+
+r.Lumen.ScreenProbeGather.Quality 2
+r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 16
+r.Lumen.ScreenProbeGather.TracingOctahedronResolution 8
+r.Lumen.ScreenProbeGather.MaxRayIntensity 10
+r.Lumen.ScreenProbeGather.ShortRangeAO 1
+r.Lumen.ScreenProbeGather.ShortRangeAO.HardwareRayTracing 0
+r.Lumen.Reflections.Temporal.MaxFramesAccumulated 8
+r.Lumen.Reflections.ScreenSpaceReconstruction.NumSamples 8
+r.Lumen.Reflections.RoughnessFadeLength 0.8

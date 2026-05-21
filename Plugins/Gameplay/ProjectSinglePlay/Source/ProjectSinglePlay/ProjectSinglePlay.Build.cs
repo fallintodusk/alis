@@ -24,6 +24,10 @@ public class ProjectSinglePlay : ModuleRules
 			"ProjectObject"   // SpawnFromDefinition (used in SinglePlayerGameMode.cpp only)
 		});
 
+		// CinematicGameMode (and its conditional MRQ + UnrealEd deps) was
+		// moved to the ProjectCinematic plugin's runtime module. This module
+		// is now cinematic-free.
+
 		StageDataDir(Target);
 	}
 

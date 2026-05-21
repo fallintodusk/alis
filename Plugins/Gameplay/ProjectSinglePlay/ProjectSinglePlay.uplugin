@@ -28,6 +28,7 @@
     { "Name": "ProjectUI", "Enabled": true },
     { "Name": "ProjectVitalsUI", "Enabled": true },
     { "Name": "ProjectInventoryUI", "Enabled": true },
-    { "Name": "ProjectMindUI", "Enabled": true }
+    { "Name": "ProjectMindUI", "Enabled": true },
+    { "Name": "MovieRenderPipeline", "Enabled": true, "TargetAllowList": ["Editor"] }
   ]
 }

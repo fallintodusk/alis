@@ -1,5 +1,6 @@
 #include "SinglePlayController.h"
 #include "ProjectSinglePlayLog.h"
+#include "Template/Interactable/InteractableActor.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/Character.h"
@@ -643,16 +644,7 @@ void ASinglePlayController::HandleToggleVitalsAction(const FInputActionValue& Va
 	{
 		return;
 	}
-
-	if (!VitalsViewModel)
-	{
-		TryBindVitalsViewModel();
-	}
-
-	if (VitalsViewModel)
-	{
-		VitalsViewModel->TogglePanel();
-	}
+	TogglePanel_Vitals();
 }
 
 void ASinglePlayController::HandleToggleInventoryAction(const FInputActionValue& Value)
@@ -662,27 +654,7 @@ void ASinglePlayController::HandleToggleInventoryAction(const FInputActionValue&
 	{
 		return;
 	}
-
-	LOG_INIT("HandleToggleInventoryAction START - HasViewModel=%d", InventoryViewModel != nullptr);
-	LOG_INIT("HandleToggleInventoryAction - BEFORE: IgnoreMoveInput=%d, IgnoreLookInput=%d",
-		IsMoveInputIgnored(), IsLookInputIgnored());
-
-	if (!EnsureInventoryViewModelReady())
-	{
-		return;
-	}
-
-	// Toggle panel - the delegate HandleInventoryViewModelPropertyChanged handles Show/Hide
-	if (UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel))
-	{
-		const bool bWasVisible = InventoryVM->GetbPanelVisible();
-		LOG_INIT("HandleToggleInventoryAction - Calling TogglePanel, wasVisible=%d", bWasVisible);
-		InventoryVM->TogglePanel();
-		LOG_INIT("HandleToggleInventoryAction - After TogglePanel, isVisible=%d", InventoryVM->GetbPanelVisible());
-	}
-
-	LOG_INIT("HandleToggleInventoryAction END - AFTER: IgnoreMoveInput=%d, IgnoreLookInput=%d",
-		IsMoveInputIgnored(), IsLookInputIgnored());
+	TogglePanel_Inventory();
 #else
 	(void)Value;
 #endif
@@ -695,6 +667,61 @@ void ASinglePlayController::HandleToggleMindJournalAction(const FInputActionValu
 	{
 		return;
 	}
+	TogglePanel_MindJournal();
+#else
+	(void)Value;
+#endif
+}
+
+void ASinglePlayController::TogglePanel_Vitals()
+{
+	if (!IsLocalController()) return;
+
+	if (!VitalsViewModel)
+	{
+		TryBindVitalsViewModel();
+	}
+
+	if (VitalsViewModel)
+	{
+		VitalsViewModel->TogglePanel();
+		OnPanelVisibilityChanged.Broadcast(TEXT("Vitals"), VitalsViewModel->GetbPanelVisible());
+	}
+}
+
+void ASinglePlayController::TogglePanel_Inventory()
+{
+#if !UE_SERVER
+	if (!IsLocalController()) return;
+
+	LOG_INIT("TogglePanel_Inventory START - HasViewModel=%d", InventoryViewModel != nullptr);
+	LOG_INIT("TogglePanel_Inventory - BEFORE: IgnoreMoveInput=%d, IgnoreLookInput=%d",
+		IsMoveInputIgnored(), IsLookInputIgnored());
+
+	if (!EnsureInventoryViewModelReady())
+	{
+		return;
+	}
+
+	// Toggle panel - the delegate HandleInventoryViewModelPropertyChanged handles Show/Hide
+	if (UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel))
+	{
+		const bool bWasVisible = InventoryVM->GetbPanelVisible();
+		LOG_INIT("TogglePanel_Inventory - Calling TogglePanel, wasVisible=%d", bWasVisible);
+		InventoryVM->TogglePanel();
+		LOG_INIT("TogglePanel_Inventory - After TogglePanel, isVisible=%d", InventoryVM->GetbPanelVisible());
+		OnPanelVisibilityChanged.Broadcast(TEXT("Inventory"), InventoryVM->GetbPanelVisible());
+	}
+
+	LOG_INIT("TogglePanel_Inventory END - AFTER: IgnoreMoveInput=%d, IgnoreLookInput=%d",
+		IsMoveInputIgnored(), IsLookInputIgnored());
+#endif
+}
+
+void ASinglePlayController::TogglePanel_MindJournal()
+{
+#if !UE_SERVER
+	if (!IsLocalController()) return;
 
 	if (!MindJournalViewModel)
 	{
@@ -708,9 +735,66 @@ void ASinglePlayController::HandleToggleMindJournalAction(const FInputActionValu
 	if (MindJournalViewModel)
 	{
 		MindJournalViewModel->TogglePanel();
+		OnPanelVisibilityChanged.Broadcast(TEXT("MindJournal"), MindJournalViewModel->GetbPanelVisible());
 	}
+#endif
+}
+
+// -----------------------------------------------------------------------------
+// Idempotent setters (for Sequencer Event Tracks / scripted gameplay).
+// Each reads current ViewModel state and forwards to Toggle only when the
+// target state differs - so re-firing the same key under MRQ warmup or from
+// a duplicated Director BP key is a no-op instead of a state flip.
+// -----------------------------------------------------------------------------
+
+void ASinglePlayController::SetPanel_VitalsVisible(bool bVisible)
+{
+	if (!IsLocalController()) return;
+	if (!VitalsViewModel) TryBindVitalsViewModel();
+	if (VitalsViewModel && VitalsViewModel->GetbPanelVisible() != bVisible)
+	{
+		VitalsViewModel->TogglePanel();
+	}
+	OnPanelVisibilityChanged.Broadcast(TEXT("Vitals"), bVisible);
+}
+
+void ASinglePlayController::SetPanel_InventoryVisible(bool bVisible)
+{
+#if !UE_SERVER
+	if (!IsLocalController()) return;
+	if (!EnsureInventoryViewModelReady()) return;
+	if (UInventoryViewModel* VM = Cast<UInventoryViewModel>(InventoryViewModel))
+	{
+		if (VM->GetbPanelVisible() != bVisible)
+		{
+			VM->TogglePanel();
+		}
+	}
+	OnPanelVisibilityChanged.Broadcast(TEXT("Inventory"), bVisible);
 #else
-	(void)Value;
+	(void)bVisible;
+#endif
+}
+
+void ASinglePlayController::SetPanel_MindJournalVisible(bool bVisible)
+{
+#if !UE_SERVER
+	if (!IsLocalController()) return;
+	if (!MindJournalViewModel)
+	{
+		if (UProjectUILayerHostSubsystem* LayerHost = GetGameInstance()->GetSubsystem<UProjectUILayerHostSubsystem>())
+		{
+			LayerHost->ShowDefinition(TEXT("ProjectMindUI.MindJournalPanel"));
+		}
+		TryBindMindJournalViewModel();
+	}
+	if (MindJournalViewModel && MindJournalViewModel->GetbPanelVisible() != bVisible)
+	{
+		MindJournalViewModel->TogglePanel();
+	}
+	OnPanelVisibilityChanged.Broadcast(TEXT("MindJournal"), bVisible);
+#else
+	(void)bVisible;
 #endif
 }
 
@@ -720,6 +804,12 @@ void ASinglePlayController::HandleInteractAction(const FInputActionValue& Value)
 	{
 		return;
 	}
+	TriggerFocusedInteraction();
+}
+
+void ASinglePlayController::TriggerFocusedInteraction()
+{
+	if (!IsLocalController()) return;
 
 #if !UE_SERVER
 	if (UInventoryViewModel* InventoryVM = Cast<UInventoryViewModel>(InventoryViewModel))
@@ -743,14 +833,80 @@ void ASinglePlayController::HandleInteractAction(const FInputActionValue& Value)
 	{
 		if (Comp && Comp->Implements<UInteractionComponentInterface>())
 		{
-			AActor* FocusedActor = IInteractionComponentInterface::Execute_GetFocusedActor(Comp);
+			// Snapshot focus BEFORE BeginInteractInput so the world-container
+			// session resolution path runs against the focus the player saw
+			// at the moment of E-press (the player aimed at this dresser/etc
+			// and pressed; downstream inventory state setup depends on that
+			// pre-press snapshot).
+			AActor* PrePressFocus = IInteractionComponentInterface::Execute_GetFocusedActor(Comp);
 #if !UE_SERVER
-			if (ResolveWorldContainerSessionSource(FocusedActor))
+			if (ResolveWorldContainerSessionSource(PrePressFocus))
 			{
 				EnsureInventoryViewModelReady();
 			}
 #endif
-			IInteractionComponentInterface::Execute_BeginInteractInput(Comp);
+			// BeginInteractInput re-traces internally and may shift focus
+			// between the snapshot above and the actual interaction.
+			// Capture its return so we only broadcast when input was
+			// accepted by SOME interactable -- for hold interactions this
+			// means "the hold has started," not "the interaction has
+			// completed execution," so observers must not assume completion
+			// from this broadcast alone. The point of the gate is to
+			// suppress spurious broadcasts when the press lands on nothing
+			// (no focus post-trace, range fail, all capabilities rejected),
+			// not to guarantee completion: that lower bar already prevents
+			// the cinematic recorder from AddSource'ing actors the player
+			// didn't actually engage with.
+			const bool bInteractionAccepted =
+				IInteractionComponentInterface::Execute_BeginInteractInput(Comp);
+			if (!bInteractionAccepted)
+			{
+				return;
+			}
+			// Re-read focus POST-update so the broadcast reflects what was
+			// actually interacted with (not the stale pre-press snapshot).
+			AActor* InteractedActor =
+				IInteractionComponentInterface::Execute_GetFocusedActor(Comp);
+			// Resolve the capability component that responded (set by
+			// AInteractableActor::OnInteract_Implementation before its
+			// component-side execution returned). Pass nullptr when the
+			// focused actor isn't an AInteractableActor or has no responding
+			// component cached -- observers handle both shapes.
+			UActorComponent* Responder = nullptr;
+			if (AInteractableActor* IA = Cast<AInteractableActor>(InteractedActor))
+			{
+				Responder = IA->GetLastRespondingComponent();
+			}
+			OnInteractionTriggered.Broadcast(InteractedActor, Responder);
+			return;
+		}
+	}
+}
+
+void ASinglePlayController::TriggerInteractionWithActor(AActor* TargetActor)
+{
+	if (!IsLocalController() || !TargetActor) return;
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	for (UActorComponent* Comp : ControlledPawn->GetComponents())
+	{
+		if (Comp && Comp->Implements<UInteractionComponentInterface>())
+		{
+			const bool bOk = IInteractionComponentInterface::Execute_TryInteractWithActor(Comp, TargetActor);
+			if (bOk)
+			{
+				// Broadcast the targeted-interaction event so any external
+				// observer (e.g. analytics, recorder during a non-Take session)
+				// sees a symmetric signal to OnInteractionTriggered.
+				UActorComponent* Responder = nullptr;
+				if (AInteractableActor* IA = Cast<AInteractableActor>(TargetActor))
+				{
+					Responder = IA->GetLastRespondingComponent();
+				}
+				OnInteractionTriggered.Broadcast(TargetActor, Responder);
+			}
 			return;
 		}
 	}

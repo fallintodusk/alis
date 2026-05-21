@@ -33,7 +33,18 @@ ifneq ($(FORCE_WSL),)
   IS_WSL := $(FORCE_WSL)
 endif
 
-.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package structurizr-start structurizr-stop structurizr-open
+.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package structurizr-start structurizr-stop structurizr-open cinematics cinematics-convert
+
+# Subcommand dispatch for `make cinematics <subcmd>`.
+# When `cinematics` is the first goal, every following word becomes a no-op
+# target so make does not error on "convert" (or future subcommands). The real
+# work is done inside the `cinematics:` recipe based on CINEMATICS_ARGS.
+ifeq (cinematics,$(firstword $(MAKECMDGOALS)))
+  CINEMATICS_ARGS := $(filter-out cinematics,$(MAKECMDGOALS))
+  ifneq ($(CINEMATICS_ARGS),)
+    $(eval $(CINEMATICS_ARGS):;@:)
+  endif
+endif
 
 # Default target
 help:
@@ -70,6 +81,10 @@ help:
 	@echo "  Utilities:"
 	@echo "    make open              - Open project in Unreal Editor"
 	@echo "    make clean             - Clean build artifacts"
+	@echo ""
+	@echo "  Cinematics:"
+	@echo "    make cinematics convert - Batch ProRes .mov -> NVENC HEVC mp4 (_enc suffix) in Saved/MovieRenders"
+	@echo "    make cinematics-convert - Same, hyphenated form"
 	@echo ""
 	@echo "  Documentation:"
 	@echo "    make structurizr-start - Start Structurizr Lite (C4 diagrams)"
@@ -413,3 +428,23 @@ structurizr-stop:
 
 structurizr-open:
 	@cmd.exe /C "start http://localhost:8080"
+
+# Cinematics: batch ProRes .mov -> NVENC HEVC mp4
+cinematics-convert:
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+		-File "scripts/ue/cinematic/convert.ps1"
+
+# Subcommand entrypoint: `make cinematics convert`
+cinematics:
+ifeq ($(CINEMATICS_ARGS),convert)
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+		-File "scripts/ue/cinematic/convert.ps1"
+else ifeq ($(CINEMATICS_ARGS),)
+	@echo "Usage: make cinematics <subcommand>"
+	@echo "  convert    Batch ProRes .mov -> NVENC HEVC mp4 (_enc suffix)"
+	@exit 1
+else
+	@echo "Unknown subcommand: $(CINEMATICS_ARGS)"
+	@echo "Available: convert"
+	@exit 1
+endif

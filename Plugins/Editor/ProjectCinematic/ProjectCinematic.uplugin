@@ -1,0 +1,36 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Project Cinematic",
+	"Description": "Editor-only cinematic capture pipeline. Hooks Take Recorder to auto-record interacted actors as transform tracks and stamps UI panel events as master Event Track keys against a pure-C++ ULevelSequenceDirector subclass. Sequencer asset is the SOT; MRQ render is pure consumption.",
+	"Category": "Editor",
+	"CreatedBy": "ALIS",
+	"CanContainContent": false,
+	"Modules": [
+		{
+			"Name": "ProjectCinematic",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ProjectCinematicEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Takes",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectSinglePlay",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectObject",
+			"Enabled": true
+		}
+	]
+}

@@ -54,6 +54,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void RefreshInteractableComponents();
 
+	/** Last capability component that responded to an interaction on this actor.
+	 *  Set by OnInteract_Implementation immediately before the component's
+	 *  interaction code runs. Read by external observability subscribers
+	 *  (cinematic recording, analytics, tutorial scrubber) to know which
+	 *  specific capability fired -- the actor pointer alone is insufficient
+	 *  when an actor has multiple capability components (e.g. a dresser with
+	 *  5 drawer sliders). Weak so we don't pin a destroyed component. */
+	UActorComponent* GetLastRespondingComponent() const { return LastRespondingComponent.Get(); }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -61,6 +70,9 @@ private:
 	/** Cached and sorted interactable components. */
 	UPROPERTY()
 	TArray<TObjectPtr<UActorComponent>> CachedInteractableComponents;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UActorComponent> LastRespondingComponent;
 
 	void CacheInteractableComponents();
 };

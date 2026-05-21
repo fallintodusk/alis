@@ -1,6 +1,9 @@
 // Copyright ALIS. All Rights Reserved.
 
 #include "DefinitionCharacter.h"
+#include "Interfaces/ILookInputModifier.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/GameModeBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -554,7 +557,25 @@ void ADefinitionCharacter::Move(const FInputActionValue& Value)
 
 void ADefinitionCharacter::Look(const FInputActionValue& Value)
 {
-	const FVector2D LookAxis = Value.Get<FVector2D>();
+	FVector2D LookAxis = Value.Get<FVector2D>();
+
+	// If some authority in the current world implements ILookInputModifier
+	// (e.g. a recording-aware game mode wanting smoother captured camera),
+	// give it a chance to transform the input before we accumulate it on
+	// the controller. The character has no opinion about who or why; it
+	// only knows the interface. Default-implemented to identity, so the
+	// no-op case is free.
+	if (AGameModeBase* GM = UGameplayStatics::GetGameMode(this))
+	{
+		if (GM->Implements<ULookInputModifier>())
+		{
+			if (const ILookInputModifier* Mod = Cast<ILookInputModifier>(GM))
+			{
+				LookAxis = Mod->ModifyLook(LookAxis);
+			}
+		}
+	}
+
 	if (Controller)
 	{
 		AddControllerYawInput(LookAxis.X);

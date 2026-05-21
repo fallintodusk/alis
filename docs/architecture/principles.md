@@ -897,16 +897,22 @@ using FAlisLoadRequest = FProjectLoadRequest;
 
 ## Exceptions
 
-**When project-specific naming is OK:**
+**The ONLY places `Alis` may appear:**
 
-1. **Top-level game module** - `Source/Alis/` is fine (it's the game)
-2. **Content assets** - `Content/Alis/` for organization
-3. **Macros** - `ALIS_LOG()` macro is acceptable (preprocessor level)
-4. **Config categories** - `[Alis.GameSettings]` for clarity
-5. **Marketing/UI text** - User-facing strings
-6. **Content plugins** - `Plugins/Content/Alis_Kazan/` (it's content, not code)
+1. **Top-level game module** - `Source/Alis/` is fine (it's the game itself)
+2. **Content folders** - `Content/Alis/` for asset organization (no code)
+3. **Marketing / user-facing strings** - branding shown to the player
+4. **Content-only asset plugins** - e.g. `Alis_KazanPack` (no `Source/` modules, ships only `.uasset`)
+5. **UE reflection paths forced by #1** - `[/Script/Alis.UAlisGameInstance]` in `.ini` is automatic from the module name
 
-**Everything else should be generic.**
+**Everything else MUST use `Project*`.** Specifically forbidden (no exception):
+
+- Reusable plugin code in any plugin category (`Foundation/`, `Systems/`, `Features/`, `Gameplay/`, `UI/`, `Resources/`, `World/`, `Test/`, `Boot/`)
+- Classes, structs, enums, interfaces, subsystems, actors
+- Log categories (`LogAlis*`)
+- Macros (`ALIS_LOG` etc.) - use `PROJECT_LOG` / `UE_LOG(LogProjectX, ...)`. The only exception is `ALIS_API`, which is auto-generated for the `Source/Alis/` module
+- INI section labels you author (`[Alis.GameSettings]` -> `[Project.GameSettings]`)
+- File names: `AlisFoo.h/cpp`
 
 ---
 
@@ -919,11 +925,14 @@ using FAlisLoadRequest = FProjectLoadRequest;
 | Subsystem | [OK] Yes | `UProjectLoadingSubsystem` | [X] No |
 | Load request type | [OK] Yes | `FProjectLoadRequest` | [X] No |
 | Log category | [OK] Yes | `LogProjectCore`, `LogProjectLoading` | [X] No |
+| Macros (logging) | [OK] Yes | `PROJECT_LOG` | [X] No (no `ALIS_LOG`) |
+| INI section label | [OK] Yes | `[Project.Settings]` | [X] No (no `[Alis.Settings]`) |
 | Game module | [X] No | `Alis` | [OK] Yes |
 | Content folder | [X] No | `Content/Alis/` | [OK] Yes |
 | Map name | [X] No | `Kazan_Main` | [OK] Yes |
-| Content plugin | [X] No | `Alis_KazanPack` | [OK] Yes |
-| Config section | [X] No | `[Alis.Settings]` | [OK] Yes |
+| Content-only asset plugin | [X] No | `Alis_KazanPack` | [OK] Yes (no `Source/`) |
+| `ALIS_API` macro | [X] N/A | auto-generated | [OK] Forced by `Source/Alis/` |
+| INI reflection path | [X] N/A | `[/Script/Alis.X]` | [OK] Forced by game module name |
 
 ---
 

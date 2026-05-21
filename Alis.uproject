@@ -41,6 +41,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectCinematic",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectCombat",
 			"Enabled": true
 		},
@@ -405,6 +409,21 @@
 		{
 			"Name": "MetaHumanLiveLink",
 			"Enabled": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		},
+		{
+			"Name": "MoviePipelineMaskRenderPass",
+			"Enabled": true
+		},
+		{
+			"Name": "AppleProResMedia",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		}
 	],
 	"TargetPlatforms": [

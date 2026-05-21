@@ -237,6 +237,12 @@ bool AInteractableActor::OnInteract_Implementation(AActor* InteractInstigator, U
 		IInteractableComponentTargetInterface::Execute_GetInteractPriority(Selected),
 		HitComponent ? *HitComponent->GetName() : TEXT("<none>"));
 
+	// Publish the responding component so external observability subscribers
+	// (cinematic recording, analytics, tutorial scrubber) can identify which
+	// specific capability fired. Set BEFORE the component's interact code so
+	// observers reading it from a later broadcast see the right value.
+	LastRespondingComponent = Selected;
+
 	return IInteractableComponentTargetInterface::Execute_OnComponentInteract(Selected, InteractInstigator);
 }
 
@@ -572,15 +578,23 @@ bool AInteractableActor::ApplyDefinition_Implementation(UPrimaryDataAsset* Defin
 			}
 		}
 
-		// Create component if doesn't exist (with proper GC ownership)
+		// Create component if doesn't exist (with proper GC ownership).
+		// Deterministic name "Cap_<Type>_<Scope>" so Sequencer Possessable
+		// resolution via component path is stable across PIE/MRQ render and
+		// across re-records. Falling back to NAME_None produced auto-names
+		// like SpringSliderComponent_0/_1/_2 which made bindings fragile.
 		if (!Comp)
 		{
-			Comp = NewObject<UActorComponent>(this, CapClass, NAME_None, RF_Transient);
+			const FName CompName = MakeUniqueObjectName(
+				this,
+				CapClass,
+				FName(*FString::Printf(TEXT("Cap_%s_%s"), *CapEntry.Type.ToString(), *ScopeStr)));
+			Comp = NewObject<UActorComponent>(this, CapClass, CompName, RF_Transient);
 			AddInstanceComponent(Comp);
 			Comp->ComponentTags.Add(CapTag);
 			Comp->RegisterComponent();
-			UE_LOG(LogInteractableActor, Log, TEXT("  Created capability component: %s (%s)"),
-				*CapClass->GetName(), *CapTag.ToString());
+			UE_LOG(LogInteractableActor, Log, TEXT("  Created capability component: %s named '%s' (%s)"),
+				*CapClass->GetName(), *CompName.ToString(), *CapTag.ToString());
 		}
 
 		Comp->Modify(); // Enable undo for this component

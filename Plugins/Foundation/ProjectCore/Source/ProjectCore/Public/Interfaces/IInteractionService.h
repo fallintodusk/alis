@@ -99,6 +99,17 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	bool TryInteract();
 
+	/**
+	 * Attempt interaction with a specific target actor, bypassing the focus
+	 * trace. Used by Sequencer-driven cinematic replay to interact with the
+	 * EXACT actor that was recorded during PIE, rather than whatever the
+	 * focus trace lands on at the render-time frame (which can drift by 1
+	 * frame and miss the door / drawer / item). Returns false if Target is
+	 * null or not a recognized interactable.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	bool TryInteractWithActor(AActor* Target);
+
 	/** Begin the interact input lifecycle (press/hold path). */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	bool BeginInteractInput();

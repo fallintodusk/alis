@@ -525,6 +525,21 @@ bool UInteractionComponent::TryInteract_Implementation()
 	return DispatchInteract(FocusedActor.Get(), FocusedComponent.Get());
 }
 
+bool UInteractionComponent::TryInteractWithActor_Implementation(AActor* Target)
+{
+	// Bypass focus / highlight. Used by Sequencer-driven cinematic replay
+	// to interact with the exact actor recorded during PIE. Server still
+	// validates plausibility (interactable + range); no re-resolve.
+	if (!Target)
+	{
+		UE_LOG(LogInteraction, Warning,
+			TEXT("[%s] TryInteractWithActor: null target"),
+			*GetName());
+		return false;
+	}
+	return DispatchInteract(Target, nullptr);
+}
+
 bool UInteractionComponent::DispatchInteract(AActor* Target, UPrimitiveComponent* HitComponent)
 {
 	if (!Target)
@@ -865,4 +880,49 @@ void UInteractionComponent::SetComponentCustomDepth(UPrimitiveComponent* Compone
 
 	UE_LOG(LogInteraction, Log, TEXT("[%s] SetComponentCustomDepth: Component='%s' Enable=%s"),
 		*GetName(), *Component->GetName(), bEnable ? TEXT("true") : TEXT("false"));
+}
+
+void UInteractionComponent::SuppressInteractionVisuals()
+{
+	// IInteractionVisualSuppressor implementation. Called from cinematic code
+	// (currently ACinematicGameMode Render mode) via interface query; this
+	// gameplay-side component does not know about cinematics -- it only
+	// satisfies the contract.
+	//
+	// 1) Drop focus through the existing path. SetFocusedActor(nullptr, nullptr)
+	//    runs the standard unfocus branch which calls SetComponentCustomDepth(
+	//    OldComponent, false) on the previously-focused mesh, broadcasts focus
+	//    cleared to IInteractionService (which is how the HUD "[E] Open" prompt
+	//    learns to hide), and resets FocusedActor/FocusedComponent.
+	SetFocusedActor(nullptr, nullptr);
+
+	// 2) Cancel any in-flight hold interaction so the hold timer / progress bar
+	//    doesn't keep ticking + broadcasting prompt updates.
+	if (bHoldInteractionActive)
+	{
+		CancelHoldInteraction();
+	}
+
+	// 3) Stop the passive trace timer so no new focus is produced. Without this,
+	//    the next passive tick would re-resolve a target under the (now hidden)
+	//    phantom pawn and re-light its stencil within a few frames.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PassiveTraceTimerHandle);
+	}
+
+	// 4) Disable highlight production for the rest of this session. Belt-and-
+	//    suspenders: even if some future tick path calls into
+	//    SetComponentCustomDepth, the bPostProcessReady guard combined with
+	//    bEnableHighlight=false means no new stencil will be lit.
+	bEnableHighlight = false;
+
+	// 5) Drop component tick. RefreshComponentTickEnabled() may re-enable it
+	//    if a hold interaction is in progress; we just cancelled the hold so
+	//    that path is closed.
+	SetComponentTickEnabled(false);
+
+	UE_LOG(LogInteraction, Log,
+		TEXT("[%s] SuppressInteractionVisuals: focus cleared, highlight disabled, passive trace stopped, tick disabled."),
+		*GetName());
 }
