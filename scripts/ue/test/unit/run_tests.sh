@@ -11,6 +11,8 @@ source "${SCRIPT_DIR}/../config/ue_env.sh"
 # Configuration
 REPORTS_DIR="${PROJECT_ROOT}/Saved/Automation/Reports"
 TEST_LOG="${REPORTS_DIR}/tests.log"
+REPORTS_DIR_WINDOWS="$(to_windows_path "$REPORTS_DIR")"
+TEST_LOG_WINDOWS="$(to_windows_path "$TEST_LOG")"
 
 # Colors for output
 RED='\033[0;31m'
@@ -165,16 +167,20 @@ if [[ ${#CUSTOM_FILTERS[@]} -gt 0 ]]; then
     echo -e "${BLUE}Running custom automation filters${NC}"
 fi
 
-# Build the automation command string (`;` separates console commands)
-AUTOMATION_COMMANDS=""
+# Build one RunTests command. UE command-line automation supports multiple
+# filters inside one RunTests argument when they are joined with '+'. Queuing
+# multiple RunTests commands in a single ExecCmds value is ignored by UE 5.7.
+AUTOMATION_FILTER_EXPR=""
 for FILTER in "${TEST_FILTERS[@]}"; do
-    if [ -n "$AUTOMATION_COMMANDS" ]; then
-        AUTOMATION_COMMANDS+=";"
+    if [ -n "$AUTOMATION_FILTER_EXPR" ]; then
+        AUTOMATION_FILTER_EXPR+="+"
     fi
-    AUTOMATION_COMMANDS+="Automation RunTests ${FILTER}"
+    AUTOMATION_FILTER_EXPR+="${FILTER}"
 done
+AUTOMATION_COMMANDS="Automation RunTests ${AUTOMATION_FILTER_EXPR}"
 
 echo "Test Filters: ${TEST_FILTERS[*]}"
+echo "Automation Filter Expression: ${AUTOMATION_FILTER_EXPR}"
 echo ""
 
 # Run tests using Unreal Engine automation framework
@@ -190,13 +196,12 @@ echo ""
     -NoSound \
     -NoLogWindow \
     -NoLoadingScreen \
-    -game \
     -NullRHI \
     -NoLiveCoding \
     -Messaging \
     -testexit="Automation Test Queue Empty" \
-    -log="${TEST_LOG}" \
-    -ReportOutputPath="${REPORTS_DIR}"
+    -ABSLOG="${TEST_LOG_WINDOWS}" \
+    -ReportExportPath="${REPORTS_DIR_WINDOWS}"
 
 TEST_EXIT_CODE=$?
 

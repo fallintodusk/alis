@@ -106,6 +106,7 @@ protected:
 private:
 	FLocalBodyAnimInstanceProxy LocalBodyProxy;
 	bool bLoggedOnce = false;
+	bool bModeReinitPending = false;
 
 	// Track which mode was wired at init so we can detect runtime changes.
 	ELocalBodyUpperChainMode InitializedMode = ELocalBodyUpperChainMode::ChainIK;
@@ -119,4 +120,7 @@ private:
 public:
 	// Resolve the active correction based on UpperChainMode.
 	ILocalBodyCorrection* ResolveCorrection();
+
+private:
+	void RequestDeferredModeReinitialize();
 };

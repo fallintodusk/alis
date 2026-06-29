@@ -31,7 +31,17 @@ bool FOrchestratorHashFileTest::RunTest(const FString& Parameters)
 	FString ComputedHash;
 	TestTrue(TEXT("HashFile should succeed"), FOrchestratorHash::HashFile(TestFilePath, ComputedHash));
 	TestTrue(TEXT("Hash should not be empty"), !ComputedHash.IsEmpty());
-	TestEqual(TEXT("Hash length should be 40 characters (SHA-1)"), ComputedHash.Len(), 40);
+	TestEqual(TEXT("Hash length should be 64 characters (SHA-256)"), ComputedHash.Len(), 64);
+
+	const FString KnownVectorPath = FPaths::ProjectSavedDir() / TEXT("OrchestratorTests/sha256_abc.bin");
+	TArray<uint8> KnownVectorBytes;
+	KnownVectorBytes.Append(reinterpret_cast<const uint8*>("abc"), 3);
+	FFileHelper::SaveArrayToFile(KnownVectorBytes, *KnownVectorPath);
+
+	FString KnownVectorHash;
+	TestTrue(TEXT("Known vector HashFile should succeed"), FOrchestratorHash::HashFile(KnownVectorPath, KnownVectorHash));
+	TestEqual(TEXT("SHA-256 known vector abc"), KnownVectorHash,
+		TEXT("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
 
 	// Test: Same file should produce same hash
 	FString ComputedHash2;
@@ -55,8 +65,70 @@ bool FOrchestratorHashFileTest::RunTest(const FString& Parameters)
 	// Cleanup
 	PlatformFile.DeleteFile(*TestFilePath);
 	PlatformFile.DeleteFile(*TestFilePath2);
+	PlatformFile.DeleteFile(*KnownVectorPath);
 	PlatformFile.DeleteDirectory(*TestDir);
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorHashSHA256VectorsTest, "Orchestrator.Hash.SHA256Vectors",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FOrchestratorHashSHA256VectorsTest::RunTest(const FString& Parameters)
+{
+	// The SHA-256 implementation is hand-rolled, so cover the cases that
+	// stress the block-padding boundary in ComputeSHA256. Using 'a' repeated:
+	//   55 = largest single-block message (55 + 0x80 + 8-byte length = 64)
+	//   56 = first length that forces a second padding block
+	//   64 = exactly one full data block, also forces a second block
+	//   1000 = multi-block accumulation
+	// Empty + "abc" anchor the canonical NIST vectors. All values were
+	// produced by an independent SHA-256 (coreutils sha256sum).
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	const FString TestDir = FPaths::ProjectSavedDir() / TEXT("OrchestratorTests/sha256_vectors");
+	PlatformFile.CreateDirectoryTree(*TestDir);
+
+	auto RunVector = [&](const FString& Label, const TArray<uint8>& Bytes, const TCHAR* Expected)
+	{
+		const FString VectorPath = TestDir / (Label + TEXT(".bin"));
+		if (!FFileHelper::SaveArrayToFile(Bytes, *VectorPath))
+		{
+			AddError(FString::Printf(TEXT("Failed to write vector file: %s"), *VectorPath));
+			return;
+		}
+
+		FString Hash;
+		TestTrue(FString::Printf(TEXT("HashFile(%s) should succeed"), *Label),
+			FOrchestratorHash::HashFile(VectorPath, Hash));
+		TestEqual(FString::Printf(TEXT("SHA-256 vector: %s"), *Label), Hash, FString(Expected));
+
+		PlatformFile.DeleteFile(*VectorPath);
+	};
+
+	auto Repeat = [](uint8 Value, int32 Count)
+	{
+		TArray<uint8> Bytes;
+		Bytes.Init(Value, Count);
+		return Bytes;
+	};
+
+	TArray<uint8> Abc;
+	Abc.Append(reinterpret_cast<const uint8*>("abc"), 3);
+
+	RunVector(TEXT("empty"), TArray<uint8>(),
+		TEXT("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+	RunVector(TEXT("abc"), Abc,
+		TEXT("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+	RunVector(TEXT("a55"), Repeat('a', 55),
+		TEXT("9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"));
+	RunVector(TEXT("a56"), Repeat('a', 56),
+		TEXT("b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"));
+	RunVector(TEXT("a64"), Repeat('a', 64),
+		TEXT("ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb"));
+	RunVector(TEXT("a1000"), Repeat('a', 1000),
+		TEXT("41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"));
+
+	PlatformFile.DeleteDirectory(*TestDir);
 	return true;
 }
 

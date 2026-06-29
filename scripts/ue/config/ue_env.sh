@@ -14,9 +14,13 @@ export PROJECT_ROOT="${PROJECT_ROOT}"
 export PROJECT_FILE="${PROJECT_ROOT}/Alis.uproject"
 
 # Windows-style paths for UE tools (convert Unix paths)
-export UE_PATH_WINDOWS="$(cygpath -w "$UE_PATH" 2>/dev/null || echo "$UE_PATH")"
-export PROJECT_FILE_WINDOWS="$(cygpath -w "$PROJECT_FILE" 2>/dev/null || echo "$PROJECT_FILE")"
+export UE_PATH_WINDOWS="$(to_windows_path "$UE_PATH")"
+export PROJECT_FILE_WINDOWS="$(to_windows_path "$PROJECT_FILE")"
 
 echo "UE Environment:"
-echo "  UE Path: $UE_PATH ($UE_TYPE)"
+if [ -n "${UE_TYPE:-}" ]; then
+    echo "  UE Path: $UE_PATH ($UE_TYPE)"
+else
+    echo "  UE Path: $UE_PATH"
+fi
 echo "  Project: $PROJECT_FILE"

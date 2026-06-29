@@ -10,6 +10,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "TimerManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
@@ -218,6 +219,7 @@ void ULocalBodyAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 	NeckOffsetFromCamera = LoadNeckOffsetFromHeroJson();
+	bModeReinitPending = false;
 }
 
 FName ULocalBodyAnimInstance::GetCurrentSourceName() const
@@ -245,11 +247,7 @@ void ULocalBodyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	// Reinitialize the anim instance to rewire the node chain.
 	if (UpperChainMode != InitializedMode)
 	{
-		USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
-		if (MeshComp)
-		{
-			MeshComp->InitAnim(true);
-		}
+		RequestDeferredModeReinitialize();
 		return;
 	}
 
@@ -421,3 +419,33 @@ FAnimInstanceProxy* ULocalBodyAnimInstance::CreateAnimInstanceProxy()
 }
 
 void ULocalBodyAnimInstance::DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) {}
+
+void ULocalBodyAnimInstance::RequestDeferredModeReinitialize()
+{
+	if (bModeReinitPending)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetSkelMeshComponent();
+	UWorld* World = MeshComp ? MeshComp->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	bModeReinitPending = true;
+	TWeakObjectPtr<USkeletalMeshComponent> WeakMesh(MeshComp);
+	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, WeakMesh]()
+	{
+		bModeReinitPending = false;
+
+		USkeletalMeshComponent* DeferredMesh = WeakMesh.Get();
+		if (!DeferredMesh || DeferredMesh->GetAnimInstance() != this)
+		{
+			return;
+		}
+
+		DeferredMesh->InitAnim(true);
+	}));
+}

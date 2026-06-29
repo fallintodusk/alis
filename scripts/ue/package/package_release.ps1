@@ -144,10 +144,11 @@ $CheckDir = Join-Path $ProjectRoot "scripts\ue\check"
 $IniCheckScript = Join-Path $CheckDir "config\validate_shipping_ini.py"
 if (Test-Path $IniCheckScript) {
     $pythonExe = $null
-    if (Get-Command python -ErrorAction SilentlyContinue) {
+    $EnginePython = Join-Path $EngineRoot "Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+    if (Test-Path $EnginePython) {
+        $pythonExe = $EnginePython
+    } elseif (Get-Command python -ErrorAction SilentlyContinue) {
         $pythonExe = "python"
-    } elseif (Test-Path (Join-Path $EngineRoot "Engine\Binaries\ThirdParty\Python3\Win64\python.exe")) {
-        $pythonExe = Join-Path $EngineRoot "Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
     }
     if ($pythonExe) {
         & $pythonExe $IniCheckScript --config-dir (Join-Path $ProjectRoot "Config")

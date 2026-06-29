@@ -42,6 +42,35 @@ scripts/ue/check/reports/**
 **/*.utoc
 **/*.ucas
 **/*.pak
+
+# Binary media (raster images, video, audio, 3D, source art).
+# Media is hosted on the site (fall.is) and referenced by absolute URL; the
+# public mirror stays text-only. SVG is intentionally NOT excluded: it is text
+# and useful for docs/diagrams.
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.bmp
+**/*.tga
+**/*.tiff
+**/*.ico
+**/*.psd
+**/*.xcf
+**/*.ai
+**/*.fbx
+**/*.3ds
+**/*.glb
+**/*.gltf
+**/*.wav
+**/*.mp3
+**/*.ogg
+**/*.flac
+**/*.mp4
+**/*.mov
+**/*.avi
+**/*.webm
 Content/**
 Config/**
 Plugins/**/Binaries/**

@@ -14,7 +14,7 @@ Use this doc for:
 
 ## Quick Start
 
-1. Run `make prepare-tests` followed by `make test-unit-smart --base origin/main`.
+1. Run `make prepare-tests` followed by `make test-unit-smart BASE=origin/main`.
 2. Package through the project script:
    ```powershell
    .\scripts\ue\package\package_release.ps1 -EngineRoot <ue-path> -CreateReleaseArchive

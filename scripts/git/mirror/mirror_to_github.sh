@@ -262,6 +262,91 @@ for path in root.rglob("*"):
 PY
 }
 
+neutralize_lfs_attributes() {
+  local filtered_dir="$1"
+
+  # The public mirror is code+docs only and ships no Git LFS store. Any
+  # LFS-tracked file that legitimately survives filtering (e.g. a small doc
+  # or README image) must be committed as a plain blob. Leaving `filter=lfs` in
+  # the mirrored `.gitattributes` makes `git add` emit an LFS pointer whose
+  # object is never pushed, which GitHub rejects with GH008. Strip the LFS
+  # directives but keep binary/eol normalization.
+  python3 - "$filtered_dir" <<'PY'
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+lfs_tokens = {"filter=lfs", "merge=lfs", "diff=lfs"}
+binary_markers = {"-text", "text", "binary"}
+
+for path in root.rglob(".gitattributes"):
+    if not path.is_file():
+        continue
+
+    try:
+        original = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+
+    newline = "\r\n" if "\r\n" in original else "\n"
+    trailing_newline = original.endswith("\n")
+
+    out_lines = []
+    changed = False
+    for line in original.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=lfs" not in line:
+            out_lines.append(line)
+            continue
+
+        tokens = line.split()
+        kept = [token for token in tokens if token not in lfs_tokens]
+        # Keep dropped LFS binaries marked as binary so the public mirror does
+        # not CRLF-mangle them after losing the LFS filter.
+        if not any(marker in kept for marker in binary_markers):
+            kept.append("-text")
+
+        new_line = " ".join(kept)
+        if new_line != line:
+            changed = True
+        out_lines.append(new_line)
+
+    if not changed:
+        continue
+
+    text = newline.join(out_lines)
+    if trailing_newline:
+        text += newline
+
+    with open(path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(text)
+PY
+}
+
+# True only when a file IS a genuine Git LFS pointer, matched by full pointer
+# shape - NOT by mentioning the signature anywhere. Per the LFS spec the
+# canonical sha256 pointer is exactly:
+#   line 1: version https://git-lfs.github.com/spec/v1
+#   line 2: oid sha256:<64 lowercase hex>
+#   line 3: size <integer>
+# Markdown/scripts/docs that merely quote this text (this script, canonical.md
+# section 8.6, the foliage-recovery todo) never match all three lines and pass.
+# CR is stripped so CRLF checkouts on Windows still match; the 'q' in each sed
+# bounds the read so a large file is never slurped whole. A real pointer of ANY
+# extension fails. (Exotic pointers with custom ext-* lines are not matched
+# here; GH008 on push is the backstop for that rare case.)
+is_lfs_pointer_file() {
+  local item="$1"
+  local line1 line2 line3
+  line1="$(LC_ALL=C sed -n '1{p;q}' "$item" 2>/dev/null)"; line1="${line1%$'\r'}"
+  line2="$(LC_ALL=C sed -n '2{p;q}' "$item" 2>/dev/null)"; line2="${line2%$'\r'}"
+  line3="$(LC_ALL=C sed -n '3{p;q}' "$item" 2>/dev/null)"; line3="${line3%$'\r'}"
+
+  [[ "$line1" == "version https://git-lfs.github.com/spec/v1" ]] &&
+  [[ "$line2" =~ ^oid[[:space:]]+sha256:[0-9a-f]{64}$ ]] &&
+  [[ "$line3" =~ ^size[[:space:]]+[0-9]+$ ]]
+}
+
 validate_filtered_tree() {
   local filtered_dir="$1"
   local forbidden_patterns_file="$2"
@@ -284,7 +369,7 @@ validate_filtered_tree() {
 
     if [[ -f "$item" ]]; then
       case "$rel_path_lc" in
-        *.uasset|*.umap|*.ubulk|*.uexp|*.utoc|*.ucas|*.pak|*.dll|*.exe|*.pdb|*.obj|*.lib|*.so|*.dylib|*.app|*.ipa|*.kdbx|*.pem|*.pfx|*.key)
+        *.uasset|*.umap|*.ubulk|*.uexp|*.utoc|*.ucas|*.pak|*.dll|*.exe|*.pdb|*.obj|*.lib|*.so|*.dylib|*.app|*.ipa|*.kdbx|*.pem|*.pfx|*.key|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.bmp|*.tga|*.tiff|*.ico|*.psd|*.xcf|*.ai|*.fbx|*.3ds|*.glb|*.gltf|*.wav|*.mp3|*.ogg|*.flac|*.mp4|*.mov|*.avi|*.webm)
           printf '[FAIL] Forbidden file type survived filtering: %s\n' "$rel_path" >&2
           fail_flag=1
           ;;
@@ -310,6 +395,19 @@ validate_filtered_tree() {
       \( -iname '*.md' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.ini' -o -iname '*.cs' -o -iname '*.cpp' -o -iname '*.c' -o -iname '*.h' -o -iname '*.hpp' -o -iname '*.inl' -o -iname '*.ps1' -o -iname '*.bat' -o -iname '*.sh' -o -iname '*.py' -o -iname '*.yml' -o -iname '*.yaml' -o -iname '*.dsl' -o -iname '*.uplugin' -o -iname '*.uproject' -o -iname 'readme*' \) -print0)
     rm -f "$text_patterns_compiled" /tmp/mirror_forbidden_matches.txt
   fi
+
+  # Hard guard: a Git LFS pointer that leaked into the snapshot (object not
+  # smudged at checkout, or attributes missed) would publish broken pointer
+  # text and can trigger GH008 on push. Refuse it explicitly. Detection matches
+  # full pointer SHAPE (see is_lfs_pointer_file), never a mention of the
+  # signature, so docs/scripts/todos that quote the format stay public.
+  while IFS= read -r -d '' item; do
+    if is_lfs_pointer_file "$item"; then
+      rel_path="${item#$filtered_dir/}"
+      printf '[FAIL] Git LFS pointer survived filtering: %s\n' "$rel_path" >&2
+      fail_flag=1
+    fi
+  done < <(find "$filtered_dir" -type f -print0)
 
   if [[ "$fail_flag" -ne 0 ]]; then
     fail "Filtered mirror tree failed validation."
@@ -427,6 +525,9 @@ mkdir -p "$FILTERED_DIR" "$MIRROR_DIR"
 build_filtered_snapshot "$REPO_ROOT" "$EXCLUDE_FILE" "$FILTERED_DIR" "$TEMP_ROOT"
 info "Sanitizing filtered mirror tree for public anonymity"
 sanitize_filtered_tree "$FILTERED_DIR"
+
+info "Neutralizing Git LFS attributes for code-only public mirror"
+neutralize_lfs_attributes "$FILTERED_DIR"
 
 info "Validating filtered mirror tree"
 validate_filtered_tree "$FILTERED_DIR" "$FORBIDDEN_PATTERNS_FILE"

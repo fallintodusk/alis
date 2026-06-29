@@ -68,6 +68,7 @@ help:
 	@echo "    make test-quick        - Run quick smoke tests"
 	@echo "    make test-package EXE=<path> - Run packaged build hitch smoke test"
 	@echo "    make prepare-tests     - Prepare plugins and generate code before tests"
+	@echo "    make test-unit-smart BASE=origin/main - Run selective tests against a base ref"
 	@echo ""
 	@echo "  Build Commands:"
 	@echo "    make generate          - Generate Visual Studio project files"
@@ -347,32 +348,32 @@ clean:
 # Testing targets
 prepare-tests:
 	@echo "Preparing plugins for testing..."
-	@bash scripts/test/prepare.sh
+	@bash scripts/ue/test/lib/prepare_tests.sh
 
 test: prepare-tests
 	@echo "Running all tests..."
-	@bash scripts/test/run.sh --all
+	@bash scripts/ue/test/unit/run_tests.sh --all
 
 test-unit: prepare-tests
 	@echo "Running unit tests (Tier 1: plugin-internal)..."
-	@bash scripts/test/run.sh --unit
+	@bash scripts/ue/test/unit/run_tests.sh --unit
 
 test-integration: prepare-tests
 	@echo "Running integration tests (Tier 2: cross-plugin)..."
-	@bash scripts/test/run.sh --integration
+	@bash scripts/ue/test/unit/run_tests.sh --integration
 
 test-quick: prepare-tests
 	@echo "Running quick smoke tests..."
-	@bash scripts/test/run.sh --quick
+	@bash scripts/ue/test/unit/run_tests.sh --quick
 
 test-unit-smart:
 	@echo "Running selective unit tests (changed plugins only)..."
-	@bash scripts/test/selective.sh
+	@bash scripts/ue/test/unit/selective.sh $(if $(BASE),--base "$(BASE)")
 
 # Windows-specific integration test target (uses shell script)
 test-integration-batch:
 	@echo "Running ProjectIntegrationTests (headless script)..."
-	@bash scripts/test/integration.sh
+	@bash scripts/ue/test/integration/integration.sh
 
 # Git workflow automation
 merge-ai:

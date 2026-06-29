@@ -10,6 +10,26 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogOrchestratorDownload, Log, All);
 
+namespace
+{
+static bool ValidateDownloadInputs(const FString& URL, const FString& DestinationPath, FString& OutError)
+{
+	if (URL.TrimStartAndEnd().IsEmpty())
+	{
+		OutError = TEXT("Download URL is empty");
+		return false;
+	}
+
+	if (DestinationPath.TrimStartAndEnd().IsEmpty())
+	{
+		OutError = TEXT("Download destination path is empty");
+		return false;
+	}
+
+	return true;
+}
+}
+
 FDownloadResult FOrchestratorDownload::DownloadFile(
 	const FString& URL,
 	const FString& DestinationPath,
@@ -17,6 +37,13 @@ FDownloadResult FOrchestratorDownload::DownloadFile(
 {
 	UE_LOG(LogOrchestratorDownload, Log, TEXT("Downloading: %s"), *URL);
 	UE_LOG(LogOrchestratorDownload, Log, TEXT("  Destination: %s"), *DestinationPath);
+
+	FString ValidationError;
+	if (!ValidateDownloadInputs(URL, DestinationPath, ValidationError))
+	{
+		UE_LOG(LogOrchestratorDownload, Error, TEXT("%s"), *ValidationError);
+		return FDownloadResult::MakeFailure(ValidationError);
+	}
 
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -110,6 +137,14 @@ bool FOrchestratorDownload::DownloadFileAsync(
 {
 	UE_LOG(LogOrchestratorDownload, Log, TEXT("Starting async download: %s"), *URL);
 
+	FString ValidationError;
+	if (!ValidateDownloadInputs(URL, DestinationPath, ValidationError))
+	{
+		UE_LOG(LogOrchestratorDownload, Error, TEXT("%s"), *ValidationError);
+		OnComplete.ExecuteIfBound(FDownloadResult::MakeFailure(ValidationError));
+		return false;
+	}
+
 	// Create HTTP request
 	FHttpModule& HttpModule = FHttpModule::Get();
 	TSharedRef<IHttpRequest> HttpRequest = HttpModule.CreateRequest();
@@ -175,6 +210,13 @@ FDownloadResult FOrchestratorDownload::DownloadFileResumable(
 	const FString& ExpectedHash)
 {
 	UE_LOG(LogOrchestratorDownload, Log, TEXT("Resumable download: %s"), *URL);
+
+	FString ValidationError;
+	if (!ValidateDownloadInputs(URL, DestinationPath, ValidationError))
+	{
+		UE_LOG(LogOrchestratorDownload, Error, TEXT("%s"), *ValidationError);
+		return FDownloadResult::MakeFailure(ValidationError);
+	}
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -282,6 +324,12 @@ FDownloadResult FOrchestratorDownload::DownloadFileResumable(
 
 bool FOrchestratorDownload::WriteDownloadedFile(const TArray<uint8>& Data, const FString& DestinationPath)
 {
+	if (DestinationPath.TrimStartAndEnd().IsEmpty())
+	{
+		UE_LOG(LogOrchestratorDownload, Error, TEXT("Download destination path is empty"));
+		return false;
+	}
+
 	// Write to temp file first (atomic operation)
 	const FString TempPath = DestinationPath + TEXT(".tmp");
 

@@ -2,6 +2,12 @@
 
 Learn. Survive. Connect.
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM">
+    <img src="https://fall.is/assets/images/teaser.jpg" alt="ALIS world preview — watch on YouTube" width="480">
+  </a>
+</p>
+
 ALIS is an open-source Unreal Engine 5 survival game set in a post-apocalyptic real-world city. Scavenge, learn practical skills through gameplay, and survive in believable locations built from real geography.
 
 This repository is the public code and documentation home for ALIS -- source code, architecture docs, build and release workflows, and modular plugin structure. Private infrastructure, licensed asset payloads, and local machine state are kept out of the public tree.
