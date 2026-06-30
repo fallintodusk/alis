@@ -102,8 +102,9 @@ bool FProjectSave_GameSettings_DefaultConstruction::RunTest(const FString& Param
 {
 	FProjectGameSettings Settings;
 
-	// Graphics defaults
-	TestEqual(TEXT("GraphicsQuality defaults to 3"), Settings.GraphicsQuality, 3);
+	// Graphics defaults. ALIS policy caps save-applied gameplay scalability at High (2);
+	// the struct default and ProjectSaveSubsystem clamp both use 2 (see ProjectSaveData.h).
+	TestEqual(TEXT("GraphicsQuality defaults to 2 (High)"), Settings.GraphicsQuality, 2);
 	TestTrue(TEXT("VSync defaults to true"), Settings.bVSync);
 	TestEqual(TEXT("ResolutionWidth defaults to 1920"), Settings.ResolutionWidth, 1920);
 	TestEqual(TEXT("ResolutionHeight defaults to 1080"), Settings.ResolutionHeight, 1080);

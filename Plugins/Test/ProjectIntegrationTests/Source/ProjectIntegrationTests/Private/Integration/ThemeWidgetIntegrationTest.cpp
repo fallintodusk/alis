@@ -86,7 +86,7 @@ bool FThemeManagerBroadcastTest::RunTest(const FString& Parameters)
 
     // ASSERT - Verify theme was changed
     UProjectUIThemeData* CurrentTheme = ThemeManager->GetActiveTheme();
-    TestSame(TEXT("Active theme should be the dark theme we set"),
+    TestEqual(TEXT("Active theme should be the dark theme we set"),
         CurrentTheme, static_cast<UProjectUIThemeData*>(DarkTheme));
 
     UE_LOG(LogTemp, Display, TEXT("✓ Theme Change Verified"));
@@ -157,7 +157,7 @@ bool FThemeManagerMultipleSubscribersTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("First theme change should succeed"), bSuccess1);
 
     UProjectUIThemeData* Theme1 = ThemeManager->GetActiveTheme();
-    TestSame(TEXT("Theme should change to dark theme"), Theme1, static_cast<UProjectUIThemeData*>(DarkTheme));
+    TestEqual(TEXT("Theme should change to dark theme"), Theme1, static_cast<UProjectUIThemeData*>(DarkTheme));
     UE_LOG(LogTemp, Display, TEXT("✓ Theme Changed 1: %s"), *Theme1->GetName());
 
     // Change back to test multiple theme switches
@@ -166,7 +166,7 @@ bool FThemeManagerMultipleSubscribersTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Second theme change should succeed"), bSuccess2);
 
     UProjectUIThemeData* Theme2 = ThemeManager->GetActiveTheme();
-    TestSame(TEXT("Theme should change back to default"), Theme2, static_cast<UProjectUIThemeData*>(DefaultTheme));
+    TestEqual(TEXT("Theme should change back to default"), Theme2, static_cast<UProjectUIThemeData*>(DefaultTheme));
     UE_LOG(LogTemp, Display, TEXT("✓ Theme Changed 2: %s"), *Theme2->GetName());
 
     UE_LOG(LogTemp, Display, TEXT("✓ Multiple Theme Changes Verified"));
@@ -229,7 +229,7 @@ bool FThemeManagerNoDuplicateBroadcastTest::RunTest(const FString& Parameters)
 
     // Verify theme is still the same
     UProjectUIThemeData* AfterSetTheme = ThemeManager->GetActiveTheme();
-    TestSame(TEXT("Theme should remain unchanged"), AfterSetTheme, CurrentTheme);
+    TestEqual(TEXT("Theme should remain unchanged"), AfterSetTheme, CurrentTheme);
 
     // ASSERT - Document behavior
     UE_LOG(LogTemp, Display, TEXT(""));

@@ -205,6 +205,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorStateErrorHandlingTest, "Orchestra
 
 bool FOrchestratorStateErrorHandlingTest::RunTest(const FString& Parameters)
 {
+	// LoadFromFile logs an Error for malformed JSON (intended); declare it expected
+	// so the harness does not fail this negative-path test on the logged error.
+	AddExpectedError(TEXT("Failed to parse state JSON"), EAutomationExpectedErrorFlags::Contains, 1);
+
 	// Test: Loading non-existent file should fail gracefully
 	FOrchestratorState LoadedState;
 	TestFalse(TEXT("Loading non-existent file should fail"),

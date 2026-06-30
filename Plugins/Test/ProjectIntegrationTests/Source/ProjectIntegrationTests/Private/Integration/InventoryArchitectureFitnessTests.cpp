@@ -706,6 +706,108 @@ namespace
                 OutHits.Add(MoveTemp(Hit));
             }
         }
+
+        // The line-by-line inline scan above cannot see a ternary that is split from its
+        // SetVisibility() call - e.g. W_NearbyContainerPanel stores the value in a local for
+        // logging, then applies it:
+        //   const ESlateVisibility V = bShouldShow
+        //       ? ESlateVisibility::SelfHitTestInvisible
+        //       : ESlateVisibility::Collapsed;
+        //   SetVisibility(V);
+        // Resolve that shape here. Only run when the inline scan found nothing, so the
+        // sabotage-aware inline path (W_InventoryPanel) is left exactly as-is. The SHOW literal
+        // is still pulled from the "? ESlateVisibility::<X> : ESlateVisibility::Collapsed" ternary,
+        // so a Collapsed/Hidden/Visible mistake is still caught by the contract check downstream.
+        if (OutHits.Num() == 0)
+        {
+            FString Flat = FileText;
+            Flat.ReplaceInline(TEXT("\r"), TEXT(" "));
+            Flat.ReplaceInline(TEXT("\n"), TEXT(" "));
+            Flat.ReplaceInline(TEXT("\t"), TEXT(" "));
+
+            int32 SearchFrom = 0;
+            while (true)
+            {
+                const int32 CallAt = Flat.Find(NeedleBegin, ESearchCase::CaseSensitive, ESearchDir::FromStart, SearchFrom);
+                if (CallAt == INDEX_NONE)
+                {
+                    break;
+                }
+                SearchFrom = CallAt + NeedleBegin.Len();
+
+                // Bare root call only: skip "x->SetVisibility(", "x.SetVisibility(", "Super::SetVisibility(".
+                if (CallAt > 0)
+                {
+                    const TCHAR Prev = Flat[CallAt - 1];
+                    if (Prev == TEXT('>') || Prev == TEXT('.') || Prev == TEXT(':'))
+                    {
+                        continue;
+                    }
+                }
+
+                const int32 ArgStart = CallAt + NeedleBegin.Len();
+                const int32 CloseAt = Flat.Find(TEXT(")"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ArgStart);
+                if (CloseAt == INDEX_NONE)
+                {
+                    continue;
+                }
+
+                // Only resolve the bare local-variable form here; inline ternaries are handled above.
+                const FString Arg = Flat.Mid(ArgStart, CloseAt - ArgStart).TrimStartAndEnd();
+                bool bIsIdentifier = !Arg.IsEmpty();
+                for (int32 I = 0; I < Arg.Len() && bIsIdentifier; ++I)
+                {
+                    const TCHAR Ch = Arg[I];
+                    bIsIdentifier = FChar::IsAlpha(Ch) || FChar::IsDigit(Ch) || Ch == TEXT('_');
+                }
+                if (!bIsIdentifier)
+                {
+                    continue;
+                }
+
+                const FString AssignNeedle = FString::Printf(TEXT("ESlateVisibility %s ="), *Arg);
+                const int32 AssignAt = Flat.Find(AssignNeedle, ESearchCase::CaseSensitive, ESearchDir::FromStart, 0);
+                if (AssignAt == INDEX_NONE)
+                {
+                    continue;
+                }
+                const int32 SemiAt = Flat.Find(TEXT(";"), ESearchCase::CaseSensitive, ESearchDir::FromStart, AssignAt);
+                if (SemiAt == INDEX_NONE)
+                {
+                    continue;
+                }
+
+                const FString AssignStmt = Flat.Mid(AssignAt, SemiAt - AssignAt);
+                const int32 TrueAt = AssignStmt.Find(TrueBranchBegin);
+                const int32 FalseAt = AssignStmt.Find(FalseBranch);
+                if (TrueAt == INDEX_NONE || FalseAt == INDEX_NONE || FalseAt < TrueAt)
+                {
+                    continue;
+                }
+
+                const int32 LiteralStart = TrueAt + TrueBranchBegin.Len();
+                const FString Candidate = AssignStmt.Mid(LiteralStart, FalseAt - LiteralStart).TrimStartAndEnd();
+                FString Literal;
+                for (int32 I = 0; I < Candidate.Len(); ++I)
+                {
+                    const TCHAR Ch = Candidate[I];
+                    if (!(FChar::IsAlpha(Ch) || FChar::IsDigit(Ch) || Ch == TEXT('_')))
+                    {
+                        break;
+                    }
+                    Literal.AppendChar(Ch);
+                }
+
+                if (!Literal.IsEmpty())
+                {
+                    FVisibilityHit Hit;
+                    Hit.Literal = Literal;
+                    Hit.LineNumber = 0; // located in the whitespace-flattened fallback scan
+                    OutHits.Add(MoveTemp(Hit));
+                }
+            }
+        }
+
         return OutHits.Num() > 0;
     }
 }

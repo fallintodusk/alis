@@ -1474,6 +1474,9 @@ bool FInteractionTargetResolver_AuthorityInteractRoutesFocusedComponentToMatchin
 	}
 
 	Pawn->SetActorLocation(ViewOrigin);
+	// The Dresser spawns at the origin and only its child boxes get relative offsets, so the
+	// server range gate (InteractionRadius*1.5) rejects it. Co-locate it with the pawn view origin.
+	DresserActor->SetActorLocation(ViewOrigin);
 
 	// Press 1: focus on Slot A. Only Capability A must fire.
 	Interaction->TestOnly_SetFocusedActor(DresserActor, SlotA);

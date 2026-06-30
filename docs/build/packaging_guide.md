@@ -15,17 +15,13 @@ Use this doc for:
 ## Quick Start
 
 1. Run `make prepare-tests` followed by `make test-unit-smart BASE=origin/main`.
-2. Package through the project script:
+2. Package and sign through the project Make target:
    ```powershell
-   .\scripts\ue\package\package_release.ps1 -EngineRoot <ue-path> -CreateReleaseArchive
+   make package
    ```
-3. Review `package_summary.txt` in the output folder.
-4. Generate the release hash manifest and detached signature:
-   ```powershell
-   .\scripts\ue\package\sign_release.ps1 -ReleaseDir <release_dir>
-   ```
-5. Upload the generated archive part set, `SHA256SUMS.txt`, and `SHA256SUMS.txt.asc` to GitHub Releases.
-6. Publish optional torrent mirror and point users to the ALIS trust page.
+3. Review `debug/package_summary.txt` and `debug/sign_release_summary.txt` in the output folder.
+4. Upload the release-root files to GitHub Releases; do not upload `debug/`.
+5. Publish optional torrent mirror and point users to the ALIS trust page.
 
 ## Canonical Script
 
@@ -47,10 +43,11 @@ Script behavior:
 - supports `-EngineRoot` override for source-engine packaging
 - uses `-nodebuginfo` by default so staged `.pdb` files do not bloat the distributable payload
 - uses `-skipencryption` by default for public release packaging
-- writes `package_summary.txt`
+- writes `package_summary.txt` and, for signed releases, moves it under `debug/`
 - can create a release zip
 - defaults to `1700 MiB` split threshold for GitHub-safe archive transport
 - signing script writes `SHA256SUMS.txt`, `SHA256SUMS.txt.asc`, and `sign_release_summary.txt`
+- signed package flow moves `Windows/` and summary files under `debug/` so the release root is the upload set
 - signing script also writes `INSTALL.txt` so the release folder contains a fast install and verify guide
 - signing script also copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release folder so advanced users do not need the repo docs
 - signing script reuses the ALIS site trust key fingerprint by default
@@ -61,6 +58,7 @@ Important flags:
 - `-EngineRoot <ue-path>`
 - `-OutputDir <path>`
 - `-CreateReleaseArchive`
+- `-SignRelease`
 - `-SplitSizeMB 1700`
 - `-SkipBuild`
 - `-IncludeStagedDebugFiles`
@@ -125,13 +123,12 @@ Important implementation note:
 
 ## Recommended Public Release Flow
 
-1. Package with `scripts/ue/package/package_release.ps1`.
-2. Review `package_summary.txt`.
-3. Run `scripts/ue/package/sign_release.ps1` against that release directory.
-4. Upload the generated archive parts, `SHA256SUMS.txt`, and `SHA256SUMS.txt.asc` to GitHub Releases.
-5. Only override the split threshold if you have a specific transport reason.
-6. Upload optional torrent file.
-7. Point users to the canonical ALIS trust page and public key on the site.
+1. Package and sign with `make package`.
+2. Review `debug/package_summary.txt` and `debug/sign_release_summary.txt`.
+3. Upload the release-root files to GitHub Releases; do not upload `debug/`.
+4. Only override the split threshold if you have a specific transport reason.
+5. Upload optional torrent file.
+6. Point users to the canonical ALIS trust page and public key on the site.
 
 ## User Experience
 
@@ -199,6 +196,13 @@ Recommended release asset set:
 - optional `release_notes.md` or extraction instructions
 - optional `HOW_TO_INSTALL.txt`
 
+Local-only release debug set:
+
+- `debug/Windows/`
+- `debug/package_summary.txt`
+- `debug/sign_release_summary.txt`
+- `debug/verify_release_summary.txt`
+
 ## Trust Source Of Truth
 
 Use the same ALIS public signing identity already published on the site.
@@ -237,7 +241,7 @@ Release notes should include:
 Package release:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 -EngineRoot <ue-path> -CreateReleaseArchive
+make package
 ```
 
 Sign release artifacts:
@@ -269,10 +273,8 @@ Package and sign in one flow:
 .\scripts\ue\package\package_release.ps1 `
   -EngineRoot <ue-path> `
   -OutputDir Saved\PackageRelease\MyBuild `
-  -CreateReleaseArchive
-
-.\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir Saved\PackageRelease\MyBuild
+  -CreateReleaseArchive `
+  -SignRelease
 ```
 
 Package, sign, and verify in one flow:
@@ -281,10 +283,8 @@ Package, sign, and verify in one flow:
 .\scripts\ue\package\package_release.ps1 `
   -EngineRoot <ue-path> `
   -OutputDir Saved\PackageRelease\MyBuild `
-  -CreateReleaseArchive
-
-.\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir Saved\PackageRelease\MyBuild
+  -CreateReleaseArchive `
+  -SignRelease
 
 .\scripts\ue\package\verify_release.ps1 `
   -ReleaseDir Saved\PackageRelease\MyBuild
@@ -365,9 +365,9 @@ Generated release helper:
   - `scripts/ue/check/governance/validate_plugin_data_staging.py` (catches plugins that read JSON via `FProjectPaths::GetPluginDataDir` but forgot to declare `RuntimeDependencies` for `Data/` in `.Build.cs` -- silent regression class, see [docs/agents/canonical.md section 8.5](../agents/canonical.md))
 - post-package smoke check passed (`validate_plugin_data_staging.py --archive-root <output>`) -- confirms cook actually copied runtime-read JSONs into the staged build
 - package build completed through the project script
-- `package_summary.txt` exists
-- `sign_release_summary.txt` exists
-- `verify_release_summary.txt` exists when advanced verification was run
+- `debug/package_summary.txt` exists
+- `debug/sign_release_summary.txt` exists
+- `debug/verify_release_summary.txt` exists when advanced verification was run
 - largest file is below 2 GiB
 - release archive parts were generated and stay below the GitHub limit
 - no staged `.pdb` files are being shipped unless explicitly intended

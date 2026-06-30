@@ -53,6 +53,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorDownloadPathValidationTest, "Orche
 
 bool FOrchestratorDownloadPathValidationTest::RunTest(const FString& Parameters)
 {
+	// DownloadFile correctly logs an Error and returns failure for empty inputs;
+	// declare those expected errors so the automation harness does not treat the
+	// (intended) error output as a test failure.
+	AddExpectedError(TEXT("Download destination path is empty"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("Download URL is empty"), EAutomationExpectedErrorFlags::Contains, 1);
+
 	// Test: Empty destination path should fail
 	FDownloadResult EmptyPathResult = FOrchestratorDownload::DownloadFile(
 		TEXT("http://example.com/file.zip"),

@@ -77,7 +77,7 @@ help:
 	@echo "    make build-module MODULE=<name> - Build specific module (fast iteration)"
 	@echo "    make build-game        - Build game (standalone)"
 	@echo "    make build-server      - Build dedicated server"
-	@echo "    make package           - Package Shipping build (source engine, release archive)"
+	@echo "    make package           - Package Shipping build (source engine, release archive, signed)"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make open              - Open project in Unreal Editor"
@@ -412,13 +412,14 @@ endif
 # Source engine path for Shipping builds (override via UE_SOURCE_PATH=...)
 UE_SOURCE_PATH ?= G:/UnrealEngine-5.7
 
-# Package Shipping build with source engine + release archive
+# Package Shipping build with source engine + release archive + signed trust files
 package:
-	@echo "Packaging Shipping build (source engine)..."
+	@echo "Packaging Shipping build (source engine, signed release archive)..."
 	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
 		-File "scripts/ue/package/package_release.ps1" \
 		-EngineRoot "$(UE_SOURCE_PATH)" \
-		-CreateReleaseArchive
+		-CreateReleaseArchive \
+		-SignRelease
 
 # Documentation: Structurizr Lite (C4 Architecture Diagrams)
 structurizr-start:

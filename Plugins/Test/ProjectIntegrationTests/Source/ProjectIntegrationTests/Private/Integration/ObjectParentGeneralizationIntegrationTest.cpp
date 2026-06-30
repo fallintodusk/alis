@@ -491,6 +491,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FObjectParentGeneralization_SpawnRejectsInvalidDefinitionIdTest::RunTest(const FString& Parameters)
 {
+	// SpawnFromDefinition logs an Error when rejecting a definition with an empty id (intended);
+	// this test deliberately triggers that path, so declare the expected error.
+	AddExpectedError(TEXT("has empty id"), EAutomationExpectedErrorFlags::Contains, 1);
+
 	UWorld* World = OPG_ResolveAutomationTestWorld();
 	TestNotNull(TEXT("Automation world should be available"), World);
 	if (!World)
@@ -768,7 +772,10 @@ bool FObjectParentGeneralization_SpawnClassCookedPreflightTest::RunTest(const FS
 	FString Error;
 	const bool bParsed = FDefinitionJsonParser::ParseJsonToAsset(
 		TypeInfo,
-		OPG_MakeMinimalObjectJson(TEXT("/Game/Project/Resources/Characters/GrandPa/GrandPa_BP")),
+		// Retargeted from the never-existent GrandPa_BP to the real BP_GrandPa asset. GrandPa.json
+		// now spawns the modular DefinitionCharacter; this preflight still guards the cooked
+		// blueprint-spawnClass code path (normalize -> _C -> LoadSynchronous) against a real asset.
+		OPG_MakeMinimalObjectJson(TEXT("/ProjectObject/Human/GrandPa/BP_GrandPa")),
 		Def,
 		Error);
 	TestTrue(TEXT("Parser should accept spawnClass for cook preflight"), bParsed);
@@ -794,7 +801,7 @@ bool FObjectParentGeneralization_SpawnClassCookedPreflightTest::RunTest(const FS
 	TestEqual(
 		TEXT("spawnClass package should match GrandPa blueprint package"),
 		Def->SpawnClass.ToSoftObjectPath().GetLongPackageName(),
-		FString(TEXT("/Game/Project/Resources/Characters/GrandPa/GrandPa_BP")));
+		FString(TEXT("/ProjectObject/Human/GrandPa/BP_GrandPa")));
 
 	return true;
 }
@@ -1771,10 +1778,12 @@ bool FObjectParentGeneralization_GrandPaPilotSpawnClassTest::RunTest(const FStri
 	TestTrue(TEXT("GrandPa pilot must define spawnClass"), !Def->SpawnClass.IsNull());
 	if (!Def->SpawnClass.IsNull())
 	{
+		// GrandPa migrated to the modular DefinitionCharacter (GrandPa.json spawnClass is
+		// /Script/ProjectCharacter.DefinitionCharacter); there is no GrandPa_BP blueprint.
 		TestEqual(
-			TEXT("GrandPa spawnClass should normalize to class object path"),
+			TEXT("GrandPa spawnClass should resolve to the modular DefinitionCharacter class"),
 			Def->SpawnClass.ToSoftObjectPath().ToString(),
-			FString(TEXT("/Game/Project/Resources/Characters/GrandPa/GrandPa_BP.GrandPa_BP_C")));
+			FString(TEXT("/Script/ProjectCharacter.DefinitionCharacter")));
 	}
 
 	UWorld* World = OPG_ResolveAutomationTestWorld();
@@ -2122,7 +2131,7 @@ bool FObjectParentGeneralization_DoorGrandPaWatchStartsDialogueTest::RunTest(con
 			for (const FDialogueOptionView& Option : Options)
 			{
 				const FString Text = Option.Text.ToString();
-				if (Text.Contains(TEXT("take this water"), ESearchCase::IgnoreCase))
+				if (Text.Contains(TEXT("got water"), ESearchCase::IgnoreCase))
 				{
 					bFoundGiveWater = true;
 					bGiveWaterLocked = Option.bLocked;
@@ -2260,7 +2269,7 @@ bool FObjectParentGeneralization_DoorGrandPaScenarioEndToEndTest::RunTest(const 
 		for (const FDialogueOptionView& Option : Options)
 		{
 			const FString OptionText = Option.Text.ToString();
-			if (OptionText.Contains(TEXT("take this water"), ESearchCase::IgnoreCase))
+			if (OptionText.Contains(TEXT("got water"), ESearchCase::IgnoreCase))
 			{
 				GiveWaterOptionIndex = Option.Index;
 				break;

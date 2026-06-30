@@ -6,6 +6,7 @@
 #include "Types/ProjectLoadRequest.h"
 #include "Types/ProjectLoadPhaseState.h"
 #include "Engine/StreamableManager.h" // FStreamableHandle - needed for ReleaseHandle() calls
+#include "Async/Async.h" // AsyncTask - FStreamableHandle release must be marshaled to the game thread
 
 class UProjectLoadingSubsystem;
 
@@ -73,17 +74,43 @@ struct FLoadPipelineRuntime
 	 */
 	TArray<TSharedPtr<FStreamableHandle>> PreloadHandles;
 
-	/** Release all preload handles (call after WP streaming started) */
+	/**
+	 * Release all preload handles (call after WP streaming started).
+	 *
+	 * FStreamableHandle::ReleaseHandle() asserts IsInGameThread(), and destroying the
+	 * handle's shared pointer also runs game-thread-only teardown. The load pipeline
+	 * executes on a task-graph worker thread (see UProjectLoadingSubsystem::ExecutePipeline),
+	 * so when this is reached off the game thread - e.g. cancellation cleanup during map
+	 * teardown - we must marshal both the release and the destruction to the game thread.
+	 * Moving the array is thread-safe: it neither releases nor destroys the handles.
+	 */
 	void ReleasePreloadHandles()
 	{
-		for (TSharedPtr<FStreamableHandle>& Handle : PreloadHandles)
+		if (PreloadHandles.Num() == 0)
 		{
-			if (Handle.IsValid())
-			{
-				Handle->ReleaseHandle();
-			}
+			return;
 		}
+
+		auto ReleaseAll = [Handles = MoveTemp(PreloadHandles)]() mutable
+		{
+			for (TSharedPtr<FStreamableHandle>& Handle : Handles)
+			{
+				if (Handle.IsValid())
+				{
+					Handle->ReleaseHandle();
+				}
+			}
+		};
 		PreloadHandles.Reset();
+
+		if (IsInGameThread())
+		{
+			ReleaseAll();
+		}
+		else
+		{
+			AsyncTask(ENamedThreads::GameThread, MoveTemp(ReleaseAll));
+		}
 	}
 };
 

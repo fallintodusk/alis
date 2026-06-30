@@ -132,9 +132,10 @@ bool FProjectLoadPhaseDurationTest::RunTest(const FString& Parameters)
 	PhaseState.EndTime = 105.5;
 	TestEqual(TEXT("Duration should be 5.5 seconds"), PhaseState.GetDuration(), 5.5);
 
-	// Test different durations
-	PhaseState.StartTime = 0.0;
-	PhaseState.EndTime = 1.0;
+	// Test different durations. StartTime 0.0 is the "not started" sentinel
+	// (real start times come from FPlatformTime::Seconds()), so use a non-zero base.
+	PhaseState.StartTime = 10.0;
+	PhaseState.EndTime = 11.0;
 	TestEqual(TEXT("Duration should be 1 second"), PhaseState.GetDuration(), 1.0);
 
 	PhaseState.StartTime = 50.0;

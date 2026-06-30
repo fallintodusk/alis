@@ -218,6 +218,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorHashCodeHashTest, "Orchestrator.Ha
 
 bool FOrchestratorHashCodeHashTest::RunTest(const FString& Parameters)
 {
+	// The negative case below deletes the .uplugin and expects ComputeCodeHash to fail,
+	// which logs an Error (intended); declare it expected so the harness does not fail.
+	AddExpectedError(TEXT("No .uplugin file found"), EAutomationExpectedErrorFlags::Contains, 1);
+
 	// Create temporary plugin structure
 	const FString PluginRoot = FPaths::ProjectSavedDir() / TEXT("OrchestratorTests/test_plugin");
 	const FString BinariesDir = PluginRoot / TEXT("Binaries/Win64");

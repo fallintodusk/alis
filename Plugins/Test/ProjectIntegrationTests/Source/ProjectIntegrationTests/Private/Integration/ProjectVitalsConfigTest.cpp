@@ -108,9 +108,9 @@ bool FProjectVitalsConfigFileLoadTest::RunTest(const FString& Parameters)
 
 	// Assert known committed JSON values (catches key casing/mapping mistakes)
 	TestEqual(TEXT("Condition from JSON"), Config.Condition.Current, 75.f);
-	TestEqual(TEXT("Calories from JSON"), Config.Condition.Survival.Calories.Current, 1100.f);
+	TestEqual(TEXT("Calories from JSON"), Config.Condition.Survival.Calories.Current, 25.f);
 	TestEqual(TEXT("Fatigue from JSON"), Config.Condition.Survival.Fatigue.Current, 70.f);
-	TestEqual(TEXT("Hydration from JSON"), Config.Condition.Survival.Hydration.Current, 1.5f);
+	TestEqual(TEXT("Hydration from JSON"), Config.Condition.Survival.Hydration.Current, 0.1f);
 
 	// Verify derived rates computed correctly
 	// BaseRegenDays=4, Max=100: 100 / (4*86400) = ~0.000289

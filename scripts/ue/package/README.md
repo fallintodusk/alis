@@ -16,6 +16,8 @@ Defaults:
 - uses `-skipencryption` for public release packaging
 - uses `1700 MiB` split threshold for GitHub-safe archive transport
 - writes a `package_summary.txt` into the output directory
+- can sign the exact output directory after archive creation with `-SignRelease`
+- with `-SignRelease`, moves `Windows/` and summary files under `debug/` so the release root is upload-ready
 
 Examples:
 
@@ -27,6 +29,7 @@ Examples:
 .\scripts\ue\package\package_release.ps1 `
   -EngineRoot <ue-path> `
   -CreateReleaseArchive `
+  -SignRelease `
   -SplitSizeMB 1700
 ```
 
@@ -40,6 +43,8 @@ Key parameters:
 - `-CreateReleaseArchive` creates a zip, optionally split into parts
 - when a created zip already fits under the requested split threshold, the script keeps a normal `.zip`
 - `-SplitSizeMB` archive split size in MiB, default `1700`
+- `-SignRelease` runs `sign_release.ps1` against the exact output directory after archive creation
+- `-GpgPath`, `-SigningKeyFingerprint`, and `-SkipSignVerify` are forwarded to `sign_release.ps1` when `-SignRelease` is set
 
 ### `package_release.bat`
 

@@ -44,6 +44,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorExtractPathValidationTest, "Orches
 
 bool FOrchestratorExtractPathValidationTest::RunTest(const FString& Parameters)
 {
+	// ExtractZip logs an Error and returns failure for empty/missing zip paths (intended);
+	// declare it expected so the harness does not fail this negative-path test.
+	AddExpectedError(TEXT("Zip file not found"), EAutomationExpectedErrorFlags::Contains, 0);
+
 	// Test: Empty zip path should fail
 	FExtractionResult EmptyZipResult = FOrchestratorExtract::ExtractZip(
 		TEXT(""),
@@ -145,6 +149,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorExtractListContentsTest, "Orchestr
 
 bool FOrchestratorExtractListContentsTest::RunTest(const FString& Parameters)
 {
+	// ListZipContents logs an Error for missing/empty zip paths (intended); declare expected.
+	AddExpectedError(TEXT("Zip file not found"), EAutomationExpectedErrorFlags::Contains, 0);
+
 	// Test: ListZipContents with non-existent file should fail
 	TArray<FString> FileList;
 	TestFalse(TEXT("Non-existent zip should fail to list"),
@@ -165,6 +172,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorExtractVerifyIntegrityTest, "Orche
 
 bool FOrchestratorExtractVerifyIntegrityTest::RunTest(const FString& Parameters)
 {
+	// VerifyZipIntegrity logs an Error for missing/empty zip paths (intended); declare expected.
+	AddExpectedError(TEXT("Zip file not found"), EAutomationExpectedErrorFlags::Contains, 0);
+
 	// Test: VerifyZipIntegrity with non-existent file should fail
 	TestFalse(TEXT("Non-existent zip should fail integrity check"),
 		FOrchestratorExtract::VerifyZipIntegrity(TEXT("/non/existent/file.zip")));
@@ -197,6 +207,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorExtractSelectiveTest, "Orchestrato
 
 bool FOrchestratorExtractSelectiveTest::RunTest(const FString& Parameters)
 {
+	// ExtractZipSelective logs an Error for the non-existent zip case (intended); declare expected.
+	AddExpectedError(TEXT("Zip file not found"), EAutomationExpectedErrorFlags::Contains, 0);
+
 	// Test: ExtractZipSelective with empty file list
 	TArray<FString> EmptyFileList;
 	FExtractionResult EmptyListResult = FOrchestratorExtract::ExtractZipSelective(

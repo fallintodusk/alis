@@ -221,7 +221,9 @@ bool FProjectLoadProgressUpdateFrequencyTest::RunTest(const FString& Parameters)
 {
 	// Simulate throttling (don't spam updates every frame)
 	const float MinUpdateInterval = 0.1f; // 100ms
-	float LastUpdateTime = 0.0f;
+	// Seed LastUpdateTime one interval in the past ("never updated" sentinel) so the
+	// first update is always allowed; real code uses the same not-yet-updated semantics.
+	float LastUpdateTime = -MinUpdateInterval;
 	float CurrentTime = 0.0f;
 
 	// First update should go through
@@ -266,6 +268,7 @@ bool FProjectLoadProgressMonotonicTest::RunTest(const FString& Parameters)
 
 	PhaseState.Progress = 1.0f;
 	TestTrue(TEXT("Progress should increase"), PhaseState.Progress >= PreviousProgress);
+	PreviousProgress = PhaseState.Progress;
 
 	// Attempting to decrease should be prevented
 	float InvalidProgress = 0.3f;
