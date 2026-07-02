@@ -1,0 +1,101 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "Border",
+    "name": "ContextMenuRoot",
+    "background": "Surface",
+    "borderColor": "Border",
+    "borderWidth": 1,
+    "padding": 0,
+    "children": [
+      {
+        "name": "MainColumn",
+        "type": "VerticalBox",
+        "spacing": 0,
+        "children": [
+          {
+            "name": "HeaderRow",
+            "type": "Border",
+            "background": "Background",
+            "padding": 8,
+            "children": [
+              {
+                "name": "HeaderContent",
+                "type": "HorizontalBox",
+                "spacing": 8,
+                "children": [
+                  {
+                    "name": "ItemNameText",
+                    "type": "TextBlock",
+                    "text": "Item Name",
+                    "font": "BodyMedium",
+                    "color": "Text",
+                    "slot": {"sizeRule": "Fill"}
+                  },
+                  {
+                    "name": "CloseButton",
+                    "type": "Button",
+                    "text": "X",
+                    "variant": "Text",
+                    "font": "BodySmall",
+                    "size": {"x": 24, "y": 24}
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Divider",
+            "type": "Border",
+            "background": "Border",
+            "size": {"x": 0, "y": 1}
+          },
+          {
+            "name": "ActionsColumn",
+            "type": "VerticalBox",
+            "spacing": 0,
+            "padding": 4,
+            "children": [
+              {
+                "name": "UseAction",
+                "type": "Button",
+                "text": "Use",
+                "icon": "\uDB80\uDE41",
+                "variant": "Text",
+                "font": "BodyMedium",
+                "slot": {"horizontalAlignment": "Fill"}
+              },
+              {
+                "name": "EquipAction",
+                "type": "Button",
+                "text": "Equip",
+                "icon": "\uDB82\uDE7B",
+                "variant": "Text",
+                "font": "BodyMedium",
+                "slot": {"horizontalAlignment": "Fill"}
+              },
+              {
+                "name": "DropAction",
+                "type": "Button",
+                "text": "Drop",
+                "icon": "\uDB82\uDE79",
+                "variant": "Text",
+                "font": "BodyMedium",
+                "slot": {"horizontalAlignment": "Fill"}
+              },
+              {
+                "name": "SplitAction",
+                "type": "Button",
+                "text": "Split",
+                "icon": "\uDB80\uDD90",
+                "variant": "Text",
+                "font": "BodyMedium",
+                "slot": {"horizontalAlignment": "Fill"}
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "Border",
+    "name": "Background",
+    "brushColor": {"r": 0.15, "g": 0.15, "b": 0.2, "a": 0.9},
+    "padding": {"left": 20, "right": 20, "top": 12, "bottom": 12},
+    "children": [
+      {
+        "type": "TextBlock",
+        "name": "MessageText",
+        "text": "",
+        "font": {
+          "size": 16
+        },
+        "color": "Text",
+        "justification": "Center"
+      }
+    ]
+  }
+}

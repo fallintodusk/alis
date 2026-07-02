@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inventory_ui_settings.schema.json",
+  "title": "Inventory UI Settings",
+  "description": "Pixel-level sizing constants consumed by InventoryUISettings (ProjectInventoryUI).",
+  "type": "object",
+  "required": ["$schema"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "cellSize": {
+      "type": "integer",
+      "description": "Base inventory cell size in pixels.",
+      "minimum": 1
+    },
+    "gridSlotLineWidth": {
+      "type": "integer",
+      "description": "Grid slot line width in pixels.",
+      "minimum": 0
+    },
+    "cellInnerPadding": {
+      "type": "integer",
+      "description": "Inner padding of each grid cell in pixels.",
+      "minimum": 0
+    },
+    "hostOuterPadding": {
+      "type": "integer",
+      "description": "Outer padding of the grid host in pixels.",
+      "minimum": 0
+    }
+  }
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "ProjectInventoryUI.InventoryPanel",
+    "layer": "UI.Layer.Menu",
+    "widget_class": "/Script/ProjectInventoryUI.W_InventoryPanel",
+    "viewmodel_class": "/Script/ProjectInventoryUI.InventoryViewModel",
+    "layout_json": "InventoryPanel.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 15,
+    "vm_creation": "Global"
+  },
+  {
+    "id": "ProjectInventoryUI.NearbyContainerPanel",
+    "layer": "UI.Layer.Menu",
+    "widget_class": "/Script/ProjectInventoryUI.W_NearbyContainerPanel",
+    "viewmodel_class": "/Script/ProjectInventoryUI.InventoryViewModel",
+    "layout_json": "NearbyContainerPanel.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 15,
+    "vm_creation": "Global"
+  }
+]

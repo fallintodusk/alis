@@ -349,6 +349,14 @@ if ($SignRelease) {
     $DebugDir = Join-Path $OutputDir "debug"
     New-Item -ItemType Directory -Force -Path $DebugDir | Out-Null
 
+    @(
+        "DO NOT UPLOAD THIS FOLDER",
+        "",
+        "This folder is local build/debug evidence only.",
+        "It may contain absolute build-machine paths in summary files.",
+        "Upload only the release-root files next to this folder."
+    ) | Set-Content -Encoding Ascii (Join-Path $DebugDir "DO_NOT_UPLOAD.txt")
+
     foreach ($LocalItem in @("Windows", "package_summary.txt", "sign_release_summary.txt", "verify_release_summary.txt")) {
         $SourcePath = Join-Path $OutputDir $LocalItem
         if (-not (Test-Path -LiteralPath $SourcePath)) {

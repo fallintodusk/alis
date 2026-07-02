@@ -1,0 +1,44 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "Border",
+    "name": "PromptBorder",
+    "padding": {"left": 12, "right": 12, "top": 6, "bottom": 6},
+    "background": "Surface",
+    "children": [
+      {
+        "type": "HorizontalBox",
+        "name": "PromptContent",
+        "spacing": 10,
+        "children": [
+          {
+            "type": "TextBlock",
+            "name": "PromptText",
+            "text": "[E] Interact",
+            "font_size": 18,
+            "color": "Text",
+            "justification": "Center",
+            "slot": {
+              "verticalAlignment": "Center"
+            }
+          },
+          {
+            "type": "RadialProgress",
+            "name": "PromptProgress",
+            "percent": 0.0,
+            "fillColor": "Secondary",
+            "trackColor": "Border",
+            "thickness": 3.0,
+            "startAngleDegrees": -90.0,
+            "clockwise": true,
+            "showTrack": true,
+            "size": {"x": 18, "y": 18},
+            "slot": {
+              "verticalAlignment": "Center"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

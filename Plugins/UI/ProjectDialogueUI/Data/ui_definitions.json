@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ProjectDialogueUI.DialoguePanel",
+    "layer": "UI.Layer.GameMenu",
+    "widget_class": "/Script/ProjectDialogueUI.W_DialoguePanel",
+    "viewmodel_class": "/Script/ProjectDialogueUI.DialogueViewModel",
+    "layout_json": "DialoguePanel.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 50,
+    "vm_creation": "Global",
+    "auto_visibility": "bIsActive"
+  }
+]

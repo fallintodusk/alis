@@ -1,0 +1,7 @@
+{
+    "$schema": "Schemas/inventory_ui_settings.schema.json",
+    "cellSize": 64,
+    "gridSlotLineWidth": 1,
+    "cellInnerPadding": 4,
+    "hostOuterPadding": 4
+}

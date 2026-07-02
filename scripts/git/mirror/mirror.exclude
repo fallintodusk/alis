@@ -1,5 +1,9 @@
-# ALIS public mirror policy:
-# - code, docs, and build/release scripts are public by default
+# ALIS public mirror policy (denylist-first):
+# - a tracked file is published unless it (or a parent dir) matches a rule below
+# - folder name alone does not make content private: plugin Data/ JSON, schemas,
+#   and Data-named source folders are published as reference; only forbidden file
+#   TYPES (UE assets, binaries, media, key material) are stripped from them
+# - code, docs, schemas, JSON data/config, and build/release scripts are public by default
 # - secrets, licensed assets, generated outputs, and local machine state are never public
 # - if a future workflow needs secrets, keep them outside the repository and outside the mirror
 
@@ -32,6 +36,38 @@ Releases/**
 artifacts/**
 scripts/ue/check/reports/**
 
+# Secrets, keys, and private infrastructure
+# Never publish credential/key material or private infra config. Secret CONTENT
+# is also caught by forbidden_text_patterns.regex and the validator as a backstop.
+# Env files (fnmatch-safe: root, dotted, and *.env suffix forms all covered).
+.env
+.env.*
+*.env
+*.env.*
+**/.env.*
+# Key material.
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa*
+# Credential/secret material by NAME. Narrow on purpose (dirs + explicit
+# suffixes) - a bare *secret* substring would hide legit gameplay/source files
+# (e.g. SecretRoomDefinition.cpp). Secret CONTENT is caught by the validator.
+secrets/**
+**/secrets/**
+.secret/**
+**/.secret/**
+**/*.secret
+**/*_secret.*
+credentials/**
+**/credentials/**
+**/*.credentials
+**/*_credentials.*
+# Private infra config.
+**/wg*.conf
+**/wireguard/**
+
 # Game content and packaged assets
 # Public mirror excludes UE asset payloads and packaged binaries.
 # This keeps the mirror compatible with open-source code flow while avoiding redistribution of licensed content.
@@ -39,6 +75,8 @@ scripts/ue/check/reports/**
 **/*.umap
 **/*.ubulk
 **/*.uexp
+**/*.uptnl
+**/*.ushaderbytecode
 **/*.utoc
 **/*.ucas
 **/*.pak
@@ -56,6 +94,7 @@ scripts/ue/check/reports/**
 **/*.tga
 **/*.tiff
 **/*.ico
+**/*.exr
 **/*.psd
 **/*.xcf
 **/*.ai
@@ -63,6 +102,7 @@ scripts/ue/check/reports/**
 **/*.3ds
 **/*.glb
 **/*.gltf
+**/*.blend
 **/*.wav
 **/*.mp3
 **/*.ogg
@@ -71,13 +111,39 @@ scripts/ue/check/reports/**
 **/*.mov
 **/*.avi
 **/*.webm
+
+# Binary containers, databases, and model weights. The validator's binary-content
+# guard is the real enforcement (fails any NUL-byte file regardless of extension);
+# these explicit rules just avoid staging heavy containers. Ambiguous text-ish
+# extensions (.bin/.dat/.db) are intentionally NOT listed here so a legitimately
+# text data file is not excluded by extension alone - the content guard handles
+# them if they are actually binary.
+**/*.zip
+**/*.7z
+**/*.rar
+**/*.tar
+**/*.gz
+**/*.tgz
+**/*.xz
+**/*.zst
+**/*.onnx
+**/*.pt
+**/*.pth
+**/*.safetensors
+**/*.sqlite
+**/*.sqlite3
+
 Content/**
 Config/**
 Plugins/**/Binaries/**
 Plugins/**/Content/**
 Plugins/**/Intermediate/**
 Plugins/**/Resources/**
-Plugins/**/Data/**
+# NOTE: plugin Data/ dirs are intentionally NOT excluded (denylist-first). They
+# hold JSON schemas and live data-driven generator inputs (loot, dialogue, UI
+# layouts, vitals) that are useful public references. Any UE assets inside Data/
+# are still stripped by the **/*.uasset etc. rules above; the validator enforces
+# that only text/JSON survives from these dirs.
 Plugins/InstanceArrayTool/**
 Plugins/Local/**
 Plugins/ThirdParty/**

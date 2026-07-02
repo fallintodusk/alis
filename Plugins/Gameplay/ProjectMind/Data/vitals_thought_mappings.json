@@ -1,0 +1,77 @@
+{
+  "$schema": "Schemas/vitals_thought_mappings.schema.json",
+  "entries": [
+    {
+      "state_tag": "State.Hydration.Empty",
+      "thought_id": "Mind.Vitals.Hydration.Empty",
+      "text": "I need water now.",
+      "time_to_live_sec": 7.0,
+      "cooldown_sec": 60.0,
+      "dedupe_window_sec": 45.0,
+      "dedupe_key": "Mind.Vitals.Hydration",
+      "channel": "Toast",
+      "priority": 110,
+      "source_type": "Vitals"
+    },
+    {
+      "state_tag": "State.Hydration.Critical",
+      "thought_id": "Mind.Vitals.Hydration.Critical",
+      "text": "Hydration is critical. Find water soon.",
+      "time_to_live_sec": 7.0,
+      "cooldown_sec": 75.0,
+      "dedupe_window_sec": 60.0,
+      "dedupe_key": "Mind.Vitals.Hydration",
+      "channel": "Toast",
+      "priority": 100,
+      "source_type": "Vitals"
+    },
+    {
+      "state_tag": "State.Hydration.Low",
+      "thought_id": "Mind.Vitals.Hydration.Low",
+      "text": "I should drink water soon.",
+      "time_to_live_sec": 6.0,
+      "cooldown_sec": 120.0,
+      "dedupe_window_sec": 90.0,
+      "dedupe_key": "Mind.Vitals.Hydration",
+      "channel": "Toast",
+      "priority": 80,
+      "source_type": "Vitals"
+    },
+    {
+      "state_tag": "State.Calories.Empty",
+      "thought_id": "Mind.Vitals.Calories.Empty",
+      "text": "I am starving.",
+      "time_to_live_sec": 7.0,
+      "cooldown_sec": 60.0,
+      "dedupe_window_sec": 45.0,
+      "dedupe_key": "Mind.Vitals.Calories",
+      "channel": "Toast",
+      "priority": 105,
+      "source_type": "Vitals"
+    },
+    {
+      "state_tag": "State.Calories.Critical",
+      "thought_id": "Mind.Vitals.Calories.Critical",
+      "text": "Calories are critical. I need food.",
+      "time_to_live_sec": 7.0,
+      "cooldown_sec": 75.0,
+      "dedupe_window_sec": 60.0,
+      "dedupe_key": "Mind.Vitals.Calories",
+      "channel": "Toast",
+      "priority": 95,
+      "source_type": "Vitals"
+    },
+    {
+      "state_tag": "State.Calories.Low",
+      "thought_id": "Mind.Vitals.Calories.Low",
+      "text": "I should find food soon.",
+      "time_to_live_sec": 6.0,
+      "cooldown_sec": 120.0,
+      "dedupe_window_sec": 90.0,
+      "dedupe_key": "Mind.Vitals.Calories",
+      "channel": "Toast",
+      "priority": 75,
+      "source_type": "Vitals"
+    }
+  ]
+}

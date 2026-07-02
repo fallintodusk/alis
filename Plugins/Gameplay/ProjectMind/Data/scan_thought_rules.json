@@ -1,0 +1,141 @@
+{
+  "$schema": "Schemas/scan_thought_rules.schema.json",
+  "entries": [
+    {
+      "rule_id": "quest_item_hint",
+      "match_any_tags": [
+        "Item.Type.Quest"
+      ],
+      "distance_cm": {
+        "min": 0.0,
+        "max": 100000.0
+      },
+      "min_view_dot": 0.35,
+      "min_screen_area_ratio": 0.00006,
+      "los_required": true,
+      "thought_id_prefix": "Mind.Scan.Quest",
+      "text_template": "I should check {actor_label}. It may be important.",
+      "text_templates": [
+        "I should check {actor_label}. It may be important.",
+        "{actor_label} could matter for what I need.",
+        "I should inspect {actor_label} before moving on."
+      ],
+      "channel": "ToastAndJournal",
+      "priority_base": 240,
+      "source_type": "Quest",
+      "time_to_live_sec": 8.0,
+      "cooldown_sec": 30.0,
+      "dedupe_window_sec": 20.0,
+      "dedupe_key_prefix": "Mind.Scan.Quest"
+    },
+    {
+      "rule_id": "hydration_resource",
+      "match_any_tags": [
+        "SetByCaller.Hydration"
+      ],
+      "distance_cm": {
+        "min": 0.0,
+        "max": 550.0
+      },
+      "min_view_dot": 0.2,
+      "min_screen_area_ratio": 0.00012,
+      "los_required": true,
+      "thought_id_prefix": "Mind.Scan.Hydration",
+      "text_template": "{actor_label} can help with water.",
+      "text_templates": [
+        "{actor_label} can help with water.",
+        "I should pick up {actor_label} for hydration.",
+        "{actor_label} might keep me hydrated."
+      ],
+      "channel": "Toast",
+      "priority_base": 220,
+      "source_type": "Scan",
+      "time_to_live_sec": 6.0,
+      "cooldown_sec": 40.0,
+      "dedupe_window_sec": 30.0,
+      "dedupe_key_prefix": "Mind.Scan.Hydration"
+    },
+    {
+      "rule_id": "calories_resource",
+      "match_any_tags": [
+        "SetByCaller.Calories"
+      ],
+      "distance_cm": {
+        "min": 0.0,
+        "max": 550.0
+      },
+      "min_view_dot": 0.2,
+      "min_screen_area_ratio": 0.00012,
+      "los_required": true,
+      "thought_id_prefix": "Mind.Scan.Calories",
+      "text_template": "{actor_label} can help with food.",
+      "text_templates": [
+        "{actor_label} can help with food.",
+        "I should pick up {actor_label} for calories.",
+        "{actor_label} may keep me going."
+      ],
+      "channel": "Toast",
+      "priority_base": 215,
+      "source_type": "Scan",
+      "time_to_live_sec": 6.0,
+      "cooldown_sec": 40.0,
+      "dedupe_window_sec": 30.0,
+      "dedupe_key_prefix": "Mind.Scan.Calories"
+    },
+    {
+      "rule_id": "near_interactable",
+      "match_any_tags": [
+        "World.Interactable",
+        "Item.Pickup"
+      ],
+      "distance_cm": {
+        "min": 0.0,
+        "max": 500.0
+      },
+      "min_view_dot": 0.2,
+      "min_screen_area_ratio": 0.0001,
+      "los_required": true,
+      "thought_id_prefix": "Mind.Scan.Near",
+      "text_template": "I can use {actor_label} nearby.",
+      "text_templates": [
+        "I can use {actor_label} nearby.",
+        "I should check {actor_label} nearby.",
+        "{actor_label} looks useful right now."
+      ],
+      "channel": "Toast",
+      "priority_base": 180,
+      "source_type": "Scan",
+      "time_to_live_sec": 6.0,
+      "cooldown_sec": 12.0,
+      "dedupe_window_sec": 10.0,
+      "dedupe_key_prefix": "Mind.Scan.Near"
+    },
+    {
+      "rule_id": "poi_generic",
+      "match_any_tags": [
+        "World.POI"
+      ],
+      "distance_cm": {
+        "min": 500.0,
+        "max": 100000.0
+      },
+      "min_view_dot": 0.3,
+      "min_screen_area_ratio": 0.0002,
+      "los_required": true,
+      "thought_id_prefix": "Mind.Scan.POI",
+      "text_template": "That place could be useful: {actor_label}.",
+      "text_templates": [
+        "That place could be useful: {actor_label}.",
+        "{actor_label} may be worth investigating.",
+        "I should keep {actor_label} in mind."
+      ],
+      "channel": "ToastAndJournal",
+      "priority_base": 130,
+      "source_type": "Beacon",
+      "time_to_live_sec": 7.0,
+      "cooldown_sec": 25.0,
+      "dedupe_window_sec": 18.0,
+      "dedupe_key_prefix": "Mind.Scan.POI"
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "$schema": "Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "name": "BackgroundBorder",
+        "type": "Border",
+        "anchor": "Fill",
+        "background": "Background",
+        "zOrder": -10
+      },
+      {
+        "name": "Text_Phase",
+        "type": "TextBlock",
+        "text": "Loading...",
+        "position": {"x": 0, "y": 280},
+        "anchor": "TopCenter",
+        "font": "HeadingMedium",
+        "color": "Text"
+      },
+      {
+        "name": "ProgressBar_Loading",
+        "type": "ProgressBar",
+        "position": {"x": 0, "y": 330},
+        "size": {"x": 500, "y": 20},
+        "anchor": "TopCenter",
+        "percent": 0.0,
+        "fillColor": "Primary"
+      },
+      {
+        "name": "Text_Percentage",
+        "type": "TextBlock",
+        "text": "0%",
+        "position": {"x": 0, "y": 360},
+        "anchor": "TopCenter",
+        "font": "BodySmall",
+        "color": "TextSecondary"
+      },
+      {
+        "name": "Text_Status",
+        "type": "TextBlock",
+        "text": "Initializing...",
+        "position": {"x": 0, "y": 390},
+        "anchor": "TopCenter",
+        "font": "BodyMedium",
+        "color": "TextSecondary"
+      },
+      {
+        "name": "Text_Tips",
+        "type": "TextBlock",
+        "text": "Tip: Explore the world to discover hidden secrets",
+        "position": {"x": 0, "y": 550},
+        "anchor": "TopCenter",
+        "font": "BodySmall",
+        "color": "TextSecondary"
+      },
+      {
+        "name": "Button_Cancel",
+        "type": "Button",
+        "text": "Cancel",
+        "position": {"x": 0, "y": 600},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopCenter",
+        "variant": "Text"
+      },
+      {
+        "name": "Panel_Error",
+        "type": "CanvasPanel",
+        "visible": false,
+        "children": [
+          {
+            "name": "Text_ErrorTitle",
+            "type": "TextBlock",
+            "text": "Loading Failed",
+            "position": {"x": 0, "y": 250},
+            "anchor": "TopCenter",
+            "font": "HeadingMedium",
+            "color": "Error"
+          },
+          {
+            "name": "Text_Error",
+            "type": "TextBlock",
+            "text": "An error occurred during loading.",
+            "position": {"x": 0, "y": 310},
+            "anchor": "TopCenter",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Button_ReturnToMainMenu",
+            "type": "Button",
+            "text": "Return to Main Menu",
+            "position": {"x": 0, "y": 400},
+            "size": {"x": 300, "y": 50},
+            "anchor": "TopCenter",
+            "variant": "Primary"
+          }
+        ]
+      }
+    ]
+  }
+}

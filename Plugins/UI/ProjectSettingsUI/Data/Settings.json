@@ -1,0 +1,376 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "SettingsRoot",
+    "children": [
+      {
+        "name": "Panel_Settings",
+        "type": "CanvasPanel",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "children": [
+          {
+            "name": "Button_Tab_Graphics",
+            "type": "Button",
+            "text": "GRAPHICS",
+            "action": "TabGraphics",
+            "position": {"x": -200, "y": -260},
+            "size": {"x": 140, "y": 40},
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          },
+          {
+            "name": "Button_Tab_Audio",
+            "type": "Button",
+            "text": "AUDIO",
+            "action": "TabAudio",
+            "position": {"x": 0, "y": -260},
+            "size": {"x": 140, "y": 40},
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          },
+          {
+            "name": "Button_Tab_Game",
+            "type": "Button",
+            "text": "GAME",
+            "action": "TabGame",
+            "position": {"x": 200, "y": -260},
+            "size": {"x": 140, "y": 40},
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          },
+          {
+            "name": "TabSeparator",
+            "type": "Border",
+            "position": {"x": 0, "y": -215},
+            "size": {"x": 520, "y": 2},
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "backgroundColor": "Primary"
+          },
+          {
+            "name": "Content_Graphics",
+            "type": "CanvasPanel",
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "position": {"x": 0, "y": 20},
+            "visible": true,
+            "children": [
+              {
+                "name": "Label_Resolution",
+                "type": "TextBlock",
+                "text": "Resolution",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": -160},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Combo_Resolution",
+                "type": "ComboBox",
+                "options": [],
+                "selected": "",
+                "position": {"x": 100, "y": -160},
+                "size": {"x": 180, "y": 32},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_Fullscreen",
+                "type": "TextBlock",
+                "text": "Fullscreen",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": -115},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "CheckBox_Fullscreen",
+                "type": "CheckBox",
+                "checked": false,
+                "position": {"x": 100, "y": -115},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_VSync",
+                "type": "TextBlock",
+                "text": "VSync",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": -70},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "CheckBox_VSync",
+                "type": "CheckBox",
+                "checked": true,
+                "position": {"x": 100, "y": -70},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "ScalabilitySeparator",
+                "type": "Border",
+                "position": {"x": 0, "y": -35},
+                "size": {"x": 420, "y": 1},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5},
+                "backgroundColor": "Secondary"
+              },
+              {
+                "name": "Label_Shadows",
+                "type": "TextBlock",
+                "text": "Shadows",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 0},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Combo_Shadows",
+                "type": "ComboBox",
+                "options": ["Low", "Medium", "High", "Epic"],
+                "selected": "High",
+                "position": {"x": 100, "y": 0},
+                "size": {"x": 180, "y": 32},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_Textures",
+                "type": "TextBlock",
+                "text": "Textures",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 45},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Combo_Textures",
+                "type": "ComboBox",
+                "options": ["Low", "Medium", "High", "Epic"],
+                "selected": "High",
+                "position": {"x": 100, "y": 45},
+                "size": {"x": 180, "y": 32},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_Effects",
+                "type": "TextBlock",
+                "text": "Effects",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 90},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Combo_Effects",
+                "type": "ComboBox",
+                "options": ["Low", "Medium", "High", "Epic"],
+                "selected": "High",
+                "position": {"x": 100, "y": 90},
+                "size": {"x": 180, "y": 32},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_ViewDistance",
+                "type": "TextBlock",
+                "text": "View Distance",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 135},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Combo_ViewDistance",
+                "type": "ComboBox",
+                "options": ["Low", "Medium", "High", "Epic"],
+                "selected": "High",
+                "position": {"x": 100, "y": 135},
+                "size": {"x": 180, "y": 32},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_AntiAliasing",
+                "type": "TextBlock",
+                "text": "Anti-Aliasing",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 180},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Combo_AntiAliasing",
+                "type": "ComboBox",
+                "options": ["Low", "Medium", "High", "Epic"],
+                "selected": "High",
+                "position": {"x": 100, "y": 180},
+                "size": {"x": 180, "y": 32},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              }
+            ]
+          },
+          {
+            "name": "Content_Audio",
+            "type": "CanvasPanel",
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "position": {"x": 0, "y": 0},
+            "visible": false,
+            "children": [
+              {
+                "name": "Label_MasterVolume",
+                "type": "TextBlock",
+                "text": "Master Volume",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": -80},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Slider_MasterVolume",
+                "type": "Slider",
+                "value": 1.0,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.01,
+                "barColor": "Primary",
+                "handleColor": "Text",
+                "position": {"x": 100, "y": -80},
+                "size": {"x": 250, "y": 24},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_MusicVolume",
+                "type": "TextBlock",
+                "text": "Music Volume",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 0},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Slider_MusicVolume",
+                "type": "Slider",
+                "value": 1.0,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.01,
+                "barColor": "Primary",
+                "handleColor": "Text",
+                "position": {"x": 100, "y": 0},
+                "size": {"x": 250, "y": 24},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_EffectsVolume",
+                "type": "TextBlock",
+                "text": "Effects Volume",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 80},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "Slider_EffectsVolume",
+                "type": "Slider",
+                "value": 1.0,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.01,
+                "barColor": "Primary",
+                "handleColor": "Text",
+                "position": {"x": 100, "y": 80},
+                "size": {"x": 250, "y": 24},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              }
+            ]
+          },
+          {
+            "name": "Content_Game",
+            "type": "CanvasPanel",
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "position": {"x": 0, "y": 0},
+            "visible": false,
+            "children": [
+              {
+                "name": "Label_InvertMouse",
+                "type": "TextBlock",
+                "text": "Invert Mouse Y",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": -40},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "CheckBox_InvertMouse",
+                "type": "CheckBox",
+                "checked": false,
+                "position": {"x": 100, "y": -40},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              },
+              {
+                "name": "Label_ShowHints",
+                "type": "TextBlock",
+                "text": "Show Hints",
+                "font": "BodyMedium",
+                "position": {"x": -200, "y": 40},
+                "anchor": "Center",
+                "alignment": {"x": 0.0, "y": 0.5}
+              },
+              {
+                "name": "CheckBox_ShowHints",
+                "type": "CheckBox",
+                "checked": true,
+                "position": {"x": 100, "y": 40},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5}
+              }
+            ]
+          },
+          {
+            "name": "Button_Settings_Apply",
+            "type": "Button",
+            "text": "APPLY",
+            "action": "ApplySettings",
+            "position": {"x": -100, "y": 280},
+            "size": {"x": 160, "y": 44},
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "variant": "Primary",
+            "font": "Button"
+          },
+          {
+            "name": "Button_Settings_Defaults",
+            "type": "Button",
+            "text": "DEFAULTS",
+            "action": "ResetDefaults",
+            "position": {"x": 100, "y": 280},
+            "size": {"x": 160, "y": 44},
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          }
+        ]
+      }
+    ]
+  }
+}

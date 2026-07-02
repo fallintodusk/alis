@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui_layout.schema.json",
+  "title": "ProjectUI Widget Layout",
+  "description": "Data-driven widget layout consumed by the ProjectUI layout builder. Root is a single widget node; children form a tree. Every widget has a 'type' and usually a 'name'. Optional properties are permissive because builders ignore unknown keys (each widget type reads the keys it understands). Schema enforces root structure and widget 'type' enum; detailed per-type field validation is intentionally NOT enforced to avoid lockstep maintenance with ProjectUI layout builder evolution.",
+  "type": "object",
+  "required": ["$schema", "root"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative path to this schema file"
+    },
+    "settings": {
+      "type": "object",
+      "description": "Optional layout-level settings consumed by panel builders (e.g. cellSize for grid inventory panels).",
+      "additionalProperties": true
+    },
+    "root": {
+      "$ref": "#/$defs/widget",
+      "description": "Root widget node. Usually a CanvasPanel or Border."
+    }
+  },
+  "$defs": {
+    "widget": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Widget type resolved by the layout builder.",
+          "enum": [
+            "Border",
+            "Button",
+            "CanvasPanel",
+            "CheckBox",
+            "ComboBox",
+            "Dialog",
+            "EditableTextBox",
+            "FireSparks",
+            "HorizontalBox",
+            "Overlay",
+            "ProgressBar",
+            "RadialProgress",
+            "ScrollBox",
+            "SizeBox",
+            "Slider",
+            "Spacer",
+            "TextBlock",
+            "VerticalBox"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Widget name used for binding and lookups."
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/widget" }
+        },
+        "comment": {
+          "type": "string",
+          "description": "Free-form author comment (ignored at runtime)."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

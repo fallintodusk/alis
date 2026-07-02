@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "scan_thought_rules.schema.json",
+  "title": "ProjectMind Idle Scan Thought Rules",
+  "type": "object",
+  "required": [
+    "$schema",
+    "entries"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rule_id",
+          "match_any_tags",
+          "thought_id_prefix",
+          "text_template",
+          "channel",
+          "priority_base",
+          "source_type"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "match_any_tags": {
+            "type": "array",
+            "description": "Gameplay tags to match on scanned actors. Must match tags defined in C++ or applied via object definitions.",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "distance_cm": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number",
+                "minimum": 0.0
+              },
+              "max": {
+                "type": "number",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          "min_view_dot": {
+            "type": "number",
+            "minimum": -1.0,
+            "maximum": 1.0
+          },
+          "min_screen_area_ratio": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "los_required": {
+            "type": "boolean"
+          },
+          "thought_id_prefix": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text_template": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text_templates": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "Toast",
+              "Journal",
+              "ToastAndJournal"
+            ]
+          },
+          "priority_base": {
+            "type": "integer"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "Unknown",
+              "Dialogue",
+              "Vitals",
+              "Inventory",
+              "Scan",
+              "Quest",
+              "Beacon",
+              "System"
+            ]
+          },
+          "time_to_live_sec": {
+            "type": "number",
+            "minimum": 0.1
+          },
+          "cooldown_sec": {
+            "type": "number",
+            "minimum": 0.0
+          },
+          "dedupe_window_sec": {
+            "type": "number",
+            "minimum": 0.0
+          },
+          "dedupe_key_prefix": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "audio.schema.json",
+  "title": "Audio Preset Definition",
+  "description": "Schema for ALIS audio presets. Field names must match USTRUCT property names (case-insensitive) for FJsonObjectConverter auto-parsing. Every AUDIO_*.json file MUST include a $schema field pointing to this file (relative path).",
+
+  "x-alis-generator": {
+    "TypeName": "Audio",
+    "DefinitionClass": "/Script/ProjectObjectCapabilities.AudioPresetDefinition",
+    "PluginName": "ProjectObject",
+    "SourceSubDir": "../Content",
+    "SourceFileGlob": "AUDIO_*.json",
+    "GeneratedContentPath": "/ProjectObject",
+    "IdPropertyName": "AudioId",
+    "GeneratorVersion": 2
+  },
+
+  "type": "object",
+  "required": ["id", "tracks"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored by generator)"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique audio preset ID (used for FPrimaryAssetId).",
+      "pattern": "^AUDIO_[A-Za-z][A-Za-z0-9_]*$"
+    },
+
+    "source_offset": {
+      "type": "string",
+      "description": "Relative location offset from actor for sound source position: (X=val Y=val Z=val)",
+      "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$"
+    },
+    "source_rotation": {
+      "type": "string",
+      "description": "Relative rotation for sound source (cone direction): (P=pitch Y=yaw R=roll)",
+      "pattern": "^\\(P=-?[0-9.]+ Y=-?[0-9.]+ R=-?[0-9.]+\\)$"
+    },
+
+    "Attenuation": {
+      "type": "object",
+      "description": "Spatial attenuation settings. Field names match FAudioAttenuationConfig UPROPERTY names (PascalCase). Omit entire block to use sound asset's own attenuation.",
+      "additionalProperties": false,
+      "properties": {
+        "Shape": {
+          "type": "string",
+          "description": "Attenuation volume shape.",
+          "enum": ["Sphere", "Capsule", "Box", "Cone"]
+        },
+        "InnerRadius": {
+          "type": "number",
+          "description": "Full-volume radius in cm.",
+          "minimum": 0
+        },
+        "FalloffDistance": {
+          "type": "number",
+          "description": "Distance beyond inner radius where sound fades to silence in cm.",
+          "minimum": 0
+        },
+        "ConeAngle": {
+          "type": "number",
+          "description": "Inner cone angle in degrees (full volume). Cone shape only.",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "ConeFalloffAngle": {
+          "type": "number",
+          "description": "Outer cone angle in degrees (fades between inner and outer).",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "Spatialization": {
+          "type": "string",
+          "description": "Spatialization method.",
+          "enum": ["Panning", "Binaural"]
+        },
+        "BinauralRadius": {
+          "type": "number",
+          "description": "Binaural radius in cm. Binaural method only.",
+          "minimum": 0
+        }
+      }
+    },
+
+    "tracks": {
+      "type": "array",
+      "description": "Available audio tracks for this preset",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "sound"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Track ID used in actions (e.g. audio.play:shot)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable track name"
+          },
+          "sound": {
+            "type": "string",
+            "description": "Asset path to USoundBase (full form: /Mount/Path/Asset.Asset)"
+          }
+        }
+      }
+    }
+  }
+}

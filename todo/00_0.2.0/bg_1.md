@@ -1,0 +1,327 @@
+# Playtest Bug Report - BG_1 (Shipping build, apartment block / podyezды)
+
+Source: external tester (Telegram, RU). Build: SHIPPING (packaged), NOT PIE.
+Location: apartment building interiors - stairwells (podyezd = building
+entrance/stairwell), floors 1-4, apartment doors, bathroom, and one good
+(bug-free) entrance.
+
+Reproduce on packaged Shipping only. Several of these (ESC menu, one-shot
+kill) may not reproduce in PIE - treat "works in editor" as insufficient.
+
+Legend: [P0] blocker / breaks the run, [P1] serious, [P2] polish/balance.
+
+---
+
+## Screenshot evidence log (chronological, timestamp = evidence ID)
+
+Use these landmarks to navigate to the exact spot in-level. Timestamps are
+the tester's message times, kept as stable references.
+
+- **[19:56] one-shot death** (text): "killed by a single shot every time."
+  -> issue D.
+- **[19:57] fall-through intro** (text): "in some stairwells I fall through
+  the textures up to the 3rd floor while climbing." -> issue A.
+
+- **[20:50] SHOT-1 Entrance 1, fall-through spot -> drops to 1st floor.**
+  Visual: a stair FLIGHT going UP; GREEN painted walls; an exterior WINDOW
+  in the upper-right with green foliage/tree visible outside; floor/steps
+  are wood/parquet plank. Landmark = the landing where the flight turns
+  next to the side window. HUD: green health bar top-left.
+
+- **[20:52] SHOT-2 Entrance 1(?), 4th floor -> drops to basement.**
+  Visual: this is a HORIZONTAL apartment CORRIDOR (not a stair flight):
+  green walls, wooden plank floor, WHITE ceiling with recessed lights,
+  a row of apartment doors receding down the hall. HUD health bar is
+  amber/orange. Landmark = top-floor corridor. NOTE: the drop target is
+  the BASEMENT (full building height), not just one floor - see pattern
+  note below.
+
+- **[20:56] SHOT-3 hand motion-blur running down stairs (SEPARATE bug).**
+  Visual: looking DOWN a stair flight; green walls; BROKEN WOODEN DEBRIS
+  (looks like a smashed chair / wooden slats) lying on the steps. This is
+  a RENDERING complaint (hand/arm motion blur "trail"), not collision.
+  Landmark = flight with broken-chair debris. -> issue H (new).
+
+- **[SHOT-4 door + hand] see-through door.**
+  Visual: DARK BROWN double-panel wooden door(s); green wall; first-person
+  HAND reaching toward the door. -> issue B.
+- **[20:59] see-through door** (text): "if you get close to the door it
+  shows through." -> issue B.
+
+- **[SHOT-5 end of set 1] Entrance 1, first landing from spawn.**
+  Visual: stair landing, flight going up, green walls, bright window light.
+  Caption: "Entrance 1 (counting from where the character spawns): if you
+  get close to the WALL, you fall through the textures." Landmark = first
+  landing after spawn. -> issues A + B.
+
+- **[21:03] SHOT-6 open door blocks narrow passage.**
+  Visual: LIGHT WOOD single door with a YELLOW interaction OUTLINE; on-screen
+  interaction prompt shows key "P" ("P Open" / "P Close"); first-person hand;
+  a narrow vestibule/tambour behind. Caption: "if you open the door you
+  sometimes can't get through where it's narrow - have to close it, walk
+  around, and open again." -> issue C.
+
+- **[21:04] Entrance 2, bathroom small door** (text): "key was on the
+  stairs; entered the apartment door; in the bathroom there is an unclear
+  little door." -> issue F.
+- **[21:12] ESC does nothing** (text): "ESC does not work to exit to menu."
+  -> issue E.
+- **[21:16] negative case** (text, edited): "in the entrance that HAS
+  apartment doors it does NOT dump you into textures when you step back
+  into the wall." = one location where pressing the wall is safe. Useful
+  as a working control to diff against. -> issue A/B control.
+- **[21:33] Entrance 3, 2nd floor** (text, edited): "dumps into textures
+  near the door." -> issue A.
+
+- **[21:35] SHOT-7 upper landing wall see-through + seam.**
+  Visual: DARK BROWN wooden apartment door; GREEN walls; a gray ELECTRICAL
+  METER / PANEL BOX mounted on the wall to the RIGHT of the door. Caption:
+  "go higher - the walls show through when you press into them; a SEAM is
+  visible on the sides." Landmark = apartment door with electrical panel
+  box beside it. -> issue B.
+
+- **[21:36] SHOT-8 upper flight -> falls one floor down.**
+  Visual: stairwell looking up; BARE CONCRETE stairs; METAL PIPE / tube
+  railings (industrial gray balusters); large WINDOWS with daylight. This
+  looks DIFFERENT from the lower floors (bare concrete + metal rails vs
+  green plaster + wood). Caption: "higher on the flight (prolyot) it falls
+  one floor down." Landmark = concrete/metal upper flight. -> issue A.
+
+- **[21:37] SHOT-9 the GOOD entrance (exterior, bug-free).**
+  Visual: EXTERIOR of the block - TAN/BEIGE panel building, rows of windows,
+  a BICYCLE leaning by the entrance, trees. Caption: "this entrance has no
+  such bugs." Landmark = entrance with the bicycle outside. -> A/B control:
+  identify this exact building instance and diff its assembly vs the buggy
+  ones.
+
+- **[21:43] Andrey Inf (2nd tester), forwarded photo** (text): "look at the
+  walls more carefully - the seam is visible, especially up close, and it
+  falls through if you press against the wall." Confirms B independently.
+- **[21:44] survival note** (text): "gave the old man water, hooked him up
+  with cigarettes, all normal." -> context for G.
+- **[21:45] loot note** (text): "there are a TON of cigarettes - more than
+  food and water." -> issue G.
+
+---
+
+## KEY PATTERN (read before triaging A/B)
+
+Two things stand out across the shots and should steer the investigation:
+
+1. **The failure gets worse the higher you climb.** Low floor -> drops one
+   floor. 4th floor -> drops all the way to the basement. This is the
+   signature of a **cumulative vertical placement error** in the modular
+   stacking: each floor module is placed with a tiny gap/overlap, the error
+   accumulates per storey, so upper-floor joints have the widest collision
+   gap and the fall goes furthest. Check the per-floor Z step in the
+   assembly recipe vs the actual mesh height.
+
+2. **Lower floors and upper floors look like different module sets.** Lower:
+   green plaster walls + wood/parquet steps (renovated). Upper: bare
+   concrete steps + metal pipe railings + big windows (unfinished). If two
+   different stair/landing meshes are used, they may have different (or
+   missing) collision. The worst fall-through shots (21:36, 20:52->basement)
+   are on the concrete/upper set.
+
+Together these say: A and B are most likely **modular collision gaps at
+floor/module joints, amplified by cumulative vertical offset, worst on the
+upper (concrete) module set.** Fix collision + stacking alignment first;
+that plausibly resolves both the fall-through (A) and the camera
+see-through (B).
+
+---
+
+## A. Collision fall-through in stairwells (DOMINANT ISSUE) [P0]
+
+Player falls through floor/stair geometry into the floor below or the
+basement while climbing. Multiple entrances, floors 1-4.
+
+Confirmed spots (see evidence log):
+- Entrance 1, landing by the side window [20:50] -> drops to floor 1.
+- Entrance 1(?), top-floor corridor [20:52] -> drops to BASEMENT.
+- Entrance 1, first landing from spawn, pressing the wall [SHOT-5].
+- Entrance 3, 2nd floor near the door [21:33].
+- Upper concrete/metal flight [21:36] -> drops one floor.
+- Control (no bug): the entrance with the bicycle outside [21:37]; and the
+  "step back into the wall is safe" case [21:16].
+
+Hypothesis (root cause):
+- Modular building assembly (`Plugins/World/ProjectBuildingAssembly/`).
+  Missing/gapped collision at seams between floor/landing/stair modules;
+  amplified by cumulative vertical offset (see KEY PATTERN 1) and possibly
+  a weaker collision set on the upper concrete modules (KEY PATTERN 2).
+- Likely one or more of: floor mesh has no simple collision (relies on
+  complex-as-simple that got stripped in cook), stair modules gap instead
+  of butt-jointing, per-floor Z step != mesh height, or per-instance
+  collision not baked for procedurally placed pieces in the Shipping cook.
+
+Actions:
+- [ ] Reproduce in Shipping and capture collision view at: entrance 1 window
+  landing [20:50], the top-floor corridor [20:52], entrance 3 floor 2
+  [21:33], and the concrete upper flight [21:36].
+- [ ] Diff the bug-free entrance (bicycle, [21:37]) assembly params vs a
+  buggy entrance to find the authoring delta.
+- [ ] Verify the per-floor Z step equals the module mesh height (look for
+  accumulating gap up the stack).
+- [ ] Confirm upper (concrete) stair/landing meshes have simple collision
+  and CollisionEnabled = QueryAndPhysics on assembled instances.
+- [ ] Verify collision actually cooked into Shipping (loose vs packed).
+
+---
+
+## B. Walls / doors see-through and seams when pressing against them [P1]
+
+Confirmed spots (see evidence log):
+- Dark-brown door up close [SHOT-4] + text [20:59].
+- Entrance 1 first landing, pressing the wall [SHOT-5].
+- Upper landing, apartment door with electrical panel box, seam on sides
+  [21:35 / SHOT-7].
+- Independently confirmed by second tester [21:43].
+
+Hypothesis:
+- Two overlapping symptoms:
+  1. Camera near-clip plane punches through single-sided wall/door meshes
+     when weak collision (A) lets the capsule/camera reach the surface;
+     backface culling then shows the void behind.
+  2. Visible geometric SEAM between modular wall panels ("seam on the sides"
+     [21:35], "seam visible up close" [21:43]) = a real gap or z-fight at
+     module joints, not just clipping.
+- "shows through -> falls through" ties B to A: same weak joint lets both
+  camera and capsule pass.
+
+Actions:
+- [ ] At [21:35] and [SHOT-5], move the camera slowly to classify: geometric
+  gap vs z-fight vs backface clipping.
+- [ ] Prefer fixing capsule collision (A) so the camera never reaches the
+  surface, over making materials two-sided (perf).
+- [ ] Review modular wall-panel alignment at joints in the assembly recipe
+  (same seam source as A).
+
+---
+
+## C. Doorway navigation - open door blocks passage [P1]
+
+Spot: [21:03 / SHOT-6] light-wood single door, "P" interaction prompt,
+narrow vestibule.
+
+Verbatim: "if you open the door you sometimes can't get through where it's
+narrow - close it, walk around, and open again."
+
+Hypothesis:
+- Open door leaf swings into a narrow vestibule; leaf collision + frame
+  leaves a gap narrower than the player capsule radius.
+
+Actions:
+- [ ] Measure doorway clear width with door open vs capsule radius at this
+  door type.
+- [ ] Consider swing direction / thinner door-leaf collision / slightly
+  wider modular doorway piece for interior apartment doors.
+
+---
+
+## D. Combat - one-shot kill, no time to react [P1 - BALANCE]
+
+Spot: [19:56] text, generic (happens repeatedly).
+
+Analysis (per your note):
+- Desired: the FIRST hit should be a light/partial hit, not lethal, giving a
+  window to react - e.g. use a medkit if health is high enough.
+- Currently a single bullet >= max health.
+- Model options: lower per-shot damage so 1 shot != death; OR add a
+  damage-then-heal reaction window (stagger + bleed); OR localized damage
+  (limb = light, torso/head = heavy).
+- Cross-check enemy weapon damage vs `ProjectVitals` health pool
+  (`Plugins/.../ProjectVitals/Data/vitals_config.json`) and the combat
+  feature.
+
+Actions:
+- [ ] Define intended TTK for a basic enemy hit.
+- [ ] Retune per-shot damage / health so a first non-headshot is survivable.
+- [ ] Confirm heal item is usable mid-combat when health is above threshold.
+
+---
+
+## E. ESC does not open the menu (Shipping) [P1]
+
+Spot: [21:12] text.
+
+Hypothesis:
+- Pause/menu input action not bound (or editor-only) in the packaged build.
+  Classic PIE-vs-Shipping gap.
+
+Actions:
+- [ ] Verify the pause-menu input action is bound in shipped input config
+  and the handler is not editor-gated.
+- [ ] Test ESC -> menu in a packaged Shipping run.
+
+---
+
+## F. Bathroom small door unclear (Entrance 2) [P2]
+
+Spot: [21:04] text. Entrance 2; key was on the stairs; after entering the
+apartment, a small/unclear door in the bathroom.
+
+Analysis:
+- Likely an interaction-affordance / readability issue (a small door that
+  looks interactive but is not, or vice-versa). Needs a screenshot at that
+  spot to classify.
+
+Actions:
+- [ ] Ask tester for a screenshot of the bathroom door and expected
+  behavior; classify as interaction bug vs art/affordance.
+
+---
+
+## G. Loot balance - too many cigarettes vs food/water [P2 - DESIGN]
+
+Spots: [21:44], [21:45] text.
+
+Analysis (is this even a problem?):
+- Depends on the intended role of cigarettes:
+  - BARTER/trade currency: abundance is fine and thematic (post-apoc Kazan);
+    the tester already used them to trade with an NPC (the old man). Keep,
+    but ensure food/water still feel scarce.
+  - If they crowd out food/water in the SAME loot tables: dilutes the need
+    loop -> problem. Move cigarettes to their own spawn weight / container
+    class.
+- Recommendation: loot-table weighting, not a bug. Decide role first, then
+  reweight so food/water scarcity is intentional and cigarette abundance is
+  a deliberate econ signal.
+
+Actions:
+- [ ] Decide cigarette role (barter currency vs consumable).
+- [ ] If keeping abundance, split cigarette spawn weights from food/water
+  pools so scarcity is tunable independently.
+
+---
+
+## H. Hand/arm motion-blur "trail" running down stairs [P2 - RENDERING]
+
+Spot: [20:56 / SHOT-3] running down the flight with broken-chair debris.
+
+Analysis:
+- Not collision. First-person hands/arms leave a smear/trail during fast
+  downward movement - per-object or camera motion blur too strong on the
+  FP arms, or the FP mesh not written to the velocity buffer correctly.
+
+Actions:
+- [ ] Check motion-blur amount and whether FP arms should be excluded from
+  motion blur (common FP practice) or need proper velocity output.
+
+---
+
+## Priority summary
+
+1. [P0] A - stairwell fall-through (breaks the run; worst on upper concrete
+   floors; likely cumulative vertical offset + weak joint collision).
+2. [P1] B - wall/door see-through + seams (same joint root as A).
+3. [P1] E - ESC menu in Shipping (easy, high impact).
+4. [P1] D - one-shot kill TTK retune.
+5. [P1] C - open-door navigation block.
+6. [P2] F - bathroom door clarity (needs tester screenshot).
+7. [P2] H - FP hand motion-blur trail.
+8. [P2] G - cigarette loot weighting (design decision, likely not a bug).
+
+Start with A: capture collision view at the four confirmed spots, then diff
+the bug-free (bicycle) entrance against a buggy one and check per-floor Z
+step vs module height. That most likely fixes A and B together.

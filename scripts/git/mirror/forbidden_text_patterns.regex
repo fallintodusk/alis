@@ -14,6 +14,7 @@ C:\\Users\\
 C:/Users/
 \\\\wsl\.localhost\\
 /home/[A-Za-z0-9._-]+/repos_alis/
+~/repos_alis/
 @[A-Za-z0-9.-]+\.(yandex\.ru|outlook\.com|proton\.me)
 %USERPROFILE%
 %LOCALAPPDATA%

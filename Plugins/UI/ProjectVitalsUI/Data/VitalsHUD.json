@@ -1,0 +1,46 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "comment": "Fills parent slot (VitalsMiniSlot positioned at top-left with padding)",
+    "children": [
+      {
+        "name": "BarContainer",
+        "type": "HorizontalBox",
+        "anchor": "Fill",
+        "spacing": 8,
+        "zOrder": 0,
+        "children": [
+          {
+            "name": "ConditionBar",
+            "type": "ProgressBar",
+            "size": {"x": 250, "y": 24},
+            "percent": 1.0,
+            "fillColor": "Success",
+            "comment": "Health/Condition bar - longer for visibility"
+          },
+          {
+            "name": "WarningIcons",
+            "type": "TextBlock",
+            "text": "",
+            "font": "BodyMedium",
+            "color": "Warning",
+            "size": {"x": 32, "y": 24},
+            "comment": "Warning/status icons (skull, biohazard, etc.)"
+          }
+        ]
+      },
+      {
+        "name": "ExpandButton",
+        "type": "Button",
+        "anchor": "Fill",
+        "variant": "Text",
+        "visible": false,
+        "zOrder": 1,
+        "comment": "Hidden by default - can expand to full vitals panel"
+      }
+    ]
+  }
+}

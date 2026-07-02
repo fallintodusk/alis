@@ -1,0 +1,301 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "children": [
+      {
+        "name": "BackgroundEffects",
+        "type": "CanvasPanel",
+        "anchor": "Fill",
+        "zOrder": -10,
+        "children": [
+          {
+            "name": "FireSparks",
+            "type": "FireSparks",
+            "anchor": "Fill",
+            "effect": {
+              "enabled": true,
+              "opacity": 0.8,
+              "maxSparks": 500,
+              "spawnRate": 20,
+              "spawnAreaMin": {"x": 0.0, "y": 0.99},
+              "spawnAreaMax": {"x": 1.0, "y": 1.0},
+              "minLifetime": 0.8,
+              "maxLifetime": 7.5,
+              "minVelocity": {"x": -0.008, "y": -0.05},
+              "maxVelocity": {"x": 0.008, "y": -0.09},
+              "gravity": {"x": 0.0, "y": -0.05},
+              "pixelSize": {"x": 2, "y": 5},
+              "sparkColor": {"r": 1.0, "g": 0.25, "b": 0.0, "a": 1.0},
+              "endColor": {"r": 1.0, "g": 0.2, "b": 0.0, "a": 0.0},
+              "enableRotation": true,
+              "maxRotationSpeed": 120,
+              "enableSizeVariation": true,
+              "sizeVariation": 0.4
+            }
+          }
+        ]
+      },
+      {
+        "name": "LeftRail",
+        "type": "CanvasPanel",
+        "anchor": "CenterLeft",
+        "alignment": {"x": 0.0, "y": 0.5},
+        "position": {"x": 100, "y": 0},
+        "size": {"x": 300, "y": 760},
+        "children": [
+          {
+            "name": "Text_Title",
+            "type": "TextBlock",
+            "text": "ALIS",
+            "position": {"x": 20, "y": -180},
+            "anchor": "CenterLeft",
+            "alignment": {"x": 0.0, "y": 0.5},
+            "font": "HeadingLarge",
+            "color": "Text"
+          },
+          {
+            "name": "Button_Play",
+            "type": "Button",
+            "icon": "\uDB81\uDC0A",
+            "text": "NEW GAME",
+            "action": "Play",
+            "position": {"x": 20, "y": -80},
+            "size": {"x": 260, "y": 56},
+            "anchor": "CenterLeft",
+            "alignment": {"x": 0.0, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          },
+          {
+            "name": "Button_Settings",
+            "type": "Button",
+            "icon": "\uDB81\uDC93",
+            "text": "SETTINGS",
+            "action": "Settings",
+            "position": {"x": 20, "y": -10},
+            "size": {"x": 260, "y": 56},
+            "anchor": "CenterLeft",
+            "alignment": {"x": 0.0, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          },
+          {
+            "name": "Button_Credits",
+            "type": "Button",
+            "icon": "\uDB80\uDEFC",
+            "text": "CREDITS",
+            "action": "Credits",
+            "position": {"x": 20, "y": 60},
+            "size": {"x": 260, "y": 56},
+            "anchor": "CenterLeft",
+            "alignment": {"x": 0.0, "y": 0.5},
+            "variant": "Secondary",
+            "font": "Button"
+          },
+          {
+            "name": "Button_Quit",
+            "type": "Button",
+            "icon": "\uDB81\uDC25",
+            "text": "QUIT",
+            "action": "Quit",
+            "position": {"x": 20, "y": 130},
+            "size": {"x": 260, "y": 56},
+            "anchor": "CenterLeft",
+            "alignment": {"x": 0.0, "y": 0.5},
+            "variant": "Text",
+            "font": "Button"
+          }
+        ]
+      },
+      {
+        "name": "ContentRegion",
+        "type": "CanvasPanel",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "position": {"x": -50, "y": 0},
+        "size": {"x": 700, "y": 720},
+        "children": [
+          {
+            "name": "MainMenuPanel",
+            "type": "CanvasPanel",
+            "anchor": "Fill",
+            "alignment": {"x": 0.0, "y": 0.0},
+            "children": []
+          },
+          {
+            "name": "MapBrowserPanel",
+            "type": "CanvasPanel",
+            "visible": false,
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "children": [
+              {
+                "name": "Text_MapTitle",
+                "type": "TextBlock",
+                "text": "SELECT MAP",
+                "position": {"x": 0, "y": -160},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5},
+                "font": "HeadingSmall",
+                "color": "Text"
+              },
+              {
+                "name": "Button_Map_City17",
+                "type": "Button",
+                "icon": "\uDB80\uDF4E",
+                "text": "CITY 17",
+                "action": "LoadCity17",
+                "position": {"x": 0, "y": -80},
+                "size": {"x": 360, "y": 56},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5},
+                "variant": "Secondary",
+                "font": "Button"
+              }
+            ]
+          },
+          {
+            "name": "SettingsPanel",
+            "type": "CanvasPanel",
+            "visible": false,
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "children": []
+          },
+          {
+            "name": "CreditsPanel",
+            "type": "CanvasPanel",
+            "visible": false,
+            "anchor": "Center",
+            "alignment": {"x": 0.5, "y": 0.5},
+            "children": [
+              {
+                "name": "Text_CreditsTitle",
+                "type": "TextBlock",
+                "text": "CREDITS",
+                "position": {"x": 0, "y": -180},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5},
+                "font": "HeadingSmall",
+                "color": "Text"
+              },
+              {
+                "name": "Credits_List",
+                "type": "VerticalBox",
+                "position": {"x": 0, "y": -90},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.0},
+                "spacing": 16,
+                "children": [
+                  {
+                    "name": "Credits_Row_Grom",
+                    "type": "HorizontalBox",
+                    "spacing": 12,
+                    "children": [
+                      {
+                        "name": "Credits_Grom_Role",
+                        "type": "TextBlock",
+                        "text": "Developer",
+                        "anchor": "TopLeft",
+                        "alignment": {"x": 0.0, "y": 0.0},
+                        "font": "BodyLarge",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "Credits_Grom_Dash",
+                        "type": "TextBlock",
+                        "text": "-",
+                        "anchor": "TopLeft",
+                        "alignment": {"x": 0.0, "y": 0.0},
+                        "font": "BodyLarge",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "Credits_Grom_Name",
+                        "type": "TextBlock",
+                        "text": "Grom",
+                        "anchor": "TopLeft",
+                        "alignment": {"x": 0.0, "y": 0.0},
+                        "font": "BodyLarge",
+                        "customColor": {"r": 1.0, "g": 0.5, "b": 0.5, "a": 1.0}
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Credits_Row_Archer",
+                    "type": "HorizontalBox",
+                    "spacing": 12,
+                    "children": [
+                      {
+                        "name": "Credits_Archer_Role",
+                        "type": "TextBlock",
+                        "text": "Tech Art",
+                        "anchor": "TopLeft",
+                        "alignment": {"x": 0.0, "y": 0.0},
+                        "font": "BodyLarge",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "Credits_Archer_Dash",
+                        "type": "TextBlock",
+                        "text": "-",
+                        "anchor": "TopLeft",
+                        "alignment": {"x": 0.0, "y": 0.0},
+                        "font": "BodyLarge",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "Credits_Archer_Name",
+                        "type": "TextBlock",
+                        "text": "Archer",
+                        "anchor": "TopLeft",
+                        "alignment": {"x": 0.0, "y": 0.0},
+                        "font": "BodyLarge",
+                        "customColor": {"r": 1.0, "g": 0.5, "b": 0.5, "a": 1.0}
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Dialog_QuitConfirmation",
+        "type": "Dialog",
+        "anchor": "Fill",
+        "visible": false,
+        "zOrder": 100,
+        "dialog": {
+          "title": "",
+          "message": "Are you sure you want to quit?",
+          "overlayOpacity": 0.85,
+          "overlayColor": "Background",
+          "width": 400,
+          "boxColor": "Surface",
+          "borderColor": "Border",
+          "borderWidth": 4,
+          "padding": 24,
+          "messageFont": "BodyLarge",
+          "closeOnOverlayClick": true,
+          "overlayClickAction": "CancelQuit",
+          "buttons": [
+            {
+              "text": "Yes, Quit",
+              "action": "ConfirmQuit",
+              "variant": "Error"
+            },
+            {
+              "text": "Cancel",
+              "action": "CancelQuit",
+              "variant": "Secondary"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

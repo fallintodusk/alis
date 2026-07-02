@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui_definitions.schema.json",
+  "title": "ProjectUI Widget Definitions",
+  "description": "Registry of widget definitions consumed by the UI orchestration layer. Each entry registers one widget class + layout JSON + optional viewmodel + activation policy. The file is a top-level array (NOT an object) so it is discovered as a plain list. $schema is out-of-band: discovery code detects a sibling 'ui_definitions.schema.json' OR reads the companion '.schema.json' sidecar if authored. The entry shape is strictly enforced (additionalProperties: false) so typos fail at author time; adding a new field is a deliberate schema edit, not a silent contract drift.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "layer", "widget_class", "layout_json"],
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique widget registration id (e.g. 'ProjectInventoryUI.InventoryPanel').",
+        "minLength": 1
+      },
+      "layer": {
+        "type": "string",
+        "description": "UI layer tag (e.g. 'UI.Layer.Menu', 'UI.Layer.Game', 'UI.Layer.GameMenu').",
+        "minLength": 1
+      },
+      "slot": {
+        "type": "string",
+        "description": "Optional slot tag (e.g. 'HUD.Slot.VitalsMini')."
+      },
+      "widget_class": {
+        "type": "string",
+        "description": "Full UE class path (e.g. '/Script/ProjectInventoryUI.W_InventoryPanel').",
+        "pattern": "^/Script/[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$"
+      },
+      "viewmodel_class": {
+        "type": "string",
+        "description": "Optional ViewModel class path."
+      },
+      "layout_json": {
+        "type": "string",
+        "description": "Relative path (from this Data folder) to the layout JSON.",
+        "minLength": 1
+      },
+      "load": {
+        "type": "string",
+        "enum": ["Preload", "OnDemand"]
+      },
+      "spawn": {
+        "type": "string",
+        "enum": ["Persistent", "Transient"]
+      },
+      "scope": {
+        "type": "string",
+        "enum": ["Global", "PerPlayer"]
+      },
+      "size_policy": {
+        "type": "string",
+        "enum": ["Fill", "AutoSize"]
+      },
+      "input": {
+        "type": "string",
+        "enum": ["Menu", "Game", "None"]
+      },
+      "priority": {
+        "type": "integer"
+      },
+      "vm_creation": {
+        "type": "string",
+        "enum": ["Global", "CreateInstance"]
+      },
+      "auto_visibility": {
+        "type": "string",
+        "description": "Optional ViewModel boolean property name that auto-drives visibility."
+      }
+    }
+  }
+}

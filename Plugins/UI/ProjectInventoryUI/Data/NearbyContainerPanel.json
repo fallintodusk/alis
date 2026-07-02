@@ -1,0 +1,114 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "name": "NearbyBackground",
+        "type": "Border",
+        "anchor": "CenterRight",
+        "alignment": {"x": 1.0, "y": 0.5},
+        "offset": {"x": -32, "y": 0},
+        "autoSize": true,
+        "background": "Background",
+        "borderColor": "Border",
+        "borderWidth": 2,
+        "padding": 16,
+        "children": [
+          {
+            "name": "NearbyColumn",
+            "type": "VerticalBox",
+            "spacing": 10,
+            "children": [
+              {
+                "name": "NearbyHeaderRow",
+                "type": "HorizontalBox",
+                "spacing": 8,
+                "children": [
+                  {
+                    "name": "NearbyHeaderTextColumn",
+                    "type": "VerticalBox",
+                    "spacing": 2,
+                    "slot": {"sizeRule": "Fill"},
+                    "children": [
+                      {
+                        "name": "NearbySectionLabel",
+                        "type": "TextBlock",
+                        "text": "Nearby Loot",
+                        "font": "BodySmall",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "NearbyTitleText",
+                        "type": "TextBlock",
+                        "text": "Nearby Loot",
+                        "font": "HeadingSmall",
+                        "color": "Text"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "TakeAllButton",
+                    "type": "Button",
+                    "text": "Take All",
+                    "font": "Button",
+                    "variant": "Primary",
+                    "visibility": "Collapsed",
+                    "slot": {"horizontalAlignment": "Right", "verticalAlignment": "Top"}
+                  }
+                ]
+              },
+              {
+                "name": "NearbyMetaRow",
+                "type": "HorizontalBox",
+                "spacing": 12,
+                "children": [
+                  {
+                    "name": "NearbyStatsText",
+                    "type": "TextBlock",
+                    "text": "",
+                    "font": "BodySmall",
+                    "color": "TextSecondary",
+                    "slot": {"sizeRule": "Fill"}
+                  },
+                  {
+                    "name": "NearbyHintText",
+                    "type": "TextBlock",
+                    "text": "Press E to close",
+                    "font": "BodySmall",
+                    "color": "TextSecondary",
+                    "justification": "Right"
+                  }
+                ]
+              },
+              {
+                "name": "NearbyGridSizeBox",
+                "type": "SizeBox",
+                "slot": {"horizontalAlignment": "Left"},
+                "children": [
+                  {
+                    "name": "NearbyGridFrame",
+                    "type": "Border",
+                    "background": "Background",
+                    "padding": 4,
+                    "children": [
+                      {
+                        "name": "NearbyGridHost",
+                        "type": "Border",
+                        "background": "Transparent",
+                        "padding": 0,
+                        "clip": "ClipToBoundsWithoutIntersecting"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

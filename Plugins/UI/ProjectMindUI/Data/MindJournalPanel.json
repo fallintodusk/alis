@@ -1,0 +1,200 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "type": "Button",
+        "name": "BackdropButton",
+        "anchor": "Fill",
+        "variant": "Text",
+        "zOrder": 0
+      },
+      {
+        "type": "Border",
+        "name": "PanelBorder",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "size": {"x": 780, "y": 500},
+        "background": "Background",
+        "opacity": 0.92,
+        "padding": {"left": 20, "right": 20, "top": 18, "bottom": 18},
+        "zOrder": 1,
+        "children": [
+          {
+            "type": "VerticalBox",
+            "name": "PanelContent",
+            "anchor": "Fill",
+            "spacing": 10,
+            "children": [
+              {
+                "type": "HorizontalBox",
+                "name": "HeaderRow",
+                "spacing": 8,
+                "children": [
+                  {
+                    "type": "TextBlock",
+                    "name": "TitleText",
+                    "text": "MIND JOURNAL",
+                    "font": "HeadingMedium",
+                    "color": "Text"
+                  },
+                  {
+                    "type": "Spacer",
+                    "name": "HeaderSpacer",
+                    "size": {"x": 1, "y": 1},
+                    "fillWidth": 1.0
+                  },
+                  {
+                    "type": "Button",
+                    "name": "CloseButton",
+                    "text": "X",
+                    "variant": "Text",
+                    "size": {"x": 36, "y": 36}
+                  }
+                ]
+              },
+              {
+                "type": "Border",
+                "name": "HeaderDivider",
+                "size": {"x": 740, "y": 1},
+                "background": "Border"
+              },
+              {
+                "type": "TextBlock",
+                "name": "SubtitleText",
+                "text": "Internal voice archive: important records and recent activity.",
+                "font": "BodySmall",
+                "color": "TextSecondary"
+              },
+              {
+                "type": "HorizontalBox",
+                "name": "TabsRow",
+                "spacing": 8,
+                "children": [
+                  {
+                    "type": "Button",
+                    "name": "ImportantTabButton",
+                    "text": "Important",
+                    "variant": "Primary",
+                    "size": {"x": 180, "y": 44}
+                  },
+                  {
+                    "type": "Button",
+                    "name": "RecentTabButton",
+                    "text": "Recent Log",
+                    "variant": "Secondary",
+                    "size": {"x": 180, "y": 44}
+                  }
+                ]
+              },
+              {
+                "type": "Border",
+                "name": "TabsDivider",
+                "size": {"x": 740, "y": 1},
+                "background": "Border"
+              },
+              {
+                "type": "Border",
+                "name": "ContentBorder",
+                "fillHeight": 1.0,
+                "padding": {"left": 14, "right": 14, "top": 12, "bottom": 12},
+                "background": "Surface",
+                "opacity": 0.88,
+                "children": [
+                  {
+                    "type": "Overlay",
+                    "name": "HistoryOverlay",
+                    "children": [
+                      {
+                        "type": "Border",
+                        "name": "ImportantContent",
+                        "anchor": "Fill",
+                        "background": "Surface",
+                        "children": [
+                          {
+                            "type": "VerticalBox",
+                            "name": "ImportantColumn",
+                            "anchor": "Fill",
+                            "spacing": 8,
+                            "children": [
+                              {
+                                "type": "TextBlock",
+                                "name": "ImportantHintText",
+                                "text": "Durable guidance and critical context.",
+                                "font": "BodySmall",
+                                "color": "TextSecondary"
+                              },
+                              {
+                                "type": "ScrollBox",
+                                "name": "ImportantScroll",
+                                "fillHeight": 1.0,
+                                "children": [
+                                  {
+                                    "type": "TextBlock",
+                                    "name": "ImportantHistoryText",
+                                    "text": "No important records yet.",
+                                    "font": "BodyMedium",
+                                    "color": "Text",
+                                    "justification": "Left",
+                                    "wrap_text_at": 780
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "Border",
+                        "name": "RecentContent",
+                        "anchor": "Fill",
+                        "visible": false,
+                        "background": "Surface",
+                        "children": [
+                          {
+                            "type": "VerticalBox",
+                            "name": "RecentColumn",
+                            "anchor": "Fill",
+                            "spacing": 8,
+                            "children": [
+                              {
+                                "type": "TextBlock",
+                                "name": "RecentHintText",
+                                "text": "Short-lived events from latest to oldest.",
+                                "font": "BodySmall",
+                                "color": "TextSecondary"
+                              },
+                              {
+                                "type": "ScrollBox",
+                                "name": "RecentScroll",
+                                "fillHeight": 1.0,
+                                "children": [
+                                  {
+                                    "type": "TextBlock",
+                                    "name": "RecentHistoryText",
+                                    "text": "No recent activity yet.",
+                                    "font": "BodyMedium",
+                                    "color": "Text",
+                                    "justification": "Left",
+                                    "wrap_text_at": 780
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

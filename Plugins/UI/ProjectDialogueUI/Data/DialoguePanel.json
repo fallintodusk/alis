@@ -1,0 +1,64 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "name": "Background",
+        "type": "Border",
+        "anchor": "BottomCenter",
+        "alignment": {"x": 0.5, "y": 1.0},
+        "size": {"x": 700},
+        "autoSize": true,
+        "background": "Background",
+        "borderColor": "Border",
+        "borderWidth": 2,
+        "padding": 16,
+        "children": [
+          {
+            "name": "MainColumn",
+            "type": "VerticalBox",
+            "spacing": 8,
+            "children": [
+              {
+                "name": "SpeakerText",
+                "type": "TextBlock",
+                "text": "",
+                "font": "HeadingSmall",
+                "color": "Text"
+              },
+              {
+                "name": "DialogueText",
+                "type": "TextBlock",
+                "text": "",
+                "font": "BodyMedium",
+                "color": "Text"
+              },
+              {
+                "name": "OptionsContainer",
+                "type": "VerticalBox",
+                "spacing": 4
+              },
+              {
+                "name": "ContinueButton",
+                "type": "Button",
+                "variant": "Secondary",
+                "children": [
+                  {
+                    "name": "ContinueText",
+                    "type": "TextBlock",
+                    "text": "Continue",
+                    "font": "BodyMedium",
+                    "color": "Text"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

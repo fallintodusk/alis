@@ -1,0 +1,732 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "name": "OverlayButton",
+        "type": "Button",
+        "anchor": "Fill",
+        "variant": "Text",
+        "visible": true,
+        "zOrder": 0
+      },
+      {
+        "name": "PanelContainer",
+        "type": "Border",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "size": {"x": 900, "y": 700},
+        "background": "Surface",
+        "zOrder": 1,
+        "children": [
+          {
+            "name": "PanelContent",
+            "type": "VerticalBox",
+            "anchor": "Fill",
+            "spacing": 4,
+            "padding": {"top": 16, "bottom": 16, "left": 20, "right": 20},
+            "children": [
+              {
+                "name": "HeaderRow",
+                "type": "HorizontalBox",
+                "spacing": 8,
+                "children": [
+                  {
+                    "name": "Title",
+                    "type": "TextBlock",
+                    "text": "VITALS",
+                    "font": "HeadingMedium",
+                    "color": "Text"
+                  },
+                  {
+                    "name": "Spacer",
+                    "type": "Spacer",
+                    "size": {"x": 1, "y": 1},
+                    "fillWidth": 1.0
+                  },
+                  {
+                    "name": "CloseButton",
+                    "type": "Button",
+                    "text": "X",
+                    "size": {"x": 36, "y": 36},
+                    "variant": "Text",
+                    "font": "Button"
+                  }
+                ]
+              },
+              {
+                "name": "DividerTop",
+                "type": "Border",
+                "size": {"x": 860, "y": 2},
+                "background": "Border"
+              },
+              {
+                "name": "SpacerTop",
+                "type": "Spacer",
+                "size": {"x": 1, "y": 4}
+              },
+              {
+                "name": "ColumnsRow",
+                "type": "HorizontalBox",
+                "spacing": 0,
+                "fillHeight": 1.0,
+                "children": [
+                  {
+                    "name": "ConditionColumn",
+                    "type": "VerticalBox",
+                    "spacing": 2,
+                    "size": {"x": 480},
+                    "children": [
+                      {
+                        "name": "ConditionHeader",
+                        "type": "TextBlock",
+                        "text": "CONDITION (Life/Death)",
+                        "font": "HeadingMedium",
+                        "color": "Text"
+                      },
+                      {
+                        "name": "SpacerCondHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "ConditionRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "ConditionBar",
+                            "type": "ProgressBar",
+                            "size": {"x": 180, "y": 18},
+                            "percent": 1.0,
+                            "fillColor": "Success"
+                          },
+                          {
+                            "name": "ConditionValue",
+                            "type": "TextBlock",
+                            "text": "75 HP",
+                            "font": "BodyMedium",
+                            "color": "Text",
+                            "size": {"x": 80, "y": 22}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "ConditionRegenRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "ConditionRegenLabel",
+                            "type": "TextBlock",
+                            "text": "Regen 1.0x",
+                            "font": "BodySmall",
+                            "color": "TextSecondary",
+                            "size": {"x": 100, "y": 18}
+                          },
+                          {
+                            "name": "ConditionRegenDays",
+                            "type": "TextBlock",
+                            "text": "4.0 days",
+                            "font": "BodySmall",
+                            "color": "TextSecondary",
+                            "size": {"x": 80, "y": 18}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "ConditionRate",
+                        "type": "TextBlock",
+                        "text": "",
+                        "font": "BodySmall",
+                        "color": "Success",
+                        "size": {"x": 220, "y": 18}
+                      },
+                      {
+                        "name": "SpacerSurv",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 6}
+                      },
+                      {
+                        "name": "DividerSurv",
+                        "type": "Border",
+                        "size": {"x": 440, "y": 1},
+                        "background": "Border"
+                      },
+                      {
+                        "name": "SpacerSurvHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "SurvivalHeader",
+                        "type": "TextBlock",
+                        "text": "SURVIVAL",
+                        "font": "BodyMedium",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "SpacerSurvRows",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 2}
+                      },
+                      {
+                        "name": "CaloriesRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "CaloriesLabel",
+                            "type": "TextBlock",
+                            "text": "Calories",
+                            "font": "BodySmall",
+                            "color": "Text",
+                            "size": {"x": 70, "y": 18}
+                          },
+                          {
+                            "name": "CaloriesBar",
+                            "type": "ProgressBar",
+                            "size": {"x": 120, "y": 14},
+                            "percent": 1.0,
+                            "fillColor": "Success"
+                          },
+                          {
+                            "name": "CaloriesValue",
+                            "type": "TextBlock",
+                            "text": "1100 kcal",
+                            "font": "BodySmall",
+                            "color": "Text",
+                            "size": {"x": 90, "y": 18}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "CaloriesRate",
+                        "type": "TextBlock",
+                        "text": "",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 12},
+                        "size": {"x": 220, "y": 18}
+                      },
+                      {
+                        "name": "CaloriesLifeDays",
+                        "type": "TextBlock",
+                        "text": "Life: 13 days",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 12},
+                        "size": {"x": 160, "y": 18}
+                      },
+                      {
+                        "name": "SpacerHyd",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 2}
+                      },
+                      {
+                        "name": "HydrationRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "HydrationLabel",
+                            "type": "TextBlock",
+                            "text": "Hydration",
+                            "font": "BodySmall",
+                            "color": "Text",
+                            "size": {"x": 70, "y": 18}
+                          },
+                          {
+                            "name": "HydrationBar",
+                            "type": "ProgressBar",
+                            "size": {"x": 120, "y": 14},
+                            "percent": 1.0,
+                            "fillColor": "Success"
+                          },
+                          {
+                            "name": "HydrationValue",
+                            "type": "TextBlock",
+                            "text": "1.5 L",
+                            "font": "BodySmall",
+                            "color": "Text",
+                            "size": {"x": 90, "y": 18}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "HydrationRate",
+                        "type": "TextBlock",
+                        "text": "",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 12},
+                        "size": {"x": 220, "y": 18}
+                      },
+                      {
+                        "name": "HydrationLifeDays",
+                        "type": "TextBlock",
+                        "text": "Life: 1 day",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 12},
+                        "size": {"x": 160, "y": 18}
+                      },
+                      {
+                        "name": "SpacerFat",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 2}
+                      },
+                      {
+                        "name": "FatigueRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "FatigueLabel",
+                            "type": "TextBlock",
+                            "text": "Fatigue",
+                            "font": "BodySmall",
+                            "color": "Text",
+                            "size": {"x": 70, "y": 18}
+                          },
+                          {
+                            "name": "FatigueBar",
+                            "type": "ProgressBar",
+                            "size": {"x": 120, "y": 14},
+                            "percent": 0.0,
+                            "fillColor": "Success"
+                          },
+                          {
+                            "name": "FatigueValue",
+                            "type": "TextBlock",
+                            "text": "70%",
+                            "font": "BodySmall",
+                            "color": "Text",
+                            "size": {"x": 90, "y": 18}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "FatigueRate",
+                        "type": "TextBlock",
+                        "text": "",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 12},
+                        "size": {"x": 220, "y": 18}
+                      },
+                      {
+                        "name": "FatigueTimeline",
+                        "type": "TextBlock",
+                        "text": "16h to empty | Life: 4d",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 12},
+                        "size": {"x": 220, "y": 18}
+                      },
+                      {
+                        "name": "SpacerStatus",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 6}
+                      },
+                      {
+                        "name": "DividerStatus",
+                        "type": "Border",
+                        "size": {"x": 440, "y": 1},
+                        "background": "Border"
+                      },
+                      {
+                        "name": "SpacerStatusHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "StatusToggle",
+                        "type": "Button",
+                        "text": "[+] STATUS",
+                        "variant": "Text",
+                        "font": "BodySmall",
+                        "size": {"x": 140, "y": 24}
+                      },
+                      {
+                        "name": "StatusContent",
+                        "type": "VerticalBox",
+                        "spacing": 2,
+                        "visible": false,
+                        "padding": {"left": 12},
+                        "children": [
+                          {
+                            "name": "BleedingRow",
+                            "type": "HorizontalBox",
+                            "spacing": 8,
+                            "children": [
+                              {
+                                "name": "BleedingLabel",
+                                "type": "TextBlock",
+                                "text": "Bleeding",
+                                "font": "BodySmall",
+                                "color": "Text",
+                                "size": {"x": 80, "y": 18}
+                              },
+                              {
+                                "name": "BleedingValue",
+                                "type": "TextBlock",
+                                "text": "0.0",
+                                "font": "BodySmall",
+                                "color": "Warning",
+                                "size": {"x": 60, "y": 18}
+                              }
+                            ]
+                          },
+                          {
+                            "name": "PoisonedRow",
+                            "type": "HorizontalBox",
+                            "spacing": 8,
+                            "children": [
+                              {
+                                "name": "PoisonedLabel",
+                                "type": "TextBlock",
+                                "text": "Poisoned",
+                                "font": "BodySmall",
+                                "color": "Text",
+                                "size": {"x": 80, "y": 18}
+                              },
+                              {
+                                "name": "PoisonedValue",
+                                "type": "TextBlock",
+                                "text": "0.0",
+                                "font": "BodySmall",
+                                "color": "Warning",
+                                "size": {"x": 60, "y": 18}
+                              }
+                            ]
+                          },
+                          {
+                            "name": "RadiationRow",
+                            "type": "HorizontalBox",
+                            "spacing": 8,
+                            "children": [
+                              {
+                                "name": "RadiationLabel",
+                                "type": "TextBlock",
+                                "text": "Radiation",
+                                "font": "BodySmall",
+                                "color": "Text",
+                                "size": {"x": 80, "y": 18}
+                              },
+                              {
+                                "name": "RadiationValue",
+                                "type": "TextBlock",
+                                "text": "0.0",
+                                "font": "BodySmall",
+                                "color": "Warning",
+                                "size": {"x": 60, "y": 18}
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "SpacerMetab",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "DividerMetab",
+                        "type": "Border",
+                        "size": {"x": 440, "y": 1},
+                        "background": "Border"
+                      },
+                      {
+                        "name": "SpacerMetabHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "MetabolismToggle",
+                        "type": "Button",
+                        "text": "[+] METABOLISM",
+                        "variant": "Text",
+                        "font": "BodySmall",
+                        "size": {"x": 180, "y": 24}
+                      },
+                      {
+                        "name": "MetabolismContent",
+                        "type": "VerticalBox",
+                        "spacing": 2,
+                        "visible": false,
+                        "padding": {"left": 12},
+                        "children": [
+                          {
+                            "name": "MetabolismWeight",
+                            "type": "TextBlock",
+                            "text": "Weight: 75 kg",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          },
+                          {
+                            "name": "MetabolismHydration",
+                            "type": "TextBlock",
+                            "text": "Hydration: 0.001 L/kcal",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          },
+                          {
+                            "name": "SpacerActivity",
+                            "type": "Spacer",
+                            "size": {"x": 1, "y": 2}
+                          },
+                          {
+                            "name": "ActivityHeader",
+                            "type": "TextBlock",
+                            "text": "Activity:",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          },
+                          {
+                            "name": "ActivityIdle",
+                            "type": "TextBlock",
+                            "text": "  Idle   1.3  < 10 cm/s",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          },
+                          {
+                            "name": "ActivityWalk",
+                            "type": "TextBlock",
+                            "text": "  Walk   2.5  < 150 cm/s",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          },
+                          {
+                            "name": "ActivityJog",
+                            "type": "TextBlock",
+                            "text": "  Jog    6.0  < 350 cm/s",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          },
+                          {
+                            "name": "ActivitySprint",
+                            "type": "TextBlock",
+                            "text": "  Sprint 10.0 >= 350 cm/s",
+                            "font": "BodySmall",
+                            "color": "TextSecondary"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "ColumnDivider",
+                    "type": "Border",
+                    "size": {"x": 1, "y": 500},
+                    "background": "Border",
+                    "padding": {"left": 8, "right": 8}
+                  },
+                  {
+                    "name": "StaminaColumn",
+                    "type": "VerticalBox",
+                    "spacing": 2,
+                    "size": {"x": 380},
+                    "children": [
+                      {
+                        "name": "StaminaHeader",
+                        "type": "TextBlock",
+                        "text": "STAMINA (Energy)",
+                        "font": "HeadingMedium",
+                        "color": "Text"
+                      },
+                      {
+                        "name": "SpacerStamHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "StaminaRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "StaminaBar",
+                            "type": "ProgressBar",
+                            "size": {"x": 160, "y": 18},
+                            "percent": 1.0,
+                            "fillColor": "Primary"
+                          },
+                          {
+                            "name": "StaminaValue",
+                            "type": "TextBlock",
+                            "text": "80",
+                            "font": "BodyMedium",
+                            "color": "Text",
+                            "size": {"x": 60, "y": 22}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "StaminaRegenRow",
+                        "type": "TextBlock",
+                        "text": "Regen 1.0x",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "size": {"x": 100, "y": 18}
+                      },
+                      {
+                        "name": "StaminaRate",
+                        "type": "TextBlock",
+                        "text": "Regen: OK",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "size": {"x": 160, "y": 18}
+                      },
+                      {
+                        "name": "SpacerMov",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 6}
+                      },
+                      {
+                        "name": "DividerMov",
+                        "type": "Border",
+                        "size": {"x": 340, "y": 1},
+                        "background": "Border"
+                      },
+                      {
+                        "name": "SpacerMovHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "MovementHeader",
+                        "type": "TextBlock",
+                        "text": "MOVEMENT",
+                        "font": "BodyMedium",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "MovementSprint",
+                        "type": "TextBlock",
+                        "text": "Sprint  10.0 /s",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "MovementJog",
+                        "type": "TextBlock",
+                        "text": "Jog      5.0 /s",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "MovementRegen",
+                        "type": "TextBlock",
+                        "text": "Regen    6.67 /s",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "SpacerInt",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 6}
+                      },
+                      {
+                        "name": "DividerInt",
+                        "type": "Border",
+                        "size": {"x": 340, "y": 1},
+                        "background": "Border"
+                      },
+                      {
+                        "name": "SpacerIntHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "InteractionsHeader",
+                        "type": "TextBlock",
+                        "text": "INTERACTIONS",
+                        "font": "BodyMedium",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "InteractionsRow1",
+                        "type": "TextBlock",
+                        "text": "Light 2.0  Medium 5.0",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "InteractionsRow2",
+                        "type": "TextBlock",
+                        "text": "Heavy 15.0 Min Req 5.0",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "SpacerCombat",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 6}
+                      },
+                      {
+                        "name": "DividerCombat",
+                        "type": "Border",
+                        "size": {"x": 340, "y": 1},
+                        "background": "Border"
+                      },
+                      {
+                        "name": "SpacerCombatHead",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 4}
+                      },
+                      {
+                        "name": "CombatHeader",
+                        "type": "TextBlock",
+                        "text": "COMBAT",
+                        "font": "BodyMedium",
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "name": "CombatRow1",
+                        "type": "TextBlock",
+                        "text": "Light Atk 10.0  Heavy Atk 25.0",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "CombatRow2",
+                        "type": "TextBlock",
+                        "text": "Dodge 15.0      Block 5.0/s",
+                        "font": "BodySmall",
+                        "color": "TextSecondary",
+                        "padding": {"left": 8}
+                      },
+                      {
+                        "name": "SpacerStatusEffects",
+                        "type": "Spacer",
+                        "size": {"x": 1, "y": 8}
+                      },
+                      {
+                        "name": "StatusEffects",
+                        "type": "TextBlock",
+                        "text": "",
+                        "font": "BodySmall",
+                        "color": "Warning",
+                        "visible": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dev_manifest.schema.json",
+  "title": "Orchestrator Dev Manifest",
+  "description": "Local development plugin manifest consumed by the Orchestrator boot phase. Mirrors the signed production manifest shape but uses placeholder hashes and no signature verification. See Plugins/Boot/Orchestrator.",
+  "type": "object",
+  "required": ["$schema", "manifest_version", "plugins"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "manifest_version": { "type": "integer", "minimum": 1 },
+    "engine_build_id": { "type": "string" },
+    "signed_at": { "type": "string" },
+    "signing_key_id": { "type": "string" },
+    "signature": { "type": "string" },
+    "plugins": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pluginEntry" }
+    }
+  },
+  "$defs": {
+    "pluginEntry": {
+      "type": "object",
+      "required": ["name", "version", "activation_strategy"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Plugin name (directory under Plugins/<Category>/<Name>)."
+        },
+        "version": {
+          "type": "string",
+          "description": "Semver-ish plugin version string."
+        },
+        "activation_strategy": {
+          "type": "string",
+          "enum": ["Boot", "OnDemand"]
+        },
+        "module": {
+          "type": "string",
+          "description": "Primary module name; empty string allowed for content-only plugins."
+        },
+        "code_hash": { "type": "string" },
+        "content_hash": { "type": "string" },
+        "url_code": { "type": "string" },
+        "url_content": { "type": "string" },
+        "requires_engine_plugins": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "version"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "version": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "channel": { "type": "string" },
+        "signature_thumbprint": { "type": "string" },
+        "size_code": { "type": "integer", "minimum": 0 },
+        "size_content": { "type": "integer", "minimum": 0 },
+        "release_notes": { "type": "string" }
+      }
+    }
+  }
+}

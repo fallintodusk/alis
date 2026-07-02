@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "vitals_thought_mappings.schema.json",
+  "title": "ProjectMind Vitals Thought Mappings",
+  "type": "object",
+  "required": [
+    "$schema",
+    "entries"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "state_tag",
+          "thought_id",
+          "text",
+          "channel",
+          "priority",
+          "source_type"
+        ],
+        "properties": {
+          "state_tag": {
+            "type": "string",
+            "description": "Vitals state tag (e.g. State.Hydration.Empty). RENAME WARNING: Must match tags emitted by ProjectVitals hysteresis thresholds. Mismatch causes silent thought suppression.",
+            "minLength": 1
+          },
+          "thought_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "time_to_live_sec": {
+            "type": "number",
+            "minimum": 0.1
+          },
+          "cooldown_sec": {
+            "type": "number",
+            "minimum": 0.0
+          },
+          "dedupe_window_sec": {
+            "type": "number",
+            "minimum": 0.0
+          },
+          "dedupe_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "Toast",
+              "Journal",
+              "ToastAndJournal"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "Unknown",
+              "Dialogue",
+              "Vitals",
+              "Inventory",
+              "Scan",
+              "Quest",
+              "Beacon",
+              "System"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

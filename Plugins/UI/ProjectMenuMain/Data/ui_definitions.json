@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ProjectMenuMain.MainMenu",
+    "layer": "UI.Layer.Menu",
+    "widget_class": "/Script/ProjectMenuMain.W_MainMenu",
+    "layout_json": "MainMenu.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 0
+  }
+]

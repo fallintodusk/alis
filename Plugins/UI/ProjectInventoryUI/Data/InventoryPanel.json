@@ -1,0 +1,348 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "settings": {
+    "cellSize": 64
+  },
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "name": "OverlayBackground",
+        "type": "Border",
+        "anchor": "Fill",
+        "background": "Background",
+        "backgroundOpacity": 0.85,
+        "zOrder": -1
+      },
+      {
+        "name": "Background",
+        "type": "Border",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "autoSize": true,
+        "background": "Background",
+        "borderColor": "Border",
+        "borderWidth": 2,
+        "padding": 16,
+        "children": [
+          {
+            "name": "MainColumn",
+            "type": "VerticalBox",
+            "spacing": 12,
+            "children": [
+              {
+                "name": "TitleText",
+                "type": "TextBlock",
+                "text": "Inventory",
+                "font": "HeadingSmall",
+                "color": "Text"
+              },
+              {
+                "name": "StatsRow",
+                "type": "HorizontalBox",
+                "spacing": 16,
+                "children": [
+                  {
+                    "name": "WeightText",
+                    "type": "TextBlock",
+                    "text": "Weight: 0/0 kg",
+                    "font": "BodySmall",
+                    "color": "TextSecondary"
+                  },
+                  {
+                    "name": "VolumeText",
+                    "type": "TextBlock",
+                    "text": "Volume: 0/0 L",
+                    "font": "BodySmall",
+                    "color": "TextSecondary"
+                  },
+                  {
+                    "name": "ItemCountText",
+                    "type": "TextBlock",
+                    "text": "Items: 0",
+                    "font": "BodySmall",
+                    "color": "TextSecondary"
+                  }
+                ]
+              },
+              {
+                "name": "ContentRow",
+                "type": "HorizontalBox",
+                "spacing": 24,
+                "slot": {"sizeRule": "Fill", "verticalAlignment": "Top"},
+                "children": [
+                  {
+                    "name": "TopRow",
+                    "type": "HorizontalBox",
+                    "spacing": 16,
+                    "slot": {"sizeRule": "Fill", "verticalAlignment": "Top"},
+                    "children": [
+                      {
+                        "name": "LeftPanel",
+                        "type": "VerticalBox",
+                        "spacing": 8,
+                        "slot": {"sizeRule": "Auto"},
+                        "children": [
+                          {
+                            "name": "EquipPanel",
+                            "type": "Border",
+                            "background": "Background",
+                            "padding": 8,
+                            "slot": {"sizeRule": "Fill"},
+                            "children": [
+                              {
+                                "name": "EquipSlotsHost",
+                                "type": "VerticalBox",
+                                "spacing": 4
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "RightPanel",
+                        "type": "VerticalBox",
+                        "spacing": 8,
+                        "slot": {"sizeRule": "Fill", "verticalAlignment": "Top"},
+                        "children": [
+                          {
+                            "name": "HandsPanel",
+                            "type": "Border",
+                            "background": "Background",
+                            "padding": 12,
+                            "children": [
+                              {
+                                "name": "HandsRow",
+                                "type": "HorizontalBox",
+                                "spacing": 24,
+                                "children": [
+                                  {
+                                    "name": "LeftHandColumn",
+                                    "type": "VerticalBox",
+                                    "spacing": 4,
+                                    "children": [
+                                      {
+                                        "name": "LeftHandLabel",
+                                        "type": "TextBlock",
+                                        "text": "L.Hand",
+                                        "font": "BodySmall",
+                                        "color": "TextSecondary"
+                                      },
+                                      {
+                                        "name": "LeftHandGridBox_SizeBox",
+                                        "type": "SizeBox",
+                                        "children": [
+                                          {
+                                            "name": "LeftHandGridBox",
+                                            "type": "Border",
+                                            "background": "Surface",
+                                            "borderColor": "Border",
+                                            "borderWidth": 1,
+                                            "padding": 2,
+                                            "children": [
+                                              {
+                                                "name": "LeftHandGridHost",
+                                                "type": "Border",
+                                                "background": "Transparent",
+                                                "padding": 0,
+                                                "clip": "ClipToBoundsWithoutIntersecting"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "HandsSeparator",
+                                    "type": "Border",
+                                    "background": "Border",
+                                    "slot": {"sizeRule": "Auto"},
+                                    "size": {"x": 1, "y": 0}
+                                  },
+                                  {
+                                    "name": "RightHandColumn",
+                                    "type": "VerticalBox",
+                                    "spacing": 4,
+                                    "children": [
+                                      {
+                                        "name": "RightHandLabel",
+                                        "type": "TextBlock",
+                                        "text": "R.Hand",
+                                        "font": "BodySmall",
+                                        "color": "TextSecondary"
+                                      },
+                                      {
+                                        "name": "RightHandGridBox_SizeBox",
+                                        "type": "SizeBox",
+                                        "children": [
+                                          {
+                                            "name": "RightHandGridBox",
+                                            "type": "Border",
+                                            "background": "Surface",
+                                            "borderColor": "Border",
+                                            "borderWidth": 1,
+                                            "padding": 2,
+                                            "children": [
+                                              {
+                                                "name": "RightHandGridHost",
+                                                "type": "Border",
+                                                "background": "Transparent",
+                                                "padding": 0,
+                                                "clip": "ClipToBoundsWithoutIntersecting"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "PocketGridsHost",
+                                    "type": "HorizontalBox",
+                                    "spacing": 16,
+                                    "slot": {"sizeRule": "Fill"}
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ContainerTabsPrimary",
+                            "type": "HorizontalBox",
+                            "spacing": 4,
+                            "visibility": "Collapsed"
+                          },
+                          {
+                            "name": "EmptyStoragePlaceholder",
+                            "type": "Border",
+                            "background": "Transparent",
+                            "visibility": "Collapsed",
+                            "slot": {"sizeRule": "Fill"},
+                            "horizontalAlignment": "Center",
+                            "verticalAlignment": "Center",
+                            "children": [
+                              {
+                                "name": "EmptyStorageText",
+                                "type": "TextBlock",
+                                "text": "",
+                                "font": "BodySmall",
+                                "color": "TextSecondary"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "GridRow",
+                            "type": "HorizontalBox",
+                            "spacing": 8,
+                            "visibility": "Collapsed",
+                            "slot": {"sizeRule": "Fill"},
+                            "children": [
+                              {
+                                "name": "GridSizeBoxPrimary",
+                                "type": "SizeBox",
+                                "slot": {"sizeRule": "Auto", "verticalAlignment": "Top"},
+                                "children": [
+                                  {
+                                    "name": "GridHostPrimary",
+                                    "type": "Border",
+                                    "background": "Background",
+                                    "padding": 4
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "GridSizeBoxSecondary",
+                                "type": "SizeBox",
+                                "slot": {"sizeRule": "Auto", "verticalAlignment": "Top"},
+                                "children": [
+                                  {
+                                    "name": "GridHostSecondary",
+                                    "type": "Border",
+                                    "background": "Background",
+                                    "padding": 4
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ContainerTabsSecondary",
+                            "type": "HorizontalBox",
+                            "spacing": 4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "DetailRow",
+                "type": "Border",
+                "background": "Background",
+                "padding": 10,
+                "children": [
+                  {
+                    "name": "DetailColumn",
+                    "type": "VerticalBox",
+                    "spacing": 4,
+                    "children": [
+                      {
+                        "name": "DetailHeaderRow",
+                        "type": "HorizontalBox",
+                        "spacing": 8,
+                        "children": [
+                          {
+                            "name": "ItemIcon",
+                            "type": "TextBlock",
+                            "text": "",
+                            "font": "GameIcon",
+                            "color": "TextSecondary",
+                            "size": {"x": 24, "y": 24}
+                          },
+                          {
+                            "name": "SelectionText",
+                            "type": "TextBlock",
+                            "text": "No item selected",
+                            "font": "BodyMedium",
+                            "color": "Text",
+                            "slot": {"sizeRule": "Fill"}
+                          },
+                          {
+                            "name": "SelectionStatsText",
+                            "type": "TextBlock",
+                            "text": "",
+                            "font": "BodySmall",
+                            "color": "TextSecondary",
+                            "justification": "Right"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "ItemDetailsText",
+                        "type": "TextBlock",
+                        "text": "",
+                        "font": "BodySmall",
+                        "color": "TextSecondary"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "StatusText",
+                "type": "TextBlock",
+                "text": "",
+                "font": "BodySmall",
+                "color": "Warning"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

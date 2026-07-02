@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dialogue.schema.json",
+  "title": "Dialogue Tree Definition",
+  "description": "Schema for ALIS dialogue trees. Field names must match USTRUCT property names (case-insensitive) for FJsonObjectConverter auto-parsing. Every DLG_*.json file MUST include a $schema field pointing to this file (relative path). See FDialogueNode, FDialogueOption in DialogueTypes.h.",
+
+  "x-alis-generator": {
+    "TypeName": "Dialogue",
+    "DefinitionClass": "/Script/ProjectDialogue.DialogueTreeDefinition",
+    "PluginName": "ProjectObject",
+    "SourceSubDir": "../Content",
+    "SourceFileGlob": "DLG_*.json",
+    "GeneratedContentPath": "/ProjectObject",
+    "IdPropertyName": "TreeId",
+    "GeneratorVersion": 2
+  },
+
+  "type": "object",
+  "required": ["id", "startNode", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored by generator)"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique dialogue tree ID (used for FPrimaryAssetId). RENAME WARNING: ProjectMind dialogue_thought_mappings.json references tree IDs in signal_tags. Run scripts/ue/check/gameplay/projectmind/validate_data.py after renaming.",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "startNode": {
+      "type": "string",
+      "description": "ID of the first node to display"
+    },
+    "nodes": {
+      "type": "object",
+      "description": "Map of node ID -> node definition. Keys are semantic IDs. RENAME WARNING: ProjectMind dialogue_thought_mappings.json references node IDs in signal_tags. Run scripts/ue/check/gameplay/projectmind/validate_data.py after renaming.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["text"],
+        "additionalProperties": false,
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "description": "Speaker display name. Omit for objects/narration."
+          },
+          "text": {
+            "type": "string",
+            "description": "Dialogue text to display"
+          },
+          "options": {
+            "type": "array",
+            "description": "Player choices. If absent/empty, node uses 'next' for auto-advance or is terminal.",
+            "items": {
+              "type": "object",
+              "required": ["text"],
+              "additionalProperties": false,
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "Choice button text"
+                },
+                "next": {
+                  "type": "string",
+                  "description": "Target node ID. Omit or '$end' to end dialogue."
+                },
+                "condition": {
+                  "description": "Condition for option visibility. Empty = always visible. Use type 'inventory' to check item ownership or type 'tag' to check gameplay tags on the instigator actor.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "inventory",
+                          "description": "Check instigator inventory for item ownership"
+                        },
+                        "id": {
+                          "type": "string",
+                          "description": "Item ObjectDefinition id. RENAME WARNING: Must match object definition id field."
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "Minimum quantity required (default: 1)",
+                          "default": 1
+                        },
+                        "exact": {
+                          "type": "boolean",
+                          "description": "true = exact id match, false = prefix/family match (default: true)",
+                          "default": true
+                        }
+                      },
+                      "required": ["type", "id"]
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "tag",
+                          "description": "Check instigator actor for gameplay tag via IGameplayTagAssetInterface"
+                        },
+                        "id": {
+                          "type": "string",
+                          "description": "Gameplay tag name (e.g. Quest.ElderTrust)"
+                        },
+                        "exact": {
+                          "type": "boolean",
+                          "description": "true = exact tag only, false = hierarchy-aware parent match (default: true)",
+                          "default": true
+                        }
+                      },
+                      "required": ["type", "id"]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "next": {
+            "type": "string",
+            "description": "Auto-advance to this node (used when no options). Omit for terminal."
+          },
+          "actions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Action strings dispatched on node entry to IProjectActionReceiver components on ActionTarget (or owner), owner fallback, and instigator. Format: namespace.command[:argument]. Examples: lock.unlock, motion.open, inventory.consume:WaterBottle*, dialogue.set_tree:/ProjectObject/.../DLG_X.DLG_X. RENAME WARNING: inventory.consume references object definition IDs, dialogue.set_tree references DLG_*.json asset paths. Renaming either causes silent runtime failure."
+          }
+        }
+      }
+    }
+  }
+}

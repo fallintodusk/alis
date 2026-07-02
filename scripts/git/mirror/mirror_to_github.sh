@@ -177,6 +177,10 @@ text_replacements = [
     (re.compile(r"/mnt/[A-Za-z]/Repos_Alis/Alis"), r"<project-root>"),
     (re.compile(r"\\\\wsl\.localhost\\[^\\]+\\home\\[^\\]+\\repos_alis\\cdn"), r"<cdn-repo>"),
     (re.compile(r"/home/[^/]+/repos_alis/cdn"), r"<cdn-repo>"),
+    (re.compile(r"~/repos_alis/cdn"), r"<cdn-repo>"),
+    (re.compile(r"~/repos_alis/site"), r"<site-root>"),
+    (re.compile(r"~/repos_alis/Alis"), r"<project-root>"),
+    (re.compile(r"~/repos_alis/"), r"$HOME/repos_alis/"),
     (re.compile(r"[A-Za-z]:\\UnrealEngine(?:-[0-9.]+|\\UE_[0-9.]+)"), r"<ue-path>"),
     (re.compile(r"[A-Za-z]:/UnrealEngine(?:-[0-9.]+|/UE_[0-9.]+)"), r"<ue-path>"),
     (re.compile(r"[A-Za-z]:\\Program Files(?: \\(x86\\))?\\Epic Games\\UE_[0-9.]+"), r"<ue-path>"),
@@ -361,7 +365,7 @@ validate_filtered_tree() {
     rel_path_lc="$(printf '%s' "$rel_path" | tr '[:upper:]' '[:lower:]')"
 
     case "$rel_path_lc" in
-      binaries|binaries/*|build|build/*|content|content/*|config|config/*|deriveddatacache|deriveddatacache/*|intermediate|intermediate/*|saved|saved/*|releases|releases/*|artifacts|artifacts/*|localappdata|localappdata/*|langchain_env|langchain_env/*|plugins/*/binaries|plugins/*/binaries/*|plugins/*/content|plugins/*/content/*|plugins/*/intermediate|plugins/*/intermediate/*|plugins/*/resources|plugins/*/resources/*|plugins/*/data|plugins/*/data/*|plugins/*/thirdparty|plugins/*/thirdparty/*)
+      binaries|binaries/*|build|build/*|content|content/*|config|config/*|deriveddatacache|deriveddatacache/*|intermediate|intermediate/*|saved|saved/*|releases|releases/*|artifacts|artifacts/*|localappdata|localappdata/*|langchain_env|langchain_env/*|plugins/*/binaries|plugins/*/binaries/*|plugins/*/content|plugins/*/content/*|plugins/*/intermediate|plugins/*/intermediate/*|plugins/*/resources|plugins/*/resources/*|plugins/*/thirdparty|plugins/*/thirdparty/*)
         printf '[FAIL] Forbidden path survived filtering: %s\n' "$rel_path" >&2
         fail_flag=1
         ;;
@@ -369,11 +373,24 @@ validate_filtered_tree() {
 
     if [[ -f "$item" ]]; then
       case "$rel_path_lc" in
-        *.uasset|*.umap|*.ubulk|*.uexp|*.utoc|*.ucas|*.pak|*.dll|*.exe|*.pdb|*.obj|*.lib|*.so|*.dylib|*.app|*.ipa|*.kdbx|*.pem|*.pfx|*.key|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.bmp|*.tga|*.tiff|*.ico|*.psd|*.xcf|*.ai|*.fbx|*.3ds|*.glb|*.gltf|*.wav|*.mp3|*.ogg|*.flac|*.mp4|*.mov|*.avi|*.webm)
+        *.uasset|*.umap|*.ubulk|*.uexp|*.uptnl|*.ushaderbytecode|*.utoc|*.ucas|*.pak|*.dll|*.exe|*.pdb|*.obj|*.lib|*.so|*.dylib|*.app|*.ipa|*.kdbx|*.pem|*.pfx|*.p12|*.key|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.bmp|*.tga|*.tiff|*.exr|*.ico|*.psd|*.xcf|*.ai|*.fbx|*.blend|*.3ds|*.glb|*.gltf|*.wav|*.mp3|*.ogg|*.flac|*.mp4|*.mov|*.avi|*.webm)
           printf '[FAIL] Forbidden file type survived filtering: %s\n' "$rel_path" >&2
           fail_flag=1
           ;;
       esac
+
+      # Generic binary guard: the public mirror is source/docs/text data only.
+      # grep -I treats a NUL-containing file as binary and yields no match, so
+      # this fails ANY non-empty binary file regardless of extension. This is what
+      # makes "text data only" true rather than trusting the extension denylist
+      # alone (an unknown-extension binary under a now-published Data/ dir, etc.).
+      # Empty pattern '' matches every line (incl. blank), so a blank-line-only
+      # text file passes; only NUL/binary content fails. NOTE: UTF-16 files
+      # contain NUL bytes and will fail here by design -- keep mirrored text UTF-8.
+      if [[ -s "$item" ]] && ! LC_ALL=C grep -Iq '' "$item"; then
+        printf '[FAIL] Binary-like file survived filtering: %s\n' "$rel_path" >&2
+        fail_flag=1
+      fi
     fi
   done < <(find "$filtered_dir" -mindepth 1 -print0)
 

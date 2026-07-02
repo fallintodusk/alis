@@ -1,0 +1,209 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "children": [
+      {
+        "name": "Text_Title",
+        "type": "TextBlock",
+        "text": "Settings",
+        "position": {"x": 960, "y": 100},
+        "anchor": "TopCenter",
+        "font": "HeadingLarge",
+        "color": "Text"
+      },
+      {
+        "name": "Button_GraphicsTab",
+        "type": "Button",
+        "text": "Graphics",
+        "position": {"x": 360, "y": 200},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopLeft",
+        "variant": "Primary"
+      },
+      {
+        "name": "Button_AudioTab",
+        "type": "Button",
+        "text": "Audio",
+        "position": {"x": 580, "y": 200},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopLeft",
+        "variant": "Secondary"
+      },
+      {
+        "name": "Button_GameplayTab",
+        "type": "Button",
+        "text": "Gameplay",
+        "position": {"x": 800, "y": 200},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopLeft",
+        "variant": "Secondary"
+      },
+      {
+        "name": "Panel_GraphicsSettings",
+        "type": "CanvasPanel",
+        "children": [
+          {
+            "name": "Text_GraphicsQuality",
+            "type": "TextBlock",
+            "text": "Graphics Quality",
+            "position": {"x": 400, "y": 300},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_Resolution",
+            "type": "TextBlock",
+            "text": "Resolution",
+            "position": {"x": 400, "y": 360},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_WindowMode",
+            "type": "TextBlock",
+            "text": "Window Mode",
+            "position": {"x": 400, "y": 420},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_VSync",
+            "type": "TextBlock",
+            "text": "VSync",
+            "position": {"x": 400, "y": 480},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          }
+        ]
+      },
+      {
+        "name": "Panel_AudioSettings",
+        "type": "CanvasPanel",
+        "visible": false,
+        "children": [
+          {
+            "name": "Text_MasterVolume",
+            "type": "TextBlock",
+            "text": "Master Volume",
+            "position": {"x": 400, "y": 300},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_MusicVolume",
+            "type": "TextBlock",
+            "text": "Music Volume",
+            "position": {"x": 400, "y": 360},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_SFXVolume",
+            "type": "TextBlock",
+            "text": "SFX Volume",
+            "position": {"x": 400, "y": 420},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_VoiceVolume",
+            "type": "TextBlock",
+            "text": "Voice Volume",
+            "position": {"x": 400, "y": 480},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          }
+        ]
+      },
+      {
+        "name": "Panel_GameplaySettings",
+        "type": "CanvasPanel",
+        "visible": false,
+        "children": [
+          {
+            "name": "Text_MouseSensitivity",
+            "type": "TextBlock",
+            "text": "Mouse Sensitivity",
+            "position": {"x": 400, "y": 300},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_InvertMouseY",
+            "type": "TextBlock",
+            "text": "Invert Mouse Y",
+            "position": {"x": 400, "y": 360},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_FOV",
+            "type": "TextBlock",
+            "text": "Field of View",
+            "position": {"x": 400, "y": 420},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_ShowFPS",
+            "type": "TextBlock",
+            "text": "Show FPS",
+            "position": {"x": 400, "y": 480},
+            "anchor": "TopLeft",
+            "font": "BodyMedium",
+            "color": "Text"
+          }
+        ]
+      },
+      {
+        "name": "Button_Apply",
+        "type": "Button",
+        "text": "Apply",
+        "position": {"x": 960, "y": 900},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopCenter",
+        "variant": "Primary"
+      },
+      {
+        "name": "Button_Reset",
+        "type": "Button",
+        "text": "Reset",
+        "position": {"x": 760, "y": 900},
+        "size": {"x": 180, "y": 50},
+        "anchor": "TopCenter",
+        "variant": "Secondary"
+      },
+      {
+        "name": "Button_Default",
+        "type": "Button",
+        "text": "Defaults",
+        "position": {"x": 1180, "y": 900},
+        "size": {"x": 180, "y": 50},
+        "anchor": "TopCenter",
+        "variant": "Secondary"
+      },
+      {
+        "name": "Button_Back",
+        "type": "Button",
+        "text": "Back",
+        "position": {"x": 960, "y": 970},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopCenter",
+        "variant": "Text"
+      }
+    ]
+  }
+}

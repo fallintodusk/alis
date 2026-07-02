@@ -1,0 +1,605 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "object.schema.json",
+  "title": "Object Definition",
+  "description": "Schema for ALIS data-driven world objects and skeletal actors (doors, furniture, containers, characters, NPCs, creatures). Skeletal actors use the same definition with optional kind/role/visibility fields on meshes and SkeletalAssembly capability for lifecycle orchestration. IMPORTANT: Field names must match USTRUCT property names (case-insensitive) for FJsonObjectConverter auto-parsing. Every object JSON file MUST include a $schema field pointing to this file (relative path). See FObjectMeshEntry in ObjectDefinition.h.",
+
+  "x-alis-generator": {
+    "TypeName": "Object",
+    "DefinitionClass": "/Script/ProjectObject.ObjectDefinition",
+    "SourceSubDir": "../Content",
+    "GeneratedContentPath": "/ProjectObject",
+    "IdPropertyName": "ObjectId",
+    "GeneratorVersion": 1
+  },
+
+  "type": "object",
+  "required": ["id"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored by generator)"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique object identifier (used for FPrimaryAssetId). RENAME WARNING: Referenced by loot profiles (objectId), storage seedEntries, dialogue actions (inventory.consume), and dialogue conditions (inventory check). Run scripts/ue/check/gameplay/projectmind/validate_data.py after renaming.",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "spawnClass": {
+      "type": "string",
+      "description": "Optional actor class path override for spawned parent actor. Accepted forms: Blueprint asset path (/Game/Path/BP_Npc) or native class path (/Script/Module.ClassName). Invalid values are ignored and fallback spawn class is used."
+    },
+    "attachToComponentTag": {
+      "type": "string",
+      "description": "Optional component tag used as default attachment root for generated meshes. If omitted, ObjectAttachRoot tag is used when present, otherwise actor root."
+    },
+    "actorTags": {
+      "type": "array",
+      "description": "Optional actor tags applied to spawned actor instance. Useful for scenario wiring via tag lookup.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "actorScale": {
+      "type": "number",
+      "description": "Uniform actor scale applied to root component. Scales entire actor (capsule, meshes, grooms). Default 1.0.",
+      "minimum": 0.01,
+      "default": 1.0
+    },
+    "meshes": {
+      "type": "array",
+      "description": "Mesh components that compose this object. Supports static meshes, skeletal meshes, and customizable skeletal meshes.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "asset"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Mesh ID for capability scope references (e.g., 'body', 'door', 'panel')"
+          },
+          "asset": {
+            "type": "string",
+            "description": "Asset path to mesh (StaticMesh or SkeletalMesh). Runtime casts loaded UObject to determine component type. Accepts short path (/ProjectObject/Mesh/SM_X) or full soft path. Generator normalizes to full soft path."
+          },
+          "parent": {
+            "type": "string",
+            "description": "Optional parent mesh ID. If specified, this mesh attaches to the parent mesh instead of actor root. Parent mesh must be defined earlier in the array."
+          },
+          "transform": {
+            "type": "object",
+            "description": "Relative transform from actor root. Uses UE ImportText string format.",
+            "additionalProperties": false,
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "Relative position in UE format: (X=val Y=val Z=val)",
+                "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$",
+                "default": "(X=0 Y=0 Z=0)"
+              },
+              "rotation": {
+                "type": "string",
+                "description": "Relative rotation in UE format: (P=pitch Y=yaw R=roll) degrees",
+                "pattern": "^\\(P=-?[0-9.]+ Y=-?[0-9.]+ R=-?[0-9.]+\\)$",
+                "default": "(P=0 Y=0 R=0)"
+              },
+              "scale": {
+                "type": "string",
+                "description": "Scale in UE format: (X=val Y=val Z=val)",
+                "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$",
+                "default": "(X=1 Y=1 Z=1)"
+              }
+            }
+          },
+          "physics": {
+            "type": "object",
+            "description": "Physics simulation settings. Applied when explicitly enabled by the object definition or when Chaos constraints are used.",
+            "additionalProperties": false,
+            "properties": {
+              "massKg": {
+                "type": "number",
+                "description": "Mass override in kg (default: auto from mesh)",
+                "minimum": 0.1
+              },
+              "linearDamping": {
+                "type": "number",
+                "description": "Linear velocity damping (default: 0.01)",
+                "minimum": 0,
+                "default": 0.01
+              },
+              "angularDamping": {
+                "type": "number",
+                "description": "Angular velocity damping (default: 0.0)",
+                "minimum": 0,
+                "default": 0.0
+              },
+              "collisionProfile": {
+                "type": "string",
+                "description": "Collision profile name (default: PhysicsActor)",
+                "default": "PhysicsActor"
+              },
+              "enableGravity": {
+                "type": "boolean",
+                "description": "Enable gravity (default: false for constrained objects)",
+                "default": false
+              }
+            }
+          },
+          "materials": {
+            "type": "array",
+            "description": "Optional material overrides. Array index maps to material slot index. Supports short paths (auto-normalized) or full soft object paths. Empty array or omitted = use mesh defaults.",
+            "items": {
+              "type": ["string", "null"]
+            },
+            "examples": [
+              ["/Game/Materials/M_DoorWood", "/Game/Materials/M_Glass"],
+              ["/ProjectObject/Materials/M_MetalFrame", null, "/Game/Materials/M_Handle"]
+            ]
+          },
+          "animClass": {
+            "type": "string",
+            "description": "Optional AnimBlueprint class path for skeletal meshes. Ignored for static meshes. Sets USkeletalMeshComponent::AnimClass at spawn. Uses class path format (/Game/Path/ABP_Name)."
+          },
+          "bindingAsset": {
+            "type": "string",
+            "description": "Groom binding asset path. Required when kind=Groom. Links GroomAsset to parent SkeletalMesh skeleton. Path to UGroomBindingAsset."
+          },
+          "retargetTag": {
+            "type": "string",
+            "description": "IK Retargeter lookup tag. Inserted as first ComponentTag on the mesh. ABP_WorldBodyRetarget reads ComponentTags[0] to resolve which IKRetargeter asset to use from its IKRetargeter_Map. Must match a key in that map."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Optional component type override. When omitted, auto-detects from asset (StaticMesh or SkeletalMesh). Required for types that cannot be auto-detected.",
+            "enum": ["SkeletalMesh", "StaticMesh", "CustomizableSkeletalMesh", "Groom"]
+          },
+          "role": {
+            "type": "string",
+            "description": "Optional semantic role for assembly orchestration. Only valid when SkeletalAssembly capability is present. The assembly component reads roles to build the component graph.",
+            "enum": ["DriverBody", "WorldBody", "LocalBody", "Head", "BodyCustomization", "HeadCustomization", "LocalBodyCustomization"]
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Optional visibility policy for assembly orchestration. Only valid when SkeletalAssembly capability is present.",
+            "enum": ["Hidden", "OwnerOnly", "SkipOwner"]
+          }
+        }
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "description": "Trigger shape components (Box, Sphere, Capsule). Used by capabilities like EnvironmentEffect for overlap detection. Created during spawn between meshes and capabilities.",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Trigger ID. Capabilities reference this via TriggerComponentName property."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Shape type for the trigger volume.",
+            "enum": ["Box", "Sphere", "Capsule"]
+          },
+          "extent": {
+            "type": "string",
+            "description": "Box half-extent in UE format: (X=val Y=val Z=val). Only used when kind=Box.",
+            "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$",
+            "default": "(X=100 Y=100 Z=100)"
+          },
+          "radius": {
+            "type": "number",
+            "description": "Radius in cm. Used for Sphere and Capsule kinds.",
+            "minimum": 0.1,
+            "default": 100.0
+          },
+          "halfHeight": {
+            "type": "number",
+            "description": "Half-height in cm. Only used for Capsule kind.",
+            "minimum": 0.1,
+            "default": 100.0
+          },
+          "transform": {
+            "type": "object",
+            "description": "Relative transform from actor root.",
+            "additionalProperties": false,
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "Relative position in UE format: (X=val Y=val Z=val)",
+                "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$",
+                "default": "(X=0 Y=0 Z=0)"
+              },
+              "rotation": {
+                "type": "string",
+                "description": "Relative rotation in UE format: (P=pitch Y=yaw R=roll) degrees",
+                "pattern": "^\\(P=-?[0-9.]+ Y=-?[0-9.]+ R=-?[0-9.]+\\)$",
+                "default": "(P=0 Y=0 R=0)"
+              }
+            }
+          },
+          "collisionProfile": {
+            "type": "string",
+            "description": "Collision profile name. Default: OverlapAllDynamic.",
+            "default": "OverlapAllDynamic"
+          },
+          "postProcess": {
+            "type": "object",
+            "description": "Optional post-process settings applied inside this trigger's bounds. UPostProcessComponent attached to shape inherits volume bounds automatically. Component-level fields (priority, blendRadius, blendWeight) configure the volume. The 'settings' object is auto-parsed into FPostProcessSettings via FJsonObjectConverter -- any UE post-process property name is valid (bOverride_* flags set automatically for non-default values). 'material' adds a post-process material blendable.",
+            "additionalProperties": false,
+            "properties": {
+              "priority": {
+                "type": "number",
+                "description": "Post-process priority. Higher overrides lower when volumes overlap.",
+                "default": 0.0
+              },
+              "blendRadius": {
+                "type": "number",
+                "description": "World-space blend radius in cm around the volume edge.",
+                "minimum": 0.0,
+                "default": 100.0
+              },
+              "blendWeight": {
+                "type": "number",
+                "description": "Effect intensity. 0 = no effect, 1 = full effect.",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "default": 1.0
+              },
+              "material": {
+                "type": "string",
+                "description": "Post process material asset path (e.g., /ProjectObject/Path/PP_Fog_Mat_Inst). Applied as blendable."
+              },
+              "materialWeight": {
+                "type": "number",
+                "description": "Blend weight for the post process material.",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "default": 1.0
+              },
+              "settings": {
+                "type": "object",
+                "description": "FPostProcessSettings fields. Any UPROPERTY name from FPostProcessSettings is valid (e.g., SceneColorTint, VignetteIntensity, ColorSaturation, BloomIntensity). bOverride_* flags are set automatically. Uses UE ImportText format for struct values.",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Capability components attached to this object. Validated by FDefinitionValidator::ValidateObjectCapabilities.",
+      "items": {
+        "type": "object",
+        "required": ["type", "scope"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Capability ID from FCapabilityRegistry (e.g., 'Lockable', 'Hinged', 'SkeletalAssembly', 'MotionMatching'). One registry for all capabilities."
+          },
+          "scope": {
+            "type": "array",
+            "description": "Target scope: ['actor'] for per-actor, or mesh IDs ['door'] for per-mesh. VALIDATED: IDs must exist in meshes array.",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "properties": {
+            "type": "object",
+            "description": "Property overrides (string values parsed via FProperty::ImportText). Sliding: use Position mode (OpenPosition) OR Direction mode (SlideDirection+OpenDistance), not both. MotionMode defaults to \"Kinematic\" if omitted. Only the selected mode config is applied; other mode keys are ignored. Chaos constraints are opt-in via MotionMode = \"Chaos\". Chaos config values (HingePivotLocal, SliderPivotLocal, motor params) do not enable Chaos by themselves. Nested config fields are supported by name (e.g., Stiffness maps to KinematicConfig.Stiffness). See Plugins/Systems/ProjectMotionSystem/docs/motion_modes.md for details.",
+            "additionalProperties": { "type": "string" },
+            "x-alis-notes": "Asset references (TSoftObjectPtr) require full UE object path: /Mount/Path/Asset.Asset (e.g., /ProjectObject/Dir/DLG_X.DLG_X). Simple types (float, bool, FVector, FGameplayTag) use ImportText format. RENAME WARNING: DialogueTreeAsset and AudioPresetAsset reference generated UAsset paths from DLG_*.json and AUDIO_*.json. Renaming those files requires updating all object definitions that reference them.",
+            "examples": [
+              {
+                "MotionMode": "Chaos",
+                "OpenAngle": "-95",
+                "HingePivotLocal": "(0,-50,0)",
+                "HingeFrameRotationPYR": "(0,0,0)",
+                "HingeLimitDeg": "95",
+                "HingeMotorStrength": "8000",
+                "HingeMotorDamping": "150",
+                "HingeMotorMaxForce": "200000",
+                "HingeMotorSleepThreshold": "1.0"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "sections": {
+      "type": "object",
+      "description": "Optional data sections for other systems (inventory, storage, quest). See layer_contract.md.",
+      "additionalProperties": false,
+      "properties": {
+        "item": {
+          "type": "object",
+          "description": "Item section: identity + rules + behavior refs for inventory/UI/GAS systems.",
+          "additionalProperties": false,
+          "properties": {
+            "displayName": {
+              "type": "string",
+              "description": "UI display name for inventory"
+            },
+            "description": {
+              "type": "string",
+              "description": "Tooltip/description text"
+            },
+            "iconCode": {
+              "type": "string",
+              "description": "Icon font codepoint (Game Icons font, e.g. \\uF88D)"
+            },
+            "weight": {
+              "type": "number",
+              "description": "Weight in kg for encumbrance",
+              "minimum": 0,
+              "default": 0
+            },
+            "volume": {
+              "type": "number",
+              "description": "Volume in liters for container capacity",
+              "minimum": 0,
+              "default": 0
+            },
+            "maxStack": {
+              "type": "integer",
+              "description": "Maximum stack size (1 = non-stackable)",
+              "minimum": 1,
+              "default": 1
+            },
+            "gridSize": {
+              "type": "string",
+              "description": "Grid inventory size as 'X,Y' (e.g., '1,2')",
+              "pattern": "^[0-9]+,[0-9]+$",
+              "default": "1,1"
+            },
+            "tags": {
+              "type": ["string", "array"],
+              "description": "Item categorization tags. String (comma-separated) or array format.",
+              "items": { "type": "string" }
+            },
+            "canBeDropped": {
+              "type": "boolean",
+              "description": "Whether item can be dropped from inventory",
+              "default": true
+            },
+            "canBeTraded": {
+              "type": "boolean",
+              "description": "Whether item can be traded/sold",
+              "default": true
+            },
+            "isQuestItem": {
+              "type": "boolean",
+              "description": "Quest item flag",
+              "default": false
+            },
+            "magnitudes": {
+              "type": "object",
+              "description": "SetByCaller tag to magnitude mapping for consumable effects",
+              "additionalProperties": { "type": "number" }
+            },
+            "consumeOnUse": {
+              "type": "boolean",
+              "description": "Remove item after use",
+              "default": true
+            },
+            "grantedAbilities": {
+              "type": "array",
+              "description": "C++ ability class paths to grant when equipped (e.g., /Script/Module.GA_Class)",
+              "items": { "type": "string" }
+            },
+            "grantedEffects": {
+              "type": "array",
+              "description": "GameplayEffect asset paths to apply when equipped",
+              "items": { "type": "string" }
+            },
+            "equipSlotTag": {
+              "type": "string",
+              "description": "Equipment slot tag (e.g., Item.EquipmentSlot.MainHand)"
+            },
+            "containerGrants": {
+              "type": "array",
+              "description": "Containers granted while equipped",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "containerId": {
+                    "type": "string",
+                    "description": "Container tag (Item.Container.*)"
+                  },
+                  "gridSize": {
+                    "type": "string",
+                    "description": "Grid size as 'X,Y' (e.g., '2,3')",
+                    "pattern": "^[0-9]+,[0-9]+$"
+                  },
+                  "maxWeight": {
+                    "type": "number",
+                    "description": "Max weight for this container (0 = unlimited)",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "maxVolume": {
+                    "type": "number",
+                    "description": "Max volume for this container (0 = unlimited)",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "maxCells": {
+                    "type": "integer",
+                    "description": "Max cells used (0 = unlimited)",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "allowedTags": {
+                    "type": ["string", "array"],
+                    "description": "Allowed item tags (string or array)",
+                    "items": { "type": "string" }
+                  },
+                  "allowRotation": {
+                    "type": "boolean",
+                    "description": "Allow rotation in this container",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "description": "Storage section: canonical world-storage data for searchable props and persistent containers.",
+          "additionalProperties": false,
+          "properties": {
+            "gridSize": {
+              "description": "Grid size as 'X,Y' or object form { x, y }.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+,[0-9]+$"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["x", "y"],
+                  "properties": {
+                    "x": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "maxWeight": {
+              "type": "number",
+              "description": "Max weight for this container in kg (0 = unlimited)",
+              "minimum": 0,
+              "default": 0
+            },
+            "maxVolume": {
+              "type": "number",
+              "description": "Max volume for this container in liters (0 = unlimited)",
+              "minimum": 0,
+              "default": 0
+            },
+            "maxCells": {
+              "type": "integer",
+              "description": "Hard cap on total occupied cells (0 = unlimited)",
+              "minimum": 0,
+              "default": 0
+            },
+            "allowedTags": {
+              "type": ["string", "array"],
+              "description": "Allowed item tags (string or array)",
+              "items": { "type": "string" }
+            },
+            "allowRotation": {
+              "type": "boolean",
+              "description": "Allow rotation in this container",
+              "default": true
+            },
+            "persistent": {
+              "type": "boolean",
+              "description": "Whether this world container persists across sessions",
+              "default": false
+            },
+            "containerSlotId": {
+              "type": "string",
+              "description": "Stable logical slot id for actors exposing multiple containers"
+            },
+            "seedEntries": {
+              "type": "array",
+              "description": "Exact authored entries placed into the container on initialization",
+              "items": {
+                "type": "object",
+                "required": ["objectId"],
+                "additionalProperties": false,
+                "properties": {
+                  "objectId": {
+                    "type": "string",
+                    "description": "ObjectDefinition PrimaryAssetId (e.g., 'ObjectDefinition:WaterBottle'). RENAME WARNING: Must match object definition id field. Mismatch causes silent spawn failure."
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "description": "Number of items to give",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                }
+              }
+            },
+            "lootProfileId": {
+              "type": "string",
+              "description": "Optional shared loot profile primary asset id for randomized fill (e.g. 'LootProfileDefinition:Scavenge_SmallConsumables'). RENAME WARNING: Must match profileId in loot_profile JSON files."
+            }
+          }
+        },
+        "animation": {
+          "type": "object",
+          "description": "Animation config for skeletal assembly definitions.",
+          "additionalProperties": false,
+          "properties": {
+            "locomotionProfile": {
+              "type": "string",
+              "description": "Locomotion profile reference (e.g. 'Human.Default')"
+            },
+            "traversalProfile": {
+              "type": "string",
+              "description": "Optional traversal profile (e.g. 'Human.Parkour')"
+            }
+          }
+        },
+        "customization": {
+          "type": "object",
+          "description": "Customization config for skeletal assembly definitions.",
+          "additionalProperties": false,
+          "properties": {
+            "mutableSource": {
+              "type": "string",
+              "description": "Mutable CustomizableObject asset path"
+            }
+          }
+        },
+        "view": {
+          "type": "object",
+          "description": "View/camera config for skeletal assembly definitions. Camera is policy, not a mesh entry.",
+          "additionalProperties": false,
+          "properties": {
+            "defaultMode": {
+              "type": "string",
+              "description": "Default camera mode",
+              "enum": ["FirstPerson", "ThirdPerson"]
+            },
+            "cameraParent": {
+              "type": "string",
+              "description": "Camera parent component or attach point (e.g. 'Root', 'Head')"
+            },
+            "attachmentPolicy": {
+              "type": "string",
+              "description": "Camera attachment policy (e.g. 'CapsuleFixed', 'BoneFollow')"
+            },
+            "relativeOffset": {
+              "type": "string",
+              "description": "Camera relative offset in UE format: (X=val Y=val Z=val)",
+              "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$"
+            },
+            "neckOffset": {
+              "type": "string",
+              "description": "Neck bone offset from camera in actor-local space: (X=val Y=val Z=val). Used by LocalBodyAnimInstance to lock neck_01 relative to camera.",
+              "pattern": "^\\(X=-?[0-9.]+ Y=-?[0-9.]+ Z=-?[0-9.]+\\)$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,281 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "Border",
+    "name": "OuterFrame",
+    "background": "Secondary",
+    "borderColor": "Secondary",
+    "borderWidth": 2,
+    "padding": 2,
+    "children": [
+      {
+        "type": "Border",
+        "name": "Background",
+        "background": "Surface",
+        "borderColor": "Border",
+        "borderWidth": 1,
+        "padding": 0,
+        "children": [
+          {
+            "type": "VerticalBox",
+            "name": "ContentBox",
+            "spacing": 0,
+            "children": [
+              {
+                "type": "Border",
+                "name": "HeaderPanel",
+                "background": "Background",
+                "padding": {"left": 12, "right": 12, "top": 10, "bottom": 10},
+                "children": [
+                  {
+                    "type": "HorizontalBox",
+                    "name": "HeaderRow",
+                    "spacing": 10,
+                    "children": [
+                      {
+                        "type": "Border",
+                        "name": "HeaderIconBox",
+                        "background": "Surface",
+                        "borderColor": "Border",
+                        "borderWidth": 1,
+                        "padding": 0,
+                        "slot": {
+                          "autoWidth": true,
+                          "verticalAlignment": "Center"
+                        },
+                        "children": [
+                          {
+                            "type": "SizeBox",
+                            "name": "IconSizeBox",
+                            "size": {"x": 34, "y": 34},
+                            "children": [
+                              {
+                                "type": "TextBlock",
+                                "name": "ItemIcon",
+                                "text": "",
+                                "font": "GameIcon",
+                                "color": "Text",
+                                "visibility": "Collapsed"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "VerticalBox",
+                        "name": "HeaderTextColumn",
+                        "slot": {
+                          "sizeRule": "Fill",
+                          "verticalAlignment": "Center"
+                        },
+                        "children": [
+                          {
+                            "type": "TextBlock",
+                            "name": "ItemName",
+                            "text": "",
+                            "font": {"size": 14, "typeface": "Bold"},
+                            "color": "Text"
+                          },
+                          {
+                            "type": "TextBlock",
+                            "name": "ItemMetaText",
+                            "text": "",
+                            "font": {"size": 10},
+                            "color": "TextSecondary",
+                            "visibility": "Collapsed"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "Border",
+                "name": "Divider",
+                "background": "Secondary",
+                "size": {"x": 0, "y": 1}
+              },
+              {
+                "type": "VerticalBox",
+                "name": "BodyColumn",
+                "padding": {"left": 12, "right": 12, "top": 10, "bottom": 10},
+                "children": [
+                  {
+                    "type": "TextBlock",
+                    "name": "ItemDescription",
+                    "text": "",
+                    "font": {"size": 11},
+                    "color": "TextSecondary",
+                    "visibility": "Collapsed"
+                  },
+                  {
+                    "type": "HorizontalBox",
+                    "name": "StatsRow",
+                    "padding": {"top": 8},
+                    "spacing": 8,
+                    "children": [
+                      {
+                        "type": "Border",
+                        "name": "WeightCard",
+                        "background": "Background",
+                        "borderColor": "Border",
+                        "borderWidth": 1,
+                        "padding": {"left": 8, "right": 8, "top": 6, "bottom": 6},
+                        "slot": {"sizeRule": "Fill"},
+                        "children": [
+                          {
+                            "type": "VerticalBox",
+                            "name": "WeightColumn",
+                            "children": [
+                              {
+                                "type": "TextBlock",
+                                "name": "WeightLabel",
+                                "text": "Weight",
+                                "font": {"size": 9},
+                                "color": "TextSecondary"
+                              },
+                              {
+                                "type": "TextBlock",
+                                "name": "WeightText",
+                                "text": "",
+                                "font": {"size": 11, "typeface": "Bold"},
+                                "color": "Success"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "Border",
+                        "name": "VolumeCard",
+                        "background": "Background",
+                        "borderColor": "Border",
+                        "borderWidth": 1,
+                        "padding": {"left": 8, "right": 8, "top": 6, "bottom": 6},
+                        "slot": {"sizeRule": "Fill"},
+                        "children": [
+                          {
+                            "type": "VerticalBox",
+                            "name": "VolumeColumn",
+                            "children": [
+                              {
+                                "type": "TextBlock",
+                                "name": "VolumeLabel",
+                                "text": "Volume",
+                                "font": {"size": 9},
+                                "color": "TextSecondary"
+                              },
+                              {
+                                "type": "TextBlock",
+                                "name": "VolumeText",
+                                "text": "",
+                                "font": {"size": 11, "typeface": "Bold"},
+                                "color": "Secondary"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "HorizontalBox",
+                    "name": "DurabilityRow",
+                    "padding": {"top": 8},
+                    "visibility": "Collapsed",
+                    "children": [
+                      {
+                        "type": "TextBlock",
+                        "name": "DurabilityLabel",
+                        "text": "Durability:",
+                        "font": {"size": 11},
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "type": "Spacer",
+                        "size": {"x": 8, "y": 0}
+                      },
+                      {
+                        "type": "ProgressBar",
+                        "name": "DurabilityBar",
+                        "size": {"x": 110, "y": 8},
+                        "fillColor": {"r": 0.2, "g": 0.8, "b": 0.2, "a": 1},
+                        "percent": 1.0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "VerticalBox",
+                    "name": "EffectsRow",
+                    "padding": {"top": 8},
+                    "visibility": "Collapsed",
+                    "children": [
+                      {
+                        "type": "TextBlock",
+                        "name": "EffectsLabel",
+                        "text": "Use Effects",
+                        "font": {"size": 10},
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "type": "TextBlock",
+                        "name": "EffectsTextTemplate",
+                        "text": "",
+                        "font": {"size": 11},
+                        "color": "TextSecondary",
+                        "visibility": "Collapsed"
+                      },
+                      {
+                        "type": "HorizontalBox",
+                        "name": "EffectsList",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "type": "HorizontalBox",
+                    "name": "AmmoRow",
+                    "padding": {"top": 8},
+                    "visibility": "Collapsed",
+                    "children": [
+                      {
+                        "type": "TextBlock",
+                        "name": "AmmoText",
+                        "text": "",
+                        "font": {"size": 11},
+                        "color": "Warning"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "VerticalBox",
+                    "name": "ModifiersRow",
+                    "padding": {"top": 8},
+                    "visibility": "Collapsed",
+                    "children": [
+                      {
+                        "type": "TextBlock",
+                        "name": "ModifiersLabel",
+                        "text": "Modifiers",
+                        "font": {"size": 10},
+                        "color": "TextSecondary"
+                      },
+                      {
+                        "type": "TextBlock",
+                        "name": "ModifiersText",
+                        "text": "",
+                        "font": {"size": 11},
+                        "color": "Secondary"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

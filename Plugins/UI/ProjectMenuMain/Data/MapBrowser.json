@@ -1,0 +1,107 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "children": [
+      {
+        "name": "Text_Title",
+        "type": "TextBlock",
+        "text": "Select Map",
+        "position": {"x": 960, "y": 80},
+        "anchor": "TopCenter",
+        "font": "HeadingLarge",
+        "color": "Text"
+      },
+      {
+        "name": "SearchBox_MapFilter",
+        "type": "EditableTextBox",
+        "position": {"x": 300, "y": 160},
+        "size": {"x": 500, "y": 50},
+        "anchor": "TopLeft",
+        "hint": "Search maps..."
+      },
+      {
+        "name": "Panel_MapList",
+        "type": "CanvasPanel",
+        "position": {"x": 300, "y": 240},
+        "size": {"x": 500, "y": 600},
+        "anchor": "TopLeft",
+        "children": [
+          {
+            "name": "Text_MapListPlaceholder",
+            "type": "TextBlock",
+            "text": "No maps available",
+            "position": {"x": 250, "y": 300},
+            "anchor": "TopCenter",
+            "font": "BodyMedium",
+            "color": "Text"
+          }
+        ]
+      },
+      {
+        "name": "Panel_SelectedMapDetails",
+        "type": "CanvasPanel",
+        "position": {"x": 900, "y": 160},
+        "size": {"x": 700, "y": 680},
+        "anchor": "TopLeft",
+        "children": [
+          {
+            "name": "Text_DetailsTitle",
+            "type": "TextBlock",
+            "text": "Map Details",
+            "position": {"x": 350, "y": 20},
+            "anchor": "TopCenter",
+            "font": "HeadingMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_SelectedMapName",
+            "type": "TextBlock",
+            "text": "No map selected",
+            "position": {"x": 350, "y": 420},
+            "anchor": "TopCenter",
+            "font": "HeadingSmall",
+            "color": "Text"
+          },
+          {
+            "name": "Text_SelectedMapDescription",
+            "type": "TextBlock",
+            "text": "Select a map from the list to see details",
+            "position": {"x": 350, "y": 480},
+            "anchor": "TopCenter",
+            "font": "BodyMedium",
+            "color": "Text"
+          },
+          {
+            "name": "Text_MapAvailability",
+            "type": "TextBlock",
+            "text": "Status: -",
+            "position": {"x": 350, "y": 560},
+            "anchor": "TopCenter",
+            "font": "BodySmall",
+            "color": "Text"
+          }
+        ]
+      },
+      {
+        "name": "Button_Load",
+        "type": "Button",
+        "text": "Load Map",
+        "position": {"x": 1250, "y": 880},
+        "size": {"x": 250, "y": 60},
+        "anchor": "TopCenter",
+        "variant": "Primary"
+      },
+      {
+        "name": "Button_Back",
+        "type": "Button",
+        "text": "Back",
+        "position": {"x": 960, "y": 970},
+        "size": {"x": 200, "y": 50},
+        "anchor": "TopCenter",
+        "variant": "Text"
+      }
+    ]
+  }
+}

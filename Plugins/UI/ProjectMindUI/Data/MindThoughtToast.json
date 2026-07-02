@@ -1,0 +1,48 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "Border",
+    "name": "ThoughtBorder",
+    "padding": {"left": 12, "right": 12, "top": 10, "bottom": 10},
+    "background": "Background",
+    "opacity": 0.94,
+    "children": [
+      {
+        "type": "VerticalBox",
+        "name": "ThoughtColumn",
+        "spacing": 6,
+        "children": [
+          {
+            "type": "TextBlock",
+            "name": "ThoughtHeaderText",
+            "text": "INNER VOICE",
+            "font": "BodySmall",
+            "color": "TextSecondary"
+          },
+          {
+            "type": "TextBlock",
+            "name": "ThoughtMetaText",
+            "text": "Mind",
+            "font": "BodySmall",
+            "color": "Warning"
+          },
+          {
+            "type": "Border",
+            "name": "ThoughtDivider",
+            "size": {"x": 420, "y": 1},
+            "background": "Border"
+          },
+          {
+            "type": "TextBlock",
+            "name": "ThoughtText",
+            "text": "Thought",
+            "font": "BodyMedium",
+            "color": "Text",
+            "justification": "Left",
+            "wrap_text_at": 420
+          }
+        ]
+      }
+    ]
+  }
+}

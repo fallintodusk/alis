@@ -1,0 +1,31 @@
+[
+  {
+    "id": "ProjectVitalsUI.VitalsHUD",
+    "layer": "UI.Layer.Game",
+    "slot": "HUD.Slot.VitalsMini",
+    "widget_class": "/Script/ProjectVitalsUI.W_VitalsHUD",
+    "viewmodel_class": "/Script/ProjectVitalsUI.VitalsViewModel",
+    "layout_json": "VitalsHUD.json",
+    "load": "Preload",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Game",
+    "priority": 0,
+    "vm_creation": "Global"
+  },
+  {
+    "id": "ProjectVitalsUI.VitalsPanel",
+    "layer": "UI.Layer.Menu",
+    "widget_class": "/Script/ProjectVitalsUI.W_VitalsPanel",
+    "viewmodel_class": "/Script/ProjectVitalsUI.VitalsViewModel",
+    "layout_json": "VitalsPanel.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 10,
+    "vm_creation": "Global"
+  }
+]

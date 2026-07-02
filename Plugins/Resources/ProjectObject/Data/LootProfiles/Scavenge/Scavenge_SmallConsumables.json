@@ -1,0 +1,32 @@
+{
+  "$schema": "../../Schemas/loot_profile.schema.json",
+  "profileId": "Scavenge_SmallConsumables",
+  "pickCountMin": 2,
+  "pickCountMax": 3,
+  "entries": [
+    {
+      "objectId": "ObjectDefinition:WaterBottle",
+      "quantity": 1
+    },
+    {
+      "objectId": "ObjectDefinition:WaterBottleSmall",
+      "quantity": 1
+    },
+    {
+      "objectId": "ObjectDefinition:BreadSlice",
+      "quantity": 1
+    },
+    {
+      "objectId": "ObjectDefinition:BraisedBeans",
+      "quantity": 1
+    },
+    {
+      "objectId": "ObjectDefinition:ChiliConCarne",
+      "quantity": 1
+    },
+    {
+      "objectId": "ObjectDefinition:FishPaste",
+      "quantity": 1
+    }
+  ]
+}

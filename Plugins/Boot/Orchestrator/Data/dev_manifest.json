@@ -1,0 +1,208 @@
+{
+  "$schema": "Schemas/dev_manifest.schema.json",
+  "manifest_version": 1,
+  "engine_build_id": "++UE5+Release-5.7-CL-48512491",
+  "signed_at": "2025-10-31T19:00:00Z",
+  "signing_key_id": "alis-dev-2025",
+  "signature": "DEV_UNSIGNED",
+  "plugins": [
+    {
+      "name": "Orchestrator",
+      "version": "1.0.0",
+      "activation_strategy": "Boot",
+      "module": "OrchestratorCore",
+      "code_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "url_code": "file://./Plugins/Boot/Orchestrator",
+      "url_content": "",
+      "requires_engine_plugins": ["ModularGameplay"],
+      "depends_on": [],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "Orchestrator - Plugin lifecycle manager (Boot infrastructure)"
+    },
+    {
+      "name": "ProjectCore",
+      "version": "0.1.0",
+      "activation_strategy": "Boot",
+      "module": "ProjectCore",
+      "code_hash": "1010101010101010101010101010101010101010101010101010101010101010",
+      "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "url_code": "file://./Plugins/Foundation/ProjectCore",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectCore - Foundation (interfaces, service locator, DIP types)"
+    },
+    {
+      "name": "ProjectUI",
+      "version": "0.1.0",
+      "activation_strategy": "Boot",
+      "module": "ProjectUI",
+      "code_hash": "2020202020202020202020202020202020202020202020202020202020202020",
+      "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "url_code": "file://./Plugins/UI/ProjectUI",
+      "url_content": "",
+      "requires_engine_plugins": ["CommonUI"],
+      "depends_on": [],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectUI - UI framework (MVVM, theming, layouts)"
+    },
+    {
+      "name": "ProjectMenuMain",
+      "version": "0.1.0",
+      "activation_strategy": "Boot",
+      "module": "ProjectMenuMain",
+      "code_hash": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
+      "content_hash": "e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4",
+      "url_code": "file://./Plugins/UI/ProjectMenuMain",
+      "url_content": "",
+      "requires_engine_plugins": ["CommonUI"],
+      "depends_on": [
+        {
+          "name": "ProjectUI",
+          "version": ">=0.1.0"
+        },
+        {
+          "name": "ProjectCore",
+          "version": ">=0.1.0"
+        }
+      ],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectMenuMain - Front-end menu screens"
+    },
+    {
+      "name": "MainMenuWorld",
+      "version": "0.1.0",
+      "activation_strategy": "Boot",
+      "module": "",
+      "code_hash": "3030303030303030303030303030303030303030303030303030303030303030",
+      "content_hash": "4040404040404040404040404040404040404040404040404040404040404040",
+      "url_code": "file://./Plugins/World/MainMenuWorld",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "MainMenuWorld - Main menu / frontend world composition"
+    },
+    {
+      "name": "ProjectInventory",
+      "version": "0.1.0",
+      "activation_strategy": "OnDemand",
+      "module": "ProjectInventory",
+      "code_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+      "content_hash": "8888888888888888888888888888888888888888888888888888888888888888",
+      "url_code": "file://./Plugins/Features/ProjectInventory",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectInventory - Inventory system (OnDemand)"
+    },
+    {
+      "name": "ProjectCombat",
+      "version": "0.1.0",
+      "activation_strategy": "OnDemand",
+      "module": "ProjectCombat",
+      "code_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+      "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "url_code": "file://./Plugins/Features/ProjectCombat",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [
+        {
+          "name": "ProjectInventory",
+          "version": ">=0.1.0"
+        }
+      ],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectCombat - Combat system (OnDemand)"
+    },
+    {
+      "name": "ProjectDialogue",
+      "version": "0.1.0",
+      "activation_strategy": "OnDemand",
+      "module": "ProjectDialogue",
+      "code_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "url_code": "file://./Plugins/Features/ProjectDialogue",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectDialogue - Dialogue system (OnDemand)"
+    },
+    {
+      "name": "ProjectMotionSystem",
+      "version": "0.1.0",
+      "activation_strategy": "Boot",
+      "module": "ProjectMotionSystem",
+      "code_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "url_code": "file://./Plugins/Systems/ProjectMotionSystem",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [
+        {
+          "name": "ProjectCore",
+          "version": ">=0.1.0"
+        }
+      ],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectMotionSystem - Skeleton-agnostic motion primitives"
+    },
+    {
+      "name": "ProjectAnimation",
+      "version": "0.1.0",
+      "activation_strategy": "OnDemand",
+      "module": "ProjectAnimation",
+      "code_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "url_code": "file://./Plugins/Resources/ProjectAnimation",
+      "url_content": "",
+      "requires_engine_plugins": [],
+      "depends_on": [
+        {
+          "name": "ProjectCore",
+          "version": ">=0.1.0"
+        },
+        {
+          "name": "ProjectMotionSystem",
+          "version": ">=0.1.0"
+        }
+      ],
+      "channel": "dev",
+      "signature_thumbprint": "",
+      "size_code": 0,
+      "size_content": 0,
+      "release_notes": "ProjectAnimation - Skeleton-specific animation content and drivers (OnDemand)"
+    }
+  ]
+}

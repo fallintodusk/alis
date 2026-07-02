@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vitals_config.schema.json",
+  "title": "ProjectVitals Runtime Configuration",
+  "description": "Runtime configuration for ProjectVitals (condition, stamina, survival, status, metabolism). Values seed the VitalsComponent's state. Field names mirror the C++ struct properties consumed by FJsonObjectConverter.",
+  "type": "object",
+  "required": ["$schema", "condition", "stamina"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "max"],
+      "properties": {
+        "current": { "type": "number" },
+        "max": { "type": "number", "exclusiveMinimum": 0 },
+        "regenRate": { "type": "number" },
+        "baseRegenDays": { "type": "number" },
+        "survival": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "calories": { "$ref": "#/$defs/survivalStat" },
+            "hydration": { "$ref": "#/$defs/survivalStat" },
+            "fatigue": { "$ref": "#/$defs/survivalStat" }
+          }
+        },
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bleeding": { "$ref": "#/$defs/statusStat" },
+            "poisoned": { "$ref": "#/$defs/statusStat" },
+            "radiation": { "$ref": "#/$defs/statusStat" }
+          }
+        },
+        "metabolism": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "characterWeightKg": { "type": "number", "exclusiveMinimum": 0 },
+            "hydrationPerKcal": { "type": "number", "minimum": 0 },
+            "activity": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "metIdle": { "type": "number" },
+                "metWalk": { "type": "number" },
+                "metJog": { "type": "number" },
+                "metSprint": { "type": "number" },
+                "speedThresholdIdle": { "type": "number" },
+                "speedThresholdWalk": { "type": "number" },
+                "speedThresholdJog": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "stamina": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "max"],
+      "properties": {
+        "current": { "type": "number" },
+        "max": { "type": "number", "exclusiveMinimum": 0 },
+        "regenRate": { "type": "number" },
+        "movement": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sprintDrainPerSec": { "type": "number" },
+            "jogDrainPerSec": { "type": "number" },
+            "baseRegenPerSec": { "type": "number" }
+          }
+        },
+        "interactions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "light": { "type": "number" },
+            "medium": { "type": "number" },
+            "heavy": { "type": "number" },
+            "minRequired": { "type": "number" }
+          }
+        },
+        "combat": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lightAttack": { "type": "number" },
+            "heavyAttack": { "type": "number" },
+            "dodge": { "type": "number" },
+            "blockPerSec": { "type": "number" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "survivalStat": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "current": { "type": "number" },
+        "max": { "type": "number", "exclusiveMinimum": 0 },
+        "conditionDeathDays": { "type": "number", "exclusiveMinimum": 0 },
+        "hoursToEmpty": { "type": "number" }
+      }
+    },
+    "statusStat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "max", "tiers"],
+      "properties": {
+        "current": { "type": "number" },
+        "max": { "type": "number", "exclusiveMinimum": 0 },
+        "tiers": {
+          "type": "object",
+          "description": "Tier threshold map. Keys are tier names; values are normalized thresholds in [0,1].",
+          "additionalProperties": { "type": "number" }
+        }
+      }
+    }
+  }
+}

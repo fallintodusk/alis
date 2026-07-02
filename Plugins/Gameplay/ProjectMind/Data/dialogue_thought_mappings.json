@@ -1,0 +1,38 @@
+{
+  "$schema": "Schemas/dialogue_thought_mappings.schema.json",
+  "entries": [
+    {
+      "signal_tags": [
+        "Dialogue.DLG_GrandPa_Entry.greeting",
+        "Dialogue.DLG_GrandPa_Entry.backstory",
+        "Dialogue.DLG_GrandPa_Entry.come_back"
+      ],
+      "thought_id": "Mind.Dialogue.Grandpa.NeedsWater",
+      "text": "Grandpa needs water. I should find some.",
+      "time_to_live_sec": 8.0,
+      "cooldown_sec": 8.0,
+      "channel": "ToastAndJournal",
+      "priority": 90,
+      "source_type": "Dialogue",
+      "record_id": "Record.Dialogue.Grandpa.NeedsWater",
+      "record_state": "Active"
+    },
+    {
+      "signal_tags": [
+        "Dialogue.Option.DLG_GrandPa_Entry.greeting.Next.give_water",
+        "Dialogue.Option.DLG_GrandPa_Entry.backstory.Next.give_water",
+        "Dialogue.DLG_GrandPa_Entry.give_water",
+        "Dialogue.DLG_GrandPa_Entry.open_door"
+      ],
+      "thought_id": "Mind.Dialogue.Grandpa.WaterResolved",
+      "text": "Grandpa has water now.",
+      "time_to_live_sec": 7.0,
+      "cooldown_sec": 3.0,
+      "channel": "ToastAndJournal",
+      "priority": 95,
+      "source_type": "Dialogue",
+      "record_id": "Record.Dialogue.Grandpa.NeedsWater",
+      "record_state": "Resolved"
+    }
+  ]
+}

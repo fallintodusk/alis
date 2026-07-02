@@ -1,0 +1,39 @@
+{
+  "_comment": "Example JSON override file for single-play modes",
+  "_usage": "Copy this file to ModeOverrides.json to enable overrides",
+  "_location": "Config/SinglePlay/ModeOverrides.json",
+
+  "modes": [
+    {
+      "_comment": "Override difficulty for existing 'Single' mode (defined in C++)",
+      "modeName": "Single",
+      "featureConfigs": {
+        "Difficulty": "{\"level\":\"normal\",\"damageMultiplier\":1.0}"
+      }
+    },
+    {
+      "_comment": "Add a completely new mode via JSON",
+      "modeName": "Survival",
+      "defaultPawnClass": "/Game/Blueprints/BP_SurvivalPawn.BP_SurvivalPawn_C",
+      "playerControllerClass": "/Script/ProjectSinglePlayClient.SinglePlayController",
+      "featureComponents": [
+        "/Script/ProjectCombat.CombatComponent",
+        "/Script/ProjectInventory.InventoryComponent"
+      ],
+      "featureConfigs": {
+        "Difficulty": "{\"level\":\"hard\",\"damageMultiplier\":1.5}",
+        "Hunger": "{\"enabled\":true,\"drainRate\":0.1}",
+        "Thirst": "{\"enabled\":true,\"drainRate\":0.15}",
+        "Permadeath": "{\"enabled\":false}"
+      }
+    },
+    {
+      "_comment": "Override existing 'Hardcore' mode with additional configs",
+      "modeName": "Hardcore",
+      "featureConfigs": {
+        "Combat": "{\"friendlyFire\":true}",
+        "SaveSystem": "{\"autoSave\":false,\"manualSaveOnly\":true,\"singleSlot\":true}"
+      }
+    }
+  ]
+}

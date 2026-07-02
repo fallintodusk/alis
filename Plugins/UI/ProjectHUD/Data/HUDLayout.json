@@ -1,0 +1,53 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "name": "VitalsMiniSlot",
+        "type": "Overlay",
+        "anchor": "TopLeft",
+        "position": {"x": 20, "y": 20},
+        "size": {"x": 300, "y": 32},
+        "comment": "HUD.Slot.VitalsMini - Condition bar only (top-left, padded). Longer bar for visibility."
+      },
+      {
+        "name": "StatusIconsSlot",
+        "type": "Overlay",
+        "anchor": "TopLeft",
+        "position": {"x": 330, "y": 20},
+        "autoSize": true,
+        "comment": "HUD.Slot.StatusIcons - Bleeding, poisoned, radiation icons. AutoSize for dynamic row of icons."
+      },
+      {
+        "name": "InteractionPromptContainer",
+        "type": "Overlay",
+        "anchor": "BottomCenter",
+        "alignment": {"x": 0.5, "y": 1.0},
+        "position": {"x": 0, "y": -100},
+        "autoSize": true,
+        "comment": "Fixed container for [E] Open/Close interaction prompt. Centered, above crosshair."
+      },
+      {
+        "name": "MindThoughtSlot",
+        "type": "Overlay",
+        "anchor": "TopRight",
+        "alignment": {"x": 1.0, "y": 0.0},
+        "position": {"x": -20, "y": 20},
+        "autoSize": true,
+        "comment": "HUD.Slot.MindThought - top-right temporary internal thought messages."
+      },
+      {
+        "name": "ToastContainer",
+        "type": "Overlay",
+        "anchor": "TopCenter",
+        "alignment": {"x": 0.5, "y": 0.0},
+        "position": {"x": 0, "y": 60},
+        "autoSize": true,
+        "comment": "Toast notifications - centered at top, below vitals bar."
+      }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "loot_profile.schema.json",
+  "title": "Loot Profile Definition",
+  "description": "Schema for shared reusable loot-profile definitions. Used by sections.storage.lootProfileId so objects stay exact by default and reusable randomization lives in one place.",
+
+  "x-alis-generator": {
+    "TypeName": "LootProfileDefinition",
+    "DefinitionClass": "/Script/ProjectObject.LootProfileDefinition",
+    "SourceSubDir": "LootProfiles",
+    "GeneratedContentPath": "/ProjectObject/LootProfiles",
+    "IdPropertyName": "ProfileId",
+    "GeneratorVersion": 1
+  },
+
+  "type": "object",
+  "required": ["profileId", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored by generator)"
+    },
+    "profileId": {
+      "type": "string",
+      "description": "Stable loot profile identifier used for FPrimaryAssetId lookup. RENAME WARNING: Referenced by object definitions via sections.storage.lootProfileId. Mismatch causes silent empty containers.",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "pickCountMin": {
+      "type": "integer",
+      "description": "Minimum unique entry picks from this profile",
+      "minimum": 0,
+      "default": 0
+    },
+    "pickCountMax": {
+      "type": "integer",
+      "description": "Maximum unique entry picks from this profile",
+      "minimum": 0,
+      "default": 0
+    },
+    "entries": {
+      "type": "array",
+      "description": "Candidate entries for randomized fill",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["objectId"],
+        "additionalProperties": false,
+        "properties": {
+          "objectId": {
+            "type": "string",
+            "description": "ObjectDefinition PrimaryAssetId (e.g. 'ObjectDefinition:WaterBottle'). RENAME WARNING: Must match object definition id field. Mismatch causes silent spawn failure."
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Quantity to add when selected",
+            "minimum": 1,
+            "default": 1
+          }
+        }
+      }
+    }
+  }
+}

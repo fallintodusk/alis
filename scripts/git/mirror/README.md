@@ -20,17 +20,24 @@ The script does not change local `origin` and does not push from your working re
 
 ## Public-First Policy
 
-ALIS mirror policy is public-first:
+ALIS mirror policy is public-first and denylist-first: a tracked file is
+published unless it (or a parent dir) matches a rule in `mirror.exclude`. Folder
+name alone does not make content private.
 - code is public by default;
 - architecture and build docs are public by default;
-- build, packaging, and verification scripts are public by default.
+- build, packaging, and verification scripts are public by default;
+- plugin `Data/` JSON schemas and data-driven generator inputs (loot, dialogue,
+  UI layouts, vitals) are public references; source in a folder named `Data` is
+  code and stays public too.
 
 What stays out of the mirror:
 - secrets and credentials;
-- private keys;
+- private keys and key material (`*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`);
 - machine-local config;
 - generated outputs;
-- licensed or non-redistributable asset payloads.
+- licensed or non-redistributable asset payloads;
+- UE asset/binary/media file TYPES anywhere - including inside published `Data/`
+  dirs, where only text/JSON survives.
 
 This matches the long-term direction:
 - open-source development;
@@ -162,12 +169,20 @@ make mirror MIRROR_ARGS='--help'
 Blacklist filtering is the first line of defense.
 
 ALIS adds a second line of defense:
-- hard-fail if global UE asset extensions survive filtering;
-- hard-fail if forbidden UE asset and binary file types survive;
+- hard-fail if global UE asset extensions survive filtering
+  (`uasset`, `umap`, `ubulk`, `uexp`, `uptnl`, `ushaderbytecode`, `utoc`, `ucas`, `pak`);
+- hard-fail if forbidden binary/media/key file types survive
+  (executables, `png`/`jpg`/`exr`/`blend`/`fbx`/`wav`/`mp4`..., `pem`/`key`/`p12`/`pfx`);
 - hard-fail if forbidden paths survive;
-- hard-fail if text files still contain patterns from `forbidden_text_patterns.regex`.
+- hard-fail if text files still contain patterns from `forbidden_text_patterns.regex`;
+- hard-fail if a Git LFS pointer file survives;
+- hard-fail on any non-empty binary-content file (NUL byte) regardless of
+  extension - this is what makes "text data only" true, not just the extension
+  denylist, so an unknown-extension binary cannot sneak through.
 
-This keeps the low-maintenance blacklist model while still stopping unsafe publication.
+Because the model is denylist-first, plugin `Data/` dirs are validated by file
+TYPE, not by path: JSON/text survives, any binary/asset inside is rejected. This
+keeps the low-maintenance blacklist model while still stopping unsafe publication.
 
 In other words:
 - ALIS docs/scripts are not excluded just because they describe architecture;

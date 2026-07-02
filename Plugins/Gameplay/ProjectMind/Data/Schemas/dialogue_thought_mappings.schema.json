@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dialogue_thought_mappings.schema.json",
+  "title": "ProjectMind Dialogue Thought Mappings",
+  "type": "object",
+  "required": [
+    "$schema",
+    "entries"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "thought_id",
+          "text",
+          "channel",
+          "priority",
+          "source_type"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "signal_tag"
+            ]
+          },
+          {
+            "required": [
+              "signal_tags"
+            ]
+          },
+          {
+            "required": [
+              "tree_id",
+              "node_id"
+            ]
+          }
+        ],
+        "properties": {
+          "signal_tag": {
+            "type": "string",
+            "description": "Dialogue signal key (Dialogue.<TreeId>.<NodeId>). RENAME WARNING: Must match tree/node IDs in DLG_*.json. Run scripts/ue/check/gameplay/projectmind/validate_data.py after renaming.",
+            "minLength": 1
+          },
+          "signal_tags": {
+            "type": "array",
+            "description": "Multiple dialogue signal keys sharing one template. RENAME WARNING: Same as signal_tag -- must match tree/node IDs in DLG_*.json.",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "tree_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "thought_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "time_to_live_sec": {
+            "type": "number",
+            "minimum": 0.1
+          },
+          "cooldown_sec": {
+            "type": "number",
+            "minimum": 0.0
+          },
+          "dedupe_window_sec": {
+            "type": "number",
+            "minimum": 0.0
+          },
+          "dedupe_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "Toast",
+              "Journal",
+              "ToastAndJournal"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "Unknown",
+              "Dialogue",
+              "Vitals",
+              "Inventory",
+              "Scan",
+              "Quest",
+              "Beacon",
+              "System"
+            ]
+          },
+          "record_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "record_state": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Resolved"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

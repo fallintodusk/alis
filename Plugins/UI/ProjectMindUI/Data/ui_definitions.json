@@ -1,0 +1,32 @@
+[
+  {
+    "id": "ProjectMindUI.MindThoughtToast",
+    "layer": "UI.Layer.Game",
+    "slot": "HUD.Slot.MindThought",
+    "widget_class": "/Script/ProjectMindUI.W_MindThoughtToast",
+    "viewmodel_class": "/Script/ProjectMindUI.MindThoughtViewModel",
+    "layout_json": "MindThoughtToast.json",
+    "load": "Preload",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "AutoSize",
+    "input": "Game",
+    "priority": 10,
+    "vm_creation": "CreateInstance"
+  },
+  {
+    "id": "ProjectMindUI.MindJournalPanel",
+    "layer": "UI.Layer.Menu",
+    "widget_class": "/Script/ProjectMindUI.W_MindJournalPanel",
+    "viewmodel_class": "/Script/ProjectMindUI.MindJournalViewModel",
+    "layout_json": "MindJournalPanel.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 20,
+    "vm_creation": "Global",
+    "auto_visibility": "bPanelVisible"
+  }
+]
