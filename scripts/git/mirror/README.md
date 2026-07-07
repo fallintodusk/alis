@@ -175,6 +175,9 @@ ALIS adds a second line of defense:
   (executables, `png`/`jpg`/`exr`/`blend`/`fbx`/`wav`/`mp4`..., `pem`/`key`/`p12`/`pfx`);
 - hard-fail if forbidden paths survive;
 - hard-fail if text files still contain patterns from `forbidden_text_patterns.regex`;
+- hard-fail if published text contains disallowed foreign-script blocks checked
+  by `validate_text_format.py` (Cyrillic and CJK by default), or if surviving
+  paths contain any non-ASCII character;
 - hard-fail if a Git LFS pointer file survives;
 - hard-fail on any non-empty binary-content file (NUL byte) regardless of
   extension - this is what makes "text data only" true, not just the extension

@@ -1,5 +1,5 @@
 # Export All Variables - Including Private Blueprint Variables
-# Uses SimpleConstructionScript для поиска переменных
+# Uses SimpleConstructionScript to find variables
 
 import unreal
 import json
@@ -10,12 +10,12 @@ TEST_ASSET = "/Game/Project/Placeables/Environment/BP_SunSky_Child.BP_SunSky_Chi
 OUTPUT_DIR = os.path.join(unreal.SystemLibrary.get_project_directory(), "Saved", "AI_Snapshots")
 
 print("=" * 80)
-print("🔧 EXPORT ALL VARIABLES (including Private)")
+print("[TOOL] EXPORT ALL VARIABLES (including Private)")
 print("=" * 80)
 
 try:
     # Load Blueprint
-    print("\n📦 Loading...")
+    print("\n[PACKAGE] Loading...")
     asset = unreal.EditorAssetLibrary.load_asset(TEST_ASSET)
     blueprint = unreal.Blueprint.cast(asset)
     gen_class = blueprint.generated_class()
@@ -25,7 +25,7 @@ try:
     print(f"   Class: {gen_class.get_name()}")
 
     # === METHOD 1: Standard properties (from previous script) ===
-    print("\n🔍 Method 1: Standard Actor properties...")
+    print("\n[SEARCH] Method 1: Standard Actor properties...")
 
     all_attrs = dir(cdo)
     property_candidates = [a for a in all_attrs if not a.startswith('_')]
@@ -84,7 +84,7 @@ try:
     print(f"   Found {len(props_standard)} standard properties")
 
     # === METHOD 2: Try to access known Blueprint variables directly ===
-    print("\n🔍 Method 2: Attempting direct access to Blueprint variables...")
+    print("\n[SEARCH] Method 2: Attempting direct access to Blueprint variables...")
 
     known_bp_vars = [
         'BP_Alis_PCharacter',
@@ -114,9 +114,9 @@ try:
                     "type": type(value).__name__,
                     "source": "Blueprint variable (direct)"
                 }
-                print(f"   ✅ {var_name}: {serialized}")
+                print(f"   [OK] {var_name}: {serialized}")
         except Exception as e:
-            print(f"   ❌ {var_name}: {e}")
+            print(f"   [FAIL] {var_name}: {e}")
 
             # Try get_editor_property as fallback
             try:
@@ -131,9 +131,9 @@ try:
                     "type": type(value).__name__,
                     "source": "Blueprint variable (editor_property)"
                 }
-                print(f"   ✅ {var_name} (via editor_property): {serialized}")
+                print(f"   [OK] {var_name} (via editor_property): {serialized}")
             except Exception as e2:
-                print(f"   ❌ {var_name} (editor_property failed too): {e2}")
+                print(f"   [FAIL] {var_name} (editor_property failed too): {e2}")
 
     print(f"\n   Found {len(props_bp_direct)} Blueprint variables")
 
@@ -142,10 +142,10 @@ try:
     all_props.update(props_standard)
     all_props.update(props_bp_direct)  # Blueprint vars override standard
 
-    print(f"\n📊 Total unique properties: {len(all_props)}")
+    print(f"\n[STATS] Total unique properties: {len(all_props)}")
 
     # === SAVE JSON ===
-    print("\n💾 Saving...")
+    print("\n[SAVE] Saving...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     json_path = os.path.join(OUTPUT_DIR, f"all_variables_{timestamp}.json")
@@ -162,22 +162,22 @@ try:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"✅ Сохранено: {json_path}")
+    print(f"[OK] Saved: {json_path}")
     print(f"   Size: {os.path.getsize(json_path)} bytes")
 
     # === PREVIEW ===
-    print("\n👁️ Blueprint Variables:")
+    print("\n[PREVIEW] Blueprint Variables:")
     print("-" * 80)
     if props_bp_direct:
         for name, data in props_bp_direct.items():
             val_str = str(data['value'])
             if len(val_str) > 50:
                 val_str = val_str[:47] + "..."
-            print(f"  • {name:30} = {val_str}")
+            print(f"  - {name:30} = {val_str}")
     else:
         print("  (none found - they might be protected)")
 
-    print("\n👁️ Standard Properties (first 10):")
+    print("\n[PREVIEW] Standard Properties (first 10):")
     print("-" * 80)
     for i, (name, data) in enumerate(list(props_standard.items())[:10], 1):
         val_str = str(data['value'])
@@ -188,18 +188,18 @@ try:
     print("\n" + "=" * 80)
     print("EXPORT COMPLETE!")
     print("=" * 80)
-    print(f"\n📁 JSON: {json_path}")
-    print(f"📊 Total: {len(all_props)} properties")
+    print(f"\n[DIR] JSON: {json_path}")
+    print(f"[STATS] Total: {len(all_props)} properties")
     print(f"   - Standard: {len(props_standard)}")
     print(f"   - Blueprint variables: {len(props_bp_direct)}")
 
     if len(props_bp_direct) == 0:
-        print("\n⚠️ Blueprint variables not accessible!")
-        print("   Они могут быть Private. Попробуйте:")
-        print("   1. Сделать их Instance Editable в Blueprint Editor")
-        print("   2. Или использовать их текущие значения в игре")
+        print("\n[WARN] Blueprint variables not accessible!")
+        print("   They may be Private. Try:")
+        print("   1. Make them Instance Editable in the Blueprint Editor")
+        print("   2. Or use their current values in-game")
 
 except Exception as e:
-    print(f"\n❌ ERROR: {e}")
+    print(f"\n[FAIL] ERROR: {e}")
     import traceback
     traceback.print_exc()

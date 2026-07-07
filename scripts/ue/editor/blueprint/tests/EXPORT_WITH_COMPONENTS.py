@@ -9,7 +9,7 @@ TEST_ASSET = "/Game/Project/Placeables/Environment/BP_SunSky_Child.BP_SunSky_Chi
 OUTPUT_DIR = os.path.join(unreal.SystemLibrary.get_project_directory(), "Saved", "AI_Snapshots")
 
 print("=" * 80)
-print("🔧 EXPORT WITH COMPONENTS")
+print("[TOOL] EXPORT WITH COMPONENTS")
 print("=" * 80)
 
 def serialize_value(value):
@@ -49,7 +49,7 @@ def serialize_value(value):
 
 try:
     # Load Blueprint
-    print("\n📦 Загрузка...")
+    print("\n[PACKAGE] Loading...")
     asset = unreal.EditorAssetLibrary.load_asset(TEST_ASSET)
     blueprint = unreal.Blueprint.cast(asset)
     gen_class = blueprint.generated_class()
@@ -67,7 +67,7 @@ try:
     }
 
     # === 1. ACTOR PROPERTIES ===
-    print("\n🔍 Step 1: Actor properties...")
+    print("\n[SEARCH] Step 1: Actor properties...")
 
     all_attrs = [a for a in dir(cdo) if not a.startswith('_')]
     filtered = []
@@ -92,7 +92,7 @@ try:
     print(f"   Found {len(result['actor_properties'])} actor properties")
 
     # === 2. COMPONENTS ===
-    print("\n🔍 Step 2: Components...")
+    print("\n[SEARCH] Step 2: Components...")
 
     # Get all components
     try:
@@ -115,7 +115,7 @@ try:
             comp_name = comp.get_name()
             comp_class = comp.get_class().get_name()
 
-            print(f"\n   📦 Component: {comp_name} ({comp_class})")
+            print(f"\n   [PACKAGE] Component: {comp_name} ({comp_class})")
 
             comp_props = {}
 
@@ -145,7 +145,7 @@ try:
                 except:
                     continue
 
-            print(f"      ✅ {success_count} properties")
+            print(f"      [OK] {success_count} properties")
 
             # Save component
             result["components"][comp_name] = {
@@ -155,12 +155,12 @@ try:
 
             # Show important properties for lights
             if "Light" in comp_class:
-                print(f"      💡 Light component detected!")
+                print(f"      [LIGHT] Light component detected!")
                 light_props = ['intensity', 'light_color', 'temperature', 'use_temperature']
                 for lp in light_props:
                     if lp in comp_props:
                         val = comp_props[lp]['value']
-                        print(f"         • {lp}: {val}")
+                        print(f"         - {lp}: {val}")
 
     except Exception as e:
         print(f"   Error getting components: {e}")
@@ -168,7 +168,7 @@ try:
         traceback.print_exc()
 
     # === SAVE JSON ===
-    print("\n💾 Сохранение...")
+    print("\n[SAVE] Saving...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     json_path = os.path.join(OUTPUT_DIR, f"with_components_{timestamp}.json")
@@ -176,26 +176,26 @@ try:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"✅ Сохранено: {json_path}")
-    print(f"   Размер: {os.path.getsize(json_path)} bytes")
+    print(f"[OK] Saved: {json_path}")
+    print(f"   Size: {os.path.getsize(json_path)} bytes")
 
     # === SUMMARY ===
     print("\n" + "=" * 80)
     print("EXPORT COMPLETE!")
     print("=" * 80)
-    print(f"\n📊 Summary:")
+    print(f"\n[STATS] Summary:")
     print(f"   Actor properties: {len(result['actor_properties'])}")
     print(f"   Components: {len(result['components'])}")
 
     if result['components']:
-        print(f"\n📦 Components:")
+        print(f"\n[PACKAGE] Components:")
         for comp_name, comp_data in result['components'].items():
             prop_count = len(comp_data['properties'])
-            print(f"   • {comp_name} ({comp_data['class']}): {prop_count} properties")
+            print(f"   - {comp_name} ({comp_data['class']}): {prop_count} properties")
 
-    print(f"\n📁 JSON: {json_path}")
+    print(f"\n[FILE] JSON: {json_path}")
 
 except Exception as e:
-    print(f"\n❌ ERROR: {e}")
+    print(f"\n[FAIL] ERROR: {e}")
     import traceback
     traceback.print_exc()

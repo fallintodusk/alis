@@ -148,11 +148,16 @@ Move to:
 
 **Problem:** Mixed naming conventions break searchability.
 
-#### Cyrillic Character in Folder Name
-```
-Content/Project/Resources/Objects/HumanMade/WorkTool/Сutting_Sawing/
-                                                      ^ Cyrillic 'C' (U+0421)
-```
+#### Cyrillic Homoglyph in Asset Paths
+
+Many asset folders/files use a Cyrillic homoglyph for Latin 'C' (Cyrillic
+letters visually identical to 'C'), which breaks searchability, references,
+and cooking. Affected names include Concrete, Cutting_Sawing, Cosmetic, City,
+and '_C' texture suffixes.
+
+List every occurrence (~59 tracked paths as of this writing):
+
+    python scripts/ue/check/governance/validate_text_format.py --repo-root .
 
 **Impact:**
 - Breaks search/grep for "Cutting"
@@ -283,7 +288,9 @@ Content/Project/Resources/Objects/HumanMade/WorkTool/CarpentryTool/Axe/Axe_1/
 **Week 1:**
 - MANUAL: Delete duplicate `Content/Packs/AdvancedGlassPack/`
 - MANUAL: Decide on MaleActionHeroes vs Personage, consolidate
-- MANUAL: Fix Cyrillic folder name: `Сutting_Sawing` -> `Cutting_Sawing`
+- MANUAL: Rename all asset paths with a Cyrillic 'C' homoglyph to ASCII (list
+  them with `validate_text_format.py --repo-root .`; ~59 tracked paths across
+  Concrete / Cutting_Sawing / Cosmetic / City / '_C' texture suffixes)
 - MANUAL: Fix typo: `_Exmaples` -> `_Examples`
 
 **Week 2:**

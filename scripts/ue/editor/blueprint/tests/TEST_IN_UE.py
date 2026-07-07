@@ -1,6 +1,6 @@
 """
-🧪 COPY-PASTE TEST SCRIPT
-Скопируйте весь этот файл и вставьте в UE Python Console
+COPY-PASTE TEST SCRIPT
+Copy this entire file and paste it into the UE Python Console
 """
 
 import unreal
@@ -9,11 +9,11 @@ import os
 from datetime import datetime
 
 print("=" * 60)
-print("🔧 Blueprint → JSON Converter Test")
+print("[TOOL] Blueprint -> JSON Converter Test")
 print("=" * 60)
 
 # ===== CONFIGURATION =====
-# Замените на ваш Blueprint:
+# Replace with your Blueprint:
 TEST_ASSET_PATH = "/Game/Project/Placeables/Environment/BP_SunSky_Child.BP_SunSky_Child"
 
 OUTPUT_DIR = os.path.join(
@@ -23,18 +23,18 @@ OUTPUT_DIR = os.path.join(
 )
 
 # ===== STEP 1: LOAD BLUEPRINT =====
-print("\n📦 Step 1: Loading Blueprint...")
+print("\n[PACKAGE] Step 1: Loading Blueprint...")
 
 try:
     asset_data = unreal.EditorAssetLibrary.find_asset_data(TEST_ASSET_PATH)
     if not asset_data.is_valid():
-        print(f"❌ ERROR: Asset not found: {TEST_ASSET_PATH}")
-        print("👉 Откройте Content Browser и скопируйте правильный путь")
+        print(f"[FAIL] ERROR: Asset not found: {TEST_ASSET_PATH}")
+        print("[NOTE] Open Content Browser and copy the correct path")
         raise SystemExit
 
     generated_class_path = asset_data.get_tag_value("GeneratedClass")
     if not generated_class_path:
-        print(f"❌ ERROR: Not a Blueprint asset")
+        print(f"[FAIL] ERROR: Not a Blueprint asset")
         raise SystemExit
 
     generated_class = unreal.load_object(None, generated_class_path)
@@ -44,11 +44,11 @@ try:
     print(f"   Parent: {generated_class.get_super_class().get_name()}")
 
 except Exception as e:
-    print(f"❌ FAILED: {e}")
+    print(f"[FAIL] FAILED: {e}")
     raise SystemExit
 
 # ===== STEP 2: EXTRACT PROPERTIES =====
-print("\n🔍 Step 2: Extracting properties...")
+print("\n[SEARCH] Step 2: Extracting properties...")
 
 properties = {}
 exported_count = 0
@@ -60,9 +60,9 @@ property_names = []
 try:
     if hasattr(cdo, 'get_editor_property_names'):
         property_names = list(cdo.get_editor_property_names())
-        print(f"   Method: get_editor_property_names() → {len(property_names)} properties")
+        print(f"   Method: get_editor_property_names() -> {len(property_names)} properties")
 except Exception as e:
-    print(f"   ⚠️ get_editor_property_names() failed: {e}")
+    print(f"   [WARN] get_editor_property_names() failed: {e}")
 
 # Method B: Fallback to dir() filtering
 if not property_names:
@@ -72,7 +72,7 @@ if not property_names:
         if not attr.startswith('_')
         and not callable(getattr(cdo, attr, None))
     ]
-    print(f"   Method: dir() fallback → {len(property_names)} candidates")
+    print(f"   Method: dir() fallback -> {len(property_names)} candidates")
 
 # Extract property values
 for prop_name in property_names:
@@ -108,10 +108,10 @@ for prop_name in property_names:
     except:
         continue
 
-print(f"✅ Exported {exported_count} properties")
+print(f"[OK] Exported {exported_count} properties")
 
 # ===== STEP 3: BUILD JSON =====
-print("\n📝 Step 3: Building JSON...")
+print("\n[LIST] Step 3: Building JSON...")
 
 result = {
     "asset_path": TEST_ASSET_PATH,
@@ -122,11 +122,11 @@ result = {
     "properties": properties
 }
 
-print(f"✅ JSON structure created")
+print(f"[OK] JSON structure created")
 print(f"   Total size: {len(json.dumps(result))} bytes")
 
 # ===== STEP 4: SAVE TO FILE =====
-print("\n💾 Step 4: Saving to file...")
+print("\n[SAVE] Step 4: Saving to file...")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -137,10 +137,10 @@ json_path = os.path.join(OUTPUT_DIR, f"{name}_{timestamp}.json")
 with open(json_path, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
-print(f"✅ Saved to: {json_path}")
+print(f"[OK] Saved to: {json_path}")
 
 # ===== STEP 5: PREVIEW =====
-print("\n👁️ Preview (first 30 properties):")
+print("\n[PREVIEW] Preview (first 30 properties):")
 print("-" * 60)
 
 preview_count = 0
@@ -158,22 +158,22 @@ for prop_name, prop_data in properties.items():
 
 # ===== FINAL SUMMARY =====
 print("\n" + "=" * 60)
-print("✅ TEST COMPLETED SUCCESSFULLY!")
+print("[OK] TEST COMPLETED SUCCESSFULLY!")
 print("=" * 60)
-print(f"📁 JSON file location:")
+print(f"[DIR] JSON file location:")
 print(f"   {json_path}")
-print(f"\n📊 Statistics:")
+print(f"\n[STATS] Statistics:")
 print(f"   Blueprint: {generated_class.get_name()}")
 print(f"   Properties exported: {exported_count}")
 print(f"   File size: {os.path.getsize(json_path)} bytes")
-print("\n🎯 Next steps:")
-print("   1. Откройте JSON файл в редакторе")
-print("   2. Отправьте Claude для редактирования")
-print("   3. Используйте json_to_bp.py для импорта изменений")
+print("\n[TARGET] Next steps:")
+print("   1. Open the JSON file in the editor")
+print("   2. Send it to Claude for editing")
+print("   3. Use json_to_bp.py to import changes")
 print("=" * 60)
 
 # ===== QUICK COMMANDS =====
-print("\n📋 Quick commands for next steps:")
+print("\n[LIST] Quick commands for next steps:")
 print("\n# List all snapshots:")
 print(f'import os; print("\\n".join(os.listdir(r"{OUTPUT_DIR}")))')
 

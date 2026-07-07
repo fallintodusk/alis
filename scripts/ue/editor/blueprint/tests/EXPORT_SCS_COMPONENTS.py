@@ -9,7 +9,7 @@ TEST_ASSET = "/Game/Project/Placeables/Environment/BP_SunSky_Child.BP_SunSky_Chi
 OUTPUT_DIR = os.path.join(unreal.SystemLibrary.get_project_directory(), "Saved", "AI_Snapshots")
 
 print("=" * 80)
-print("🔧 EXPORT SCS COMPONENTS")
+print("[TOOL] EXPORT SCS COMPONENTS")
 print("=" * 80)
 
 def serialize_value(value):
@@ -47,7 +47,7 @@ def serialize_value(value):
 
 try:
     # Load Blueprint
-    print("\n📦 Загрузка...")
+    print("\n[PACKAGE] Loading...")
     asset = unreal.EditorAssetLibrary.load_asset(TEST_ASSET)
     blueprint = unreal.Blueprint.cast(asset)
 
@@ -61,7 +61,7 @@ try:
     }
 
     # === ACCESS SCS ===
-    print("\n🔍 Accessing SimpleConstructionScript...")
+    print("\n[SEARCH] Accessing SimpleConstructionScript...")
 
     # Try to get SCS
     scs = None
@@ -82,7 +82,7 @@ try:
         for i, attr in enumerate(bp_attrs[:30], 1):
             print(f"     {i:2}. {attr}")
     else:
-        print(f"   ✅ SCS type: {type(scs).__name__}")
+        print(f"   [OK] SCS type: {type(scs).__name__}")
 
         # Get SCS nodes
         if hasattr(scs, 'get_all_nodes'):
@@ -91,7 +91,7 @@ try:
 
             for node in nodes:
                 node_name = node.get_variable_name() if hasattr(node, 'get_variable_name') else node.get_name()
-                print(f"\n   📦 Node: {node_name}")
+                print(f"\n   [PACKAGE] Node: {node_name}")
 
                 # Get component template
                 template = None
@@ -135,7 +135,7 @@ try:
                     except:
                         continue
 
-                print(f"      ✅ {success_count} properties")
+                print(f"      [OK] {success_count} properties")
 
                 # Save component
                 result["components"][str(node_name)] = {
@@ -145,18 +145,18 @@ try:
 
                 # Show light properties
                 if "Light" in comp_class:
-                    print(f"      💡 Light component!")
+                    print(f"      [LIGHT] Light component!")
                     light_props = ['intensity', 'light_color', 'temperature', 'use_temperature']
                     for lp in light_props:
                         if lp in comp_props:
-                            print(f"         • {lp}: {comp_props[lp]['value']}")
+                            print(f"         - {lp}: {comp_props[lp]['value']}")
 
         else:
-            print(f"   ❌ SCS has no get_all_nodes() method")
+            print(f"   [FAIL] SCS has no get_all_nodes() method")
             print(f"   SCS attributes: {[a for a in dir(scs) if not a.startswith('_')][:20]}")
 
     # === SAVE JSON ===
-    print("\n💾 Сохранение...")
+    print("\n[SAVE] Saving...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     json_path = os.path.join(OUTPUT_DIR, f"scs_components_{timestamp}.json")
@@ -164,25 +164,25 @@ try:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"✅ Сохранено: {json_path}")
-    print(f"   Размер: {os.path.getsize(json_path)} bytes")
+    print(f"[OK] Saved: {json_path}")
+    print(f"   Size: {os.path.getsize(json_path)} bytes")
 
     # === SUMMARY ===
     print("\n" + "=" * 80)
     print("EXPORT COMPLETE!")
     print("=" * 80)
-    print(f"\n📊 Summary:")
+    print(f"\n[STATS] Summary:")
     print(f"   Components: {len(result['components'])}")
 
     if result['components']:
-        print(f"\n📦 Components:")
+        print(f"\n[PACKAGE] Components:")
         for comp_name, comp_data in result['components'].items():
             prop_count = len(comp_data['properties'])
-            print(f"   • {comp_name} ({comp_data['class']}): {prop_count} properties")
+            print(f"   - {comp_name} ({comp_data['class']}): {prop_count} properties")
 
-    print(f"\n📁 JSON: {json_path}")
+    print(f"\n[FILE] JSON: {json_path}")
 
 except Exception as e:
-    print(f"\n❌ ERROR: {e}")
+    print(f"\n[FAIL] ERROR: {e}")
     import traceback
     traceback.print_exc()

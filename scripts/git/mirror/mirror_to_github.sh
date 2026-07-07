@@ -426,6 +426,20 @@ validate_filtered_tree() {
     fi
   done < <(find "$filtered_dir" -type f -print0)
 
+  # Character-set policy: no foreign-script symbols/comments (Cyrillic, CJK) in
+  # published docs/text or surviving paths. Reuses the governance validator
+  # (validate_text_format) so local checks and the mirror share one rule. The
+  # filtered snapshot is exactly what will be published. Disallowed blocks are
+  # extensible data in that script; paths are strict ASCII.
+  local text_format_checker="$REPO_ROOT/scripts/ue/check/governance/validate_text_format.py"
+  if [[ -f "$text_format_checker" ]]; then
+    local tf_out
+    if ! tf_out="$(python3 "$text_format_checker" --root "$filtered_dir" --all-text 2>&1)"; then
+      printf '%s\n' "$tf_out" >&2
+      fail_flag=1
+    fi
+  fi
+
   if [[ "$fail_flag" -ne 0 ]]; then
     fail "Filtered mirror tree failed validation."
   fi

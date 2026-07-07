@@ -15,6 +15,7 @@ This repository is the public code and documentation home for ALIS -- source cod
 - Site: https://fall.is/
 - Vision: [VISION.md](VISION.md)
 - Social contract: [ALIS_PACT.md](ALIS_PACT.md)
+- Start here: [testing, feedback, and contribution](https://github.com/<user>/alis/discussions/1)
 
 ## ALIS as an Unreal Engine architecture reference
 

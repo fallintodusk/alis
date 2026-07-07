@@ -33,6 +33,7 @@ Scripts for fast validation and compile-adjacent checks without running a full p
 - `gameplay/projectmind/validate_data.bat` - ProjectMind data-schema validation (signal_tags vs dialogue trees)
 - `gamefeatures/validate_registration.bat` - static GameFeature registration/configuration check
 - `governance/validate_legacy_object_parent_generalization.bat` - legacy marker and docs registry audit
+- `governance/validate_text_format.bat` - docs/text character-set audit (Cyrillic/CJK by default; optional emoji/typography blocks) plus strict ASCII path audit
 
 ### Build-time prevention (pre-package)
 

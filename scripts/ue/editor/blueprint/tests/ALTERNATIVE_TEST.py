@@ -1,5 +1,5 @@
-# ALTERNATIVE TEST - Uses reflection для поиска всех properties
-# Если COPY_PASTE_TEST.py возвращает 0 properties, используйте этот скрипт
+# ALTERNATIVE TEST - Uses reflection to find all properties
+# If COPY_PASTE_TEST.py returns 0 properties, use this script
 
 import unreal
 import json
@@ -10,31 +10,31 @@ TEST_ASSET = "/Game/Project/Placeables/Environment/BP_SunSky_Child.BP_SunSky_Chi
 OUTPUT_DIR = os.path.join(unreal.SystemLibrary.get_project_directory(), "Saved", "AI_Snapshots")
 
 print("=" * 60)
-print("🔧 ALTERNATIVE Blueprint → JSON Test (Reflection)")
+print("[TOOL] ALTERNATIVE Blueprint -> JSON Test (Reflection)")
 print("=" * 60)
 
 try:
     # Load Blueprint
-    print("\n📦 Загрузка Blueprint...")
+    print("\n[PACKAGE] Loading Blueprint...")
     asset = unreal.EditorAssetLibrary.load_asset(TEST_ASSET)
     if not asset:
-        print(f"❌ Не удалось загрузить: {TEST_ASSET}")
+        print(f"[FAIL] Failed to load: {TEST_ASSET}")
         raise SystemExit
 
     blueprint = unreal.Blueprint.cast(asset)
     if not blueprint:
-        print(f"❌ Это не Blueprint!")
+        print(f"[FAIL] This is not a Blueprint!")
         raise SystemExit
 
     gen_class = blueprint.generated_class()
     cdo = unreal.get_default_object(gen_class)
 
-    print(f"✅ Blueprint: {blueprint.get_name()}")
+    print(f"[OK] Blueprint: {blueprint.get_name()}")
     print(f"   Class: {gen_class.get_name()}")
     print(f"   Parent: {gen_class.get_super_class().get_name()}")
 
     # Extract properties via UE Reflection
-    print("\n🔍 Извлечение properties через UProperty reflection...")
+    print("\n[SEARCH] Extracting properties via UProperty reflection...")
 
     props = {}
     property_count = 0
@@ -78,11 +78,11 @@ try:
             # Skip properties that can't be read
             continue
 
-    print(f"✅ Найдено UProperties: {property_count}")
-    print(f"✅ Экспортировано: {len(props)} properties")
+    print(f"[OK] Found UProperties: {property_count}")
+    print(f"[OK] Exported: {len(props)} properties")
 
     # Save JSON
-    print("\n💾 Сохранение JSON...")
+    print("\n[SAVE] Saving JSON...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     json_path = os.path.join(OUTPUT_DIR, f"alternative_export_{timestamp}.json")
@@ -100,10 +100,10 @@ try:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"✅ Сохранено: {json_path}")
+    print(f"[OK] Saved: {json_path}")
 
     # Preview
-    print("\n👁️ First 15 properties:")
+    print("\n[PREVIEW] First 15 properties:")
     print("-" * 60)
     for i, (name, data) in enumerate(list(props.items())[:15]):
         val_str = str(data['value'])
@@ -116,11 +116,11 @@ try:
         print(f"  ... and {len(props) - 15} properties")
 
     print("\n" + "=" * 60)
-    print("✅ ALTERNATIVE TEST ЗАВЕРШЕН!")
+    print("[OK] ALTERNATIVE TEST COMPLETE!")
     print("=" * 60)
-    print(f"\n📁 JSON: {json_path}")
-    print(f"📊 Свойств: {len(props)}")
-    print(f"📋 Файл размером: {os.path.getsize(json_path)} bytes")
+    print(f"\n[DIR] JSON: {json_path}")
+    print(f"[STATS] Properties: {len(props)}")
+    print(f"[LIST] File size: {os.path.getsize(json_path)} bytes")
 
     # Show property categories
     categories = {}
@@ -128,16 +128,16 @@ try:
         cat = prop_data.get('category', 'Default')
         categories[cat] = categories.get(cat, 0) + 1
 
-    print(f"\n📂 Категории properties:")
+    print(f"\n[DIR] Property categories:")
     for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
         print(f"   {cat}: {count}")
 
 except Exception as e:
-    print(f"\n❌ ОШИБКА: {e}")
+    print(f"\n[FAIL] ERROR: {e}")
     import traceback
-    print("\n📋 Stack trace:")
+    print("\n[LIST] Stack trace:")
     traceback.print_exc()
-    print("\n🔧 Возможные решения:")
-    print("1. Убедитесь, что Blueprint существует и скомпилирован")
-    print("2. Проверьте путь к Blueprint (должен быть /Game/...)")
-    print("3. Попробуйте сначала открыть Blueprint в редакторе")
+    print("\n[TOOL] Possible solutions:")
+    print("1. Make sure the Blueprint exists and is compiled")
+    print("2. Check the Blueprint path (must be /Game/...)")
+    print("3. Try opening the Blueprint in the editor first")
