@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Project Definition Generator",
-	"Description": "Universal JSON-to-DataAsset generator for ObjectDefinition types",
+	"Description": "Integrated JSON-to-DataAsset generator for Project definition types",
 	"Category": "Editor",
 	"CreatedBy": "ALIS",
 	"CanContainContent": false,

@@ -22,9 +22,6 @@ public:
 	virtual void Deinitialize() override;
 
 private:
-	/** Called after engine init completes (AssetManager guaranteed ready). */
-	void OnPostEngineInit();
-
 	/**
 	 * Called when PIE is about to begin.
 	 * Scans and loads external plugins.
@@ -44,15 +41,4 @@ private:
 	 */
 	void LoadExternalPlugins();
 
-	/**
-	 * Preload heavy assets (pawn class + deps) in background.
-	 * Called at editor startup so deps are warm when PIE starts.
-	 */
-	void PreloadPawnClass();
-
-	/** Handle keeping the async preload alive */
-	TSharedPtr<struct FStreamableHandle> PawnPreloadHandle;
-
-	/** True while pawn preload is in progress - disables CPU throttle so loading runs at full speed in background */
-	bool bPawnPreloadInProgress = false;
 };

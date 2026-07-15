@@ -56,7 +56,7 @@ DEFINE_SINGLEPLAY_MODE(MyNewMode)
 }
 ```
 
-Or add JSON override in `Config/SinglePlay/ModeOverrides.json`.
+Or add JSON override in `Plugins/Gameplay/ProjectSinglePlay/Data/ModeOverrides.json`.
 
 ---
 

@@ -6,19 +6,13 @@
 #include "SinglePlayModeConfig.h"
 #include "SinglePlayerGameMode.generated.h"
 
-UENUM()
-enum class ESinglePlayCharacterSystem : uint8
-{
-	Legacy,
-	Modular
-};
-
 /**
  * GameMode for single-player gameplay in ALIS.
  *
  * Acts as a thin orchestrator that:
  * - Parses URL options to determine mode configuration
- * - Loads UE layer classes (Pawn, PlayerController) from config
+ * - Loads the PlayerController class from config
+ * - Spawns the selected definition-driven pawn
  * - Initializes features via FFeatureRegistry (features attach own components)
  * - Configures gameplay input mode for players
  * - Listens for death (via VitalsComponent delegate) and reloads map
@@ -31,7 +25,7 @@ enum class ESinglePlayCharacterSystem : uint8
  *   ?game=SinglePlayer
  *   NOTE: Alias is NOT configured by default - use full path for modular/decoupled approach.
  *
- *   Example: ServerTravel("MapName?Mode=Medium?CharacterSystem=Modular?CharacterDefinition=Hero?game=/Script/ProjectSinglePlay.SinglePlayerGameMode")
+ *   Example: ServerTravel("MapName?Mode=Medium?CharacterDefinition=Hero?game=/Script/ProjectSinglePlay.SinglePlayerGameMode")
  *
  * Why no 'A' prefix?
  *   C++ naming: ASinglePlayerGameMode (with A prefix for Actors)
@@ -42,7 +36,7 @@ enum class ESinglePlayCharacterSystem : uint8
  *   - Use ? separator for ALL options (not & like web URLs)
  *   - game= option should come LAST (UE parser reads value to end-of-string)
  *   - Mode selects gameplay/difficulty configuration
- *   - CharacterSystem selects legacy vs modular pawn implementation independently
+ *   - CharacterDefinition selects the definition-driven pawn independently from Mode
  *
  * UE Engine References:
  *   - UGameInstance::CreateGameModeForURL - Engine/Source/Runtime/Engine/Private/GameInstance.cpp:1490
@@ -65,6 +59,7 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void BeginPlay() override;
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 	//~ End AGameModeBase Interface
 
@@ -72,28 +67,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Single Play")
 	const FSinglePlayModeConfig& GetModeConfig() const { return ModeConfig; }
 
-	ESinglePlayCharacterSystem GetActiveCharacterSystem() const { return ActiveCharacterSystem; }
-	FName GetActiveCharacterSystemName() const;
 	const FPrimaryAssetId& GetActiveCharacterDefinitionId() const { return ActiveCharacterDefinitionId; }
-
-	// Switch the active character system and optionally respawn existing players through GameMode.
-	bool SwitchCharacterSystemRuntime(
-		ESinglePlayCharacterSystem NewSystem,
-		const FPrimaryAssetId& RequestedDefinitionId = FPrimaryAssetId(),
-		bool bRespawnExistingPlayers = true);
 
 protected:
 	// Load mode configuration based on URL parameter
 	// Returns default config if ModeParam is empty or unknown
 	virtual FSinglePlayModeConfig LoadModeConfig(const FString& ModeParam);
 
-	// Parse non-mode character selection options from URL.
-	virtual void LoadCharacterSelection(const FString& CharacterSystemParam, const FString& CharacterDefinitionParam);
+	// Parse the non-mode character definition option from the URL.
+	virtual void LoadCharacterSelection(const FString& CharacterDefinitionParam);
 
-	// Resolve the effective definition ID for the active character system.
-	virtual FPrimaryAssetId ResolveCharacterDefinitionId(
-		ESinglePlayCharacterSystem NewSystem,
-		const FPrimaryAssetId& RequestedDefinitionId) const;
+	// Resolve the effective definition ID, falling back to the default Hero definition.
+	virtual FPrimaryAssetId ResolveCharacterDefinitionId(const FPrimaryAssetId& RequestedDefinitionId) const;
 
 	// Ensure required feature plugins are loaded before proceeding
 	// Called during InitGame after ModeConfig is loaded
@@ -102,9 +87,6 @@ protected:
 
 	// Shared post-spawn initialization for new pawns.
 	virtual void InitializePlayerPawn(AController* PlayerController);
-
-	// Destroy the current pawn and respawn through the active character selection.
-	virtual bool RespawnPlayerForCurrentCharacterSelection(AController* PlayerController);
 
 	// Initialize features via FFeatureRegistry
 	// Called during HandleStartingNewPlayer after pawn spawn
@@ -120,8 +102,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Single Play")
 	FSinglePlayModeConfig ModeConfig;
 
-	// Character implementation selection is independent from gameplay mode/difficulty.
-	ESinglePlayCharacterSystem ActiveCharacterSystem = ESinglePlayCharacterSystem::Modular;
+	// Character definition selection is independent from gameplay mode/difficulty.
 	FPrimaryAssetId ActiveCharacterDefinitionId;
 
 private:

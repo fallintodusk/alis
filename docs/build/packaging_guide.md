@@ -5,7 +5,7 @@ Canonical source of truth for ALIS public release packaging.
 Use this doc for:
 
 - Win64 release packaging
-- GitHub Releases transport decisions
+- mirror transport decisions
 - script usage
 - size-limit validation
 - post-package trust artifacts
@@ -20,8 +20,8 @@ Use this doc for:
    make package
    ```
 3. Review `debug/package_summary.txt` and `debug/sign_release_summary.txt` in the output folder.
-4. Upload the release-root files to GitHub Releases; do not upload `debug/`.
-5. Publish optional torrent mirror and point users to the ALIS trust page.
+4. Upload the same custom ALIS release-root files to each approved distribution mirror; do not upload `debug/`.
+5. Point users to the ALIS trust page for authoritative fingerprint confirmation.
 
 ## Canonical Script
 
@@ -48,10 +48,13 @@ Script behavior:
 - defaults to `1700 MiB` split threshold for GitHub-safe archive transport
 - signing script writes `SHA256SUMS.txt`, `SHA256SUMS.txt.asc`, and `sign_release_summary.txt`
 - signed package flow moves `Windows/` and summary files under `debug/` so the release root is the upload set
+- signing script exports the selected signing key's public half as `ALIS_PUBLIC_KEY.asc` before hashing
 - signing script also writes `INSTALL.txt` so the release folder contains a fast install and verify guide
 - signing script also copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release folder so advanced users do not need the repo docs
+- manifest hashes the payload, bundled key, install guide, and verification helpers; it deliberately excludes itself and its detached signature
 - signing script reuses the ALIS site trust key fingerprint by default
-- verification script downloads or reads the site public key, verifies the fingerprint, builds a temporary verification keyring, checks the detached signature, and validates all archive hashes
+- verification script prefers the bundled public key, verifies its expected fingerprint, builds an explicitly isolated temporary verification keyring, checks the detached signature, and validates all archive hashes without contacting a mirror or site
+- verification falls back to the site key URL only for older release sets without `ALIS_PUBLIC_KEY.asc`
 
 Important flags:
 
@@ -59,6 +62,7 @@ Important flags:
 - `-OutputDir <path>`
 - `-CreateReleaseArchive`
 - `-SignRelease`
+- `-GpgHome <isolated-keyring-path>` for throwaway signing tests
 - `-SplitSizeMB 1700`
 - `-SkipBuild`
 - `-IncludeStagedDebugFiles`
@@ -125,10 +129,10 @@ Important implementation note:
 
 1. Package and sign with `make package`.
 2. Review `debug/package_summary.txt` and `debug/sign_release_summary.txt`.
-3. Upload the release-root files to GitHub Releases; do not upload `debug/`.
+3. Upload the same custom ALIS release-root files to every approved mirror; do not upload `debug/`.
 4. Only override the split threshold if you have a specific transport reason.
 5. Upload optional torrent file.
-6. Point users to the canonical ALIS trust page and public key on the site.
+6. Point users to the canonical ALIS trust page for fingerprint confirmation.
 
 ## User Experience
 
@@ -138,7 +142,7 @@ There are two valid user flows. Do not force advanced verification on every user
 
 This is the default public-user path:
 
-1. Download all archive parts from GitHub Releases.
+1. Download all archive parts for one release from one approved mirror.
 2. Put all parts in one folder.
 3. Install 7-Zip if needed.
 4. Extract the first archive part.
@@ -152,8 +156,8 @@ manually compare hashes unless they want authenticity guarantees.
 This is the security-conscious path:
 
 1. Download all archive parts.
-2. Download `SHA256SUMS.txt` and `SHA256SUMS.txt.asc`.
-3. Get the ALIS public key from the site trust page.
+2. Download `SHA256SUMS.txt`, `SHA256SUMS.txt.asc`, and `ALIS_PUBLIC_KEY.asc` from the same mirror.
+3. Confirm the bundled key fingerprint against the site trust page or another trusted record.
 4. Verify the detached signature on `SHA256SUMS.txt`.
 5. Verify all archive hashes against `SHA256SUMS.txt`.
 6. Extract the first archive part only after verification succeeds.
@@ -188,6 +192,7 @@ Recommended release asset set:
 
 - `ALIS_Win64_<version>.zip` or split zip parts
 - `INSTALL.txt`
+- `ALIS_PUBLIC_KEY.asc`
 - `VERIFY_RELEASE.ps1`
 - `VERIFY_RELEASE.bat`
 - `SHA256SUMS.txt`
@@ -203,13 +208,50 @@ Local-only release debug set:
 - `debug/sign_release_summary.txt`
 - `debug/verify_release_summary.txt`
 
+Manifest protocol invariant:
+
+- `SHA256SUMS.txt` covers every uploaded payload/helper asset, including `ALIS_PUBLIC_KEY.asc`
+- `SHA256SUMS.txt` never contains an entry for itself or `SHA256SUMS.txt.asc`
+- `SHA256SUMS.txt.asc` is the detached signature over the exact bytes of `SHA256SUMS.txt`
+
+## Published Release Immutability
+
+A published release tag and its asset set are historical records. Do not silently replace an
+archive, manifest, signature, verifier, install guide, or key asset under an already published tag.
+This section governs a correction after the release owner decides one is needed; it does not by
+itself require republishing an otherwise supported historical release.
+
+If release verification or distribution metadata needs correction:
+
+1. Create a new corrective release identity through the release owner.
+2. Leave the previous tag and assets available as historical artifacts.
+3. State whether the game archive bytes are unchanged or the game was rebuilt.
+4. If archive bytes are reused, confirm their hashes are byte-for-byte identical to the prior
+   release; otherwise regenerate all archive parts and the release allowlist.
+5. Generate a new manifest and detached signature for the new release set.
+6. Publish that exact new custom-asset set to each approved mirror.
+
+Do not describe re-signing as a replacement of assets on a published release. A new manifest or
+signature changes the authenticated release record even when the game archive bytes are unchanged.
+
+Signing tests with a non-canonical fingerprint must pass `-GpgHome` and use a disposable keyring
+created by the test operation. The signing script rejects a non-canonical key when no explicit GPG
+home is provided, rejects an explicit home that resolves to the normal user GPG directory or user
+profile, and does not create or delete caller-owned secret-key directories. The calling test cleans
+only the disposable home it created. Verification always passes a temporary GPG home to public-key
+operations and removes its owned temporary directory on success or failure.
+
+Mirror parity covers maintainer-uploaded custom ALIS assets. GitHub-generated source-code ZIP and TAR
+archives are platform conveniences, not ALIS release assets, and are outside the mirror-equivalence
+check.
+
 ## Trust Source Of Truth
 
 Use the same ALIS public signing identity already published on the site.
 
 Canonical public trust endpoints:
 
-- trust page: `https://fall.is/about/`
+- trust page: `https://fall.is/trust/`
 - public key: `https://fall.is/assets/security/public-key.asc`
 - fingerprint: `3B98 85F0 C2D8 D927 C27F AB58 F61A 5300 34CF B5E7`
 
@@ -221,12 +263,13 @@ Verified against the site repo on 2026-03-10:
 Release signing rule:
 
 - sign `SHA256SUMS.txt` with this same key
+- export that signing key's public half as `ALIS_PUBLIC_KEY.asc` into every release set
 - do not introduce a separate packaging-only trust identity
-- in release notes, point users to the site trust page and public key URL
+- in release notes, point users to the site trust page for out-of-band fingerprint confirmation
 
 Release notes should include:
 
-- trust page: `https://fall.is/about/`
+- trust page: `https://fall.is/trust/`
 - public key: `https://fall.is/assets/security/public-key.asc`
 - fingerprint: `3B98 85F0 C2D8 D927 C27F AB58 F61A 5300 34CF B5E7`
 - short extraction note when split archives are used:
@@ -331,7 +374,7 @@ Release page verification text:
 
 ```text
 Verify the ALIS release signature with the public key published at:
-https://fall.is/about/
+https://fall.is/trust/
 https://fall.is/assets/security/public-key.asc
 
 Fingerprint:
@@ -354,8 +397,10 @@ Generated release helper:
 
 - `INSTALL.txt` is written into the release directory by `sign_release.ps1`
 - it is included in `SHA256SUMS.txt` and covered by the detached signature
+- `ALIS_PUBLIC_KEY.asc` is exported from the selected signing key into the release directory
 - `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` are also written into the release directory by `sign_release.ps1`
-- both helper scripts are included in `SHA256SUMS.txt` and covered by the detached signature
+- the key, install guide, and both helper scripts are included in `SHA256SUMS.txt` and covered by the detached signature
+- `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` are present in the release root but are not entries in the manifest
 
 ## Validation Checklist
 
@@ -373,7 +418,11 @@ Generated release helper:
 - no staged `.pdb` files are being shipped unless explicitly intended
 - package boots on a clean Windows machine
 - hashes and signature verify correctly
-- release notes point to `https://fall.is/about/` and `https://fall.is/assets/security/public-key.asc`
+- verification succeeds from the downloaded release directory with network access disabled
+- bundled `ALIS_PUBLIC_KEY.asc` matches the expected fingerprint
+- manifest contains no self-hash or detached-signature entry
+- published tags and their existing assets were not mutated; corrections use a new release identity
+- release notes point to `https://fall.is/trust/` and `https://fall.is/assets/security/public-key.asc`
 
 ## Troubleshooting
 
@@ -386,8 +435,8 @@ Generated release helper:
 | Missing DLC chunks | incorrect Asset Manager chunk rules or Primary Asset Labels | verify `Config/DefaultGame.ini` chunk rules or project label assets assign expected chunk IDs. |
 | Packaged game crashes with `Failed to find requested encryption key 00000000000000000000000000000000` | encrypted containers were built for the modular Shipping target | use the release script default `-skipencryption`, or only enable `-EncryptContent` after implementing and validating a runtime key-loading path. |
 | User cannot extract split release parts | archive parts were downloaded into different folders or Windows Explorer was used directly | place all parts in one folder and extract the first part with 7-Zip. |
-| `verify_release.ps1` fails before signature check | `gpg.exe` is missing or the public key URL/path is wrong | install GnuPG or Git for Windows, or pass `-GpgPath` and `-PublicKeyPath` explicitly. |
-| `verify_release.ps1` reports fingerprint mismatch | wrong public key file was used | use `https://fall.is/assets/security/public-key.asc` and confirm the site trust page fingerprint. |
+| `verify_release.ps1` fails before signature check | `gpg.exe` is missing, the bundled key is absent, or an old release cannot reach its fallback key URL | install GnuPG or Git for Windows; for old releases pass `-PublicKeyPath` explicitly. |
+| `verify_release.ps1` reports fingerprint mismatch | wrong or tampered public key file was used | compare `ALIS_PUBLIC_KEY.asc` against the fingerprint on the site trust page. |
 
 ## References
 

@@ -7,6 +7,6 @@ If the logic is reusable, keep it in `../helpers/` and call it from a wrapper he
 
 ## Current Wrappers
 
-- `fix_bp_hero_character_mesh_defaults.bat`
-  - repairs `BP_Hero` inherited `CharacterMesh0` transform drift
-  - recompiles Blueprints after the asset edit
+- `create_world_body_retarget_wrapper.bat`
+  - creates or refreshes the project-owned retarget wrapper
+  - writes the narrow runtime retarget map used by ObjectDefinition mesh data

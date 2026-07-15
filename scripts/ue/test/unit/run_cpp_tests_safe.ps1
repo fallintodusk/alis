@@ -9,6 +9,9 @@ param(
     [switch]$Game = $false,  # Run in standalone game mode (creates real game world)
     [int]$TimeoutSeconds = 120,  # 2 minutes
     [string]$ExtraArgs = "",  # Additional command-line args (e.g. -ProjectSkipFrontEnd)
+    [string]$PreExecCmds = "",  # Console commands to run before Automation RunTests
+    [string[]]$RequiredLogPatterns = @(),  # Regex markers that must appear in the cold-run log
+    [string[]]$ExpectedTestNames = @(),  # Exact test paths expected to start and complete
     [switch]$UseTestExitOnly = $false,  # Omit Quit from ExecCmds; rely on -testexit sentinel only
     [ValidateSet("Dev", "Gate")]
     [string]$Mode = "Dev",  # Dev (default) rejects broad filters; Gate accepts them (CI/end-of-slice).
@@ -47,7 +50,8 @@ New-Item -Force -ItemType Directory -Path $logDir | Out-Null
 #
 # Env opt-out: set ALIS_NO_PERSISTENT_EDITOR=1 to force the cold path.
 # --------------------------------------------------------------------------
-if ($env:ALIS_NO_PERSISTENT_EDITOR -ne "1") {
+$requiresColdRunEvidence = $RequiredLogPatterns.Count -gt 0 -or $ExpectedTestNames.Count -gt 0
+if ($env:ALIS_NO_PERSISTENT_EDITOR -ne "1" -and -not $requiresColdRunEvidence) {
     $persistentPid = Join-Path $root "artifacts\persistent\editor.pid"
     if (Test-Path $persistentPid) {
         $editorPid = (Get-Content $persistentPid -ErrorAction SilentlyContinue | Select-Object -First 1)
@@ -86,6 +90,12 @@ Write-Host "NullRHI:    $NoRHI" -ForegroundColor $(if ($NoRHI) { "Gray" } else {
 if ($Game) { Write-Host "Mode:       GAME (standalone)" -ForegroundColor Green }
 Write-Host "Timeout:    $TimeoutSeconds seconds"
 Write-Host "WarnAfter:  $warnThresholdSeconds seconds"
+if ($ExpectedTestNames.Count -gt 0) {
+    Write-Host "Expected:   $($ExpectedTestNames.Count) exact test(s)" -ForegroundColor Gray
+}
+if ($RequiredLogPatterns.Count -gt 0) {
+    Write-Host "Markers:    $($RequiredLogPatterns.Count) required log pattern(s)" -ForegroundColor Gray
+}
 Write-Host "LogDir:     $logDir"
 Write-Host "Started:    $($startTime.ToString('HH:mm:ss'))"
 Write-Host ""
@@ -125,7 +135,8 @@ $mapArg = if ($Map) { " `"$Map`"" } else { "" }
 $rhiArg = if ($NoRHI) { " -NullRHI" } else { "" }
 $gameArg = if ($Game) { " -game" } else { "" }
 $extraArg = if ($ExtraArgs) { " $ExtraArgs" } else { "" }
-$execCmds = if ($UseTestExitOnly) { "Automation RunTests $TestFilter" } else { "Automation RunTests $TestFilter; Quit" }
+$automationCmds = if ($UseTestExitOnly) { "Automation RunTests $TestFilter" } else { "Automation RunTests $TestFilter; Quit" }
+$execCmds = if ($PreExecCmds) { "$PreExecCmds, $automationCmds" } else { $automationCmds }
 $psi.Arguments = "`"$projectPath`"$mapArg$gameArg -ExecCmds=`"$execCmds`" -unattended -nopause$rhiArg -nosplash -nosound -log -stdout -FullStdOutLogOutput -testexit=`"Automation Test Queue Empty`"$extraArg"
 $psi.UseShellExecute = $false
 $psi.RedirectStandardOutput = $true
@@ -164,27 +175,155 @@ Write-Host "  Tests completed (exit code: $exitCode)" -ForegroundColor $(if ($ex
 Write-Host "[3/4] Parsing test results..." -ForegroundColor Yellow
 $logContent = Get-Content $testLog -Raw
 
-# Count test results (UE format: "Test Completed. Result={Success}" or "Result={Fail}")
-$passedCount = ([regex]::Matches($logContent, "Test Completed\. Result=\{Success\}")).Count
-$failedCount = ([regex]::Matches($logContent, "Test Completed\. Result=\{Fail\}")).Count
+# Parse discovery, start, and completion independently. A process exit code or
+# an empty automation queue is not evidence that the requested tests ran.
+$discoveryMatches = [regex]::Matches(
+    $logContent,
+    "Found\s+(?<Count>\d+)\s+automation tests based on")
+$discoveredCount = if ($discoveryMatches.Count -gt 0) {
+    [int]$discoveryMatches[$discoveryMatches.Count - 1].Groups["Count"].Value
+} else {
+    $null
+}
+
+$startedMatches = [regex]::Matches(
+    $logContent,
+    "Test Started\..*?Path=\{(?<Path>[^}]+)\}")
+$startedPaths = @($startedMatches | ForEach-Object { $_.Groups["Path"].Value })
+
+$completedMatches = [regex]::Matches(
+    $logContent,
+    "Test Completed\. Result=\{(?<Result>Success|Fail)\}.*?Path=\{(?<Path>[^}]+)\}")
+$completedPaths = @($completedMatches | ForEach-Object { $_.Groups["Path"].Value })
+
+$passedCount = @($completedMatches | Where-Object { $_.Groups["Result"].Value -eq "Success" }).Count
+$failedCount = @($completedMatches | Where-Object { $_.Groups["Result"].Value -eq "Fail" }).Count
 $totalCount = $passedCount + $failedCount
+$uniqueStartedPaths = @($startedPaths | Sort-Object -Unique)
+$uniqueCompletedPaths = @($completedPaths | Sort-Object -Unique)
+$duplicateStartedPaths = @($startedPaths | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+$duplicateCompletedPaths = @($completedPaths | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+
+$validationErrors = [System.Collections.Generic.List[string]]::new()
+
+if ($proc.ExitCode -ne 0) {
+    $validationErrors.Add("Editor process exited with code $($proc.ExitCode)")
+}
+
+if ($null -eq $discoveredCount) {
+    $validationErrors.Add("Automation discovery marker was not found")
+} elseif ($discoveredCount -le 0) {
+    $validationErrors.Add("Automation discovery matched zero tests")
+}
+
+if ($startedPaths.Count -eq 0) {
+    $validationErrors.Add("No automation test start marker was found")
+}
+
+if ($totalCount -eq 0) {
+    $validationErrors.Add("No automation test completion marker was found")
+}
+
+if ($startedPaths.Count -ne $totalCount) {
+    $validationErrors.Add(
+        "Started/completed count mismatch: started=$($startedPaths.Count), completed=$totalCount")
+}
+
+if ($null -ne $discoveredCount -and $discoveredCount -ne $startedPaths.Count) {
+    $validationErrors.Add(
+        "Discovered/started count mismatch: discovered=$discoveredCount, started=$($startedPaths.Count)")
+}
+
+if ($null -ne $discoveredCount -and $discoveredCount -ne $totalCount) {
+    $validationErrors.Add(
+        "Discovered/completed count mismatch: discovered=$discoveredCount, completed=$totalCount")
+}
+
+if ($duplicateStartedPaths.Count -gt 0) {
+    $validationErrors.Add("Duplicate test start markers: $($duplicateStartedPaths -join ', ')")
+}
+
+if ($duplicateCompletedPaths.Count -gt 0) {
+    $validationErrors.Add("Duplicate test completion markers: $($duplicateCompletedPaths -join ', ')")
+}
+
+$startedWithoutCompletion = @($uniqueStartedPaths | Where-Object { $uniqueCompletedPaths -notcontains $_ })
+$completedWithoutStart = @($uniqueCompletedPaths | Where-Object { $uniqueStartedPaths -notcontains $_ })
+if ($startedWithoutCompletion.Count -gt 0) {
+    $validationErrors.Add("Started tests did not complete: $($startedWithoutCompletion -join ', ')")
+}
+if ($completedWithoutStart.Count -gt 0) {
+    $validationErrors.Add("Completed tests had no start marker: $($completedWithoutStart -join ', ')")
+}
+
+$foundRequiredPatternCount = 0
+foreach ($pattern in $RequiredLogPatterns) {
+    if (-not [regex]::IsMatch($logContent, $pattern)) {
+        $validationErrors.Add("Required log pattern was not found: $pattern")
+    } else {
+        $foundRequiredPatternCount++
+    }
+}
+
+$expectedNames = @($ExpectedTestNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+if ($expectedNames.Count -gt 0) {
+    $uniqueExpectedNames = @($expectedNames | Sort-Object -Unique)
+    if ($uniqueExpectedNames.Count -ne $expectedNames.Count) {
+        $validationErrors.Add("Expected test names contain duplicates")
+    }
+
+    if ($null -ne $discoveredCount -and $discoveredCount -ne $expectedNames.Count) {
+        $validationErrors.Add(
+            "Discovered test count mismatch: expected=$($expectedNames.Count), discovered=$discoveredCount")
+    }
+
+    $missingStarts = @($expectedNames | Where-Object { $startedPaths -notcontains $_ })
+    $missingCompletions = @($expectedNames | Where-Object { $completedPaths -notcontains $_ })
+    $unexpectedStarts = @($startedPaths | Where-Object { $expectedNames -notcontains $_ })
+    $unexpectedCompletions = @($completedPaths | Where-Object { $expectedNames -notcontains $_ })
+
+    if ($missingStarts.Count -gt 0) {
+        $validationErrors.Add("Expected tests did not start: $($missingStarts -join ', ')")
+    }
+    if ($missingCompletions.Count -gt 0) {
+        $validationErrors.Add("Expected tests did not complete: $($missingCompletions -join ', ')")
+    }
+    if ($unexpectedStarts.Count -gt 0) {
+        $validationErrors.Add("Unexpected tests started: $($unexpectedStarts -join ', ')")
+    }
+    if ($unexpectedCompletions.Count -gt 0) {
+        $validationErrors.Add("Unexpected tests completed: $($unexpectedCompletions -join ', ')")
+    }
+}
+
+if ($failedCount -gt 0) {
+    $validationErrors.Add("$failedCount automation test(s) failed")
+}
 
 Write-Host ""
-Write-Host "  Total tests:  $totalCount" -ForegroundColor Gray
+Write-Host "  Discovered:   $(if ($null -eq $discoveredCount) { '(missing)' } else { $discoveredCount })" -ForegroundColor Gray
+Write-Host "  Started:      $($startedPaths.Count)" -ForegroundColor Gray
+Write-Host "  Completed:    $totalCount" -ForegroundColor Gray
 Write-Host "  Passed:       $passedCount" -ForegroundColor Green
 Write-Host "  Failed:       $failedCount" -ForegroundColor $(if ($failedCount -eq 0) { "Green" } else { "Red" })
+Write-Host "  Markers:      $foundRequiredPatternCount/$($RequiredLogPatterns.Count)" -ForegroundColor Gray
+Write-Host "  Duplicates:   starts=$($duplicateStartedPaths.Count), completions=$($duplicateCompletedPaths.Count)" -ForegroundColor Gray
 Write-Host ""
 
 # Show failures if any
-if ($failedCount -gt 0) {
-    Write-Host "  Failed tests:" -ForegroundColor Red
+if ($validationErrors.Count -gt 0) {
+    Write-Host "  Validation failures:" -ForegroundColor Red
+    foreach ($validationError in $validationErrors) {
+        Write-Host "    - $validationError" -ForegroundColor Red
+    }
+
+    if ($failedCount -gt 0) {
+        Write-Host "  Failed test log lines:" -ForegroundColor Red
+    }
     $logContent -split "`n" |
         Where-Object { $_ -match "LogAutomationController: Error:.*failed" } |
         ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
-    $exitCode = 1
-} elseif ($totalCount -eq 0) {
-    Write-Host "  WARNING: No tests found matching '$TestFilter'" -ForegroundColor Yellow
-    $exitCode = 2
+    $exitCode = if ($totalCount -eq 0) { 2 } else { 1 }
 } else {
     Write-Host "  All tests passed!" -ForegroundColor Green
     $exitCode = 0

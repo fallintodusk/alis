@@ -86,7 +86,7 @@ Concrete responsibilities:
 - Own experience configuration for single-player:
   - Mode presets (Beginner, Medium, Hardcore).
   - Difficulty settings, feature toggles, spawn rules.
-  - Character implementation is a separate concern: default runtime now uses modular `DefinitionCharacter`; use `?CharacterSystem=Legacy` or `project.character.switch legacy` only when you explicitly need the old `BP_Hero` path.
+  - Character definition is a separate concern: runtime uses `DefinitionCharacter`, selected by `?CharacterDefinition=Hero` (Hero is the default).
 - Keep rules **deterministic and world-agnostic**:
   - Generic single-player rules (movement, health, stamina, etc.) live here or in feature plugins, not in world plugins.
 
@@ -190,19 +190,18 @@ void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Opti
 {
     Super::InitGame(MapName, Options, ErrorMessage);
 
-    // Parse URL options (Mode=Medium, CharacterSystem=Modular, CharacterDefinition=Hero)
+    // Parse URL options (Mode=Medium, CharacterDefinition=Hero)
     FString ModeParam = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
-    FString CharacterSystemParam = UGameplayStatics::ParseOption(Options, TEXT("CharacterSystem"));
     FString CharacterDefinitionParam = UGameplayStatics::ParseOption(Options, TEXT("CharacterDefinition"));
 
     // Load ModeConfig struct (defines UE layer + features)
     ModeConfig = LoadModeConfig(ModeParam);
 
-    // Resolve character implementation separately from gameplay mode
-    LoadCharacterSelection(CharacterSystemParam, CharacterDefinitionParam);
+    // Resolve the character definition separately from gameplay mode
+    LoadCharacterSelection(CharacterDefinitionParam);
 
-    // Apply UE layer classes from config
-    DefaultPawnClass = ModeConfig.DefaultPawnClass.LoadSynchronous();
+    // Apply the controller class from mode config. Pawn spawning remains
+    // definition-driven and independent from gameplay mode.
     PlayerControllerClass = ModeConfig.PlayerControllerClass.LoadSynchronous();
 }
 ```
@@ -263,7 +262,6 @@ struct FSinglePlayModeConfig
     GENERATED_BODY()
 
     FName ModeName;                                    // Mode identifier
-    TSoftClassPtr<APawn> DefaultPawnClass;             // Pawn class (soft ref)
     TSoftClassPtr<APlayerController> PlayerControllerClass;  // Controller class (soft ref)
     TArray<FName> RequiredFeaturePlugins;              // Plugin names for Orchestrator to load
     TArray<FName> FeatureNames;                        // Features to init via FFeatureRegistry
@@ -315,31 +313,30 @@ bool bExists = FSinglePlayModeRegistry::HasMode(FName("Hardcore"));
 TArray<FName> AllModes = FSinglePlayModeRegistry::GetAllModeNames();
 ```
 
-### 8.5. Character system selection
+### 8.5. Character definition selection
 
-Character implementation rollout is separate from gameplay mode:
+Character selection is separate from gameplay mode:
 
-- Default spawn path is modular `DefinitionCharacter`
-- Legacy path is selected with URL options:
-  - `?CharacterSystem=Legacy`
-- Modular path can still be selected explicitly with URL options:
-  - `?CharacterSystem=Modular?CharacterDefinition=Hero`
-- Runtime switching is handled by GameMode through:
-  - `project.character.switch legacy`
-  - `project.character.switch modular`
-  - `project.character.switch modular Hero`
+- Spawn is definition-driven through `DefinitionCharacter`
+- `?CharacterDefinition=Hero` selects an ObjectDefinition by name
+- `?CharacterDefinition=ObjectDefinition:Hero` accepts the full primary asset ID
+- Omitting the option selects `ObjectDefinition:Hero`
 
-This keeps `Mode` focused on gameplay presets while GameMode still remains the authority for spawn, respawn, possession, and fallback behavior.
+This keeps `Mode` focused on gameplay presets while GameMode remains the authority for spawn and possession.
+Spawn is fail-closed: an invalid effective definition returns no pawn, and a
+definition that resolves to a non-pawn actor is logged, destroyed, and rejected.
+`DefaultPawnClass` is not a character fallback or a mode configuration field.
 
 ### 8.6. JSON Override Support (Optional)
 
 Modes can be extended or overridden via JSON without recompiling.
 
-**Location:** `Config/SinglePlay/ModeOverrides.json`
+**Location:** `Plugins/Gameplay/ProjectSinglePlay/Data/ModeOverrides.json`
 
 **Format:**
 ```json
 {
+  "$schema": "Schemas/single_play_mode_overrides.schema.json",
   "modes": [
     {
       "modeName": "Medium",
@@ -349,9 +346,15 @@ Modes can be extended or overridden via JSON without recompiling.
     },
     {
       "modeName": "Survival",
-      "defaultPawnClass": "/Game/BP/BP_SurvivalPawn.BP_SurvivalPawn_C",
-      "featureComponents": [
-        "/Script/ProjectCombat.CombatComponent"
+      "requiredFeaturePlugins": [
+        "ProjectCombat",
+        "ProjectInventory"
+      ],
+      "featureNames": [
+        "Combat",
+        "Inventory",
+        "Hunger",
+        "Thirst"
       ],
       "featureConfigs": {
         "Hunger": "{\"enabled\":true}",
@@ -366,9 +369,14 @@ Modes can be extended or overridden via JSON without recompiling.
 - Loaded automatically during registry initialization (if file exists)
 - Merges with C++ definitions (JSON values override C++ values per-key)
 - New modes can be added via JSON (not just overrides)
-- Invalid entries are logged and skipped (guardrail)
+- Supported mode fields are `modeName`, `playerControllerClass`,
+  `requiredFeaturePlugins`, `featureNames`, and `featureConfigs`
+- The root `$schema` field is required and must point at the checked-in schema
+- Unknown fields, wrong value types, invalid soft paths, and empty names are
+  logged as errors; the invalid mode entry is skipped instead of being
+  partially applied
 
-**Example file:** `Config/SinglePlay/ModeOverrides.json.example`
+**Example file:** `Plugins/Gameplay/ProjectSinglePlay/Data/ModeOverrides.example.json`
 
 ## 9. World dependency pattern
 
@@ -409,7 +417,7 @@ Configuration guidelines:
   * UI/UX behaviors for single-player
 * Keep world-specific values out of `ASinglePlayerGameMode`:
   * They should come from world manifests instead
-* Future: JSON override support for runtime config merging (see TODO.md)
+* JSON overrides may merge runtime configuration from the plugin `Data` directory
 
 ## 11. Guidelines for contributors and agents
 

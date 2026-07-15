@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "single_play_mode_overrides.schema.json",
+  "title": "ProjectSinglePlay mode overrides",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "modes"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mode"
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyNameArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modeName"],
+      "properties": {
+        "modeName": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "playerControllerClass": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "requiredFeaturePlugins": {
+          "$ref": "#/$defs/nonEmptyNameArray"
+        },
+        "featureNames": {
+          "$ref": "#/$defs/nonEmptyNameArray"
+        },
+        "featureConfigs": {
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -185,7 +185,7 @@ void UMotionMatchingBridgeAnimInstance::WriteCharacterProperties(
 	uint8* StructBase = CachedCharPropsProp->ContainerPtrToValuePtr<uint8>(PrimaryInstance);
 
 	// MovementMode: GASP ABP custom enum (NOT UE's EMovementMode).
-	// Legacy BP_Hero ABP dump shows 0=OnGround while moving grounded.
+	// Historical BP_Hero ABP inspection shows 0=OnGround while moving grounded.
 	// Previous mapping (4=Grounded,5=InAir) was WRONG -- caused frozen locomotion.
 	{
 		const EMovementMode Mode = CMC->MovementMode;
@@ -196,7 +196,7 @@ void UMotionMatchingBridgeAnimInstance::WriteCharacterProperties(
 	// Stance: Standing=0, Crouching=1
 	WriteByteField(Fields.Stance, StructBase, CMC->IsCrouching() ? 1 : 0);
 
-	// Gait: Run=1 for v1 (BP_Hero uses GetDesiredGait with gait curves)
+	// Gait: Run=1 for v1. Historical BP_Hero inspection used GetDesiredGait with gait curves.
 	WriteByteField(Fields.Gait, StructBase, 1);
 
 	// Transform, vectors, rotators
@@ -207,7 +207,7 @@ void UMotionMatchingBridgeAnimInstance::WriteCharacterProperties(
 	WriteFloatField(Fields.CurrentMaxDeceleration, StructBase, CMC->BrakingDecelerationWalking);
 
 	// Current first-person baseline:
-	// - Match the legacy BP_Hero / sample CMC contract: Strafe rotation mode.
+	// - Match the historical Blueprint/sample CMC contract: Strafe rotation mode.
 	// - Actor rotation is the facing target, while full control rotation keeps
 	//   the camera/aiming signal for AO and turn gates.
 	// - The sample turn-in-place gate also expects aiming/strafe intent, so the

@@ -1,9 +1,13 @@
 // Copyright ALIS. All Rights Reserved.
-// Clean-path isolation matrix for the modular first-person body behavior.
+// Clean-path isolation matrix for the definition-driven first-person body behavior.
 // Reuses the camera-yaw diagnostics, but runs the same spawned hero through:
 // A Driver only -> B Driver + WorldBody -> C Driver + WorldBody + LocalBody -> D full chain.
 
 #include "Misc/AutomationTest.h"
+#include "DefinitionCharacter.h"
+#include "LocalBody/LocalBodyAnimInstance.h"
+#include "Support/CharacterTestArtifactWriter.h"
+#include "Support/CharacterTestRunContext.h"
 #include "Tests/AutomationCommon.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -16,7 +20,6 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 struct FCleanPathMode
@@ -24,7 +27,6 @@ struct FCleanPathMode
 	FString Name;
 	FString VisibleRole;
 	bool bExpectWorld = false;
-	bool bExpectVisibleTracksWorld = false;
 	bool bFullChain = false;
 };
 
@@ -37,16 +39,16 @@ struct FCleanPathPhase
 	bool bJump;
 	float StartYawOffsetDeg;
 	float EndYawOffsetDeg;
-	bool bExpectVisibleResponse;
+	bool bExpectPoseResponse;
 	bool bExpectLargeBodyTurn;
 	bool bExpectTurnState;
 };
 
 static const FCleanPathMode GCleanPathModes[] = {
-	{ TEXT("ModeA_DriverOnly"), TEXT("DriverBody"), false, false, false },
-	{ TEXT("ModeB_DriverWorld"), TEXT("WorldBody"), true, false, false },
-	{ TEXT("ModeC_DriverWorldLocal"), TEXT("LocalBody"), true, true, false },
-	{ TEXT("ModeD_FullChain"), TEXT("OwnerVisible"), true, true, true },
+	{ TEXT("ModeA_DriverOnly"), TEXT("DriverBody"), false, false },
+	{ TEXT("ModeB_DriverWorld"), TEXT("WorldBody"), true, false },
+	{ TEXT("ModeC_DriverWorldLocal"), TEXT("LocalBody"), true, false },
+	{ TEXT("ModeD_FullChain"), TEXT("OwnerVisible"), true, true },
 };
 static constexpr int32 GNumCleanPathModes = UE_ARRAY_COUNT(GCleanPathModes);
 
@@ -538,6 +540,7 @@ struct FMeshSample
 	FString Asset;
 	FString LeaderPose;
 	FString AnimClass;
+	FString CopyPoseSource;
 	FString Tags;
 	bool bHiddenInGame = false;
 	bool bOnlyOwnerSee = false;
@@ -585,6 +588,10 @@ FMeshSample SampleMesh(USkeletalMeshComponent* Mesh)
 	Sample.Asset = Mesh->GetSkeletalMeshAsset() ? Mesh->GetSkeletalMeshAsset()->GetName() : TEXT("null");
 	Sample.LeaderPose = Mesh->LeaderPoseComponent.IsValid() ? Mesh->LeaderPoseComponent->GetName() : TEXT("none");
 	Sample.AnimClass = Mesh->GetAnimInstance() ? Mesh->GetAnimInstance()->GetClass()->GetName() : TEXT("none");
+	if (const ULocalBodyAnimInstance* LocalBodyAnim = Cast<ULocalBodyAnimInstance>(Mesh->GetAnimInstance()))
+	{
+		Sample.CopyPoseSource = LocalBodyAnim->GetCurrentSourceName().ToString();
+	}
 	Sample.bHiddenInGame = Mesh->bHiddenInGame;
 	Sample.bOnlyOwnerSee = Mesh->bOnlyOwnerSee;
 	Sample.bOwnerNoSee = Mesh->bOwnerNoSee;
@@ -640,6 +647,7 @@ TSharedPtr<FJsonObject> MeshSampleToJson(const FMeshSample& Mesh)
 	Object->SetStringField(TEXT("Asset"), Mesh.Asset);
 	Object->SetStringField(TEXT("LeaderPose"), Mesh.LeaderPose);
 	Object->SetStringField(TEXT("AnimClass"), Mesh.AnimClass);
+	Object->SetStringField(TEXT("CopyPoseSource"), Mesh.CopyPoseSource);
 	Object->SetStringField(TEXT("Tags"), Mesh.Tags);
 	Object->SetBoolField(TEXT("HiddenInGame"), Mesh.bHiddenInGame);
 	Object->SetBoolField(TEXT("OnlyOwnerSee"), Mesh.bOnlyOwnerSee);
@@ -735,7 +743,8 @@ struct FCleanPathPhaseSummary
 {
 	FString PhaseName;
 	int32 SampleCount = 0;
-	bool bExpectYawResponse = false;
+	bool bExpectPoseResponse = false;
+	bool bExpectYawContract = false;
 	bool bExpectLargeBodyTurn = false;
 	bool bExpectTurnState = false;
 	bool bHasDriver = false;
@@ -795,7 +804,9 @@ struct FCleanPathPhaseSummary
 	bool bVisibleRespondedToYaw = false;
 	bool bBodyRespondedToYaw = false;
 	bool bVisibleTracksDriver = false;
-	bool bVisibleTracksWorld = false;
+	bool bVisiblePoseMatchesWorld = false;
+	bool bCheckedVisibleWorldSource = false;
+	bool bVisibleUsesWorldSource = true;
 	bool bLargeBodyTurnObserved = false;
 	bool bSawRetargetWorldVisual = false;
 };
@@ -950,6 +961,9 @@ void UpdateYawSummary(
 
 	if (World.bFound && Visible.bFound)
 	{
+		Summary.bCheckedVisibleWorldSource = true;
+		Summary.bVisibleUsesWorldSource =
+			Summary.bVisibleUsesWorldSource && Visible.CopyPoseSource == World.Name;
 		Summary.MaxAbsWorldVisiblePelvisDelta = FMath::Max(
 			Summary.MaxAbsWorldVisiblePelvisDelta,
 			FMath::Abs(NormalizeYawDelta(World.PelvisFacingYawComponent, Visible.PelvisFacingYawComponent)));
@@ -1009,7 +1023,7 @@ void FinalizeYawSummary(FCleanPathPhaseSummary& Summary)
 		(Summary.MaxAbsDriverVisibleHeadDelta <= 15.f &&
 		 Summary.MaxAbsDriverVisibleRootDelta <= 15.f);
 
-	Summary.bVisibleTracksWorld =
+	Summary.bVisiblePoseMatchesWorld =
 		!Summary.bHasWorld || !Summary.bHasVisible ||
 		(Summary.MaxAbsWorldVisiblePelvisDelta <= 5.f &&
 		 Summary.MaxAbsWorldVisibleSpineDelta <= 5.f &&
@@ -1046,7 +1060,8 @@ TSharedPtr<FJsonObject> YawSummaryToJson(const FCleanPathPhaseSummary& Summary)
 	TSharedPtr<FJsonObject> Object = MakeShared<FJsonObject>();
 	Object->SetStringField(TEXT("Phase"), Summary.PhaseName);
 	Object->SetNumberField(TEXT("Samples"), Summary.SampleCount);
-	Object->SetBoolField(TEXT("ExpectYawResponse"), Summary.bExpectYawResponse);
+	Object->SetBoolField(TEXT("ExpectPoseResponse"), Summary.bExpectPoseResponse);
+	Object->SetBoolField(TEXT("ExpectYawContract"), Summary.bExpectYawContract);
 	Object->SetBoolField(TEXT("ExpectLargeBodyTurn"), Summary.bExpectLargeBodyTurn);
 	Object->SetBoolField(TEXT("ExpectTurnState"), Summary.bExpectTurnState);
 	Object->SetBoolField(TEXT("HasDriver"), Summary.bHasDriver);
@@ -1098,7 +1113,9 @@ TSharedPtr<FJsonObject> YawSummaryToJson(const FCleanPathPhaseSummary& Summary)
 	Object->SetBoolField(TEXT("VisibleRespondedToYaw"), Summary.bVisibleRespondedToYaw);
 	Object->SetBoolField(TEXT("BodyRespondedToYaw"), Summary.bBodyRespondedToYaw);
 	Object->SetBoolField(TEXT("VisibleTracksDriver"), Summary.bVisibleTracksDriver);
-	Object->SetBoolField(TEXT("VisibleTracksWorld"), Summary.bVisibleTracksWorld);
+	Object->SetBoolField(TEXT("VisiblePoseMatchesWorld"), Summary.bVisiblePoseMatchesWorld);
+	Object->SetBoolField(TEXT("CheckedVisibleWorldSource"), Summary.bCheckedVisibleWorldSource);
+	Object->SetBoolField(TEXT("VisibleUsesWorldSource"), Summary.bVisibleUsesWorldSource);
 	Object->SetBoolField(TEXT("LargeBodyTurnObserved"), Summary.bLargeBodyTurnObserved);
 	Object->SetBoolField(TEXT("SawRetargetWorldVisual"), Summary.bSawRetargetWorldVisual);
 	return Object;
@@ -1114,7 +1131,7 @@ class FCleanPathIsolationMatrixCommand : public IAutomationLatentCommand
 public:
 	explicit FCleanPathIsolationMatrixCommand(FAutomationTestBase* InTest)
 		: Test(InTest)
-		, RunId(FDateTime::UtcNow().ToString(TEXT("%Y%m%d_%H%M%S")))
+		, RunId(ProjectCharacterTest::ResolveCaptureRunId())
 		, OutputDir(FPaths::ProjectSavedDir() / TEXT("Validation/CharacterDebug"))
 	{}
 
@@ -1136,7 +1153,7 @@ public:
 		switch (Stage)
 		{
 		case 0: return WaitForPawn();
-		case 1: return EnsureModularPawn();
+		case 1: return EnsureDefinitionCharacter();
 		case 2: return WaitForFullChainReady();
 		case 3: return RunModeMatrix();
 		case 4: return WriteModeSummary();
@@ -1169,7 +1186,7 @@ private:
 		return false;
 	}
 
-	bool EnsureModularPawn()
+	bool EnsureDefinitionCharacter()
 	{
 		if (Tick < 120)
 		{
@@ -1178,18 +1195,16 @@ private:
 
 		if (APlayerController* PC = FindPC())
 		{
-			if (PC->GetPawn() && PC->GetPawn()->GetClass()->GetName().Contains(TEXT("DefinitionCharacter")))
+			if (Cast<ADefinitionCharacter>(PC->GetPawn()))
 			{
-				Test->AddInfo(TEXT("CameraYaw using modular default pawn"));
+				Test->AddInfo(TEXT("CleanPath using definition-driven default pawn"));
 				NextStage();
 				return false;
 			}
 		}
 
-		GEngine->Exec(World, TEXT("project.character.switch modular"));
-		Test->AddInfo(TEXT("CameraYaw switched to modular"));
-		NextStage();
-		return false;
+		Test->AddError(TEXT("CleanPathIsolation requires DefinitionCharacter as the default pawn"));
+		return true;
 	}
 
 	bool WaitForFullChainReady()
@@ -1225,7 +1240,7 @@ private:
 
 		if (Tick > 2400)
 		{
-			Test->AddError(TEXT("Timed out waiting for full modular chain"));
+			Test->AddError(TEXT("Timed out waiting for the full definition-driven mesh chain"));
 			return true;
 		}
 
@@ -1348,7 +1363,8 @@ private:
 
 			FCleanPathPhaseSummary Summary;
 			Summary.PhaseName = Mode.Name + TEXT("/") + Phase.Name;
-			Summary.bExpectYawResponse = Phase.bExpectVisibleResponse;
+			Summary.bExpectPoseResponse = Phase.bExpectPoseResponse;
+			Summary.bExpectYawContract = !FMath::IsNearlyEqual(Phase.StartYawOffsetDeg, Phase.EndYawOffsetDeg);
 			Summary.bExpectLargeBodyTurn = Phase.bExpectLargeBodyTurn;
 			Summary.bExpectTurnState = Phase.bExpectTurnState;
 			CurrentSummaries.Add(Summary);
@@ -1389,7 +1405,7 @@ private:
 
 			const FCleanPathPhaseSummary& Summary = CurrentSummaries.Last();
 			Test->AddInfo(FString::Printf(
-				TEXT("[%s] %s: ActorDelta=%.1f VisibleRoot=%.1f VisiblePelvis=%.1f VisibleSpine=%.1f VisibleHead=%.1f AO=%.1f/%s TIPReq=%s TIPState=%s TIPEvent=%s RotBreak=%s TurnClip=%s AnimChange=%s Mode=%d-%d BridgeOK=%s WorldTrack=%s Retarget=%s"),
+				TEXT("[%s] %s: ActorDelta=%.1f VisibleRoot=%.1f VisiblePelvis=%.1f VisibleSpine=%.1f VisibleHead=%.1f AO=%.1f/%s TIPReq=%s TIPState=%s TIPEvent=%s RotBreak=%s TurnClip=%s AnimChange=%s Mode=%d-%d BridgeOK=%s WorldSource=%s Retarget=%s"),
 				*Mode.Name,
 				*Phase.Name,
 				Summary.MaxAbsActorControlDelta,
@@ -1408,7 +1424,7 @@ private:
 				Summary.bSawTopLevelRotationMode ? Summary.MinTopLevelRotationMode : 255,
 				Summary.bSawTopLevelRotationMode ? Summary.MaxTopLevelRotationMode : 255,
 				Summary.bBridgeTracksControlYaw ? TEXT("Y") : TEXT("N"),
-				Summary.bVisibleTracksWorld ? TEXT("Y") : TEXT("N"),
+				Summary.bVisibleUsesWorldSource ? TEXT("Y") : TEXT("N"),
 				Summary.bSawRetargetWorldVisual ? TEXT("Y") : TEXT("N")));
 
 			++PhaseIdx;
@@ -1497,7 +1513,7 @@ private:
 		}
 
 		Row->SetStringField(TEXT("RunId"), RunId);
-		Row->SetStringField(TEXT("System"), TEXT("Modular"));
+		Row->SetStringField(TEXT("RuntimeModel"), TEXT("definition_driven"));
 		Row->SetStringField(TEXT("Mode"), Mode.Name);
 		Row->SetStringField(TEXT("Phase"), Phase.Name);
 		Row->SetNumberField(TEXT("Sample"), SampleIdx);
@@ -1645,17 +1661,17 @@ private:
 
 	bool WriteModeSummary()
 	{
-		const FString TimelinePath = OutputDir / FString::Printf(TEXT("modular_clean_path_timeline_%s.jsonl"),
+		const FString TimelinePath = OutputDir / FString::Printf(TEXT("definition_clean_path_timeline_%s.jsonl"),
 			*RunId);
-		FFileHelper::SaveStringToFile(
+		ProjectCharacterTest::SaveArtifact(
+			*Test,
 			FString::Join(TimelineLines, TEXT("\n")),
-			*TimelinePath,
-			FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+			TimelinePath);
 		Test->AddInfo(FString::Printf(TEXT("[CleanPath] Timeline -> %s"), *TimelinePath));
 
 		TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 		Root->SetStringField(TEXT("RunId"), RunId);
-		Root->SetStringField(TEXT("System"), TEXT("Modular"));
+		Root->SetStringField(TEXT("RuntimeModel"), TEXT("definition_driven"));
 
 		TArray<TSharedPtr<FJsonValue>> PhaseArray;
 		for (const FCleanPathPhaseSummary& Summary : CurrentSummaries)
@@ -1668,12 +1684,12 @@ private:
 		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&SummaryText);
 		FJsonSerializer::Serialize(Root, Writer);
 
-		const FString SummaryPath = OutputDir / FString::Printf(TEXT("modular_clean_path_summary_%s.json"),
+		const FString SummaryPath = OutputDir / FString::Printf(TEXT("definition_clean_path_summary_%s.json"),
 			*RunId);
-		FFileHelper::SaveStringToFile(
+		ProjectCharacterTest::SaveArtifact(
+			*Test,
 			SummaryText,
-			*SummaryPath,
-			FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+			SummaryPath);
 		Test->AddInfo(FString::Printf(TEXT("[CleanPath] Summary -> %s"), *SummaryPath));
 
 		FString PreviousMode;
@@ -1688,7 +1704,7 @@ private:
 			}
 			PreviousMode = ModeName;
 
-			if (Summary.bExpectYawResponse && (!Summary.bBridgeTracksControlYaw || !Summary.bAnyWantsToStrafe || !Summary.bAnyWantsToAim))
+			if (Summary.bExpectYawContract && (!Summary.bBridgeTracksControlYaw || !Summary.bAnyWantsToStrafe || !Summary.bAnyWantsToAim))
 			{
 				Test->AddError(FString::Printf(
 					TEXT("[CleanPath] %s failed at Layer1_MMContract: yaw contract broke (Bridge=%s Strafe=%s Aim=%s)"),
@@ -1701,7 +1717,7 @@ private:
 
 			if (ModeName == TEXT("ModeA_DriverOnly"))
 			{
-				if (Summary.bExpectYawResponse && !Summary.bVisibleRespondedToYaw && !Summary.bBodyRespondedToYaw)
+				if (Summary.bExpectPoseResponse && !Summary.bVisibleRespondedToYaw && !Summary.bBodyRespondedToYaw)
 				{
 					Test->AddError(FString::Printf(
 						TEXT("[CleanPath] %s failed at Layer2_RawPose: driver-visible mode never changed bones"),
@@ -1711,7 +1727,7 @@ private:
 			}
 			else if (ModeName == TEXT("ModeB_DriverWorld"))
 			{
-				if (Summary.bExpectYawResponse && !Summary.bVisibleRespondedToYaw && !Summary.bBodyRespondedToYaw)
+				if (Summary.bExpectPoseResponse && !Summary.bVisibleRespondedToYaw && !Summary.bBodyRespondedToYaw)
 				{
 					Test->AddError(FString::Printf(
 						TEXT("[CleanPath] %s failed at Layer3_RetargetPropagation: driver changed but WorldBody did not"),
@@ -1721,7 +1737,9 @@ private:
 			}
 			else
 			{
-				if (Summary.bExpectYawResponse && ((!Summary.bVisibleRespondedToYaw && !Summary.bBodyRespondedToYaw) || !Summary.bVisibleTracksWorld))
+				if (Summary.bExpectPoseResponse &&
+					((!Summary.bVisibleRespondedToYaw && !Summary.bBodyRespondedToYaw) ||
+					 !Summary.bCheckedVisibleWorldSource || !Summary.bVisibleUsesWorldSource))
 				{
 					Test->AddError(FString::Printf(
 						TEXT("[CleanPath] %s failed at Layer4_LocalCustomizationPropagation: world changed but owner-visible layer diverged"),

@@ -18,7 +18,6 @@ public class ProjectCharacter : ModuleRules
 			"ProjectGAS",
 			"ProjectVitals",
 			"CustomizableObject",
-			"HairStrandsCore",
 			"AnimGraphRuntime",
 			"AnimationCore"
 		});

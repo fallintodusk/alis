@@ -1,13 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "SinglePlayModeConfig.generated.h"
 
 /**
  * Data-driven configuration for a single-player mode.
- * Defines UE layer classes (Pawn, PlayerController) and features to initialize.
+ * Defines the UE controller layer and features to initialize.
  *
  * Used by ASinglePlayerGameMode to configure gameplay based on URL parameters.
  * Features are initialized via FFeatureRegistry (ProjectFeature) - features self-register
@@ -21,10 +20,6 @@ struct PROJECTSINGLEPLAY_API FSinglePlayModeConfig
 	// Mode identifier (e.g., "Single", "Story", "Hardcore")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mode")
 	FName ModeName;
-
-	// UE Layer: Default pawn class for this mode (soft ref to avoid hard dependencies)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UE Layer")
-	TSoftClassPtr<APawn> DefaultPawnClass;
 
 	// UE Layer: Player controller class for this mode
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UE Layer")
@@ -59,7 +54,7 @@ struct PROJECTSINGLEPLAY_API FSinglePlayModeConfig
 	{
 		FSinglePlayModeConfig Config;
 		Config.ModeName = FName(TEXT("Single"));
-		// Leave class references null - GameMode will use its own defaults
+		// Leave optional references null - GameMode will use its own defaults.
 		return Config;
 	}
 };

@@ -24,6 +24,10 @@ This section documents the **External, Text-Based Data Architecture** (JSON, INI
 
 The project implements a **decentralized data pipeline** with three distinct flows, each owned by specialized plugins.
 
+The three flows form an integrated plugin suite, not three standalone drop-in products. The reuse
+boundary and clean-project readiness gate are documented by
+[ProjectDefinitionGenerator](../../Plugins/Editor/ProjectDefinitionGenerator/README.md#integration-boundary).
+
 ### Flow Terminology
 
 | Term | What It Means | Owner Plugin | Example |

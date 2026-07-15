@@ -84,29 +84,20 @@ UI -> ProjectCharacter + ProjectGAS
 
 ---
 
-## Modular Character System (Skeletal Assembly Framework)
+## Definition-Driven Character System (Skeletal Assembly Framework)
 
-Two character systems coexist:
+The runtime character path is definition-driven:
 
-| System | Pawn Class | Driven By | Status |
-|--------|-----------|-----------|--------|
-| Legacy | `AProjectCharacter` / BP_Hero | Blueprint defaults + C++ constructor | Production default |
-| Modular | `ADefinitionCharacter` | Hero.json definition + capabilities | Parity-tested, interim |
+| Pawn Class | Driven By | Status |
+|------------|-----------|--------|
+| `ADefinitionCharacter` | Hero.json definition + capabilities | Production runtime |
 
-**Switching:** `project.character.switch <legacy|modular>` (respawn-based, guarded behind !UE_BUILD_SHIPPING)
-
-**What stays legacy for v1:**
-- Retarget AnimBPs
-- Mutable content graphs
-- BP_Hero movement tuning (gait/strafe curves)
-- Traversal, foley, smart-object behavior
-
-**Bridged for modular v1:**
-- Motion Matching AnimBP -- PostProcess bridge feeds CMC data via reflection (Gait defaults to Run)
+Motion Matching AnimBPs and Mutable content graphs remain asset-driven capabilities.
+The PostProcess bridge feeds CMC data into the Motion Matching AnimBP.
 
 **ADefinitionCharacter owns:** capsule, camera, movement, GAS, vitals, input. NO hardcoded mesh subobjects -- meshes come from definition.
 
-**Switch host:** `ProjectSinglePlay` -- owns `ESinglePlayCharacterSystem` enum and `SwitchCharacterSystemRuntime()`.
+**Spawn host:** `ProjectSinglePlay` resolves `CharacterDefinition` and spawns through `ProjectObjectSpawn`.
 
 ---
 

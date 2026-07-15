@@ -20,7 +20,6 @@
  *   DEFINE_SINGLEPLAY_MODE(ModeName)
  *   {
  *       Config.ModeName = FName(TEXT("ModeName"));
- *       Config.DefaultPawnClass = ...;  // TSoftClassPtr
  *       Config.PlayerControllerClass = ...;  // TSoftClassPtr
  *       Config.FeatureNames.Add(TEXT("Combat"));  // Features to init via registry
  *       Config.FeatureConfigs.Add(FName("Combat"), TEXT("{...}"));  // Per-feature config
@@ -28,14 +27,12 @@
  *
  * Available fields in FSinglePlayModeConfig:
  *   - ModeName: FName identifier (must match DEFINE_SINGLEPLAY_MODE argument)
- *   - DefaultPawnClass: TSoftClassPtr<APawn> - pawn class to spawn
  *   - PlayerControllerClass: TSoftClassPtr<APlayerController> - controller class
  *   - FeatureNames: TArray<FName> - ordered features to init via FFeatureRegistry
  *   - FeatureConfigs: TMap<FName, FString> - per-feature JSON config strings
  */
 
 #include "SinglePlayModeRegistry.h"
-#include "GameFramework/DefaultPawn.h"
 
 // =============================================================================
 // MODE: Beginner (Easier difficulty)
@@ -44,7 +41,7 @@ DEFINE_SINGLEPLAY_MODE(Beginner)
 {
 	Config.ModeName = FName(TEXT("Beginner"));
 
-	// Character class — Modular system uses Hero.json, DefaultPawnClass not needed.
+	// Character definition is selected independently; this mode owns gameplay policy only.
 	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 
 	// Features to initialize (order matters)
@@ -58,13 +55,13 @@ DEFINE_SINGLEPLAY_MODE(Beginner)
 }
 
 // =============================================================================
-// MODE: Medium (Default single-player mode - ACTIVE legacy baseline)
+// MODE: Medium (default single-player mode)
 // =============================================================================
 DEFINE_SINGLEPLAY_MODE(Medium)
 {
 	Config.ModeName = FName(TEXT("Medium"));
 
-	// Character class — Modular system uses Hero.json, DefaultPawnClass not needed.
+	// Character definition is selected independently; this mode owns gameplay policy only.
 	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 
 	// Features to initialize (order matters)
@@ -84,7 +81,7 @@ DEFINE_SINGLEPLAY_MODE(Hardcore)
 {
 	Config.ModeName = FName(TEXT("Hardcore"));
 
-	// Character class — Modular system uses Hero.json, DefaultPawnClass not needed.
+	// Character definition is selected independently; this mode owns gameplay policy only.
 	Config.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftClassPath(TEXT("/Script/ProjectSinglePlayClient.SinglePlayController")));
 
 	// Features to initialize (order matters)

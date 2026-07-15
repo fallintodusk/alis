@@ -20,9 +20,7 @@ public class OrchestratorEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"Projects",
-			"Slate",
-			"SlateCore"
+			"Projects"
 		});
 	}
 }

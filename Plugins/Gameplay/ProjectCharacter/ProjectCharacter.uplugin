@@ -27,7 +27,6 @@
 		{ "Name": "ProjectVitals", "Enabled": true },
 		{ "Name": "ProjectCore", "Enabled": true },
 		{ "Name": "Mutable", "Enabled": true },
-		{ "Name": "HairStrands", "Enabled": true },
 		{ "Name": "ProjectSkeletalCapabilities", "Enabled": true }
 	]
 }

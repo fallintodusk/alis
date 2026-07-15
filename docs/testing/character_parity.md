@@ -1,15 +1,13 @@
 # Character Parity Testing
 
-SOT for automated character parity capture and agent-driven character animation debugging for modular `DefinitionCharacter`, with legacy `BP_Hero` used only when an explicit parity comparison is needed.
-
-Important: legacy parity is a comparative baseline, not automatic proof of correctness.
-For camera/body behavior specifically, current evidence shows legacy `BP_Hero`
-is also imperfect. Use parity to find regressions and architectural differences,
-then validate final behavior against the intended design, not legacy alone.
+SOT for automated character regression capture and agent-driven animation debugging
+for the definition-driven `DefinitionCharacter` runtime. The automation namespace
+retains `Character.Parity` for stable test filters, but the deleted `BP_Hero` path
+is not part of the runtime or pass/fail contract.
 
 Use this doc when an agent needs to investigate:
 - Hero spawn and runtime wiring
-- modular `DefinitionCharacter` vs legacy `BP_Hero`
+- definition-driven `DefinitionCharacter` spawn and behavior
 - SkeletalAssembly lifecycle
 - Motion Matching and Mutable integration
 - first-person body behavior and clipping
@@ -21,13 +19,13 @@ Use this doc when an agent needs to investigate:
 ## Quick Start
 
 ```powershell
-# All parity tests (idle + locomotion + anim sanity)
+# All character parity-namespace tests (idle + locomotion + anim sanity)
 .\scripts\ue\test\character\capture_parity.ps1 -TimeoutSeconds 300
 
 # Camera-yaw parity timeline only
 .\scripts\ue\test\character\capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.Parity.CameraYawTimeline" -TimeoutSeconds 600
 
-# Clean-path isolation first: same spawned modular hero through Mode A-D
+# Clean-path isolation first: same definition-driven hero through Mode A-D
 .\scripts\ue\test\character\capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.Parity.CleanPathIsolationMatrix" -TimeoutSeconds 900
 
 # Skip ObjectDefinition regeneration only if you explicitly want to test against
@@ -45,23 +43,21 @@ Output: `Saved/Validation/CharacterDebug/` (JSON, JSONL, PNG sidecars with uniqu
 
 Preflight:
 - `capture_parity.ps1` runs `GenerateDefinitions -type=Object` before the test
-- this keeps `Hero.json` and the generated `Hero.uasset` in sync for modular spawn
-- latest verified preflight log: `scripts/ue/artifacts/overnight/step-manual/generate_definitions.log`
+- this keeps `Hero.json` and the generated `Hero.uasset` in sync for definition-driven spawn
 
 ## Five Focused Tests
 
 | Test | Filter | Duration | What |
 |------|--------|----------|------|
-| IdleSnapshot | `...Parity.IdleSnapshot` | ~15s | Capture legacy + modular at rest |
-| CleanPathIsolationMatrix | `...Parity.CleanPathIsolationMatrix` | ~180s | Modular-only 4-mode fault-line isolation: driver -> retarget -> local -> full Mutable |
-| CameraYawTimeline | `...Parity.CameraYawTimeline` | ~80s | Modular-only scripted camera yaw sweep, bridge fields, visible mesh propagation |
+| IdleSnapshot | `...Parity.IdleSnapshot` | ~15s | Capture the definition-driven hero at rest |
+| CleanPathIsolationMatrix | `...Parity.CleanPathIsolationMatrix` | ~180s | Definition-driven 4-mode fault-line isolation: driver -> retarget -> local -> full Mutable |
+| CameraYawTimeline | `...Parity.CameraYawTimeline` | ~80s | Definition-driven scripted camera yaw sweep, bridge fields, visible mesh propagation |
 | LocomotionTimeline | `...Parity.LocomotionTimeline` | ~68s | 15-phase movement matrix, JSONL + summary |
 | SimpleAnimSanity | `...Parity.SimpleAnimSanity` | ~12s | Bypass ABP, play AnimSequence on DriverBody |
 
 ### CleanPathIsolationMatrix Baseline
 
-Do not use `BP_Hero` as the first source of truth for modular camera/body bugs.
-Use the same spawned modular hero in this order:
+Use the same spawned definition-driven hero in this order:
 
 1. Mode A - `DriverBody` only
 2. Mode B - `DriverBody -> WorldBody`
@@ -100,17 +96,6 @@ Failure layers:
 - Layer 3 - retarget propagation
 - Layer 4 - local/customization propagation
 
-Latest validated run:
-- `Saved/Validation/CharacterDebug/modular_clean_path_summary_20260408_164843.json`
-
-Current result on the 2026-04-08 build:
-- Mode A passes
-- Mode B passes
-- Mode C passes
-- Mode D passes
-- no earlier break surfaced before the full chain
-- current turn/body work should therefore start from the exact failing gameplay scenario, not from an assumed retarget/local propagation fault
-
 ### CameraYawTimeline Matrix (13 phases)
 
 | # | Phase | Duration | Input |
@@ -138,12 +123,13 @@ CameraYawTimeline samples every 0.25s and records:
 - root-turn evidence from root bone facing, not only component yaw
 
 Use this test to answer a specific question:
-- are bridge values wrong, or is the visible modular mesh chain bypassing the retargeted world visual layer?
+- are bridge values wrong, or is the visible definition-driven mesh chain bypassing the retargeted world visual layer?
 
 Current gate intent:
 - `BridgeTracksControlYaw` must be true in yaw-sweep phases
-- modular `WorldBody` must be alive and retargeted (`ABP_WorldBodyRetarget_C`)
-- owner-visible local body must track `WorldBody`, not raw `DriverBody`
+- definition-driven `WorldBody` must be alive and retargeted (`ABP_WorldBodyRetarget_C`)
+- owner-visible local body must explicitly copy pose from `WorldBody`, not raw `DriverBody`
+- exact upper-chain pose equality is not required because camera-safety correction intentionally modifies the local spine/neck/head after CopyPose
 - torso/head must respond during yaw-sweep phases
 - large idle-yaw phases must either enter a turn clip/state or remain in an already-active turn clip while body/root catch-up continues
 - large turn phases must also show a root/body catch-up sign:
@@ -154,10 +140,7 @@ Important:
 - the earlier 2026-04-07 "pass" overstated correctness because the old gate could false-pass on idle sway
 - the revised gate is stricter: it no longer counts a stale phase-boundary sample or raw head motion as proof of turning
 - this test now aims to prove both propagation and sustained turn-state behavior for large idle-yaw phases
-- `CameraYawTimeline` is modular-only; legacy artifacts are not part of the pass/fail contract
-- verified run: `Saved/Validation/CharacterDebug/modular_camera_yaw_summary_20260408_162229.json`
-  - `IdleYaw60`: enters `M_Neutral_Stand_Turn_045_R`
-  - `IdleYaw100`: stays on `M_Neutral_Stand_Turn_045_R` while actor yaw changes by `30.2` degrees and visible pelvis/spine/head move by `38.9 / 33.6 / 34.6`
+- `CameraYawTimeline` validates only the current definition-driven runtime
 
 ### LocomotionTimeline Movement Matrix (15 phases)
 
@@ -183,28 +166,26 @@ Three-layer sampling every 0.25s: Movement ground truth, ABP semantic state, com
 
 ### LocomotionTimeline Output Files
 
-- `legacy_timeline_{RunId}.jsonl` -- one JSON per line per sample
-- `modular_timeline_{RunId}.jsonl` -- same structure for modular
-- `legacy_summary_{RunId}.json` -- per-phase: peak speed, foot vertical range, crouch/air flags
-- `modular_summary_{RunId}.json` -- same for modular
+- `definition_locomotion_timeline_{RunId}.jsonl` -- one JSON object per sample
+- `definition_locomotion_summary_{RunId}.json` -- per-phase peak speed, foot vertical range, crouch/air flags
 
 ### CameraYawTimeline Output Files
 
-- `modular_camera_yaw_timeline_{RunId}.jsonl`
-- `modular_camera_yaw_summary_{RunId}.json`
+- `definition_camera_yaw_timeline_{RunId}.jsonl`
+- `definition_camera_yaw_summary_{RunId}.json`
 
 ### CleanPathIsolationMatrix Output Files
 
-- `modular_clean_path_timeline_{RunId}.jsonl`
-- `modular_clean_path_summary_{RunId}.json`
+- `definition_clean_path_timeline_{RunId}.jsonl`
+- `definition_clean_path_summary_{RunId}.json`
 
-### IdleSnapshot Flow (legacy + modular)
+### IdleSnapshot Flow
 
 1. boots the game with `-ProjectSkipFrontEnd`
-2. captures legacy `BP_Hero`
-3. switches to modular
-4. waits for Mutable rebuild
-5. captures modular `DefinitionCharacter`
+2. verifies the possessed pawn is `DefinitionCharacter`
+3. waits for Mutable rebuild
+4. captures the definition-driven character
+5. verifies the JSON sidecar exists
 
 ---
 
@@ -214,21 +195,13 @@ Read these in order before making conclusions from runtime data.
 
 | Path | Why it matters |
 |------|----------------|
-| `Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json` | Modular hero runtime definition SOT |
+| `Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json` | Hero runtime definition SOT |
 | `Plugins/Resources/ProjectObject/docs/layer_contract.md` | JSON `meshes`, `capabilities`, `sections`, Kind/Role/Visibility |
 | `Plugins/Systems/ProjectSkeletalAssembly/docs/architecture.md` | Assembly lifecycle, registry, debug capture ownership |
 | `Plugins/Gameplay/ProjectSkeletalCapabilities/docs/architecture.md` | Mutable, Motion Matching, LocalFirstPerson boundaries |
-| `Plugins/Gameplay/ProjectCharacter/docs/design.md` | Legacy vs modular character responsibilities |
-| `Plugins/Gameplay/ProjectSinglePlay/README.md` | Spawn policy and `project.character.switch` routing |
+| `Plugins/Gameplay/ProjectCharacter/docs/design.md` | Definition-driven character responsibilities |
+| `Plugins/Gameplay/ProjectSinglePlay/README.md` | Definition selection and spawn policy |
 | `docs/animation/README.md` | High-level animation layering only |
-
-Current active debt:
-
-| Path | Focus |
-|------|-------|
-| `todo/current/create_skeletal_assembly_framework.md` | Remaining skeletal assembly debt and parity gaps |
-| `todo/current/fix_fp_body_clipping.md` | First-person clipping problem and constraints |
-| `todo/current/fp_body_system.md` | Local body and Motion Matching tuning details |
 
 ---
 
@@ -258,32 +231,39 @@ Key current hero facts:
 
 ## How It Works
 
-1. `capture_parity.ps1` calls `run_cpp_tests_safe.ps1` with `-ProjectSkipFrontEnd` flag
+1. `capture_parity.ps1` preloads the editor-built `ProjectIntegrationTests`
+   module, then calls `run_cpp_tests_safe.ps1` with `-ProjectSkipFrontEnd`
+   and one shared `CharacterCaptureRunId` for every selected test
 2. Boot bypass in `UProjectLoadingSubsystem::StartInitialExperience()` skips menu travel
-3. `FCharacterParityTest` (C++ automation test for idle/locomotion parity) runs as latent command:
+3. `FCharacterParityIdleTest` runs as a latent command:
+   - Stage 0: Wait for and verify a possessed `DefinitionCharacter`
+   - Stage 1: Wait for Mutable rebuild and capture definition-driven state
+   - Stage 2: Verify the JSON sidecar exists
+4. `FCharacterParityLocomotionTest` runs the 15-phase movement matrix on the
+   same definition-driven pawn and writes a definition timeline and summary.
+5. `FCharacterParityCameraYawTest` validates the definition-driven camera/body path:
    - Stage 0: Wait for possessed pawn in any game world
-   - Stage 1: Settle frames for streaming
-   - Stage 2: Capture legacy (`project.character.capture legacy_<RunId>`)
-   - Stage 3: Switch to modular (`project.character.switch modular`)
-   - Stage 4: Wait for pawn class change to DefinitionCharacter
-   - Stage 5: Wait for Mutable rebuild, capture modular
-   - Stage 6: Verify both JSON files exist
-4. `FCharacterParityCameraYawTest` (dedicated camera/body validation) is modular-only:
-   - Stage 0: Wait for possessed pawn in any game world
-   - Stage 1: Ensure modular pawn is active
+   - Stage 1: Ensure `DefinitionCharacter` is active
    - Stage 2: Wait for Mutable rebuild and retargeted visual chain
    - Stage 3: Settle streaming and animation state
    - Stage 4: Run the 13-phase yaw timeline
-   - Stage 5: Write modular summary and validate turn-state/root-catch-up evidence
-5. `FCharacterCleanPathIsolationTest` (fault-line isolation) is modular-only:
+   - Stage 5: Write the definition summary and validate turn-state/root-catch-up evidence
+6. `FCharacterCleanPathIsolationTest` isolates the definition-driven mesh chain:
    - Stage 0: Wait for possessed pawn in any game world
-   - Stage 1: Ensure modular pawn is active
+   - Stage 1: Ensure `DefinitionCharacter` is active
    - Stage 2: Capture original mesh wiring
    - Stage 3: Apply Mode A-D one at a time on the same hero
    - Stage 4: Run the shared scripted matrix in each mode
-   - Stage 5: Write modular clean-path summary and classify the first failing layer
+   - Stage 5: Write the definition clean-path summary and classify the first failing layer
 
-Each run generates unique filenames with RunId to prevent stale file matching.
+The wrapper rejects the run unless the test module ready marker is present and
+the discovered, started, and completed counts agree. Duplicate start or
+completion markers, missing expected names, unexpected names, and any failed
+test also reject the run. The default broad filter locks the exact five test
+names. Required artifacts must exist and be non-empty for the same shared RunId;
+C++ write failures are automation errors, and the wrapper independently checks
+the resulting files. Captures, timelines, and summaries are reported separately;
+unrelated JSON schemas are never suggested as a diff.
 
 Important harness note:
 - older camera-yaw runs captured one stale sample at each phase boundary before the new phase input had actually taken effect
@@ -292,8 +272,10 @@ Important harness note:
 
 Primary implementation entry points:
 - capture wrapper: `scripts/ue/test/character/capture_parity.ps1`
-- C++ automation test:
-  `Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityTest.cpp`
+- idle automation test:
+  `Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityIdleTest.cpp`
+- locomotion automation test:
+  `Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityLocomotionTest.cpp`
 - dedicated camera-yaw automation test:
   `Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityCameraYawTest.cpp`
 - runtime capture component:
@@ -306,16 +288,14 @@ Primary implementation entry points:
 | Command | Effect |
 |---------|--------|
 | `project.character.debug 0` | Hide overlay |
-| `project.character.debug 1` | Show overlay with system, pawn, capabilities, camera, meshes, bones |
+| `project.character.debug 1` | Show overlay with runtime model, pawn, capabilities, camera, meshes, bones |
 | `project.character.capture [label]` | Screenshot + JSON sidecar to `Saved/Validation/CharacterDebug/` |
-| `project.character.switch legacy` | Respawn as legacy BP_Hero |
-| `project.character.switch modular` | Respawn as modular DefinitionCharacter |
 
 ---
 
 ## Overlay Fields
 
-- Active system: legacy or modular
+- Runtime model identifier (`definition_driven` for ObjectDefinition-hosted captures)
 - Pawn class, definition ID
 - Capability IDs and active state
 - Camera parent, socket, transform
@@ -324,32 +304,26 @@ Primary implementation entry points:
 
 ---
 
-## Blueprint Defaults
+## Historical Blueprint Baseline
 
-Prefer this ladder:
-
-1. MCP `inspect_cdo` for `/ProjectObject/Human/Hero/BP_Hero` when that tool is available
-2. Saved baseline dump:
+`BP_Hero.uasset` is no longer tracked and must not be treated as an executable
+runtime path. The saved inspection below is historical evidence for explaining
+older tuning values only:
 
 ```text
 Saved/Inspection/BP_Hero_CDO_2026-04-03.json
 ```
 
-3. Unreal Python fallback:
-- `scripts/ue/editor/blueprint/export_blueprint.py`
-- `scripts/ue/check/blueprint/validate_fp_body_defaults.py`
-
-Background reference for the intended MCP route:
-- `todo/done/extend_ue_mcp_inspect_cdo.md`
-
-Use the saved CDO dump as the authoritative legacy baseline for parity comparison.
+Current behavior is authoritative in `Hero.json`, `DefinitionCharacter`, capability
+configuration, and fresh runtime captures.
 
 ---
 
 ## Runtime Fields To Compare
 
 Good first checks in the capture JSONs:
-- `system`
+- `runtimeModel`
+- `definitionId`
 - `pawnClass`
 - `assemblyState`
 - `capabilities`
@@ -360,7 +334,7 @@ Good first checks in the capture JSONs:
 - `boneTransforms`
 - filenames grouped by the same RunId
 
-Important modular expectations:
+Important definition-driven expectations:
 - `assemblyState = Ready`
 - active capabilities include `MotionMatching` and `LocalFirstPerson`
 - mesh roles appear for:
@@ -379,7 +353,6 @@ Important modular expectations:
 Search logs for:
 - `LogSkeletalAssembly`
 - `CharacterDebugCapture`
-- `project.character.switch`
 - `MutableCustomization`
 - `MotionMatching`
 - `DefinitionCharacter`
@@ -401,7 +374,7 @@ Only affects standalone `-game` mode with the flag. Editor (PIE) and normal game
 ## Known Non-Bugs
 
 Do not file these as regressions without stronger evidence:
-- movement tuning parity is not complete; modular uses steady-state run values while legacy BP_Hero has dynamic gait/strafe tuning
+- some movement defaults were seeded from the historical Blueprint baseline and may intentionally differ from older dynamic gait/strafe behavior
 - bone transform differences are expected when capture timing or movement state differs
 - parent role meshes may be empty while Mutable output lives on child customization meshes
 - visibility-driven defaults only apply when a mesh entry explicitly sets `visibility`
@@ -413,5 +386,5 @@ Do not file these as regressions without stronger evidence:
 - [Assembly architecture](../../Plugins/Systems/ProjectSkeletalAssembly/docs/architecture.md) - framework design
 - [Capability rationale](../../Plugins/Gameplay/ProjectSkeletalCapabilities/docs/architecture.md) - adapter boundaries
 - [Capture script](../../scripts/ue/test/character/capture_parity.ps1) - automation wrapper
-- [Test class](../../Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityTest.cpp) - C++ latent test
+- [Idle test](../../Plugins/Test/ProjectIntegrationTests/Source/ProjectIntegrationTests/Private/Integration/CharacterParityIdleTest.cpp) - capture validation
 - [UE inspection guide](agent_ue_inspection.md) - broader dump and inspection patterns

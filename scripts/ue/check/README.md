@@ -28,7 +28,6 @@ Scripts for fast validation and compile-adjacent checks without running a full p
 
 ### Specialized validation
 
-- `blueprint/validate_fp_body_defaults.bat` - targeted guard for `BP_Hero` inherited defaults vs native `ProjectCharacter`
 - `data/validate_all.bat` - cross-reference data validation (objectId, lootProfileId, DialogueTreeAsset, AudioPresetAsset, dialogue actions/conditions)
 - `gameplay/projectmind/validate_data.bat` - ProjectMind data-schema validation (signal_tags vs dialogue trees)
 - `gamefeatures/validate_registration.bat` - static GameFeature registration/configuration check
@@ -56,8 +55,6 @@ Scripts for fast validation and compile-adjacent checks without running a full p
 - after asset moves or data updates
 
 Use the root `validate_*.bat` scripts when you want generic fast validation.
-
-Use `blueprint/validate_fp_body_defaults.bat` only when working on the legacy first-person hero path or its native component defaults. It is intentionally not part of the generic asset-validation flow.
 
 Use the subfolder validators only when you are working in that domain or when `validate_all.bat` explicitly includes them as a project-gating check.
 

@@ -1,9 +1,11 @@
 // Copyright ALIS. All Rights Reserved.
-// Idle parity snapshot: capture legacy and modular hero at rest.
+// Idle regression snapshot: capture the definition-driven hero at rest.
 // Run with -ProjectSkipFrontEnd to bypass menu travel.
 // Output: Saved/Validation/CharacterDebug/ (JSON sidecars with unique RunId)
 
 #include "Misc/AutomationTest.h"
+#include "DefinitionCharacter.h"
+#include "Support/CharacterTestRunContext.h"
 #include "Tests/AutomationCommon.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -15,9 +17,8 @@ class FIdleSnapshotCommand : public IAutomationLatentCommand
 public:
 	FIdleSnapshotCommand(FAutomationTestBase* InTest)
 		: Test(InTest)
-		, RunId(FDateTime::UtcNow().ToString(TEXT("%Y%m%d_%H%M%S")))
-		, LegacyLabel(FString::Printf(TEXT("idle_legacy_%s"), *RunId))
-		, ModularLabel(FString::Printf(TEXT("idle_modular_%s"), *RunId))
+		, RunId(ProjectCharacterTest::ResolveCaptureRunId())
+		, DefinitionLabel(FString::Printf(TEXT("idle_definition_%s"), *RunId))
 		, OutputDir(FPaths::ProjectSavedDir() / TEXT("Validation/CharacterDebug"))
 	{}
 
@@ -41,68 +42,36 @@ public:
 				return false;
 			}
 			World = PC->GetWorld();
+			if (!Cast<ADefinitionCharacter>(PC->GetPawn()))
+			{
+				Test->AddError(FString::Printf(TEXT("Expected DefinitionCharacter, got %s"),
+					*PC->GetPawn()->GetClass()->GetPathName()));
+				return true;
+			}
 			Test->AddInfo(FString::Printf(TEXT("Pawn: %s RunId: %s"),
 				*PC->GetPawn()->GetClass()->GetName(), *RunId));
 			Stage = 1; Tick = 0;
 			return false;
 		}
 
-		case 1: // Settle
+		case 1: // Wait for Mutable rebuild and capture
 		{
-			if (Tick < 120) return false;
+			if (Tick < 180) return false;
 			GEngine->Exec(World, TEXT("project.character.debug 1"));
-			GEngine->Exec(World, *FString::Printf(TEXT("project.character.capture %s"), *LegacyLabel));
-			Test->AddInfo(FString::Printf(TEXT("Legacy capture: %s"), *LegacyLabel));
+			GEngine->Exec(World, *FString::Printf(TEXT("project.character.capture %s"), *DefinitionLabel));
+			Test->AddInfo(FString::Printf(TEXT("Definition capture: %s"), *DefinitionLabel));
 			Stage = 2; Tick = 0;
 			return false;
 		}
 
-		case 2: // Poll legacy file
+		case 2: // Poll capture file
 		{
-			if (FindFile(LegacyLabel)) { Stage = 3; Tick = 0; return false; }
-			if (Tick > 120) { Test->AddError(TEXT("Legacy JSON not created")); return true; }
-			return false;
-		}
-
-		case 3: // Switch to modular
-		{
-			GEngine->Exec(World, TEXT("project.character.switch modular"));
-			Test->AddInfo(TEXT("Switched to modular"));
-			Stage = 4; Tick = 0;
-			return false;
-		}
-
-		case 4: // Wait for DefinitionCharacter
-		{
-			APlayerController* PC = FindPC();
-			if (PC && PC->GetPawn() &&
-				PC->GetPawn()->GetClass()->GetName().Contains(TEXT("DefinitionCharacter")))
+			if (FindFile(DefinitionLabel))
 			{
-				World = PC->GetWorld();
-				Stage = 5; Tick = 0;
-				return false;
-			}
-			if (Tick > 1800) { Test->AddError(TEXT("Timed out waiting for DefinitionCharacter")); return true; }
-			return false;
-		}
-
-		case 5: // Wait for Mutable rebuild
-		{
-			if (Tick < 180) return false;
-			GEngine->Exec(World, *FString::Printf(TEXT("project.character.capture %s"), *ModularLabel));
-			Test->AddInfo(FString::Printf(TEXT("Modular capture: %s"), *ModularLabel));
-			Stage = 6; Tick = 0;
-			return false;
-		}
-
-		case 6: // Poll modular file
-		{
-			if (FindFile(ModularLabel))
-			{
-				Test->AddInfo(TEXT("Both idle captures verified"));
+				Test->AddInfo(TEXT("Definition-driven idle capture verified"));
 				return true;
 			}
-			if (Tick > 120) { Test->AddError(TEXT("Modular JSON not created")); return true; }
+			if (Tick > 120) { Test->AddError(TEXT("Definition capture JSON not created")); return true; }
 			return false;
 		}
 
@@ -138,8 +107,7 @@ private:
 	FAutomationTestBase* Test = nullptr;
 	UWorld* World = nullptr;
 	const FString RunId;
-	const FString LegacyLabel;
-	const FString ModularLabel;
+	const FString DefinitionLabel;
 	const FString OutputDir;
 	int32 Stage = 0;
 	int32 Tick = 0;

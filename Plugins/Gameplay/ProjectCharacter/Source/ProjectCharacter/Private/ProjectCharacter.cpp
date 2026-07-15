@@ -24,7 +24,6 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/CustomizableObjectInstance.h"
-#include "GroomComponent.h"
 #include "LocalBodyAnimInstance.h"  // CopyPose + spine lock AnimInstance for LocalBody
 
 DEFINE_LOG_CATEGORY(LogProjectCharacter);

@@ -20,7 +20,7 @@ This is NOT a rewrite of Blueprint content into C++. It is a move of orchestrati
 | `ProjectSkeletalCapabilities` | Gameplay | Adapter capabilities (Mutable, MotionMatching, LocalFirstPerson) |
 | `ProjectObjectCapabilities` | Gameplay | Generic capabilities (Lockable, Pickup, Hinged) + FCapabilityRegistry |
 | `ProjectObject` | Resources | ObjectDefinition, meshes, spawn utility |
-| `ProjectCharacter` | Gameplay | Legacy AProjectCharacter + modular ADefinitionCharacter |
+| `ProjectCharacter` | Gameplay | Production `ADefinitionCharacter` pawn and character-owned runtime wiring |
 
 ProjectSkeletalAssembly must NOT depend on: GAS, Vitals, Mutable, PoseSearch, specific skeletons or bone names.
 
@@ -115,8 +115,8 @@ This matches the Lyra init state coordinator pattern: peer component manages sib
 - No separate skeletal registry
 
 **Runtime:**
-- `project.character.switch modular` respawns into modular pawn
-- `project.character.switch legacy` returns cleanly
+- `Hero.json` spawns `DefinitionCharacter` through `ProjectObjectSpawn`
+- assembly reaches `Ready` with the configured capabilities active
 - Capture command writes screenshot + JSON sidecar
 
 **Reuse:**
@@ -128,7 +128,6 @@ This matches the Lyra init state coordinator pattern: peer component manages sib
 
 - Rewrite Motion Matching AnimBP graphs into C++
 - Rewrite Mutable content graphs into C++
-- Hot-swap live pawn between systems without respawn
 - Redesign traversal, foley, or smart-object behavior
 - Force all skeletal actors through assembly orchestration
 
@@ -166,5 +165,5 @@ FPrimaryAssetId with type ObjectDefinition: `ObjectDefinition:Hero`, `ObjectDefi
 
 - [Skeletal capabilities architecture](../../Gameplay/ProjectSkeletalCapabilities/docs/architecture.md) - adapters, LocalBody correction, dependency isolation
 - [Layer contract](../../Resources/ProjectObject/docs/layer_contract.md) - Kind/Role/Visibility, spawn behavior
-- [Character design](../../Gameplay/ProjectCharacter/docs/design.md) - legacy vs modular, switching
+- [Character design](../../Gameplay/ProjectCharacter/docs/design.md) - definition-driven character ownership
 - [Parity testing](../../../../docs/testing/character_parity.md) - automated capture, debug commands

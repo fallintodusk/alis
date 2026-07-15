@@ -58,7 +58,7 @@ ADefinitionCharacter::ADefinitionCharacter()
 	VitalsComponent = CreateDefaultSubobject<UProjectVitalsComponent>(TEXT("VitalsComponent"));
 
 	// -------------------------------------------------------------------------
-	// Capsule -- match legacy AProjectCharacter runtime (23, 88)
+	// Capsule -- match the historical AProjectCharacter baseline (23, 88).
 	// CDO shows 30/86 but runtime uses 23/88 for tight corridor navigation
 	// -------------------------------------------------------------------------
 	GetCapsuleComponent()->InitCapsuleSize(23.f, 88.0f);
@@ -74,13 +74,13 @@ ADefinitionCharacter::ADefinitionCharacter()
 	bUseControllerRotationRoll = false;
 
 	// -------------------------------------------------------------------------
-	// Movement -- match legacy BP_Hero runtime values (Run gait defaults)
-	// BP_Hero's UpdateMovement_PreCMC sets these dynamically from gait/strafe.
-	// For modular v1, we use the Run gait steady-state values directly.
+	// Movement defaults seeded from the historical Blueprint runtime baseline.
+	// The former Blueprint path set these dynamically from gait/strafe.
+	// The definition-driven runtime uses the Run gait steady-state values directly.
 	// -------------------------------------------------------------------------
 	// First-person controller-yaw: treat the actor as the target rotation and
 	// let the movement component rotate it toward the controller, matching the
-	// legacy BP_Hero UpdateRotation_PreCMC contract.
+	// historical Blueprint UpdateRotation_PreCMC contract.
 	GetCharacterMovement()->bUseControllerDesiredRotation = true;
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	// UE sentinel: negative Yaw = instant rotation (no interpolation).
@@ -105,7 +105,7 @@ ADefinitionCharacter::ADefinitionCharacter()
 	// Crouch
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCharacterMovement()->SetCrouchedHalfHeight(60.0f);
-	// Legacy BP_Hero runtime: CrouchSpeeds[1]=200 * strafe multiplier ~= 225
+	// Historical Blueprint runtime: CrouchSpeeds[1]=200 * strafe multiplier ~= 225.
 	GetCharacterMovement()->MaxWalkSpeedCrouched = 225.f;
 
 	// Driver mesh: capsule bottom, face forward (same as AProjectCharacter)

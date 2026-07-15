@@ -122,6 +122,9 @@
 		},
 		{
 			"Name": "ProjectIntegrationTests",
+			"TargetAllowList": [
+				"Editor"
+			],
 			"Enabled": true
 		},
 		{

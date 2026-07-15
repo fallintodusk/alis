@@ -6,11 +6,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
-#include "GameFramework/DefaultPawn.h"
 #include "Engine/GameInstance.h"
 #include "Engine/AssetManager.h"
 #include "Modules/ModuleManager.h"
-#include "HAL/IConsoleManager.h"
 #include "Spawning/ObjectSpawnUtility.h"
 #include "Data/ObjectDefinition.h"
 #include "ProjectServiceLocator.h"
@@ -21,32 +19,12 @@
 
 namespace SinglePlayCharacterRuntime
 {
-	static constexpr TCHAR CharacterSystemOptionName[] = TEXT("CharacterSystem");
 	static constexpr TCHAR CharacterDefinitionOptionName[] = TEXT("CharacterDefinition");
-	static constexpr TCHAR LegacySystemToken[] = TEXT("legacy");
-	static constexpr TCHAR ModularSystemToken[] = TEXT("modular");
-	static constexpr TCHAR DefaultModularDefinition[] = TEXT("ObjectDefinition:Hero");
+	static constexpr TCHAR DefaultCharacterDefinition[] = TEXT("ObjectDefinition:Hero");
 
-	static FPrimaryAssetId GetDefaultModularDefinitionId()
+	static FPrimaryAssetId GetDefaultCharacterDefinitionId()
 	{
-		return FPrimaryAssetId::FromString(DefaultModularDefinition);
-	}
-
-	static bool TryParseCharacterSystem(const FString& Value, ESinglePlayCharacterSystem& OutSystem)
-	{
-		if (Value.Equals(LegacySystemToken, ESearchCase::IgnoreCase))
-		{
-			OutSystem = ESinglePlayCharacterSystem::Legacy;
-			return true;
-		}
-
-		if (Value.Equals(ModularSystemToken, ESearchCase::IgnoreCase))
-		{
-			OutSystem = ESinglePlayCharacterSystem::Modular;
-			return true;
-		}
-
-		return false;
+		return FPrimaryAssetId::FromString(DefaultCharacterDefinition);
 	}
 
 	static FPrimaryAssetId ParseCharacterDefinitionId(const FString& Value)
@@ -63,70 +41,13 @@ namespace SinglePlayCharacterRuntime
 
 		return FPrimaryAssetId(FPrimaryAssetType(TEXT("ObjectDefinition")), FName(*Value));
 	}
-
-	static const TCHAR* ToToken(ESinglePlayCharacterSystem System)
-	{
-		return System == ESinglePlayCharacterSystem::Modular ? ModularSystemToken : LegacySystemToken;
-	}
-
-#if !UE_BUILD_SHIPPING
-	static void HandleCharacterSwitchCommand(const TArray<FString>& Args, UWorld* World)
-	{
-		if (!World)
-		{
-			UE_LOG(LogProjectSinglePlay, Warning,
-				TEXT("project.character.switch: No world context available"));
-			return;
-		}
-
-		ASinglePlayerGameMode* GameMode = World->GetAuthGameMode<ASinglePlayerGameMode>();
-		if (!GameMode)
-		{
-			UE_LOG(LogProjectSinglePlay, Warning,
-				TEXT("project.character.switch: No ASinglePlayerGameMode active in world '%s'"),
-				*World->GetName());
-			return;
-		}
-
-		if (Args.Num() < 1 || Args.Num() > 2)
-		{
-			UE_LOG(LogProjectSinglePlay, Warning,
-				TEXT("Usage: project.character.switch <legacy|modular> [ObjectDefinitionIdOrName]"));
-			return;
-		}
-
-		ESinglePlayCharacterSystem RequestedSystem = ESinglePlayCharacterSystem::Legacy;
-		if (!TryParseCharacterSystem(Args[0], RequestedSystem))
-		{
-			UE_LOG(LogProjectSinglePlay, Warning,
-				TEXT("project.character.switch: Unknown character system '%s' (expected legacy or modular)"),
-				*Args[0]);
-			return;
-		}
-
-		const FPrimaryAssetId RequestedDefinitionId =
-			Args.Num() > 1 ? ParseCharacterDefinitionId(Args[1]) : FPrimaryAssetId();
-
-		if (!GameMode->SwitchCharacterSystemRuntime(RequestedSystem, RequestedDefinitionId, true))
-		{
-			UE_LOG(LogProjectSinglePlay, Warning,
-				TEXT("project.character.switch: Respawn reported problems for system '%s'"),
-				ToToken(RequestedSystem));
-		}
-	}
-
-	static FAutoConsoleCommandWithWorldAndArgs CharacterSwitchCommand(
-		TEXT("project.character.switch"),
-		TEXT("Respawn current single-player players with character system legacy or modular. Optional second arg overrides modular ObjectDefinition."),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&HandleCharacterSwitchCommand));
-#endif
 }
 
 ASinglePlayerGameMode::ASinglePlayerGameMode()
 {
-	// Set default classes - can be overridden by ModeConfig in InitGame
+	// Pawn spawning is definition-only; ModeConfig may override the controller.
 	PlayerControllerClass = APlayerController::StaticClass();
-	DefaultPawnClass = ADefaultPawn::StaticClass();
+	DefaultPawnClass = nullptr;
 }
 
 void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -135,48 +56,30 @@ void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Opti
 
 	// Parse Mode parameter from URL (e.g., "?Mode=Single")
 	const FString ModeParam = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
-	const FString CharacterSystemParam = UGameplayStatics::ParseOption(Options, SinglePlayCharacterRuntime::CharacterSystemOptionName);
 	const FString CharacterDefinitionParam = UGameplayStatics::ParseOption(Options, SinglePlayCharacterRuntime::CharacterDefinitionOptionName);
 
 	UE_LOG(LogProjectSinglePlay, Log,
-		TEXT("InitGame: Map=%s, ModeParam=%s, CharacterSystem=%s, CharacterDefinition=%s"),
+		TEXT("InitGame: Map=%s, ModeParam=%s, CharacterDefinition=%s"),
 		*MapName,
 		ModeParam.IsEmpty() ? TEXT("(default)") : *ModeParam,
-		CharacterSystemParam.IsEmpty() ? TEXT("(default)") : *CharacterSystemParam,
 		CharacterDefinitionParam.IsEmpty() ? TEXT("(default)") : *CharacterDefinitionParam);
 
 	// Load mode configuration
 	ModeConfig = LoadModeConfig(ModeParam);
-	LoadCharacterSelection(CharacterSystemParam, CharacterDefinitionParam);
+	LoadCharacterSelection(CharacterDefinitionParam);
 
 	// Experience name for death/reload is resolved from ILoadingService at reload time.
 	// No need to capture here -- authoritative source is the loading subsystem.
 
 	UE_LOG(LogProjectSinglePlay, Log,
-		TEXT("Loaded ModeConfig: ModeName=%s, RequiredPlugins=%d, FeatureNames=%d, CharacterSystem=%s, CharacterDefinition=%s"),
+		TEXT("Loaded ModeConfig: ModeName=%s, RequiredPlugins=%d, FeatureNames=%d, CharacterDefinition=%s"),
 		*ModeConfig.ModeName.ToString(),
 		ModeConfig.RequiredFeaturePlugins.Num(),
 		ModeConfig.FeatureNames.Num(),
-		*GetActiveCharacterSystemName().ToString(),
 		ActiveCharacterDefinitionId.IsValid() ? *ActiveCharacterDefinitionId.ToString() : TEXT("(none)"));
 
 	// Ensure required feature plugins are loaded before proceeding
 	EnsureFeaturePluginsLoaded();
-
-	// Apply UE layer classes from config if specified
-	if (!ModeConfig.DefaultPawnClass.IsNull())
-	{
-		UClass* PawnClass = ModeConfig.DefaultPawnClass.LoadSynchronous();
-		if (PawnClass)
-		{
-			DefaultPawnClass = PawnClass;
-			UE_LOG(LogProjectSinglePlay, Log, TEXT("Set DefaultPawnClass: %s"), *PawnClass->GetName());
-		}
-		else
-		{
-			UE_LOG(LogProjectSinglePlay, Warning, TEXT("Failed to load DefaultPawnClass from config"));
-		}
-	}
 
 	if (!ModeConfig.PlayerControllerClass.IsNull())
 	{
@@ -205,43 +108,56 @@ void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Opti
 APawn* ASinglePlayerGameMode::SpawnDefaultPawnAtTransform_Implementation(
 	AController* NewPlayer, const FTransform& SpawnTransform)
 {
-	// Character system selection is independent from gameplay mode/difficulty.
-	if (ActiveCharacterSystem == ESinglePlayCharacterSystem::Modular)
+	// Character definition selection is independent from gameplay mode/difficulty.
+	if (!ActiveCharacterDefinitionId.IsValid())
 	{
-		if (!ActiveCharacterDefinitionId.IsValid())
-		{
-			UE_LOG(LogProjectSinglePlay, Warning,
-				TEXT("SpawnDefaultPawn: CharacterSystem=Modular but no definition is selected; falling back to DefaultPawnClass"));
-			return Super::SpawnDefaultPawnAtTransform_Implementation(NewPlayer, SpawnTransform);
-		}
-
-		UE_LOG(LogProjectSinglePlay, Log, TEXT("SpawnDefaultPawn: CharacterSystem=Modular, Definition=%s"),
-			*ActiveCharacterDefinitionId.ToString());
-
-		FText SpawnError;
-		AActor* SpawnedActor = ProjectObjectSpawn::SpawnFromDefinition(
-			GetWorld(),
-			ActiveCharacterDefinitionId,
-			SpawnTransform,
-			FActorSpawnParameters(),
-			&SpawnError);
-
-		if (APawn* SpawnedPawn = Cast<APawn>(SpawnedActor))
-		{
-			UE_LOG(LogProjectSinglePlay, Log,
-				TEXT("SpawnDefaultPawn: Spawned %s from definition"),
-				*SpawnedPawn->GetClass()->GetName());
-			return SpawnedPawn;
-		}
-
 		UE_LOG(LogProjectSinglePlay, Error,
-			TEXT("SpawnDefaultPawn: Modular definition spawn FAILED: %s. Fix the definition JSON. No silent fallback to legacy."),
-			*SpawnError.ToString());
+			TEXT("SpawnDefaultPawn: No valid CharacterDefinition; refusing non-definition fallback"));
 		return nullptr;
 	}
 
-	// Legacy path: only reached when CharacterSystem=Legacy
-	return Super::SpawnDefaultPawnAtTransform_Implementation(NewPlayer, SpawnTransform);
+	UE_LOG(LogProjectSinglePlay, Log, TEXT("SpawnDefaultPawn: CharacterDefinition=%s"),
+		*ActiveCharacterDefinitionId.ToString());
+
+	FText SpawnError;
+	AActor* SpawnedActor = ProjectObjectSpawn::SpawnFromDefinition(
+		GetWorld(),
+		ActiveCharacterDefinitionId,
+		SpawnTransform,
+		FActorSpawnParameters(),
+		&SpawnError);
+
+	if (APawn* SpawnedPawn = Cast<APawn>(SpawnedActor))
+	{
+		UE_LOG(LogProjectSinglePlay, Log,
+			TEXT("SpawnDefaultPawn: Spawned %s from definition"),
+			*SpawnedPawn->GetClass()->GetName());
+		return SpawnedPawn;
+	}
+
+	if (SpawnedActor)
+	{
+		UE_LOG(LogProjectSinglePlay, Error,
+			TEXT("SpawnDefaultPawn: Definition %s spawned non-pawn class %s; destroying the stray actor"),
+			*ActiveCharacterDefinitionId.ToString(),
+			*SpawnedActor->GetClass()->GetPathName());
+		SpawnedActor->Destroy();
+		return nullptr;
+	}
+
+	UE_LOG(LogProjectSinglePlay, Error,
+		TEXT("SpawnDefaultPawn: Definition spawn FAILED: %s. Fix the definition JSON."),
+		*SpawnError.ToString());
+	return nullptr;
+}
+
+UClass* ASinglePlayerGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
+{
+	// AGameModeBase checks this hook for a non-null value before it dispatches
+	// SpawnDefaultPawnAtTransform. The returned APawn class is only a dispatch
+	// sentinel: this GameMode never asks the engine to instantiate it, and the
+	// definition remains the sole source of the concrete pawn class.
+	return ActiveCharacterDefinitionId.IsValid() ? APawn::StaticClass() : nullptr;
 }
 
 void ASinglePlayerGameMode::PostLogin(APlayerController* NewPlayer)
@@ -265,9 +181,8 @@ void ASinglePlayerGameMode::BeginPlay()
 	Super::BeginPlay();
 
 	UE_LOG(LogProjectSinglePlay, Log,
-		TEXT("BeginPlay: Single-player mode '%s' active with CharacterSystem=%s, CharacterDefinition=%s"),
+		TEXT("BeginPlay: Single-player mode '%s' active with CharacterDefinition=%s"),
 		*ModeConfig.ModeName.ToString(),
-		*GetActiveCharacterSystemName().ToString(),
 		ActiveCharacterDefinitionId.IsValid() ? *ActiveCharacterDefinitionId.ToString() : TEXT("(none)"));
 
 	// Run verification (idempotent)
@@ -287,88 +202,6 @@ void ASinglePlayerGameMode::HandleStartingNewPlayer_Implementation(APlayerContro
 
 	// Note: Input mode is handled by PlayerController::OnPossess (SOC)
 	InitializePlayerPawn(NewPlayer);
-}
-
-FName ASinglePlayerGameMode::GetActiveCharacterSystemName() const
-{
-	return ActiveCharacterSystem == ESinglePlayCharacterSystem::Modular
-		? FName(TEXT("Modular"))
-		: FName(TEXT("Legacy"));
-}
-
-bool ASinglePlayerGameMode::SwitchCharacterSystemRuntime(
-	ESinglePlayCharacterSystem NewSystem,
-	const FPrimaryAssetId& RequestedDefinitionId,
-	bool bRespawnExistingPlayers)
-{
-	const FPrimaryAssetId ResolvedDefinitionId = ResolveCharacterDefinitionId(NewSystem, RequestedDefinitionId);
-	const bool bSelectionChanged =
-		ActiveCharacterSystem != NewSystem || ActiveCharacterDefinitionId != ResolvedDefinitionId;
-
-	if (!bSelectionChanged)
-	{
-		UE_LOG(LogProjectSinglePlay, Log,
-			TEXT("SwitchCharacterSystemRuntime: CharacterSystem=%s already active (Definition=%s)"),
-			*GetActiveCharacterSystemName().ToString(),
-			ResolvedDefinitionId.IsValid() ? *ResolvedDefinitionId.ToString() : TEXT("(none)"));
-		return true;
-	}
-
-	ActiveCharacterSystem = NewSystem;
-	ActiveCharacterDefinitionId = ResolvedDefinitionId;
-
-	UE_LOG(LogProjectSinglePlay, Log,
-		TEXT("SwitchCharacterSystemRuntime: Switched to CharacterSystem=%s, CharacterDefinition=%s"),
-		*GetActiveCharacterSystemName().ToString(),
-		ActiveCharacterDefinitionId.IsValid() ? *ActiveCharacterDefinitionId.ToString() : TEXT("(none)"));
-
-	if (!bRespawnExistingPlayers)
-	{
-		return true;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogProjectSinglePlay, Warning,
-			TEXT("SwitchCharacterSystemRuntime: No world available for respawn"));
-		return false;
-	}
-
-	int32 PlayerCount = 0;
-	int32 RespawnedCount = 0;
-
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PlayerController = It->Get();
-		if (!IsValid(PlayerController))
-		{
-			continue;
-		}
-
-		PlayerCount++;
-		if (RespawnPlayerForCurrentCharacterSelection(PlayerController))
-		{
-			RespawnedCount++;
-		}
-	}
-
-	if (PlayerCount == 0)
-	{
-		UE_LOG(LogProjectSinglePlay, Log,
-			TEXT("SwitchCharacterSystemRuntime: No active players yet; selection will apply on next spawn"));
-		return true;
-	}
-
-	if (RespawnedCount != PlayerCount)
-	{
-		UE_LOG(LogProjectSinglePlay, Warning,
-			TEXT("SwitchCharacterSystemRuntime: Respawned %d/%d players after character-system switch"),
-			RespawnedCount, PlayerCount);
-		return false;
-	}
-
-	return true;
 }
 
 FSinglePlayModeConfig ASinglePlayerGameMode::LoadModeConfig(const FString& ModeParam)
@@ -393,9 +226,8 @@ FSinglePlayModeConfig ASinglePlayerGameMode::LoadModeConfig(const FString& ModeP
 	FoundConfig = FSinglePlayModeRegistry::FindMode(FName(TEXT("Medium")));
 	if (FoundConfig)
 	{
-		UE_LOG(LogProjectSinglePlay, Log, TEXT("LoadModeConfig: Fallback found 'Medium' with %d features, PawnClass=%s"),
-			FoundConfig->FeatureNames.Num(),
-			FoundConfig->DefaultPawnClass.IsNull() ? TEXT("(null)") : *FoundConfig->DefaultPawnClass.GetAssetName());
+		UE_LOG(LogProjectSinglePlay, Log, TEXT("LoadModeConfig: Fallback found 'Medium' with %d features"),
+			FoundConfig->FeatureNames.Num());
 		return *FoundConfig;
 	}
 
@@ -404,42 +236,23 @@ FSinglePlayModeConfig ASinglePlayerGameMode::LoadModeConfig(const FString& ModeP
 	return FSinglePlayModeConfig::GetDefault();
 }
 
-void ASinglePlayerGameMode::LoadCharacterSelection(
-	const FString& CharacterSystemParam,
-	const FString& CharacterDefinitionParam)
+void ASinglePlayerGameMode::LoadCharacterSelection(const FString& CharacterDefinitionParam)
 {
-	ESinglePlayCharacterSystem RequestedSystem = ESinglePlayCharacterSystem::Modular;
-	if (!CharacterSystemParam.IsEmpty() &&
-		!SinglePlayCharacterRuntime::TryParseCharacterSystem(CharacterSystemParam, RequestedSystem))
-	{
-		UE_LOG(LogProjectSinglePlay, Warning,
-			TEXT("LoadCharacterSelection: Unknown CharacterSystem '%s', defaulting to Modular"),
-			*CharacterSystemParam);
-		RequestedSystem = ESinglePlayCharacterSystem::Modular;
-	}
-
 	const FPrimaryAssetId RequestedDefinitionId =
 		SinglePlayCharacterRuntime::ParseCharacterDefinitionId(CharacterDefinitionParam);
 
-	ActiveCharacterSystem = RequestedSystem;
-	ActiveCharacterDefinitionId = ResolveCharacterDefinitionId(RequestedSystem, RequestedDefinitionId);
+	ActiveCharacterDefinitionId = ResolveCharacterDefinitionId(RequestedDefinitionId);
 }
 
 FPrimaryAssetId ASinglePlayerGameMode::ResolveCharacterDefinitionId(
-	ESinglePlayCharacterSystem NewSystem,
 	const FPrimaryAssetId& RequestedDefinitionId) const
 {
-	if (NewSystem != ESinglePlayCharacterSystem::Modular)
-	{
-		return FPrimaryAssetId();
-	}
-
 	if (RequestedDefinitionId.IsValid())
 	{
 		return RequestedDefinitionId;
 	}
 
-	return SinglePlayCharacterRuntime::GetDefaultModularDefinitionId();
+	return SinglePlayCharacterRuntime::GetDefaultCharacterDefinitionId();
 }
 
 void ASinglePlayerGameMode::EnsureFeaturePluginsLoaded()
@@ -505,38 +318,6 @@ void ASinglePlayerGameMode::InitializePlayerPawn(AController* PlayerController)
 			TEXT("InitializePlayerPawn: Pawn still null after spawn for %s"),
 			*PlayerController->GetName());
 	}
-}
-
-bool ASinglePlayerGameMode::RespawnPlayerForCurrentCharacterSelection(AController* PlayerController)
-{
-	if (!IsValid(PlayerController))
-	{
-		return false;
-	}
-
-	if (APawn* ExistingPawn = PlayerController->GetPawn())
-	{
-		PlayerController->UnPossess();
-		ExistingPawn->Destroy();
-	}
-
-	RestartPlayer(PlayerController);
-	InitializePlayerPawn(PlayerController);
-
-	APawn* NewPawn = PlayerController->GetPawn();
-	if (!NewPawn)
-	{
-		UE_LOG(LogProjectSinglePlay, Warning,
-			TEXT("RespawnPlayerForCurrentCharacterSelection: Failed to respawn %s"),
-			*PlayerController->GetName());
-		return false;
-	}
-
-	UE_LOG(LogProjectSinglePlay, Log,
-		TEXT("RespawnPlayerForCurrentCharacterSelection: %s now possesses %s"),
-		*PlayerController->GetName(),
-		*NewPawn->GetClass()->GetName());
-	return true;
 }
 
 void ASinglePlayerGameMode::InitializeFeatures(APawn* Pawn)

@@ -16,9 +16,8 @@
 // the file and dispatches the command via `GEngine->Exec`. The run script
 // then polls `Saved/Automation/Reports/index.json` for completion.
 //
-// Dev-only: this module's plugin (ProjectIntegrationTests) is Editor-type
-// and has no entry in Shipping/Client build graphs. No runtime overhead
-// in packaged builds.
+// Dev-only Editor module. Standalone UnrealEditor -game runners explicitly
+// preload it before dispatching automation; packaged target graphs exclude it.
 
 #include "Modules/ModuleManager.h"
 
@@ -100,9 +99,8 @@ public:
         // it, dispatching "Automation RunTests X" will find the command
         // registered.
         //
-        // One extra safety net: we also defer the marker write to the next
-        // tick via the ticker below so GEngine is guaranteed to be valid
-        // when the first command file is read.
+        // Standalone -game runners explicitly load this module from deferred
+        // ExecCmds, after GEngine is valid.
         UE_LOG(LogProjectIntegrationTestsPersistent, Display,
             TEXT("[PersistentEditor] Ready to start automation"));
 

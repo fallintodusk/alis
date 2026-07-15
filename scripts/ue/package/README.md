@@ -44,7 +44,7 @@ Key parameters:
 - when a created zip already fits under the requested split threshold, the script keeps a normal `.zip`
 - `-SplitSizeMB` archive split size in MiB, default `1700`
 - `-SignRelease` runs `sign_release.ps1` against the exact output directory after archive creation
-- `-GpgPath`, `-SigningKeyFingerprint`, and `-SkipSignVerify` are forwarded to `sign_release.ps1` when `-SignRelease` is set
+- `-GpgPath`, `-GpgHome`, `-SigningKeyFingerprint`, and `-SkipSignVerify` are forwarded to `sign_release.ps1` when `-SignRelease` is set
 
 ### `package_release.bat`
 
@@ -65,6 +65,9 @@ Defaults:
 - discovers `gpg.exe` from PATH or common Windows install locations
 - reuses the ALIS site trust fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
 - signs the root-level release assets in a packaged output directory
+- exports the public half of the selected signing key as `ALIS_PUBLIC_KEY.asc`
+- includes the exported key in `SHA256SUMS.txt` so every distribution mirror carries the same key asset
+- excludes `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` from the manifest; the signature signs the manifest, and the manifest never hashes itself
 - writes `INSTALL.txt` into the release directory before hashing so the helper file is covered by the signed manifest
 - copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release directory before hashing so advanced users have a self-contained verifier next to the archives
 - verifies the detached signature after signing
@@ -87,6 +90,9 @@ Key parameters:
 
 - `-ReleaseDir` packaged release output directory that contains the archive parts
 - `-GpgPath` optional explicit path to `gpg.exe`
+- `-GpgHome` optional explicit signing keyring directory; it is mandatory when `-SigningKeyFingerprint` differs from the canonical ALIS key
+- an explicit GPG home must already exist, must be owned by the calling operation, and is rejected if it resolves to the default user GPG directory or user profile
+- the signing script never deletes an explicit GPG home because it contains caller-owned secret-key material; a throwaway test harness must clean only the disposable home it created
 - `-SigningKeyFingerprint` override only if the ALIS public trust identity changes
 - `-SkipVerify` skips the post-sign `gpg --verify` step
 
@@ -103,13 +109,14 @@ scripts\ue\package\sign_release.bat -ReleaseDir <build-dir>
 ### `verify_release.ps1`
 
 Verifies `SHA256SUMS.txt.asc` and all archive hashes using the ALIS public key
-published on the site.
+bundled with the release.
 
 Defaults:
 
-- downloads `https://fall.is/assets/security/public-key.asc` when no local key path is provided
+- uses explicit `-PublicKeyPath` first, then bundled `ALIS_PUBLIC_KEY.asc`
+- falls back to `https://fall.is/assets/security/public-key.asc` only for older releases without a bundled key
 - checks fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
-- uses a temporary verification keyring so it does not modify the user's main keyring
+- passes a temporary GPG home explicitly to all public-key operations, so it does not initialize or modify the user's main keyring
 - verifies both the detached signature and every asset hash listed in `SHA256SUMS.txt`
 - writes `verify_release_summary.txt` into the release directory
 - when copied into a release directory, it can infer that directory automatically without `-ReleaseDir`
@@ -132,6 +139,7 @@ Key parameters:
 
 - `-ReleaseDir` packaged release output directory that contains archive parts and the hash/signature files
 - `-PublicKeyPath` optional local ALIS public key file
+- `-BundledPublicKeyName` override only for a legacy/nonstandard release asset name
 - `-PublicKeyUrl` override only if the site public key URL changes
 - `-ExpectedFingerprint` override only if the ALIS trust identity changes
 - `-TempGpgHome` optional explicit temporary verification keyring directory
@@ -153,6 +161,6 @@ scripts\ue\package\verify_release.bat -ReleaseDir <build-dir>
 - `Source/Alis.Target.cs` forces modular Shipping, so the packaged build contains many DLLs.
 - Public release packaging defaults to `-skipencryption`; encrypted startup containers currently fail in modular Shipping with `Failed to find requested encryption key 00000000000000000000000000000000`.
 - Current ALIS zip headroom under GitHub's 2 GiB limit is only about `256 MiB`, so split archives are the default safe GitHub transport path.
-- Release signature trust should reuse the site trust flow at `https://fall.is/about/` and `https://fall.is/assets/security/public-key.asc`.
+- Each newly signed release is locally verifiable from its mirrored files. The site trust page remains the authoritative out-of-band fingerprint confirmation.
 - Normal users do not need to run `verify_release.ps1`; it exists for advanced authenticity checks.
 - For Windows advanced users, the preferred release-side entry point is `VERIFY_RELEASE.bat` inside the packaged release folder.

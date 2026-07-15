@@ -3,6 +3,7 @@
 #include "CharacterDebugCaptureComponent.h"
 #include "ProjectSkeletalAssemblyModule.h"
 #include "SkeletalAssemblyComponent.h"
+#include "Interfaces/IDefinitionIdProvider.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/CameraComponent.h"
@@ -39,6 +40,41 @@ namespace
 		const FRotator R = T.GetRotation().Rotator();
 		return FString::Printf(TEXT("L=(%.1f,%.1f,%.1f) R=(%.1f,%.1f,%.1f)"),
 			L.X, L.Y, L.Z, R.Pitch, R.Yaw, R.Roll);
+	}
+
+	FPrimaryAssetId ResolveObjectDefinitionId(AActor* Owner)
+	{
+		if (!Owner)
+		{
+			return FPrimaryAssetId();
+		}
+
+		if (Owner->Implements<UDefinitionIdProvider>())
+		{
+			const FPrimaryAssetId DefinitionId =
+				IDefinitionIdProvider::Execute_GetObjectDefinitionId(Owner);
+			if (DefinitionId.IsValid())
+			{
+				return DefinitionId;
+			}
+		}
+
+		TArray<UActorComponent*> Components;
+		Owner->GetComponents(Components);
+		for (UActorComponent* Component : Components)
+		{
+			if (Component && Component->Implements<UDefinitionIdProvider>())
+			{
+				const FPrimaryAssetId DefinitionId =
+					IDefinitionIdProvider::Execute_GetObjectDefinitionId(Component);
+				if (DefinitionId.IsValid())
+				{
+					return DefinitionId;
+				}
+			}
+		}
+
+		return FPrimaryAssetId();
 	}
 }
 
@@ -93,11 +129,11 @@ void UCharacterDebugCaptureComponent::CaptureSnapshot(const FString& Label)
 
 	// Build filename
 	const FString Timestamp = FDateTime::Now().ToString(TEXT("%Y-%m-%d_%H-%M-%S"));
-	const FString SystemId = State->GetStringField(TEXT("system"));
+	const FString RuntimeModel = State->GetStringField(TEXT("runtimeModel"));
 	const FString PawnClass = State->GetStringField(TEXT("pawnClass"));
 	const FString BaseName = Label.IsEmpty()
-		? FString::Printf(TEXT("%s_%s_%s"), *Timestamp, *SystemId, *PawnClass)
-		: FString::Printf(TEXT("%s_%s_%s_%s"), *Timestamp, *SystemId, *PawnClass, *Label);
+		? FString::Printf(TEXT("%s_%s_%s"), *Timestamp, *RuntimeModel, *PawnClass)
+		: FString::Printf(TEXT("%s_%s_%s_%s"), *Timestamp, *RuntimeModel, *PawnClass, *Label);
 
 	const FString OutputDir = FPaths::ProjectSavedDir() / TEXT("Validation") / TEXT("CharacterDebug");
 	IFileManager::Get().MakeDirectory(*OutputDir, true);
@@ -178,22 +214,15 @@ TSharedPtr<FJsonObject> UCharacterDebugCaptureComponent::CollectDiagnosticState(
 
 	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
 
-	// System identification
 	ACharacter* Character = Cast<ACharacter>(Owner);
 	const FString ClassName = Owner->GetClass()->GetName();
-
-	// Detect system type from class name
-	FString SystemId = TEXT("unknown");
-	if (ClassName.Contains(TEXT("Definition")))
-	{
-		SystemId = TEXT("modular");
-	}
-	else if (ClassName.Contains(TEXT("ProjectCharacter")) || ClassName.Contains(TEXT("BP_Hero")))
-	{
-		SystemId = TEXT("legacy");
-	}
-
-	Root->SetStringField(TEXT("system"), SystemId);
+	const FPrimaryAssetId DefinitionId = ResolveObjectDefinitionId(Owner);
+	Root->SetStringField(
+		TEXT("runtimeModel"),
+		DefinitionId.IsValid() ? TEXT("definition_driven") : TEXT("unclassified"));
+	Root->SetStringField(
+		TEXT("definitionId"),
+		DefinitionId.IsValid() ? DefinitionId.ToString() : TEXT(""));
 	Root->SetStringField(TEXT("pawnClass"), ClassName);
 	Root->SetStringField(TEXT("actorName"), Owner->GetName());
 
@@ -415,7 +444,7 @@ FString UCharacterDebugCaptureComponent::FormatOverlayText(const TSharedPtr<FJso
 
 	// Header
 	Text += FString::Printf(TEXT("=== Character Debug [%s] ===\n"),
-		*State->GetStringField(TEXT("system")));
+		*State->GetStringField(TEXT("runtimeModel")));
 	Text += FString::Printf(TEXT("Pawn: %s | Assembly: %s\n"),
 		*State->GetStringField(TEXT("pawnClass")),
 		*State->GetStringField(TEXT("assemblyState")));

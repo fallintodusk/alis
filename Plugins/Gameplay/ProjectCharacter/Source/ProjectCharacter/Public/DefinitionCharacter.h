@@ -99,7 +99,7 @@ class PROJECTCHARACTER_API ADefinitionCharacter : public ACharacter, public IAbi
 	// Movement
 	// -------------------------------------------------------------------------
 
-	// Match legacy BP_Hero runtime values (Run gait forward = RunSpeeds[0]=500)
+	// Seeded from the historical Blueprint runtime baseline (RunSpeeds[0]=500).
 	float WalkSpeed = 200.0f;
 	float RunSpeed = 500.0f;
 	float SprintSpeed = 700.0f;

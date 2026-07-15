@@ -7,6 +7,97 @@
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonObject.h"
 
+namespace
+{
+	const TSet<FString>& GetSupportedRootFields()
+	{
+		static const TSet<FString> Fields = {
+			TEXT("$schema"),
+			TEXT("modes")
+		};
+		return Fields;
+	}
+
+	const TSet<FString>& GetSupportedModeFields()
+	{
+		static const TSet<FString> Fields = {
+			TEXT("modeName"),
+			TEXT("playerControllerClass"),
+			TEXT("requiredFeaturePlugins"),
+			TEXT("featureNames"),
+			TEXT("featureConfigs")
+		};
+		return Fields;
+	}
+
+	bool HasOnlySupportedFields(
+		const FJsonObject& Object,
+		const TSet<FString>& SupportedFields,
+		const FString& Context)
+	{
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Object.Values)
+		{
+			if (!SupportedFields.Contains(Pair.Key))
+			{
+				UE_LOG(LogProjectSinglePlay, Error,
+					TEXT("ModeRegistry: %s contains unsupported field '%s'"),
+					*Context,
+					*Pair.Key);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool ParseNameArray(
+		const FJsonObject& Object,
+		const TCHAR* FieldName,
+		const FString& ModeName,
+		TArray<FName>& OutNames)
+	{
+		const TSharedPtr<FJsonValue>* FieldValue = Object.Values.Find(FieldName);
+		if (!FieldValue)
+		{
+			return true;
+		}
+
+		if (!FieldValue->IsValid() || (*FieldValue)->Type != EJson::Array)
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("ModeRegistry: Mode '%s' field '%s' must be an array of non-empty strings"),
+				*ModeName,
+				FieldName);
+			return false;
+		}
+
+		for (const TSharedPtr<FJsonValue>& Value : (*FieldValue)->AsArray())
+		{
+			if (!Value.IsValid() || Value->Type != EJson::String)
+			{
+				UE_LOG(LogProjectSinglePlay, Error,
+					TEXT("ModeRegistry: Mode '%s' field '%s' contains a non-string or empty value"),
+					*ModeName,
+					FieldName);
+				return false;
+			}
+
+			FString Name = Value->AsString();
+			Name.TrimStartAndEndInline();
+			const FName ParsedName(*Name);
+			if (ParsedName.IsNone() || OutNames.Contains(ParsedName))
+			{
+				UE_LOG(LogProjectSinglePlay, Error,
+					TEXT("ModeRegistry: Mode '%s' field '%s' contains an empty or duplicate name"),
+					*ModeName,
+					FieldName);
+				return false;
+			}
+			OutNames.Add(ParsedName);
+		}
+		return true;
+	}
+}
+
 bool FSinglePlayModeRegistry::bDefaultsInitialized = false;
 bool FSinglePlayModeRegistry::bJsonOverridesLoaded = false;
 
@@ -33,10 +124,9 @@ void FSinglePlayModeRegistry::RegisterMode(const FSinglePlayModeConfig& Config)
 	}
 
 	Registry.Add(Config.ModeName, Config);
-	UE_LOG(LogProjectSinglePlay, Log, TEXT("ModeRegistry: Registered mode '%s' (Features=%d, PawnClass=%s)"),
+	UE_LOG(LogProjectSinglePlay, Log, TEXT("ModeRegistry: Registered mode '%s' (Features=%d)"),
 		*Config.ModeName.ToString(),
-		Config.FeatureNames.Num(),
-		Config.DefaultPawnClass.IsNull() ? TEXT("default") : TEXT("custom"));
+		Config.FeatureNames.Num());
 }
 
 const FSinglePlayModeConfig* FSinglePlayModeRegistry::FindMode(FName ModeName)
@@ -157,6 +247,19 @@ int32 FSinglePlayModeRegistry::LoadJsonOverridesFromFile(const FString& JsonFile
 		return 0;
 	}
 
+	if (!HasOnlySupportedFields(*RootObject, GetSupportedRootFields(), TEXT("JSON root")))
+	{
+		return 0;
+	}
+
+	FString SchemaPath;
+	if (!RootObject->TryGetStringField(TEXT("$schema"), SchemaPath) || SchemaPath.IsEmpty())
+	{
+		UE_LOG(LogProjectSinglePlay, Error,
+			TEXT("ModeRegistry: JSON requires a non-empty '$schema' string"));
+		return 0;
+	}
+
 	// Expected format:
 	// {
 	//   "modes": [
@@ -176,6 +279,7 @@ int32 FSinglePlayModeRegistry::LoadJsonOverridesFromFile(const FString& JsonFile
 
 	int32 SuccessCount = 0;
 	int32 SkippedCount = 0;
+	TSet<FName> ParsedModeNames;
 
 	for (int32 i = 0; i < ModesArray->Num(); ++i)
 	{
@@ -194,19 +298,29 @@ int32 FSinglePlayModeRegistry::LoadJsonOverridesFromFile(const FString& JsonFile
 			SkippedCount++;
 			continue;
 		}
+		if (ParsedModeNames.Contains(ParsedConfig.ModeName))
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("ModeRegistry: Duplicate modeName '%s' at index %d"),
+				*ParsedConfig.ModeName.ToString(),
+				i);
+			SkippedCount++;
+			continue;
+		}
+		ParsedModeNames.Add(ParsedConfig.ModeName);
 
 		// Merge with existing config if present, otherwise add new
 		TMap<FName, FSinglePlayModeConfig>& Registry = GetRegistry();
 		if (FSinglePlayModeConfig* ExistingConfig = Registry.Find(ParsedConfig.ModeName))
 		{
 			// Merge: JSON overrides C++ values (only non-empty values)
-			if (!ParsedConfig.DefaultPawnClass.IsNull())
-			{
-				ExistingConfig->DefaultPawnClass = ParsedConfig.DefaultPawnClass;
-			}
 			if (!ParsedConfig.PlayerControllerClass.IsNull())
 			{
 				ExistingConfig->PlayerControllerClass = ParsedConfig.PlayerControllerClass;
+			}
+			if (ParsedConfig.RequiredFeaturePlugins.Num() > 0)
+			{
+				ExistingConfig->RequiredFeaturePlugins = ParsedConfig.RequiredFeaturePlugins;
 			}
 			if (ParsedConfig.FeatureNames.Num() > 0)
 			{
@@ -254,45 +368,84 @@ bool FSinglePlayModeRegistry::ParseModeFromJson(const TSharedPtr<FJsonObject>& M
 		UE_LOG(LogProjectSinglePlay, Warning, TEXT("ModeRegistry: JSON mode missing 'modeName' field"));
 		return false;
 	}
+	ModeNameStr.TrimStartAndEndInline();
+	if (ModeNameStr.IsEmpty())
+	{
+		UE_LOG(LogProjectSinglePlay, Error, TEXT("ModeRegistry: JSON mode has empty 'modeName' field"));
+		return false;
+	}
 	OutConfig.ModeName = FName(*ModeNameStr);
 
-	// Optional: defaultPawnClass (soft class path)
-	FString PawnClassPath;
-	if (ModeObject->TryGetStringField(TEXT("defaultPawnClass"), PawnClassPath) && !PawnClassPath.IsEmpty())
+	if (!HasOnlySupportedFields(
+			*ModeObject,
+			GetSupportedModeFields(),
+			FString::Printf(TEXT("Mode '%s'"), *ModeNameStr)))
 	{
-		OutConfig.DefaultPawnClass = TSoftClassPtr<APawn>(FSoftObjectPath(PawnClassPath));
+		return false;
 	}
 
 	// Optional: playerControllerClass (soft class path)
 	FString PCClassPath;
-	if (ModeObject->TryGetStringField(TEXT("playerControllerClass"), PCClassPath) && !PCClassPath.IsEmpty())
+	if (ModeObject->HasField(TEXT("playerControllerClass")))
 	{
-		OutConfig.PlayerControllerClass = TSoftClassPtr<APlayerController>(FSoftObjectPath(PCClassPath));
+		if (!ModeObject->TryGetStringField(TEXT("playerControllerClass"), PCClassPath) || PCClassPath.IsEmpty())
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("ModeRegistry: Mode '%s' field 'playerControllerClass' must be a non-empty string"),
+				*ModeNameStr);
+			return false;
+		}
+		PCClassPath.TrimStartAndEndInline();
+
+		const FSoftObjectPath ControllerPath(PCClassPath);
+		if (!ControllerPath.IsValid())
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("ModeRegistry: Mode '%s' has invalid playerControllerClass path '%s'"),
+				*ModeNameStr,
+				*PCClassPath);
+			return false;
+		}
+		OutConfig.PlayerControllerClass = TSoftClassPtr<APlayerController>(ControllerPath);
 	}
 
-	// Optional: featureNames (array of feature name strings)
-	const TArray<TSharedPtr<FJsonValue>>* NamesArray = nullptr;
-	if (ModeObject->TryGetArrayField(TEXT("featureNames"), NamesArray) && NamesArray)
+	if (!ParseNameArray(
+			*ModeObject,
+			TEXT("requiredFeaturePlugins"),
+			ModeNameStr,
+			OutConfig.RequiredFeaturePlugins) ||
+		!ParseNameArray(
+			*ModeObject,
+			TEXT("featureNames"),
+			ModeNameStr,
+			OutConfig.FeatureNames))
 	{
-		for (const TSharedPtr<FJsonValue>& NameValue : *NamesArray)
-		{
-			if (NameValue.IsValid() && NameValue->Type == EJson::String)
-			{
-				OutConfig.FeatureNames.Add(FName(*NameValue->AsString()));
-			}
-		}
+		return false;
 	}
 
 	// Optional: featureConfigs (object with key-value pairs)
 	const TSharedPtr<FJsonObject>* FeatureConfigsObject = nullptr;
-	if (ModeObject->TryGetObjectField(TEXT("featureConfigs"), FeatureConfigsObject) && FeatureConfigsObject)
+	if (ModeObject->HasField(TEXT("featureConfigs")))
 	{
+		if (!ModeObject->TryGetObjectField(TEXT("featureConfigs"), FeatureConfigsObject) || !FeatureConfigsObject)
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("ModeRegistry: Mode '%s' field 'featureConfigs' must be an object"),
+				*ModeNameStr);
+			return false;
+		}
+
 		for (const auto& Pair : (*FeatureConfigsObject)->Values)
 		{
-			if (Pair.Value.IsValid() && Pair.Value->Type == EJson::String)
+			if (Pair.Key.IsEmpty() || !Pair.Value.IsValid() || Pair.Value->Type != EJson::String)
 			{
-				OutConfig.FeatureConfigs.Add(FName(*Pair.Key), Pair.Value->AsString());
+				UE_LOG(LogProjectSinglePlay, Error,
+					TEXT("ModeRegistry: Mode '%s' featureConfigs key must be non-empty and value '%s' must be a string"),
+					*ModeNameStr,
+					*Pair.Key);
+				return false;
 			}
+			OutConfig.FeatureConfigs.Add(FName(*Pair.Key), Pair.Value->AsString());
 		}
 	}
 

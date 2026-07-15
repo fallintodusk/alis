@@ -21,10 +21,7 @@ If a script validates Blueprint state without owning the edit logic, put it unde
   - use this when inherited component overrides must be changed on the asset template itself
 - `character/create_world_body_retarget_wrapper.bat`
   - duplicates the vendor retarget wrapper into project-owned content and narrows its retarget map
-  - also rewires known project Blueprints from `ABP_GenericRetarget` to `ABP_WorldBodyRetarget` when the editor is closed
-- `character/fix_bp_hero_character_mesh_defaults.bat`
-  - aligns `BP_Hero` inherited `CharacterMesh0` transform with native `ProjectCharacter`
-  - recompiles Blueprints after the template edit so generated defaults stay in sync
+  - ObjectDefinition mesh data references the resulting `ABP_WorldBodyRetarget` directly
 
 ## Why Component Template Helpers Live Here
 
@@ -37,16 +34,16 @@ That split is intentional:
 
 ## Usage
 
-Character-specific repair:
+Character-specific wrapper generation:
 
 ```bat
-scripts\ue\editor\blueprint\character\fix_bp_hero_character_mesh_defaults.bat
+scripts\ue\editor\blueprint\character\create_world_body_retarget_wrapper.bat
 ```
 
 Generic helper via environment variables:
 
 ```bat
-set ALIS_BP_ASSET_PATH=/ProjectObject/Human/Hero/BP_Hero
+set ALIS_BP_ASSET_PATH=/Game/Characters/BP_ExampleCharacter
 set ALIS_BP_COMPONENT_VARIABLE_NAME=Mesh
 set ALIS_BP_COMPONENT_OBJECT_NAME=CharacterMesh0
 set ALIS_BP_RELATIVE_LOCATION=0,0,-90
@@ -62,4 +59,3 @@ Then run `UnrealEditor-Cmd` with:
 ## Related Docs
 
 - [docs/README.md](docs/README.md) - JSON snapshot workflow index
-- [../check/blueprint/README.md](../check/blueprint/README.md) - Blueprint validation wrappers

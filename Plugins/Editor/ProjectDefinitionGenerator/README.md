@@ -1,8 +1,23 @@
 # ProjectDefinitionGenerator
 
-Universal JSON-to-DataAsset generator for definition types (Items, Objects, etc.).
+Integrated JSON-to-DataAsset generator for Project definition types (items, objects, abilities, and capabilities).
 
 Editor-only plugin for turning text-based definitions into generated Unreal assets.
+
+## Integration Boundary
+
+This is not a standalone or drop-in plugin. It is one stage of an integrated Project plugin suite.
+To reuse it in another Unreal project, copy this plugin together with every first-party dependency
+declared by its [`ProjectDefinitionGenerator.uplugin`](ProjectDefinitionGenerator.uplugin), including
+the transitive dependencies declared by those plugins. Enable the listed Unreal Engine plugins,
+regenerate project files, and compile the target project before running generation.
+
+For the full three-stage workflow, also install
+[ProjectAssetSync](../ProjectAssetSync/README.md) and
+[ProjectPlacementEditor](../ProjectPlacementEditor/README.md) with their declared dependencies.
+The `.uplugin` descriptors are the dependency source of truth; do not maintain a separate copied
+module list. A distribution is ready only after this route compiles and completes a sample
+JSON-to-DataAsset generation in a clean project.
 
 ## Overview
 
@@ -121,7 +136,7 @@ UDefinitionGeneratorSubsystem::Get()->RegisterDefinitionType(TEXT("Object"), Typ
 
 **Commandlet:**
 ```bash
-UnrealEditor-Cmd.exe Alis.uproject -run=GenerateDefinitions -nopause
+UnrealEditor-Cmd.exe YourProject.uproject -run=GenerateDefinitions -nopause
 ```
 
 **C++ API:**
@@ -288,10 +303,23 @@ ProjectDefinitionGenerator/
   README.md
 ```
 
-## Dependencies
+## Required ALIS Plugin Dependencies
 
-- ProjectCore (for FProjectPaths)
-- ProjectObject (for UObjectDefinition)
+- `ProjectCore`
+- `ProjectEditorCore`
+- `ProjectObject`
+- `ProjectObjectCapabilities`
+- `ProjectGAS`
+
+These are the direct plugin dependencies declared by the descriptor. Their descriptors own the
+transitive dependency closure.
+
+## Bundled Unreal Engine Prerequisites
+
+- `GameplayAbilities`
+
+Engine plugins ship with Unreal Engine and only need to be enabled. They are prerequisites, not
+separate ALIS downloads.
 
 ## See Also
 
@@ -300,5 +328,6 @@ ProjectDefinitionGenerator/
 - [../../Resources/ProjectObject/README.md](../../Resources/ProjectObject/README.md) - Example consumer of generated object definitions
 
 Note:
-- concrete schema JSON files live under plugin `Data/` folders in the full project tree
-- those generated or source data payloads are not part of the public mirror snapshot
+- the public mirror includes source JSON and schemas under plugin `Data/` folders
+- generated `.uasset` files and other binary project assets are intentionally excluded; run the
+  generator in Unreal Editor to produce them

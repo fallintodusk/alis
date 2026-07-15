@@ -4,6 +4,7 @@
 // Run with -ProjectSkipFrontEnd to bypass menu travel.
 
 #include "Misc/AutomationTest.h"
+#include "DefinitionCharacter.h"
 #include "Tests/AutomationCommon.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -18,7 +19,6 @@ class FSimpleAnimSanityCommand : public IAutomationLatentCommand
 public:
 	FSimpleAnimSanityCommand(FAutomationTestBase* InTest)
 		: Test(InTest)
-		, RunId(FDateTime::UtcNow().ToString(TEXT("%Y%m%d_%H%M%S")))
 	{}
 
 	virtual bool Update() override
@@ -44,10 +44,9 @@ public:
 			return false;
 		}
 
-		case 1: // Settle + switch to modular
+		case 1: // Settle
 		{
 			if (Tick < 120) return false;
-			GEngine->Exec(World, TEXT("project.character.switch modular"));
 			Stage = 2; Tick = 0;
 			return false;
 		}
@@ -55,8 +54,7 @@ public:
 		case 2: // Wait for DefinitionCharacter
 		{
 			APlayerController* PC = FindPC();
-			if (PC && PC->GetPawn() &&
-				PC->GetPawn()->GetClass()->GetName().Contains(TEXT("DefinitionCharacter")))
+			if (PC && Cast<ADefinitionCharacter>(PC->GetPawn()))
 			{
 				World = PC->GetWorld();
 				Stage = 3; Tick = 0;
@@ -164,7 +162,6 @@ private:
 	FAutomationTestBase* Test = nullptr;
 	UWorld* World = nullptr;
 	USkeletalMeshComponent* DriverBody = nullptr;
-	const FString RunId;
 	int32 Stage = 0;
 	int32 Tick = 0;
 	int32 SampleCount = 0;

@@ -74,18 +74,19 @@ Long-term, RotationMode and InputState policy should come from view/input policy
 
 ## LocalBodyAnimInstance
 
-`ULocalBodyAnimInstance` was moved from ProjectCharacter to this plugin because it is skeletal assembly infrastructure, not legacy-character-specific behavior. ProjectCharacter now depends on ProjectSkeletalCapabilities (not the reverse).
+`ULocalBodyAnimInstance` was moved from ProjectCharacter to this plugin because it is skeletal assembly infrastructure, not character-class-specific behavior. ProjectCharacter now depends on ProjectSkeletalCapabilities (not the reverse).
 
 Copy-pose source discovery (no AProjectCharacter cast):
-1. Role tag: `AssemblyRole=WorldBody` (preferred modular path)
-2. Component name fallback: `WorldBodyMesh` (legacy path)
-3. Role tag: `AssemblyRole=DriverBody` only while the world visual layer is still empty during early init
+1. Role tag: `AssemblyRole=WorldBody` (production definition-driven path)
+2. Role tag: `AssemblyRole=DriverBody` while the world visual layer is empty during early init
+3. Component name fallback: `WorldBodyMesh` for historical `AProjectCharacter` inspection only
 
 After Mutable rebuild, `WorldBody` is promoted to the generated body mesh and
 re-initialized only when its mesh or anim instance actually changed. The
-retarget AnimBP now comes from object data (`Hero.json` or legacy Blueprint
-defaults), so both legacy and modular owner-visible local body copy from the
-same retargeted world visual layer without Mutable code overriding asset paths.
+retarget AnimBP for production comes from object data (`Hero.json`), so the
+owner-visible local body copies from the same retargeted world visual layer
+without Mutable code overriding asset paths. The component-name fallback does
+not participate in runtime pawn selection.
 
 ---
 
@@ -185,4 +186,4 @@ Output: `Saved/Validation/ClipMatrix/` (JSONL timeline + summary JSON + edge scr
 
 - [Assembly architecture](../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - one-registry model, lifecycle
 - [Layer contract](../../Resources/ProjectObject/docs/layer_contract.md) - Kind/Role/Visibility on meshes
-- [Character design](../ProjectCharacter/docs/design.md) - legacy vs modular character
+- [Character design](../ProjectCharacter/docs/design.md) - definition-driven character

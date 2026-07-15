@@ -10,7 +10,7 @@
  * directly in SinglePlayModeDefaults.cpp.
  *
  * Optional JSON override support:
- *   Place Config/SinglePlay/ModeOverrides.json in project root to override
+ *   Place Data/ModeOverrides.json in this plugin to override
  *   or extend C++ mode definitions at runtime.
  *
  * Usage:
@@ -43,9 +43,9 @@ public:
 	static void InitializeDefaults();
 
 	/**
-	 * Load JSON overrides from Config/SinglePlay/ModeOverrides.json
+	 * Load JSON overrides from the plugin Data/ModeOverrides.json
 	 * Merges with existing C++ definitions (JSON values override C++ values)
-	 * Invalid entries are logged and skipped (guardrail)
+	 * Unknown fields and invalid values are logged as errors and skipped
 	 *
 	 * Called automatically during InitializeDefaults() if file exists
 	 */

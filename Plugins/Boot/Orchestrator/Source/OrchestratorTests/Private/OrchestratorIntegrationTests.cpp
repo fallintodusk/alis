@@ -13,7 +13,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorManifestParsingTest, "Orchestrator
 bool FOrchestratorManifestParsingTest::RunTest(const FString& Parameters)
 {
 	// TODO: Update this test to use the actual CDN manifest schema with UUID, platform, code/assets structure
-	// See: <cdn-repo>\docs\manifest.schema.json
+	// See: cdn/docs/manifest.schema.json in the CDN repository.
 	// Parked pending CDN manifest-schema integration (UUID/platform/code/assets). Emitted as a
 	// non-failing warning so the suite stays green; restore the disabled body when the schema lands.
 	AddWarning(TEXT("Test DISABLED pending CDN manifest schema (UUID, platform, code/assets) - needs refactoring"));
@@ -110,7 +110,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorDependencyResolutionTest, "Orchest
 bool FOrchestratorDependencyResolutionTest::RunTest(const FString& Parameters)
 {
 	// TODO: Update this test to use the actual CDN manifest schema with UUID, platform, code/assets structure
-	// See: <cdn-repo>\docs\manifest.schema.json
+	// See: cdn/docs/manifest.schema.json in the CDN repository.
 	// Parked pending CDN manifest-schema integration (UUID/platform/code/assets). Emitted as a
 	// non-failing warning so the suite stays green; restore the disabled body when the schema lands.
 	AddWarning(TEXT("Test DISABLED pending CDN manifest schema (UUID, platform, code/assets) - needs refactoring"));
@@ -195,7 +195,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FOrchestratorUpdateClassificationTest, "Orchest
 bool FOrchestratorUpdateClassificationTest::RunTest(const FString& Parameters)
 {
 	// TODO: Update this test to use the actual CDN manifest schema with UUID, platform, code/assets structure
-	// See: <cdn-repo>\docs\manifest.schema.json
+	// See: cdn/docs/manifest.schema.json in the CDN repository.
 	// Parked pending CDN manifest-schema integration (UUID/platform/code/assets). Emitted as a
 	// non-failing warning so the suite stays green; restore the disabled body when the schema lands.
 	AddWarning(TEXT("Test DISABLED pending CDN manifest schema (UUID, platform, code/assets) - needs refactoring"));

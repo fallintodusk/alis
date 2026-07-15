@@ -31,6 +31,7 @@ param(
     [int]$SplitSizeMB = 1700,
     [switch]$SignRelease,
     [string]$GpgPath,
+    [string]$GpgHome,
     [string]$SigningKeyFingerprint,
     [switch]$SkipSignVerify
 )
@@ -322,6 +323,9 @@ if ($SignRelease) {
     if ($GpgPath) {
         $SignArgs.GpgPath = $GpgPath
     }
+    if ($GpgHome) {
+        $SignArgs.GpgHome = $GpgHome
+    }
     if ($SigningKeyFingerprint) {
         $SignArgs.SigningKeyFingerprint = $SigningKeyFingerprint
     }
@@ -336,6 +340,45 @@ if ($SignRelease) {
     $ManifestPath = Join-Path $OutputDir "SHA256SUMS.txt"
     if (-not (Test-Path -LiteralPath $ManifestPath)) {
         throw "Signing completed without writing SHA256SUMS.txt."
+    }
+
+    $RequiredSignedAssets = @(
+        "ALIS_PUBLIC_KEY.asc",
+        "INSTALL.txt",
+        "VERIFY_RELEASE.bat",
+        "VERIFY_RELEASE.ps1",
+        "SHA256SUMS.txt",
+        "SHA256SUMS.txt.asc"
+    )
+    $MissingSignedAssets = @($RequiredSignedAssets | Where-Object {
+        -not (Test-Path -LiteralPath (Join-Path $OutputDir $_))
+    })
+    if ($MissingSignedAssets.Count -gt 0) {
+        throw "Signing completed without required release assets: $($MissingSignedAssets -join ', ')"
+    }
+
+    $RequiredManifestAssets = @(
+        "ALIS_PUBLIC_KEY.asc",
+        "INSTALL.txt",
+        "VERIFY_RELEASE.bat",
+        "VERIFY_RELEASE.ps1"
+    )
+    foreach ($RequiredAsset in $RequiredManifestAssets) {
+        $ManifestPattern = "^[0-9A-Fa-f]{64} \*$([regex]::Escape($RequiredAsset))$"
+        if (-not (Select-String -Path $ManifestPath -Pattern $ManifestPattern)) {
+            throw "SHA256SUMS.txt does not cover required release asset: $RequiredAsset"
+        }
+    }
+
+    $ProtocolEnvelopeAssets = @(
+        "SHA256SUMS.txt",
+        "SHA256SUMS.txt.asc"
+    )
+    foreach ($ProtocolEnvelopeAsset in $ProtocolEnvelopeAssets) {
+        $ManifestPattern = "^[0-9A-Fa-f]{64} \*$([regex]::Escape($ProtocolEnvelopeAsset))$"
+        if (Select-String -Path $ManifestPath -Pattern $ManifestPattern) {
+            throw "SHA256SUMS.txt must not hash itself or its detached signature: $ProtocolEnvelopeAsset"
+        }
     }
 
     $BadManifestEntries = Select-String `

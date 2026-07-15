@@ -1,10 +1,13 @@
 // Copyright ALIS. All Rights Reserved.
-// Locomotion parity timeline: scripted 15-phase movement matrix for legacy vs modular.
-// Produces JSONL timeline + phase summary JSON for machine-readable comparison.
+// Locomotion regression timeline: scripted 15-phase matrix for the definition-driven hero.
+// Produces JSONL timeline + phase summary JSON for machine-readable validation.
 // Run with -ProjectSkipFrontEnd to bypass menu travel.
-// Output: Saved/Validation/CharacterDebug/ (JSONL + summary JSON per character system)
+// Output: Saved/Validation/CharacterDebug/ (JSONL + summary JSON per capture run)
 
 #include "Misc/AutomationTest.h"
+#include "DefinitionCharacter.h"
+#include "Support/CharacterTestArtifactWriter.h"
+#include "Support/CharacterTestRunContext.h"
 #include "Tests/AutomationCommon.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -16,7 +19,6 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "Misc/FileHelper.h"
 
 // ---------------------------------------------------------------------------
 // Phase definition
@@ -128,7 +130,7 @@ class FLocomotionTimelineCommand : public IAutomationLatentCommand
 public:
 	FLocomotionTimelineCommand(FAutomationTestBase* InTest)
 		: Test(InTest)
-		, RunId(FDateTime::UtcNow().ToString(TEXT("%Y%m%d_%H%M%S")))
+		, RunId(ProjectCharacterTest::ResolveCaptureRunId())
 		, OutputDir(FPaths::ProjectSavedDir() / TEXT("Validation/CharacterDebug"))
 	{}
 
@@ -143,15 +145,10 @@ public:
 		switch (Stage)
 		{
 		case 0: return WaitForPawn();
-		case 1: return Settle();
-		case 2: return RunPhases(TEXT("Legacy"));
-		case 3: return WriteSummary(TEXT("Legacy"));
-		case 4: return SwitchToModular();
-		case 5: return WaitForModular();
-		case 6: return MutableSettle();
-		case 7: return RunPhases(TEXT("Modular"));
-		case 8: return WriteSummary(TEXT("Modular"));
-		case 9: Test->AddInfo(TEXT("Locomotion timeline complete")); return true;
+		case 1: return MutableSettle();
+		case 2: return RunPhases();
+		case 3: return WriteSummary();
+		case 4: Test->AddInfo(TEXT("Locomotion timeline complete")); return true;
 		default: return true;
 		}
 	}
@@ -164,6 +161,12 @@ private:
 		if (APlayerController* PC = FindPC())
 		{
 			World = PC->GetWorld();
+			if (!Cast<ADefinitionCharacter>(PC->GetPawn()))
+			{
+				Test->AddError(FString::Printf(TEXT("Expected DefinitionCharacter, got %s"),
+					*PC->GetPawn()->GetClass()->GetPathName()));
+				return true;
+			}
 			Test->AddInfo(FString::Printf(TEXT("Pawn: %s RunId: %s"),
 				*PC->GetPawn()->GetClass()->GetName(), *RunId));
 			NextStage(); return false;
@@ -172,45 +175,17 @@ private:
 		return false;
 	}
 
-	bool Settle()
-	{
-		if (Tick < 120) return false;
-		GEngine->Exec(World, TEXT("project.character.debug 1"));
-		Test->AddInfo(TEXT("Settled. Starting legacy phases..."));
-		ResetPhaseRunner(); NextStage(); return false;
-	}
-
-	bool SwitchToModular()
-	{
-		GEngine->Exec(World, TEXT("project.character.switch modular"));
-		Test->AddInfo(TEXT("Switched to modular"));
-		NextStage(); return false;
-	}
-
-	bool WaitForModular()
-	{
-		if (APlayerController* PC = FindPC())
-		{
-			if (PC->GetPawn() && PC->GetPawn()->GetClass()->GetName().Contains(TEXT("DefinitionCharacter")))
-			{
-				World = PC->GetWorld();
-				NextStage(); return false;
-			}
-		}
-		if (Tick > 1800) { Test->AddError(TEXT("Timed out for DefinitionCharacter")); return true; }
-		return false;
-	}
-
 	bool MutableSettle()
 	{
 		if (Tick < 180) return false;
-		Test->AddInfo(TEXT("Mutable settled. Starting modular phases..."));
+		GEngine->Exec(World, TEXT("project.character.debug 1"));
+		Test->AddInfo(TEXT("Mutable settled. Starting definition-driven phases..."));
 		ResetPhaseRunner(); NextStage(); return false;
 	}
 
-	// ---- Phase runner (used by stages 2 and 7) ----
+	// ---- Phase runner ----
 
-	bool RunPhases(const TCHAR* SystemLabel)
+	bool RunPhases()
 	{
 		if (PhaseIdx >= GNumPhases) { NextStage(); return false; }
 
@@ -244,7 +219,7 @@ private:
 			CurrentSummaries.Add(S);
 
 			// Phase-start sample
-			CaptureSample(Char, SystemLabel, Phase, PhaseSampleIdx);
+			CaptureSample(Char, Phase, PhaseSampleIdx);
 			++PhaseSampleIdx;
 		}
 
@@ -270,7 +245,7 @@ private:
 		if (SampleAccum >= 0.25f)
 		{
 			SampleAccum -= 0.25f;
-			CaptureSample(Char, SystemLabel, Phase, PhaseSampleIdx);
+			CaptureSample(Char, Phase, PhaseSampleIdx);
 			++PhaseSampleIdx;
 		}
 
@@ -279,10 +254,10 @@ private:
 		if (PhaseElapsed >= Phase.DurationSec)
 		{
 			// Phase-end sample
-			CaptureSample(Char, SystemLabel, Phase, PhaseSampleIdx);
+			CaptureSample(Char, Phase, PhaseSampleIdx);
 
-			Test->AddInfo(FString::Printf(TEXT("[%s] Phase %d/%d '%s' done (%d samples)"),
-				SystemLabel, PhaseIdx + 1, GNumPhases, *Phase.Name, PhaseSampleIdx + 1));
+			Test->AddInfo(FString::Printf(TEXT("[Definition] Phase %d/%d '%s' done (%d samples)"),
+				PhaseIdx + 1, GNumPhases, *Phase.Name, PhaseSampleIdx + 1));
 
 			++PhaseIdx;
 			bPhaseStarted = false;
@@ -291,22 +266,23 @@ private:
 		return false;
 	}
 
-	bool WriteSummary(const TCHAR* SystemLabel)
+	bool WriteSummary()
 	{
 		// Write JSONL timeline
-		FString TimelinePath = OutputDir / FString::Printf(TEXT("%s_timeline_%s.jsonl"),
-			*FString(SystemLabel).ToLower(), *RunId);
-		FFileHelper::SaveStringToFile(
+		FString TimelinePath = OutputDir / FString::Printf(TEXT("definition_locomotion_timeline_%s.jsonl"),
+			*RunId);
+		ProjectCharacterTest::SaveArtifact(
+			*Test,
 			FString::Join(TimelineLines, TEXT("\n")),
-			*TimelinePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-		Test->AddInfo(FString::Printf(TEXT("[%s] Timeline: %d lines -> %s"),
-			SystemLabel, TimelineLines.Num(), *TimelinePath));
+			TimelinePath);
+		Test->AddInfo(FString::Printf(TEXT("[Definition] Timeline: %d lines -> %s"),
+			TimelineLines.Num(), *TimelinePath));
 		TimelineLines.Reset();
 
 		// Write phase summaries
 		TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 		Root->SetStringField(TEXT("RunId"), RunId);
-		Root->SetStringField(TEXT("System"), SystemLabel);
+		Root->SetStringField(TEXT("RuntimeModel"), TEXT("definition_driven"));
 
 		TArray<TSharedPtr<FJsonValue>> Arr;
 		for (const FPhaseSummary& S : CurrentSummaries)
@@ -327,12 +303,11 @@ private:
 		auto Writer = TJsonWriterFactory<>::Create(&SummaryStr);
 		FJsonSerializer::Serialize(Root, Writer);
 
-		FString SummaryPath = OutputDir / FString::Printf(TEXT("%s_summary_%s.json"),
-			*FString(SystemLabel).ToLower(), *RunId);
-		FFileHelper::SaveStringToFile(SummaryStr, *SummaryPath,
-			FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-		Test->AddInfo(FString::Printf(TEXT("[%s] Summary: %d phases -> %s"),
-			SystemLabel, CurrentSummaries.Num(), *SummaryPath));
+		FString SummaryPath = OutputDir / FString::Printf(TEXT("definition_locomotion_summary_%s.json"),
+			*RunId);
+		ProjectCharacterTest::SaveArtifact(*Test, SummaryStr, SummaryPath);
+		Test->AddInfo(FString::Printf(TEXT("[Definition] Summary: %d phases -> %s"),
+			CurrentSummaries.Num(), *SummaryPath));
 
 		CurrentSummaries.Reset();
 		NextStage();
@@ -341,15 +316,14 @@ private:
 
 	// ---- Sampling ----
 
-	void CaptureSample(ACharacter* Char, const TCHAR* System,
-		const FLocomotionPhase& Phase, int32 SampleIdx)
+	void CaptureSample(ACharacter* Char, const FLocomotionPhase& Phase, int32 SampleIdx)
 	{
 		TSharedPtr<FJsonObject> Row = MakeShared<FJsonObject>();
 		UCharacterMovementComponent* CMC = Char->GetCharacterMovement();
 
 		// Header
 		Row->SetStringField(TEXT("RunId"), RunId);
-		Row->SetStringField(TEXT("System"), System);
+		Row->SetStringField(TEXT("RuntimeModel"), TEXT("definition_driven"));
 		Row->SetStringField(TEXT("Phase"), Phase.Name);
 		Row->SetNumberField(TEXT("Sample"), SampleIdx);
 		Row->SetNumberField(TEXT("Frame"), static_cast<double>(GFrameCounter));

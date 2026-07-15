@@ -14,7 +14,7 @@
  * camera not rotating body, first-person clipping, wrong animation,
  * movement config mismatch, assembly lifecycle stall.
  *
- * Works for both legacy (BP_Hero) and modular (DefinitionCharacter) paths.
+ * Used by definition-driven characters through the DebugCapture capability.
  *
  * Console commands (registered in module startup):
  * - project.character.debug 0/1  -- toggle on-screen overlay

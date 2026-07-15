@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0.0",
 	"FriendlyName": "Project Integration Tests",
-	"Description": "Editor-only integration tests validating project boot and menu flows.",
+	"Description": "Editor-only tests validating project integration flows.",
 	"Category": "Testing",
 	"CreatedBy": "ALIS",
 	"CreatedByURL": "",
@@ -67,6 +67,14 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectCharacter",
+			"Enabled": true
+		},
+		{
+			"Name": "ProjectSkeletalCapabilities",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectObjectCapabilities",
 			"Enabled": true
 		},
@@ -98,5 +106,5 @@
 			"LoadingPhase": "PostEngineInit"
 		}
 	],
-	"EnabledByDefault": true
+	"EnabledByDefault": false
 }

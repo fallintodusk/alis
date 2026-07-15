@@ -1,9 +1,13 @@
 // Copyright ALIS. All Rights Reserved.
-// Camera-yaw timeline for the modular first-person body behavior.
+// Camera-yaw timeline for the definition-driven first-person body behavior.
 // Captures bridge inputs, ABP state, and visible-mesh propagation so we can
 // prove camera-to-body correlation on the real runtime path.
 
 #include "Misc/AutomationTest.h"
+#include "DefinitionCharacter.h"
+#include "LocalBody/LocalBodyAnimInstance.h"
+#include "Support/CharacterTestArtifactWriter.h"
+#include "Support/CharacterTestRunContext.h"
 #include "Tests/AutomationCommon.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -16,7 +20,6 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 struct FCameraYawPhase
@@ -492,6 +495,7 @@ struct FMeshSample
 	FString Asset;
 	FString LeaderPose;
 	FString AnimClass;
+	FString CopyPoseSource;
 	FString Tags;
 	bool bHiddenInGame = false;
 	bool bOnlyOwnerSee = false;
@@ -539,6 +543,10 @@ FMeshSample SampleMesh(USkeletalMeshComponent* Mesh)
 	Sample.Asset = Mesh->GetSkeletalMeshAsset() ? Mesh->GetSkeletalMeshAsset()->GetName() : TEXT("null");
 	Sample.LeaderPose = Mesh->LeaderPoseComponent.IsValid() ? Mesh->LeaderPoseComponent->GetName() : TEXT("none");
 	Sample.AnimClass = Mesh->GetAnimInstance() ? Mesh->GetAnimInstance()->GetClass()->GetName() : TEXT("none");
+	if (const ULocalBodyAnimInstance* LocalBodyAnim = Cast<ULocalBodyAnimInstance>(Mesh->GetAnimInstance()))
+	{
+		Sample.CopyPoseSource = LocalBodyAnim->GetCurrentSourceName().ToString();
+	}
 	Sample.bHiddenInGame = Mesh->bHiddenInGame;
 	Sample.bOnlyOwnerSee = Mesh->bOnlyOwnerSee;
 	Sample.bOwnerNoSee = Mesh->bOwnerNoSee;
@@ -594,6 +602,7 @@ TSharedPtr<FJsonObject> MeshSampleToJson(const FMeshSample& Mesh)
 	Object->SetStringField(TEXT("Asset"), Mesh.Asset);
 	Object->SetStringField(TEXT("LeaderPose"), Mesh.LeaderPose);
 	Object->SetStringField(TEXT("AnimClass"), Mesh.AnimClass);
+	Object->SetStringField(TEXT("CopyPoseSource"), Mesh.CopyPoseSource);
 	Object->SetStringField(TEXT("Tags"), Mesh.Tags);
 	Object->SetBoolField(TEXT("HiddenInGame"), Mesh.bHiddenInGame);
 	Object->SetBoolField(TEXT("OnlyOwnerSee"), Mesh.bOnlyOwnerSee);
@@ -673,7 +682,9 @@ struct FCameraYawPhaseSummary
 	bool bVisibleRespondedToYaw = false;
 	bool bBodyRespondedToYaw = false;
 	bool bVisibleTracksDriver = false;
-	bool bVisibleTracksWorld = false;
+	bool bVisiblePoseMatchesWorld = false;
+	bool bCheckedVisibleWorldSource = false;
+	bool bVisibleUsesWorldSource = true;
 	bool bLargeBodyTurnObserved = false;
 	bool bSawRetargetWorldVisual = false;
 };
@@ -828,6 +839,9 @@ void UpdateYawSummary(
 
 	if (World.bFound && Visible.bFound)
 	{
+		Summary.bCheckedVisibleWorldSource = true;
+		Summary.bVisibleUsesWorldSource =
+			Summary.bVisibleUsesWorldSource && Visible.CopyPoseSource == World.Name;
 		Summary.MaxAbsWorldVisiblePelvisDelta = FMath::Max(
 			Summary.MaxAbsWorldVisiblePelvisDelta,
 			FMath::Abs(NormalizeYawDelta(World.PelvisFacingYawComponent, Visible.PelvisFacingYawComponent)));
@@ -887,7 +901,7 @@ void FinalizeYawSummary(FCameraYawPhaseSummary& Summary)
 		(Summary.MaxAbsDriverVisibleHeadDelta <= 15.f &&
 		 Summary.MaxAbsDriverVisibleRootDelta <= 15.f);
 
-	Summary.bVisibleTracksWorld =
+	Summary.bVisiblePoseMatchesWorld =
 		!Summary.bHasWorld || !Summary.bHasVisible ||
 		(Summary.MaxAbsWorldVisiblePelvisDelta <= 5.f &&
 		 Summary.MaxAbsWorldVisibleSpineDelta <= 5.f &&
@@ -973,7 +987,9 @@ TSharedPtr<FJsonObject> YawSummaryToJson(const FCameraYawPhaseSummary& Summary)
 	Object->SetBoolField(TEXT("VisibleRespondedToYaw"), Summary.bVisibleRespondedToYaw);
 	Object->SetBoolField(TEXT("BodyRespondedToYaw"), Summary.bBodyRespondedToYaw);
 	Object->SetBoolField(TEXT("VisibleTracksDriver"), Summary.bVisibleTracksDriver);
-	Object->SetBoolField(TEXT("VisibleTracksWorld"), Summary.bVisibleTracksWorld);
+	Object->SetBoolField(TEXT("VisiblePoseMatchesWorld"), Summary.bVisiblePoseMatchesWorld);
+	Object->SetBoolField(TEXT("CheckedVisibleWorldSource"), Summary.bCheckedVisibleWorldSource);
+	Object->SetBoolField(TEXT("VisibleUsesWorldSource"), Summary.bVisibleUsesWorldSource);
 	Object->SetBoolField(TEXT("LargeBodyTurnObserved"), Summary.bLargeBodyTurnObserved);
 	Object->SetBoolField(TEXT("SawRetargetWorldVisual"), Summary.bSawRetargetWorldVisual);
 	return Object;
@@ -989,7 +1005,7 @@ class FCameraYawTimelineCommand : public IAutomationLatentCommand
 public:
 	explicit FCameraYawTimelineCommand(FAutomationTestBase* InTest)
 		: Test(InTest)
-		, RunId(FDateTime::UtcNow().ToString(TEXT("%Y%m%d_%H%M%S")))
+		, RunId(ProjectCharacterTest::ResolveCaptureRunId())
 		, OutputDir(FPaths::ProjectSavedDir() / TEXT("Validation/CharacterDebug"))
 	{}
 
@@ -1011,12 +1027,12 @@ public:
 		switch (Stage)
 		{
 		case 0: return WaitForPawn();
-		case 1: return EnsureModularPawn();
-		case 2: return WaitForModular();
-		case 3: return ModularSettle();
-		case 4: return RunPhases(TEXT("Modular"));
-		case 5: return WriteSummary(TEXT("Modular"));
-		case 6: return ValidateModularSummary();
+		case 1: return EnsureDefinitionCharacter();
+		case 2: return WaitForDefinitionCharacter();
+		case 3: return DefinitionSettle();
+		case 4: return RunPhases(TEXT("Definition"));
+		case 5: return WriteSummary(TEXT("Definition"));
+		case 6: return ValidateDefinitionSummary();
 		case 7:
 			Test->AddInfo(TEXT("Camera yaw timeline complete"));
 			return true;
@@ -1046,7 +1062,7 @@ private:
 		return false;
 	}
 
-	bool EnsureModularPawn()
+	bool EnsureDefinitionCharacter()
 	{
 		if (Tick < 120)
 		{
@@ -1055,25 +1071,23 @@ private:
 
 		if (APlayerController* PC = FindPC())
 		{
-			if (PC->GetPawn() && PC->GetPawn()->GetClass()->GetName().Contains(TEXT("DefinitionCharacter")))
+			if (Cast<ADefinitionCharacter>(PC->GetPawn()))
 			{
-				Test->AddInfo(TEXT("CameraYaw using modular default pawn"));
+				Test->AddInfo(TEXT("CameraYaw using definition-driven default pawn"));
 				NextStage();
 				return false;
 			}
 		}
 
-		GEngine->Exec(World, TEXT("project.character.switch modular"));
-		Test->AddInfo(TEXT("CameraYaw switched to modular"));
-		NextStage();
-		return false;
+		Test->AddError(TEXT("CameraYaw requires DefinitionCharacter as the default pawn"));
+		return true;
 	}
 
-	bool WaitForModular()
+	bool WaitForDefinitionCharacter()
 	{
 		if (APlayerController* PC = FindPC())
 		{
-			if (PC->GetPawn() && PC->GetPawn()->GetClass()->GetName().Contains(TEXT("DefinitionCharacter")))
+			if (Cast<ADefinitionCharacter>(PC->GetPawn()))
 			{
 				World = PC->GetWorld();
 				NextStage();
@@ -1090,19 +1104,19 @@ private:
 		return false;
 	}
 
-	bool ModularSettle()
+	bool DefinitionSettle()
 	{
 		if (Tick < 180)
 		{
 			return false;
 		}
 
-		PrepareSystemRun(TEXT("Modular"));
+		PrepareRuntimeRun(TEXT("Definition"));
 		NextStage();
 		return false;
 	}
 
-	void PrepareSystemRun(const TCHAR* SystemLabel)
+	void PrepareRuntimeRun(const TCHAR* RuntimeModelLabel)
 	{
 		ResetPhaseRunner();
 
@@ -1121,12 +1135,12 @@ private:
 				}
 
 				Test->AddInfo(FString::Printf(TEXT("[%s] BaseControlYaw=%.2f ActorYaw=%.2f"),
-					SystemLabel, BaseControlYaw, Character->GetActorRotation().Yaw));
+					RuntimeModelLabel, BaseControlYaw, Character->GetActorRotation().Yaw));
 			}
 		}
 	}
 
-	bool RunPhases(const TCHAR* SystemLabel)
+	bool RunPhases(const TCHAR* RuntimeModelLabel)
 	{
 		if (PhaseIdx >= GNumCameraYawPhases)
 		{
@@ -1204,7 +1218,7 @@ private:
 		if (SampleAccum >= 0.25f)
 		{
 			SampleAccum -= 0.25f;
-			CaptureSample(Character, PC, SystemLabel, Phase, PhaseSampleIdx);
+			CaptureSample(Character, PC, Phase, PhaseSampleIdx);
 			++PhaseSampleIdx;
 		}
 
@@ -1215,13 +1229,13 @@ private:
 			EndControlRot.Yaw = BaseControlYaw + Phase.EndYawOffsetDeg;
 			PC->SetControlRotation(EndControlRot);
 
-			CaptureSample(Character, PC, SystemLabel, Phase, PhaseSampleIdx);
+			CaptureSample(Character, PC, Phase, PhaseSampleIdx);
 			FinalizeYawSummary(CurrentSummaries.Last());
 
 			const FCameraYawPhaseSummary& Summary = CurrentSummaries.Last();
 			Test->AddInfo(FString::Printf(
-				TEXT("[%s] %s: ActorDelta=%.1f VisibleRoot=%.1f VisiblePelvis=%.1f VisibleSpine=%.1f VisibleHead=%.1f AO=%.1f/%s TIPReq=%s TIPState=%s TIPEvent=%s RotBreak=%s TurnClip=%s AnimChange=%s Mode=%d-%d BridgeOK=%s WorldTrack=%s Retarget=%s"),
-				SystemLabel,
+				TEXT("[%s] %s: ActorDelta=%.1f VisibleRoot=%.1f VisiblePelvis=%.1f VisibleSpine=%.1f VisibleHead=%.1f AO=%.1f/%s TIPReq=%s TIPState=%s TIPEvent=%s RotBreak=%s TurnClip=%s AnimChange=%s Mode=%d-%d BridgeOK=%s WorldSource=%s Retarget=%s"),
+				RuntimeModelLabel,
 				*Phase.Name,
 				Summary.MaxAbsActorControlDelta,
 				Summary.MaxAbsVisibleRootYawFromStart,
@@ -1239,7 +1253,7 @@ private:
 				Summary.bSawTopLevelRotationMode ? Summary.MinTopLevelRotationMode : 255,
 				Summary.bSawTopLevelRotationMode ? Summary.MaxTopLevelRotationMode : 255,
 				Summary.bBridgeTracksControlYaw ? TEXT("Y") : TEXT("N"),
-				Summary.bVisibleTracksWorld ? TEXT("Y") : TEXT("N"),
+				Summary.bVisibleUsesWorldSource ? TEXT("Y") : TEXT("N"),
 				Summary.bSawRetargetWorldVisual ? TEXT("Y") : TEXT("N")));
 
 			++PhaseIdx;
@@ -1252,7 +1266,6 @@ private:
 	void CaptureSample(
 		ACharacter* Character,
 		APlayerController* PC,
-		const TCHAR* SystemLabel,
 		const FCameraYawPhase& Phase,
 		int32 SampleIdx)
 	{
@@ -1309,7 +1322,7 @@ private:
 		const FMeshSample OwnerVisible = SampleMesh(FindOwnerVisibleMesh(Character));
 
 		Row->SetStringField(TEXT("RunId"), RunId);
-		Row->SetStringField(TEXT("System"), SystemLabel);
+		Row->SetStringField(TEXT("RuntimeModel"), TEXT("definition_driven"));
 		Row->SetStringField(TEXT("Phase"), Phase.Name);
 		Row->SetNumberField(TEXT("Sample"), SampleIdx);
 		Row->SetNumberField(TEXT("Frame"), static_cast<double>(GFrameCounter));
@@ -1439,21 +1452,20 @@ private:
 		}
 	}
 
-	bool WriteSummary(const TCHAR* SystemLabel)
+	bool WriteSummary(const TCHAR* RuntimeModelLabel)
 	{
-		const FString SystemLower = FString(SystemLabel).ToLower();
-		const FString TimelinePath = OutputDir / FString::Printf(TEXT("%s_camera_yaw_timeline_%s.jsonl"),
-			*SystemLower, *RunId);
-		FFileHelper::SaveStringToFile(
+		const FString TimelinePath = OutputDir / FString::Printf(TEXT("definition_camera_yaw_timeline_%s.jsonl"),
+			*RunId);
+		ProjectCharacterTest::SaveArtifact(
+			*Test,
 			FString::Join(TimelineLines, TEXT("\n")),
-			*TimelinePath,
-			FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-		Test->AddInfo(FString::Printf(TEXT("[%s] CameraYaw timeline -> %s"), SystemLabel, *TimelinePath));
+			TimelinePath);
+		Test->AddInfo(FString::Printf(TEXT("[%s] CameraYaw timeline -> %s"), RuntimeModelLabel, *TimelinePath));
 		TimelineLines.Reset();
 
 		TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 		Root->SetStringField(TEXT("RunId"), RunId);
-		Root->SetStringField(TEXT("System"), SystemLabel);
+		Root->SetStringField(TEXT("RuntimeModel"), TEXT("definition_driven"));
 
 		TArray<TSharedPtr<FJsonValue>> PhaseArray;
 		for (const FCameraYawPhaseSummary& Summary : CurrentSummaries)
@@ -1466,110 +1478,107 @@ private:
 		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&SummaryText);
 		FJsonSerializer::Serialize(Root, Writer);
 
-		const FString SummaryPath = OutputDir / FString::Printf(TEXT("%s_camera_yaw_summary_%s.json"),
-			*SystemLower, *RunId);
-		FFileHelper::SaveStringToFile(
+		const FString SummaryPath = OutputDir / FString::Printf(TEXT("definition_camera_yaw_summary_%s.json"),
+			*RunId);
+		ProjectCharacterTest::SaveArtifact(
+			*Test,
 			SummaryText,
-			*SummaryPath,
-			FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-		Test->AddInfo(FString::Printf(TEXT("[%s] CameraYaw summary -> %s"), SystemLabel, *SummaryPath));
+			SummaryPath);
+		Test->AddInfo(FString::Printf(TEXT("[%s] CameraYaw summary -> %s"), RuntimeModelLabel, *SummaryPath));
 
-		ModularSummaries = CurrentSummaries;
+		DefinitionSummaries = CurrentSummaries;
 
 		CurrentSummaries.Reset();
 		NextStage();
 		return false;
 	}
 
-	bool ValidateModularSummary()
+	bool ValidateDefinitionSummary()
 	{
-		for (int32 Index = 0; Index < ModularSummaries.Num(); ++Index)
+		for (int32 Index = 0; Index < DefinitionSummaries.Num(); ++Index)
 		{
-			const FCameraYawPhaseSummary& Modular = ModularSummaries[Index];
+			const FCameraYawPhaseSummary& DefinitionResult = DefinitionSummaries[Index];
 
-			if (Modular.bExpectYawResponse && !Modular.bBridgeTracksControlYaw)
+			if (DefinitionResult.bExpectYawResponse && !DefinitionResult.bBridgeTracksControlYaw)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': CharacterProperties do not track control yaw (OrientationIntent delta=%.1f, Aiming delta=%.1f)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsControlOrientationIntentDelta,
-					Modular.MaxAbsControlAimingDelta));
+					TEXT("Definition phase '%s': CharacterProperties do not track control yaw (OrientationIntent delta=%.1f, Aiming delta=%.1f)"),
+					*DefinitionResult.PhaseName,
+					DefinitionResult.MaxAbsControlOrientationIntentDelta,
+					DefinitionResult.MaxAbsControlAimingDelta));
 			}
 
-			if (!Modular.bHasWorld || !Modular.bSawRetargetWorldVisual)
+			if (!DefinitionResult.bHasWorld || !DefinitionResult.bSawRetargetWorldVisual)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': world visual retarget layer is missing or not active"),
-					*Modular.PhaseName));
+					TEXT("Definition phase '%s': world visual retarget layer is missing or not active"),
+					*DefinitionResult.PhaseName));
 			}
 
-			if (!Modular.bVisibleTracksWorld)
+			if (!DefinitionResult.bCheckedVisibleWorldSource || !DefinitionResult.bVisibleUsesWorldSource)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': owner-visible mesh diverges from world visual source (Pelvis=%.1f Spine=%.1f Head=%.1f)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsWorldVisiblePelvisDelta,
-					Modular.MaxAbsWorldVisibleSpineDelta,
-					Modular.MaxAbsWorldVisibleHeadDelta));
+					TEXT("Definition phase '%s': owner-visible LocalBody does not copy pose from WorldBody"),
+					*DefinitionResult.PhaseName));
 			}
 
-			if (Modular.bExpectYawResponse && !Modular.bVisibleRespondedToYaw)
+			if (DefinitionResult.bExpectYawResponse && !DefinitionResult.bVisibleRespondedToYaw)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': owner-visible mesh did not respond to camera yaw (ActorControlDelta=%.1f VisibleHead=%.1f VisibleRoot=%.1f)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsActorControlDelta,
-					Modular.MaxAbsVisibleHeadYawFromStart,
-					Modular.MaxAbsVisibleRootYawFromStart));
+					TEXT("Definition phase '%s': owner-visible mesh did not respond to camera yaw (ActorControlDelta=%.1f VisibleHead=%.1f VisibleRoot=%.1f)"),
+					*DefinitionResult.PhaseName,
+					DefinitionResult.MaxAbsActorControlDelta,
+					DefinitionResult.MaxAbsVisibleHeadYawFromStart,
+					DefinitionResult.MaxAbsVisibleRootYawFromStart));
 			}
 
-			if (Modular.bExpectYawResponse && !Modular.bBodyRespondedToYaw)
+			if (DefinitionResult.bExpectYawResponse && !DefinitionResult.bBodyRespondedToYaw)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': torso did not respond to camera yaw (VisiblePelvis=%.1f VisibleSpine=%.1f VisibleHead=%.1f)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsVisiblePelvisYawFromStart,
-					Modular.MaxAbsVisibleSpineYawFromStart,
-					Modular.MaxAbsVisibleHeadYawFromStart));
+					TEXT("Definition phase '%s': torso did not respond to camera yaw (VisiblePelvis=%.1f VisibleSpine=%.1f VisibleHead=%.1f)"),
+					*DefinitionResult.PhaseName,
+					DefinitionResult.MaxAbsVisiblePelvisYawFromStart,
+					DefinitionResult.MaxAbsVisibleSpineYawFromStart,
+					DefinitionResult.MaxAbsVisibleHeadYawFromStart));
 			}
 
-			if (Modular.bExpectTurnState && !Modular.bTurnStateObserved)
+			if (DefinitionResult.bExpectTurnState && !DefinitionResult.bTurnStateObserved)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': large idle yaw never entered a turn state (ActorControlDelta=%.1f TIP=%s TurnEvent=%s RotBreak=%s TurnClip=%s TargetDelta=%.1f ActorCatchUp=%s StartAnim=%s LastAnim=%s Hist=%d->%d)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsActorControlDelta,
-					Modular.bAnyTurnInPlaceRequested ? TEXT("Y") : TEXT("N"),
-					Modular.bTurnTransitionObserved ? TEXT("Y") : TEXT("N"),
-					Modular.bRotationBreakObserved ? TEXT("Y") : TEXT("N"),
-					Modular.bPersistentTurnClipObserved ? TEXT("Y") : TEXT("N"),
-					Modular.MaxAbsTargetRotationDelta,
-					Modular.bActorCatchUpObserved ? TEXT("Y") : TEXT("N"),
-					*Modular.StartSelectedAnim,
-					*Modular.LastSelectedAnim,
-					Modular.StartTransitionHistoryCount,
-					Modular.MaxTransitionHistoryCount));
+					TEXT("Definition phase '%s': large idle yaw never entered a turn state (ActorControlDelta=%.1f TIP=%s TurnEvent=%s RotBreak=%s TurnClip=%s TargetDelta=%.1f ActorCatchUp=%s StartAnim=%s LastAnim=%s Hist=%d->%d)"),
+					*DefinitionResult.PhaseName,
+					DefinitionResult.MaxAbsActorControlDelta,
+					DefinitionResult.bAnyTurnInPlaceRequested ? TEXT("Y") : TEXT("N"),
+					DefinitionResult.bTurnTransitionObserved ? TEXT("Y") : TEXT("N"),
+					DefinitionResult.bRotationBreakObserved ? TEXT("Y") : TEXT("N"),
+					DefinitionResult.bPersistentTurnClipObserved ? TEXT("Y") : TEXT("N"),
+					DefinitionResult.MaxAbsTargetRotationDelta,
+					DefinitionResult.bActorCatchUpObserved ? TEXT("Y") : TEXT("N"),
+					*DefinitionResult.StartSelectedAnim,
+					*DefinitionResult.LastSelectedAnim,
+					DefinitionResult.StartTransitionHistoryCount,
+					DefinitionResult.MaxTransitionHistoryCount));
 			}
 
-			if (Modular.bExpectLargeBodyTurn && !Modular.bRootTurnObserved)
+			if (DefinitionResult.bExpectLargeBodyTurn && !DefinitionResult.bRootTurnObserved)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': large camera yaw never produced a root/body catch-up sign (ActorYaw=%.1f VisibleRootFacing=%.1f TargetDelta=%.1f)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsActorYawFromStart,
-					Modular.MaxAbsVisibleRootYawFromStart,
-					Modular.MaxAbsTargetRotationDelta));
+					TEXT("Definition phase '%s': large camera yaw never produced a root/body catch-up sign (ActorYaw=%.1f VisibleRootFacing=%.1f TargetDelta=%.1f)"),
+					*DefinitionResult.PhaseName,
+					DefinitionResult.MaxAbsActorYawFromStart,
+					DefinitionResult.MaxAbsVisibleRootYawFromStart,
+					DefinitionResult.MaxAbsTargetRotationDelta));
 			}
 
-			if (Modular.bExpectLargeBodyTurn && !Modular.bLargeBodyTurnObserved)
+			if (DefinitionResult.bExpectLargeBodyTurn && !DefinitionResult.bLargeBodyTurnObserved)
 			{
 				Test->AddError(FString::Printf(
-					TEXT("Modular phase '%s': large camera yaw did not produce body/root turn (VisibleRoot=%.1f VisiblePelvis=%.1f VisibleSpine=%.1f TIPState=%s)"),
-					*Modular.PhaseName,
-					Modular.MaxAbsVisibleRootYawFromStart,
-					Modular.MaxAbsVisiblePelvisYawFromStart,
-					Modular.MaxAbsVisibleSpineYawFromStart,
-					Modular.bTurnStateObserved ? TEXT("Y") : TEXT("N")));
+					TEXT("Definition phase '%s': large camera yaw did not produce body/root turn (VisibleRoot=%.1f VisiblePelvis=%.1f VisibleSpine=%.1f TIPState=%s)"),
+					*DefinitionResult.PhaseName,
+					DefinitionResult.MaxAbsVisibleRootYawFromStart,
+					DefinitionResult.MaxAbsVisiblePelvisYawFromStart,
+					DefinitionResult.MaxAbsVisibleSpineYawFromStart,
+					DefinitionResult.bTurnStateObserved ? TEXT("Y") : TEXT("N")));
 			}
 
 		}
@@ -1655,7 +1664,7 @@ private:
 
 	TArray<FString> TimelineLines;
 	TArray<FCameraYawPhaseSummary> CurrentSummaries;
-	TArray<FCameraYawPhaseSummary> ModularSummaries;
+	TArray<FCameraYawPhaseSummary> DefinitionSummaries;
 };
 
 } // namespace CameraYawHelpers

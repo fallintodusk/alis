@@ -1,8 +1,8 @@
 # Character Parity Capture
-# Runs automation tests for character parity and modular camera/body validation.
+# Runs automation tests for definition-driven character regression validation.
 # Uses -ProjectSkipFrontEnd to bypass menu travel and boot directly into gameplay.
 # Regenerates ObjectDefinition assets first so Hero.json changes reach Hero.uasset
-# before the modular pawn is spawned.
+# before the definition-driven pawn is spawned.
 # Output: Saved/Validation/CharacterDebug/ (JSON sidecars with unique RunId)
 #
 # Usage: .\capture_parity.ps1 [-TimeoutSeconds 180] [-Map "..."]
@@ -18,7 +18,6 @@ $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path "$PSScriptRoot\..\..\..\..\").Path
 $testScript = Join-Path $PSScriptRoot "..\unit\run_cpp_tests_safe.ps1"
 $configDir = Join-Path $projectRoot "scripts\config"
-$captureWindowStart = (Get-Date).AddSeconds(-2)
 
 function Invoke-ObjectDefinitionGeneration {
     param(
@@ -108,13 +107,73 @@ else {
     Write-Host ""
 }
 
-& $testScript `
-    -TestFilter $TestFilter `
-    -Map $Map `
-    -Game `
-    -UseTestExitOnly `
-    -TimeoutSeconds $TimeoutSeconds `
-    -ExtraArgs "-ProjectSkipFrontEnd"
+$captureRunId = (Get-Date).ToUniversalTime().ToString("yyyyMMdd_HHmmss_fff")
+$knownParityTests = @(
+    "ProjectIntegrationTests.Character.Parity.IdleSnapshot",
+    "ProjectIntegrationTests.Character.Parity.CleanPathIsolationMatrix",
+    "ProjectIntegrationTests.Character.Parity.CameraYawTimeline",
+    "ProjectIntegrationTests.Character.Parity.LocomotionTimeline",
+    "ProjectIntegrationTests.Character.Parity.SimpleAnimSanity"
+)
+
+$expectedTests = if ($TestFilter.Contains("*")) {
+    @($knownParityTests | Where-Object { $_ -like $TestFilter })
+} else {
+    @($knownParityTests | Where-Object {
+        $_ -eq $TestFilter -or $_.StartsWith("$TestFilter.", [System.StringComparison]::Ordinal)
+    })
+}
+
+$requiredArtifacts = @()
+foreach ($expectedTest in $expectedTests) {
+    switch ($expectedTest) {
+        "ProjectIntegrationTests.Character.Parity.IdleSnapshot" {
+            $requiredArtifacts += [PSCustomObject]@{
+                Test = $expectedTest
+                Pattern = "*idle_definition_$captureRunId*.json"
+            }
+        }
+        "ProjectIntegrationTests.Character.Parity.CleanPathIsolationMatrix" {
+            $requiredArtifacts += [PSCustomObject]@{ Test = $expectedTest; Pattern = "definition_clean_path_timeline_$captureRunId.jsonl" }
+            $requiredArtifacts += [PSCustomObject]@{ Test = $expectedTest; Pattern = "definition_clean_path_summary_$captureRunId.json" }
+        }
+        "ProjectIntegrationTests.Character.Parity.CameraYawTimeline" {
+            $requiredArtifacts += [PSCustomObject]@{ Test = $expectedTest; Pattern = "definition_camera_yaw_timeline_$captureRunId.jsonl" }
+            $requiredArtifacts += [PSCustomObject]@{ Test = $expectedTest; Pattern = "definition_camera_yaw_summary_$captureRunId.json" }
+        }
+        "ProjectIntegrationTests.Character.Parity.LocomotionTimeline" {
+            $requiredArtifacts += [PSCustomObject]@{ Test = $expectedTest; Pattern = "definition_locomotion_timeline_$captureRunId.jsonl" }
+            $requiredArtifacts += [PSCustomObject]@{ Test = $expectedTest; Pattern = "definition_locomotion_summary_$captureRunId.json" }
+        }
+    }
+}
+
+Write-Host "Capture RunId: $captureRunId" -ForegroundColor Cyan
+if ($expectedTests.Count -gt 0) {
+    Write-Host "Expected tests:" -ForegroundColor Gray
+    foreach ($expectedTest in $expectedTests) {
+        Write-Host "  $expectedTest" -ForegroundColor Gray
+    }
+}
+
+$testArgs = @{
+    TestFilter = $TestFilter
+    Mode = "Gate"
+    Map = $Map
+    Game = $true
+    PreExecCmds = "Module Load ProjectIntegrationTests"
+    RequiredLogPatterns = @(
+        "LogProjectIntegrationTestsPersistent: Display: \[PersistentEditor\] Ready to start automation"
+    )
+    UseTestExitOnly = $true
+    TimeoutSeconds = $TimeoutSeconds
+    ExtraArgs = "-ProjectSkipFrontEnd -CharacterCaptureRunId=$captureRunId"
+}
+if ($expectedTests.Count -gt 0) {
+    $testArgs.ExpectedTestNames = $expectedTests
+}
+
+& $testScript @testArgs
 
 $testExitCode = $LASTEXITCODE
 
@@ -136,43 +195,44 @@ else {
     Write-Host "Test completed" -ForegroundColor Green
 }
 
-# Show captures produced by this run first. Fall back to latest files only if the
-# current-run window is empty.
-$currentRunJsonFiles = Get-ChildItem -Path $outputDir -Filter "*.json" -ErrorAction SilentlyContinue |
-    Where-Object { $_.LastWriteTime -ge $captureWindowStart } |
-    Sort-Object LastWriteTime -Descending
+# Select artifacts by the explicit RunId passed to every character test. This
+# prevents files from overlapping runs or unrelated JSON schemas from being
+# presented as comparable output.
+$currentRunJsonFiles = @(Get-ChildItem -Path $outputDir -Filter "*$captureRunId*.json" -ErrorAction SilentlyContinue |
+    Sort-Object Name)
+$captureFiles = @($currentRunJsonFiles | Where-Object { $_.Name -notmatch "_summary_" })
+$summaryFiles = @($currentRunJsonFiles | Where-Object { $_.Name -match "_summary_" })
+$timelineFiles = @(Get-ChildItem -Path $outputDir -Filter "*$captureRunId*.jsonl" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match "_timeline_" } |
+    Sort-Object Name)
 
-$latestFiles = $currentRunJsonFiles | Select-Object -First 2
-if ($latestFiles.Count -eq 0) {
-    $latestFiles = Get-ChildItem -Path $outputDir -Filter "*.json" -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 2
+$missingArtifacts = @()
+foreach ($requiredArtifact in $requiredArtifacts) {
+    $matchingNonEmptyFiles = @(Get-ChildItem -Path $outputDir -Filter $requiredArtifact.Pattern -ErrorAction SilentlyContinue |
+        Where-Object { $_.Length -gt 0 })
+    if ($matchingNonEmptyFiles.Count -eq 0) {
+        $missingArtifacts += $requiredArtifact
+    }
 }
 
-if ($latestFiles.Count -ge 2) {
-    Write-Host "CAPTURED:" -ForegroundColor Green
-    foreach ($f in $latestFiles) {
+if ($missingArtifacts.Count -gt 0) {
+    Write-Host "REQUIRED ARTIFACTS MISSING OR EMPTY:" -ForegroundColor Red
+    foreach ($missingArtifact in $missingArtifacts) {
+        Write-Host "  $($missingArtifact.Test): $($missingArtifact.Pattern)" -ForegroundColor Red
+    }
+    if ($testExitCode -eq 0) {
+        $testExitCode = 1
+    }
+}
+
+if ($captureFiles.Count -gt 0) {
+    Write-Host "CAPTURES:" -ForegroundColor Green
+    foreach ($f in $captureFiles) {
         Write-Host "  $($f.Name)" -ForegroundColor Gray
     }
-    Write-Host ""
-    Write-Host "Diff:" -ForegroundColor Yellow
-    Write-Host "  diff `"$($latestFiles[1].FullName)`" `"$($latestFiles[0].FullName)`"" -ForegroundColor White
-}
-elseif ($latestFiles.Count -eq 1) {
-    Write-Host "PARTIAL: Only one capture found" -ForegroundColor Yellow
-    Write-Host "  $($latestFiles[0].Name)" -ForegroundColor Gray
-}
-else {
-    Write-Host "No capture files found in: $outputDir" -ForegroundColor Red
 }
 
 # Show timeline files from this run when available.
-$timelineFiles = Get-ChildItem -Path $outputDir -Filter "*timeline*.jsonl" -ErrorAction SilentlyContinue |
-    Where-Object { $_.LastWriteTime -ge $captureWindowStart } |
-    Sort-Object LastWriteTime -Descending
-if ($timelineFiles.Count -eq 0) {
-    $timelineFiles = Get-ChildItem -Path $outputDir -Filter "*timeline*.jsonl" -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 4
-}
 if ($timelineFiles.Count -gt 0) {
     Write-Host ""
     Write-Host "TIMELINES:" -ForegroundColor Green
@@ -183,19 +243,16 @@ if ($timelineFiles.Count -gt 0) {
 }
 
 # Show summary files from this run when available.
-$summaryFiles = Get-ChildItem -Path $outputDir -Filter "*summary*.json" -ErrorAction SilentlyContinue |
-    Where-Object { $_.LastWriteTime -ge $captureWindowStart } |
-    Sort-Object LastWriteTime -Descending
-if ($summaryFiles.Count -eq 0) {
-    $summaryFiles = Get-ChildItem -Path $outputDir -Filter "*summary*.json" -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 4
-}
 if ($summaryFiles.Count -gt 0) {
     Write-Host ""
     Write-Host "SUMMARIES:" -ForegroundColor Green
     foreach ($f in $summaryFiles) {
         Write-Host "  $($f.Name)" -ForegroundColor Gray
     }
+}
+
+if ($captureFiles.Count -eq 0 -and $timelineFiles.Count -eq 0 -and $summaryFiles.Count -eq 0) {
+    Write-Host "No JSON artifacts found for RunId $captureRunId in: $outputDir" -ForegroundColor Gray
 }
 
 Write-Host "========================================" -ForegroundColor Cyan

@@ -39,6 +39,8 @@ public class ProjectIntegrationTests : ModuleRules
 			"ProjectCore",          // Types/ProjectLoadRequest.h
 			"ProjectInteraction",   // UInteractionComponent focus/selection integration tests
 			"ProjectObject",        // ObjectDefinition and spawn utility integration tests
+			"ProjectCharacter",     // DefinitionCharacter type checks in character runtime tests
+			"ProjectSkeletalCapabilities", // LocalBody copy-pose source contract
 			"ProjectObjectCapabilities", // Lockable capability test coverage
 			"ProjectMotionSystem",  // Spring motion capability mesh-target selection coverage
 			"ProjectWorld",         // ObjectDefinition host helper integration tests
