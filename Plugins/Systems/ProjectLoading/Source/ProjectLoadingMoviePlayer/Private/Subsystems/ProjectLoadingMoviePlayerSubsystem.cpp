@@ -53,7 +53,7 @@ namespace
 // DISABLED: MoviePlayer + Ray Tracing causes engine crash in UE 5.5
 // FRayTracingGeometryManager::Tick() assertion: "should only be called once per frame"
 // MoviePlayer causes extra render tick while RT is active.
-// See: Plugins/Systems/ProjectLoading/todo/current.md
+// See: Plugins/Systems/ProjectLoading/README.md, Known Issues.
 #define MOVIEPLAYER_SUBSYSTEM_ENABLED 0
 
 void UProjectLoadingMoviePlayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)

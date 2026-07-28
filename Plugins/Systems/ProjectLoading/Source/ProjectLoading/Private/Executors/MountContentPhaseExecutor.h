@@ -7,8 +7,8 @@
 
 /**
  * Phase 2: Mount Content
- * Mounts IOStore containers or PAK files for additional content.
- * Integrates with ProjectContentPackSubsystem for download and mounting.
+ * Reserved owner for runtime mounting of already installed content.
+ * Explicit requests fail closed until the mounting implementation exists.
  */
 class FMountContentPhaseExecutor : public FProjectLoadPhaseExecutor
 {
@@ -17,4 +17,5 @@ public:
 	virtual ELoadPhase GetPhase() const override { return ELoadPhase::MountContent; }
 	virtual FText GetPhaseName() const override;
 	virtual bool ShouldSkip(const FLoadRequest& Request) const override;
+	virtual bool SupportsRetry() const override { return false; }
 };

@@ -48,7 +48,7 @@ public:
 	 * Entry point called by BootROM after loading Orchestrator module.
 	 *
 	 * Orchestrator responsibilities:
-	 * - Load manifest from disk (LocalRoot/Manifests/latest.json or Config/Manifest/dev_manifest.json)
+	 * - Load manifest from disk (LocalRoot/Manifests/latest.json or the Orchestrator plugin Data directory)
 	 * - Verify manifest signature (Shipping) and engine_build_id
 	 * - Read local state (latest.json, last_good.json, pending_updates.json)
 	 * - Resolve dependencies with cycle detection

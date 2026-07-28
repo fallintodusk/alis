@@ -1,15 +1,43 @@
 # ProjectWorld
 
-Shared world utilities for any map or tile. Provides the common tools that world plugins (City17, future worlds) use.
+Partial shared world foundation for maps and world plugins such as City17.
+This document also records the target design for capabilities that have not
+been implemented yet.
 
 This README describes the reusable world layer. World-specific maps, authored content, and large asset payloads live in world plugins and are not fully represented in the public mirror.
 
 **Key principle:** ProjectWorld owns the *tools*, world plugins own the *data*.
 
+## Implementation Status
+
+Status: **PARTIAL IMPLEMENTATION / DESIGN PROPOSAL**.
+
+Implemented in `Source/ProjectWorld`:
+
+- `UProjectWorldManifest` and `FProjectWorldRegionDescriptor`, including
+  manifest validation and primary-asset identity.
+- `AProjectWorldActor` definition application and definition identity.
+- `IObjectDefinitionHostInterface`, `UObjectDefinitionHostComponent`, and
+  object-definition host helpers.
+
+Planned, but not implemented:
+
+- Tile coordinate and world-position types and grid math.
+- `UProjectWorldLoader` and authored/procedural tile loading.
+- `IWorldSpatialQuery` and its runtime subsystem.
+- Event/Data Layer mapping services.
+- World-data validation commandlets, diffing, incremental building, and editor
+  hot reload.
+- ProjectPCG integration and concrete world-plugin manifests/data.
+
+Unless a section explicitly names an implemented type above, API snippets and
+workflows in this README are design proposals. Track implementation in
+`TODO.md`; do not use an example here as evidence that its API exists.
+
 
 ## 1. Purpose
 
-ProjectWorld is a thin helper plugin that provides:
+ProjectWorld is intended to become a thin helper plugin that provides:
 
 - **World IDs and coordinates** - Common types for tile IDs, world positions, bounds
 - **World data loader** - Reads world data files into memory structs
@@ -27,7 +55,9 @@ ProjectWorld contains **no world-specific content**. It does not know about City
 ### 3. Key Concepts
  
  - **World Partition**: We use grid-based streaming. [See docs/world_partition.md](docs/world_partition.md) for data layer rules and Grid naming.
- - **Hierarchical LOD (HLOD)**: Pre-baked visuals for distant tiles.
+ - **Hierarchical LOD (HLOD)**: Optional profile-specific representation for
+   unloaded actors; adoption requires profiling against Nanite, instancing,
+   storage, and rebuild cost.
 
 ### Three Layers (Don't Fight WP)
 
@@ -503,20 +533,23 @@ FDelegateHandle WatchHandle = FFileWatcher::Watch(
 Edit JSON -> save -> see changes in viewport.
 
 
-## 13. Streaming Hints (No HLOD)
+## 13. Streaming Hints and Render Profiles
 
-### Why We Skip HLOD
+### Why HLOD Is Profile-Specific
 
-HLOD = pre-baked proxy meshes for big chunks. For ALIS (large / potentially endless), it's a trap:
+HLOD can keep unloaded World Partition actors visible and can reduce draw
+calls. It also has material costs for a large, frequently regenerated world:
 
 - Every HLOD cluster = **extra mesh asset** on disk
 - Thousands of clusters = tens or hundreds of GB of proxies
 - Every rebuild = **long bake times** and huge I/O
 - Layout changes = must rebuild HLOD again
 
-**Policy: No HLOD builds for City17 or any "endless" part of the world.**
+Nanite manages geometry detail for loaded meshes; it does not automatically
+replace HLOD's unloaded-cell representation or draw-call aggregation. The
+policy is therefore neither "always HLOD" nor "never HLOD."
 
-### What We Rely On Instead
+### Candidate Techniques
 
 | Technique | How It Helps |
 |-----------|--------------|
@@ -524,6 +557,18 @@ HLOD = pre-baked proxy meshes for big chunks. For ALIS (large / potentially endl
 | **World Partition** | Streams cells in/out; far tiles simply not loaded (no proxies needed) |
 | **Instancing** | Trees, props, facade pieces use HISM/ISM + Nanite; low draw calls |
 | **Design-level LOD** | Outer/procedural areas: fewer buildings, simpler shapes, less clutter |
+
+The first representative region must benchmark at least these profiles:
+
+1. Far field: coarse streamed or generated representation.
+2. Playable district: World Partition with Nanite/instancing, with and without
+   HLOD.
+3. Immediate gameplay area: native collision, navigation, interaction, and
+   replication-authoritative geometry.
+
+Record disk amplification, build time, memory, draw calls, streaming latency,
+collision/navigation behavior, and regeneration cost before selecting a
+profile.
 
 ### Streaming Priority Hints
 
@@ -551,9 +596,10 @@ if (Building.StreamingPriority == EStreamingPriority::Critical)
 }
 ```
 
-### If HLOD Is Ever Reconsidered
+### HLOD Decision
 
-Only for a tiny, fixed **hero zone** where profiling proves it's needed. Default policy: **no HLOD in ALIS.**
+No global HLOD policy is approved. Each content profile must use measured
+budgets and keep generated proxies disposable and reproducible.
 
 
 ## 14. Validation

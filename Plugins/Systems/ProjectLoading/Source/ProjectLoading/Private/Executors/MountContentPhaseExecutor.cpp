@@ -19,13 +19,12 @@ bool FMountContentPhaseExecutor::ShouldSkip(const FLoadRequest& Request) const
 
 FProjectPhaseResult FMountContentPhaseExecutor::Execute(FProjectPhaseContext& Context)
 {
-	// Phase 2: Mount Content is now handled by Orchestrator during plugin loading.
-	// This phase is reserved/stub - all content mounting (DLC + feature plugins) happens via Orchestrator.
-	UE_LOG(LogProjectLoading, Verbose, TEXT("Phase 2: Mount Content - Skipped (handled by Orchestrator)"));
-	ReportProgress(Context, 1.0f, LOCTEXT("PhaseHandledByOrchestrator", "Content mounting handled by Orchestrator"));
+	const FText Error = FText::Format(
+		LOCTEXT("MountContentUnavailable", "Runtime content mounting is not implemented ({0} requested pack(s))"),
+		FText::AsNumber(Context.Request.ContentPacksToMount.Num()));
 
-	return FProjectPhaseResult::Skipped();
+	UE_LOG(LogProjectLoading, Error, TEXT("Phase 2: Mount Content - %s"), *Error.ToString());
+	return FProjectPhaseResult::Failure(Error, ProjectLoadingErrors::MountContentFailed);
 }
 
 #undef LOCTEXT_NAMESPACE
-

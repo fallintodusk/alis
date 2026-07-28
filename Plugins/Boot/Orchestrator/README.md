@@ -5,6 +5,26 @@ Early boot plugin that manages code and module lifecycle, then hands runtime con
 ## Purpose
 Base plugin (PostConfigInit phase) that manages **CODE/MODULE LIFECYCLE ONLY**. Loads plugin code and modules during early boot. Content loading (IoStore, maps, UI) is deferred to **ProjectLoading** via `ILoadingService` using the manifest entry point (e.g., MainMenuWorld) after engine init.
 
+## Implementation Status
+
+The boundary above is the target architecture, but delivery migration is not
+complete:
+
+- `OrchestratorAPI.h` remains a public compatibility surface. Its BootROM-era
+  comments do not define current ownership, and it must remain available until
+  release/downstream evidence supports deprecation or removal at a documented
+  breaking-version boundary.
+- `FOrchestratorCoreModule::ApplyHotUpdates` and the cold-update path still
+  contain legacy download and extraction behavior.
+- `FOrchestratorIoStore` is an unused placeholder that does not mount content.
+- ProjectLoading owns the mount phase, but explicit content-pack requests fail
+  closed until real IoStore mounting is implemented.
+
+Do not treat content hot update as production-ready. Gate new delivery work on
+one signed manifest/trust policy, migrate download and installation to
+Launcher, keep Orchestrator focused on code/module lifecycle, and implement
+mounting in ProjectLoading before removing the legacy paths.
+
 ## Critical Architectural Split
 
 **Orchestrator = Code Lifecycle (PostConfigInit, <1 sec)**
@@ -64,7 +84,7 @@ Orchestrator is analogous to an init system (systemd, launchd) that:
 
 **Runtime Update Mode (future)**
 - Apply pending updates from previous session
-- Download/verify new plugin versions if needed
+- Consume plugin versions already downloaded, verified, and installed by Launcher
 - Load OnDemand modules (code only)
 - Content mounting remains in ProjectLoading
 
@@ -79,9 +99,9 @@ Orchestrator is analogous to an init system (systemd, launchd) that:
 
 ```
 if code_hash changed:
-    install-before-load (download, verify, stage, register, load, activate) - no restart
+    require Launcher-installed payload, then register, load, and activate
 else if content_hash changed:
-    content update (IoStore mount handled by ProjectLoading) - no restart
+    require Launcher-installed payload, then request ProjectLoading mount
 else:
     up-to-date (no action)
 ```
@@ -109,11 +129,15 @@ else:
 
 **Note:** There is no IOrchestrator interface registered. Runtime callers use `ILoadingService` (ProjectLoading) to mount content and pull modules as needed.
 
-**Validation boundary:** The Launcher is the source of truth for manifest/hash/signature validation before boot. Orchestrator trusts the verified manifest/state and does not re-validate DLL signatures at runtime (unless explicitly enabled for secure boot builds).
+**Validation boundary:** Launcher is the trust root for manifest signatures,
+payload hashes, Authenticode, installation, and release selection. Orchestrator
+validates schema, `engine_build_id`, dependency consistency, and the presence
+of the Launcher-selected installed code. It never establishes a second trust
+or release-selection path.
 
 ## Loading Phase
-- Loaded by BootROM at PostConfigInit
-- Entry point: `IOrchestratorModule::Start(FBootContext)`
+- Loaded by Unreal's module manager at PostConfigInit after Launcher starts the game
+- Entry point: `FOrchestratorCoreModule::StartupModule()` reads Launcher context
 - Runs before engine plugin activation phases (DLLs only; content deferred to ProjectLoading)
 
 ## Boot UI Strategy
@@ -159,26 +183,33 @@ scripts/ue/test/smoke/boot_test.bat
 ## Architecture Documentation
 - C4 Component View: `../../docs/architecture/diagrams/views/component_orchestrator.dsl`
 - C4 Container View: `../../docs/architecture/diagrams/views/container_plugins.dsl`
-- Manifest schema: maintained in the separate CDN repository and intentionally not mirrored in this public source tree
+- Manifest schema: maintained in access-controlled repository `cdn` and intentionally not mirrored in this public source tree
 - Dynamic views: `dynamic_update_content.dsl`, `dynamic_update_code.dsl`, `dynamic_rollback.dsl`
 
-## Self-Update Process
-1. Detect new Orchestrator version in manifest
-2. Download and verify new Orchestrator DLL
-3. Stage to `<local-app-data>/Project/Orchestrator/{version}/`
-4. Write new version to `current_orchestrator_version.txt`
-5. Next boot, BootROM loads new Orchestrator version
-6. New Orchestrator takes over and can update plugins
+## Launcher-Driven Orchestrator Update
+
+1. Launcher reads the signed manifest and selects the Orchestrator version.
+2. Launcher downloads, verifies, and stages the selected DLL.
+3. If `current_orchestrator_version.txt` remains part of the handoff, Launcher
+   is its sole writer.
+4. Launcher starts the game against the selected installed release.
+5. Unreal's module manager loads Orchestrator at PostConfigInit.
+6. Orchestrator validates compatibility and activates installed modules; it
+   does not download, select, or update plugins.
+
+The selected-version handoff is target architecture, not a currently proven
+self-update path. Legacy Orchestrator update code remains migration debt.
 
 ## Rollback Behavior
-1. State Manager reverts to `last_good.json` on failure
-2. Dependency Resolver loads last known good plugin versions
-3. Plugin Registry registers last good plugins
-4. Orchestrator reports rollback to client
-5. Event Bus receives `update.failed` event
-6. Application boots successfully to last known good state
 
-**Guarantee:** System always boots to last known good state, even if updates fail.
+- Launcher owns the authoritative selected-release and last-known-good chain.
+- Orchestrator may keep derived activation checkpoints and report failures, but
+  it must not independently select a competing release.
+- After an activation failure, the next launch uses the Launcher-selected
+  fallback release.
+
+This behavior remains unproven until authoritative fallback and activation
+failure recovery are implemented and tested end to end.
 
 ## Module Structure
 
@@ -190,12 +221,14 @@ Orchestrator/
                 OrchestratorCoreModule.cpp      # Module entry point
                 OrchestratorManifest.cpp        # Manifest parser
                 OrchestratorState.cpp           # State manager
-                OrchestratorDownload.cpp        # Download manager
-                OrchestratorHash.cpp            # Hash verifier
-                OrchestratorSignature.cpp       # Signature validator
+                OrchestratorDownload.cpp        # Legacy migration debt; Launcher target
+                OrchestratorHash.cpp            # Legacy delivery helper; Launcher target
+                OrchestratorSignature.cpp       # Legacy delivery helper; Launcher target
+                OrchestratorIoStore.cpp         # Unused placeholder; ProjectLoading target
                 OrchestratorPluginRegistry.cpp  # Plugin registry
                 OrchestratorRegistry.cpp        # Dependency resolver (DLL ordering)
             Public/
+                OrchestratorAPI.h             # Legacy public compatibility surface; removal requires a versioned decision
                 OrchestratorCoreModule.h
         OrchestratorTests/         # Test suite
     README.md                      # This file
@@ -208,10 +241,12 @@ Orchestrator/
 **Note:** ProjectCore is a lightweight abstraction layer with no gameplay logic. This dependency is for SOLID compliance (depend on abstractions, not implementations).
 
 ## Security Considerations
-- Manifest signature verification (allowlisted signing keys)
-- Authenticode verification for DLLs (Windows)
-- SHA-256 hashes for all plugins (code and content tracked separately)
-- Atomic state file writes (`.tmp` then rename)
+- Launcher: manifest signatures, SHA-256 payload hashes, Authenticode,
+  installation, and selected-release/last-known-good ownership.
+- Orchestrator: schema, `engine_build_id`, dependency graph, installed-payload
+  presence, and atomic writes for derived activation state.
+- ProjectLoading: mount only already installed content authorized by the
+  Launcher-selected manifest.
 
 ## DIP Compliance (SOLID Architecture)
 
@@ -249,9 +284,12 @@ Features (Feature Layer)
 
 ## Telemetry
 OpenTelemetry traces for:
-- Manifest fetch and parsing
-- Plugin downloads
-- Hash and signature verification
+- Launcher handoff and manifest parsing
+- Schema and `engine_build_id` validation
+- Installed-payload presence checks
 - Dependency resolution
 - Plugin activation
-- Update success/failure and rollback
+- Activation success/failure and derived checkpoint state
+
+Manifest fetch, payload download, hash/signature verification, installation,
+release selection, and authoritative rollback telemetry belong to Launcher.

@@ -48,8 +48,6 @@ ProjectLoading executes content loading in 6 sequential phases.
  
 ### Flow Visualization
  
-### Flow Visualization
- 
 ```
 [StartLoad]
     |
@@ -80,7 +78,7 @@ ProjectLoading executes content loading in 6 sequential phases.
 | Phase | Purpose | Implementation details | Skip Condition |
 |-------|---------|------------------------|----------------|
 | **1. ResolveAssets** | Translate `PrimaryAssetId` to soft object paths. Validates dependencies. | [ResolveAssetsPhaseExecutor.cpp](Source/ProjectLoading/Private/Executors/ResolveAssetsPhaseExecutor.cpp) | Never |
-| **2. MountContent** | Dynamic mounting of IoStore containers (.utoc/.ucas). *See Boot Flow Context below.* | [MountContentPhaseExecutor.cpp](Source/ProjectLoading/Private/Executors/MountContentPhaseExecutor.cpp) | Always (stub) |
+| **2. MountContent** | Reserved for dynamic mounting of already installed IoStore containers (.utoc/.ucas). *See Boot Flow Context below.* | [MountContentPhaseExecutor.cpp](Source/ProjectLoading/Private/Executors/MountContentPhaseExecutor.cpp) | No requested packs; explicit requests currently fail |
 | **3. PreloadCriticalAssets** | Async load of critical UI/Data tables to prevent hitches during travel. | [PreloadCriticalAssetsPhaseExecutor.cpp](Source/ProjectLoading/Private/Executors/PreloadCriticalAssetsPhaseExecutor.cpp) | No assets |
 | **4. ActivateFeatures** | Toggle GameFeature modules (Already loaded by Orchestrator, but activated here). | [ActivateFeaturesPhaseExecutor.cpp](Source/ProjectLoading/Private/Executors/ActivateFeaturesPhaseExecutor.cpp) | No features |
 | **5. Travel** | Executes `UEngine::Browse` / `ServerTravel`. | [TravelPhaseExecutor.cpp](Source/ProjectLoading/Private/Executors/TravelPhaseExecutor.cpp) | Never |
@@ -92,9 +90,9 @@ ProjectLoading executes content loading in 6 sequential phases.
  
 1.  **Startup (Orchestrator)**: Loads plugin DLLs and code. *Phase 2 does nothing here.*
 2.  **Initial Load (ProjectLoading)**: Runs after engine init. Reads manifests.
-3.  **Runtime (ProjectLoading)**: Phase 2 is reserved for **Download-on-Demand** (DLC/Patching) where new `.utoc` files must be mounted before assets can be resolved.
+3.  **Runtime (ProjectLoading)**: Phase 2 is reserved for mounting already installed content-only updates or DLC before assets are resolved. Download and installation remain Launcher responsibilities.
  
- Currently, Phase 2 is a stub because the Orchestrator handles all initial mounting.
+ Currently, Phase 2 fails closed when a request names content packs because real IoStore mounting is not implemented. Orchestrator is the target owner for code/module lifecycle only and must not be treated as a working content mounter.
  
  **Phase executors:** `Source/ProjectLoading/Private/Executors/` - One executor per phase
 
@@ -144,22 +142,22 @@ Phase 3 (PreloadCriticalAssets) requires game thread because `StreamableManager:
 4. **Safety net:** `ON_SCOPE_EXIT` in orchestrator releases orphaned handles on abnormal exit
 
 **Source:**
-- Runtime struct: [ProjectLoadPhaseExecutor.h:62-87](../../Plugins/Systems/ProjectLoading/Source/ProjectLoading/Private/ProjectLoadPhaseExecutor.h#L62)
-- Safety net: [LoadPipelineOrchestrator.cpp:54-65](../../Plugins/Systems/ProjectLoading/Source/ProjectLoading/Private/Pipeline/LoadPipelineOrchestrator.cpp#L54)
+- Runtime struct: [ProjectLoadPhaseExecutor.h:62-87](Source/ProjectLoading/Private/ProjectLoadPhaseExecutor.h#L62)
+- Safety net: [LoadPipelineOrchestrator.cpp:54-65](Source/ProjectLoading/Private/Pipeline/LoadPipelineOrchestrator.cpp#L54)
 
 ## Error Codes (Quick Reference)
 
 | Range | Phase | Example |
 |-------|-------|---------|
 | 100-199 | ResolveAssets | 101 = ManifestNotFound |
-| 200-299 | MountContent | 201 = DownloadFailed |
+| 200-299 | MountContent | 200 = MountContentFailed |
 | 300-399 | PreloadCriticalAssets | 301 = AssetLoadFailed |
 | 400-499 | ActivateFeatures | 401 = FeatureNotFound |
 | 500-599 | Travel | 501 = MapNotFound |
 | 600-699 | Warmup | 601 = ShaderCompileFailed |
 | 800-899 | System | 801 = Cancelled, 802 = Timeout |
 
-**Full list:** [ProjectLoadPhaseExecutor.h](../../Plugins/Systems/ProjectLoading/Source/ProjectLoading/Private/ProjectLoadPhaseExecutor.h)
+**Full list:** [ProjectLoadPhaseExecutor.h](Source/ProjectLoading/Private/ProjectLoadPhaseExecutor.h)
 
 ## Blueprint Events
 
@@ -171,7 +169,7 @@ Phase 3 (PreloadCriticalAssets) requires game thread because `StreamableManager:
 | `OnCompleted` | Success with telemetry |
 | `OnFailed` | Failure with error info |
 
-**Source:** [ProjectLoadingSubsystem.h](../../Plugins/Systems/ProjectLoading/Source/ProjectLoading/Public/ProjectLoadingSubsystem.h)
+**Source:** [ProjectLoadingSubsystem.h](Source/ProjectLoading/Public/ProjectLoadingSubsystem.h)
 
 ## Architecture Documentation
 
