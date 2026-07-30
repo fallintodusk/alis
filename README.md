@@ -174,3 +174,5 @@ Before contributing, read:
 - License policy: [LICENSE](LICENSE)
 - Project pact: [ALIS_PACT.md](ALIS_PACT.md)
 - Trademark policy: [TRADEMARKS.md](TRADEMARKS.md)
+
+<!-- rights-check registration -->
