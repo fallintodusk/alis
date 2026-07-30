@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "MVVM/MindThoughtViewModel.h"
 #include "Interfaces/IMindService.h"

@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // ProjectWidgetLayoutLoader - Main orchestrator for JSON layout loading
 
 #include "Layout/ProjectWidgetLayoutLoader.h"

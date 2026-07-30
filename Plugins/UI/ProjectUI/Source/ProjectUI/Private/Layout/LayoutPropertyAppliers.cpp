@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // LayoutPropertyAppliers - Widget-specific property application (SOLID: Single Responsibility)
 
 #include "Components/Button.h"

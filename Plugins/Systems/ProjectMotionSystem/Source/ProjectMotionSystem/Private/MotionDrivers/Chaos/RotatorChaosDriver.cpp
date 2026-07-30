@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "MotionDrivers/Chaos/RotatorChaosDriver.h"
 #include "Components/SpringRotatorComponent.h"

@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "MVVM/InventoryViewModel.h"
 #include "MVVM/InventoryViewModelActionRules.h"

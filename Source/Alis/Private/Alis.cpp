@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// License terms: see repository root LICENSE.
 
 #include "Alis.h"
 #include "Modules/ModuleManager.h"

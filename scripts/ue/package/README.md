@@ -2,6 +2,24 @@
 
 Canonical release packaging entry points for ALIS.
 
+For a tagged public source release, generate
+`effective-component-manifest.json` from the clean public tag before signing:
+
+```powershell
+python scripts/ue/check/governance/generate_component_manifest.py `
+  --tag <tag> `
+  --output <release-dir>/effective-component-manifest.json
+```
+
+`sign_release.ps1` then includes that root-level manifest in the signed
+`SHA256SUMS.txt`.
+
+Focused signing proof:
+
+```powershell
+.\scripts\ue\package\tests\test_component_manifest_signing.ps1
+```
+
 ## Scripts
 
 ### `package_release.ps1`

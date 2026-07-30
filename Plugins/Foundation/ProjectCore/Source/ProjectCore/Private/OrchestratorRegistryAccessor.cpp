@@ -1,4 +1,5 @@
 // Copyright Fall.is. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "Interfaces/IOrchestratorRegistry.h"
 #include "HAL/CriticalSection.h"

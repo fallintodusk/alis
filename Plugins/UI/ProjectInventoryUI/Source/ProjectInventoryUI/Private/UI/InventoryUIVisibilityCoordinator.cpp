@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Coordinator: spawn pair for inventory UI surfaces. See header for rules.
 
 #include "UI/InventoryUIVisibilityCoordinator.h"

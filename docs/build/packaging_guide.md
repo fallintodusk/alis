@@ -14,6 +14,10 @@ Use this doc for:
 
 ## Quick Start
 
+Packaging success is not public-distribution approval. Before uploading a
+packaged Product, satisfy the
+[Packaged Product Legal Compliance](../legal/release_compliance.md) gate.
+
 1. Run `make prepare-tests` followed by `make test-unit-smart BASE=origin/main`.
 2. Package and sign through the project Make target:
    ```powershell

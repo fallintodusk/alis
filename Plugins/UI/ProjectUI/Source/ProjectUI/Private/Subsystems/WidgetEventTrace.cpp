@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // WidgetEventTrace.cpp - Widget lifecycle event ring buffer implementation
 // Extracted from ProjectUIDebugSubsystem.cpp for SOLID compliance
 

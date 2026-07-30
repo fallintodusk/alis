@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // LayoutSlotConfig - Canvas slot configuration (SOLID: Single Responsibility)
 
 #include "Components/CanvasPanel.h"

@@ -95,4 +95,5 @@ Note: Inventory items are defined in ObjectDefinition.Item (ProjectObject). Ther
 ## Related Routers
 
 - **[Architecture Router](../architecture/README.md)** - Where data fits in the overall plugin structure.
+- **[World Data and Unreal Asset Licensing](../legal/world_data_and_asset_policy.md)** - Source suitability, provenance, `.uasset` publication, and distribution boundaries.
 - **[UI Router](../ui/README.md)** - JSON-first UI and descriptor-driven rendering.

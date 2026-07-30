@@ -1,4 +1,5 @@
 // Copyright ALIS.
+// License terms: see repository root LICENSE.
 
 #include "Subsystems/MenuMainComposerSubsystem.h"
 

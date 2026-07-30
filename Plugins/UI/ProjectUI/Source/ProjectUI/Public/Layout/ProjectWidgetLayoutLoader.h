@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #pragma once
 

@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // LayoutWidgetRegistry - Widget factory and anchor preset registry (SOLID: Open/Closed)
 
 #include "Components/CanvasPanel.h"

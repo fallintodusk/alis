@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // LayoutDialogAppliers - Dialog widget property application (SOLID: Single Responsibility)
 
 #include "Dialogs/ProjectDialogWidget.h"

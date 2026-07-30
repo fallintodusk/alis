@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 //
 // Translation-unit-internal helpers shared by the ProjectInventoryComponent
 // split .cpp files. Private - not part of the plugin's public API.

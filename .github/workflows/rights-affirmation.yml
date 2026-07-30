@@ -1,0 +1,22 @@
+# License terms: see repository root LICENSE.
+name: Rights affirmation
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - name: Verify license and provenance affirmation
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python scripts/git/check_pr_affirmation.py --body-env PR_BODY

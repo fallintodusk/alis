@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Simple animation sanity: bypass ABP, play AnimSequence on DriverBody.
 // Proves skeletal mesh evaluation works independently of MotionMatching.
 // Run with -ProjectSkipFrontEnd to bypass menu travel.

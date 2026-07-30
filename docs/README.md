@@ -12,6 +12,7 @@ Start here if you want a stable public overview before drilling into plugin-leve
 - Build and release: [build/README.md](build/README.md)
 - Public packaging and verification: [build/packaging_guide.md](build/packaging_guide.md)
 - Data architecture: [data/README.md](data/README.md)
+- Licensing and provenance: [legal/README.md](legal/README.md)
 - UI router: [ui/README.md](ui/README.md)
 - Testing: [testing/README.md](testing/README.md)
 - Animation system: [animation/README.md](animation/README.md)

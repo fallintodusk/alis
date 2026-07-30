@@ -4,7 +4,7 @@ Learn. Survive. Connect.
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM">
-    <img src="https://fall.is/assets/images/teaser.jpg" alt="ALIS world preview — watch on YouTube" width="480">
+    <img src="https://fall.is/assets/images/teaser.jpg" alt="ALIS world preview - watch on YouTube" width="480">
   </a>
 </p>
 
@@ -15,6 +15,7 @@ This repository is the public code and documentation home for ALIS -- source cod
 - Site: https://fall.is/
 - Vision: [VISION.md](VISION.md)
 - Social contract: [ALIS_PACT.md](ALIS_PACT.md)
+- Licensing and component boundaries: [docs/legal/README.md](docs/legal/README.md)
 - Start here: [testing, feedback, and contribution](https://github.com/<user>/alis/discussions/1)
 
 ## ALIS as an Unreal Engine architecture reference

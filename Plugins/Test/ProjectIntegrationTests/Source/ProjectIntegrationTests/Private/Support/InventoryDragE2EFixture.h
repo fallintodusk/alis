@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 //
 // Consumed by drag-E2E automation tests in
 //   Plugins/Test/ProjectIntegrationTests/.../Integration/*

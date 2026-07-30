@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 //
 // Consumed by the persistent test editor infrastructure:
 //   scripts/ue/test/unit/persistent_editor_start.ps1

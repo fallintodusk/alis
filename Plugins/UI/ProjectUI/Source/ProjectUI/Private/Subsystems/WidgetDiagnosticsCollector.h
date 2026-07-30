@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // WidgetDiagnosticsCollector.h - Collect widget state for diagnostics (SOLID: Single Responsibility)
 
 #pragma once

@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 /**
  * Comprehensive Unit Tests for ProjectSave Data Structures

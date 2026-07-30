@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Extracted from FirstPersonClipMatrixTest: pure measurement functions.
 #pragma once
 #include "ClipMatrixTypes.h"

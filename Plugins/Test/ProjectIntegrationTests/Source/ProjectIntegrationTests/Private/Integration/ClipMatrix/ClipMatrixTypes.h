@@ -1,6 +1,6 @@
 #pragma once
 
-// Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Shared types, constants, enums, and inline helpers for ClipMatrix tests.
 // Extracted from FirstPersonClipMatrixTest.cpp.
 

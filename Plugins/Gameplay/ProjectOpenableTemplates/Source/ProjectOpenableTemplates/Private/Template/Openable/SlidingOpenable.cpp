@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "Template/Openable/SlidingOpenable.h"
 #include "Components/SpringSliderComponent.h"

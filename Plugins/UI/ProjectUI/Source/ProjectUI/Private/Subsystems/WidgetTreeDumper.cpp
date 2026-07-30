@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // WidgetTreeDumper.cpp - Widget tree dump functionality (text and JSON formats)
 // Extracted from ProjectUIDebugSubsystem.cpp for SOLID compliance
 

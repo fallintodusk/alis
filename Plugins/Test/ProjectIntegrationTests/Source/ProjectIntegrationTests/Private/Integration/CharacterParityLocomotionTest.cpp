@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Locomotion regression timeline: scripted 15-phase matrix for the definition-driven hero.
 // Produces JSONL timeline + phase summary JSON for machine-readable validation.
 // Run with -ProjectSkipFrontEnd to bypass menu travel.

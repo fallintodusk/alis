@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 /**
  * Integration coverage for the ObjectDefinition load-race fix. Pattern +

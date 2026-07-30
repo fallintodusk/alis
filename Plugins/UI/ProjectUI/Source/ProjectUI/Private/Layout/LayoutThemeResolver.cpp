@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // LayoutThemeResolver - Theme color/font/variant resolution (SOLID: Single Responsibility)
 
 #include "Theme/ProjectUIThemeData.h"

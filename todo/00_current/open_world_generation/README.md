@@ -11,6 +11,13 @@ sources.
 
 ## Materials
 
+- [Working system map](system_map.md) - visual relationship and spatial-mapping
+  router. Detailed status, decisions, and tasks remain in their owning files.
+- [Component licensing](../../../docs/legal/component_license_policy.md) -
+  canonical UE, standalone-tool, protocol, and authored-asset boundary.
+- [World data and Unreal asset licensing](../../../docs/legal/world_data_and_asset_policy.md)
+  - provenance graph, source suitability, public artifacts, `.uasset`
+  publication, and reproducible developer acquisition.
 - [Research audit and decision register](todo.md) - comprehensive critical,
   important, and additional findings; decision gates; and completion criteria.
 - [Active first-slice plan](first_slice.md) - the bounded 19-task execution

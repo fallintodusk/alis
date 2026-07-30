@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "Effects/GE_GenericInstant.h"
 #include "ProjectGameplayTags.h"

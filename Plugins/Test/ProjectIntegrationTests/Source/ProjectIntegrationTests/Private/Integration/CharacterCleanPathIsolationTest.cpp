@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Clean-path isolation matrix for the definition-driven first-person body behavior.
 // Reuses the camera-yaw diagnostics, but runs the same spawned hero through:
 // A Driver only -> B Driver + WorldBody -> C Driver + WorldBody + LocalBody -> D full chain.

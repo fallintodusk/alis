@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Shared reflection helpers for writing to UE property fields.
 // Used by MotionMatchingBridgeAnimInstance and MotionMatchingCapability.
 

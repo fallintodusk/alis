@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 /**
  * SProjectObjectBrowser - Object browser with folder tree and asset tiles.

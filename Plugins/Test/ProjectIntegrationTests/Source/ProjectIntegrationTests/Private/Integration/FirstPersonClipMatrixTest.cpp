@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // FirstPersonClipMatrix: deterministic test for body-into-camera intrusion.
 //
 // Runs scripted movement phases and measures whether tracked bone points

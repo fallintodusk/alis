@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Idle regression snapshot: capture the definition-driven hero at rest.
 // Run with -ProjectSkipFrontEnd to bypass menu travel.
 // Output: Saved/Validation/CharacterDebug/ (JSON sidecars with unique RunId)

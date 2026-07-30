@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Camera-yaw timeline for the definition-driven first-person body behavior.
 // Captures bridge inputs, ABP state, and visible-mesh propagation so we can
 // prove camera-to-body correlation on the real runtime path.

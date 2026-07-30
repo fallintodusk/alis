@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // ProjectUIDebugCommands.cpp - Console command registrations for UI debug subsystem
 // Extracted from ProjectUIDebugSubsystem.cpp for SOLID compliance
 

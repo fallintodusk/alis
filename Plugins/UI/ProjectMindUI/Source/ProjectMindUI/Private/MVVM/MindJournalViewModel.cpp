@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "MVVM/MindJournalViewModel.h"
 #include "Interfaces/IMindService.h"

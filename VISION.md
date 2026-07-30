@@ -16,7 +16,7 @@ ALIS worlds are reconstructed from real geography - streets, buildings, terrain,
 
 ## Trust
 
-Source code under AGPL-3.0. Signed releases. A public pact with verifiable limits. Community servers welcomed by architecture. If ALIS claims something, it can be checked. [ALIS_PACT.md](ALIS_PACT.md) defines how ALIS behaves and what it refuses.
+Open source under a boundary-specific [component license policy](LICENSE). Signed releases. A public pact with verifiable limits. Community servers welcomed by architecture. If ALIS claims something, it can be checked. [ALIS_PACT.md](ALIS_PACT.md) defines how ALIS behaves and what it refuses.
 
 ## Continuity
 

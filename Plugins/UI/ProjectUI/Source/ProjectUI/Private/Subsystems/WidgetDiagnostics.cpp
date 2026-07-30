@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // WidgetDiagnostics.cpp - FProjectWidgetDiagnostics formatting (SOLID: Single Responsibility)
 
 #include "Subsystems/ProjectUIDebugSubsystem.h"

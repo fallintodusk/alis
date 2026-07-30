@@ -292,55 +292,34 @@ Primary check: [Epic ChunkDownloader guide](https://dev.epicgames.com/documentat
 
 Problem:
 
-- "Open data" does not mean one uniform license or unrestricted production
-  use.
-- Overture themes and feature sources have different licenses. Base,
-  Buildings, Divisions, and Transportation are ODbL-governed at theme level.
-  Places contains source-level licenses including CDLA-Permissive-2.0,
-  Apache-2.0, and CC0-1.0.
-- OSM public use can trigger attribution and derivative database/share-alike
-  duties.
-- Copernicus DEM requires license compliance and exact attribution. It is a
-  digital surface model (DSM), so buildings and vegetation may be embedded in
-  elevations.
-- OpenTopography licensing varies by dataset; API keys cannot be shared and a
-  production/commercial integration may require an enterprise key.
-- Mapterhorn code is BSD-3-Clause, but each served terrain source retains its
-  own attribution and license.
-- Cesium for Unreal is Apache-2.0, while Cesium ion services and streamed
-  datasets have separate terms.
-- Google Maps/Earth terms prohibit extracting or tracing map features and
-  using content to create terrain or 3D models. Google-derived reconstruction
-  must remain excluded.
+- Source, tool, database, generated-content, Unreal, and hosted-service terms
+  are separate legal layers. The stable policy and current source audit live
+  in [Component Licensing](../../../docs/legal/component_license_policy.md)
+  and [World Data and Unreal Asset Licensing](../../../docs/legal/world_data_and_asset_policy.md).
+- The compiler has no implemented way to enforce that policy yet.
 
 Required actions:
 
-- [ ] Define a machine-readable source ledger containing provider, dataset,
-  release, acquisition time, license, attribution text, geographic coverage,
-  source URL, content hash, and allowed-use policy.
-- [ ] Make every canonical feature and generated artifact traceable to one or
-  more source-ledger entries.
-- [ ] Reject compilation when license or attribution metadata is missing.
-- [ ] Generate a release attribution/notice bundle from the same ledger.
-- [ ] Define isolation rules for ODbL-derived databases and obtain legal review
-  before public or commercial distribution. This audit is not legal advice.
-- [ ] Store API credentials outside source data, manifests, generated assets,
-  logs, and client builds.
-- [ ] Add an explicit forbidden-source policy covering Google-derived tracing,
-  modeling, terrain, and cached reconstruction.
+- [x] Apply the canonical UE-facing, standalone, protocol, and authored-content
+  assignments through the root `LICENSE`.
+- [ ] Define separate ODbL base-world and ALIS-authored overlay boundaries.
+- [ ] Define a machine-readable provenance graph for datasets, authored
+  content, procedural rules, tools, databases, artifacts, and releases.
+- [ ] Make every canonical feature and generated artifact traceable through
+  `derived_from`, `embeds`, `references`, `generated_by`, and `packages` edges.
+- [ ] Begin with synthetic committed fixtures; admit real payloads only after
+  exact redistribution and commercial-use review.
+- [ ] Generate attribution, source/alteration offers, and third-party notices
+  from the same graph.
+- [ ] Add dependency inventory, SBOM, and boundary compatibility validation
+  for the compiler and Unreal adapter.
+- [ ] Fail compilation and publication when any license, ownership,
+  attribution, source offer, or distribution result is unresolved.
+- [ ] Store credentials outside source data, manifests, assets, logs, and
+  client builds; reject Google-derived reconstruction and unknown sources.
 
 Exit condition: every shipped cell has reproducible provenance and an approved
 distribution policy, and no generated artifact can silently lose attribution.
-
-Primary checks: [Overture attribution](https://docs.overturemaps.org/attribution/),
-[Overture Places](https://docs.overturemaps.org/guides/places/),
-[Overture buildings](https://docs.overturemaps.org/guides/buildings/),
-[OSM ODbL](https://wiki.openstreetmap.org/wiki/Open_Database_License/ODbL-1.0.txt),
-[Copernicus DEM](https://documentation.dataspace.copernicus.eu/Data/Others/CCM.html),
-[OpenTopography terms](https://opentopography.org/usageterms),
-[Mapterhorn](https://mapterhorn.com/),
-[Cesium for Unreal](https://github.com/CesiumGS/cesium-unreal), and
-[Google Maps Platform terms](https://cloud.google.com/archive/maps-platform/terms-20250714).
 
 ### C-08 - Specify determinism before building visuals
 
@@ -701,7 +680,9 @@ entitlements, or IoStore hot mounting.
   UE 5.8 capabilities as upgrade-gated.
 - [ ] Approve identity, CRS, units, vertical datum, and grid-mapping contracts.
 - [ ] Approve compiler versus Unreal adapter ownership.
-- [ ] Approve licensing/provenance and forbidden-source policy.
+- [x] Approve component and authored-content licensing.
+- [ ] Approve ODbL base/overlay separation, provenance graph, and
+  forbidden-source policy.
 - [ ] Approve the determinism contract and toolchain pinning strategy.
 
 These are the five minimum first-slice decisions. Record accepted decisions in

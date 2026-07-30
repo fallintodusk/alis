@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 //
 // Second translation unit for UW_InventoryPanel.  Hosts interaction
 // handlers (click / context-menu / tooltip / quantity / rotate / equip

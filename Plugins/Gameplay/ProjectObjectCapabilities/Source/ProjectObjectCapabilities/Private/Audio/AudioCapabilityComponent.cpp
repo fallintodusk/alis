@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "Audio/AudioCapabilityComponent.h"
 #include "Audio/AudioPresetDefinition.h"

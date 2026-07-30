@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // Data-driven character spawned from UObjectDefinition via ObjectSpawnUtility.
 
 #pragma once

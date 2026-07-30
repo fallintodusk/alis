@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 //
 // Phase 5 / separate-correctness-track smoke test: prove that
 // IAutomationDriverModule + CreateDriver() are reachable from ALIS test

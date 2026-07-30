@@ -1,4 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 using UnrealBuildTool;
 using System.Collections.Generic;

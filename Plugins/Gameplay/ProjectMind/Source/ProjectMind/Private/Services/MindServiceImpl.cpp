@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 
 #include "Services/MindServiceImpl.h"
 #include "Interfaces/IDialogueService.h"

@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 //
 // Validates DialogueViewModel and W_DialoguePanel integration:
 // - GetBoolProperty works around VIEWMODEL_PROPERTY UHT limitation

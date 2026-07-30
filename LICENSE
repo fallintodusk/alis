@@ -1,72 +1,148 @@
-# Alis Open Development Policy (AODL) v2.0
+# ALIS Component License Policy
 
-This repository is multi-licensed by component. AODL is the project's licensing **policy**, not a single combined license. Each component uses a real, established license — no modifications, no contradictions.
+This file is the sole operative source of truth for licenses applied by ALIS.
+It assigns unmodified standard licenses to rights-cleared first-party material
+distributed by ALIS under grants from its respective copyright holders. It
+does not relicense Unreal Engine, Marketplace content, third-party
+dependencies, or upstream datasets.
 
-For the project's values and social contract, see [ALIS_PACT.md](ALIS_PACT.md).
+Only rights-cleared first-party material receives an ALIS assignment.
+Contribution intake follows [CONTRIBUTING.md](CONTRIBUTING.md). Tagged source
+and Product releases follow
+[docs/legal/release_compliance.md](docs/legal/release_compliance.md).
 
----
+## 1. Precedence
 
-## 1. Code (backend, game core, tools, smart contracts)
+Determine a file or artifact's terms in this order:
 
-Licensed under **GNU Affero General Public License v3.0 only** (AGPL-3.0-only).
+1. Its explicit third-party notice or release manifest.
+2. The component assignment below, inherited from the owning native package or
+   architectural boundary and classified by how it is integrated and
+   distributed.
+3. If neither applies, no public license is granted. Stop distribution until the
+   owner and terms are recorded.
 
-- You can use, modify, and distribute the code — including commercially
-- If you modify and distribute, or run it for users over a network, you must provide the source under AGPL-3.0
-- If you host a service using modified code, you must offer the source to service users (network copyleft)
-- Full text: https://www.gnu.org/licenses/agpl-3.0.en.html
+ALIS defaults apply only to rights-cleared first-party portions. Accurate
+copyright, attribution, license, and proprietary notices remain operative and
+must be retained. Third-party and contributor-specific obligations may
+accumulate with the ALIS default. If the obligations cannot coexist, isolate,
+rewrite, or exclude the material.
 
-## 2. Assets (art, audio, lore, world-building, game content)
+This policy applies to repository revisions that contain it. Previously
+distributed revisions and releases retain the grants distributed with those
+versions; a later policy does not revoke those grants.
 
-Licensed under **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International** (CC BY-NC-SA 4.0).
+First-party source files do not repeat component license identifiers. Preserve
+every accurate ownership or upstream notice. The neutral license pointer may
+follow those notices:
 
-- You can share and adapt for non-commercial purposes with attribution
-- Commercial use of assets requires written permission from the Alis maintainers
-- Derivatives must use the same license
-- Full text: https://creativecommons.org/licenses/by-nc-sa/4.0/
+```text
+License terms: see repository root LICENSE.
+```
 
-## 3. Documentation and website
+Package manifests may carry a standard license identifier when their ecosystem
+requires one. That metadata must match this file.
 
-Licensed under **Mozilla Public License 2.0** (MPL-2.0).
+A file's assignment is fixed by its owning component and declared distribution
+boundary in the repository revision being distributed. Later deployment does
+not silently relicense the file. A file that would cross or straddle a boundary
+must be split or reclassified here before distribution.
 
-- File-level copyleft: modifications to MPL files must be shared
-- Can be combined with other-licensed code in a larger work
-- Full text: https://mozilla.org/MPL/2.0/
+## 2. Rights-Cleared First-Party Software
 
-## 4. Trademarks
+| Class | Component | License | Boundary |
+|---|---|---|---|
+| `ue-in-process` | Code loaded, linked, imported, or executed inside Unreal | MPL-2.0 | Includes first-party C++, Build.cs, targets, UE Python, editor automation, Blueprint logic, and UE-facing configuration |
+| `separate-process` | Separate ALIS executables, services, compilers, CLIs, and automation | AGPL-3.0-only | Must remain a separate process communicating through files or a documented protocol |
+| `interoperability` | Protocol definitions, generated bindings, and minimal interoperability SDKs explicitly marked for this boundary | Apache-2.0 | Must not contain gameplay, authority, persistence, compiler, or runtime implementation logic |
+| `documentation` | Documentation | MPL-2.0 | Includes project documentation and website source unless a file says otherwise |
 
-"Alis", the Alis logo, and related branding are governed by a separate trademark policy.
+The complete MPL and AGPL texts are:
 
-See [TRADEMARKS.md](TRADEMARKS.md).
+- [MPL-2.0](LICENSES/MPL-2.0.txt)
+- [AGPL-3.0-only](LICENSES/AGPL-3.0-only.txt)
+
+Apache-2.0 becomes applicable only when an interoperability package is
+explicitly marked `Apache-2.0`. Its canonical text is published by the
+[Apache Software Foundation](https://www.apache.org/licenses/LICENSE-2.0.txt).
+
+## 3. Rights-Cleared First-Party Assets and Data
+
+| Material | Terms |
+|---|---|
+| Public original art, audio, models, materials, animations, and other non-code assets explicitly marked for public reuse | CC BY 4.0 |
+| Public Blueprint or other code-bearing asset source | MPL-2.0 |
+| Synthetic non-code fixtures explicitly marked for unrestricted test reuse | CC0 1.0 |
+| Private game content explicitly classified for packaged-product use, including hero art, story, music, levels, and world identity | No public reuse license; packaged use requires the Product terms |
+| Unclassified or unmarked material | Distribution blocked until ownership, component, and terms are recorded |
+| ALIS-authored database explicitly released for reuse | The license named in its release manifest |
+| Generated terrain, roads, buildings, cells, or databases | The result calculated from the complete provenance graph |
+| Third-party content or data | Original provider terms only |
+
+CC BY 4.0 becomes applicable only through an explicit asset sidecar or release
+manifest. It is not a blanket license for `Content/**` or every `.uasset`.
+The canonical terms are published by
+[Creative Commons](https://creativecommons.org/licenses/by/4.0/legalcode.en).
+
+CC0 1.0 becomes applicable only through an explicit fixture sidecar or release
+manifest. Its canonical terms are published by
+[Creative Commons](https://creativecommons.org/publicdomain/zero/1.0/legalcode.en).
+
+ODbL, CDLA, CC0, provider-specific, or other data terms apply only where the
+source ledger and release manifest identify them. ALIS cannot replace upstream
+database or content terms with an ALIS software license.
+
+## 4. Unreal and Third-Party Exclusions
+
+No ALIS license applies to:
+
+- Unreal Engine code, tools, Examples, Starter Content, or other Epic-owned
+  technology;
+- Fab, Marketplace, Megascans, MetaHuman, or separately licensed source
+  content;
+- any third-party portion explicitly governed by a different license or
+  proprietary notice.
+
+Those materials remain governed by their original agreements and must carry
+their nearest component-local notice or provenance record. Free download,
+installation with Unreal, or inclusion in the private working repository does
+not grant public redistribution or relicensing rights.
 
 ## 5. Contributions
 
-All contributions use the Developer Certificate of Origin (DCO) process.
+ALIS uses inbound-equals-outbound licensing:
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+- a contribution uses the license assigned to its component;
+- contributors retain copyright;
+- maintainers receive no private relicensing grant;
+- submitting a contribution represents that the contributor has authority to
+  provide it under the assigned component license; and
+- copied code, generated vendor code, assets, data, and dependencies require
+  their exact upstream provenance and compatible terms.
 
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution process.
 
-## Why this structure?
+## 6. Trademarks
 
-| What you want to do | Allowed? | License |
-|---|---|---|
-| Read and learn from the code | Yes | AGPL-3.0 |
-| Fork and modify the code | Yes, must share changes | AGPL-3.0 |
-| Run your own community server | Yes, must share server code | AGPL-3.0 |
-| Sell a product using the code | Yes, must provide source for the AGPL-covered program and modifications | AGPL-3.0 |
-| Use our art/music/lore commercially | No, unless we agree | CC BY-NC-SA |
-| Make fan art or non-commercial derivatives | Yes, with attribution | CC BY-NC-SA |
-| Call your fork "Alis" | No | Trademark |
-| Contribute code back | Yes, via DCO sign-off | DCO |
+Software and content licenses do not grant rights to the ALIS name, logo, or
+official identity. See [TRADEMARKS.md](TRADEMARKS.md).
 
----
+## 7. Compliance Sources
 
-## Commercial licensing
+- Compatibility rationale and dependency gates:
+  [docs/legal/component_license_policy.md](docs/legal/component_license_policy.md)
+- Boundary inheritance and generated effective-component reports:
+  [docs/legal/component_license_policy.md#4-component-boundary-inheritance](docs/legal/component_license_policy.md#4-component-boundary-inheritance)
+- World data, generated artifacts, and `.uasset` boundaries:
+  [docs/legal/world_data_and_asset_policy.md](docs/legal/world_data_and_asset_policy.md)
+- Packaged Product terms, notices, credits, and Unreal release checks:
+  [docs/legal/release_compliance.md](docs/legal/release_compliance.md)
 
-If you need a commercial license for Alis assets, branding, or a custom code license, contact the project maintainers.
+When a summary conflicts with a referenced standard license, the standard
+license text controls. When a third-party notice conflicts with an ALIS
+component default, the third-party notice controls and the material must be
+isolated.
 
-## Policy changes
-
-- Policy updates are versioned (vX.Y) with at least 30 days public notice
-- License changes do not apply retroactively to existing contributions
-- The underlying licenses (AGPL, CC, MPL) cannot be modified — they are used as-is
+Every public source tree must include this file, applicable standard texts,
+local notices, and provenance records. A tagged source release also includes
+the generated effective-component manifest defined by the release gate.

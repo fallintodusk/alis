@@ -1,4 +1,5 @@
 // Copyright ALIS. All Rights Reserved.
+// License terms: see repository root LICENSE.
 // ProjectUIDebugSubsystem.cpp - Core subsystem lifecycle and coordination
 //
 // Split into multiple files for SOLID compliance:

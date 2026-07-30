@@ -1,58 +1,79 @@
-# The Alis Pact
+# The ALIS Pact
 
-This is not a license. This is a social contract between the people who build Alis and the people who play, host, and extend it.
+This is not a license. It is the social contract between the people who build
+ALIS and the people who play, host, and extend it. The operative legal terms
+live only in [LICENSE](LICENSE).
 
-Licenses protect code. This pact protects intent.
+## What ALIS Is
 
----
-
-## What Alis Is
-
-Alis is an open game that teaches real skills through gameplay, simulates real-world survival, and connects people around shared values. The code is open. The world is protected. The community is the foundation.
+ALIS is an open game architecture that teaches real skills through gameplay,
+simulates survival, and connects people around shared values. The technology
+must remain understandable and survivable beyond any one maintainer. The
+official world and identity must remain coherent enough to sustain the project.
 
 ## Commitments
 
 ### To players
 
-- No pay-to-win. Monetization serves the game, not the other way around.
-- No predatory mechanics. No loot boxes, no artificial scarcity designed to exploit.
-- Your data is yours. Privacy by default.
-- Community servers are welcome. If you want to host Alis for your friends, do it. We encourage it.
+- No pay-to-win or predatory mechanics.
+- Monetization serves the game rather than exploiting players.
+- Privacy is the default.
+- Community servers and independently branded forks are welcome.
 
 ### To contributors
 
-- Your work is respected. Contributions are credited, never silently absorbed.
-- You keep your copyright. We use DCO, not CLA. We don't take your rights.
-- No surprise relicensing. License changes are versioned, announced 30 days in advance, and never retroactive.
-- If you build something great on top of Alis, we celebrate it.
+- Accepted work is credited and never silently absorbed.
+- Contribution rules remain public and understandable.
+- Maintainers and contributors work under the same published rules.
+- License-policy changes are public, reviewable, and never retroactive.
 
 ### To the ecosystem
 
-- Code is open (AGPL-3.0-only). Anyone can read, learn, fork, and improve.
-- Improvements flow back. The copyleft ensures that hosted forks share their changes with everyone.
-- The world (art, lore, music) is non-commercial (CC BY-NC-SA). You can create, remix, and share — but not extract and sell what the community built.
+- UE-facing source uses reciprocity that does not attempt to relicense Unreal.
+- Separate hosted services use network reciprocity.
+- Protocols remain permissive so independent implementations can survive.
+- Public reusable assets permit commercial development with attribution.
+- Third-party rights and data provenance remain visible.
+- Covered improvements remain available to recipients or service users when
+  the applicable component license requires it.
 
-### To ourselves
+### To the project
 
-- We sustain the project through official services, assets, and brand — not by locking down code.
-- We build in the open because we believe transparency makes better software.
-- We adapt. If something in this pact stops serving the project and its people, we change it — openly, with notice.
+- ALIS sustains itself through official services, releases, private hero
+  content, and brand identity rather than locking down shared foundations.
+- Trademarks distinguish the official project without blocking truthful
+  references or independently branded forks.
+- Canonical data and build recipes remain reproducible where upstream terms
+  permit it.
+- The project adapts openly when technology or dependency terms change.
 
----
+## Public Survivability Floor
 
-## What we ask in return
+Private official layers must remain optional. Before ALIS depends on them for
+a public playable release, the public foundation must provide:
 
-- Share your improvements. Don't fork and hide.
-- Respect the brand. Call your fork something else.
-- Don't extract without giving back. If you profit from Alis code, share your changes (AGPL requires this).
-- Be honest. That's the whole point.
+- client and community-server source;
+- open protocols and canonical schemas;
+- the world compiler, deterministic generation rules, and source-fetch
+  recipes;
+- at least one redistributable reference asset set and playable reference
+  region; and
+- fallback discovery and self-hosting documentation.
 
----
+This is a release target, not a claim that the current prototype already
+satisfies every item.
+
+## What We Ask in Return
+
+- Preserve source rights required by the component you use.
+- Respect upstream licenses and do not hide provenance.
+- Respect the ALIS identity and clearly distinguish forks.
+- Contribute improvements upstream when practical, while recognizing that
+  copyleft guarantees source availability rather than a mandatory pull request.
+- Keep the ecosystem usable by the people who come after us.
 
 ## Governance
 
-Alis is maintained by its founders. As the community grows, governance will evolve. The direction is toward more voices, not fewer. This section will be updated as that happens.
-
-## Living document
-
-This pact evolves with the project. Changes are tracked in version control and announced publicly. The spirit remains: build together, share honestly, protect the work.
+ALIS is maintained by its project stewards. Governance should expand with the
+community and keep component licensing, contribution rights, and release
+decisions visible in version control.
