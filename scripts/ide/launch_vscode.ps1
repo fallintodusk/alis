@@ -19,12 +19,6 @@ if (-not (Test-Path $EnvScript)) {
 
 . $EnvScript
 
-# TEMP: disable auto-sync of Claude settings from VS Code launcher
-# $SyncScript = Join-Path $ProjectRoot "scripts\ide\sync_claude_settings.ps1"
-# if (Test-Path $SyncScript) {
-#     & $SyncScript
-# }
-
 $WorkspacePath = Join-Path $ProjectRoot $Workspace
 if (-not (Test-Path $WorkspacePath)) {
     Write-Error "Workspace not found: $WorkspacePath"

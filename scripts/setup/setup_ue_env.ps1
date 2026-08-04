@@ -1,113 +1,145 @@
 # scripts/setup/setup_ue_env.ps1
-# Sets UE_PATH environment variable for VS Code workspace integration.
-# Run once after cloning. Requires PowerShell (not Git Bash).
+# Synchronizes ALL machine-local derived state from the conf SOT:
+#   - persistent env UE_PATH (derived cache; resolvers hard-fail on drift)
+#   - .vscode configs (${env:UE_PATH} + compileCommands literal paths)
+#   - .claude/settings.local.json (env block + engine-path grants)
+#   - .mcp.json (engine path plus absolute project root for commandlets)
+# Run once after cloning and after every engine change (the engine-update
+# orchestrator invokes this automatically).
+#
+# Reads the conf via the PURE reader (Resolve-UEConfig never consults
+# env), so a STALE env cache can always be repaired here - resolvers
+# hard-fail on the mismatch, this script fixes it.
 
 param(
-    [switch]$Force
+    [switch]$Force,
+    # Test/orchestrator hooks; defaults are the real machine-local files.
+    [ValidateSet("User", "Process")][string]$EnvScope = "User",
+    [string]$ConfigDir,
+    [string]$SettingsPath,
+    [string]$McpPath,
+    [string]$PreviousLauncherRoot,
+    [string]$PreviousSourceRoot,
+    [string]$ProjectRoot,
+    [switch]$SkipVsCode
 )
 
-$ConfigDir = Join-Path $PSScriptRoot "..\config"
-. (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
-$config = Resolve-UEConfig -ConfigDir $ConfigDir
+$ErrorActionPreference = "Stop"
 
+if (-not $ConfigDir) { $ConfigDir = Join-Path $PSScriptRoot "..\config" }
+. (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
+Import-Module (Join-Path $PSScriptRoot "UEEnvSync.psm1") -Force
+
+$config = Resolve-UEConfig -ConfigDir $ConfigDir
 $UePath = $config.UE_PATH
 
 if (-not $UePath) {
-    Write-Error "UE_PATH not found. Create scripts/config/ue_path.local.conf with UE_PATH=<your engine path>"
+    Write-Error "UE_PATH not found. Set it in scripts/config/ue_path.conf (or ue_path.local.conf)."
     exit 1
 }
 
-Write-Host "Config file: $($config.ConfigFile)"
-
-# Normalize path for Windows
-$UePath = $UePath -replace '/', '\'
-
+Write-Host "Config file(s): $($config.ConfigFiles -join ', ')"
 Write-Host "UE_PATH from config: $UePath"
+if ($config.UE_SOURCE_PATH) {
+    Write-Host "UE_SOURCE_PATH from config: $($config.UE_SOURCE_PATH)"
+}
 
-# Check if already set (User or Machine level)
-$UserValue = [Environment]::GetEnvironmentVariable("UE_PATH", "User")
+if (-not $PreviousLauncherRoot) {
+    $cachedLauncher = if ($EnvScope -eq "User") {
+        [Environment]::GetEnvironmentVariable("UE_PATH", "User")
+    } else {
+        $Env:UE_PATH
+    }
+    if ($cachedLauncher -and $cachedLauncher -ne $UePath) {
+        $PreviousLauncherRoot = $cachedLauncher
+    }
+}
+if (-not $PreviousSourceRoot -and $Env:UE_SOURCE_PATH -and
+    $Env:UE_SOURCE_PATH -ne $config.UE_SOURCE_PATH) {
+    $PreviousSourceRoot = $Env:UE_SOURCE_PATH
+}
+
 $MachineValue = [Environment]::GetEnvironmentVariable("UE_PATH", "Machine")
-
-if ($UserValue -eq $UePath) {
-    Write-Host "[OK] UE_PATH already set correctly (User)." -ForegroundColor Green
-    exit 0
+if ($MachineValue -and $EnvScope -eq "User") {
+    $winRoot = ($UePath -replace '/', '\')
+    if ($MachineValue -ne $winRoot) {
+        Write-Host "UE_PATH is set at Machine level: $MachineValue" -ForegroundColor Yellow
+        Write-Host "To change, edit System Environment Variables or run as Admin."
+        exit 1
+    }
 }
 
-if ($MachineValue -eq $UePath) {
-    Write-Host "[OK] UE_PATH already set correctly (Machine)." -ForegroundColor Green
-    exit 0
+if (-not $ProjectRoot) {
+    $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 }
+if (-not $SettingsPath) { $SettingsPath = Join-Path $ProjectRoot ".claude\settings.local.json" }
+if (-not $McpPath) { $McpPath = Join-Path $ProjectRoot ".mcp.json" }
 
-if ($MachineValue) {
-    Write-Host "UE_PATH is set at Machine level: $MachineValue" -ForegroundColor Yellow
-    Write-Host "To change, edit System Environment Variables or run as Admin."
-    exit 1
-}
+# --- 1. Prepare every machine-local file mutation ---
+$jsonPlan = Get-UEMachineLocalJsonPlan -NewLauncherRoot $UePath `
+    -NewSourceRoot $config.UE_SOURCE_PATH `
+    -PreviousLauncherRoot $PreviousLauncherRoot `
+    -PreviousSourceRoot $PreviousSourceRoot `
+    -SettingsPath $SettingsPath -McpPath $McpPath
+$blockers = @($jsonPlan.Blockers)
+$mutations = @($jsonPlan.Mutations)
 
-if ($UserValue -and -not $Force) {
-    Write-Host "UE_PATH is currently set to: $UserValue" -ForegroundColor Yellow
-    Write-Host "Use -Force to override, or run:"
-    Write-Host "  [Environment]::SetEnvironmentVariable('UE_PATH', `$null, 'User')" -ForegroundColor Cyan
-    exit 1
-}
-
-# Set persistent User environment variable
-[Environment]::SetEnvironmentVariable("UE_PATH", $UePath, "User")
-
-Write-Host "[OK] UE_PATH set to: $UePath" -ForegroundColor Green
-
-# Update .vscode files to use ${env:UE_PATH} instead of hardcoded paths
-$ProjectRoot = Join-Path $PSScriptRoot "..\.." | Resolve-Path
-$VsCodeDir = Join-Path $ProjectRoot ".vscode"
-
-if (Test-Path $VsCodeDir) {
-    Write-Host ""
-    Write-Host "Updating .vscode configs..." -ForegroundColor Cyan
-
-    # Common UE path patterns to replace (forward and backslash variants)
-    $Patterns = @(
-        'G:\\UnrealEngine-5\.7',
-        '<ue-path>\.7',
-        'C:\\UnrealEngine\\UE_5\.7',
-        '<ue-path>\.7'
-    )
-
-    # Files that support VS Code variable expansion
-    $VsCodeFiles = @("launch.json", "tasks.json", "settings.json")
-    foreach ($file in $VsCodeFiles) {
-        $filePath = Join-Path $VsCodeDir $file
-        if (Test-Path $filePath) {
-            $content = Get-Content $filePath -Raw
-            $modified = $false
-            foreach ($pattern in $Patterns) {
-                if ($content -match $pattern) {
-                    $content = $content -replace $pattern, '${env:UE_PATH}'
-                    $modified = $true
-                }
+if (-not $SkipVsCode) {
+    $VsCodeDir = Join-Path $ProjectRoot ".vscode"
+    if (Test-Path $VsCodeDir) {
+        $vsCodeFiles = @(
+            @{ Name = "launch.json"; Root = '${env:UE_PATH}' },
+            @{ Name = "tasks.json"; Root = '${env:UE_PATH}' },
+            @{ Name = "settings.json"; Root = '${env:UE_PATH}' }
+        )
+        $vsCodeFiles += @(Get-ChildItem $VsCodeDir -Filter "compileCommands*.json" |
+            ForEach-Object { @{ Name = $_.Name; Root = $UePath } })
+        foreach ($item in $vsCodeFiles) {
+            $filePath = Join-Path $VsCodeDir $item.Name
+            if (-not (Test-Path -LiteralPath $filePath)) { continue }
+            $content = Get-Content -LiteralPath $filePath -Raw
+            try { $null = $content | ConvertFrom-Json }
+            catch {
+                $blockers += "$filePath`: invalid JSON - $($_.Exception.Message)"
+                continue
             }
-            if ($modified) {
-                Set-Content $filePath $content -NoNewline
-                Write-Host "  [OK] $file - updated to use `${env:UE_PATH}" -ForegroundColor Green
+            $r = Update-EngineRootsInString -Text $content `
+                -NewLauncherRoot $item.Root -NewSourceRoot $item.Root `
+                -PreviousLauncherRoot $PreviousLauncherRoot `
+                -PreviousSourceRoot $PreviousSourceRoot
+            if ($r.Text -ne $content) {
+                $mutations += @{ Path = $filePath; Old = $content; New = $r.Text }
             }
         }
     }
+}
 
-    # compileCommands files - use actual path (clangd doesn't expand VS Code vars)
-    Get-ChildItem $VsCodeDir -Filter "compileCommands*.json" | ForEach-Object {
-        $content = Get-Content $_.FullName -Raw
-        $modified = $false
-        foreach ($pattern in $Patterns) {
-            if ($content -match $pattern) {
-                $content = $content -replace $pattern, ($UePath -replace '\\', '\\')
-                $modified = $true
-            }
-        }
-        if ($modified) {
-            Set-Content $_.FullName $content -NoNewline
-            Write-Host "  [OK] $($_.Name) - updated path" -ForegroundColor Green
-        }
+if ($blockers.Count -gt 0) {
+    Write-Host "BLOCKED - fix these before rerunning (nothing was written):" `
+        -ForegroundColor Red
+    $blockers | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    exit 2
+}
+
+# --- 2. Apply files atomically, then update the environment last ---
+try {
+    $applied = @(Invoke-UEFileMutationPlan -Mutations $mutations)
+    if (-not ($MachineValue -and $EnvScope -eq "User")) {
+        $written = Sync-UEUserEnv -NewLauncherRoot $UePath -Scope $EnvScope
     }
+} catch {
+    if ($applied.Count -gt 0) {
+        Restore-UEFileMutationPlan -Mutations $applied
+    }
+    throw
+}
+foreach ($f in $applied.Path) {
+    Write-Host "  [OK] updated $f" -ForegroundColor Green
+}
+if ($written) {
+    Write-Host "  [OK] env UE_PATH ($EnvScope) = $written" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "Restart VS Code to pick up the new environment variable." -ForegroundColor Yellow
+Write-Host "Machine-local state synchronized with the conf SOT." -ForegroundColor Green
+Write-Host "Restart VS Code / MCP host / persistent editor to inherit UE_PATH." -ForegroundColor Yellow

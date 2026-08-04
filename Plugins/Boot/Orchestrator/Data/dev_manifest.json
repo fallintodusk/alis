@@ -1,7 +1,7 @@
 {
   "$schema": "Schemas/dev_manifest.schema.json",
   "manifest_version": 1,
-  "engine_build_id": "++UE5+Release-5.7-CL-48512491",
+  "engine_build_id": "++UE5+Release-5.8-CL-56057345",
   "signed_at": "2025-10-31T19:00:00Z",
   "signing_key_id": "alis-dev-2025",
   "signature": "DEV_UNSIGNED",

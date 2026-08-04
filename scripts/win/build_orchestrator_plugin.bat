@@ -3,9 +3,12 @@ REM Build Orchestrator plugin for standalone distribution
 REM This builds the plugin in Shipping configuration for Windows
 
 setlocal enabledelayedexpansion
+REM Resolve UE_PATH from the conf SOT (stale-env hard fail included)
+call "%~dp0..\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 
 REM Configuration
-set ENGINE_PATH=<ue-path>
+set ENGINE_PATH=%UE_PATH%
 set PROJECT_PATH=<project-root>
 set PLUGIN_PATH=%PROJECT_PATH%\Plugins\Orchestrator
 set OUTPUT_PATH=%PROJECT_PATH%\Build\Plugins\Orchestrator

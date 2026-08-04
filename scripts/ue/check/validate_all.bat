@@ -30,5 +30,8 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 call "%SCRIPT_DIR%governance\validate_licensing.bat"
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
+call "%SCRIPT_DIR%governance\validate_engine_env.bat"
+if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+
 echo [OK] All fast project validations passed
 exit /b 0

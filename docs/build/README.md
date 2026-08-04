@@ -53,7 +53,7 @@ Related docs:
 Use:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 -EngineRoot <ue-path> -CreateReleaseArchive
+.\scripts\ue\package\package_release.ps1 -EngineRoot %UE_SOURCE_PATH% -CreateReleaseArchive
 .\scripts\ue\package\sign_release.ps1 -ReleaseDir <release_dir>
 .\scripts\ue\package\verify_release.ps1 -ReleaseDir <release_dir>
 ```

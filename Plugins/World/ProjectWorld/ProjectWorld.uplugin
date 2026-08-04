@@ -8,9 +8,12 @@
   "EnabledByDefault": false,
   "CanContainContent": true,
   "Modules": [
-    { "Name": "ProjectWorld", "Type": "Runtime", "LoadingPhase": "Default" }
+    { "Name": "ProjectWorld", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldEditor", "Type": "Editor", "LoadingPhase": "Default" }
   ],
   "Plugins": [
+    { "Name": "GeoReferencing", "Enabled": true },
+    { "Name": "ProceduralMeshComponent", "Enabled": true },
     { "Name": "ProjectCore", "Enabled": true }
   ]
 }

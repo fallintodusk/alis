@@ -333,22 +333,12 @@ W_MapBrowser (inherits UProjectUserWidget)
 ## Configuration Files
 
 ### Central UE Path Config
-**Single source of truth:** `scripts/config/ue_path.conf`
 
-```ini
-# scripts/config/ue_path.conf
-UE_PATH="<ue-path>"
-```
-
-**All scripts auto-detect from:**
-1. `scripts/config/ue_path.conf` (if exists)
-2. Windows Registry
-3. Common installation paths
-
-**Benefits:**
-- Update UE version in ONE place
-- All scripts use this automatically
-- No hardcoded paths in scripts
+The configuration SOT and update command are documented in
+[Engine Version Update](../ue_engine/version_update.md). `UE_PATH` owns daily
+development, tests, IDE integration, and editor automation.
+`UE_SOURCE_PATH` is isolated to source-required release packaging and build
+artifacts; it is never the fast-iteration engine.
 
 ### Engine Configuration
 **Location:** `Config/DefaultEngine.ini`

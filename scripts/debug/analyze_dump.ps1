@@ -109,7 +109,11 @@ $projectRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 $configDir = Join-Path $projectRoot "scripts\config"
 . (Join-Path $configDir "Resolve-UEConfig.ps1")
 $config = Resolve-UEConfig -ConfigDir $configDir
-$uePath = if ($config.UE_PATH) { $config.UE_PATH } else { "<ue-path>" }
+$uePath = if ($config.UE_PATH) { $config.UE_PATH } else { Resolve-UELauncherFallback }
+if (-not $uePath) {
+    Write-Error "UE_PATH not resolved. Set it in scripts/config/ue_path.conf."
+    exit 1
+}
 
 # Build symbol paths based on mode
 if ($Quick) {

@@ -56,20 +56,26 @@ struct FSortedJsonSerializerPolicy : public FJsonSerializerPolicy_JsonObject
 
 			FMapOfValues ObjectPtr = Element->Value->AsObject();
 
-			// Get keys and sort alphabetically for deterministic output
-			TArray<FString> Keys;
-			ObjectPtr->Values.GenerateKeyArray(Keys);
-			Keys.Sort();
+			// Collect key/value pairs and sort alphabetically for
+			// deterministic output. UE 5.8: FJsonObject keys are
+			// UE::FSharedString - copy to FString pairs instead of
+			// GenerateKeyArray/Find on FString.
+			TArray<TPair<FString, TSharedPtr<FJsonValue>>> SortedPairs;
+			SortedPairs.Reserve(ObjectPtr->Values.Num());
+			for (const auto& Pair : ObjectPtr->Values)
+			{
+				SortedPairs.Emplace(FString(Pair.Key), Pair.Value);
+			}
+			SortedPairs.Sort(
+				[](const TPair<FString, TSharedPtr<FJsonValue>>& A,
+				   const TPair<FString, TSharedPtr<FJsonValue>>& B)
+				{ return A.Key < B.Key; });
 
 			// Push elements in reverse sorted order (stack is LIFO)
-			// Look up each value by key - safe, no assumption about parallel array ordering
-			for (int32 i = Keys.Num() - 1; i >= 0; --i)
+			for (int32 i = SortedPairs.Num() - 1; i >= 0; --i)
 			{
-				const FString& Key = Keys[i];
-				if (const TSharedPtr<FJsonValue>* FoundValue = ObjectPtr->Values.Find(Key))
-				{
-					ElementStack.Push(MakeShared<FElement>(Key, *FoundValue));
-				}
+				ElementStack.Push(MakeShared<FElement>(
+					SortedPairs[i].Key, SortedPairs[i].Value));
 			}
 		}
 

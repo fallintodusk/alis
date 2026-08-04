@@ -48,7 +48,7 @@ BUILD_TARGET=AlisEditor  # Creates UnrealEditor-Alis.dll
 ## Requirements
 
 - **Python 3.x** - Required for `test.py`
-- **Unreal Engine 5.5** - Path configured in `scripts/config/ue_path.conf`
+- **Unreal Engine** - Path configured in `scripts/config/ue_path.conf`
 
 ### Finding Python on Windows
 
@@ -267,7 +267,7 @@ REM Using full Python path if not in PATH
 
 ```bash
 # Launch with debugger attached
-devenv /debugexe "<ue-path>\Engine\Binaries\Win64\UnrealEditor.exe" ^
+devenv /debugexe "%UE_PATH%\Engine\Binaries\Win64\UnrealEditor.exe" ^
   "<project-root>\Alis.uproject" ^
   "L_Boot" -game -windowed
 ```

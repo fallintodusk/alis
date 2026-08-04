@@ -132,7 +132,8 @@ FOrchestratorState FOrchestratorState::FromJson(const TSharedPtr<FJsonObject>& J
 			if (Pair.Value->Type == EJson::Object)
 			{
 				FPluginState PluginState = FPluginState::FromJson(Pair.Value->AsObject());
-				State.Plugins.Add(Pair.Key, PluginState);
+				// UE 5.8: FJsonObject keys are UE::FSharedString
+				State.Plugins.Add(FString(Pair.Key), PluginState);
 			}
 		}
 	}

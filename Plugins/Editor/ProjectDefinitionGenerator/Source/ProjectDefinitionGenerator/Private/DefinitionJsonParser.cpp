@@ -11,7 +11,7 @@
 #include "GameplayTagContainer.h"
 #include "JsonObjectConverter.h"
 #include "Misc/Paths.h"
-#include "InstancedStruct.h"
+#include "StructUtils/InstancedStruct.h"
 #include "GameFramework/Actor.h"
 #include "UObject/PrimaryAssetId.h"
 
@@ -655,7 +655,7 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 							Entry.Properties.Add(FName(*Prop.Key), Prop.Value->AsString());
 
 							// Derived: MotionMode = "Chaos" -> bUsePhysicsMode
-							if (Prop.Key.Equals(TEXT("MotionMode"), ESearchCase::IgnoreCase)
+							if (FString(Prop.Key).Equals(TEXT("MotionMode"), ESearchCase::IgnoreCase)
 								&& Prop.Value->AsString().Equals(TEXT("Chaos"), ESearchCase::IgnoreCase))
 							{
 								Entry.bUsePhysicsMode = true;

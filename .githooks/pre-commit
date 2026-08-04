@@ -38,13 +38,26 @@ def resolve_python():
             return False
 
     candidates = [sys.executable]
-    # UE bundled Python (Windows) — scripts/config/ue_path.conf is the SOT,
-    # but a hook can't read that without re-implementing shell parsing; try
-    # the common install roots instead.
+    # UE bundled Python (Windows): resolve the engine root from the SOT
+    # (scripts/config/ue_path.conf via the shared strict parser), with the
+    # env cache as a lenient fallback. This hook only DISCOVERS a python
+    # binary, so it stays non-fatal on conf errors - the strict authority
+    # contract is enforced by the build/test resolvers, not here.
+    conf_ue_path = None
+    try:
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_dir = os.path.join(repo_root, "scripts", "config")
+        sys.path.insert(0, config_dir)
+        try:
+            import ue_conf
+            conf_ue_path = ue_conf.resolve_conf(config_dir)[0].get("UE_PATH")
+        finally:
+            sys.path.pop(0)
+    except Exception:
+        conf_ue_path = None
     for ue_root in (
+        conf_ue_path,
         os.environ.get("UE_PATH"),
-        r"C:\UnrealEngine\UE_5.7",
-        r"C:\Program Files\Epic Games\UE_5.7",
     ):
         if ue_root:
             ue_py = os.path.join(

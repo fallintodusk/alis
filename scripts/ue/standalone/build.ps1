@@ -58,14 +58,6 @@ $Env:BUILD_TARGET   = $Target
 $Env:BUILD_CONFIG   = $BuildConfig
 $Env:BUILD_PLATFORM = $Platform
 
-# Detect source vs installed engine for Target.cs diagnostics gating
-$InstalledBuildMarker = Join-Path $UEPath "Engine\Build\InstalledBuild.txt"
-if (Test-Path $InstalledBuildMarker) {
-    Remove-Item Env:ENGINE_FROM_SOURCE -ErrorAction SilentlyContinue
-} else {
-    $Env:ENGINE_FROM_SOURCE = "1"
-}
-
 # Validate UE path
 $UEBuildBat = Join-Path $UEPath "Engine\Build\BatchFiles\Build.bat"
 if (-not (Test-Path $UEBuildBat)) {

@@ -19,6 +19,10 @@ Implemented in `Source/ProjectWorld`:
 - `AProjectWorldActor` definition application and definition identity.
 - `IObjectDefinitionHostInterface`, `UObjectDefinitionHostComponent`, and
   object-definition host helpers.
+- `ProjectWorldEditor` canonical receipt validation and deterministic Unreal
+  realization for bounded generated maps.
+- Exact procedural preview for non-Landscape fixtures and stock Landscape
+  import for compatible canonical grids.
 
 Planned, but not implemented:
 
@@ -26,13 +30,12 @@ Planned, but not implemented:
 - `UProjectWorldLoader` and authored/procedural tile loading.
 - `IWorldSpatialQuery` and its runtime subsystem.
 - Event/Data Layer mapping services.
-- World-data validation commandlets, diffing, incremental building, and editor
-  hot reload.
+- Runtime world-data diffing and editor hot reload.
 - ProjectPCG integration and concrete world-plugin manifests/data.
 
 Unless a section explicitly names an implemented type above, API snippets and
-workflows in this README are design proposals. Track implementation in
-`TODO.md`; do not use an example here as evidence that its API exists.
+workflows in this README are design proposals; do not use an example here as
+evidence that its API exists.
 
 
 ## 1. Purpose
@@ -68,6 +71,77 @@ You don't "derive from" World Partition. You let UE's WP handle streaming of **e
 | **Engine (UE5 WP)** | Grid, cells, streaming | Loads/unloads cells around player automatically |
 | **ProjectWorld** | Tiles, world-data | Decides WHAT goes into cells (from data or generators) |
 | **City17 (world plugin)** | Authored content | Provides REAL data for part of the grid |
+
+### World Build Boundary
+
+The reusable build path has four distinct identities and no shared grid SOT:
+
+```text
+provider partition -> compiler cell -> generated artifact -> World Partition cell
+```
+
+- Source ingestion preserves provider IDs, coordinates, precision, and terms.
+- The external World Compiler converts accepted inputs into canonical ALIS
+  features and an aligned metric terrain grid.
+- A narrow Unreal adapter realizes canonical cells as disposable engine assets.
+- ProjectWorld and stock World Partition own runtime lookup and streaming.
+
+Compiler cells are addressed by generated `grid_id` plus integer x/y. They do
+not change when a city grows, an acquisition envelope changes, or an Unreal
+streaming profile is retuned. Mapping to World Partition cells is explicit.
+
+Canonical attributes distinguish source-derived, inferred, procedural, and
+authored values. Provider geometry is evidence, not a finished mesh. Roads
+remain semantic graphs and splines; buildings remain footprint-driven DNA;
+terrain remains a quantized aligned grid. Meshes and `.uasset` files are
+rebuildable projections.
+
+Future water, land-cover, and vegetation adapters emit provider-neutral
+records and join canonical cells without changing the compiler core. Forests
+use zones, density, species rules, and deterministic seeds rather than one
+permanent record per tree. Hero places remain protected authored overlays.
+
+The command, profile, schema, and report contracts live in
+[`tools/World/CanonicalCompilation/README.md`](../../../tools/World/CanonicalCompilation/README.md).
+
+#### Unreal realization contract
+
+`ProjectWorldEditor` accepts one exact, accepted Canonical Compilation receipt.
+Before editor mutation it verifies every declared output byte size and SHA-256,
+exact schema version, coverage/provenance profile identity, grid/cell identity,
+terrain bounds and spacing, manifest-to-feature ownership, provenance result,
+and coordinate contract. It never reads raw provider data.
+
+Generated maps are restricted to `/ProjectWorld/Generated/`. Owned actors use
+stable GUIDs and the `ProjectWorld.Generated.v1` tag; input, grid, cell,
+terrain, and feature identities remain on actor tags. Untagged authored actors
+are preserved. An Apply run records actual actor/component semantics as a
+SHA-256 fingerprint and reports generated source bytes.
+The D3 fingerprint includes edit-layer names and content, not UE-assigned
+layer GUIDs. A receipt records the GUID separately to prove preservation within
+an existing map while clean regeneration remains semantically deterministic.
+
+Landscape-compatible grids import one stock 16-bit Landscape without engine
+resampling. `Generated Base` is updated only for changed, component-aligned
+terrain cells; `Generated Roads` is reserved for generated road deformation;
+`Authored Corrections` is never written by regeneration. Incompatible small
+fixtures use an exact procedural preview and fail when Landscape is required.
+Canonical terrain row zero is the northern edge and maps to the Landscape's
+north-west row without another reversal. GeoReferencing proves both projected
+-> Unreal -> projected error and equality with the transform used for actual
+actors at cell corners, shared edges, and a feature point. The bounded road
+slice selects one canonical identity with valid fragments in two cells and
+requires those fragments to share a boundary coordinate.
+
+The compiler grid owns one stable vertical origin used by coordinate mapping,
+GeoReferencing, generated actor placement, and Landscape height encoding. The
+adapter never derives that origin from current terrain samples, so a lower
+incremental height cannot shift protected authored content.
+
+The supported command route and evidence location are owned by
+[`scripts/ue/world/README.md`](../../../scripts/ue/world/README.md).
+The complete source-to-cooked-package acceptance route is owned by
+[`tools/World/EndToEndValidation/`](../../../tools/World/EndToEndValidation/README.md).
 
 ### Engine Layer - Stock World Partition
 

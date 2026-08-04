@@ -487,7 +487,7 @@ bool FBootToWorldWorkflowTest::RunTest(const FString& Parameters)
 
 ### MassAI Plugin - Tier 2 Example
 
-**Path:** `<ue-path>/Engine/Plugins/AI/MassAI/`
+**Path:** `%UE_PATH%/Engine/Plugins/AI/MassAI/`
 
 **Test Module:** `MassAITestSuite` (UncookedOnly)
 **Pattern:** Multi-system integration tests
@@ -537,7 +537,7 @@ bool FBootToWorldWorkflowTest::RunTest(const FString& Parameters)
 
 ## MLAdapter Plugin - Fixtures for World Context
 
-**Path:** `<ue-path>/Engine/Plugins/AI/MLAdapter/`
+**Path:** `%UE_PATH%/Engine/Plugins/AI/MLAdapter/`
 
 **Test Module:** `MLAdapterTests` (DeveloperTool)
 **Test Files:** `AgentTest.cpp`, `RPCServerTest.cpp`, `SessionTest.cpp`

@@ -195,13 +195,13 @@ echo "??? All tests passed!"
 For remote/CI environments running Windows Subsystem for Linux (WSL), use this command to execute tests without GUI dependencies:
 
 ```bash
-bash -lc '/mnt/c/UnrealEngine/UE_5.5/Engine/Binaries/Win64/UnrealEditor-Cmd.exe "E:\\Repos_Alis\\Alis\\Alis.uproject" -unattended -nop4 -NoSound -stdout -FullStdOutLogOutput -NullRHI -testexit="Automation Test Queue Empty" -ReportOutputPath="Saved/Automation/Reports" -ExecCmds="Automation RunTests ProjectIntegrationTests;Quit"'
+bash -lc '%UE_PATH%/Engine/Binaries/Win64/UnrealEditor-Cmd.exe "E:\\Repos_Alis\\Alis\\Alis.uproject" -unattended -nop4 -NoSound -stdout -FullStdOutLogOutput -NullRHI -testexit="Automation Test Queue Empty" -ReportOutputPath="Saved/Automation/Reports" -ExecCmds="Automation RunTests ProjectIntegrationTests;Quit"'
 ```
 
 **Command Breakdown:**
 
 - `bash -lc`: Login shell with command execution for proper environment variables
-- `"/mnt/c/UnrealEngine/UE_5.5/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"`: UE Editor command-line executable (WSL path)
+- `"%UE_PATH%/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"`: UE Editor command-line executable (WSL path)
 - `"E:\\Repos_Alis\\Alis\\Alis.uproject"`: Project file path (Windows format for WSL compatibility)
 - `-unattended`: No user interaction
 - `-nop4`: Disable Perforce integration
@@ -216,7 +216,7 @@ bash -lc '/mnt/c/UnrealEngine/UE_5.5/Engine/Binaries/Win64/UnrealEditor-Cmd.exe 
 
 ```bash
 # Run all ProjectIntegrationTests
-bash -lc '/mnt/c/UnrealEngine/UE_5.5/Engine/Binaries/Win64/UnrealEditor-Cmd.exe "E:\\Repos_Alis\\Alis\\Alis.uproject" -unattended -nop4 -NoSound -stdout -FullStdOutLogOutput -NullRHI -testexit="Automation Test Queue Empty" -ReportOutputPath="Saved/Automation/Reports" -ExecCmds="Automation RunTests ProjectIntegrationTests;Quit"'
+bash -lc '%UE_PATH%/Engine/Binaries/Win64/UnrealEditor-Cmd.exe "E:\\Repos_Alis\\Alis\\Alis.uproject" -unattended -nop4 -NoSound -stdout -FullStdOutLogOutput -NullRHI -testexit="Automation Test Queue Empty" -ReportOutputPath="Saved/Automation/Reports" -ExecCmds="Automation RunTests ProjectIntegrationTests;Quit"'
 ```
 
 **CI Integration:**
@@ -224,7 +224,7 @@ bash -lc '/mnt/c/UnrealEngine/UE_5.5/Engine/Binaries/Win64/UnrealEditor-Cmd.exe 
 # GitHub Actions example
 - name: Run Integration Tests
   run: |
-    bash -lc '/mnt/c/UnrealEngine/UE_5.5/Engine/Binaries/Win64/UnrealEditor-Cmd.exe "E:\\Repos_Alis\\Alis\\Alis.uproject" -unattended -nop4 -NoSound -stdout -FullStdOutLogOutput -NullRHI -testexit="Automation Test Queue Empty" -ReportOutputPath="Saved/Automation/Reports" -ExecCmds="Automation RunTests ProjectIntegrationTests;Quit"'
+    bash -lc '%UE_PATH%/Engine/Binaries/Win64/UnrealEditor-Cmd.exe "E:\\Repos_Alis\\Alis\\Alis.uproject" -unattended -nop4 -NoSound -stdout -FullStdOutLogOutput -NullRHI -testexit="Automation Test Queue Empty" -ReportOutputPath="Saved/Automation/Reports" -ExecCmds="Automation RunTests ProjectIntegrationTests;Quit"'
   working-directory: ./UEProject
 ```
 
@@ -405,7 +405,7 @@ PublicDependencyModuleNames.AddRange(new string[]
 
 1. **Navigate to UE5 plugins:**
    ```
-   <ue-path>/Engine/Plugins/
+   %UE_PATH%/Engine/Plugins/
    ```
 
 2. **Search for test modules:**
@@ -708,4 +708,3 @@ These are timing-sensitive and may fail in headless/NullRHI environment. Not cri
 ## License
 
 Copyright ALIS. All Rights Reserved.
-

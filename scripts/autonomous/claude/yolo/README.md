@@ -219,17 +219,12 @@ Test-Path .claude\settings.local.json
 - [Autonomous CI README](../../../AUTONOMOUS_CI_README.md)
 - [Architecture Roadmap](../../../todo/create_architecture.md)
 - [Claude Code Permissions](https://docs.claude.com/en/docs/claude-code/permissions)
-4. **Verify Unreal Engine path (CRITICAL):**
-   - Ensure `scripts/config/ue_path.conf` points to your UE 5.5 install
-   - Example:
-     ```bash
-     # scripts/config/ue_path.conf
-     UE_PATH="<ue-path>"
-     # or
-     UE_PATH="<ue-path>"
-     ```
-   - WSL note: run builds from PowerShell/CMD, or wrap calls with `cmd.exe /C`
+4. **Verify Unreal Engine selection (CRITICAL):**
+   - Follow [the engine-update SOT](../../../../docs/ue_engine/version_update.md).
+   - `scripts/config/ue_path.conf` accepts absolute paths only. Never put
+     environment expressions or quotes in that file.
    - Quick check (PowerShell):
      ```powershell
-     Test-Path "$env:UE_PATH/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe"
+     powershell.exe -NoProfile -File scripts/config/env.ps1
      ```
+   - WSL note: run builds from PowerShell/CMD, or wrap calls with `cmd.exe /C`

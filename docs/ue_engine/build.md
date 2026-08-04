@@ -1,6 +1,14 @@
-# UE5 Source Build - Compile Time Reality
+# UE Source Build - Packaging Reality
 
 Technical documentation for building from Unreal Engine source.
+
+ALIS uses the Epic launcher binary engine for daily development, tests, IDE
+integration, and editor automation. The separate source tree exists only for
+release paths that require source ownership, including packaging/cooking,
+modular launcher or server artifacts, and Shipping builds with logging. A
+source package still needs its matching `UnrealEditor-Cmd` cook commandlet, so
+building that binary is a packaging prerequisite, not a development-engine
+switch.
 
 ---
 
@@ -38,7 +46,7 @@ A single include path change causes the entire module to recompile.
 
 | Approach | Why It Fails |
 |----------|--------------|
-| `bUsePrecompiled` in Target.cs | Property doesn't exist in UE5.7 TargetRules |
+| `bUsePrecompiled` in Target.cs | Property is not available as a TargetRules switch on the configured engine line |
 | `<bUsePrecompiled>` in XML | Not supported - command-line only |
 | `-UsePrecompiled` flag | Requires static `.lib` files that source builds don't produce |
 
@@ -66,7 +74,7 @@ For source builds, full rebuilds on Build.cs changes are **by design**.
 One-time investment to create precompiled engine:
 
 ```powershell
-cd <ue-path>
+cd %UE_SOURCE_PATH%
 .\Engine\Build\BatchFiles\RunUAT.bat BuildGraph -Script="Engine/Build/InstalledEngineBuild.xml" -Target="Make Installed Build Win64" -Set:WithDDC=false
 ```
 
@@ -79,9 +87,10 @@ After completion:
 - `-UsePrecompiled` flag will work
 - Build.cs changes only rebuild game modules
 
-### Option 3: Use Epic Launcher Build for Development
+### Canonical ALIS split: Epic launcher for development
 
-Use installed build from Epic Launcher for daily work, switch to source only when modifying engine.
+Use the installed Epic launcher build for daily work. Use the source tree only
+through the release-specific entry points described above.
 
 ---
 

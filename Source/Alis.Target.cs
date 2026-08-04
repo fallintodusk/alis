@@ -1,7 +1,6 @@
 // License terms: see repository root LICENSE.
 
 using UnrealBuildTool;
-using System;
 using System.Collections.Generic;
 
 public class AlisTarget : TargetRules
@@ -10,22 +9,22 @@ public class AlisTarget : TargetRules
     {
         Type = TargetType.Game;
 
-        // UE 5.7 settings
-        DefaultBuildSettings = BuildSettingsVersion.V6;
+        // UE 5.8 settings
+        DefaultBuildSettings = BuildSettingsVersion.V7;
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
         ExtraModuleNames.AddRange(new string[] { "Alis" });
 
-        // Shipping uses monolithic: installed/launcher engines lack Shipping .lib
-        // stubs for engine modules, so modular linking fails.
-        // Development/DebugGame stay modular for CDN hot-loading iteration.
-        LinkType = (Configuration == UnrealTargetConfiguration.Shipping)
+        // Installed engines lack UnrealGame import libraries for modular game
+        // targets. Source non-Shipping builds stay modular for CDN iteration.
+        bool bSourceEngine = !bIsEngineInstalled;
+        LinkType = (bIsEngineInstalled ||
+                    Configuration == UnrealTargetConfiguration.Shipping)
             ? TargetLinkType.Monolithic
             : TargetLinkType.Modular;
 
         if (Configuration == UnrealTargetConfiguration.Shipping)
         {
             bBuildDeveloperTools = false;
-            bUseLoggingInShipping = true;
 
             // DO NOT enable bUseChecksInShipping - crashes at RHI init.
             // Engine bug UE-86148: GraphicsContext is null because
@@ -33,15 +32,12 @@ public class AlisTarget : TargetRules
             // Use Test config for diagnostic builds with assertions.
             // bUseChecksInShipping = true;
 
-            // Source engine needs Unique build env to avoid UBT binary
-            // sharing mismatch. Set by build/packaging scripts automatically.
-            bool bSourceEngine =
-                Environment.GetEnvironmentVariable("ENGINE_FROM_SOURCE") == "1";
-
             if (bSourceEngine)
             {
+                // Public release diagnostics require a source engine because
+                // launcher Shipping binaries are precompiled without logging.
+                bUseLoggingInShipping = true;
                 BuildEnvironment = TargetBuildEnvironment.Unique;
-                bOverrideBuildEnvironment = true;
             }
         }
     }

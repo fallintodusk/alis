@@ -86,7 +86,7 @@ if ($Layers -contains "B") {
             if (Get-Command $candidate -ErrorAction SilentlyContinue) { $pythonExe = $candidate; break }
         }
         if (-not $pythonExe) {
-            $uePy = "<ue-path>\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+            $uePy = "$env:UE_PATH\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
             if (Test-Path $uePy) { $pythonExe = $uePy }
         }
         if (-not $pythonExe) {

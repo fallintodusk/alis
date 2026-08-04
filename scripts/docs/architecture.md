@@ -9,7 +9,7 @@
 
 ## Purpose
 
-This document defines the **SOLID-compliant scripts architecture** for Unreal Engine 5.5 project automation.
+This document defines the **SOLID-compliant scripts architecture** for project automation against the repository-selected Unreal Engine.
 
 **For AI Agents:**
 - ✅ Decision trees for autonomous script placement

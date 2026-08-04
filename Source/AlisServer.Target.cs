@@ -11,8 +11,8 @@ public class AlisServerTarget : TargetRules
 	{
 		Type = TargetType.Server;
 
-		// UE 5.7 settings
-		DefaultBuildSettings = BuildSettingsVersion.V6;
+		// UE 5.8 settings
+		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		ExtraModuleNames.AddRange( new string[] { "Alis" } );

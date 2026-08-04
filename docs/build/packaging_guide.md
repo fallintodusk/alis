@@ -62,7 +62,7 @@ Script behavior:
 
 Important flags:
 
-- `-EngineRoot <ue-path>`
+- `-EngineRoot %UE_SOURCE_PATH%`
 - `-OutputDir <path>`
 - `-CreateReleaseArchive`
 - `-SignRelease`
@@ -74,7 +74,7 @@ Important flags:
 
 ## Verified ALIS Baseline
 
-Verified on 2026-03-10 with the project packaging script and source engine path `<ue-path>`.
+Verified on 2026-03-10 with the project packaging script and source engine path `%UE_SOURCE_PATH%`.
 
 Current verified output:
 
@@ -124,9 +124,9 @@ Current project requirements for GitHub-compatible content containers:
 
 Important implementation note:
 
-- `Source/Alis.Target.cs` sets `LinkType = TargetLinkType.Monolithic` for Shipping, `Modular` otherwise
-- monolithic Shipping is required for launcher engine installs (no Shipping .lib stubs)
-- Development/DebugGame stay modular for CDN hot-loading iteration
+- `Source/Alis.Target.cs` uses UBT's `bIsEngineInstalled` as the engine-kind authority
+- installed-engine game targets and all Shipping targets are monolithic because installed engines lack modular `UnrealGame` import libraries
+- source-engine Development/DebugGame targets stay modular for CDN hot-loading iteration
 - public release packaging must currently stay unencrypted because encrypted startup containers fail before the game module registers the key
 
 ## Recommended Public Release Flow
@@ -309,7 +309,7 @@ Package into an explicit directory:
 
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
-  -EngineRoot <ue-path> `
+  -EngineRoot %UE_SOURCE_PATH% `
   -OutputDir Saved\PackageRelease\MyBuild `
   -CreateReleaseArchive
 ```
@@ -318,7 +318,7 @@ Package and sign in one flow:
 
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
-  -EngineRoot <ue-path> `
+  -EngineRoot %UE_SOURCE_PATH% `
   -OutputDir Saved\PackageRelease\MyBuild `
   -CreateReleaseArchive `
   -SignRelease
@@ -328,7 +328,7 @@ Package, sign, and verify in one flow:
 
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
-  -EngineRoot <ue-path> `
+  -EngineRoot %UE_SOURCE_PATH% `
   -OutputDir Saved\PackageRelease\MyBuild `
   -CreateReleaseArchive `
   -SignRelease
@@ -341,7 +341,7 @@ Force split archives:
 
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
-  -EngineRoot <ue-path> `
+  -EngineRoot %UE_SOURCE_PATH% `
   -CreateReleaseArchive `
   -SplitSizeMB 1700
 ```
@@ -408,6 +408,9 @@ Generated release helper:
 
 ## Validation Checklist
 
+- the canonical packaging wrapper scopes Common Zen lifetime and bracketed
+  IPv6 proxy bypass to UAT, then restores the caller environment; no Windows
+  service is installed
 - pre-package guards passed (run automatically by the canonical script):
   - `scripts/ue/check/config/validate_shipping_ini.py`
   - `scripts/ue/check/data/validate_all.py`
@@ -434,6 +437,7 @@ Generated release helper:
 | --- | --- | --- |
 | Packaging fails with `AutomationTool exiting with ExitCode=5` | Stale staging or cook state | Delete `Saved/StagedBuilds/` and rerun the packaging script. |
 | Packaging fails because project modules cannot load in cook | engine/editor binaries were built against a different UE install | Build/package with the same engine root, or rebuild `AlisEditor` with the chosen engine first. |
+| Zen is alive but IoStore staging reports it unavailable | Common Zen inherited the cook lifetime, or .NET routed `[::1]` through a proxy | use the canonical packaging wrapper; it scopes the supported lifetime and proxy-bypass overrides to UAT. |
 | One content container exceeds 2 GiB | chunking rules collapsed too much content into one chunk | verify Asset Manager rules and Primary Asset Label ownership; GitHub transport limits are handled by split release archives, not `MaxChunkSize`. |
 | Release folder is huge because of debug files | staged `.pdb` files were included | keep `-nodebuginfo` enabled. |
 | Missing DLC chunks | incorrect Asset Manager chunk rules or Primary Asset Labels | verify `Config/DefaultGame.ini` chunk rules or project label assets assign expected chunk IDs. |

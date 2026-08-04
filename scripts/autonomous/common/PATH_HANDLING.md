@@ -10,7 +10,7 @@ Comprehensive guide for handling paths across Windows PowerShell and WSL (Window
 |----------|---------|-----|----------|
 | **Project root** | `<project-root>` | `<project-root>` | Use `Resolve-Path` |
 | **Path separator** | `\` (backslash) | `/` (forward slash) | Use `Join-Path` |
-| **UBT paths** | `<ue-path>` | `/mnt/c/UnrealEngine/UE_5.5` | Config + auto-detect |
+| **UBT paths** | `%UE_PATH%` | `%UE_PATH%` | Config + auto-detect |
 | **Git paths** | Works natively | Works natively | Both understand same format |
 | **Script invocation** | `powershell.exe script.ps1` | `powershell.exe script.ps1` | Identical |
 
@@ -75,7 +75,7 @@ $artifactsDir = "$ProjectRoot\artifacts\overnight"
 **Example:**
 ```bash
 # WSL calling Windows UBT
-cmd.exe /c "<ue-path>\Engine\Build\BatchFiles\Build.bat" \
+cmd.exe /c "%UE_PATH%\Engine\Build\BatchFiles\Build.bat" \
   AlisEditor Win64 Development \
   "<project-root>\Alis.uproject"  # Must be Windows path!
 ```
@@ -440,7 +440,7 @@ if ($ModuleName) {
 }
 
 # Step 7: Invoke UBT (Windows paths even from WSL)
-$ubtPath = "<ue-path>\Engine\Build\BatchFiles\Build.bat"
+$ubtPath = "%UE_PATH%\Engine\Build\BatchFiles\Build.bat"
 
 if ($IsLinux) {
     # WSL: Use cmd.exe to invoke Windows batch file

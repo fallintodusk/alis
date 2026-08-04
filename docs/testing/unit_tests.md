@@ -524,7 +524,7 @@ public class ProjectMenuMainTests : ModuleRules
 
 ### HTNPlanner Plugin - Best Practices
 
-**Path:** `<ue-path>/Engine/Plugins/AI/HTNPlanner/`
+**Path:** `%UE_PATH%/Engine/Plugins/AI/HTNPlanner/`
 
 **Test Module:** `HTNTestSuite` (UncookedOnly)
 **Test File:** `Source/HTNTestSuite/Private/HTNTest.cpp`

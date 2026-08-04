@@ -1,4 +1,7 @@
 @echo off
+REM Resolve UE_PATH from the conf SOT (stale-env hard fail included)
+call "%~dp0..\..\..\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 REM ============================================================================
 REM Test Configuration - Central config for all test scripts (SOLID: DIP)
 REM ============================================================================
@@ -7,7 +10,7 @@ REM Modify this file once to affect all tests (Open/Closed Principle).
 REM ============================================================================
 
 REM Unreal Engine Paths
-set "UE_ENGINE_ROOT=<ue-path>"
+set "UE_ENGINE_ROOT=%UE_PATH%"
 set "UE_EDITOR=%UE_ENGINE_ROOT%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "UE_EDITOR_CMD=%UE_ENGINE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 

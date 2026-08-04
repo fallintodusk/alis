@@ -210,7 +210,33 @@ OSM2World is currently MIT-licensed and can be evaluated as a permissive
 dependency. Pin the reviewed commit because older releases and documentation
 used different terms.
 
-### 6.3 Proprietary Accelerators
+### 6.3 Canonical Dependency Boundary
+
+The canonical contributor path must not require paid tools, assets, services,
+or subscriptions. Use either stock capabilities from the supported Unreal
+installation or no-cost third-party dependencies whose terms are approved for
+their integration and output boundary.
+
+Keep each dependency behind a capability adapter:
+
+```text
+canonical compiler or Unreal adapter
+    -> capability contract
+        -> stock Unreal implementation or separately installed provider
+```
+
+Do not commit or mirror separately licensed dependency payloads merely because
+they are free to download. Record the official source, reviewed version,
+hash, terms, and required capability. Developers obtain the dependency from
+its provider and accept its terms; a future launcher may automate verified
+acquisition without making provider types part of canonical data.
+
+Fab, Marketplace, Megascans, MetaHuman, and other restricted source content
+must not be required by the canonical build. A reference to an optional,
+separately acquired dependency must have a rights-cleared fallback and must
+not embed that dependency in a public artifact.
+
+### 6.4 Proprietary Accelerators
 
 The canonical rebuild path must work without proprietary authoring tools or
 hosted services. Such tools may accelerate local work only when their output
@@ -228,7 +254,7 @@ machine-count, and license requirements. Houdini may be an optional authoring
 accelerator; it must not be required to compile canonical ALIS world data or
 run CI.
 
-### 6.4 Deferred Infrastructure
+### 6.5 Deferred Infrastructure
 
 MinIO AIStor Free currently permits proprietary single-node use, including
 commercial production, but prohibits modification and redistribution. Its

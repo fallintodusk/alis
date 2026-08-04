@@ -1,9 +1,17 @@
-# Package Size Investigation - 4.4 GB vs 2.0 GB baseline
+# Project-wide Package Composition Investigation
 
 ## Problem
 
 Release payload grew from 2.0 GB (2026-03-10 baseline) to 4.4 GB (2026-04-17).
 All growth is in chunk 0 (boot/default). Chunk 1 (menu) is empty (1 entry).
+
+The clean open-world P0 gate later measured 3 ProjectWorld IoStore entries at
+5,661,893 bytes total, including exactly one 5,656,497-byte Kazan map entry.
+Its largest-entry report instead starts with MetaHuman runtime and Mutable
+payloads. This is therefore a project-wide dependency-closure concern, not an
+open-world P0 blocker. Reproduce the evidence with
+`scripts/ue/package/inspect_iostore.ps1`; generated receipts are evidence, not
+a maintained source of truth.
 
 ## Root Cause: Unmodified GASP Sample ABP
 
@@ -111,7 +119,7 @@ packages from pak without changing cook rules.
 ## Recommended Fix (When Ready)
 
 ### High impact: Clean ABP (saves ~1500 entries, ~1.5 GB estimated)
-Create `ABP_AlisLocomotion` that references ONLY:
+Create `ABP_ProjectLocomotion` that references ONLY:
 - PoseSearch databases needed for ALIS locomotion profiles
 - Animation notify logic (foley, traversal) as needed
 - NO ref to SandboxCharacter_CMC (the GASP sample Character BP)
@@ -125,7 +133,7 @@ would be excluded.
 Update Hero.json animClass from:
   `/MotionMatching/Blueprints/SandboxCharacter_CMC_ABP.SandboxCharacter_CMC_ABP_C`
 to:
-  `/<ProjectPlugin>/Animation/ABP_AlisLocomotion.ABP_AlisLocomotion_C`
+  `/<ProjectPlugin>/Animation/ABP_ProjectLocomotion.ABP_ProjectLocomotion_C`
 
 ### Medium impact: Audit MutableSample refs (saves ~363 entries)
 Check if CO_Character needs all 3 MetaHuman variants at runtime

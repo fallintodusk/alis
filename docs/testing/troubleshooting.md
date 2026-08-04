@@ -47,7 +47,7 @@ LogAutomationController: Error: Test Completed. Result={Fail}
 
 If you can't reproduce in PIE, run from CLI with extra logging:
 ```bash
-"<ue-path>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
+"%UE_PATH%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
   "<project-root>\Alis.uproject" ^
   -ExecCmds="Automation RunTests MyFailingTest" ^
   -unattended -nopause -NullRHI -log -LogCmds="LogProjectLoading Verbose"

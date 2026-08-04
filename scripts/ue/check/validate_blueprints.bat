@@ -12,9 +12,17 @@ if errorlevel 1 exit /b 1
 if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
 
 echo Compiling Blueprints...
+REM Scope: validate content ALIS owns. Excluded with reasons:
+REM   /Engine        - engine-owned content is not ours to fix (UE 5.8's own
+REM                    MoverExamples fails its own validation)
+REM   /MoverExamples - engine sample plugin content (same ownership)
+REM   /MutableSample - vendored Epic DEMO content (showcase GUI/anim assets
+REM                    read a property Mutable made private in 5.8; ALIS's
+REM                    real Mutable use is C++ via ProjectSkeletalCapabilities)
 "%UE_PATH%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" ^
     "%PROJECT_FILE%" ^
     -run=CompileAllBlueprints ^
+    -IgnoreFolder=/Engine,/MoverExamples,/MutableSample ^
     -unattended ^
     -nop4 ^
     -NoSound ^

@@ -1,7 +1,10 @@
 @echo off
 setlocal
+REM Resolve UE_PATH from the conf SOT (stale-env hard fail included)
+call "%~dp0..\..\..\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 set PROJ=<project-root>\Alis.uproject
-set UE=<ue-path>
+set UE=%UE_PATH%
 set OUT=<project-root>\Saved\Automation
 set LOG=<project-root>\Saved\Logs\unit_tests.log
 

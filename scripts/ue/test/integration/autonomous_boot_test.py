@@ -32,26 +32,14 @@ LOG_DIR = PROJECT_ROOT / "Saved" / "AutomatedTests"
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_FILE = LOG_DIR / f"boot_test_{TIMESTAMP}.log"
 
-# Find UE path (SOT: local.conf > conf)
-UE_PATH = Path("<ue-path>")
-config_dir = PROJECT_ROOT / "scripts" / "config"
-local_conf = config_dir / "ue_path.local.conf"
-default_conf = config_dir / "ue_path.conf"
-config_file = local_conf if local_conf.exists() else default_conf
-if config_file.exists():
-    with open(config_file) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("UE_PATH") and ("=" in line or ":=" in line):
-                if ":=" in line:
-                    path_str = line.split(":=", 1)[1].strip().strip('"').strip("'")
-                else:
-                    path_str = line.split("=", 1)[1].strip().strip('"').strip("'")
-                if not path_str.startswith("#"):
-                    UE_PATH = Path(path_str)
-                    break
+# Find UE path via the shared strict conf parser (SOT: scripts/config)
+sys.path.insert(0, str(PROJECT_ROOT / "scripts" / "config"))
+import ue_conf
+_conf_values, _ = ue_conf.resolve_conf(str(PROJECT_ROOT / "scripts" / "config"))
+sys.path.pop(0)
+UE_PATH = Path(_conf_values.get("UE_PATH") or os.environ.get("UE_PATH", ""))
+if not str(UE_PATH):
+    raise SystemExit("UE_PATH not resolved - set it in scripts/config/ue_path.conf")
 
 PROJECT_FILE = PROJECT_ROOT / "Alis.uproject"
 UE_EDITOR_CMD = UE_PATH / "Engine" / "Binaries" / "Win64" / "UnrealEditor-Cmd.exe"

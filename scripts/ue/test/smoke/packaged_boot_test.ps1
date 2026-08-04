@@ -35,10 +35,11 @@ if (-not (Test-Path $ExePath)) {
     exit 1
 }
 
-# Packaged logs go to <local-app-data>\Alis\Saved\Logs\
+# Keep standalone invocations compatible with UE's default saved location.
 if (-not $LogDir) {
     $LogDir = Join-Path $env:LOCALAPPDATA "Alis\Saved\Logs"
 }
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 
 Write-Host "============================================================================"
 Write-Host "  Packaged Build Hitch Smoke Test"
@@ -70,12 +71,37 @@ function Run-Session {
         Remove-Item $logFile -Force
     }
 
-    $launchArgs = "-log"
-    if ($ForceResolution) {
-        $launchArgs = "-windowed -ResX=1280 -ResY=720 -log"
+    $launchExe = $Exe
+    $launchArgs = @()
+    $gameName = [System.IO.Path]::GetFileNameWithoutExtension($Exe)
+    $binaryDir = Join-Path (Split-Path -Parent $Exe) "$gameName\Binaries\Win64"
+    if (Test-Path $binaryDir) {
+        $innerCandidates = @(
+            @(
+                "$gameName.exe",
+                "$gameName-Win64-Shipping.exe",
+                "$gameName-Win64-Test.exe",
+                "$gameName-Win64-Development.exe"
+            ) | ForEach-Object { Join-Path $binaryDir $_ } |
+                Where-Object { Test-Path -LiteralPath $_ }
+        )
+        if ($innerCandidates.Count -ne 1) {
+            throw "Expected one staged game executable under ${binaryDir}; found $($innerCandidates.Count)"
+        }
+
+        # Own the monolithic game process instead of its short-lived bootstrap.
+        $launchExe = $innerCandidates[0]
+        $launchArgs += $gameName
     }
 
-    $process = Start-Process -FilePath $Exe -ArgumentList $launchArgs -PassThru
+    if ($ForceResolution) {
+        $launchArgs += @("-windowed", "-ResX=1280", "-ResY=720")
+    }
+    # Shipping uses the per-user saved directory by default. Force each gate's
+    # log into its caller-owned evidence root so analysis cannot read stale data.
+    $launchArgs += @("-log", ('-abslog="{0}"' -f $logFile))
+
+    $process = Start-Process -FilePath $launchExe -ArgumentList $launchArgs -PassThru
 
     Write-Host "[2/4] Waiting ${Timeout}s for boot and gameplay..."
     $elapsed = 0
@@ -99,7 +125,7 @@ function Run-Session {
 
     Write-Host "[4/4] Analyzing log..."
 
-    $results = @{
+    $results = [pscustomobject]@{
         Label = $Label
         Crashed = $false
         PSOHitches = 0
@@ -107,6 +133,7 @@ function Run-Session {
         ShaderMapErrors = 0
         MutableOverflows = 0
         CvarWarnings = 0
+        ContractErrors = 0
         ExitCode = $process.ExitCode
     }
 
@@ -143,6 +170,10 @@ function Run-Session {
     # CVar spam
     $results.CvarWarnings = ([regex]::Matches($logContent, "Failed to find console variable")).Count
 
+    # Runtime content must target the active engine line.
+    $results.ContractErrors = ([regex]::Matches(
+        $logContent, "engine_build_id incompatible")).Count
+
     return $results
 }
 
@@ -175,6 +206,7 @@ function Show-Results {
     Write-Host "    ShaderMap errors : $($r.ShaderMapErrors)"
     Write-Host "    Mutable overflows: $($r.MutableOverflows)"
     Write-Host "    CVar warnings    : $($r.CvarWarnings)"
+    Write-Host "    Contract errors  : $($r.ContractErrors)"
     Write-Host "    Exit code        : $($r.ExitCode)"
 }
 
@@ -200,18 +232,30 @@ Write-Host "====================================================================
 
 # Determine pass/fail
 $failed = $false
+$gatedRuns = @($run1)
+if ($run2) {
+    $gatedRuns += $run2
+}
+$crashedRuns = @($gatedRuns | Where-Object { $_.Crashed })
+$shaderMapErrors = ($gatedRuns | Measure-Object -Property ShaderMapErrors -Sum).Sum
+$contractErrors = ($gatedRuns | Measure-Object -Property ContractErrors -Sum).Sum
+$cvarWarnings = ($gatedRuns | Measure-Object -Property CvarWarnings -Sum).Sum
+$mutableOverflows = ($gatedRuns | Measure-Object -Property MutableOverflows -Sum).Sum
 
-if ($run1.Crashed) {
+if ($crashedRuns.Count -gt 0) {
     Write-Host "  TEST RESULT: FAILED (crash detected)" -ForegroundColor Red
     $failed = $true
-} elseif ($run1.ShaderMapErrors -gt 0) {
-    Write-Host "  TEST RESULT: FAILED ($($run1.ShaderMapErrors) invalid ShaderMap errors)" -ForegroundColor Red
+} elseif ($shaderMapErrors -gt 0) {
+    Write-Host "  TEST RESULT: FAILED ($shaderMapErrors invalid ShaderMap errors)" -ForegroundColor Red
     $failed = $true
-} elseif ($run1.CvarWarnings -gt 100) {
-    Write-Host "  TEST RESULT: FAILED ($($run1.CvarWarnings) CVar warnings - per-frame spam)" -ForegroundColor Red
+} elseif ($contractErrors -gt 0) {
+    Write-Host "  TEST RESULT: FAILED (runtime engine contract rejected)" -ForegroundColor Red
     $failed = $true
-} elseif ($run1.MutableOverflows -gt 0) {
-    Write-Host "  TEST RESULT: WARNING ($($run1.MutableOverflows) Mutable budget overflows)" -ForegroundColor Yellow
+} elseif ($cvarWarnings -gt 100) {
+    Write-Host "  TEST RESULT: FAILED ($cvarWarnings CVar warnings - per-frame spam)" -ForegroundColor Red
+    $failed = $true
+} elseif ($mutableOverflows -gt 0) {
+    Write-Host "  TEST RESULT: WARNING ($mutableOverflows Mutable budget overflows)" -ForegroundColor Yellow
 } else {
     Write-Host "  TEST RESULT: PASSED" -ForegroundColor Green
 }

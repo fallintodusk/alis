@@ -12,6 +12,7 @@ This router focuses on the script categories that are part of the public source 
 - Automated tests: [ue/test/README.md](ue/test/README.md)
 - Standalone runtime checks: [ue/standalone/README.md](ue/standalone/README.md)
 - Run helpers: [ue/run/README.md](ue/run/README.md)
+- Canonical world realization: [ue/world/README.md](ue/world/README.md)
 - Git and public mirroring: [git/README.md](git/README.md)
 
 ## What Lives Here

@@ -20,12 +20,15 @@ One-time setup scripts for new developers. Run these after cloning the repositor
 
 ### setup_ue_env.ps1
 
-**Purpose:** Set UE_PATH environment variable for VS Code workspace.
+**Purpose:** Derive machine-local engine state from the repository SOT.
 
 **What it does:**
 - Reads UE_PATH from `scripts/config/ue_path.conf` (single source of truth)
 - Sets persistent User environment variable in Windows registry
-- Updates `.vscode/*.json` files to use `${env:UE_PATH}` (or actual path for compileCommands)
+- Updates `.vscode`, local agent settings, and MCP configuration
+- Moves only the previously selected engine root; unrelated grants are preserved
+- Prepares and validates every file, rolls back partial replacements, then
+  updates the environment cache last
 - Safe to run multiple times (skips if already set correctly)
 
 **Usage:**

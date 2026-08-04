@@ -69,14 +69,6 @@ if (-not $EngineRoot) {
 . (Join-Path $ConfigDir "Sync-UBTConfig.ps1")
 Sync-UBTConfig -ProjectRoot $ProjectRoot
 
-# Detect source vs installed engine for Target.cs diagnostics gating
-$InstalledBuildMarker = Join-Path $EngineRoot "Engine\Build\InstalledBuild.txt"
-if (Test-Path $InstalledBuildMarker) {
-    Remove-Item Env:ENGINE_FROM_SOURCE -ErrorAction SilentlyContinue
-} else {
-    $env:ENGINE_FROM_SOURCE = "1"
-}
-
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
 if (-not (Test-Path $RunUAT)) {
     throw "RunUAT.bat not found under engine root: $EngineRoot"
@@ -196,8 +188,28 @@ if (Test-Path $StagingCheckScript) {
 Write-Host "Pre-package validation passed." -ForegroundColor Green
 Write-Host ""
 
-& $RunUAT @Args 2>&1 | Tee-Object -FilePath $LogFile
-$ExitCode = $LASTEXITCODE
+# UE otherwise ties Common Zen to the cook process, which exits before stage.
+# Scope the supported lifetime override to this UAT process tree only.
+$PreviousZenLifetime = [Environment]::GetEnvironmentVariable("UE-ZenLimitProcessLifetime", "Process")
+$PreviousNoProxy = [Environment]::GetEnvironmentVariable("NO_PROXY", "Process")
+$HasBracketedLoopback = @($PreviousNoProxy -split ',' | ForEach-Object { $_.Trim() }) -contains '[::1]'
+$UatNoProxy = if ([string]::IsNullOrWhiteSpace($PreviousNoProxy)) {
+    '[::1]'
+} elseif ($HasBracketedLoopback) {
+    $PreviousNoProxy
+} else {
+    "$PreviousNoProxy,[::1]"
+}
+try {
+    [Environment]::SetEnvironmentVariable("UE-ZenLimitProcessLifetime", "false", "Process")
+    # .NET proxy matching requires brackets for Zen's IPv6 loopback URL.
+    [Environment]::SetEnvironmentVariable("NO_PROXY", $UatNoProxy, "Process")
+    & $RunUAT @Args 2>&1 | Tee-Object -FilePath $LogFile
+    $ExitCode = $LASTEXITCODE
+} finally {
+    [Environment]::SetEnvironmentVariable("UE-ZenLimitProcessLifetime", $PreviousZenLifetime, "Process")
+    [Environment]::SetEnvironmentVariable("NO_PROXY", $PreviousNoProxy, "Process")
+}
 
 if ($ExitCode -ne 0) {
     Write-Host "[ERROR] Packaging failed with exit code $ExitCode" -ForegroundColor Red

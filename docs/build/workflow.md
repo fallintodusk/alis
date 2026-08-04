@@ -1,6 +1,6 @@
 # Build Commands & Targets
 
-Build system reference for the Alis UE 5.5 project.
+Build system reference for the configured ALIS Unreal Engine baseline.
 
 ---
 
@@ -37,20 +37,11 @@ scripts/ue/build/build.bat AlisServer Win64 Development
 scripts/ue/build/rebuild_module_safe.ps1 -ModuleName ProjectMenuUI
 ```
 
-### Via Unreal Build Tool (UBT)
-```bash
-# Build editor
-"<ue-path>\Engine\Build\BatchFiles\Build.bat" AlisEditor Win64 Development "<project-root>\Alis.uproject"
+### Engine selection
 
-# Build client
-"<ue-path>\Engine\Build\BatchFiles\Build.bat" Alis Win64 Development "<project-root>\Alis.uproject"
-
-# Build server
-"<ue-path>\Engine\Build\BatchFiles\Build.bat" AlisServer Win64 Development "<project-root>\Alis.uproject"
-
-# Build single module (fast iteration)
-"<ue-path>\Engine\Build\BatchFiles\Build.bat" AlisEditor Win64 Development "<project-root>\Alis.uproject" -Module=ProjectBoot
-```
+The project build wrappers resolve the launcher-installed `UE_PATH`. Do not
+invoke UBT directly or point development builds at `UE_SOURCE_PATH`; the source
+engine is reserved for release-only targets and packaging.
 
 ### Via Visual Studio
 1. Open `Alis.sln`
@@ -84,11 +75,7 @@ scripts/ue/build/rebuild_module_safe.ps1 -ModuleName ProjectMenuUI
 Rebuild single module instead of entire project:
 
 ```powershell
-# Via script
 scripts/ue/build/rebuild_module_safe.ps1 -ModuleName ProjectMenuUI
-
-# Via UBT
-"<ue-path>\Engine\Build\BatchFiles\Build.bat" AlisEditor Win64 Development "<project-root>\Alis.uproject" -Module=ProjectMenuUI
 ```
 
 **When to use:**
@@ -115,7 +102,7 @@ Compile C++ changes while editor is running:
 - Recommend full rebuild for structural changes
 
 ### Live Coding (Experimental)
-UE 5.5 live coding feature (may be unstable):
+Unreal Engine Live Coding (may be unstable):
 
 ```bash
 # Enable in editor: Edit -> Editor Preferences -> General -> Live Coding
@@ -168,8 +155,7 @@ If you work from WSL, the Makefile includes wrappers to invoke Windows UE tools 
 
 - Quick example (from WSL)
   - `make check` -> Runs UHT, then prints PowerShell commands for BP/DataValidation
-  - To execute BP compile in PowerShell:
-    - `"<ue-path>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "<project-root>\Alis.uproject" -run=CompileAllBlueprints -unattended -nop4 -CrashForUAT -log="<project-root>\Saved\Validation\Reports\bp_compile.log"`
+  - To execute BP compile in PowerShell: `scripts\ue\check\validate_blueprints.bat`
 
 Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL; this is a display artifact and does not affect execution in PowerShell.
 
@@ -254,14 +240,14 @@ Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL;
  ```
  
  ### "UE path not found"
- **Cause:** UE 5.5 not detected
+ **Cause:** the configured Unreal Engine is not detected
  
  **Fix:**
  ```bash
  # Create config
  cp scripts/config/ue_path.conf.example scripts/config/ue_path.conf
  
- # Edit: UE_PATH="<ue-path>"
+ # Edit: UE_PATH="%UE_PATH%"
  ```
  
  ### GameFeature Plugin Not Compiling
@@ -294,11 +280,11 @@ Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL;
 
 **Jenkins/GitHub Actions:**
 ```bash
-# Headless build (CI)
-"<ue-path>\Engine\Build\BatchFiles\Build.bat" AlisEditor Win64 Development "<project-root>\Alis.uproject" -NoHotReloadFromIDE
+# Headless development build (launcher UE_PATH)
+scripts/ue/standalone/build.ps1
 
-# Package for distribution
-"<ue-path>\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun -project="<project-root>/Alis.uproject" -platform=Win64 -configuration=Shipping -cook -stage -pak -archive
+# Package for distribution (source UE_SOURCE_PATH)
+scripts/ue/package/package_release_source.bat
 ```
 
 ---

@@ -3,6 +3,9 @@ REM Automated GameFeature Registration Test
 REM Opens editor, waits for full initialization, checks logs, then closes
 
 setlocal enabledelayedexpansion
+REM Resolve UE_PATH from the conf SOT (stale-env hard fail included)
+call "%~dp0..\..\..\config\resolve_ue_path.bat"
+if errorlevel 1 exit /b 1
 
 echo ========================================
 echo GameFeature Registration Test
@@ -10,7 +13,7 @@ echo ========================================
 echo.
 
 REM Configuration
-set "UE_EDITOR=<ue-path>\Engine\Binaries\Win64\UnrealEditor.exe"
+set "UE_EDITOR=%UE_PATH%\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT_FILE=<project-root>\Alis.uproject"
 set "LOG_FILE=<project-root>\Saved\Logs\Alis.log"
 set "TIMEOUT_SECONDS=60"

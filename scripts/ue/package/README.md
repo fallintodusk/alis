@@ -34,18 +34,26 @@ Defaults:
 - uses `-skipencryption` for public release packaging
 - uses `1700 MiB` split threshold for GitHub-safe archive transport
 - writes a `package_summary.txt` into the output directory
+
+### `inspect_iostore.ps1`
+
+Lists every packaged IoStore container through the configured engine's
+`UnrealPak`, proves one exact required package entry, and writes a structured
+receipt with the largest listed entries. It does not infer payload presence
+from Asset Registry text or a cook configuration mention. Listed ProjectWorld
+bytes are observability, not a dependency-closure or without-world delta.
 - can sign the exact output directory after archive creation with `-SignRelease`
 - with `-SignRelease`, moves `Windows/` and summary files under `debug/` so the release root is upload-ready
 
 Examples:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 -EngineRoot <ue-path>
+.\scripts\ue\package\package_release.ps1 -EngineRoot %UE_SOURCE_PATH%
 ```
 
 ```powershell
 .\scripts\ue\package\package_release.ps1 `
-  -EngineRoot <ue-path> `
+  -EngineRoot %UE_SOURCE_PATH% `
   -CreateReleaseArchive `
   -SignRelease `
   -SplitSizeMB 1700
@@ -71,7 +79,7 @@ Windows wrapper for `package_release.ps1`.
 Example:
 
 ```bat
-scripts\ue\package\package_release.bat -EngineRoot <ue-path> -CreateReleaseArchive
+scripts\ue\package\package_release.bat -EngineRoot %UE_SOURCE_PATH% -CreateReleaseArchive
 ```
 
 ### `sign_release.ps1`

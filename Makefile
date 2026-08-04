@@ -409,11 +409,13 @@ else
 	@$(if $(MIRROR_GIT_SSH_COMMAND),set "MIRROR_GIT_SSH_COMMAND=$(MIRROR_GIT_SSH_COMMAND)" && )powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
 endif
 
-# Source engine path for Shipping builds (override via UE_SOURCE_PATH=...)
-UE_SOURCE_PATH ?= G:/UnrealEngine-5.7
+# Source engine path comes from scripts/config/ue_path.conf via ue_env.mk
+# (UE_SOURCE_PATH key). No default here - SOT only. The guard below fails
+# ONLY this target, never unrelated make commands.
 
 # Package Shipping build with source engine + release archive + signed trust files
 package:
+	@$(if $(strip $(UE_SOURCE_PATH)),,$(error UE_SOURCE_PATH not set - declare it in scripts/config/ue_path.conf (source-release packaging requires an explicit source engine root)))
 	@echo "Packaging Shipping build (source engine, signed release archive)..."
 	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
 		-File "scripts/ue/package/package_release.ps1" \
