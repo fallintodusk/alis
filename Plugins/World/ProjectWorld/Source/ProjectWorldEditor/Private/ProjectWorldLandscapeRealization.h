@@ -9,6 +9,7 @@ struct FProjectWorldCanonicalBundle;
 struct FProjectWorldLandscapeLayout;
 struct FProjectWorldRealizationResult;
 class AActor;
+class UMaterialInterface;
 class UWorld;
 
 struct FProjectWorldLandscapeHeightfield
@@ -34,7 +35,8 @@ namespace ProjectWorldLandscapeRealization
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldLandscapeLayout& Layout,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError);
+		FString& OutError,
+		UMaterialInterface* LandscapeMaterial = nullptr);
 
 	bool ClearGeneratedLayers(
 		UWorld* World,

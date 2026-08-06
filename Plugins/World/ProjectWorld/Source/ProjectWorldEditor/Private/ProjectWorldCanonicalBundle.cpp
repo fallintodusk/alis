@@ -663,7 +663,8 @@ namespace ProjectWorldCanonical
 					Geometry,
 					Feature.GeometryType,
 					Feature.GeometryPoints,
-					Validation))
+					Validation,
+					&Feature.GeometryParts))
 			{
 				return false;
 			}

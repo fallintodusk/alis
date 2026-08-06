@@ -5,10 +5,12 @@
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldRealizeCommandlet.h"
 
 #include "Editor.h"
 #include "EngineUtils.h"
 #include "Landscape.h"
+#include "LandscapeComponent.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeEdit.h"
 #include "LandscapeEditLayer.h"
@@ -16,6 +18,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Materials/MaterialInstance.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -227,6 +230,134 @@ bool FProjectWorldCrossCellRoadTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldGeneratedCellPlacementTest,
+	"Project.World.Realization.GeneratedCellPlacementMatchesLandscape",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldGeneratedCellPlacementTest::RunTest(const FString& Parameters)
+{
+	FProjectWorldCanonicalBundle Bundle;
+	Bundle.GridId = TEXT("placement_grid");
+	Bundle.InputsHash = TEXT("placement_input");
+	Bundle.OriginMeters = FVector2D(100.0, 200.0);
+	Bundle.CellQuads = FIntPoint(7, 7);
+	Bundle.SampleSpacingMeters = FVector2D(1.0, 1.0);
+	Bundle.HeightQuantizationMeters = 0.1;
+	Bundle.CoordinateQuantizationMeters = 0.01;
+	for (int32 CellX = 0; CellX < 2; ++CellX)
+	{
+		FProjectWorldCanonicalCell Cell;
+		Cell.CellId = FString::Printf(TEXT("cell_%d"), CellX);
+		Cell.CellX = CellX;
+		Cell.CellY = 0;
+		Cell.Bounds = FVector4d(100.0 + CellX * 7.0, 200.0, 107.0 + CellX * 7.0, 207.0);
+		Cell.Terrain.Bounds = Cell.Bounds;
+		Cell.Terrain.SampleSpacing = Bundle.SampleSpacingMeters;
+		Cell.Terrain.SamplesX = 8;
+		Cell.Terrain.SamplesY = 8;
+		Cell.Terrain.HeightsMeters.Init(0.0, 64);
+		Cell.Terrain.ArtifactHash = FString::Printf(TEXT("terrain_%d"), CellX);
+		Bundle.Cells.Add(MoveTemp(Cell));
+	}
+
+	FProjectWorldCanonicalFeature Road;
+	Road.FeatureId = TEXT("alis:test:road:placement");
+	Road.FeatureClass = TEXT("road");
+	Road.WidthMeters = 1.0;
+	for (int32 CellX = 0; CellX < 2; ++CellX)
+	{
+		FProjectWorldCanonicalRepresentation Representation;
+		Representation.CellId = Bundle.Cells[CellX].CellId;
+		Representation.Kind = TEXT("road_fragment");
+		Representation.Parts.Add({
+			FVector2D(102.0 + CellX * 5.0, 203.0),
+			FVector2D(107.0 + CellX * 5.0, 203.0)});
+		Road.Representations.Add(MoveTemp(Representation));
+	}
+	Bundle.Features.Add(Road.FeatureId, MoveTemp(Road));
+
+	UWorld* World = GEditor->NewMap(false);
+	const FProjectWorldLandscapeLayout Layout =
+		FProjectWorldCanonicalLoader::SelectLandscapeLayout(Bundle);
+	FProjectWorldRealizationResult Result;
+	FString Error;
+	UMaterialInterface* PresentationMaterial = LoadObject<UMaterialInterface>(
+		nullptr,
+		TEXT("/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial"));
+	TestNotNull(TEXT("Landscape material test fixture resolves."), PresentationMaterial);
+	TestTrue(
+		TEXT("Landscape is created for the placement fixture."),
+		ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World,
+			Bundle,
+			Layout,
+			Result,
+			Error,
+			PresentationMaterial));
+	TestTrue(
+		TEXT("Generated cells are created for the placement fixture."),
+		ProjectWorldGeneratedGeometry::CreateOwnedActors(World, Bundle, false, 1, 0, Result, Error));
+
+	ALandscape* Landscape = nullptr;
+	for (TActorIterator<ALandscape> It(World); It; ++It)
+	{
+		if (ProjectWorldLandscapeRealization::IsGeneratedLandscape(*It))
+		{
+			Landscape = *It;
+			break;
+		}
+	}
+	TestNotNull(TEXT("Generated Landscape exists for bounds comparison."), Landscape);
+	if (Landscape == nullptr)
+	{
+		return false;
+	}
+	for (const ULandscapeComponent* Component : Landscape->LandscapeComponents)
+	{
+		const UMaterialInstance* MaterialInstance = Component->GetMaterialInstance(0, false);
+		TestNotNull(TEXT("Landscape component material instance is generated."), MaterialInstance);
+		if (MaterialInstance != nullptr)
+		{
+			TestTrue(
+				TEXT("Landscape component instance uses the assigned material base."),
+				MaterialInstance->GetMaterial() == PresentationMaterial->GetMaterial());
+		}
+	}
+	const FBox LandscapeBounds = Landscape->GetComponentsBoundingBox(true);
+	for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+	{
+		AActor* CellActor = nullptr;
+		const FName CellTag(*FString::Printf(TEXT("ProjectWorld.Cell=%s"), *Cell.CellId));
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (It->Tags.Contains(CellTag))
+			{
+				CellActor = *It;
+				break;
+			}
+		}
+		TestNotNull(TEXT("Generated cell actor exists."), CellActor);
+		if (CellActor == nullptr)
+		{
+			return false;
+		}
+		const FVector ExpectedOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+			Bundle,
+			FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
+		TestTrue(TEXT("Generated cell actor keeps its canonical origin."), CellActor->GetActorLocation().Equals(ExpectedOrigin));
+		const FBox CellBounds = CellActor->GetComponentsBoundingBox(true);
+		TestTrue(TEXT("Generated cell has valid world bounds."), CellBounds.IsValid != 0);
+		TestTrue(
+			TEXT("Generated cell X bounds remain inside the Landscape."),
+			CellBounds.Min.X >= LandscapeBounds.Min.X - 1.0 && CellBounds.Max.X <= LandscapeBounds.Max.X + 1.0);
+		TestTrue(
+			TEXT("Generated cell Y bounds remain inside the Landscape."),
+			CellBounds.Min.Y >= LandscapeBounds.Min.Y - 1.0 && CellBounds.Max.Y <= LandscapeBounds.Max.Y + 1.0);
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldAuthoredLandscapeLayerTest,
 	"Project.World.Realization.AuthoredLandscapeLayerSurvives",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -372,6 +503,48 @@ bool FProjectWorldCanonicalOutputIntegrityTest::RunTest(const FString& Parameter
 		TEXT("Parent traversal cannot escape the receipt root."),
 		FProjectWorldCanonicalLoader::ResolveOwnedOutputPath(Root, TEXT("../cell.json"), Resolved));
 	IFileManager::Get().Delete(*Payload, false, true, true);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldCommandletBoundaryTest,
+	"Project.World.Realization.CommandletBoundary",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldCommandletBoundaryTest::RunTest(const FString& Parameters)
+{
+	UProjectWorldRealizeCommandlet* Commandlet = NewObject<UProjectWorldRealizeCommandlet>();
+	const FString MissingCompile = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation/MissingCompileResult.json"));
+	const FString UnsafeResult = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world/unsafe_realization.json"));
+	const FString SafeResult = FPaths::Combine(
+		FPaths::ProjectSavedDir(),
+		TEXT("Validation/WorldRealization/Automation/delete_without_presentation.json"));
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(SafeResult), true);
+	AddExpectedError(
+		TEXT("Unsafe result path"),
+		EAutomationExpectedErrorFlags::Contains,
+		1);
+	AddExpectedError(
+		TEXT("Rejected - code=receipt-read"),
+		EAutomationExpectedErrorFlags::Contains,
+		1);
+	TestEqual(
+		TEXT("The real commandlet rejects evidence outside its owned validation root."),
+		Commandlet->Main(FString::Printf(
+			TEXT("-CompileResult=\"%s\" -Result=\"%s\" -Mode=delete"),
+			*MissingCompile,
+			*UnsafeResult)),
+		2);
+	TestFalse(TEXT("Unsafe commandlet evidence is not emitted."), IFileManager::Get().FileExists(*UnsafeResult));
+	TestEqual(
+		TEXT("Delete reaches canonical validation without a presentation profile."),
+		Commandlet->Main(FString::Printf(
+			TEXT("-CompileResult=\"%s\" -Result=\"%s\" -Mode=delete"),
+			*MissingCompile,
+			*SafeResult)),
+		4);
+	TestTrue(TEXT("Safe commandlet evidence is emitted."), IFileManager::Get().FileExists(*SafeResult));
+	IFileManager::Get().Delete(*SafeResult, false, true, true);
 	return true;
 }
 

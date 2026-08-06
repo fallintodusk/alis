@@ -12,6 +12,7 @@
 #include "KismetProceduralMeshLibrary.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/SecureHash.h"
+#include "NavigationSystem.h"
 #include "ProceduralMeshComponent.h"
 
 namespace ProjectWorldGeneratedGeometry
@@ -111,7 +112,8 @@ namespace ProjectWorldGeneratedGeometry
 		const FVector& ActorOrigin,
 		UProceduralMeshComponent* Mesh,
 		int32& InOutSection,
-		UMaterialInterface* Material)
+		UMaterialInterface* Material,
+		const FLinearColor& Color)
 	{
 		TArray<FVector> Vertices;
 		TArray<int32> Triangles;
@@ -139,7 +141,7 @@ namespace ProjectWorldGeneratedGeometry
 				Triangles.Append({A, B, C, B, D, C});
 			}
 		}
-		CommitSection(Mesh, InOutSection++, Vertices, Triangles, FLinearColor(0.18f, 0.32f, 0.12f), true, Material);
+		CommitSection(Mesh, InOutSection++, Vertices, Triangles, Color, true, Material);
 	}
 
 	bool BuildRoadSection(
@@ -149,11 +151,17 @@ namespace ProjectWorldGeneratedGeometry
 		const FVector& ActorOrigin,
 		UProceduralMeshComponent* Mesh,
 		int32& InOutSection,
-		UMaterialInterface* Material)
+		UMaterialInterface* Material,
+		const FLinearColor& Color,
+		bool bCreateCollision)
 	{
 		TArray<FVector> Vertices;
 		TArray<int32> Triangles;
 		const double HalfWidth = FMath::Max(Feature.WidthMeters * 0.5, 1.0);
+		const double DrapeStepMeters = FMath::Max(
+			FMath::Min(Cell.Terrain.SampleSpacing.X, Cell.Terrain.SampleSpacing.Y) * 0.25,
+			0.25);
+		constexpr double SurfaceOffsetMeters = 0.65;
 		for (const FProjectWorldCanonicalRepresentation& Representation : Feature.Representations)
 		{
 			if (Representation.CellId != Cell.CellId ||
@@ -174,14 +182,23 @@ namespace ProjectWorldGeneratedGeometry
 						continue;
 					}
 					const FVector2D Side(-Direction.Y * HalfWidth, Direction.X * HalfWidth);
-					const double StartHeight = SampleTerrain(Cell, Start.X, Start.Y) + 0.05;
-					const double EndHeight = SampleTerrain(Cell, End.X, End.Y) + 0.05;
+					const int32 StepCount = FMath::Max(
+						1,
+						FMath::CeilToInt((End - Start).Length() / DrapeStepMeters));
 					const int32 Base = Vertices.Num();
-					Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Start + Side, StartHeight)) - ActorOrigin);
-					Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Start - Side, StartHeight)) - ActorOrigin);
-					Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(End + Side, EndHeight)) - ActorOrigin);
-					Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(End - Side, EndHeight)) - ActorOrigin);
-					Triangles.Append({Base, Base + 1, Base + 2, Base + 1, Base + 3, Base + 2});
+					for (int32 StepIndex = 0; StepIndex <= StepCount; ++StepIndex)
+					{
+						const double Alpha = static_cast<double>(StepIndex) / StepCount;
+						const FVector2D Center = FMath::Lerp(Start, End, Alpha);
+						const double Height = SampleTerrain(Cell, Center.X, Center.Y) + SurfaceOffsetMeters;
+						Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Center + Side, Height)) - ActorOrigin);
+						Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Center - Side, Height)) - ActorOrigin);
+						if (StepIndex > 0)
+						{
+							const int32 Current = Base + StepIndex * 2;
+							Triangles.Append({Current - 2, Current - 1, Current, Current - 1, Current + 1, Current});
+						}
+					}
 				}
 			}
 		}
@@ -190,7 +207,7 @@ namespace ProjectWorldGeneratedGeometry
 		{
 			return false;
 		}
-		CommitSection(Mesh, InOutSection++, Vertices, Triangles, FLinearColor(0.08f, 0.08f, 0.08f), false, Material);
+		CommitSection(Mesh, InOutSection++, Vertices, Triangles, Color, bCreateCollision, Material);
 		return true;
 	}
 
@@ -201,74 +218,59 @@ namespace ProjectWorldGeneratedGeometry
 		const FVector& ActorOrigin,
 		UProceduralMeshComponent* Mesh,
 		int32& InOutSection,
-		UMaterialInterface* Material)
+		UMaterialInterface* Material,
+		const FLinearColor& Color)
 	{
-		if (Feature.OwnerCellId != Cell.CellId || Feature.GeometryPoints.Num() < 4)
+		if (Feature.OwnerCellId != Cell.CellId || Feature.GeometryParts.IsEmpty())
 		{
 			return false;
 		}
 
-		FBox2D Bounds(ForceInit);
-		for (const FVector2D& Point : Feature.GeometryPoints)
-		{
-			Bounds += Point;
-		}
-		if (!Bounds.bIsValid || Bounds.GetSize().GetMin() <= 0.0)
-		{
-			return false;
-		}
-
-		const FVector2D Center = Bounds.GetCenter();
-		const double BaseHeight = SampleTerrain(Cell, Center.X, Center.Y);
-		const double TopHeight = BaseHeight + FMath::Max(Feature.HeightMeters, 3.0);
-		const FVector2D Min = Bounds.Min;
-		const FVector2D Max = Bounds.Max;
-		const FVector CanonicalVertices[] = {
-			FVector(Min.X, Min.Y, BaseHeight), FVector(Max.X, Min.Y, BaseHeight),
-			FVector(Max.X, Max.Y, BaseHeight), FVector(Min.X, Max.Y, BaseHeight),
-			FVector(Min.X, Min.Y, TopHeight), FVector(Max.X, Min.Y, TopHeight),
-			FVector(Max.X, Max.Y, TopHeight), FVector(Min.X, Max.Y, TopHeight)
-		};
 		TArray<FVector> Vertices;
-		for (const FVector& Vertex : CanonicalVertices)
+		TArray<int32> Triangles;
+		for (const TArray<FVector2D>& Part : Feature.GeometryParts)
 		{
-			Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, Vertex) - ActorOrigin);
-		}
-		TArray<int32> Triangles = {
-			0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7,
-			0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5,
-			2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7
-		};
-		CommitSection(Mesh, InOutSection++, Vertices, Triangles, FLinearColor(0.42f, 0.38f, 0.32f), true, Material);
-		return true;
-	}
+			FBox2D Bounds(ForceInit);
+			for (const FVector2D& Point : Part)
+			{
+				Bounds += Point;
+			}
+			if (Part.Num() < 4 || !Bounds.bIsValid || Bounds.GetSize().GetMin() <= 0.0)
+			{
+				continue;
+			}
 
-	bool RemoveOwnedActors(
-		UWorld* World,
-		bool bPreserveLandscape,
-		FProjectWorldRealizationResult& OutResult)
-	{
-		TArray<AActor*> OwnedActors;
-		for (TActorIterator<AActor> It(World); It; ++It)
-		{
-			if (It->Tags.Contains(GeneratedTag) &&
-				!(bPreserveLandscape && ProjectWorldLandscapeRealization::IsGeneratedLandscape(*It)))
+			const FVector2D Center = Bounds.GetCenter();
+			const double BaseHeight = SampleTerrain(Cell, Center.X, Center.Y);
+			const double TopHeight = BaseHeight + FMath::Max(Feature.HeightMeters, 3.0);
+			const FVector2D Min = Bounds.Min;
+			const FVector2D Max = Bounds.Max;
+			const FVector CanonicalVertices[] = {
+				FVector(Min.X, Min.Y, BaseHeight), FVector(Max.X, Min.Y, BaseHeight),
+				FVector(Max.X, Max.Y, BaseHeight), FVector(Min.X, Max.Y, BaseHeight),
+				FVector(Min.X, Min.Y, TopHeight), FVector(Max.X, Min.Y, TopHeight),
+				FVector(Max.X, Max.Y, TopHeight), FVector(Min.X, Max.Y, TopHeight)
+			};
+			const int32 Base = Vertices.Num();
+			for (const FVector& Vertex : CanonicalVertices)
 			{
-				OwnedActors.Add(*It);
+				Vertices.Add(FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, Vertex) - ActorOrigin);
 			}
-			else
+			const int32 BoxTriangles[] = {
+				0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7,
+				0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5,
+				2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7
+			};
+			for (const int32 Index : BoxTriangles)
 			{
-				++OutResult.PreservedActorCount;
+				Triangles.Add(Base + Index);
 			}
 		}
-		for (AActor* Actor : OwnedActors)
+		if (Vertices.IsEmpty())
 		{
-			if (!World->EditorDestroyActor(Actor, true))
-			{
-				return false;
-			}
-			++OutResult.RemovedActorCount;
+			return false;
 		}
+		CommitSection(Mesh, InOutSection++, Vertices, Triangles, Color, true, Material);
 		return true;
 	}
 
@@ -347,14 +349,22 @@ namespace ProjectWorldGeneratedGeometry
 		int32 MaxRoadFeatures,
 		int32 MaxBuildingFeatures,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+		const FProjectWorldGeometryPresentation* Presentation,
+		const FString& CollisionRoadFeatureId)
 	{
-		UMaterialInterface* TerrainMaterial = LoadObject<UMaterialInterface>(
+		UMaterialInterface* DefaultTerrainMaterial = LoadObject<UMaterialInterface>(
 			nullptr,
 			TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
-		UMaterialInterface* ShapeMaterial = LoadObject<UMaterialInterface>(
+		UMaterialInterface* DefaultShapeMaterial = LoadObject<UMaterialInterface>(
 			nullptr,
 			TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+		const FProjectWorldGeometryPresentation DefaultPresentation{
+			DefaultTerrainMaterial,
+			DefaultShapeMaterial,
+			DefaultShapeMaterial};
+		const FProjectWorldGeometryPresentation& Style =
+			Presentation == nullptr ? DefaultPresentation : *Presentation;
 
 		TArray<FString> FeatureIds;
 		Bundle.Features.GetKeys(FeatureIds);
@@ -431,43 +441,90 @@ namespace ProjectWorldGeneratedGeometry
 			const FVector ActorOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
 				FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
-			FActorSpawnParameters SpawnParameters;
-			SpawnParameters.Name = FName(*ObjectName);
-			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
-			SpawnParameters.OverrideActorGuid = StableGuid(Bundle.GridId + TEXT("|") + Cell.CellId);
-			AActor* Actor = World->SpawnActor<AActor>(
-				AActor::StaticClass(),
-				ActorOrigin,
-				FRotator::ZeroRotator,
-				SpawnParameters);
+			const FName CellTag(*FString::Printf(TEXT("ProjectWorld.Cell=%s"), *Cell.CellId));
+			AActor* Actor = nullptr;
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (It->Tags.Contains(GeneratedTag) && It->Tags.Contains(CellTag))
+				{
+					if (Actor != nullptr)
+					{
+						OutError = FString::Printf(TEXT("Generated cell identity is duplicated: %s."), *Cell.CellId);
+						return false;
+					}
+					Actor = *It;
+				}
+			}
+			const bool bUpdatingActor = Actor != nullptr;
+			if (!bUpdatingActor)
+			{
+				FActorSpawnParameters SpawnParameters;
+				SpawnParameters.Name = FName(*ObjectName);
+				SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+				SpawnParameters.OverrideActorGuid = StableGuid(Bundle.GridId + TEXT("|") + Cell.CellId);
+				Actor = World->SpawnActor<AActor>(
+					AActor::StaticClass(),
+					ActorOrigin,
+					FRotator::ZeroRotator,
+					SpawnParameters);
+			}
 			if (Actor == nullptr)
 			{
 				OutError = FString::Printf(TEXT("Cannot create generated cell actor %s."), *Cell.CellId);
 				return false;
 			}
 
+			Actor->Modify();
+			Actor->Tags.Reset();
 			Actor->Tags.Add(GeneratedTag);
 			Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Grid=%s"), *Bundle.GridId)));
-			Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Cell=%s"), *Cell.CellId)));
+			Actor->Tags.Add(CellTag);
 			Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Input=%s"), *Bundle.InputsHash)));
 			Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Terrain=%s"), *Cell.Terrain.ArtifactHash)));
+			Actor->Tags.Add(FName(TEXT("ProjectWorld.Geometry=preview_v2")));
 			Actor->SetActorLabel(ObjectName);
 			Actor->SetFolderPath(FName(*FString::Printf(TEXT("ProjectWorld/Generated/%s"), *Bundle.GridId)));
 			Actor->SetIsSpatiallyLoaded(true);
+			Actor->bEnableAutoLODGeneration = CollisionRoadFeatureId.IsEmpty();
 
-			UProceduralMeshComponent* Mesh = NewObject<UProceduralMeshComponent>(
-				Actor,
-				TEXT("CanonicalGeometry"),
-				RF_Transactional);
-			Actor->SetRootComponent(Mesh);
-			Actor->AddInstanceComponent(Mesh);
-			Mesh->RegisterComponent();
+			UProceduralMeshComponent* Mesh = bUpdatingActor
+				? Actor->FindComponentByClass<UProceduralMeshComponent>()
+				: NewObject<UProceduralMeshComponent>(Actor, TEXT("CanonicalGeometry"), RF_Transactional);
+			if (Mesh == nullptr)
+			{
+				OutError = FString::Printf(TEXT("Generated cell actor has no procedural mesh: %s."), *Cell.CellId);
+				return false;
+			}
+			if (bUpdatingActor)
+			{
+				Mesh->Modify();
+				Mesh->ClearAllMeshSections();
+				Mesh->ClearCollisionConvexMeshes();
+			}
+			else
+			{
+				Actor->SetRootComponent(Mesh);
+				Actor->AddInstanceComponent(Mesh);
+				Mesh->RegisterComponent();
+			}
+			Actor->SetActorLocation(ActorOrigin, false, nullptr, ETeleportType::TeleportPhysics);
 			Mesh->SetMobility(EComponentMobility::Static);
 			Mesh->bUseAsyncCooking = false;
+			Mesh->bUseComplexAsSimpleCollision = !CollisionRoadFeatureId.IsEmpty();
+			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Mesh->SetCollisionObjectType(ECC_WorldStatic);
+			Mesh->SetCanEverAffectNavigation(true);
 			int32 SectionIndex = 0;
 			if (bIncludeTerrain)
 			{
-				BuildTerrainSection(Bundle, Cell, ActorOrigin, Mesh, SectionIndex, TerrainMaterial);
+				BuildTerrainSection(
+					Bundle,
+					Cell,
+					ActorOrigin,
+					Mesh,
+					SectionIndex,
+					Style.TerrainMaterial,
+					Style.TerrainColor);
 				++OutResult.TerrainSectionCount;
 			}
 
@@ -479,7 +536,16 @@ namespace ProjectWorldGeneratedGeometry
 				}
 				const FProjectWorldCanonicalFeature& Feature = Bundle.Features.FindChecked(FeatureId);
 				if (Feature.FeatureClass == TEXT("road") &&
-					BuildRoadSection(Bundle, Cell, Feature, ActorOrigin, Mesh, SectionIndex, ShapeMaterial))
+					BuildRoadSection(
+						Bundle,
+						Cell,
+						Feature,
+						ActorOrigin,
+						Mesh,
+						SectionIndex,
+						Style.RoadMaterial,
+						Style.RoadColor,
+						Feature.FeatureId == CollisionRoadFeatureId))
 				{
 					Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Feature.FeatureId)));
 					++OutResult.RoadSectionCount;
@@ -489,15 +555,34 @@ namespace ProjectWorldGeneratedGeometry
 					}
 				}
 				else if (Feature.FeatureClass == TEXT("building") &&
-					BuildBuildingSection(Bundle, Cell, Feature, ActorOrigin, Mesh, SectionIndex, ShapeMaterial))
+					BuildBuildingSection(
+						Bundle,
+						Cell,
+						Feature,
+						ActorOrigin,
+						Mesh,
+						SectionIndex,
+						Style.BuildingMaterial,
+						Style.BuildingColor))
 				{
 					Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Feature.FeatureId)));
 					++OutResult.BuildingSectionCount;
 				}
 			}
+			if (!CollisionRoadFeatureId.IsEmpty())
+			{
+				UNavigationSystemV1::UpdateComponentInNavOctree(*Mesh);
+			}
 
 			Actor->MarkPackageDirty();
-			++OutResult.CreatedActorCount;
+			if (bUpdatingActor)
+			{
+				++OutResult.UpdatedActorCount;
+			}
+			else
+			{
+				++OutResult.CreatedActorCount;
+			}
 		}
 		if (!OutResult.CrossCellRoadFeatureId.IsEmpty() &&
 			OutResult.CrossCellRoadRealizedFragmentCount != OutResult.CrossCellRoadExpectedFragmentCount)
@@ -543,22 +628,47 @@ namespace ProjectWorldGeneratedGeometry
 
 		if (Bundle.CanonicalCrs.StartsWith(TEXT("EPSG:")))
 		{
-			FActorSpawnParameters SpawnParameters;
-			SpawnParameters.Name = FName(*StableObjectName(TEXT("ProjectWorld_Geo"), Bundle.GridId));
-			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
-			SpawnParameters.OverrideActorGuid = StableGuid(Bundle.GridId + TEXT("|georeferencing"));
-			AGeoReferencingSystem* Geo = World->SpawnActor<AGeoReferencingSystem>(
-				AGeoReferencingSystem::StaticClass(),
-				FVector::ZeroVector,
-				FRotator::ZeroRotator,
-				SpawnParameters);
+			const FName GridTag(*FString::Printf(TEXT("ProjectWorld.Grid=%s"), *Bundle.GridId));
+			AGeoReferencingSystem* Geo = nullptr;
+			if (bPersistActor)
+			{
+				for (TActorIterator<AGeoReferencingSystem> It(World); It; ++It)
+				{
+					if (It->Tags.Contains(GeneratedTag) &&
+						(It->Tags.Contains(GridTag) || It->GetName().EndsWith(Bundle.GridId)))
+					{
+						if (Geo != nullptr)
+						{
+							OutError = TEXT("Generated GeoReferencing identity is duplicated.");
+							return TNumericLimits<double>::Max();
+						}
+						Geo = *It;
+					}
+				}
+			}
+			const bool bUpdatingActor = Geo != nullptr;
+			if (!bUpdatingActor)
+			{
+				FActorSpawnParameters SpawnParameters;
+				SpawnParameters.Name = FName(*StableObjectName(TEXT("ProjectWorld_Geo"), Bundle.GridId));
+				SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+				SpawnParameters.OverrideActorGuid = StableGuid(Bundle.GridId + TEXT("|georeferencing"));
+				Geo = World->SpawnActor<AGeoReferencingSystem>(
+					AGeoReferencingSystem::StaticClass(),
+					FVector::ZeroVector,
+					FRotator::ZeroRotator,
+					SpawnParameters);
+			}
 			if (Geo == nullptr)
 			{
 				OutError = TEXT("Cannot create the GeoReferencing system.");
 				return TNumericLimits<double>::Max();
 			}
 
+			Geo->Modify();
+			Geo->Tags.Reset();
 			Geo->Tags.Add(GeneratedTag);
+			Geo->Tags.Add(GridTag);
 			Geo->SetActorLabel(TEXT("ProjectWorld GeoReferencing"));
 			Geo->SetFolderPath(FName(TEXT("ProjectWorld/Generated")));
 			Geo->SetIsSpatiallyLoaded(false);
@@ -592,7 +702,15 @@ namespace ProjectWorldGeneratedGeometry
 			OutResult.bGeoReferencingProbed = true;
 			if (bPersistActor)
 			{
-				++OutResult.CreatedActorCount;
+				if (bUpdatingActor)
+				{
+					++OutResult.UpdatedActorCount;
+				}
+				else
+				{
+					++OutResult.CreatedActorCount;
+				}
+				Geo->MarkPackageDirty();
 			}
 			else
 			{

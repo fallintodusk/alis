@@ -16,4 +16,5 @@ class PROJECTWORLDEDITOR_API UProjectWorldRealizeCommandlet final : public UComm
 public:
 	UProjectWorldRealizeCommandlet();
 	virtual int32 Main(const FString& Params) override;
+	static bool IsSafeResultPath(const FString& ResultPath);
 };

@@ -279,7 +279,8 @@ namespace ProjectWorldLandscapeRealization
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldLandscapeLayout& Layout,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+		UMaterialInterface* LandscapeMaterial)
 	{
 		FProjectWorldLandscapeHeightfield Heightfield;
 		if (!BuildHeightfield(Bundle, Layout, Heightfield, OutError))
@@ -288,6 +289,7 @@ namespace ProjectWorldLandscapeRealization
 		}
 
 		ALandscape* Landscape = nullptr;
+		bool bCreatedLandscape = false;
 		for (TActorIterator<ALandscape> It(World); It; ++It)
 		{
 			if (!IsGeneratedLandscape(*It))
@@ -346,6 +348,7 @@ namespace ProjectWorldLandscapeRealization
 				OutError = TEXT("Cannot create the generated Landscape actor.");
 				return false;
 			}
+			bCreatedLandscape = true;
 
 			Landscape->SetActorScale3D(FVector(
 				Bundle.SampleSpacingMeters.X * 100.0,
@@ -357,10 +360,6 @@ namespace ProjectWorldLandscapeRealization
 			Landscape->SetActorLabel(TEXT("ProjectWorld Landscape"));
 			Landscape->SetFolderPath(FName(TEXT("ProjectWorld/Generated")));
 			Landscape->SetIsSpatiallyLoaded(false);
-			Landscape->LandscapeMaterial = LoadObject<UMaterialInterface>(
-				nullptr,
-				TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
-
 			TMap<FGuid, TArray<uint16>> HeightData;
 			HeightData.Add(FGuid(), Heightfield.EncodedHeights);
 			TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerData;
@@ -396,6 +395,17 @@ namespace ProjectWorldLandscapeRealization
 
 		SetIdentityTag(Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId);
 		SetIdentityTag(Landscape, TEXT("ProjectWorld.Input="), Bundle.InputsHash);
+		UMaterialInterface* DesiredLandscapeMaterial = LandscapeMaterial != nullptr
+			? LandscapeMaterial
+			: LoadObject<UMaterialInterface>(
+				nullptr,
+				TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
+		const bool bMaterialChanged = Landscape->LandscapeMaterial != DesiredLandscapeMaterial;
+		Landscape->LandscapeMaterial = DesiredLandscapeMaterial;
+		if (bCreatedLandscape || bMaterialChanged)
+		{
+			Landscape->UpdateAllComponentMaterialInstances(true);
+		}
 		Landscape->MarkPackageDirty();
 		OutResult.LandscapeComponentCount = Landscape->LandscapeComponents.Num();
 		return true;

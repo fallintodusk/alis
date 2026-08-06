@@ -34,6 +34,8 @@ Defaults:
 - uses `-skipencryption` for public release packaging
 - uses `1700 MiB` split threshold for GitHub-safe archive transport
 - writes a `package_summary.txt` into the output directory
+- accepts `-RequiredCookMap` for validation runs; this preserves the configured
+  `MapsToCook` set and adds one explicit map without editing shipping config
 
 ### `inspect_iostore.ps1`
 
@@ -63,6 +65,8 @@ Key parameters:
 
 - `-EngineRoot` optional override for packaging with a source engine without changing `scripts/config/ue_path.conf`
 - `-OutputDir` explicit archive directory
+- `-RequiredCookMap` extends the configured release map set for an exact
+  profile-owned package proof; normal release packaging should omit it
 - `-SkipBuild` skips the build step but still cooks/packages
 - `-IncludeStagedDebugFiles` keeps `.pdb` files in the packaged output
 - `-EncryptContent` opt-in override for encrypted containers

@@ -58,6 +58,8 @@ ProjectWorld contains **no world-specific content**. It does not know about City
 ### 3. Key Concepts
  
  - **World Partition**: We use grid-based streaming. [See docs/world_partition.md](docs/world_partition.md) for data layer rules and Grid naming.
+ - **Territory generation**: Expand generated geography before importing or
+   polishing legacy map content. [See docs/territory_generation.md](docs/territory_generation.md).
  - **Hierarchical LOD (HLOD)**: Optional profile-specific representation for
    unloaded actors; adoption requires profiling against Nanite, instancing,
    storage, and rebuild cost.
@@ -96,10 +98,11 @@ remain semantic graphs and splines; buildings remain footprint-driven DNA;
 terrain remains a quantized aligned grid. Meshes and `.uasset` files are
 rebuildable projections.
 
-Future water, land-cover, and vegetation adapters emit provider-neutral
-records and join canonical cells without changing the compiler core. Forests
-use zones, density, species rules, and deterministic seeds rather than one
-permanent record per tree. Hero places remain protected authored overlays.
+Water, land-cover, vegetation-area, and explicit foliage-point inputs enter as
+provider-neutral records and join canonical cells without changing the grid.
+Future forest realization uses zones, density, species rules, and deterministic
+seeds rather than one permanent runtime record per tree. Hero places remain
+protected authored overlays.
 
 The command, profile, schema, and report contracts live in
 [`tools/World/CanonicalCompilation/README.md`](../../../tools/World/CanonicalCompilation/README.md).
@@ -117,6 +120,12 @@ stable GUIDs and the `ProjectWorld.Generated.v1` tag; input, grid, cell,
 terrain, and feature identities remain on actor tags. Untagged authored actors
 are preserved. An Apply run records actual actor/component semantics as a
 SHA-256 fingerprint and reports generated source bytes.
+
+An Apply run updates matching generated cell and GeoReferencing actors in
+place, removes only stale generated identities, and rebuilds their owned mesh
+payloads. This keeps World Partition external-actor packages stable while
+ensuring a same-identity algorithm or presentation change reaches the saved
+map.
 The D3 fingerprint includes edit-layer names and content, not UE-assigned
 layer GUIDs. A receipt records the GUID separately to prove preservation within
 an existing map while clean regeneration remains semantically deterministic.
@@ -132,6 +141,85 @@ north-west row without another reversal. GeoReferencing proves both projected
 actors at cell corners, shared edges, and a feature point. The bounded road
 slice selects one canonical identity with valid fragments in two cells and
 requires those fragments to share a boundary coordinate.
+
+Generated road previews tessellate and terrain-sample canonical fragments so
+the preview remains visible over the realized heightfield. This is visual
+draping, not final road grading; terrain deformation remains owned by the
+`Generated Roads` Landscape layer. Building previews mass each canonical
+polygon part independently, so disjoint MultiPolygon parts are never bridged
+by one aggregate box. Final footprints, facades, roofs, and interiors remain
+rebuildable presentation concerns rather than canonical identity.
+
+The selected presentation profile under `Data/Presentation/` is the single
+editable contract for material references, the outdoor environment, exposure,
+and normalized capture viewpoints. Its runtime loader accepts only exact v1
+documents, schema-safe identifier tokens, the approved parameterized terrain
+parent, and `/Engine/` references for the other materials. ALIS stores the
+configuration and generated actor identities; it neither copies nor relicenses
+the referenced engine content. Apply derives the terrain material instance under
+`/ProjectWorld/Generated/Presentation/` from that profile, creates or updates
+one generated actor per environment role, and owns one stable camera per named
+viewpoint. Actor GUIDs derive from grid ID, profile ID, and role, so a clean-map
+rebuild preserves D3 identity while style edits update the same actors. An
+unchanged material instance is not saved again. Untagged hero overlays remain
+outside this ownership boundary and survive regeneration.
+
+The fixed EV100 value is realized through deterministic Manual metering and
+derived physical-camera values. This keeps physical light units stable while
+project-wide auto exposure is disabled. Each generated capture camera embeds
+the same settings so World Partition streaming cannot change capture exposure.
+
+The selected runtime profile under `Data/Runtime/` is the single editable
+contract for one bounded gameplay route and its acceptance budgets. It pins an
+exact canonical grid and road identity, route endpoint inset, navigation
+bounds, and explicit Nanite, instancing, and HLOD decisions. The strict v1
+loader rejects a different grid, missing route, unknown policy, or malformed
+budget before editor mutation.
+
+Apply gives only the pinned road collision and navigation ownership, keeps its
+generated cell actors and route endpoints spatially loaded, and keeps the
+route navigation volume always loaded. A persisted navigation invoker covers
+the full route. Acceptance performs one real visibility hit in every declared
+route-fragment cell, projects both endpoints onto Recast, and requires a
+nonzero cross-cell path. It verifies the exact streamed and always-loaded actor
+roles, proves that the unique route uses procedural rather than Nanite or
+instanced static-mesh geometry, and requires zero HLOD proxies. Structural
+evidence records generated source bytes, allocated procedural vertex/index
+buffer bytes, actor count, a mesh-section draw-call upper bound, and
+regeneration time. These are scoped metrics, not claims about total process
+memory or observed RHI draw calls.
+
+The commandlet realization route uses `-NullRHI`; it records the frozen frame
+budget but cannot measure rendered frame time. Packaged non-NullRHI acceptance
+owns the fixed-camera warmup and p95 sample, together with machine and RHI
+identity. Every rendered frame in the fixed sample window counts toward p95,
+including catastrophic stalls; a viewpoint's `sample_count` means frames
+observed, never frames that survived a filter. A non-finite or non-positive
+timing value is not a rendered frame and rejects the run immediately
+(`presentation_gate_frame_time_invalid`) instead of silently extending the
+window. Runtime roles may stream as the fixed viewpoint sequence advances;
+ownership is inspected on every warmup and sampling tick, observed required
+roles accumulate across viewpoints, and the complete set must be observed by
+the final viewpoint. Any loaded actor carrying a runtime role with a stale
+profile or hash, or a role duplicated in one loaded state, rejects the run at
+whichever tick it first appears. The per-tick inspection cost is deliberately
+inside the measured window; it biases p95 upward, the fail-safe direction.
+The gate receipt records the measuring process identity, and validation
+requires it to be the staged Shipping executable for the same end-to-end
+operation. HLOD remains disabled until a later profile proves a net benefit.
+
+The supported wrapper treats generated map, World Partition external payload,
+and generated presentation material as one bounded transaction. A rejected
+Apply restores their exact prior files, including restoring an absent target
+to absence, so no rejected runtime state becomes the next run's baseline. If
+restoration itself fails, the wrapper preserves and reports the recovery copy
+instead of deleting the only source for manual recovery.
+
+Water, land-cover, vegetation-area, and explicit foliage-point records now
+enter through Source Ingestion and Canonical Compilation, never through this
+visual profile. Their later PCG, water, and foliage realizations are disposable
+consumers of those records. This prevents presentation tuning from becoming a
+second GIS source of truth.
 
 The compiler grid owns one stable vertical origin used by coordinate mapping,
 GeoReferencing, generated actor placement, and Landscape height encoding. The
@@ -678,24 +766,42 @@ budgets and keep generated proxies disposable and reproducible.
 
 ## 14. Validation
 
-Headless validation runs over all world data files:
+Verification has four authorities:
 
-```cpp
-// Check for common issues
-- Unique IDs (no duplicates)
-- Valid asset references (meshes, materials exist)
-- No overlapping buildings
-- Valid polygon winding for zones
-- Required fields present
-```
+1. Source Ingestion and Canonical Compilation validate provider and canonical
+   contracts through their public commands.
+2. The [realization wrapper](../../../scripts/ue/world/README.md) owns
+   transactional map mutation and Unreal realization receipts.
+3. [End-to-End Validation](../../../tools/World/EndToEndValidation/README.md)
+   owns profile-scoped D0-D3, clean rebuild, package, IoStore, and distribution
+   acceptance.
+4. Live MCP inspection supports review but is never an acceptance dependency.
+   Its security, serialization, and evidence rules live in the
+   [Unreal Editor MCP policy](../../../docs/ue_engine/mcp_editor_control.md).
 
-Run before commits or in CI:
+The validation profile is the map and stage-routing SOT. A live audit resolves
+the target map from that profile, then:
 
-```bash
-UE-Cmd -run=ValidateWorldData -World=City17
-```
+- confirms the loaded world package and generated ownership roots;
+- requires `Map Check` to finish with zero errors and zero warnings;
+- compares the live GeoReferencing CRS and projected origin with canonical
+  coverage and measures a 3x3 projected -> Unreal -> projected round trip;
+- checks generated cell, Landscape, route, collision, navigation, streaming,
+  and presentation identities against the accepted realization receipt;
+- enumerates the presentation profile's named cameras and captures the
+  required fixed viewpoints; and
+- confirms that observation did not leave dirty map or content packages.
 
-Fails fast with clear errors if something is broken.
+Use exact `Project.World.*` automation IDs from
+`Source/ProjectWorldEditor/Private/Tests/`. A live MCP test command proves only
+dispatch until the editor log reports the exact test's terminal success.
+Likewise, inspect the terminal `Map check complete` counts rather than treating
+console-command success as a pass.
+
+Screenshots expose geometry and presentation defects, but accepted JSON
+receipts remain the reproducibility proof. Never manually repair generated
+actors or assets to make a live inspection pass; change the owning profile or
+generator and reapply through the supported wrapper.
 
 
 ## 15. Incremental Build

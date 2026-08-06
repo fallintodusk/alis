@@ -20,6 +20,30 @@ namespace ProjectWorldGeometryParsing
 		Validation.Detail = Detail;
 	}
 
+	bool ReadPoint(
+		const TSharedPtr<FJsonValue>& Value,
+		FVector2D& OutPoint,
+		FProjectWorldCanonicalValidation& Validation)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Pair = nullptr;
+		if (!Value->TryGetArray(Pair) || Pair == nullptr || Pair->Num() != 2)
+		{
+			Reject(Validation, TEXT("geometry-shape"), TEXT("Geometry point is not a coordinate pair."));
+			return false;
+		}
+
+		double X = 0.0;
+		double Y = 0.0;
+		if (!(*Pair)[0]->TryGetNumber(X) || !(*Pair)[1]->TryGetNumber(Y) ||
+			!FMath::IsFinite(X) || !FMath::IsFinite(Y))
+		{
+			Reject(Validation, TEXT("geometry-value"), TEXT("Geometry coordinate is not finite."));
+			return false;
+		}
+		OutPoint = FVector2D(X, Y);
+		return true;
+	}
+
 	bool ReadLinePoints(
 		const TArray<TSharedPtr<FJsonValue>>& Values,
 		TArray<FVector2D>& OutPoints,
@@ -27,22 +51,12 @@ namespace ProjectWorldGeometryParsing
 	{
 		for (const TSharedPtr<FJsonValue>& Value : Values)
 		{
-			const TArray<TSharedPtr<FJsonValue>>* Pair = nullptr;
-			if (!Value->TryGetArray(Pair) || Pair == nullptr || Pair->Num() != 2)
+			FVector2D Point;
+			if (!ReadPoint(Value, Point, Validation))
 			{
-				Reject(Validation, TEXT("geometry-shape"), TEXT("Geometry point is not a coordinate pair."));
 				return false;
 			}
-
-			double X = 0.0;
-			double Y = 0.0;
-			if (!(*Pair)[0]->TryGetNumber(X) || !(*Pair)[1]->TryGetNumber(Y) ||
-				!FMath::IsFinite(X) || !FMath::IsFinite(Y))
-			{
-				Reject(Validation, TEXT("geometry-value"), TEXT("Geometry coordinate is not finite."));
-				return false;
-			}
-			OutPoints.Emplace(X, Y);
+			OutPoints.Add(Point);
 		}
 		return OutPoints.Num() >= 2;
 	}
@@ -104,6 +118,43 @@ namespace ProjectWorldGeometryParsing
 			}
 			return true;
 		}
+		if (OutType == TEXT("Point"))
+		{
+			FVector2D Point;
+			const TSharedPtr<FJsonValue> PointValue = MakeShared<FJsonValueArray>(*Coordinates);
+			if (!ReadPoint(PointValue, Point, OutValidation))
+			{
+				return false;
+			}
+			OutOuterPoints.Add(Point);
+			if (OutParts != nullptr)
+			{
+				OutParts->Add({Point});
+			}
+			return true;
+		}
+		if (OutType == TEXT("MultiPoint"))
+		{
+			if (Coordinates->IsEmpty())
+			{
+				Reject(OutValidation, TEXT("geometry-shape"), TEXT("MultiPoint has no points."));
+				return false;
+			}
+			for (const TSharedPtr<FJsonValue>& PointValue : *Coordinates)
+			{
+				FVector2D Point;
+				if (!ReadPoint(PointValue, Point, OutValidation))
+				{
+					return false;
+				}
+				OutOuterPoints.Add(Point);
+				if (OutParts != nullptr)
+				{
+					OutParts->Add({Point});
+				}
+			}
+			return true;
+		}
 		if (OutType == TEXT("MultiLineString"))
 		{
 			if (Coordinates->IsEmpty())
@@ -130,7 +181,17 @@ namespace ProjectWorldGeometryParsing
 		}
 		if (OutType == TEXT("Polygon"))
 		{
-			return ReadPolygon(*Coordinates, OutOuterPoints, OutValidation);
+			TArray<FVector2D> Polygon;
+			if (!ReadPolygon(*Coordinates, Polygon, OutValidation))
+			{
+				return false;
+			}
+			OutOuterPoints.Append(Polygon);
+			if (OutParts != nullptr)
+			{
+				OutParts->Add(MoveTemp(Polygon));
+			}
+			return true;
 		}
 		if (OutType == TEXT("MultiPolygon"))
 		{
@@ -142,10 +203,16 @@ namespace ProjectWorldGeometryParsing
 			for (const TSharedPtr<FJsonValue>& PolygonValue : *Coordinates)
 			{
 				const TArray<TSharedPtr<FJsonValue>>* Rings = nullptr;
+				TArray<FVector2D> Polygon;
 				if (!PolygonValue->TryGetArray(Rings) || Rings == nullptr ||
-					!ReadPolygon(*Rings, OutOuterPoints, OutValidation))
+					!ReadPolygon(*Rings, Polygon, OutValidation))
 				{
 					return false;
+				}
+				OutOuterPoints.Append(Polygon);
+				if (OutParts != nullptr)
+				{
+					OutParts->Add(MoveTemp(Polygon));
 				}
 			}
 			return !OutOuterPoints.IsEmpty();

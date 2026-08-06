@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/runtime-profile-v1.json",
+  "title": "ProjectWorld Runtime Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "profile_id",
+    "grid_id",
+    "gameplay_route",
+    "optimization_policy",
+    "budgets"
+  ],
+  "properties": {
+    "$schema": { "const": "../Schemas/project_world_runtime_profile.schema.json" },
+    "schema_version": { "const": 1 },
+    "profile_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "grid_id": { "type": "string", "pattern": "^grid_[a-z0-9]+$" },
+    "gameplay_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_id",
+        "feature_id",
+        "endpoint_inset_m",
+        "navigation_padding_m",
+        "navigation_height_m"
+      ],
+      "properties": {
+        "route_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "feature_id": { "type": "string", "minLength": 1 },
+        "endpoint_inset_m": { "type": "number", "minimum": 0, "maximum": 100 },
+        "navigation_padding_m": { "type": "number", "minimum": 1, "maximum": 1000 },
+        "navigation_height_m": { "type": "number", "minimum": 2, "maximum": 1000 }
+      }
+    },
+    "optimization_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nanite", "instancing", "hlod"],
+      "properties": {
+        "nanite": { "const": "not_applicable_procedural_mesh" },
+        "instancing": { "const": "not_applicable_unique_geometry" },
+        "hlod": { "const": "disabled_for_bounded_route" }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generated_source_bytes",
+        "procedural_mesh_buffer_bytes",
+        "generated_actor_count",
+        "mesh_section_draw_call_upper_bound",
+        "regeneration_seconds",
+        "p95_frame_time_ms"
+      ],
+      "properties": {
+        "generated_source_bytes": { "type": "integer", "minimum": 1 },
+        "procedural_mesh_buffer_bytes": { "type": "integer", "minimum": 1 },
+        "generated_actor_count": { "type": "integer", "minimum": 1 },
+        "mesh_section_draw_call_upper_bound": { "type": "integer", "minimum": 1 },
+        "regeneration_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "p95_frame_time_ms": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    }
+  }
+}

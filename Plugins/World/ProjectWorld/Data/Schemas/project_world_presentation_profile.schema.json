@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/presentation-profile-v1.json",
+  "title": "ProjectWorld Presentation Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "profile_id",
+    "materials",
+    "terrain_parameters",
+    "outdoor_environment",
+    "capture_viewpoints"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../Schemas/project_world_presentation_profile.schema.json"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "materials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terrain", "road", "building", "cloud"],
+      "properties": {
+        "terrain": {
+          "const": "/Engine/OpenWorldTemplate/LandscapeMaterial/MI_ProcGrid.MI_ProcGrid"
+        },
+        "road": { "$ref": "#/$defs/engineAsset" },
+        "building": { "$ref": "#/$defs/engineAsset" },
+        "cloud": { "$ref": "#/$defs/engineAsset" }
+      }
+    },
+    "terrain_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_color", "secondary_color", "line_color", "tile_scale"],
+      "properties": {
+        "primary_color": { "$ref": "#/$defs/color" },
+        "secondary_color": { "$ref": "#/$defs/color" },
+        "line_color": { "$ref": "#/$defs/color" },
+        "tile_scale": { "type": "number", "minimum": 0.01, "maximum": 10000 }
+      }
+    },
+    "outdoor_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sun_rotation",
+        "sun_intensity_lux",
+        "sky_light_intensity",
+        "fog_density",
+        "fog_height_falloff",
+        "fixed_exposure_ev100"
+      ],
+      "properties": {
+        "sun_rotation": { "$ref": "#/$defs/rotator" },
+        "sun_intensity_lux": { "type": "number", "minimum": 1000, "maximum": 120000 },
+        "sky_light_intensity": { "type": "number", "minimum": 0, "maximum": 10 },
+        "fog_density": { "type": "number", "minimum": 0, "maximum": 0.05 },
+        "fog_height_falloff": { "type": "number", "minimum": 0.001, "maximum": 2 },
+        "fixed_exposure_ev100": { "type": "number", "minimum": -10, "maximum": 20 }
+      }
+    },
+    "capture_viewpoints": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "location_normalized",
+          "height_m",
+          "look_at_normalized",
+          "look_at_height_m",
+          "fov_degrees"
+        ],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "location_normalized": { "$ref": "#/$defs/normalizedPoint" },
+          "height_m": { "type": "number", "minimum": 1, "maximum": 5000 },
+          "look_at_normalized": { "$ref": "#/$defs/normalizedPoint" },
+          "look_at_height_m": { "type": "number", "minimum": -1000, "maximum": 5000 },
+          "fov_degrees": { "type": "number", "minimum": 20, "maximum": 120 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "engineAsset": {
+      "type": "string",
+      "pattern": "^/Engine/"
+    },
+    "normalizedPoint": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number", "minimum": -1, "maximum": 2 }
+    },
+    "color": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "rotator": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "number", "minimum": -360, "maximum": 360 }
+    }
+  }
+}

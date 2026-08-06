@@ -17,6 +17,13 @@ UProjectWorldRealizeCommandlet::UProjectWorldRealizeCommandlet()
 	LogToConsole = true;
 }
 
+bool UProjectWorldRealizeCommandlet::IsSafeResultPath(const FString& ResultPath)
+{
+	const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
+		FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
+	return FPaths::IsUnderDirectory(FPaths::ConvertRelativePathToFull(ResultPath), EvidenceRoot);
+}
+
 int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 {
 	TArray<FString> Tokens;
@@ -25,42 +32,53 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	ParseCommandLine(*Params, Tokens, Switches, Parameters);
 
 	const FString* CompileResult = Parameters.Find(TEXT("CompileResult"));
+	const FString* PresentationProfile = Parameters.Find(TEXT("PresentationProfile"));
+	const FString* RuntimeProfile = Parameters.Find(TEXT("RuntimeProfile"));
 	const FString* ResultPath = Parameters.Find(TEXT("Result"));
 	const FString* MapPath = Parameters.Find(TEXT("Map"));
 	const FString* ModeValue = Parameters.Find(TEXT("Mode"));
-	if (CompileResult == nullptr || ResultPath == nullptr)
-	{
-		UE_LOG(
-			LogProjectWorldRealization,
-			Error,
-			TEXT("[ProjectWorldRealizeCommandlet::Main] Usage - require -CompileResult=<path> -Result=<path> [-Mode=validate|apply|delete] [-Map=/ProjectWorld/Generated/...]."));
-		return 2;
-	}
-
-	FProjectWorldRealizationRequest Request;
-	Request.CompileResultPath = FPaths::ConvertRelativePathToFull(*CompileResult);
-	Request.ResultPath = FPaths::ConvertRelativePathToFull(*ResultPath);
-	Request.MapPackagePath = MapPath == nullptr
-		? TEXT("/ProjectWorld/Generated/P0/L_ProjectWorldSynthetic")
-		: *MapPath;
 	const FString Mode = ModeValue == nullptr ? TEXT("validate") : ModeValue->ToLower();
+	EProjectWorldRealizationMode ParsedMode;
 	if (Mode == TEXT("validate"))
 	{
-		Request.Mode = EProjectWorldRealizationMode::Validate;
+		ParsedMode = EProjectWorldRealizationMode::Validate;
 	}
 	else if (Mode == TEXT("apply"))
 	{
-		Request.Mode = EProjectWorldRealizationMode::Apply;
+		ParsedMode = EProjectWorldRealizationMode::Apply;
 	}
 	else if (Mode == TEXT("delete"))
 	{
-		Request.Mode = EProjectWorldRealizationMode::Delete;
+		ParsedMode = EProjectWorldRealizationMode::Delete;
 	}
 	else
 	{
 		UE_LOG(LogProjectWorldRealization, Error, TEXT("[ProjectWorldRealizeCommandlet::Main] Invalid mode - %s"), *Mode);
 		return 2;
 	}
+	if (CompileResult == nullptr || ResultPath == nullptr ||
+		(ParsedMode != EProjectWorldRealizationMode::Delete && PresentationProfile == nullptr))
+	{
+		UE_LOG(
+			LogProjectWorldRealization,
+			Error,
+			TEXT("[ProjectWorldRealizeCommandlet::Main] Usage - require -CompileResult=<path> -Result=<path> [-PresentationProfile=<path> for validate/apply] [-RuntimeProfile=<path>] [-Mode=validate|apply|delete] [-Map=/ProjectWorld/Generated/...]."));
+		return 2;
+	}
+
+	FProjectWorldRealizationRequest Request;
+	Request.CompileResultPath = FPaths::ConvertRelativePathToFull(*CompileResult);
+	Request.PresentationProfilePath = PresentationProfile == nullptr
+		? FString()
+		: FPaths::ConvertRelativePathToFull(*PresentationProfile);
+	Request.RuntimeProfilePath = RuntimeProfile == nullptr
+		? FString()
+		: FPaths::ConvertRelativePathToFull(*RuntimeProfile);
+	Request.ResultPath = FPaths::ConvertRelativePathToFull(*ResultPath);
+	Request.MapPackagePath = MapPath == nullptr
+		? TEXT("/ProjectWorld/Generated/P0/L_ProjectWorldSynthetic")
+		: *MapPath;
+	Request.Mode = ParsedMode;
 
 	Request.bRequireLandscapeCompatible = Switches.ContainsByPredicate([](const FString& Switch)
 	{
@@ -77,10 +95,10 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 		UE_LOG(LogProjectWorldRealization, Error, TEXT("[ProjectWorldRealizeCommandlet::Main] Feature limits must be non-negative integers."));
 		return 2;
 	}
-	const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
-		FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
-	if (!FPaths::IsUnderDirectory(Request.ResultPath, EvidenceRoot))
+	if (!IsSafeResultPath(Request.ResultPath))
 	{
+		const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
+			FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
 		UE_LOG(
 			LogProjectWorldRealization,
 			Error,
@@ -92,9 +110,11 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	UE_LOG(
 		LogProjectWorldRealization,
 		Display,
-		TEXT("[ProjectWorldRealizeCommandlet::Main] Start - mode=%s input=%s map=%s"),
+		TEXT("[ProjectWorldRealizeCommandlet::Main] Start - mode=%s input=%s presentation=%s runtime=%s map=%s"),
 		*Mode,
 		*Request.CompileResultPath,
+		*Request.PresentationProfilePath,
+		*Request.RuntimeProfilePath,
 		*Request.MapPackagePath);
 	FProjectWorldRealizationResult Result;
 	const int32 ExitCode = FProjectWorldRealizationService::Run(Request, Result);

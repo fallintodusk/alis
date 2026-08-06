@@ -165,10 +165,12 @@ namespace ProjectWorldSemanticEvidence
 			}
 			Tags.Sort();
 			Records.Add(FString::Printf(
-				TEXT("actor|%s|%s|%s|%s"),
+				TEXT("actor|%s|%s|%s|spatial=%d|auto_hlod=%d|%s"),
 				*Actor->GetActorGuid().ToString(EGuidFormats::DigitsWithHyphensLower),
 				*Actor->GetClass()->GetPathName(),
 				*StableTransform(Actor->GetActorTransform()),
+				Actor->GetIsSpatiallyLoaded() ? 1 : 0,
+				Actor->bEnableAutoLODGeneration ? 1 : 0,
 				*FString::Join(Tags, TEXT(","))));
 			PackageNames.Add(Actor->GetOutermost()->GetName());
 
@@ -178,11 +180,21 @@ namespace ProjectWorldSemanticEvidence
 			{
 				UProceduralMeshComponent* ProceduralMesh =
 					Cast<UProceduralMeshComponent>(Component);
+				const FString RuntimeState = ProceduralMesh == nullptr
+					? FString()
+					: FString::Printf(
+						TEXT("|collision=%d|object=%d|nav=%d|complex=%d|mobility=%d"),
+						static_cast<int32>(ProceduralMesh->GetCollisionEnabled()),
+						static_cast<int32>(ProceduralMesh->GetCollisionObjectType()),
+						ProceduralMesh->CanEverAffectNavigation() ? 1 : 0,
+						ProceduralMesh->bUseComplexAsSimpleCollision ? 1 : 0,
+						static_cast<int32>(ProceduralMesh->GetMobility()));
 				Records.Add(FString::Printf(
-					TEXT("component|%s|%s|sections=%d"),
+					TEXT("component|%s|%s|sections=%d%s"),
 					*Actor->GetActorGuid().ToString(EGuidFormats::Digits),
 					*Component->GetClass()->GetPathName(),
-					ProceduralMesh == nullptr ? -1 : ProceduralMesh->GetNumSections()));
+					ProceduralMesh == nullptr ? -1 : ProceduralMesh->GetNumSections(),
+					*RuntimeState));
 				if (ProceduralMesh != nullptr)
 				{
 					AppendProceduralMesh(Actor->GetActorGuid(), ProceduralMesh, Records);

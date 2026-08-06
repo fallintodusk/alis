@@ -24,6 +24,7 @@ param(
     [string]$ClientConfig = "Shipping",
     [string]$Platform = "Win64",
     [string]$EngineRoot,
+    [string]$RequiredCookMap,
     [switch]$SkipBuild,
     [switch]$IncludeStagedDebugFiles,
     [switch]$EncryptContent,
@@ -117,6 +118,32 @@ if (-not $EncryptContent) {
     $Args += "-skipencryption"
 }
 
+if ($RequiredCookMap) {
+    if ($RequiredCookMap -notmatch '^/[A-Za-z0-9_/-]+$') {
+        throw "RequiredCookMap is not a valid project package path: $RequiredCookMap"
+    }
+    $DefaultGame = Join-Path $ProjectRoot "Config\DefaultGame.ini"
+    $CookMaps = @()
+    foreach ($Line in Get-Content -LiteralPath $DefaultGame) {
+        if ($Line -match '^\+MapsToCook=\(FilePath="(?<Map>/[A-Za-z0-9_/-]+)"\)\s*$') {
+            if ($CookMaps -notcontains $Matches.Map) {
+                $CookMaps += $Matches.Map
+            }
+        }
+    }
+    if ($CookMaps.Count -eq 0) {
+        throw "RequiredCookMap cannot extend an empty configured release map set."
+    }
+    if ($CookMaps -notcontains $RequiredCookMap) {
+        $CookMaps += $RequiredCookMap
+    }
+    # BuildCookRun cook-list parameter, verified against UE 5.8
+    # AutomationTool ProjectParams.cs: -MapsToCook=<A>+<B> is parsed and
+    # split into ProjectParams.MapsToCook; -map is the run-map parameter
+    # and must not carry the cook list.
+    $Args += "-MapsToCook=$($CookMaps -join '+')"
+}
+
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host " ALIS Release Packaging" -ForegroundColor Cyan
@@ -130,6 +157,7 @@ Write-Host "LOG_FILE     = $LogFile"
 Write-Host "SKIP_BUILD   = $SkipBuild"
 Write-Host "NODEBUGINFO  = $(-not $IncludeStagedDebugFiles)"
 Write-Host "ENCRYPTION   = $EncryptContent"
+Write-Host "REQUIRED_MAP = $RequiredCookMap"
 Write-Host "ZIP_RELEASE  = $CreateReleaseArchive"
 Write-Host "SPLIT_SIZE   = $SplitSizeMB MiB"
 Write-Host "SIGN_RELEASE = $SignRelease"

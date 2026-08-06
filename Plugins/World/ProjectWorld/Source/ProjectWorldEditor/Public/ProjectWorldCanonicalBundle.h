@@ -20,6 +20,7 @@ struct FProjectWorldCanonicalFeature
 	FString OwnerCellId;
 	FString GeometryType;
 	TArray<FVector2D> GeometryPoints;
+	TArray<TArray<FVector2D>> GeometryParts;
 	TArray<FProjectWorldCanonicalRepresentation> Representations;
 	double WidthMeters = 0.0;
 	double HeightMeters = 0.0;

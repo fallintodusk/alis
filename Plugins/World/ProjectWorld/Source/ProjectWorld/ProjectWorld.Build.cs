@@ -14,9 +14,10 @@ public class ProjectWorld : ModuleRules
 			"ProjectCore"
 		});
 
-		// PrivateDependencyModuleNames.AddRange(new[]
-		// {
-		// 	// Add private dependencies here
-		// });
+		PrivateDependencyModuleNames.AddRange(new[]
+		{
+			"Json",
+			"RHI"
+		});
 	}
 }
