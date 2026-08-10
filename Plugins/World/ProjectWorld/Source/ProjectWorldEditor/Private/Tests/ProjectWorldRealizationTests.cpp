@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldDataRoots.h"
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldRealizationService.h"
@@ -23,6 +24,31 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldDataRootsTest,
+	"Project.World.Realization.WorldDataRoots",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldDataRootsTest::RunTest(const FString& Parameters)
+{
+	FProjectWorldDataRoots FixtureRoots;
+	FProjectWorldDataRoots ProductionRoots;
+	FString Error;
+	TestTrue(TEXT("Fixture roots resolve from the ProjectWorld plugin descriptor."),
+		FProjectWorldDataRoots::Resolve(TEXT("ProjectWorld"), FixtureRoots, Error));
+	TestTrue(TEXT("Production roots resolve from the ProjectWorldData plugin descriptor."),
+		FProjectWorldDataRoots::Resolve(TEXT("ProjectWorldData"), ProductionRoots, Error));
+	TestEqual(TEXT("Production generated mount is derived."),
+		ProductionRoots.GeneratedPackageRoot, FString(TEXT("/ProjectWorldData/Generated/")));
+	TestEqual(TEXT("Production authored mount is derived."),
+		ProductionRoots.AuthoredPackageRoot, FString(TEXT("/ProjectWorldData/Authored/")));
+	TestTrue(TEXT("Production maps stay inside their generated mount."),
+		ProductionRoots.IsGeneratedPackage(TEXT("/ProjectWorldData/Generated/Kazan/L_Kazan")));
+	TestFalse(TEXT("Fixture maps cannot cross into the production owner."),
+		FixtureRoots.IsGeneratedPackage(TEXT("/ProjectWorldData/Generated/Kazan/L_Kazan")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldCanonicalCoordinatesRoundTripTest,
 	"Project.World.Realization.CanonicalCoordinatesRoundTrip",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -30,12 +56,20 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FProjectWorldCanonicalCoordinatesRoundTripTest::RunTest(const FString& Parameters)
 {
 	FProjectWorldCanonicalBundle Bundle;
-	Bundle.OriginMeters = FVector2D(379760.0, 6184170.0);
+	Bundle.LatticeOriginMeters = FVector2D(379760.0, 6184170.0);
+	Bundle.EngineGeoreferenceOriginMeters = FVector2D(379760.0, 6184170.0);
 	Bundle.HeightOriginMeters = 72.4;
 	const FVector Canonical(380123.45, 6184987.65, 103.7);
 	const FVector Unreal = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, Canonical);
 	const FVector RoundTripped = FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle, Unreal);
 	TestTrue(TEXT("Projected coordinates survive the UE left-handed mapping."), Canonical.Equals(RoundTripped, 0.000001));
+	Bundle.EngineGeoreferenceOriginMeters = FVector2D(381409.0, 6185051.0);
+	const FVector Rebased = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, Canonical);
+	TestFalse(TEXT("Changing only the engine origin rebases world space."), Rebased.Equals(Unreal));
+	TestEqual(
+		TEXT("Changing only the engine origin cannot change lattice identity."),
+		Bundle.LatticeOriginMeters,
+		FVector2D(379760.0, 6184170.0));
 	return true;
 }
 
@@ -144,7 +178,8 @@ bool FProjectWorldGeoReferencingPlacementTest::RunTest(const FString& Parameters
 {
 	FProjectWorldCanonicalBundle Bundle;
 	Bundle.CanonicalCrs = TEXT("EPSG:32639");
-	Bundle.OriginMeters = FVector2D(379760.0, 6184170.0);
+	Bundle.LatticeOriginMeters = FVector2D(379760.0, 6184170.0);
+	Bundle.EngineGeoreferenceOriginMeters = FVector2D(379760.0, 6184170.0);
 	Bundle.HeightOriginMeters = 72.0;
 	Bundle.CoordinateQuantizationMeters = 0.01;
 	for (int32 CellX = 0; CellX < 2; ++CellX)
@@ -239,7 +274,8 @@ bool FProjectWorldGeneratedCellPlacementTest::RunTest(const FString& Parameters)
 	FProjectWorldCanonicalBundle Bundle;
 	Bundle.GridId = TEXT("placement_grid");
 	Bundle.InputsHash = TEXT("placement_input");
-	Bundle.OriginMeters = FVector2D(100.0, 200.0);
+	Bundle.LatticeOriginMeters = FVector2D(100.0, 200.0);
+	Bundle.EngineGeoreferenceOriginMeters = FVector2D(100.0, 200.0);
 	Bundle.CellQuads = FIntPoint(7, 7);
 	Bundle.SampleSpacingMeters = FVector2D(1.0, 1.0);
 	Bundle.HeightQuantizationMeters = 0.1;

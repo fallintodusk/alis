@@ -22,7 +22,7 @@ Use these references instead of copying code into docs.
 ## 1. Add a New World Partition Map
 - **Manual (editor)**: Build the root World Partition map once (e.g., `/Game/Project/Worlds/AlisWorld`). Keep it minimal; streamable cells contain the heavy content.
 - **Data**: Create a `ProjectWorld` manifest under `/Game/Project/Data/Worlds/`. Set `WorldRoot` to the map, then add regions with the Blueprint helper `MakeRegionDescriptor` (e.g., `Kazan_Outskirts`, `MetroHub`).
-- **Automation (future)**: When `GenerateManifestFromWorldPartition` is finished (`todo/create_world.md`), run it to auto-fill region descriptors. Until then, the Blueprint helper keeps authoring lightweight.
+- **Automation (future)**: When `GenerateManifestFromWorldPartition` is implemented, run it to auto-fill region descriptors. Until then, the Blueprint helper keeps authoring lightweight.
 
 **Example Scenarios**
 1. Main Campaign World - baseline open world streamed by default.

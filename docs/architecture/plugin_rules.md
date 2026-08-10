@@ -2,7 +2,7 @@
 
 > See also: [docs/agents/canonical.md](../agents/canonical.md) for agent/dev quick reference.
 
-> **Source of Truth:** [architecture/source_of_truth.md](architecture/source_of_truth.md) + C4 DSL (`architecture/diagrams/workspace.dsl` and `architecture/diagrams/views/`). Use these as the map; implementation lives with each plugin.
+> **Source of Truth:** [source_of_truth.md](source_of_truth.md) + C4 DSL (`diagrams/workspace.dsl` and `diagrams/views/`). Use these as the map; implementation lives with each plugin.
 
 **Universal modular game architecture for Unreal Engine 5. Keep docs code-free: reference the class/method in the owning plugin instead of pasting snippets.**
 
@@ -47,6 +47,10 @@ Plugins/
     ProjectWorld/
       -> World Partition/HLOD/streaming policies + UProjectWorldManifest data assets
       -> World framework (tiles, streaming, spatial queries)
+
+    ProjectWorldData/  # Approved target; creation is an open execution task
+      -> Data/content-only Kazan JSON, manifests, generated maps, and authored overlays
+      -> Depends on ProjectWorld contracts; no Source module or custom generator logic
 
     PCG/
       ProjectPCG/
@@ -111,6 +115,11 @@ Guardrails
 - DIP: Features depend on their own interfaces, Gameplay orchestrates Features. Features never depend on Systems directly.
 - ProjectUI (framework): UI tech only; no flow decisions. UI plugins decide which screens to show.
 - Systems vs World: Infrastructure (save/load/settings) -> Systems. Geography/maps -> World.
+- World logic vs data: ProjectWorld owns reusable world schemas, definition
+  types, generators, realization, serialization/replication support, runtime
+  services, and validation. ProjectWorldData owns authoritative Kazan JSON and
+  its derived Unreal content under its own mount; it is data/content-only and
+  does not fork world-generation logic.
 - Features are self-contained: Each Feature defines own interfaces, Gameplay modes orchestrate them.
 - Immutable rule: do not add new plugins to `Alis.uproject`. Boot stays minimal; Orchestrator registers plugin paths at runtime via `IPluginManager` and activates by manifest.
 - No global FSM: Use native GameMode/MatchState for match lifecycle. Menu coordinates via ILoadingService.
@@ -131,8 +140,9 @@ Systems/                 # Can depend on Foundation
     v
 World/ProjectWorld       # Can depend on Foundation, Systems
     |
-    v
-World/PCG/*              # Can depend on ProjectWorld
+    +--> World/ProjectWorldData  # Data/content-only; consumes ProjectWorld contracts
+    |
+    +--> World/PCG/*             # Can depend on ProjectWorld
     |
     v
 World/City17, MainMenuWorld  # Can depend on World/*, Gameplay/*
@@ -153,7 +163,7 @@ Current State Snapshot
   - Boot: Orchestrator (Plugins/Boot/Orchestrator)
   - Foundation: ProjectCore (Plugins/Foundation/)
   - Systems: ProjectLoading, ProjectSave, ProjectSettings (Plugins/Systems/)
-  - World: ProjectWorld, City17, MainMenuWorld (Plugins/World/)
+  - World: ProjectWorld, ProjectWorldData (approved target), City17, MainMenuWorld (Plugins/World/)
   - World/PCG: ProjectPCG, ProjectForestBiomesPack, ProjectUrbanRuinsPCGRecipe (Plugins/World/PCG/)
   - UI: ProjectUI, ProjectMenuMain, ProjectMenuGame, ProjectSettingsUI (Plugins/UI/)
   - Gameplay: ProjectGameplay, ProjectMenuPlay, ProjectSinglePlay, ProjectOnlinePlay (Plugins/Gameplay/)
@@ -174,11 +184,11 @@ Current State Snapshot
 
 | Plugin | Architecture & Details |
 |--------|------------------------|
-| **ProjectCore** | [Plugins/Foundation/ProjectCore/README.md](../Plugins/Foundation/ProjectCore/README.md) |
-| **Orchestrator** | [Plugins/Boot/Orchestrator/README.md](../Plugins/Boot/Orchestrator/README.md) |
-| **ProjectLoading** | [Plugins/Systems/ProjectLoading/README.md](../Plugins/Systems/ProjectLoading/README.md) |
-| **ProjectMenuMain** | [Plugins/UI/ProjectMenuMain/README.md](../Plugins/UI/ProjectMenuMain/README.md) |
-| **ProjectObject** | [Plugins/Resources/ProjectObject/README.md](../Plugins/Resources/ProjectObject/README.md) |
+| **ProjectCore** | [Plugins/Foundation/ProjectCore/README.md](../../Plugins/Foundation/ProjectCore/README.md) |
+| **Orchestrator** | [Plugins/Boot/Orchestrator/README.md](../../Plugins/Boot/Orchestrator/README.md) |
+| **ProjectLoading** | [Plugins/Systems/ProjectLoading/README.md](../../Plugins/Systems/ProjectLoading/README.md) |
+| **ProjectMenuMain** | [Plugins/UI/ProjectMenuMain/README.md](../../Plugins/UI/ProjectMenuMain/README.md) |
+| **ProjectObject** | [Plugins/Resources/ProjectObject/README.md](../../Plugins/Resources/ProjectObject/README.md) |
 
 ---
 
@@ -213,16 +223,16 @@ Cross-plugin services + events + commands must route through interfaces in `Proj
 
 | Scenario | UI depends on Feature? | Consume via Core? |
 |---|---|---|
-| `ProjectInventoryUI` → `ProjectInventory` | NO (interfaces cover 100% of UI needs) | YES (IInventoryReadOnly / IInventoryCommands / IInventoryDropCommandTarget) |
-| `ProjectVitalsUI` → `ProjectVitals` | YES (for `EVitalState` / `EFatigueState` domain enums shared by feature + UI hysteresis state) | YES for events + config (IVitalsEventsSource, FVitalsConfig) |
-| `ProjectSinglePlay` → `ProjectVitals` | N/A (not a UI plugin) | YES ONLY (IVitalsEventsSource in Core; no direct dep) |
-| `ProjectCharacter` → `ProjectVitals` | N/A (not a UI plugin) | Composition owner — `CreateDefaultSubobject<UProjectVitalsComponent>` requires concrete type; DIP cannot abstract component construction. Keep the dep, document it. |
+| `ProjectInventoryUI` -> `ProjectInventory` | NO (interfaces cover 100% of UI needs) | YES (IInventoryReadOnly / IInventoryCommands / IInventoryDropCommandTarget) |
+| `ProjectVitalsUI` -> `ProjectVitals` | YES (for `EVitalState` / `EFatigueState` domain enums shared by feature + UI hysteresis state) | YES for events + config (IVitalsEventsSource, FVitalsConfig) |
+| `ProjectSinglePlay` -> `ProjectVitals` | N/A (not a UI plugin) | YES ONLY (IVitalsEventsSource in Core; no direct dep) |
+| `ProjectCharacter` -> `ProjectVitals` | N/A (not a UI plugin) | Composition owner - `CreateDefaultSubobject<UProjectVitalsComponent>` requires concrete type; DIP cannot abstract component construction. Keep the dep, document it. |
 
 ### Why the split
 
-Enums and primitive value types that are part of the feature's PUBLIC CONTRACT (not its internal implementation) legitimately belong with the owning feature plugin. Hoisting them to Core pollutes Core with domain types ("vitals" is not foundation concern). The cost — a Build.cs dep from the UI plugin onto its own feature plugin — is architecturally honest: UI-for-X is naturally tied to X.
+Enums and primitive value types that are part of the feature's PUBLIC CONTRACT (not its internal implementation) legitimately belong with the owning feature plugin. Hoisting them to Core pollutes Core with domain types ("vitals" is not foundation concern). The cost - a Build.cs dep from the UI plugin onto its own feature plugin - is architecturally honest: UI-for-X is naturally tied to X.
 
-Forcing the UI-zero-dep pattern universally leads to type-placement gymnastics (enum hoisting) and the UE serialization trap it implies (CoreRedirects that can't be merged to main per `docs/editor/class_migration.md`). ProjectInventoryUI is zero-dep because its interfaces are rich enough to denormalize every UI-relevant field to a primitive — not because the rule is universal.
+Forcing the UI-zero-dep pattern universally leads to type-placement gymnastics (enum hoisting) and the UE serialization trap it implies (CoreRedirects that can't be merged to main per `docs/editor/class_migration.md`). ProjectInventoryUI is zero-dep because its interfaces are rich enough to denormalize every UI-relevant field to a primitive - not because the rule is universal.
 
 ### Decision rule for new UI plugins
 

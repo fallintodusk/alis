@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/active-manifest-set-v1.json",
+  "title": "ProjectWorld Active-Manifest-Set Record",
+  "description": "The single activation authority for generated-artifact manifests. Only manifests referenced here are active. Replaced atomically as the last step of an accepted transaction. Contract: docs/territory_generation.md (Manifest acceptance lifecycle).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "transaction_id",
+    "accepted_operation_id",
+    "prior_active_set_sha256",
+    "scopes"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^(?:\\.\\./Schemas|\\.\\./\\.\\./\\.\\./ProjectWorld/Data/Schemas|\\.\\./\\.\\./\\.\\./\\.\\./Plugins/World/ProjectWorld/Data/Schemas)/project_world_active_manifest_set\\.schema\\.json$"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "accepted_operation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prior_active_set_sha256": {
+      "anyOf": [
+        {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        {"const": "none"}
+      ]
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scope_id", "manifest_path", "manifest_sha256"],
+        "properties": {
+          "scope_id": {"type": "string", "pattern": "^(map|presentation|layer)_[a-z0-9_]+$"},
+          "manifest_path": {
+            "description": "Path relative to the manifest authority root, forward slashes.",
+            "type": "string",
+            "pattern": "^scopes/(map|presentation|layer)_[a-z0-9_]+\\.[0-9]+\\.json$"
+          },
+          "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    }
+  }
+}

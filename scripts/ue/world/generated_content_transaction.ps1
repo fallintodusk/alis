@@ -16,7 +16,7 @@ function Assert-ProjectWorldOwnedPath {
     $candidate = [System.IO.Path]::GetFullPath($Path)
     $prefix = $root + [System.IO.Path]::DirectorySeparatorChar
     if (-not $candidate.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Generated content path escapes ProjectWorld: $candidate"
+        throw "Generated content path escapes its world-data plugin: $candidate"
     }
     return $candidate
 }
@@ -29,13 +29,21 @@ function Get-ProjectWorldGeneratedPaths {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
+        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+
         [bool]$IncludePresentation = $true
     )
 
-    if ($MapPackage -notmatch '^/ProjectWorld/Generated/[A-Za-z0-9_/]+$') {
+    if ($GeneratedPackageRoot -notmatch '^(/[A-Za-z][A-Za-z0-9_]*/)Generated/$') {
+        throw "Generated package root is invalid: $GeneratedPackageRoot"
+    }
+    $mountRoot = $Matches[1]
+    if (-not $MapPackage.StartsWith($GeneratedPackageRoot, [System.StringComparison]::Ordinal) -or
+        $MapPackage.Length -le $GeneratedPackageRoot.Length -or
+        $MapPackage -notmatch '^/[A-Za-z][A-Za-z0-9_]*/Generated/[A-Za-z0-9_/]+$') {
         throw "Generated map package is outside the supported mount: $MapPackage"
     }
-    $relative = $MapPackage.Substring('/ProjectWorld/'.Length).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+    $relative = $MapPackage.Substring($mountRoot.Length).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
     $mapBase = Join-Path $ContentRoot $relative
     $paths = [System.Collections.Generic.List[string]]::new()
     $parent = Split-Path -Parent $mapBase
@@ -68,6 +76,8 @@ function New-ProjectWorldGeneratedSnapshot {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
+        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+
         [Parameter(Mandatory = $true)]
         [string]$SnapshotRoot
     )
@@ -75,7 +85,7 @@ function New-ProjectWorldGeneratedSnapshot {
     New-Item -ItemType Directory -Path $SnapshotRoot -Force | Out-Null
     $records = [System.Collections.Generic.List[object]]::new()
     $index = 0
-    foreach ($source in Get-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot -MapPackage $MapPackage) {
+    foreach ($source in Get-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot -MapPackage $MapPackage -GeneratedPackageRoot $GeneratedPackageRoot) {
         $backup = Join-Path $SnapshotRoot $index
         Copy-Item -LiteralPath $source -Destination $backup -Recurse -Force
         $records.Add([pscustomobject]@{ Source = $source; Backup = $backup })
@@ -92,12 +102,14 @@ function Restore-ProjectWorldGeneratedSnapshot {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
+        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
         [object[]]$Records
     )
 
-    foreach ($path in Get-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot -MapPackage $MapPackage) {
+    foreach ($path in Get-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot -MapPackage $MapPackage -GeneratedPackageRoot $GeneratedPackageRoot) {
         Remove-Item -LiteralPath $path -Recurse -Force
     }
     foreach ($record in $Records) {
@@ -150,6 +162,8 @@ function Complete-ProjectWorldGeneratedTransaction {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
+        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
         [object[]]$Records,
@@ -184,6 +198,7 @@ function Complete-ProjectWorldGeneratedTransaction {
         Restore-ProjectWorldGeneratedSnapshot `
             -ContentRoot $ContentRoot `
             -MapPackage $MapPackage `
+            -GeneratedPackageRoot $GeneratedPackageRoot `
             -Records $Records
     }
     catch {

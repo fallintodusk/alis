@@ -27,6 +27,7 @@ public class ProjectWorldEditor : ModuleRules
 			"NavigationSystem",
 			"ProceduralMeshComponent",
 			"ProjectCore",
+			"Projects",
 			"UnrealEd"
 		});
 	}

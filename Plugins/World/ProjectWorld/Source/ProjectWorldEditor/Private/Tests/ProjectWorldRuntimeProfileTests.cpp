@@ -7,6 +7,7 @@
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimeRealization.h"
 #include "ProjectWorldSemanticEvidence.h"
+#include "Tests/ProjectWorldSchemaTestUtilities.h"
 
 #include "Editor.h"
 #include "Engine/TargetPoint.h"
@@ -32,7 +33,8 @@ namespace ProjectWorldRuntimeTests
 		FProjectWorldCanonicalBundle Bundle;
 		Bundle.GridId = Profile.GridId;
 		Bundle.InputsHash = TEXT("runtime_inputs");
-		Bundle.OriginMeters = FVector2D::ZeroVector;
+		Bundle.LatticeOriginMeters = FVector2D::ZeroVector;
+		Bundle.EngineGeoreferenceOriginMeters = FVector2D::ZeroVector;
 		Bundle.HeightOriginMeters = 0.0;
 		Bundle.CoordinateQuantizationMeters = 0.01;
 		for (int32 CellX = 0; CellX < 2; ++CellX)
@@ -78,6 +80,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FProjectWorldRuntimeProfileContractTest::RunTest(const FString& Parameters)
 {
 	using namespace ProjectWorldRuntimeTests;
+	using namespace ProjectWorldSchemaTestUtilities;
 	FProjectWorldRuntimeProfile Profile;
 	FString ErrorCode;
 	FString Error;
@@ -93,10 +96,37 @@ bool FProjectWorldRuntimeProfileContractTest::RunTest(const FString& Parameters)
 	Bundle.GridId = TEXT("grid_different");
 	TestFalse(TEXT("A runtime profile cannot drift onto another grid."), ProjectWorldRuntimeRealization::Validate(Bundle, Profile, Error));
 
-	FString Source;
-	TestTrue(TEXT("Runtime profile fixture is readable."), FFileHelper::LoadFileToString(Source, *ShippedProfilePath()));
+	FString ShippedSource;
+	TestTrue(TEXT("Runtime profile fixture is readable."), FFileHelper::LoadFileToString(ShippedSource, *ShippedProfilePath()));
 	const FString InvalidPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation/ProjectWorldRuntime/invalid.json"));
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(InvalidPath), true);
+	const FString Source = Rewrite(
+		ShippedSource,
+		InvalidPath,
+		TEXT("project_world_runtime_profile.schema.json"));
+	const FString ProductionRoot = FPaths::Combine(
+		FPaths::ProjectPluginsDir(),
+		TEXT("World/ProjectWorldData/Data/Profiles"));
+	const FString ProductionPath = FPaths::Combine(ProductionRoot, TEXT("runtime_loader_test.json"));
+	const FString ProductionSchema = ReferenceFor(
+		ProductionPath,
+		TEXT("project_world_runtime_profile.schema.json"));
+	TestEqual(
+		TEXT("Production runtime schema climbs to the canonical logic plugin."),
+		ProductionSchema,
+		FString(TEXT("../../../ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json")));
+	IFileManager::Get().MakeDirectory(*ProductionRoot, true);
+	TestTrue(
+		TEXT("Production-root runtime fixture is writable."),
+		FFileHelper::SaveStringToFile(
+			Rewrite(
+				ShippedSource,
+				ProductionPath,
+				TEXT("project_world_runtime_profile.schema.json")),
+			*ProductionPath));
+	TestTrue(
+		TEXT("The runtime loader accepts an owner-relative production schema."),
+		ProjectWorldRuntimeProfile::Load(ProductionPath, Profile, ErrorCode, Error));
 	const FString Invalid = Source.Replace(TEXT("disabled_for_bounded_route"), TEXT("always_hlod"));
 	TestTrue(TEXT("Invalid runtime profile fixture is writable."), FFileHelper::SaveStringToFile(Invalid, *InvalidPath));
 	TestFalse(
@@ -120,6 +150,7 @@ bool FProjectWorldRuntimeProfileContractTest::RunTest(const FString& Parameters)
 		ProjectWorldRuntimeProfile::Load(InvalidPath, Profile, ErrorCode, Error));
 	TestEqual(TEXT("Budget rejection is structured."), ErrorCode, FString(TEXT("runtime-profile-budgets")));
 	IFileManager::Get().Delete(*InvalidPath, false, true, true);
+	IFileManager::Get().Delete(*ProductionPath, false, true, true);
 	return true;
 }
 
@@ -166,26 +197,67 @@ bool FProjectWorldRuntimeRouteCollisionTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("The route spans exactly two generated cells."), RouteCellCount, 2);
 	const FProjectWorldCanonicalFeature& Route = Bundle.Features.FindChecked(Profile.RouteFeatureId);
+	const double HalfWidth = FMath::Max(Route.WidthMeters * 0.5, 1.0);
 	int32 CollisionProbeCount = 0;
+	int32 OrientationProbeCount = 0;
 	for (const FProjectWorldCanonicalRepresentation& Representation : Route.Representations)
 	{
 		const FVector2D Point = (Representation.Parts[0][0] + Representation.Parts[0].Last()) * 0.5;
-		const FVector Surface = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Point, 0.65));
-		FHitResult Hit;
-		const bool bHit = World->LineTraceSingleByChannel(
-			Hit,
-			Surface + FVector(0.0, 0.0, 1000.0),
-			Surface - FVector(0.0, 0.0, 1000.0),
-			ECC_Visibility);
+		const FVector2D Tangent = (Representation.Parts[0].Last() - Representation.Parts[0][0]).GetSafeNormal();
+		const FVector2D Perpendicular(-Tangent.Y, Tangent.X);
 		const FName FeatureTag(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Profile.RouteFeatureId));
 		const FName CellTag(*FString::Printf(TEXT("ProjectWorld.Cell=%s"), *Representation.CellId));
-		TestTrue(TEXT("Each route representation has a collidable interior point."), bHit);
+
+		// Same discrimination as the runtime probe: the cell actor mixes terrain and road
+		// collision, so only a hit inside the lifted road-surface band counts as the road.
+		const auto TraceRoadBand = [&](const FVector2D& Canonical, FHitResult& OutHit) -> bool
+		{
+			const FVector Surface = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Canonical, 0.65));
+			const bool bHit = World->LineTraceSingleByChannel(
+				OutHit,
+				Surface + FVector(0.0, 0.0, 1000.0),
+				Surface - FVector(0.0, 0.0, 1000.0),
+				ECC_Visibility);
+			return bHit && FMath::Abs(OutHit.ImpactPoint.Z - Surface.Z) <= 35.0;
+		};
+
+		FHitResult CenterHit;
+		const bool bCenterOnRoad = TraceRoadBand(Point, CenterHit);
+		TestTrue(TEXT("Each route representation has a collidable interior point."), bCenterOnRoad);
 		TestTrue(
 			TEXT("Each collision probe resolves to the expected route and cell."),
-			Hit.GetActor() != nullptr && Hit.GetActor()->Tags.Contains(FeatureTag) && Hit.GetActor()->Tags.Contains(CellTag));
-		CollisionProbeCount += bHit ? 1 : 0;
+			bCenterOnRoad && CenterHit.GetActor() != nullptr &&
+			CenterHit.GetActor()->Tags.Contains(FeatureTag) && CenterHit.GetActor()->Tags.Contains(CellTag));
+		CollisionProbeCount += bCenterOnRoad ? 1 : 0;
+
+		const double AlongOffset = 3.0 * HalfWidth;
+		const double LateralInside = 0.5 * HalfWidth;
+		const double LateralOutside = HalfWidth + FMath::Max(2.0, HalfWidth);
+		bool bOrientationProven = bCenterOnRoad && CenterHit.ImpactNormal.Z >= 0.94;
+		for (const FVector2D& OnRoad : {
+			Point + Tangent * AlongOffset,
+			Point - Tangent * AlongOffset,
+			Point + Perpendicular * LateralInside,
+			Point - Perpendicular * LateralInside})
+		{
+			FHitResult Hit;
+			const bool bOnRoad = TraceRoadBand(OnRoad, Hit) && Hit.ImpactNormal.Z >= 0.94;
+			TestTrue(TEXT("Road collision covers the declared ribbon along and across the tangent."), bOnRoad);
+			bOrientationProven &= bOnRoad;
+		}
+		for (const FVector2D& OffRoad : {
+			Point + Perpendicular * LateralOutside,
+			Point - Perpendicular * LateralOutside})
+		{
+			FHitResult Hit;
+			const bool bBeyondRoad = !TraceRoadBand(OffRoad, Hit);
+			TestTrue(TEXT("Road collision does not extend beyond the declared half-width."), bBeyondRoad);
+			bOrientationProven &= bBeyondRoad;
+		}
+		OrientationProbeCount += bOrientationProven ? 1 : 0;
 	}
 	TestEqual(TEXT("Collision is proven in both route fragment cells."), CollisionProbeCount, 2);
+	TestEqual(TEXT("Collision orientation is proven in both route fragment cells."), OrientationProbeCount, 2);
 	return true;
 }
 

@@ -8,6 +8,7 @@
 #include "ProjectWorldPresentationRealization.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldSemanticEvidence.h"
+#include "Tests/ProjectWorldSchemaTestUtilities.h"
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -38,7 +39,8 @@ namespace ProjectWorldPresentationTests
 		FProjectWorldCanonicalBundle Bundle;
 		Bundle.GridId = TEXT("grid_presentation_test");
 		Bundle.InputsHash = TEXT("presentation_input");
-		Bundle.OriginMeters = FVector2D(1000.0, 2000.0);
+		Bundle.LatticeOriginMeters = FVector2D(1000.0, 2000.0);
+		Bundle.EngineGeoreferenceOriginMeters = FVector2D(1000.0, 2000.0);
 		Bundle.HeightOriginMeters = 75.0;
 		for (int32 CellX = 0; CellX < 2; ++CellX)
 		{
@@ -74,6 +76,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parameters)
 {
 	using namespace ProjectWorldPresentationTests;
+	using namespace ProjectWorldSchemaTestUtilities;
 	FProjectWorldPresentationProfile Profile;
 	FString ErrorCode;
 	FString Error;
@@ -89,11 +92,81 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		TEXT("Every approved engine-provided material resolves."),
 		ProjectWorldPresentationProfile::ResolveResources(Profile, Resources, Error));
 
-	FString Source;
-	TestTrue(TEXT("Profile fixture is readable."), FFileHelper::LoadFileToString(Source, *ShippedProfilePath()));
+	FString ShippedSource;
+	TestTrue(TEXT("Profile fixture is readable."), FFileHelper::LoadFileToString(ShippedSource, *ShippedProfilePath()));
 	const FString Root = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation/ProjectWorldPresentation"));
 	IFileManager::Get().MakeDirectory(*Root, true);
 	const FString InvalidMaterialPath = FPaths::Combine(Root, TEXT("invalid_material.json"));
+	const FString Source = Rewrite(
+		ShippedSource,
+		InvalidMaterialPath,
+		TEXT("project_world_presentation_profile.schema.json"));
+	const FString ProductionRoot = FPaths::Combine(
+		FPaths::ProjectPluginsDir(),
+		TEXT("World/ProjectWorldData/Data/Profiles"));
+	const FString ProductionPath = FPaths::Combine(ProductionRoot, TEXT("presentation_loader_test.json"));
+	const FString ProductionSchema = ReferenceFor(
+		ProductionPath,
+		TEXT("project_world_presentation_profile.schema.json"));
+	TestEqual(
+		TEXT("Production presentation schema climbs to the canonical logic plugin."),
+		ProductionSchema,
+		FString(TEXT("../../../ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json")));
+	IFileManager::Get().MakeDirectory(*ProductionRoot, true);
+	TestTrue(
+		TEXT("Production-root presentation fixture is writable."),
+		FFileHelper::SaveStringToFile(
+			Rewrite(
+				ShippedSource,
+				ProductionPath,
+				TEXT("project_world_presentation_profile.schema.json")),
+			*ProductionPath));
+	TestTrue(
+		TEXT("The presentation loader accepts an owner-relative production schema."),
+		ProjectWorldPresentationProfile::Load(ProductionPath, Profile, ErrorCode, Error));
+	const FString ScratchSchema = ReferenceFor(
+		InvalidMaterialPath,
+		TEXT("project_world_presentation_profile.schema.json"));
+	auto ExpectSchemaRejected = [this, &InvalidMaterialPath, &Profile, &ErrorCode, &Error](
+		const TCHAR* Label,
+		const FString& Candidate)
+	{
+		TestTrue(
+			TEXT("Schema-sabotage fixture is writable."),
+			FFileHelper::SaveStringToFile(Candidate, *InvalidMaterialPath));
+		TestFalse(
+			Label,
+			ProjectWorldPresentationProfile::Load(
+				InvalidMaterialPath,
+				Profile,
+				ErrorCode,
+				Error));
+		TestEqual(
+			TEXT("Schema rejection is structured."),
+			ErrorCode,
+			FString(TEXT("presentation-profile-contract")));
+	};
+	ExpectSchemaRejected(
+		TEXT("A schema URL cannot replace the repository-relative authority."),
+		Source.Replace(*ScratchSchema, TEXT("https://example.invalid/presentation.schema.json")));
+	FString AbsoluteSchema = FPaths::Combine(
+		FPaths::ProjectPluginsDir(),
+		TEXT("World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json"));
+	FPaths::NormalizeFilename(AbsoluteSchema);
+	ExpectSchemaRejected(
+		TEXT("An absolute schema path is not portable authority."),
+		Source.Replace(*ScratchSchema, *AbsoluteSchema));
+	ExpectSchemaRejected(
+		TEXT("A relative path to a different canonical schema is rejected."),
+		Source.Replace(
+			*ScratchSchema,
+			*ReferenceFor(InvalidMaterialPath, TEXT("project_world_runtime_profile.schema.json"))));
+	ExpectSchemaRejected(
+		TEXT("A relative path that escapes to another target is rejected."),
+		Source.Replace(*ScratchSchema, TEXT("../../../../outside/presentation.schema.json")));
+	ExpectSchemaRejected(
+		TEXT("Backslash schema paths are rejected."),
+		Source.Replace(*ScratchSchema, *ScratchSchema.Replace(TEXT("/"), TEXT("\\\\"))));
 	const FString InvalidMaterial = Source.Replace(
 		TEXT("/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial"),
 		TEXT("/ProjectObject/Unclassified.Material"),
@@ -147,7 +220,11 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		ProjectWorldPresentationProfile::ResolveResources(Profile, FirstMaterialResources, Error));
 	TestTrue(
 		TEXT("Generated terrain material is prepared."),
-		ProjectWorldPresentationMaterialRealization::Prepare(Profile, FirstMaterialResources, Error));
+		ProjectWorldPresentationMaterialRealization::Prepare(
+			Profile,
+			FirstMaterialResources,
+			TEXT("/ProjectWorld/Generated/"),
+			Error));
 	const FString MaterialFilename = FPackageName::LongPackageNameToFilename(
 		TEXT("/ProjectWorld/Generated/Presentation/MI_ProjectWorldTerrain_kazan_representative_v1"),
 		FPackageName::GetAssetPackageExtension());
@@ -159,7 +236,11 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		ProjectWorldPresentationProfile::ResolveResources(Profile, SecondMaterialResources, Error));
 	TestTrue(
 		TEXT("Unchanged terrain material is accepted without a rewrite."),
-		ProjectWorldPresentationMaterialRealization::Prepare(Profile, SecondMaterialResources, Error));
+		ProjectWorldPresentationMaterialRealization::Prepare(
+			Profile,
+			SecondMaterialResources,
+			TEXT("/ProjectWorld/Generated/"),
+			Error));
 	TestEqual(
 		TEXT("Unchanged terrain material keeps its package timestamp."),
 		IFileManager::Get().GetTimeStamp(*MaterialFilename),
@@ -169,6 +250,7 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 	IFileManager::Get().Delete(*DuplicateViewpointPath, false, true, true);
 	IFileManager::Get().Delete(*InvalidProfileIdPath, false, true, true);
 	IFileManager::Get().Delete(*InvalidViewpointTokenPath, false, true, true);
+	IFileManager::Get().Delete(*ProductionPath, false, true, true);
 	IFileManager::Get().Delete(*UnsupportedTerrainPath, false, true, true);
 	return true;
 }

@@ -15,6 +15,7 @@ struct FProjectWorldPresentationGateConfig
 	FString OperationId;
 	FString ResultPath;
 	FString MapPackage;
+	FString WorldDataPlugin;
 	FString MachineProfileId;
 	FString PresentationProfileId;
 	FString PresentationProfileHash;

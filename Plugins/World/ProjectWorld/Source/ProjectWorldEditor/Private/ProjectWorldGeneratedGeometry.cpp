@@ -15,6 +15,12 @@
 #include "NavigationSystem.h"
 #include "ProceduralMeshComponent.h"
 
+// Off by default. Set to 1 only for a local sabotage run that proves the runtime
+// orientation probe rejects laterally collapsed road collision; never commit as 1.
+#ifndef PROJECT_WORLD_SABOTAGE_ROAD_ORIENTATION
+#define PROJECT_WORLD_SABOTAGE_ROAD_ORIENTATION 0
+#endif
+
 namespace ProjectWorldGeneratedGeometry
 {
 	const FName GeneratedTag(TEXT("ProjectWorld.Generated.v1"));
@@ -181,7 +187,13 @@ namespace ProjectWorldGeneratedGeometry
 					{
 						continue;
 					}
+// Sabotage toggle for the runtime orientation probe: rails along the tangent collapse
+// lateral road coverage, so the orientation-sensitive collision probe MUST reject.
+#if PROJECT_WORLD_SABOTAGE_ROAD_ORIENTATION
+					const FVector2D Side(Direction.X * HalfWidth, Direction.Y * HalfWidth);
+#else
 					const FVector2D Side(-Direction.Y * HalfWidth, Direction.X * HalfWidth);
+#endif
 					const int32 StepCount = FMath::Max(
 						1,
 						FMath::CeilToInt((End - Start).Length() / DrapeStepMeters));
@@ -676,8 +688,8 @@ namespace ProjectWorldGeneratedGeometry
 			Geo->ProjectedCRS = Bundle.CanonicalCrs;
 			Geo->GeographicCRS = TEXT("EPSG:4326");
 			Geo->bOriginLocationInProjectedCRS = true;
-			Geo->OriginProjectedCoordinatesEasting = Bundle.OriginMeters.X;
-			Geo->OriginProjectedCoordinatesNorthing = Bundle.OriginMeters.Y;
+			Geo->OriginProjectedCoordinatesEasting = Bundle.EngineGeoreferenceOriginMeters.X;
+			Geo->OriginProjectedCoordinatesNorthing = Bundle.EngineGeoreferenceOriginMeters.Y;
 			Geo->OriginProjectedCoordinatesUp = Bundle.HeightOriginMeters;
 			Geo->ApplySettings();
 

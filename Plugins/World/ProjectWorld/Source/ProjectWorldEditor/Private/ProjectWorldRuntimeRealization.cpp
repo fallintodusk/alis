@@ -166,6 +166,49 @@ namespace ProjectWorldRuntimeRealization
 			return LongestPart != nullptr && PolylineInteriorPoint(*LongestPart, OutPoint);
 		}
 
+		bool RepresentationInteriorFrame(
+			const FProjectWorldCanonicalRepresentation& Representation,
+			FVector2D& OutPoint,
+			FVector2D& OutTangent,
+			double& OutPartLength)
+		{
+			const TArray<FVector2D>* LongestPart = nullptr;
+			double LongestLength = 0.0;
+			for (const TArray<FVector2D>& Part : Representation.Parts)
+			{
+				double Length = 0.0;
+				for (int32 Index = 0; Index < Part.Num() - 1; ++Index)
+				{
+					Length += FVector2D::Distance(Part[Index], Part[Index + 1]);
+				}
+				if (Length > LongestLength)
+				{
+					LongestLength = Length;
+					LongestPart = &Part;
+				}
+			}
+			if (LongestPart == nullptr || LongestLength <= UE_DOUBLE_SMALL_NUMBER)
+			{
+				return false;
+			}
+
+			const TArray<FVector2D>& Points = *LongestPart;
+			double Remaining = LongestLength * 0.5;
+			for (int32 Index = 0; Index < Points.Num() - 1; ++Index)
+			{
+				const double SegmentLength = FVector2D::Distance(Points[Index], Points[Index + 1]);
+				if (Remaining <= SegmentLength && SegmentLength > UE_DOUBLE_SMALL_NUMBER)
+				{
+					OutPoint = FMath::Lerp(Points[Index], Points[Index + 1], Remaining / SegmentLength);
+					OutTangent = (Points[Index + 1] - Points[Index]).GetSafeNormal();
+					OutPartLength = LongestLength;
+					return !OutTangent.IsNearlyZero();
+				}
+				Remaining -= SegmentLength;
+			}
+			return false;
+		}
+
 		bool RouteLocations(
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldRuntimeProfile& Profile,
@@ -193,6 +236,74 @@ namespace ProjectWorldRuntimeRealization
 			return true;
 		}
 
+		enum class ERouteSurfaceExpectation : uint8
+		{
+			OnRoad,
+			OffRoad
+		};
+
+		// The cell actor carries terrain, roads, and buildings in one component, so actor tags
+		// cannot separate a road hit from a terrain hit 0.65 m below it. The road surface height
+		// band is the discriminator; the tolerance stays well under the 0.65 m road lift.
+		bool TraceRouteSurface(
+			UWorld* World,
+			const FProjectWorldCanonicalBundle& Bundle,
+			const FProjectWorldCanonicalCell& Cell,
+			const FVector2D& CanonicalPoint,
+			ERouteSurfaceExpectation Expectation,
+			const FName& FeatureTag,
+			const FName& CellTag,
+			FString& OutError)
+		{
+			constexpr double RoadSurfaceOffsetMeters = 0.65;
+			constexpr double RoadSurfaceBandCentimeters = 35.0;
+			constexpr double MinimumUpwardNormalZ = 0.94;
+			if (CanonicalPoint.X < Cell.Bounds.X || CanonicalPoint.X > Cell.Bounds.Z ||
+				CanonicalPoint.Y < Cell.Bounds.Y || CanonicalPoint.Y > Cell.Bounds.W)
+			{
+				OutError = TEXT("Route orientation probe point left the accepted cell bounds.");
+				return false;
+			}
+
+			const FVector Surface = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+				Bundle,
+				FVector(CanonicalPoint, ProjectWorldGeneratedGeometry::SampleTerrain(
+					Cell, CanonicalPoint.X, CanonicalPoint.Y) + RoadSurfaceOffsetMeters));
+			FHitResult Hit;
+			FCollisionQueryParams Query(TEXT("ProjectWorldRuntimeRouteFragment"), true);
+			const bool bHit = World->LineTraceSingleByChannel(
+				Hit,
+				Surface + FVector(0.0, 0.0, 5000.0),
+				Surface - FVector(0.0, 0.0, 5000.0),
+				ECC_Visibility,
+				Query);
+			const bool bInRoadBand = bHit &&
+				FMath::Abs(Hit.ImpactPoint.Z - Surface.Z) <= RoadSurfaceBandCentimeters;
+
+			if (Expectation == ERouteSurfaceExpectation::OffRoad)
+			{
+				if (bInRoadBand)
+				{
+					OutError = TEXT("Road collision extends beyond the declared half-width.");
+					return false;
+				}
+				return true;
+			}
+
+			if (!bInRoadBand || Hit.GetActor() == nullptr ||
+				!Hit.GetActor()->Tags.Contains(FeatureTag) || !Hit.GetActor()->Tags.Contains(CellTag))
+			{
+				OutError = TEXT("Road-band surface was not hit where the route must provide collision.");
+				return false;
+			}
+			if (Hit.ImpactNormal.Z < MinimumUpwardNormalZ)
+			{
+				OutError = TEXT("Road collision surface does not face upward at the probe point.");
+				return false;
+			}
+			return true;
+		}
+
 		bool ProbeRouteCollision(
 			UWorld* World,
 			const FProjectWorldCanonicalBundle& Bundle,
@@ -202,12 +313,16 @@ namespace ProjectWorldRuntimeRealization
 			FString& OutError)
 		{
 			const FName FeatureTag(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Profile.RouteFeatureId));
+			const double HalfWidth = FMath::Max(Feature.WidthMeters * 0.5, 1.0);
 			TSet<FString> ProbedCells;
+			TSet<FString> OrientationProvenCells;
 			for (const FProjectWorldCanonicalRepresentation& Representation : Feature.Representations)
 			{
 				FVector2D CanonicalPoint;
+				FVector2D Tangent;
+				double PartLength = 0.0;
 				if (Representation.Kind != TEXT("road_fragment") ||
-					!RepresentationInteriorPoint(Representation, CanonicalPoint))
+					!RepresentationInteriorFrame(Representation, CanonicalPoint, Tangent, PartLength))
 				{
 					continue;
 				}
@@ -217,38 +332,61 @@ namespace ProjectWorldRuntimeRealization
 					OutError = TEXT("Runtime route representations must map one-to-one to accepted cells.");
 					return false;
 				}
-
-				constexpr double RoadSurfaceOffsetMeters = 0.65;
-				const FVector Surface = FProjectWorldCanonicalLoader::CanonicalToUnreal(
-					Bundle,
-					FVector(CanonicalPoint, ProjectWorldGeneratedGeometry::SampleTerrain(
-						*Cell, CanonicalPoint.X, CanonicalPoint.Y) + RoadSurfaceOffsetMeters));
-				FHitResult Hit;
-				FCollisionQueryParams Query(TEXT("ProjectWorldRuntimeRouteFragment"), true);
-				const bool bHit = World->LineTraceSingleByChannel(
-					Hit,
-					Surface + FVector(0.0, 0.0, 5000.0),
-					Surface - FVector(0.0, 0.0, 5000.0),
-					ECC_Visibility,
-					Query);
 				const FName CellTag(*FString::Printf(TEXT("ProjectWorld.Cell=%s"), *Representation.CellId));
-				if (!bHit || Hit.GetActor() == nullptr ||
-					!Hit.GetActor()->Tags.Contains(FeatureTag) || !Hit.GetActor()->Tags.Contains(CellTag))
+
+				const double AlongOffset = FMath::Min(3.0 * HalfWidth, 0.25 * PartLength);
+				if (AlongOffset < 1.0)
 				{
 					OutError = FString::Printf(
-						TEXT("Visibility query did not hit route %s in cell %s."),
-						*Profile.RouteFeatureId,
+						TEXT("Route fragment in cell %s is too short for the orientation probe."),
 						*Representation.CellId);
 					return false;
 				}
+				const FVector2D Perpendicular(-Tangent.Y, Tangent.X);
+				const double LateralInside = 0.5 * HalfWidth;
+				const double LateralOutside = HalfWidth + FMath::Max(2.0, HalfWidth);
+
+				struct FRouteProbe
+				{
+					FVector2D Point;
+					ERouteSurfaceExpectation Expectation;
+				};
+				const FRouteProbe Probes[] =
+				{
+					{CanonicalPoint, ERouteSurfaceExpectation::OnRoad},
+					{CanonicalPoint + Tangent * AlongOffset, ERouteSurfaceExpectation::OnRoad},
+					{CanonicalPoint - Tangent * AlongOffset, ERouteSurfaceExpectation::OnRoad},
+					{CanonicalPoint + Perpendicular * LateralInside, ERouteSurfaceExpectation::OnRoad},
+					{CanonicalPoint - Perpendicular * LateralInside, ERouteSurfaceExpectation::OnRoad},
+					{CanonicalPoint + Perpendicular * LateralOutside, ERouteSurfaceExpectation::OffRoad},
+					{CanonicalPoint - Perpendicular * LateralOutside, ERouteSurfaceExpectation::OffRoad}
+				};
+				for (const FRouteProbe& Probe : Probes)
+				{
+					FString ProbeError;
+					if (!TraceRouteSurface(
+						World, Bundle, *Cell, Probe.Point, Probe.Expectation, FeatureTag, CellTag, ProbeError))
+					{
+						OutError = FString::Printf(
+							TEXT("Route %s failed the orientation probe in cell %s: %s"),
+							*Profile.RouteFeatureId,
+							*Representation.CellId,
+							*ProbeError);
+						return false;
+					}
+				}
 				ProbedCells.Add(Representation.CellId);
+				OrientationProvenCells.Add(Representation.CellId);
 			}
 			OutResult.RuntimeCollisionProbeCount = ProbedCells.Num();
 			OutResult.bRuntimeRouteCollisionProbed =
 				OutResult.RuntimeCollisionProbeCount == OutResult.CrossCellRoadExpectedFragmentCount;
-			if (!OutResult.bRuntimeRouteCollisionProbed)
+			OutResult.RuntimeCollisionOrientationProbeCount = OrientationProvenCells.Num();
+			OutResult.bRuntimeRouteCollisionOrientationProbed =
+				OutResult.RuntimeCollisionOrientationProbeCount == OutResult.CrossCellRoadExpectedFragmentCount;
+			if (!OutResult.bRuntimeRouteCollisionProbed || !OutResult.bRuntimeRouteCollisionOrientationProbed)
 			{
-				OutError = TEXT("Collision was not proven in every declared route fragment cell.");
+				OutError = TEXT("Collision and orientation were not proven in every declared route fragment cell.");
 				return false;
 			}
 			return true;
@@ -379,12 +517,18 @@ namespace ProjectWorldRuntimeRealization
 		const float GenerationRadius = FVector::Distance(Start, End) + Profile.NavigationPaddingMeters * 100.0;
 		Invoker->SetGenerationRadii(GenerationRadius, GenerationRadius + Profile.NavigationPaddingMeters * 100.0);
 
+		// The volume brush is built in actor space along X, so yawing the actor onto the
+		// route direction keeps the box route-local instead of an axis-aligned diagonal hull.
 		const FVector RouteCenter = (Start + End) * 0.5;
+		const FVector2D RouteDelta(End.X - Start.X, End.Y - Start.Y);
+		const double RouteYawDegrees = FMath::RadiansToDegrees(FMath::Atan2(RouteDelta.Y, RouteDelta.X));
 		const FVector RouteExtent(
-			FMath::Abs(End.X - Start.X) * 0.5 + Profile.NavigationPaddingMeters * 100.0,
-			FMath::Abs(End.Y - Start.Y) * 0.5 + Profile.NavigationPaddingMeters * 100.0,
+			RouteDelta.Size() * 0.5 + Profile.NavigationPaddingMeters * 100.0,
+			Profile.NavigationPaddingMeters * 100.0,
 			Profile.NavigationHeightMeters * 50.0);
 		NavBounds->SetActorLocation(RouteCenter);
+		NavBounds->SetActorRotation(FRotator(0.0, RouteYawDegrees, 0.0));
+		OutResult.RuntimeRouteVolumeYawDegrees = RouteYawDegrees;
 		UCubeBuilder* Builder = NewObject<UCubeBuilder>();
 		Builder->X = RouteExtent.X * 2.0;
 		Builder->Y = RouteExtent.Y * 2.0;

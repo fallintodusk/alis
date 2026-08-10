@@ -30,5 +30,5 @@ Documentation for gameplay mechanics, modes, and features.
 ## Usage Guides (Moved to Features)
 
 - **[Dialogue Manual](../../Plugins/Features/ProjectDialogue/docs/manual.md)** - Asset authoring & setup.
-- **[World Manual](../../Plugins/World/ProjectWorld/docs/manual.md)** - World Partition & Maps guide.
+- **[World Partition Guide](../../Plugins/World/ProjectWorld/docs/world_partition.md)** - World Partition & Maps guide.
 - **[Experience Manual](../../Plugins/Gameplay/ProjectGameplay/docs/manual_experiences.md)** - Game Modes & Experience setup.

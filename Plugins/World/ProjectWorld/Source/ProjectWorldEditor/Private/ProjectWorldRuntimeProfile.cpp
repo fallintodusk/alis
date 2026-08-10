@@ -3,6 +3,8 @@
 
 #include "ProjectWorldRuntimeProfile.h"
 
+#include "ProjectWorldSchemaReference.h"
+
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonReader.h"
@@ -13,7 +15,7 @@ namespace ProjectWorldRuntimeProfile
 {
 	namespace
 	{
-		const TCHAR* ExpectedSchema = TEXT("../Schemas/project_world_runtime_profile.schema.json");
+		const TCHAR* ExpectedSchemaFilename = TEXT("project_world_runtime_profile.schema.json");
 
 		bool HasOnlyFields(
 			const TSharedPtr<FJsonObject>& Object,
@@ -163,7 +165,12 @@ namespace ProjectWorldRuntimeProfile
 
 		FString Schema;
 		double SchemaVersion = 0.0;
-		if (!RequireString(Root, TEXT("$schema"), Schema, OutError) || Schema != ExpectedSchema ||
+		if (!RequireString(Root, TEXT("$schema"), Schema, OutError) ||
+			!ProjectWorldSchemaReference::ResolvesToCanonical(
+				Path,
+				Schema,
+				ExpectedSchemaFilename,
+				OutError) ||
 			!RequireNumber(Root, TEXT("schema_version"), 1.0, 1.0, SchemaVersion, OutError) ||
 			!RequireString(Root, TEXT("profile_id"), OutProfile.ProfileId, OutError) ||
 			!IsIdentifier(OutProfile.ProfileId) ||

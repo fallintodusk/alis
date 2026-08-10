@@ -51,6 +51,7 @@ namespace ProjectWorldPresentationMaterialRealization
 	bool Prepare(
 		const FProjectWorldPresentationProfile& Profile,
 		FProjectWorldPresentationResources& InOutResources,
+		const FString& GeneratedPackageRoot,
 		FString& OutError)
 	{
 		if (InOutResources.TerrainMaterial == nullptr)
@@ -60,7 +61,7 @@ namespace ProjectWorldPresentationMaterialRealization
 		}
 
 		const FString AssetName = TEXT("MI_ProjectWorldTerrain_") + Profile.ProfileId;
-		const FString PackageName = TEXT("/ProjectWorld/Generated/Presentation/") + AssetName;
+		const FString PackageName = GeneratedPackageRoot + TEXT("Presentation/") + AssetName;
 		const FString ObjectPath = PackageName + TEXT(".") + AssetName;
 		UMaterialInstanceConstant* Instance =
 			LoadObject<UMaterialInstanceConstant>(nullptr, *ObjectPath);

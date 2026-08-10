@@ -4,6 +4,7 @@
 #include "ProjectWorldRealizationService.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldDataRoots.h"
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldPresentationProfile.h"
@@ -41,10 +42,11 @@ namespace ProjectWorldRealization
 		Result.Detail = Detail;
 	}
 
-	bool ValidateMapPackagePath(const FString& PackagePath)
+	bool ValidateMapPackagePath(
+		const FString& PackagePath,
+		const FProjectWorldDataRoots& Roots)
 	{
-		return PackagePath.StartsWith(TEXT("/ProjectWorld/Generated/")) &&
-			FPackageName::IsValidLongPackageName(PackagePath, true);
+		return Roots.IsGeneratedPackage(PackagePath);
 	}
 
 	UWorld* LoadOrCreateWorld(
@@ -123,6 +125,21 @@ int32 FProjectWorldRealizationService::Run(
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
+	FProjectWorldDataRoots WorldDataRoots;
+	FString WorldDataRootsError;
+	if (!FProjectWorldDataRoots::Resolve(
+		Bundle.WorldDataPluginName,
+		WorldDataRoots,
+		WorldDataRootsError))
+	{
+		Reject(
+			OutResult,
+			TEXT("world-data-owner"),
+			TEXT("Canonical inputs declare an invalid world-data owner."),
+			WorldDataRootsError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
 	FProjectWorldPresentationProfile PresentationProfile;
 	FProjectWorldRuntimeProfile RuntimeProfile;
 	FProjectWorldPresentationResources PresentationResources;
@@ -187,10 +204,13 @@ int32 FProjectWorldRealizationService::Run(
 	OutResult.InstancingPolicy = RuntimeProfile.InstancingPolicy;
 	OutResult.HlodPolicy = RuntimeProfile.HlodPolicy;
 	OutResult.RuntimeP95FrameTimeBudgetMilliseconds = RuntimeProfile.Budgets.P95FrameTimeMilliseconds;
+	OutResult.WorldDataPluginName = Bundle.WorldDataPluginName;
 	OutResult.GridId = Bundle.GridId;
 	OutResult.CanonicalCrs = Bundle.CanonicalCrs;
 	OutResult.CoordinateTransform = Bundle.CoordinateTransform;
 	OutResult.VerticalOriginMeters = Bundle.HeightOriginMeters;
+	OutResult.LatticeOriginMeters = Bundle.LatticeOriginMeters;
+	OutResult.EngineGeoreferenceOriginMeters = Bundle.EngineGeoreferenceOriginMeters;
 	OutResult.MapPackagePath = Request.MapPackagePath;
 	OutResult.VerifiedOutputCount = Bundle.VerifiedOutputCount;
 
@@ -206,8 +226,8 @@ int32 FProjectWorldRealizationService::Run(
 	}
 
 	const FVector Canonical(
-		Bundle.OriginMeters.X,
-		Bundle.OriginMeters.Y,
+		Bundle.EngineGeoreferenceOriginMeters.X,
+		Bundle.EngineGeoreferenceOriginMeters.Y,
 		Bundle.HeightOriginMeters);
 	OutResult.CoordinateRoundTripErrorMeters = FVector::Distance(
 		Canonical,
@@ -253,9 +273,15 @@ int32 FProjectWorldRealizationService::Run(
 		return 0;
 	}
 
-	if (!ValidateMapPackagePath(Request.MapPackagePath))
+	if (!ValidateMapPackagePath(Request.MapPackagePath, WorldDataRoots))
 	{
-		Reject(OutResult, TEXT("editor-map-path"), TEXT("Generated map must stay under /ProjectWorld/Generated/."), Request.MapPackagePath);
+		Reject(
+			OutResult,
+			TEXT("editor-map-path"),
+			FString::Printf(
+				TEXT("Generated map must stay under %s."),
+				*WorldDataRoots.GeneratedPackageRoot),
+			Request.MapPackagePath);
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
@@ -274,6 +300,7 @@ int32 FProjectWorldRealizationService::Run(
 		!ProjectWorldPresentationMaterialRealization::Prepare(
 			PresentationProfile,
 			PresentationResources,
+			WorldDataRoots.GeneratedPackageRoot,
 			EditorError))
 	{
 		Reject(OutResult, TEXT("presentation-material"), TEXT("Cannot prepare generated presentation materials."), EditorError);
@@ -459,6 +486,7 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("runtime_route"), Result.RuntimeRouteId);
 	Root->SetStringField(TEXT("runtime_route_feature_id"), Result.RuntimeRouteFeatureId);
 	Root->SetStringField(TEXT("inputs_hash"), Result.InputHash);
+	Root->SetStringField(TEXT("world_data_plugin"), Result.WorldDataPluginName);
 	Root->SetStringField(TEXT("grid_id"), Result.GridId);
 	Root->SetStringField(TEXT("canonical_crs"), Result.CanonicalCrs);
 	Root->SetStringField(TEXT("coordinate_transform"), Result.CoordinateTransform);
@@ -466,6 +494,12 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetNumberField(TEXT("verified_output_count"), Result.VerifiedOutputCount);
 	Root->SetNumberField(TEXT("coordinate_roundtrip_error_m"), Result.CoordinateRoundTripErrorMeters);
 	Root->SetNumberField(TEXT("vertical_origin_m"), Result.VerticalOriginMeters);
+	Root->SetArrayField(TEXT("lattice_origin_m"), {
+		MakeShared<FJsonValueNumber>(Result.LatticeOriginMeters.X),
+		MakeShared<FJsonValueNumber>(Result.LatticeOriginMeters.Y)});
+	Root->SetArrayField(TEXT("engine_georeference_origin_m"), {
+		MakeShared<FJsonValueNumber>(Result.EngineGeoreferenceOriginMeters.X),
+		MakeShared<FJsonValueNumber>(Result.EngineGeoreferenceOriginMeters.Y)});
 	Root->SetNumberField(
 		TEXT("georeferencing_placement_error_m"),
 		Result.GeoReferencingPlacementErrorMeters);
@@ -491,6 +525,9 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("hlod_policy"), Result.HlodPolicy);
 	Root->SetBoolField(TEXT("runtime_route_collision_probed"), Result.bRuntimeRouteCollisionProbed);
 	Root->SetNumberField(TEXT("runtime_collision_probe_count"), Result.RuntimeCollisionProbeCount);
+	Root->SetBoolField(TEXT("runtime_route_collision_orientation_probed"), Result.bRuntimeRouteCollisionOrientationProbed);
+	Root->SetNumberField(TEXT("runtime_collision_orientation_probe_count"), Result.RuntimeCollisionOrientationProbeCount);
+	Root->SetNumberField(TEXT("runtime_route_volume_yaw_degrees"), Result.RuntimeRouteVolumeYawDegrees);
 	Root->SetBoolField(TEXT("runtime_navigation_probed"), Result.bRuntimeNavigationProbed);
 	Root->SetNumberField(TEXT("runtime_navigation_path_m"), Result.RuntimeNavigationPathMeters);
 	Root->SetBoolField(TEXT("runtime_streaming_policy_probed"), Result.bRuntimeStreamingPolicyProbed);

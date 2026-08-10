@@ -19,6 +19,10 @@ This section documents the **External, Text-Based Data Architecture** (JSON, INI
 1.  **Keep it Text-Based**: Design data should be JSON/INI, not binary `.uasset`, to allow external tools and agents to edit it.
 2.  **Plugin-Centric**: Data lives WITH the plugin that owns it, not in a global `/Game/Data` folder.
 3.  **Runtime-Reloadable**: Systems must support `ReloadConfig` or file watchers to apply changes instantly.
+4.  **One-Way Authority**: JSON is authoritative; generated definitions and
+    serialized Unreal assets are derived representations. A derived asset may
+    be required for cook, loading, serialization, replication, or runtime
+    queries, but it never becomes a competing editable SOT.
 
 ## Data Pipeline Architecture
 
@@ -87,6 +91,12 @@ ProjectPlacementEditor (owns PROPAGATION logic)
 | Plugin | Data Type | Schema Location | Purpose |
 |--------|-----------|-----------------|---------|
 | [ProjectObject](../../Plugins/Resources/ProjectObject/README.md) | Object definitions (JSON) | `ProjectObject/Data/Schemas/` | Composed actors (doors, furniture, interactive elements, inventory items) |
+| ProjectWorldData (approved target; creation pending) | Kazan world JSON and manifests | `ProjectWorldData/Data/` | Authoritative world data plus derived generated/authored content under its own mount |
+
+World reconstruction follows the same one-way authority pattern while keeping
+all reusable logic in ProjectWorld. ProjectWorldData contains no custom
+generator logic; its accepted root and regeneration contract are documented in
+[territory_generation.md](../../Plugins/World/ProjectWorld/docs/territory_generation.md).
 
 **See individual plugin READMEs for detailed implementation.**
 

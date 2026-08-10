@@ -40,26 +40,44 @@ function Get-TestRepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")).Path
 }
 
+function Get-TestSourceRoots {
+    # Automation tests live BOTH in the shared Plugins/Test plugin and inside
+    # each owning plugin's own Tests directory (e.g. ProjectWorldEditor
+    # Private/Tests). Scanning only Plugins/Test would refuse legitimate exact
+    # plugin-owned test IDs and push callers onto -Mode Gate, which also
+    # permits broad filters - the opposite of the Dev Loop Contract's intent.
+    $repoRoot = Get-TestRepoRoot
+    $pluginsRoot = Join-Path $repoRoot "Plugins"
+    if (-not (Test-Path $pluginsRoot)) { return @() }
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $sharedRoot = Join-Path $pluginsRoot "Test"
+    if (Test-Path $sharedRoot) { $roots.Add($sharedRoot) }
+    Get-ChildItem $pluginsRoot -Recurse -Directory -Filter "Tests" -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            # Skip anything already covered by the shared test plugin root.
+            if (-not $_.FullName.StartsWith($sharedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $roots.Add($_.FullName)
+            }
+        }
+    return $roots.ToArray()
+}
+
 function Get-TestSourceBlob {
-    # Concatenated content of every .cpp/.h under Plugins/Test, read once
-    # per process. Used as a haystack for the exact-quoted-literal check.
+    # Concatenated content of every .cpp/.h under the test source roots, read
+    # once per process. Used as a haystack for the exact-quoted-literal check.
     if ($null -ne $script:TestSourceBlobCache) {
         return $script:TestSourceBlobCache
     }
-    $repoRoot = Get-TestRepoRoot
-    $testRoot = Join-Path $repoRoot "Plugins\Test"
-    if (-not (Test-Path $testRoot)) {
-        $script:TestSourceBlobCache = ""
-        return $script:TestSourceBlobCache
-    }
     $sb = [System.Text.StringBuilder]::new()
-    Get-ChildItem $testRoot -Recurse -File -Include *.cpp, *.h -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            try {
-                [void]$sb.Append([System.IO.File]::ReadAllText($_.FullName))
-                [void]$sb.Append("`n")
-            } catch { }
-        }
+    foreach ($testRoot in Get-TestSourceRoots) {
+        Get-ChildItem $testRoot -Recurse -File -Include *.cpp, *.h -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try {
+                    [void]$sb.Append([System.IO.File]::ReadAllText($_.FullName))
+                    [void]$sb.Append("`n")
+                } catch { }
+            }
+    }
     $script:TestSourceBlobCache = $sb.ToString()
     return $script:TestSourceBlobCache
 }
@@ -148,7 +166,7 @@ function Test-ExactFilter {
     # is never registered as a test ID - it only appears as a substring
     # inside longer quoted literals, so this check rejects it.
     if (-not (Test-ExactQuotedLiteralInTestSource -Filter $Filter)) {
-        $out.Reason = "not found as an exact quoted test id in Plugins/Test source (likely a broad prefix or typo)"
+        $out.Reason = "not found as an exact quoted test id in any plugin test source (likely a broad prefix or typo)"
         return $out
     }
 

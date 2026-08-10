@@ -84,6 +84,22 @@ namespace
 		return true;
 	}
 
+	bool IsWorldDataPluginToken(const FString& Value)
+	{
+		if (!Value.StartsWith(TEXT("Project")) || Value.Len() <= 7)
+		{
+			return false;
+		}
+		for (const TCHAR Character : Value)
+		{
+			if (!FChar::IsAlnum(Character))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool HasTagValue(const AActor& Actor, const FString& Prefix, const FString& Expected)
 	{
 		return Actor.Tags.Contains(FName(*(Prefix + Expected)));
@@ -151,6 +167,7 @@ bool FProjectWorldPresentationGate::ParseConfig(FString& OutError)
 	if (!ParseValue(TEXT("ProjectWorldGateOperation="), Config.OperationId) ||
 		!ParseValue(TEXT("ProjectWorldGateResult="), Config.ResultPath) ||
 		!ParseValue(TEXT("ProjectWorldGateMap="), Config.MapPackage) ||
+		!ParseValue(TEXT("ProjectWorldGateWorldDataPlugin="), Config.WorldDataPlugin) ||
 		!ParseValue(TEXT("ProjectWorldGateMachine="), Config.MachineProfileId) ||
 		!ParseValue(TEXT("ProjectWorldGatePresentation="), Config.PresentationProfileId) ||
 		!ParseValue(TEXT("ProjectWorldGatePresentationHash="), Config.PresentationProfileHash) ||
@@ -171,7 +188,8 @@ bool FProjectWorldPresentationGate::ParseConfig(FString& OutError)
 	CameraRoles.ParseIntoArray(Config.CameraRoles, TEXT(","), true);
 	TSet<FString> UniqueRoles;
 	UniqueRoles.Append(Config.CameraRoles);
-	const bool bTokensValid = IsToken(Config.OperationId) && IsToken(Config.MachineProfileId) &&
+	const bool bTokensValid = IsToken(Config.OperationId) &&
+		IsWorldDataPluginToken(Config.WorldDataPlugin) && IsToken(Config.MachineProfileId) &&
 		IsToken(Config.PresentationProfileId) && IsToken(Config.RuntimeProfileId) &&
 		Algo::AllOf(Config.CameraRoles, [](const FString& Role) { return IsToken(Role); });
 	if (!bTokensValid || !IsSha256(Config.PresentationProfileHash) || !IsSha256(Config.RuntimeProfileHash) ||
@@ -180,8 +198,10 @@ bool FProjectWorldPresentationGate::ParseConfig(FString& OutError)
 		OutError = TEXT("Presentation-gate identities are invalid or ambiguous.");
 		return false;
 	}
-	if (FPaths::IsRelative(Config.ResultPath) ||
-		!Config.MapPackage.StartsWith(TEXT("/ProjectWorld/Generated/Representative/")))
+	const FString ExpectedMapRoot = FString::Printf(
+		TEXT("/%s/Generated/Representative/"),
+		*Config.WorldDataPlugin);
+	if (FPaths::IsRelative(Config.ResultPath) || !Config.MapPackage.StartsWith(ExpectedMapRoot))
 	{
 		OutError = TEXT("Presentation-gate result or map scope is invalid.");
 		return false;

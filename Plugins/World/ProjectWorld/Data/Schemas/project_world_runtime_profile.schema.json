@@ -14,7 +14,10 @@
     "budgets"
   ],
   "properties": {
-    "$schema": { "const": "../Schemas/project_world_runtime_profile.schema.json" },
+    "$schema": {
+      "type": "string",
+      "pattern": "^(?:\\.\\./)+(?:ProjectWorld/Data/)?Schemas/project_world_runtime_profile\\.schema\\.json$"
+    },
     "schema_version": { "const": 1 },
     "profile_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
     "grid_id": { "type": "string", "pattern": "^grid_[a-z0-9]+$" },

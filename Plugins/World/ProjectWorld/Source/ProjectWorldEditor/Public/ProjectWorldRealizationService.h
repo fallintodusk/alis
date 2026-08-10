@@ -45,6 +45,7 @@ struct FProjectWorldRealizationResult
 	FString NanitePolicy;
 	FString InstancingPolicy;
 	FString HlodPolicy;
+	FString WorldDataPluginName;
 	FString GridId;
 	FString CanonicalCrs;
 	FString CoordinateTransform;
@@ -54,6 +55,8 @@ struct FProjectWorldRealizationResult
 	double CoordinateRoundTripErrorMeters = 0.0;
 	double GeoReferencingPlacementErrorMeters = 0.0;
 	double VerticalOriginMeters = 0.0;
+	FVector2D LatticeOriginMeters = FVector2D::ZeroVector;
+	FVector2D EngineGeoreferenceOriginMeters = FVector2D::ZeroVector;
 	double DurationSeconds = 0.0;
 	int64 GeneratedSourceBytes = 0;
 	int64 ProceduralMeshBufferBytes = 0;
@@ -80,6 +83,8 @@ struct FProjectWorldRealizationResult
 	int32 ProceduralMeshSectionDrawCallUpperBound = 0;
 	int32 HlodProxyActorCount = 0;
 	int32 RuntimeCollisionProbeCount = 0;
+	int32 RuntimeCollisionOrientationProbeCount = 0;
+	double RuntimeRouteVolumeYawDegrees = 0.0;
 	double RuntimeNavigationPathMeters = 0.0;
 	double RuntimeP95FrameTimeBudgetMilliseconds = 0.0;
 	FString CrossCellRoadFeatureId;
@@ -88,6 +93,7 @@ struct FProjectWorldRealizationResult
 	bool bGeoReferencingProbed = false;
 	bool bAuthoredCorrectionLayerPreserved = false;
 	bool bRuntimeRouteCollisionProbed = false;
+	bool bRuntimeRouteCollisionOrientationProbed = false;
 	bool bRuntimeNavigationProbed = false;
 	bool bRuntimeStreamingPolicyProbed = false;
 	bool bRuntimeNanitePolicyProbed = false;

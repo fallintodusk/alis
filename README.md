@@ -10,7 +10,21 @@ Learn. Survive. Connect.
 
 ALIS is an open-source Unreal Engine 5 survival game set in a post-apocalyptic real-world city. Scavenge, learn practical skills through gameplay, and survive in believable locations built from real geography.
 
-This repository is the public code and documentation home for ALIS -- source code, architecture docs, build and release workflows, and modular plugin structure. Private infrastructure, licensed asset payloads, and local machine state are kept out of the public tree.
+## Download and run ALIS
+
+A runnable public prototype is available as a packaged release.
+
+Download it from the
+[latest GitHub release](https://github.com/<user>/alis/releases/latest)
+and follow the included `INSTALL.txt`.
+
+You do not need a source checkout to run the packaged build. Building the
+complete project from source additionally requires asset payloads that are not
+stored in this Git tree.
+
+## This repository
+
+This repository is the public code and documentation home for ALIS -- source code, architecture docs, build and release workflows, and modular plugin structure. Exactly what is published and what stays out of the public tree is listed in [What This Repository Contains](#what-this-repository-contains).
 
 - Site: https://fall.is/
 - Vision: [VISION.md](VISION.md)
@@ -146,17 +160,12 @@ Published here:
 - text-based design and runtime data workflows
 - the canonical `Alis.uproject`, so the public repo reflects the real plugin layout
 
-Not published here:
-- Unreal content asset payloads
-- cooked builds and packaged binaries
-- secrets, credentials, and private machine configuration
-- non-redistributable third-party payloads
-
-## Can I Run It?
-
-If you want to run ALIS today, use the public release builds.
-
-This public source tree is optimized for code, docs, review, and contribution flow. A full internal asset-complete checkout is still required for complete source-based runtime and release workflows.
+Not stored in this Git source tree:
+- cooked builds and packaged binaries, which are distributed separately through
+  [GitHub Releases](https://github.com/<user>/alis/releases)
+- project asset payloads that are not yet published
+- third-party payloads whose licenses do not permit public redistribution
+- secrets, credentials, and operator-specific machine configuration
 
 ## Release Trust
 

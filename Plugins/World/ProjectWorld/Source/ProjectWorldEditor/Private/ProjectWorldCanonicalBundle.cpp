@@ -383,18 +383,33 @@ bool FProjectWorldCanonicalLoader::Load(
 
 	TSharedPtr<FJsonObject> Grid;
 	FVector2D CellQuadsValue;
-	if (!RequireString(Coverage, TEXT("grid_id"), OutBundle.GridId, OutValidation) ||
+	if (!RequireString(Coverage, TEXT("world_data_plugin"), OutBundle.WorldDataPluginName, OutValidation) ||
+		!ReadVector2(Coverage, TEXT("engine_georeference_origin"), OutBundle.EngineGeoreferenceOriginMeters, OutValidation) ||
+		!RequireString(Coverage, TEXT("grid_id"), OutBundle.GridId, OutValidation) ||
 		!RequireObject(Coverage, TEXT("grid"), Grid, OutValidation) ||
 		!RequireString(Grid, TEXT("canonical_crs"), OutBundle.CanonicalCrs, OutValidation) ||
 		!RequireString(Grid, TEXT("vertical_datum"), OutBundle.VerticalDatum, OutValidation) ||
 		!RequireString(Grid, TEXT("coordinate_transform"), OutBundle.CoordinateTransform, OutValidation) ||
-		!ReadVector2(Grid, TEXT("origin"), OutBundle.OriginMeters, OutValidation) ||
+		!ReadVector2(Grid, TEXT("origin"), OutBundle.LatticeOriginMeters, OutValidation) ||
 		!ReadVector2(Grid, TEXT("sample_spacing"), OutBundle.SampleSpacingMeters, OutValidation) ||
 		!ReadVector2(Grid, TEXT("cell_quads"), CellQuadsValue, OutValidation) ||
 		!RequireDouble(Grid, TEXT("coordinate_quantization"), OutBundle.CoordinateQuantizationMeters, OutValidation) ||
 		!RequireDouble(Grid, TEXT("height_quantization"), OutBundle.HeightQuantizationMeters, OutValidation) ||
 		!RequireDouble(Grid, TEXT("vertical_origin_m"), OutBundle.HeightOriginMeters, OutValidation))
 	{
+		return false;
+	}
+	if (!FMath::IsNearlyEqual(
+			OutBundle.EngineGeoreferenceOriginMeters.X,
+			FMath::RoundToDouble(OutBundle.EngineGeoreferenceOriginMeters.X)) ||
+		!FMath::IsNearlyEqual(
+			OutBundle.EngineGeoreferenceOriginMeters.Y,
+			FMath::RoundToDouble(OutBundle.EngineGeoreferenceOriginMeters.Y)))
+	{
+		Reject(
+			OutValidation,
+			TEXT("georeference-origin"),
+			TEXT("Engine projected georeference origin must use integer metres."));
 		return false;
 	}
 	OutBundle.CellQuads = FIntPoint(FMath::RoundToInt(CellQuadsValue.X), FMath::RoundToInt(CellQuadsValue.Y));
@@ -506,9 +521,13 @@ bool FProjectWorldCanonicalLoader::Load(
 		}
 
 		if (!BoundsEqual(Cell.Terrain.Bounds, Cell.Bounds) ||
-			!Cell.Terrain.SampleSpacing.Equals(OutBundle.SampleSpacingMeters))
+			!Cell.Terrain.SampleSpacing.Equals(OutBundle.SampleSpacingMeters) ||
+			Cell.Terrain.VerticalDatum != OutBundle.VerticalDatum ||
+			!FMath::IsNearlyEqual(
+				Cell.Terrain.SamplingQuantizationResidualMeters,
+				OutBundle.HeightQuantizationMeters * 0.5))
 		{
-			Reject(OutValidation, TEXT("terrain-contract"), TEXT("Terrain bounds or spacing do not match the owning grid cell."), Cell.CellId);
+			Reject(OutValidation, TEXT("terrain-contract"), TEXT("Terrain bounds, spacing, datum, or quantization residual does not match its grid."), Cell.CellId);
 			return false;
 		}
 
@@ -562,18 +581,50 @@ namespace ProjectWorldCanonical
 		FString GridId;
 		FString CellId;
 		int32 SchemaVersion = 0;
+		TSharedPtr<FJsonObject> VerticalProvenance;
 		if (!RequireString(Object, TEXT("$schema"), Schema, Validation) ||
 			!RequireInt(Object, TEXT("schema_version"), SchemaVersion, Validation) ||
 			!RequireString(Object, TEXT("grid_id"), GridId, Validation) ||
 			!RequireString(Object, TEXT("cell_id"), CellId, Validation) ||
 			!ReadBounds(Object, OutTerrain.Bounds, Validation) ||
-			!ReadVector2(Object, TEXT("sample_spacing"), OutTerrain.SampleSpacing, Validation))
+			!ReadVector2(Object, TEXT("sample_spacing"), OutTerrain.SampleSpacing, Validation) ||
+			!RequireObject(Object, TEXT("vertical_provenance"), VerticalProvenance, Validation) ||
+			!RequireString(
+				VerticalProvenance,
+				TEXT("source_ref"),
+				OutTerrain.VerticalProvenanceId,
+				Validation) ||
+			!RequireString(
+				VerticalProvenance,
+				TEXT("vertical_datum"),
+				OutTerrain.VerticalDatum,
+				Validation) ||
+			!RequireString(
+				VerticalProvenance,
+				TEXT("confidence"),
+				OutTerrain.VerticalConfidence,
+				Validation) ||
+			!RequireDouble(
+				VerticalProvenance,
+				TEXT("source_accuracy_m"),
+				OutTerrain.VerticalSourceAccuracyMeters,
+				Validation) ||
+			!RequireDouble(
+				VerticalProvenance,
+				TEXT("sampling_quantization_residual_m"),
+				OutTerrain.SamplingQuantizationResidualMeters,
+				Validation))
 		{
 			return false;
 		}
 
 		if (Schema != TEXT("https://alis.world/schemas/world-compiler/terrain-cell-v1.json") ||
-			SchemaVersion != 1 || GridId != ExpectedGridId || CellId != ExpectedCellId)
+			SchemaVersion != 1 || GridId != ExpectedGridId || CellId != ExpectedCellId ||
+			OutTerrain.VerticalProvenanceId.IsEmpty() ||
+			OutTerrain.VerticalDatum.IsEmpty() ||
+			OutTerrain.VerticalConfidence.IsEmpty() ||
+			OutTerrain.VerticalSourceAccuracyMeters < 0.0 ||
+			OutTerrain.SamplingQuantizationResidualMeters < 0.0)
 		{
 			Reject(Validation, TEXT("terrain-identity"), TEXT("Terrain identity or schema does not match its cell."), CellId);
 			return false;

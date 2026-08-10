@@ -48,7 +48,9 @@ ProjectWorld is intended to become a thin helper plugin that provides:
 - **Event/Data Layer mapping** - Toggle UE Data Layers by event name
 - **Validation and incremental build hooks** - Shared logic for world builders
 
-ProjectWorld contains **no world-specific content**. It does not know about City17 streets or buildings - it just provides the machinery that any world can use.
+ProjectWorld contains no production world-specific data or content. Generic
+fixtures and representative adapter assets may live here only to prove the
+machinery that any world-data plugin can use.
 
 **World-tier plugin:** Lives under `Plugins/World/ProjectWorld/`; used by world plugins (City17, future worlds).
 
@@ -115,11 +117,12 @@ exact schema version, coverage/provenance profile identity, grid/cell identity,
 terrain bounds and spacing, manifest-to-feature ownership, provenance result,
 and coordinate contract. It never reads raw provider data.
 
-Generated maps are restricted to `/ProjectWorld/Generated/`. Owned actors use
-stable GUIDs and the `ProjectWorld.Generated.v1` tag; input, grid, cell,
-terrain, and feature identities remain on actor tags. Untagged authored actors
-are preserved. An Apply run records actual actor/component semantics as a
-SHA-256 fingerprint and reports generated source bytes.
+Production generated maps are restricted to
+`/ProjectWorldData/Generated/`. `/ProjectWorld/Generated/` is fixture-only.
+Owned actors use stable GUIDs and the `ProjectWorld.Generated.v1` tag; input,
+grid, cell, terrain, and feature identities remain on actor tags. Untagged
+authored actors are preserved. An Apply run records actual actor/component
+semantics as a SHA-256 fingerprint and reports generated source bytes.
 
 An Apply run updates matching generated cell and GeoReferencing actors in
 place, removes only stale generated identities, and rebuilds their owned mesh
@@ -130,11 +133,15 @@ The D3 fingerprint includes edit-layer names and content, not UE-assigned
 layer GUIDs. A receipt records the GUID separately to prove preservation within
 an existing map while clean regeneration remains semantically deterministic.
 
-Landscape-compatible grids import one stock 16-bit Landscape without engine
-resampling. `Generated Base` is updated only for changed, component-aligned
-terrain cells; `Generated Roads` is reserved for generated road deformation;
-`Authored Corrections` is never written by regeneration. Incompatible small
-fixtures use an exact procedural preview and fail when Landscape is required.
+The representative adapter imports one stock 16-bit Landscape without engine
+resampling. Production topology is one logical Landscape partitioned into
+streaming proxies. Its baseline is one `31 x 31`-quad component and proxy per
+canonical cell; the documented World Partition performance gate may bundle
+adjacent proxies without changing cell ownership. `Generated Base` is updated
+only for changed, component-aligned terrain cells; `Generated Roads` is
+reserved for generated road deformation; `Authored Corrections` is never
+written by regeneration. Incompatible small fixtures use an exact procedural
+preview and fail when Landscape is required.
 Canonical terrain row zero is the northern edge and maps to the Landscape's
 north-west row without another reversal. GeoReferencing proves both projected
 -> Unreal -> projected error and equality with the transform used for actual
@@ -156,22 +163,24 @@ and normalized capture viewpoints. Its runtime loader accepts only exact v1
 documents, schema-safe identifier tokens, the approved parameterized terrain
 parent, and `/Engine/` references for the other materials. ALIS stores the
 configuration and generated actor identities; it neither copies nor relicenses
-the referenced engine content. Apply derives the terrain material instance under
-`/ProjectWorld/Generated/Presentation/` from that profile, creates or updates
-one generated actor per environment role, and owns one stable camera per named
-viewpoint. Actor GUIDs derive from grid ID, profile ID, and role, so a clean-map
-rebuild preserves D3 identity while style edits update the same actors. An
-unchanged material instance is not saved again. Untagged hero overlays remain
-outside this ownership boundary and survive regeneration.
+the referenced engine content. Fixture Apply derives the terrain material
+instance under `/ProjectWorld/Generated/Presentation/`; production Apply uses
+`/ProjectWorldData/Generated/Presentation/`. It creates
+or updates one generated actor per environment role, and owns one stable
+camera per named viewpoint. Actor GUIDs derive from grid ID, profile ID, and
+role, so a clean-map rebuild preserves D3 identity while style edits update
+the same actors. An unchanged material instance is not saved again. Untagged
+hero overlays remain outside this ownership boundary and survive regeneration.
 
 The fixed EV100 value is realized through deterministic Manual metering and
 derived physical-camera values. This keeps physical light units stable while
 project-wide auto exposure is disabled. Each generated capture camera embeds
 the same settings so World Partition streaming cannot change capture exposure.
 
-The selected runtime profile under `Data/Runtime/` is the single editable
-contract for one bounded gameplay route and its acceptance budgets. It pins an
-exact canonical grid and road identity, route endpoint inset, navigation
+The representative runtime profile under `Data/Runtime/` is the single
+editable contract for its bounded evidence route and acceptance budgets. It
+does not define production territory playability or World Partition settings.
+It pins an exact canonical grid and road identity, route endpoint inset, navigation
 bounds, and explicit Nanite, instancing, and HLOD decisions. The strict v1
 loader rejects a different grid, missing route, unknown policy, or malformed
 budget before editor mutation.
@@ -821,16 +830,25 @@ FWorldDataDiff Diff = UProjectWorldDiff::ComputeDiff(OldData, NewData);
 ```
 
 
-## 16. What Stays in World Plugins
+## 16. What Stays in World-Data Plugins
 
-World plugins (City17, etc.) own:
+`ProjectWorldData` owns:
 
-- **Actual world data files** (JSON/DSL for their tiles)
-- **World-specific rules** (which data layers exist, which events are valid)
-- **Builder/commandlet** that calls ProjectWorld helpers
-- **Maps** (World Partition .umap files)
+- authoritative world JSON and accepted source/profile manifests;
+- generated definitions and serialized Unreal assets derived from that JSON;
+- World Partition maps and external actors/objects;
+- authored overlays protected by the regeneration contract;
+- world-specific values selected through ProjectWorld schemas and interfaces.
 
-ProjectWorld provides tools; world plugins provide content.
+ProjectWorld owns all reusable world logic, definition/serialization types,
+generators, replication support, runtime services, and validation.
+`ProjectWorldData` is data/content-only: its authoritative JSON lives under
+`Plugins/World/ProjectWorldData/Data/`, durable generation manifests under
+`Data/Manifests/`, derived packages under `/ProjectWorldData/Generated/`, and
+protected authored packages under `/ProjectWorldData/Authored/`. Its descriptor
+activates the ProjectWorld dependency and supplies one validated content mount;
+it does not add a `Source` module, fork generator logic, or provide a custom
+builder.
 
 
 ## 17. Public API (Planned)

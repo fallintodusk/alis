@@ -15,7 +15,8 @@
   ],
   "properties": {
     "$schema": {
-      "const": "../Schemas/project_world_presentation_profile.schema.json"
+      "type": "string",
+      "pattern": "^(?:\\.\\./)+(?:ProjectWorld/Data/)?Schemas/project_world_presentation_profile\\.schema\\.json$"
     },
     "schema_version": {
       "const": 1

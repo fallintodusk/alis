@@ -1,0 +1,26 @@
+{
+    "$schema":  "../../Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "presentation_kazan_representative_v1",
+    "generation":  1,
+    "owning_layer":  "presentation",
+    "accepted_operation_id":  "a49e3f1dbcfb460fa2a22c529ff9bd28",
+    "generator_fingerprint":  "65b3bd594eb47b97a4f5c5ba6763ea539d59273ad013dbdf043140f7b5fa25f2",
+    "input_identity":  {
+                           "runtime_profile_sha256":  "none",
+                           "map_package":  "shared",
+                           "compile_result_sha256":  "none",
+                           "presentation_profile_sha256":  "0a4f4eeeab7e73f719d290df4d156aaa09d5568575c318c7237197db98be8d79"
+                       },
+    "artifacts":  [
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/Generated/Presentation/MI_ProjectWorldTerrain_kazan_representative_v1.uasset",
+                          "kind":  "asset",
+                          "digest_kind":  "sha256",
+                          "digest":  "7065617d2d3666b63c63ebfb5ef3221a68b922010f18b19cc9a578bd5c84039e"
+                      }
+                  ],
+    "consumer_references":  [
+                                "map_p0_l_projectworldsynthetic"
+                            ]
+}

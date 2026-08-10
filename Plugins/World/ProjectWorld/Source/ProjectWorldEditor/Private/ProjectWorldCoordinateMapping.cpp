@@ -8,8 +8,8 @@ FVector FProjectWorldCanonicalLoader::CanonicalToUnreal(
 	const FVector& CanonicalMeters)
 {
 	return FVector(
-		(CanonicalMeters.X - Bundle.OriginMeters.X) * 100.0,
-		-(CanonicalMeters.Y - Bundle.OriginMeters.Y) * 100.0,
+		(CanonicalMeters.X - Bundle.EngineGeoreferenceOriginMeters.X) * 100.0,
+		-(CanonicalMeters.Y - Bundle.EngineGeoreferenceOriginMeters.Y) * 100.0,
 		(CanonicalMeters.Z - Bundle.HeightOriginMeters) * 100.0);
 }
 
@@ -18,8 +18,8 @@ FVector FProjectWorldCanonicalLoader::UnrealToCanonical(
 	const FVector& UnrealCentimeters)
 {
 	return FVector(
-		UnrealCentimeters.X * 0.01 + Bundle.OriginMeters.X,
-		-UnrealCentimeters.Y * 0.01 + Bundle.OriginMeters.Y,
+		UnrealCentimeters.X * 0.01 + Bundle.EngineGeoreferenceOriginMeters.X,
+		-UnrealCentimeters.Y * 0.01 + Bundle.EngineGeoreferenceOriginMeters.Y,
 		UnrealCentimeters.Z * 0.01 + Bundle.HeightOriginMeters);
 }
 

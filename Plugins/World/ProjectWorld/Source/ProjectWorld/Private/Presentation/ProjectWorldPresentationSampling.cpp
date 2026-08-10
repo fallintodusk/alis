@@ -12,7 +12,7 @@ namespace
 	const FString RuntimeProfilePrefix(TEXT("ProjectWorld.Runtime="));
 	const FString RuntimeHashPrefix(TEXT("ProjectWorld.RuntimeHash="));
 
-	FString TagValue(const AActor& Actor, const FString& Prefix)
+	FString RuntimeTagValue(const AActor& Actor, const FString& Prefix)
 	{
 		for (const FName& Tag : Actor.Tags)
 		{
@@ -25,7 +25,7 @@ namespace
 		return FString();
 	}
 
-	bool HasTagValue(const AActor& Actor, const FString& Prefix, const FString& Expected)
+	bool HasRuntimeTagValue(const AActor& Actor, const FString& Prefix, const FString& Expected)
 	{
 		return Actor.Tags.Contains(FName(*(Prefix + Expected)));
 	}
@@ -41,13 +41,13 @@ namespace ProjectWorldPresentation
 		FRuntimeRoleScan Scan;
 		for (TActorIterator<AActor> It(&World); It; ++It)
 		{
-			const FString Role = TagValue(**It, RuntimeRolePrefix);
+			const FString Role = RuntimeTagValue(**It, RuntimeRolePrefix);
 			if (Role.IsEmpty())
 			{
 				continue;
 			}
-			if (!HasTagValue(**It, RuntimeProfilePrefix, RuntimeProfileId) ||
-				!HasTagValue(**It, RuntimeHashPrefix, RuntimeProfileHash))
+			if (!HasRuntimeTagValue(**It, RuntimeProfilePrefix, RuntimeProfileId) ||
+				!HasRuntimeTagValue(**It, RuntimeHashPrefix, RuntimeProfileHash))
 			{
 				Scan.Error = FString::Printf(
 					TEXT("A loaded actor carries runtime role '%s' with stale profile ownership."),

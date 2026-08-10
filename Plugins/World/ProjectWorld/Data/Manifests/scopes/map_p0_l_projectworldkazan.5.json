@@ -1,0 +1,152 @@
+{
+    "$schema":  "../../Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "map_p0_l_projectworldkazan",
+    "generation":  5,
+    "owning_layer":  "map",
+    "accepted_operation_id":  "25221ce4527f4ece815ee17bbad97bf2",
+    "generator_fingerprint":  "290f20007092af4339209c254361b371af0f363306f546eba87a13a91f43a00c",
+    "input_identity":  {
+                           "runtime_profile_sha256":  "none",
+                           "map_package":  "/ProjectWorld/Generated/P0/L_ProjectWorldKazan",
+                           "compile_result_sha256":  "2be6fab98d408bc840c971eb3445dc51d030adeb38311afb38a078eb5c885c25",
+                           "presentation_profile_sha256":  "0a4f4eeeab7e73f719d290df4d156aaa09d5568575c318c7237197db98be8d79"
+                       },
+    "artifacts":  [
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/1/2I/ZM4RU9K666BF66W62GMS7N.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "c1f49b64f79225af831f102501da3fdb4f06ffc30ac933835b7f7b7dbd4a139c"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/2/V0/SE1OXKIHA8GF856FVZ3NFD.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "74707d41654a832f4626dd5388af28a1e120511f27d40d191cd4481d90d19805"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/5/FV/ZWT1R8SNMM7UGHCKN5P8LB.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "415d3f0cd128573306e15fa5939b116b165e78fe02a68ffb8443ba97c777b5d4"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/5/GA/1F59CJE71DQUCZVR6RW8ZX.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "5a84d14a6953dce0280c7e584ba94acafeb94917451891772e704fcba7cb4b38"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/6/EQ/0BCOQSJ971ZDSHI7IL0UGA.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "b75b648a1d1b348736ef6e6748de8fa0c72b8688a2b2f69246c56c3aa8d272f0"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/8/12/CODJVEN6Z0AKW5VP9RB61C.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "590330661b2b18b5ce6030daac93e7d3db23ded3f2c3d612918065fb63d7e900"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/A/MX/XER6OUYHX4I7M2QBZOMJMH.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "ed9f5bb335f080d516c475344ea7c057a5355930e6205ca7080b169fc100a647"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/A/XK/T2KRNMOIJH4DRIUR83FGJC.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "95274200a7e031f38fdc0dd8f19a7f1fe13f0a090fc09ad5c017895e6c5650f9"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/B/4G/7S93NDDHAG9008F1UFU1PH.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "ea14166bb5035cc6b2a768b43b0ace2b7922233b7436f1725e1fd4ef08852aae"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/C/OC/JNUTAVD3YSM566VYJBC03I.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "7fc51f7d23a67bb2698218b67289bc7e23708d42f9fce5a60afaadec7c7938cd"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/C/VO/BK92L7743PR0QUJIY2Y9KN.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "0248e851561e96e27ec6e7d3ea8130baa45c72ceca7d27a6f4ced1de25e7a80b"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/D/TK/0JYPP2CBC7HXP43BE09WJ1.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "3373afae263d91938fb4fa1eceee0f6f39323d05efa277ece798f82ece8a355f"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/D/W6/PV5NHT4MK3RFCRZ6Q5Y7XZ.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "26fdd6f05e48abe7e63712e14566578fdeebbc61d911952f2b5ec11a4ce57ea4"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/E/0J/OQ3EGN6Z562IWE6BOQHNCG.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "27f41cd349828ccd968a80ff8c4ddf6899f0990af5ec4ca300986bf41e7df18f"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalActors__/Generated/P0/L_ProjectWorldKazan/E/XG/EISOSN08C1DTTXRY0ID2H7.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "c3e14294c6f17f843a3b2e7b1f6dcedbf54d166e3c5630248905546d582b3535"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalObjects__/Generated/P0/L_ProjectWorldKazan/1/FX/FBVS9UKIP0HJI8IKJ8ZITM.uasset",
+                          "kind":  "external_object",
+                          "digest_kind":  "sha256",
+                          "digest":  "e8843855e2d02e370bcc7ef4c59b7d2ef1df314cc5151b6016a82bd2f67e6bad"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalObjects__/Generated/P0/L_ProjectWorldKazan/5/AS/3B9C14Q9SOAX1ZW4K563YV.uasset",
+                          "kind":  "external_object",
+                          "digest_kind":  "sha256",
+                          "digest":  "a3ef290dbb222b3dfa10a1a91dce10b2423202dd99082ac55e8d288097ebfe05"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalObjects__/Generated/P0/L_ProjectWorldKazan/C/8D/AVQ2BP53Z0K0H6SNF58O8C.uasset",
+                          "kind":  "external_object",
+                          "digest_kind":  "sha256",
+                          "digest":  "15c2051f7793ab0ea92c468b5173e023e544fed839a2db13cb533d89c97d205c"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/__ExternalObjects__/Generated/P0/L_ProjectWorldKazan/E/S5/QWNPAHPBVCVT0T0I3I9JHC.uasset",
+                          "kind":  "external_object",
+                          "digest_kind":  "sha256",
+                          "digest":  "6adc333aca5f064facb535ea5d60a6f6a9fb996132753378123fb442f2fb5354"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/Generated/P0/L_ProjectWorldKazan.umap",
+                          "kind":  "map",
+                          "digest_kind":  "sha256",
+                          "digest":  "6f472f74f90e07f6bb542272559ebe808a8faec034fcfb964d028d97b7005097"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/Generated/P0/L_ProjectWorldKazan_HLODLayer_Instanced.uasset",
+                          "kind":  "hlod",
+                          "digest_kind":  "sha256",
+                          "digest":  "b89c405b103e101b3b5ee0119936171f4fbf1c727ded86439479b6df7098d0ea"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorld/Content/Generated/P0/L_ProjectWorldKazan_HLODLayer_Merged.uasset",
+                          "kind":  "hlod",
+                          "digest_kind":  "sha256",
+                          "digest":  "24c2b9b2f3cc094c542b9e457779143a7585fb792fea11530e4ab8a096010ed2"
+                      }
+                  ],
+    "consumer_references":  [
+
+                            ]
+}

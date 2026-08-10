@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/generated-manifest-v1.json",
+  "title": "ProjectWorld Generated-Artifact Manifest",
+  "description": "Immutable per-scope ownership record for generated content. Authoritative only when referenced by the active-manifest-set record. Contract: docs/territory_generation.md (Layered regeneration contract).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "scope_id",
+    "generation",
+    "owning_layer",
+    "accepted_operation_id",
+    "generator_fingerprint",
+    "input_identity",
+    "artifacts",
+    "consumer_references"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^(?:\\.\\./\\.\\./Schemas|\\.\\./\\.\\./\\.\\./\\.\\./ProjectWorld/Data/Schemas|\\.\\./\\.\\./\\.\\./\\.\\./\\.\\./Plugins/World/ProjectWorld/Data/Schemas)/project_world_generated_manifest\\.schema\\.json$"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "scope_id": {
+      "type": "string",
+      "pattern": "^(map|presentation|layer)_[a-z0-9_]+$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "owning_layer": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "accepted_operation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generator_fingerprint": {
+      "description": "Deterministic hash of the generator sources, schemas, and lifecycle scripts that produced this manifest.",
+      "$ref": "#/$defs/sha256"
+    },
+    "input_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compile_result_sha256", "presentation_profile_sha256", "runtime_profile_sha256", "map_package"],
+      "properties": {
+        "compile_result_sha256": {"$ref": "#/$defs/sha256_or_none"},
+        "presentation_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
+        "runtime_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
+        "map_package": {"type": "string", "minLength": 1}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "digest_kind", "digest"],
+        "properties": {
+          "path": {
+            "description": "Normalized repository-relative path with forward slashes.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_./ -]+$"
+          },
+          "kind": {
+            "enum": ["map", "external_actor", "external_object", "asset", "built_data", "hlod", "other"]
+          },
+          "digest_kind": {
+            "const": "sha256"
+          },
+          "digest": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "consumer_references": {
+      "description": "Scope IDs that consume artifacts owned by this scope. Consumption never grants mutation rights.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^(map|presentation|layer)_[a-z0-9_]+$"},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "sha256_or_none": {
+      "anyOf": [
+        {"$ref": "#/$defs/sha256"},
+        {"const": "none"}
+      ]
+    }
+  }
+}

@@ -13,5 +13,6 @@ namespace ProjectWorldPresentationMaterialRealization
 	bool Prepare(
 		const FProjectWorldPresentationProfile& Profile,
 		FProjectWorldPresentationResources& InOutResources,
+		const FString& GeneratedPackageRoot,
 		FString& OutError);
 }

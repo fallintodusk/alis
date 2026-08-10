@@ -29,6 +29,11 @@ struct FProjectWorldCanonicalFeature
 struct FProjectWorldCanonicalTerrain
 {
 	FString ArtifactHash;
+	FString VerticalProvenanceId;
+	FString VerticalDatum;
+	FString VerticalConfidence;
+	double VerticalSourceAccuracyMeters = 0.0;
+	double SamplingQuantizationResidualMeters = 0.0;
 	FVector4d Bounds = FVector4d(0.0, 0.0, 0.0, 0.0);
 	FVector2D SampleSpacing = FVector2D::ZeroVector;
 	int32 SamplesX = 0;
@@ -54,11 +59,13 @@ struct FProjectWorldCanonicalBundle
 	FString CompileResultHash;
 	FString InputsHash;
 	FString ProfileId;
+	FString WorldDataPluginName;
 	FString GridId;
 	FString CanonicalCrs;
 	FString VerticalDatum;
 	FString CoordinateTransform;
-	FVector2D OriginMeters = FVector2D::ZeroVector;
+	FVector2D LatticeOriginMeters = FVector2D::ZeroVector;
+	FVector2D EngineGeoreferenceOriginMeters = FVector2D::ZeroVector;
 	FVector2D SampleSpacingMeters = FVector2D::ZeroVector;
 	FIntPoint CellQuads = FIntPoint::ZeroValue;
 	double CoordinateQuantizationMeters = 0.0;

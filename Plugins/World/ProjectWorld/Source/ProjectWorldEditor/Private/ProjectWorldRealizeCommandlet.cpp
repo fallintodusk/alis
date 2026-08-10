@@ -62,7 +62,7 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 		UE_LOG(
 			LogProjectWorldRealization,
 			Error,
-			TEXT("[ProjectWorldRealizeCommandlet::Main] Usage - require -CompileResult=<path> -Result=<path> [-PresentationProfile=<path> for validate/apply] [-RuntimeProfile=<path>] [-Mode=validate|apply|delete] [-Map=/ProjectWorld/Generated/...]."));
+			TEXT("[ProjectWorldRealizeCommandlet::Main] Usage - require -CompileResult=<path> -Result=<path> [-PresentationProfile=<path> for validate/apply] [-RuntimeProfile=<path>] [-Mode=validate|apply|delete] [-Map=/<world-data-plugin>/Generated/...]."));
 		return 2;
 	}
 

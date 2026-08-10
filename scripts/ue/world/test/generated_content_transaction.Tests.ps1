@@ -74,6 +74,24 @@ Describe 'ProjectWorld generated-content transaction' {
         @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $mapPackage) | Should -BeNullOrEmpty
     }
 
+    It 'uses the declared data-plugin mount for snapshot and rollback' {
+        $productionMap = '/ProjectWorldData/Generated/Representative/L_TestWorld'
+        Set-Content -LiteralPath $mapFile -Value 'accepted-production-map' -NoNewline
+        $snapshotRoot = Join-Path $transactionParent 'snapshot-production-owner'
+        $records = @(New-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot `
+            -MapPackage $productionMap `
+            -GeneratedPackageRoot '/ProjectWorldData/Generated/' `
+            -SnapshotRoot $snapshotRoot)
+        Set-Content -LiteralPath $mapFile -Value 'rejected-production-map' -NoNewline
+        Restore-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot `
+            -MapPackage $productionMap `
+            -GeneratedPackageRoot '/ProjectWorldData/Generated/' `
+            -Records $records
+        Get-Content -LiteralPath $mapFile -Raw | Should -Be 'accepted-production-map'
+    }
+
     It 'rolls back a child accepted result when the engine exits nonzero' {
         Set-Content -LiteralPath $mapFile -Value 'accepted-map' -NoNewline
         $snapshotRoot = Join-Path $transactionParent 'snapshot-engine-failure'

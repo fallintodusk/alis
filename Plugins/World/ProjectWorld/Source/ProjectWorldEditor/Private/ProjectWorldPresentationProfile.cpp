@@ -3,6 +3,8 @@
 
 #include "ProjectWorldPresentationProfile.h"
 
+#include "ProjectWorldSchemaReference.h"
+
 #include "Dom/JsonObject.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
@@ -14,8 +16,8 @@ namespace ProjectWorldPresentationProfile
 {
 	namespace
 	{
-		const TCHAR* ExpectedSchema =
-			TEXT("../Schemas/project_world_presentation_profile.schema.json");
+		const TCHAR* ExpectedSchemaFilename =
+			TEXT("project_world_presentation_profile.schema.json");
 		const TCHAR* ExpectedTerrainMaterial =
 			TEXT("/Engine/OpenWorldTemplate/LandscapeMaterial/MI_ProcGrid.MI_ProcGrid");
 
@@ -152,7 +154,11 @@ namespace ProjectWorldPresentationProfile
 		FString Schema;
 		double SchemaVersion = 0.0;
 		if (!RequireString(Root, TEXT("$schema"), Schema, OutError) ||
-			Schema != ExpectedSchema ||
+			!ProjectWorldSchemaReference::ResolvesToCanonical(
+				Path,
+				Schema,
+				ExpectedSchemaFilename,
+				OutError) ||
 			!RequireNumber(Root, TEXT("schema_version"), 1.0, 1.0, SchemaVersion, OutError) ||
 			!RequireString(Root, TEXT("profile_id"), OutProfile.ProfileId, OutError))
 		{

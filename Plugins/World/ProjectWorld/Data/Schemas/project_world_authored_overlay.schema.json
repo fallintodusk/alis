@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-realization/authored-overlay-v1.json",
+  "title": "ProjectWorld authored overlay set",
+  "description": "Authored (hand-made) content placed above generated geography. Regeneration replaces generated layers wholesale, so authored packages are never touched and are instead re-attached through anchor records. Canonical coordinates are the durable authority; an Unreal world transform is always DERIVED through the resolver and is never stored as the source of truth. Contract: Plugins/World/ProjectWorld/docs/territory_generation.md, section 'Authored anchor semantics'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "overlay_set_id", "world_data_plugin", "grid_id", "resolver_version", "provenance", "overlays"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^(?:\\.\\./)+(?:ProjectWorld/Data/)?Schemas/project_world_authored_overlay\\.schema\\.json$"
+    },
+    "schema_version": {"const": 1},
+    "overlay_set_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "world_data_plugin": {
+      "type": "string",
+      "pattern": "^Project[A-Za-z0-9]+$",
+      "description": "The content-capable project plugin whose mounted Authored root owns every overlay package."
+    },
+    "grid_id": {
+      "type": "string",
+      "pattern": "^grid_[a-f0-9]{16}$",
+      "description": "Anchors are only meaningful against the grid whose cells and coordinates they were authored against; a mismatched grid fails closed."
+    },
+    "resolver_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Frozen with the anchors. A resolver whose semantics changed must not silently re-place authored content."
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/provenance"}
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["overlay_id", "authored_package", "anchor"],
+        "properties": {
+          "overlay_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "authored_package": {
+            "type": "string",
+            "pattern": "^/[A-Za-z][A-Za-z0-9_]*/Authored/[A-Za-z0-9_/]+$",
+            "description": "SOFT reference target. Authored packages live only under the authored root and never under a generated root."
+          },
+          "anchor": {
+            "oneOf": [
+              {"$ref": "#/$defs/coordinateAnchor"},
+              {"$ref": "#/$defs/featureAnchor"},
+              {"$ref": "#/$defs/maskAnchor"}
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provenance_id"],
+      "properties": {
+        "provenance_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "horizontal_accuracy_m": {"type": "number", "minimum": 0},
+        "vertical_datum": {"type": "string", "minLength": 1},
+        "vertical_accuracy_m": {"type": "number", "minimum": 0}
+      },
+      "dependentRequired": {
+        "vertical_datum": ["vertical_accuracy_m"],
+        "vertical_accuracy_m": ["vertical_datum"]
+      },
+      "anyOf": [
+        {"required": ["horizontal_accuracy_m"]},
+        {"required": ["vertical_datum", "vertical_accuracy_m"]}
+      ]
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["yaw_degrees"],
+      "properties": {"yaw_degrees": {"type": "number", "minimum": -360, "maximum": 360}}
+    },
+    "offset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["east_m", "north_m", "up_m"],
+      "properties": {
+        "east_m": {"type": "number"},
+        "north_m": {"type": "number"},
+        "up_m": {"type": "number"}
+      }
+    },
+    "coordinateAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "placement_class", "provenance_ref", "horizontal_tolerance_m", "canonical_crs", "easting_m", "northing_m", "vertical_mode", "vertical_tolerance_m"],
+      "properties": {
+        "kind": {"const": "coordinate"},
+        "placement_class": {"enum": ["precision", "standard"]},
+        "provenance_ref": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "horizontal_tolerance_m": {"type": "number", "exclusiveMinimum": 0},
+        "canonical_crs": {"type": "string", "minLength": 1},
+        "easting_m": {"type": "number"},
+        "northing_m": {"type": "number"},
+        "vertical_mode": {"enum": ["surface_snap", "absolute"]},
+        "vertical_provenance_ref": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "vertical_datum": {"type": "string", "minLength": 1},
+        "height_m": {"type": "number"},
+        "vertical_tolerance_m": {"type": "number", "exclusiveMinimum": 0},
+        "offset": {"$ref": "#/$defs/offset"},
+        "orientation": {"$ref": "#/$defs/orientation"}
+      },
+      "oneOf": [
+        {
+          "properties": {"vertical_mode": {"const": "surface_snap"}},
+          "not": {"anyOf": [{"required": ["vertical_provenance_ref"]}, {"required": ["vertical_datum"]}, {"required": ["height_m"]}]}
+        },
+        {
+          "properties": {"vertical_mode": {"const": "absolute"}},
+          "required": ["vertical_provenance_ref", "vertical_datum", "height_m", "vertical_tolerance_m"]
+        }
+      ]
+    },
+    "featureAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "feature_id",
+        "expected_feature_class",
+        "expected_geometry_type",
+        "expected_easting_m",
+        "expected_northing_m",
+        "placement_class",
+        "provenance_ref",
+        "horizontal_tolerance_m",
+        "vertical_mode",
+        "vertical_tolerance_m"
+      ],
+      "description": "Resolved through the accepted resolver against the canonical feature, NEVER by a direct reference, attachment, or outer relationship to a disposable generated actor.",
+      "properties": {
+        "kind": {"const": "feature"},
+        "placement_class": {"enum": ["precision", "standard"]},
+        "provenance_ref": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "feature_id": {"type": "string", "minLength": 1},
+        "expected_feature_class": {"type": "string", "minLength": 1},
+        "expected_geometry_type": {"type": "string", "minLength": 1},
+        "horizontal_tolerance_m": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Maximum total source uncertainty plus resolved feature movement. Exceeding it fails closed."
+        },
+        "vertical_mode": {"enum": ["surface_snap", "absolute"]},
+        "vertical_provenance_ref": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "vertical_datum": {"type": "string", "minLength": 1},
+        "height_m": {"type": "number"},
+        "vertical_tolerance_m": {"type": "number", "exclusiveMinimum": 0},
+        "offset": {"$ref": "#/$defs/offset"},
+        "orientation": {"$ref": "#/$defs/orientation"},
+        "expected_easting_m": {"type": "number"},
+        "expected_northing_m": {"type": "number"}
+      },
+      "oneOf": [
+        {
+          "properties": {"vertical_mode": {"const": "surface_snap"}},
+          "not": {"anyOf": [{"required": ["vertical_provenance_ref"]}, {"required": ["vertical_datum"]}, {"required": ["height_m"]}]}
+        },
+        {
+          "properties": {"vertical_mode": {"const": "absolute"}},
+          "required": ["vertical_provenance_ref", "vertical_datum", "height_m", "vertical_tolerance_m"]
+        }
+      ]
+    },
+    "maskAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "canonical_crs", "bounds_m"],
+      "description": "A protected input consumed by regeneration, for example a foliage exclusion area. Owned in the same canonical coordinate model as the other anchor classes.",
+      "properties": {
+        "kind": {"const": "mask"},
+        "canonical_crs": {"type": "string", "minLength": 1},
+        "bounds_m": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {"type": "number"},
+          "description": "west, south, east, north in canonical metres."
+        },
+        "excludes": {
+          "type": "array",
+          "items": {"enum": ["vegetation", "roads", "buildings"]}
+        }
+      }
+    }
+  }
+}
