@@ -8,7 +8,8 @@ BeforeAll {
 Describe 'ProjectWorld generated-content transaction' {
     BeforeEach {
         $contentRoot = Join-Path $TestDrive 'Content'
-        $mapPackage = '/ProjectWorld/Generated/Representative/L_TestWorld'
+        $mapPackage = '/ProjectWorldTestData/Generated/Representative/L_TestWorld'
+        $generatedPackageRoot = '/ProjectWorldTestData/Generated/'
         $mapRoot = Join-Path $contentRoot 'Generated\Representative'
         $mapFile = Join-Path $mapRoot 'L_TestWorld.umap'
         $externalRoot = Join-Path $contentRoot '__ExternalActors__\Generated\Representative\L_TestWorld'
@@ -26,17 +27,19 @@ Describe 'ProjectWorld generated-content transaction' {
         $records = @(New-ProjectWorldGeneratedSnapshot `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -SnapshotRoot $snapshotRoot)
 
         Set-Content -LiteralPath $mapFile -Value 'rejected-map' -NoNewline
         Set-Content -LiteralPath (Join-Path $externalRoot 'actor.uasset') -Value 'rejected-actor' -NoNewline
         Set-Content -LiteralPath (Join-Path $presentationRoot 'material.uasset') -Value 'rejected-material' -NoNewline
-        Set-Content -LiteralPath (Join-Path $mapRoot 'L_TestWorld_HLOD.uasset') -Value 'rejected-extra' -NoNewline
+        Set-Content -LiteralPath (Join-Path $mapRoot 'L_TestWorld_HLODLayer_Rejected.uasset') -Value 'rejected-extra' -NoNewline
 
         Set-Content -LiteralPath $resultPath -Value '{"status":"rejected"}' -NoNewline
         $completion = Complete-ProjectWorldGeneratedTransaction `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -Records $records `
             -TransactionParent $transactionParent `
             -TransactionRoot $snapshotRoot `
@@ -48,7 +51,7 @@ Describe 'ProjectWorld generated-content transaction' {
         Get-Content -LiteralPath $mapFile -Raw | Should -Be 'accepted-map'
         Get-Content -LiteralPath (Join-Path $externalRoot 'actor.uasset') -Raw | Should -Be 'accepted-actor'
         Get-Content -LiteralPath (Join-Path $presentationRoot 'material.uasset') -Raw | Should -Be 'accepted-material'
-        Test-Path -LiteralPath (Join-Path $mapRoot 'L_TestWorld_HLOD.uasset') | Should -BeFalse
+        Test-Path -LiteralPath (Join-Path $mapRoot 'L_TestWorld_HLODLayer_Rejected.uasset') | Should -BeFalse
         Test-Path -LiteralPath $resultPath | Should -BeTrue
         Test-Path -LiteralPath $snapshotRoot | Should -BeFalse
     }
@@ -59,6 +62,7 @@ Describe 'ProjectWorld generated-content transaction' {
         $records = @(New-ProjectWorldGeneratedSnapshot `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -SnapshotRoot $snapshotRoot)
 
         New-Item -ItemType Directory -Path $mapRoot, $externalRoot, $presentationRoot -Force | Out-Null
@@ -69,9 +73,72 @@ Describe 'ProjectWorld generated-content transaction' {
         Restore-ProjectWorldGeneratedSnapshot `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -Records $records
 
-        @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $mapPackage) | Should -BeNullOrEmpty
+        @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot `
+            -MapPackage $mapPackage -GeneratedPackageRoot $generatedPackageRoot) | Should -BeNullOrEmpty
+    }
+
+    It 'restores existing and initially absent layer roots in the same rollback' {
+        $existingLayer = Join-Path $contentRoot 'Generated\Twin\Terrain'
+        $absentLayer = Join-Path $contentRoot 'Generated\Twin\Water'
+        New-Item -ItemType Directory -Path $existingLayer -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $existingLayer 'terrain.uasset') -Value 'accepted' -NoNewline
+        $snapshotRoot = Join-Path $transactionParent 'snapshot-layers'
+        $records = @(New-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot `
+            -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
+            -SnapshotRoot $snapshotRoot `
+            -AdditionalPaths @($existingLayer, $absentLayer))
+
+        Set-Content -LiteralPath (Join-Path $existingLayer 'terrain.uasset') -Value 'rejected' -NoNewline
+        New-Item -ItemType Directory -Path $absentLayer -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $absentLayer 'water.uasset') -Value 'rejected' -NoNewline
+        Restore-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot `
+            -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
+            -Records $records
+
+        Get-Content -LiteralPath (Join-Path $existingLayer 'terrain.uasset') -Raw | Should -Be 'accepted'
+        Test-Path -LiteralPath $absentLayer | Should -BeFalse
+    }
+
+    It 'removes a retired map scope without deleting shared presentation' {
+        Set-Content -LiteralPath $mapFile -Value 'map' -NoNewline
+        Set-Content -LiteralPath (Join-Path $externalRoot 'actor.uasset') -Value 'actor' -NoNewline
+        $hlod = Join-Path $mapRoot 'L_TestWorld_HLODLayer_Merged.uasset'
+        $sibling = Join-Path $mapRoot 'L_TestWorldNight.umap'
+        Set-Content -LiteralPath $hlod -Value 'hlod' -NoNewline
+        Set-Content -LiteralPath $sibling -Value 'sibling' -NoNewline
+        $material = Join-Path $presentationRoot 'material.uasset'
+        Set-Content -LiteralPath $material -Value 'material' -NoNewline
+        Remove-ProjectWorldGeneratedPaths -ContentRoot $contentRoot `
+            -MapPackage $mapPackage -GeneratedPackageRoot $generatedPackageRoot `
+            -IncludePresentation $false
+        @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot `
+            -MapPackage $mapPackage -GeneratedPackageRoot $generatedPackageRoot `
+            -IncludePresentation $false) | Should -BeNullOrEmpty
+        Test-Path -LiteralPath $hlod | Should -BeFalse
+        Get-Content -LiteralPath $sibling -Raw | Should -Be 'sibling'
+        Get-Content -LiteralPath $material -Raw | Should -Be 'material'
+    }
+
+    It 'retires only exact HLOD companions after a no-HLOD Apply' {
+        Set-Content -LiteralPath $mapFile -Value 'map' -NoNewline
+        $hlod = Join-Path $mapRoot 'L_TestWorld_HLODLayer_Merged.uasset'
+        $sibling = Join-Path $mapRoot 'L_TestWorldNight_HLODLayer_Merged.uasset'
+        Set-Content -LiteralPath $hlod -Value 'hlod' -NoNewline
+        Set-Content -LiteralPath $sibling -Value 'sibling-hlod' -NoNewline
+
+        Remove-ProjectWorldGeneratedHLODArtifacts -ContentRoot $contentRoot `
+            -MapPackage $mapPackage -GeneratedPackageRoot $generatedPackageRoot
+
+        Test-Path -LiteralPath $hlod | Should -BeFalse
+        Get-Content -LiteralPath $sibling -Raw | Should -Be 'sibling-hlod'
+        Get-Content -LiteralPath $mapFile -Raw | Should -Be 'map'
     }
 
     It 'uses the declared data-plugin mount for snapshot and rollback' {
@@ -98,6 +165,7 @@ Describe 'ProjectWorld generated-content transaction' {
         $records = @(New-ProjectWorldGeneratedSnapshot `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -SnapshotRoot $snapshotRoot)
         Set-Content -LiteralPath $mapFile -Value 'uncommitted-map' -NoNewline
         Set-Content -LiteralPath $resultPath -Value '{"status":"accepted"}' -NoNewline
@@ -105,6 +173,7 @@ Describe 'ProjectWorld generated-content transaction' {
         Complete-ProjectWorldGeneratedTransaction `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -Records $records `
             -TransactionParent $transactionParent `
             -TransactionRoot $snapshotRoot `
@@ -123,12 +192,14 @@ Describe 'ProjectWorld generated-content transaction' {
         $records = @(New-ProjectWorldGeneratedSnapshot `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -SnapshotRoot $snapshotRoot)
         Set-Content -LiteralPath $mapFile -Value 'uncommitted-map' -NoNewline
 
         Complete-ProjectWorldGeneratedTransaction `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -Records $records `
             -TransactionParent $transactionParent `
             -TransactionRoot $snapshotRoot `
@@ -147,6 +218,7 @@ Describe 'ProjectWorld generated-content transaction' {
         $records = @(New-ProjectWorldGeneratedSnapshot `
             -ContentRoot $contentRoot `
             -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot `
             -SnapshotRoot $snapshotRoot)
         Set-Content -LiteralPath $mapFile -Value 'uncommitted-map' -NoNewline
         Mock Copy-Item { throw 'forced restore copy failure' } -ParameterFilter {
@@ -158,6 +230,7 @@ Describe 'ProjectWorld generated-content transaction' {
             Complete-ProjectWorldGeneratedTransaction `
                 -ContentRoot $contentRoot `
                 -MapPackage $mapPackage `
+                -GeneratedPackageRoot $generatedPackageRoot `
                 -Records $records `
                 -TransactionParent $transactionParent `
                 -TransactionRoot $snapshotRoot `

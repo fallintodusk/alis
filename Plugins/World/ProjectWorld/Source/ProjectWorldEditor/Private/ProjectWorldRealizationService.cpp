@@ -3,20 +3,28 @@
 
 #include "ProjectWorldRealizationService.h"
 
+#include "ProjectWorldAuthoredOverlay.h"
+#include "ProjectWorldAuthoredOverlayRealization.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldDataRoots.h"
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldLandscapeRealization.h"
+#include "ProjectWorldLayerInventory.h"
+#include "ProjectWorldLayerDirtyInput.h"
+#include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldPresentationProfile.h"
 #include "ProjectWorldPresentationMaterialRealization.h"
 #include "ProjectWorldPresentationRealization.h"
+#include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimeRealization.h"
 #include "ProjectWorldSemanticEvidence.h"
+#include "ProjectWorldWaterRealization.h"
 
 #include "Dom/JsonObject.h"
 #include "Editor.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -27,6 +35,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/WorldPartitionMiniMap.h"
 
 namespace ProjectWorldRealization
 {
@@ -79,6 +88,20 @@ namespace ProjectWorldRealization
 
 	bool SaveGeneratedWorld(UWorld* World, const FString& MapPackagePath)
 	{
+		// The editor creates this preview actor with a time-based UAID. It has no
+		// cooked/runtime role and would make clean reconstruction change packages.
+		TArray<AWorldPartitionMiniMap*> MiniMaps;
+		for (TActorIterator<AWorldPartitionMiniMap> It(World); It; ++It)
+		{
+			MiniMaps.Add(*It);
+		}
+		for (AWorldPartitionMiniMap* MiniMap : MiniMaps)
+		{
+			if (!World->EditorDestroyActor(MiniMap, true))
+			{
+				return false;
+			}
+		}
 		const FString MapFilename = FPackageName::LongPackageNameToFilename(
 			MapPackagePath,
 			FPackageName::GetMapPackageExtension());
@@ -142,11 +165,59 @@ int32 FProjectWorldRealizationService::Run(
 	}
 	FProjectWorldPresentationProfile PresentationProfile;
 	FProjectWorldRuntimeProfile RuntimeProfile;
+	FProjectWorldAuthoredOverlaySet AuthoredOverlaySet;
+	FProjectWorldRealizationProfile RealizationProfile;
+	FProjectWorldLayerDirtyInput LayerDirtyInput;
 	FProjectWorldPresentationResources PresentationResources;
 	FString PresentationErrorCode;
 	FString PresentationError;
 	const bool bNeedsPresentation = Request.Mode != EProjectWorldRealizationMode::Delete;
 	const bool bNeedsRuntime = bNeedsPresentation && !Request.RuntimeProfilePath.IsEmpty();
+	const bool bNeedsLayerPlan = bNeedsPresentation && !Request.RealizationProfilePath.IsEmpty();
+	const bool bNeedsDirtyInput = bNeedsLayerPlan && !Request.LayerDirtyInputPath.IsEmpty();
+	if (bNeedsLayerPlan &&
+		(!ProjectWorldRealizationProfile::Load(
+			Request.RealizationProfilePath,
+			RealizationProfile,
+			PresentationErrorCode,
+			PresentationError) ||
+		RealizationProfile.WorldDataPluginName != Bundle.WorldDataPluginName ||
+		RealizationProfile.CanonicalProfileId != Bundle.ProfileId ||
+		RealizationProfile.MapPackagePath != Request.MapPackagePath))
+	{
+		Reject(
+			OutResult,
+			PresentationErrorCode.IsEmpty() ? TEXT("realization-profile-identity") : *PresentationErrorCode,
+			TEXT("Realization profile is not accepted for these canonical inputs and map."),
+			PresentationError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
+	if (bNeedsLayerPlan && Request.Mode == EProjectWorldRealizationMode::Apply && !bNeedsDirtyInput)
+	{
+		Reject(
+			OutResult,
+			TEXT("layer-dirty-input-required"),
+			TEXT("Layer Apply requires an authenticated base/operator dirty input."));
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
+	if (bNeedsDirtyInput &&
+		(!ProjectWorldLayerDirtyInput::Load(
+			Request.LayerDirtyInputPath,
+			LayerDirtyInput,
+			PresentationErrorCode,
+			PresentationError) ||
+		LayerDirtyInput.RealizationProfileId != RealizationProfile.ProfileId))
+	{
+		Reject(
+			OutResult,
+			PresentationErrorCode.IsEmpty() ? TEXT("layer-dirty-input-profile") : *PresentationErrorCode,
+			TEXT("Layer dirty input is not accepted."),
+			PresentationError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
 	if (bNeedsPresentation && (!ProjectWorldPresentationProfile::Load(
 		Request.PresentationProfilePath,
 		PresentationProfile,
@@ -182,16 +253,37 @@ int32 FProjectWorldRealizationService::Run(
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
+	if (bNeedsPresentation && !ProjectWorldAuthoredOverlayRealization::Resolve(
+		Bundle,
+		Request.AuthoredOverlayProfilePath,
+		AuthoredOverlaySet,
+		OutResult,
+		PresentationErrorCode,
+		PresentationError))
+	{
+		Reject(
+			OutResult,
+			PresentationErrorCode.IsEmpty()
+				? TEXT("authored-overlay-resolution")
+				: *PresentationErrorCode,
+			TEXT("Authored overlay set is not accepted."),
+			PresentationError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
 
 	const FString PresentationIdentity = bNeedsPresentation
 		? PresentationProfile.ProfileHash.Left(12)
 		: TEXT("delete");
 	OutResult.OperationId = FString::Printf(
-		TEXT("realize:%s:%s:%s:%s"),
+		TEXT("realize:%s:%s:%s:%s:%s:%s:%s"),
 		*Bundle.ProfileId,
 		*Bundle.InputsHash.Left(12),
 		*PresentationIdentity,
-		bNeedsRuntime ? *RuntimeProfile.ProfileHash.Left(12) : TEXT("no-runtime"));
+		bNeedsRuntime ? *RuntimeProfile.ProfileHash.Left(12) : TEXT("no-runtime"),
+		bNeedsPresentation ? *AuthoredOverlaySet.SetHash.Left(12) : TEXT("delete"),
+		bNeedsLayerPlan ? *RealizationProfile.ProfileHash.Left(12) : TEXT("no-layers"),
+		bNeedsDirtyInput ? *LayerDirtyInput.InputHash.Left(12) : TEXT("no-dirty-input"));
 	OutResult.InputHash = Bundle.InputsHash;
 	OutResult.CompileResultHash = Bundle.CompileResultHash;
 	OutResult.PresentationProfileId = PresentationProfile.ProfileId;
@@ -200,6 +292,9 @@ int32 FProjectWorldRealizationService::Run(
 	OutResult.RuntimeProfileHash = RuntimeProfile.ProfileHash;
 	OutResult.RuntimeRouteId = RuntimeProfile.RouteId;
 	OutResult.RuntimeRouteFeatureId = RuntimeProfile.RouteFeatureId;
+	OutResult.RealizationProfileId = RealizationProfile.ProfileId;
+	OutResult.RealizationProfileHash = RealizationProfile.ProfileHash;
+	OutResult.LayerDirtyInputHash = LayerDirtyInput.InputHash;
 	OutResult.NanitePolicy = RuntimeProfile.NanitePolicy;
 	OutResult.InstancingPolicy = RuntimeProfile.InstancingPolicy;
 	OutResult.HlodPolicy = RuntimeProfile.HlodPolicy;
@@ -211,8 +306,26 @@ int32 FProjectWorldRealizationService::Run(
 	OutResult.VerticalOriginMeters = Bundle.HeightOriginMeters;
 	OutResult.LatticeOriginMeters = Bundle.LatticeOriginMeters;
 	OutResult.EngineGeoreferenceOriginMeters = Bundle.EngineGeoreferenceOriginMeters;
+	OutResult.SampleSpacingMeters = Bundle.SampleSpacingMeters;
 	OutResult.MapPackagePath = Request.MapPackagePath;
 	OutResult.VerifiedOutputCount = Bundle.VerifiedOutputCount;
+	OutResult.CanonicalCellCount = Bundle.Cells.Num();
+	if (bNeedsLayerPlan && !ProjectWorldLayerInventory::Build(
+		Bundle,
+		RealizationProfile,
+		Request.Mode == EProjectWorldRealizationMode::Apply && Request.bFirstLayerApply,
+		bNeedsDirtyInput ? &LayerDirtyInput : nullptr,
+		OutResult,
+		PresentationError))
+	{
+		Reject(
+			OutResult,
+			TEXT("realization-dirty-plan"),
+			TEXT("Layer dirty closure is invalid."),
+			PresentationError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
 
 	const FProjectWorldLandscapeLayout Layout =
 		FProjectWorldCanonicalLoader::SelectLandscapeLayout(Bundle);
@@ -296,6 +409,14 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 	OutResult.bWorldPartition = true;
+	const bool bPartitionHlodPolicyChanged =
+		ProjectWorldPartitionPolicy::CountHLODLayerReferences(World) > 0;
+	if (!ProjectWorldPartitionPolicy::DisableHLOD(World, EditorError))
+	{
+		Reject(OutResult, TEXT("editor-hlod-policy"), TEXT("Cannot apply the production no-HLOD policy."), EditorError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
 	if (Request.Mode == EProjectWorldRealizationMode::Apply &&
 		!ProjectWorldPresentationMaterialRealization::Prepare(
 			PresentationProfile,
@@ -364,6 +485,8 @@ int32 FProjectWorldRealizationService::Run(
 				World,
 				Bundle,
 				Layout,
+				bNeedsLayerPlan ? RealizationProfile.LogicalLandscapeId : FString(),
+				bNeedsLayerPlan ? RealizationProfile.ComponentsPerProxy : 1,
 				OutResult,
 				EditorError,
 				PresentationResources.TerrainMaterial))
@@ -372,7 +495,7 @@ int32 FProjectWorldRealizationService::Run(
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
-		if (!ProjectWorldGeneratedGeometry::CreateOwnedActors(
+		if (!bNeedsLayerPlan && !ProjectWorldGeneratedGeometry::CreateOwnedActors(
 			World,
 			Bundle,
 			!Layout.bCompatible,
@@ -384,6 +507,17 @@ int32 FProjectWorldRealizationService::Run(
 			bNeedsRuntime ? RuntimeProfile.RouteFeatureId : FString()))
 		{
 			Reject(OutResult, TEXT("geometry-create"), TEXT("Cannot realize canonical geometry."), EditorError);
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
+		if (bNeedsLayerPlan && !ProjectWorldWaterRealization::Apply(
+			World,
+			Bundle,
+			RealizationProfile,
+			OutResult,
+			EditorError))
+		{
+			Reject(OutResult, TEXT("geometry-water"), TEXT("Cannot realize persistent cell-local water."), EditorError);
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
@@ -410,6 +544,21 @@ int32 FProjectWorldRealizationService::Run(
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
+		if (!ProjectWorldAuthoredOverlayRealization::Apply(
+			World,
+			Bundle,
+			AuthoredOverlaySet,
+			OutResult,
+			EditorError))
+		{
+			Reject(
+				OutResult,
+				TEXT("authored-overlay-create"),
+				TEXT("Cannot realize authored-overlay anchor actors."),
+				EditorError);
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
 	}
 	else if (Layout.bCompatible &&
 		!ProjectWorldLandscapeRealization::ClearGeneratedLayers(
@@ -423,9 +572,24 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 
-	if (!SaveGeneratedWorld(World, Request.MapPackagePath))
+	OutResult.UpdatedActorCount += ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
+	const bool bGeneratedWorldChanged = bPartitionHlodPolicyChanged ||
+		OutResult.CreatedActorCount > 0 || OutResult.UpdatedActorCount > 0 ||
+		OutResult.RemovedActorCount > 0 || OutResult.UpdatedLandscapeComponentCount > 0;
+	if (bGeneratedWorldChanged && !SaveGeneratedWorld(World, Request.MapPackagePath))
 	{
 		Reject(OutResult, TEXT("save-map"), TEXT("Cannot save the generated World Partition map."), Request.MapPackagePath);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
+	if (bNeedsLayerPlan && !ProjectWorldLayerInventory::CaptureArtifacts(
+		World,
+		Bundle,
+		RealizationProfile,
+		OutResult,
+		EditorError))
+	{
+		Reject(OutResult, TEXT("save-layer-inventory"), TEXT("Cannot authenticate generated layer artifacts."), EditorError);
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
@@ -485,6 +649,89 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("runtime_profile_sha256"), Result.RuntimeProfileHash);
 	Root->SetStringField(TEXT("runtime_route"), Result.RuntimeRouteId);
 	Root->SetStringField(TEXT("runtime_route_feature_id"), Result.RuntimeRouteFeatureId);
+	Root->SetStringField(TEXT("authored_overlay_set"), Result.AuthoredOverlaySetId);
+	Root->SetStringField(TEXT("authored_overlay_set_sha256"), Result.AuthoredOverlaySetHash);
+	Root->SetStringField(TEXT("realization_profile"), Result.RealizationProfileId);
+	Root->SetStringField(TEXT("realization_profile_sha256"), Result.RealizationProfileHash);
+	Root->SetStringField(TEXT("layer_dirty_input_sha256"), Result.LayerDirtyInputHash);
+	TArray<TSharedPtr<FJsonValue>> LayerInventories;
+	for (const FProjectWorldLayerInventory& Inventory : Result.LayerInventories)
+	{
+		TSharedRef<FJsonObject> Layer = MakeShared<FJsonObject>();
+		Layer->SetStringField(TEXT("layer_id"), Inventory.LayerId);
+		Layer->SetStringField(TEXT("scope_id"), Inventory.ScopeId);
+		Layer->SetStringField(
+			TEXT("normalized_layer_contract_sha256"),
+			Inventory.NormalizedLayerContractHash);
+		Layer->SetStringField(TEXT("generator_id"), Inventory.GeneratorId);
+		Layer->SetNumberField(TEXT("generator_version"), Inventory.GeneratorVersion);
+		Layer->SetStringField(TEXT("artifact_root"), Inventory.ArtifactRoot);
+		auto StringArray = [](const TArray<FString>& Values)
+		{
+			TArray<TSharedPtr<FJsonValue>> ResultValues;
+			for (const FString& Value : Values)
+			{
+				ResultValues.Add(MakeShared<FJsonValueString>(Value));
+			}
+			return ResultValues;
+		};
+		auto InputArray = [](const TArray<FProjectWorldLayerInputInventory>& Inputs)
+		{
+			TArray<TSharedPtr<FJsonValue>> ResultInputs;
+			for (const FProjectWorldLayerInputInventory& Input : Inputs)
+			{
+				TSharedRef<FJsonObject> Record = MakeShared<FJsonObject>();
+				Record->SetStringField(TEXT("unit_id"), Input.UnitId);
+				Record->SetStringField(TEXT("sha256"), Input.Hash);
+				ResultInputs.Add(MakeShared<FJsonValueObject>(Record));
+			}
+			return ResultInputs;
+		};
+		Layer->SetArrayField(TEXT("canonical_inputs"), InputArray(Inventory.CanonicalInputs));
+		Layer->SetArrayField(TEXT("dependency_inputs"), InputArray(Inventory.DependencyInputs));
+		Layer->SetArrayField(TEXT("final_dirty_units"), StringArray(Inventory.FinalDirtyUnits));
+		TArray<TSharedPtr<FJsonValue>> Artifacts;
+		for (const FProjectWorldLayerArtifactInventory& InventoryArtifact : Inventory.Artifacts)
+		{
+			TSharedRef<FJsonObject> Artifact = MakeShared<FJsonObject>();
+			Artifact->SetStringField(TEXT("path"), InventoryArtifact.Path);
+			Artifact->SetStringField(TEXT("kind"), InventoryArtifact.Kind);
+			Artifact->SetStringField(TEXT("digest_kind"), TEXT("sha256"));
+			Artifact->SetStringField(TEXT("digest"), InventoryArtifact.Digest);
+			Artifact->SetStringField(TEXT("semantic_sha256"), InventoryArtifact.SemanticHash);
+			Artifacts.Add(MakeShared<FJsonValueObject>(Artifact));
+		}
+		Layer->SetArrayField(TEXT("artifacts"), Artifacts);
+		LayerInventories.Add(MakeShared<FJsonValueObject>(Layer));
+	}
+	Root->SetArrayField(TEXT("layer_inventories"), LayerInventories);
+	Root->SetNumberField(TEXT("authored_anchor_resolved_count"), Result.AuthoredAnchorResolvedCount);
+	Root->SetNumberField(TEXT("authored_anchor_refused_count"), Result.AuthoredAnchorRefusedCount);
+	Root->SetNumberField(TEXT("authored_anchor_placed_count"), Result.AuthoredAnchorPlacedCount);
+	Root->SetNumberField(TEXT("authored_mask_count"), Result.AuthoredMaskCount);
+	Root->SetNumberField(TEXT("authored_anchor_maximum_drift_m"), Result.AuthoredAnchorMaximumDriftMeters);
+	TArray<TSharedPtr<FJsonValue>> AuthoredAnchors;
+	for (const FProjectWorldAuthoredAnchorEvidence& Evidence : Result.AuthoredAnchors)
+	{
+		TSharedRef<FJsonObject> Anchor = MakeShared<FJsonObject>();
+		Anchor->SetStringField(TEXT("overlay_id"), Evidence.OverlayId);
+		Anchor->SetStringField(TEXT("authored_package"), Evidence.AuthoredPackage);
+		Anchor->SetArrayField(TEXT("world_location"), {
+			MakeShared<FJsonValueNumber>(Evidence.WorldLocation.X),
+			MakeShared<FJsonValueNumber>(Evidence.WorldLocation.Y),
+			MakeShared<FJsonValueNumber>(Evidence.WorldLocation.Z)});
+		Anchor->SetArrayField(TEXT("world_rotation"), {
+			MakeShared<FJsonValueNumber>(Evidence.WorldRotation.Pitch),
+			MakeShared<FJsonValueNumber>(Evidence.WorldRotation.Yaw),
+			MakeShared<FJsonValueNumber>(Evidence.WorldRotation.Roll)});
+		Anchor->SetNumberField(TEXT("drift_m"), Evidence.DriftMeters);
+		Anchor->SetNumberField(TEXT("horizontal_total_error_m"), Evidence.HorizontalTotalErrorMeters);
+		Anchor->SetNumberField(TEXT("vertical_total_error_m"), Evidence.VerticalTotalErrorMeters);
+		Anchor->SetBoolField(TEXT("surface_snapped"), Evidence.bSurfaceSnapped);
+		Anchor->SetBoolField(TEXT("places"), Evidence.bPlaces);
+		AuthoredAnchors.Add(MakeShared<FJsonValueObject>(Anchor));
+	}
+	Root->SetArrayField(TEXT("authored_anchor_resolutions"), AuthoredAnchors);
 	Root->SetStringField(TEXT("inputs_hash"), Result.InputHash);
 	Root->SetStringField(TEXT("world_data_plugin"), Result.WorldDataPluginName);
 	Root->SetStringField(TEXT("grid_id"), Result.GridId);
@@ -492,6 +739,7 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("coordinate_transform"), Result.CoordinateTransform);
 	Root->SetStringField(TEXT("map_package"), Result.MapPackagePath);
 	Root->SetNumberField(TEXT("verified_output_count"), Result.VerifiedOutputCount);
+	Root->SetNumberField(TEXT("canonical_cell_count"), Result.CanonicalCellCount);
 	Root->SetNumberField(TEXT("coordinate_roundtrip_error_m"), Result.CoordinateRoundTripErrorMeters);
 	Root->SetNumberField(TEXT("vertical_origin_m"), Result.VerticalOriginMeters);
 	Root->SetArrayField(TEXT("lattice_origin_m"), {
@@ -500,6 +748,9 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetArrayField(TEXT("engine_georeference_origin_m"), {
 		MakeShared<FJsonValueNumber>(Result.EngineGeoreferenceOriginMeters.X),
 		MakeShared<FJsonValueNumber>(Result.EngineGeoreferenceOriginMeters.Y)});
+	Root->SetArrayField(TEXT("sample_spacing_m"), {
+		MakeShared<FJsonValueNumber>(Result.SampleSpacingMeters.X),
+		MakeShared<FJsonValueNumber>(Result.SampleSpacingMeters.Y)});
 	Root->SetNumberField(
 		TEXT("georeferencing_placement_error_m"),
 		Result.GeoReferencingPlacementErrorMeters);
@@ -520,6 +771,8 @@ bool FProjectWorldRealizationService::WriteResult(
 		TEXT("procedural_mesh_section_draw_call_upper_bound"),
 		Result.ProceduralMeshSectionDrawCallUpperBound);
 	Root->SetNumberField(TEXT("hlod_proxy_actor_count"), Result.HlodProxyActorCount);
+	Root->SetNumberField(TEXT("hlod_layer_reference_count"), Result.HlodLayerReferenceCount);
+	Root->SetNumberField(TEXT("hlod_eligible_generated_actor_count"), Result.HlodEligibleGeneratedActorCount);
 	Root->SetStringField(TEXT("nanite_policy"), Result.NanitePolicy);
 	Root->SetStringField(TEXT("instancing_policy"), Result.InstancingPolicy);
 	Root->SetStringField(TEXT("hlod_policy"), Result.HlodPolicy);
@@ -554,6 +807,10 @@ bool FProjectWorldRealizationService::WriteResult(
 	Changes->SetNumberField(
 		TEXT("updated_landscape_components"),
 		Result.UpdatedLandscapeComponentCount);
+	Changes->SetNumberField(TEXT("landscape_proxies"), Result.LandscapeProxyCount);
+	Changes->SetNumberField(TEXT("water_cell_actors"), Result.WaterCellActorCount);
+	Changes->SetNumberField(TEXT("water_mesh_assets"), Result.WaterMeshAssetCount);
+	Changes->SetNumberField(TEXT("water_triangles"), Result.WaterTriangleCount);
 	Changes->SetNumberField(TEXT("road_sections"), Result.RoadSectionCount);
 	Changes->SetNumberField(TEXT("building_sections"), Result.BuildingSectionCount);
 	Changes->SetNumberField(TEXT("presentation_actors"), Result.PresentationActorCount);

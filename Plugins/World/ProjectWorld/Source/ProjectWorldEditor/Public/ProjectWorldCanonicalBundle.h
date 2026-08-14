@@ -5,12 +5,33 @@
 
 #include "CoreMinimal.h"
 
+struct FProjectWorldCanonicalPolygon
+{
+	TArray<FVector2D> Outer;
+	TArray<TArray<FVector2D>> Holes;
+};
+
+struct FProjectWorldCanonicalWaterSurface
+{
+	FString SurfaceGroupId;
+	TArray<FString> SurfaceGroupMembers;
+	FString Geometry;
+	FString Behavior;
+	FString Role;
+	FString FunctionId;
+	int32 FunctionVersion = 0;
+	double LevelMeters = 0.0;
+	TArray<FVector> Knots;
+	bool bValid = false;
+};
+
 struct FProjectWorldCanonicalRepresentation
 {
 	FString CellId;
 	FString Kind;
 	TArray<FVector2D> Points;
 	TArray<TArray<FVector2D>> Parts;
+	TArray<FProjectWorldCanonicalPolygon> Polygons;
 };
 
 struct FProjectWorldCanonicalFeature
@@ -21,7 +42,9 @@ struct FProjectWorldCanonicalFeature
 	FString GeometryType;
 	TArray<FVector2D> GeometryPoints;
 	TArray<TArray<FVector2D>> GeometryParts;
+	TArray<FProjectWorldCanonicalPolygon> GeometryPolygons;
 	TArray<FProjectWorldCanonicalRepresentation> Representations;
+	FProjectWorldCanonicalWaterSurface WaterSurface;
 	double WidthMeters = 0.0;
 	double HeightMeters = 0.0;
 };

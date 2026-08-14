@@ -41,6 +41,10 @@
       "type": "string",
       "minLength": 1
     },
+    "accepted_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
     "generator_fingerprint": {
       "description": "Deterministic hash of the generator sources, schemas, and lifecycle scripts that produced this manifest.",
       "$ref": "#/$defs/sha256"
@@ -53,8 +57,12 @@
         "compile_result_sha256": {"$ref": "#/$defs/sha256_or_none"},
         "presentation_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
         "runtime_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
+        "authored_overlay_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
         "map_package": {"type": "string", "minLength": 1}
       }
+    },
+    "layer_contract": {
+      "$ref": "#/$defs/layer_contract"
     },
     "artifacts": {
       "type": "array",
@@ -85,7 +93,75 @@
       "uniqueItems": true
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"scope_id": {"pattern": "^layer_"}},
+        "required": ["scope_id"]
+      },
+      "then": {"required": ["layer_contract"]},
+      "else": {"not": {"required": ["layer_contract"]}}
+    }
+  ],
   "$defs": {
+    "layer_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "realization_profile_id",
+        "realization_profile_sha256",
+        "normalized_layer_contract_sha256",
+        "generator_id",
+        "generator_version",
+        "artifact_root",
+        "canonical_inputs",
+        "dependency_inputs",
+        "final_dirty_units",
+        "semantic_outputs"
+      ],
+      "properties": {
+        "realization_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "realization_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "normalized_layer_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "generator_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "generator_version": {"type": "integer", "minimum": 1},
+        "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+/$"},
+        "canonical_inputs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/layer_input"}
+        },
+        "dependency_inputs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/layer_input"}
+        },
+        "final_dirty_units": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "semantic_outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifact_path", "semantic_sha256"],
+            "properties": {
+              "artifact_path": {"type": "string", "pattern": "^[A-Za-z0-9_./ -]+$"},
+              "semantic_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        }
+      }
+    },
+    "layer_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit_id", "sha256"],
+      "properties": {
+        "unit_id": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
     "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "sha256_or_none": {
       "anyOf": [

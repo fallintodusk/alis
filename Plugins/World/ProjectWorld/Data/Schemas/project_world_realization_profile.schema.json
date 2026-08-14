@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/realization-profile-v1.json",
+  "title": "ProjectWorld Realization Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "profile_id",
+    "world_data_plugin",
+    "canonical_profile_id",
+    "map_package",
+    "runtime_profile_id",
+    "landscape",
+    "protected_authored_roots",
+    "excluded_runtime_state_roots",
+    "layers"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "project_world_realization_profile\\.schema\\.json$"
+    },
+    "schema_version": {"const": 1},
+    "profile_id": {"$ref": "#/$defs/id"},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "canonical_profile_id": {"$ref": "#/$defs/id"},
+    "map_package": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+$"},
+    "runtime_profile_id": {
+      "anyOf": [
+        {"$ref": "#/$defs/id"},
+        {"const": "none"}
+      ]
+    },
+    "landscape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logical_landscape_id", "components_per_proxy"],
+      "properties": {
+        "logical_landscape_id": {"$ref": "#/$defs/id"},
+        "components_per_proxy": {"const": 1}
+      }
+    },
+    "protected_authored_roots": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Authored/[A-Za-z0-9_/]*$"}
+    },
+    "excluded_runtime_state_roots": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Runtime/[A-Za-z0-9_/]*$"}
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/layer"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "nonnegative_rgb": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "number", "minimum": 0.0}
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"generator_id": {"const": "project_landscape"}}},
+          "then": {
+            "properties": {
+              "layer_kind": {"const": "generated_geography"},
+              "canonical_selectors": {
+                "prefixItems": [{"const": "terrain"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "spatial_ownership": {"const": "logical_landscape_with_cell_proxies"},
+              "dirty_granularity": {"const": "canonical_cell"},
+              "runtime_mapping": {"const": "world_partition_owner"},
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["components_per_proxy"],
+                "properties": {"components_per_proxy": {"const": 1}}
+              }
+            }
+          }
+        },
+        {
+          "if": {"properties": {"generator_id": {"const": "project_water_mesh"}}},
+          "then": {
+            "properties": {
+              "layer_kind": {"const": "generated_geography"},
+              "canonical_selectors": {
+                "prefixItems": [{"const": "water"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "spatial_ownership": {"const": "cell_local"},
+              "dirty_granularity": {"const": "canonical_cell"},
+              "runtime_mapping": {"const": "world_partition_spatial"},
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "material_shading_model",
+                  "nanite",
+                  "scattering_coefficients",
+                  "absorption_coefficients"
+                ],
+                "properties": {
+                  "material_shading_model": {"const": "single_layer_water"},
+                  "nanite": {"const": false},
+                  "scattering_coefficients": {"$ref": "#/$defs/nonnegative_rgb"},
+                  "absorption_coefficients": {"$ref": "#/$defs/nonnegative_rgb"}
+                }
+              }
+            }
+          }
+        }
+      ],
+      "required": [
+        "layer_id",
+        "layer_kind",
+        "generator_id",
+        "generator_version",
+        "depends_on",
+        "canonical_selectors",
+        "artifact_root",
+        "spatial_ownership",
+        "dirty_granularity",
+        "dependency_halo_cells",
+        "runtime_mapping",
+        "settings"
+      ],
+      "properties": {
+        "layer_id": {"$ref": "#/$defs/id"},
+        "layer_kind": {
+          "enum": [
+            "generated_geography",
+            "generated_gameplay_placement",
+            "protected_authored_overlay",
+            "runtime_state_exclusion"
+          ]
+        },
+        "generator_id": {"$ref": "#/$defs/id"},
+        "generator_version": {"type": "integer", "minimum": 1},
+        "depends_on": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "canonical_selectors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/(Generated|Authored|Runtime)/[A-Za-z0-9_/]+$"},
+        "spatial_ownership": {
+          "enum": ["logical_landscape_with_cell_proxies", "cell_local", "object_local", "protected_root", "excluded_root"]
+        },
+        "dirty_granularity": {"enum": ["whole_layer", "canonical_cell", "source_tile", "object_id", "never"]},
+        "dependency_halo_cells": {"type": "integer", "minimum": 0, "maximum": 16},
+        "runtime_mapping": {"enum": ["world_partition_spatial", "world_partition_owner", "protected", "excluded"]},
+        "settings": {"type": "object"}
+      }
+    }
+  }
+}

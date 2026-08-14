@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../../../tools/World/CanonicalCompilation/contracts/control-network.schema.json",
+  "schema_version": 1,
+  "control_network_id": "kazan_territory_v1",
+  "source_profile_id": "kazan_territory_v1",
+  "compiler_profile_id": "kazan_territory_v1",
+  "horizontal_crs": "EPSG:4326",
+  "projected_crs": "EPSG:32639",
+  "vertical_datum": "EPSG:3855",
+  "transform_id": "wgs84_utm_zone_39n",
+  "product_center_control_id": "spasskaya_tower",
+  "product_radius_m": 5580.0,
+  "coordinate_quantization_m": 0.01,
+  "gates": {
+    "numeric_forward_inverse_m": 0.01,
+    "control_residual_allowance_m": 0.1,
+    "pairwise_distance_error_m": 0.01,
+    "boundary_corner_error_m": 0.01,
+    "projection_scale_delta_m": 1.5
+  },
+  "controls": [
+    {
+      "control_id": "spasskaya_tower",
+      "name": "Spasskaya Tower",
+      "role": "landmark",
+      "wgs84": [49.108322, 55.796504],
+      "expected_projected": [381408.925, 6185050.761],
+      "horizontal_provenance": {
+        "source_id": "operator_spasskaya_map_pin_2026_08_10",
+        "method": "operator-supplied consumer-map landmark coordinate",
+        "accuracy_m": 5.0,
+        "confidence": "project-policy conservative bound for operator-supplied consumer-map metadata",
+        "evidence": "Operator screenshot retained outside the public repository"
+      },
+      "horizontal_class": "context",
+      "horizontal_tolerance_m": 5.1,
+      "vertical": {
+        "mode": "unknown",
+        "provenance_ref": null,
+        "accuracy_m": null
+      }
+    },
+    {
+      "control_id": "technical_northwest",
+      "name": "Kazan territory v1 technical northwest corner",
+      "role": "boundary",
+      "wgs84": [48.990053040359, 55.853576603787],
+      "expected_projected": [374180.0, 6191610.0],
+      "horizontal_provenance": {
+        "source_id": "epsg_32639_inverse_reference_proj_9_7_1",
+        "method": "inverse EPSG:32639 reference transform",
+        "accuracy_m": 0.01,
+        "confidence": "pinned numeric reference",
+        "evidence": "tools/World/ExecutionEnvironment/toolchain.lock.json"
+      },
+      "horizontal_class": "precision",
+      "horizontal_tolerance_m": 0.03,
+      "vertical": {
+        "mode": "unknown",
+        "provenance_ref": null,
+        "accuracy_m": null
+      }
+    },
+    {
+      "control_id": "technical_southeast",
+      "name": "Kazan territory v1 technical southeast corner",
+      "role": "boundary",
+      "wgs84": [49.218120883091, 55.740082408217],
+      "expected_projected": [388130.0, 6178590.0],
+      "horizontal_provenance": {
+        "source_id": "epsg_32639_inverse_reference_proj_9_7_1",
+        "method": "inverse EPSG:32639 reference transform",
+        "accuracy_m": 0.01,
+        "confidence": "pinned numeric reference",
+        "evidence": "tools/World/ExecutionEnvironment/toolchain.lock.json"
+      },
+      "horizontal_class": "precision",
+      "horizontal_tolerance_m": 0.03,
+      "vertical": {
+        "mode": "unknown",
+        "provenance_ref": null,
+        "accuracy_m": null
+      }
+    }
+  ]
+}

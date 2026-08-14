@@ -14,6 +14,9 @@ FORBIDDEN_PATTERNS_FILE="${MIRROR_FORBIDDEN_PATTERNS_FILE:-$SCRIPT_DIR/forbidden
 ALLOW_DIRTY=0
 DO_PUSH=0
 EPHEMERAL_PREVIEW=0
+DEVELOPER_RELEASE_DIR=""
+DEVELOPER_VERSION=""
+DEVELOPER_PART_SIZE_MIB=1700
 
 usage() {
   cat <<'USAGE'
@@ -31,12 +34,17 @@ Options:
   --push                            Push to remote.
   --dry-run                         Do not push. Compares against remote branch when remote exists.
   --ephemeral-preview               Allow local preview without a remote baseline.
+  --developer-release-dir <path>    Compose the public developer payload in this empty directory.
+  --developer-version <version>     Human release version used in developer archive names.
+  --developer-part-size-mib <int>   Split size in MiB (default: 1700; maximum: 1900).
   --force                           Allow running from a dirty source repository.
   --allow-dirty                     Backward-compatible alias for --force.
   -h, --help                        Show this help.
 
 Examples:
   ./scripts/git/mirror/mirror_to_github.sh --remote-url git@github.com:org/repo.git --dry-run
+  ./scripts/git/mirror/mirror_to_github.sh --dry-run --ephemeral-preview \
+    --developer-release-dir ../alis-developer-v1 --developer-version v1
   ./scripts/git/mirror/mirror_to_github.sh --dry-run --ephemeral-preview
   ./scripts/git/mirror/mirror_to_github.sh --remote-url git@github.com:org/repo.git --push
 USAGE
@@ -51,6 +59,10 @@ fail() {
   exit 1
 }
 
+warn() {
+  printf '[WARN] %s\n' "$*" >&2
+}
+
 require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -60,6 +72,19 @@ require_cmd() {
 
 git_safe() {
   git -c core.fsmonitor=false -c core.hooksPath=/dev/null "$@"
+}
+
+compose_developer_payload() {
+  local public_revision="$1"
+  info "Composing developer payload for public revision $public_revision"
+  python3 "$SCRIPT_DIR/compose_developer_payload.py" \
+    --repo-root "$REPO_ROOT" \
+    --output-dir "$DEVELOPER_RELEASE_DIR" \
+    --version "$DEVELOPER_VERSION" \
+    --public-source-revision "$public_revision" \
+    --public-source-branch "$BRANCH" \
+    --part-size-mib "$DEVELOPER_PART_SIZE_MIB" \
+    --owner ProjectWorldData
 }
 
 resolve_file() {
@@ -476,6 +501,21 @@ while (($# > 0)); do
     --ephemeral-preview)
       EPHEMERAL_PREVIEW=1
       ;;
+    --developer-release-dir)
+      shift
+      (($# > 0)) || fail "Missing value for --developer-release-dir"
+      DEVELOPER_RELEASE_DIR="$1"
+      ;;
+    --developer-version)
+      shift
+      (($# > 0)) || fail "Missing value for --developer-version"
+      DEVELOPER_VERSION="$1"
+      ;;
+    --developer-part-size-mib)
+      shift
+      (($# > 0)) || fail "Missing value for --developer-part-size-mib"
+      DEVELOPER_PART_SIZE_MIB="$1"
+      ;;
     --allow-dirty)
       ALLOW_DIRTY=1
       ;;
@@ -499,6 +539,16 @@ if [[ "$DO_PUSH" -eq 1 ]] && [[ -z "$REMOTE_URL" ]]; then
 fi
 if [[ "$DO_PUSH" -eq 0 ]] && [[ -z "$REMOTE_URL" ]] && [[ "$EPHEMERAL_PREVIEW" -eq 0 ]]; then
   fail "Remote URL is required for dry-run baseline comparison. Use --ephemeral-preview only for one-off local preview."
+fi
+if { [[ -n "$DEVELOPER_RELEASE_DIR" ]] && [[ -z "$DEVELOPER_VERSION" ]]; } ||
+   { [[ -z "$DEVELOPER_RELEASE_DIR" ]] && [[ -n "$DEVELOPER_VERSION" ]]; }; then
+  fail "--developer-release-dir and --developer-version must be supplied together."
+fi
+if [[ "$DO_PUSH" -eq 1 ]] && [[ -n "$DEVELOPER_RELEASE_DIR" ]]; then
+  fail "Developer payload publication is not implemented: compose with --dry-run, then use the tracked draft release transaction before pushing source/tag."
+fi
+if ! [[ "$DEVELOPER_PART_SIZE_MIB" =~ ^[0-9]+$ ]] || ((DEVELOPER_PART_SIZE_MIB < 1 || DEVELOPER_PART_SIZE_MIB > 1900)); then
+  fail "--developer-part-size-mib must be between 1 and 1900."
 fi
 
 require_cmd git
@@ -586,6 +636,9 @@ rsync -a --delete --exclude='.git/' "$FILTERED_DIR"/ "$MIRROR_DIR"/
 
 git_safe -C "$MIRROR_DIR" add -A
 if git_safe -C "$MIRROR_DIR" diff --cached --quiet; then
+  if [[ -n "$DEVELOPER_RELEASE_DIR" ]]; then
+    compose_developer_payload "$(git_safe -C "$MIRROR_DIR" rev-parse HEAD)"
+  fi
   printf '[SUMMARY] no changes after filtering; nothing to commit\n'
   exit 0
 fi
@@ -594,6 +647,31 @@ git_safe -C "$MIRROR_DIR" config user.name "mirror-bot"
 git_safe -C "$MIRROR_DIR" config user.email "mirror-bot@localhost"
 
 FILES_CHANGED="$(git_safe -C "$MIRROR_DIR" diff --cached --name-only | wc -l | tr -d '[:space:]')"
+# Generated public authority (canonical data, public manifests, release
+# selection) may advance on the public source branch ahead of the latest
+# signed developer release. Public developers obtain matching assets from a
+# tagged developer release, whose installer pins the exact recorded
+# commit/tag - an advanced source tip does not break installed releases.
+# Coherence between source identity and asset payload is enforced by the
+# release flow (compose + sign + verify), not by routine mirror pushes.
+AUTHORITY_CHANGED=0
+while IFS= read -r changed_path; do
+  case "$changed_path" in
+    Plugins/World/ProjectWorldData/Data/Manifests/*|\
+    Plugins/World/ProjectWorldData/Data/Canonical/*|\
+    Plugins/*/*/Data/Manifests/public_*.json|\
+    scripts/git/mirror/developer_asset_release.json)
+      AUTHORITY_CHANGED=1
+      break
+      ;;
+  esac
+done < <(git_safe -C "$MIRROR_DIR" diff --cached --name-only)
+
+if [[ "$AUTHORITY_CHANGED" -eq 1 ]]; then
+  warn "Generated public authority changed relative to the public branch."
+  warn "The public source tip moves ahead of the latest signed developer release; assets for this tip become installable only with the next tagged developer release."
+fi
+
 COMMIT_MESSAGE="mirror_$(date -u '+%Y%m%d_%H%M%S_UTC')"
 
 GIT_AUTHOR_NAME="mirror-bot" \
@@ -601,7 +679,11 @@ GIT_AUTHOR_EMAIL="mirror-bot@localhost" \
 GIT_COMMITTER_NAME="mirror-bot" \
 GIT_COMMITTER_EMAIL="mirror-bot@localhost" \
 git_safe -C "$MIRROR_DIR" commit -m "$COMMIT_MESSAGE" >/dev/null
-COMMIT_SHA="$(git_safe -C "$MIRROR_DIR" rev-parse --short HEAD)"
+COMMIT_SHA="$(git_safe -C "$MIRROR_DIR" rev-parse HEAD)"
+
+if [[ -n "$DEVELOPER_RELEASE_DIR" ]]; then
+  compose_developer_payload "$COMMIT_SHA"
+fi
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
   info "Pushing commit to remote branch $BRANCH"

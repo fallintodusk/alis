@@ -45,6 +45,16 @@ namespace ProjectWorldPresentationRealization
 			return FString();
 		}
 
+		bool HasSingleTagValue(const AActor& Actor, const FString& Prefix, const FString& Value)
+		{
+			const FName Expected(*(Prefix + Value));
+			return Actor.Tags.Contains(Expected) &&
+				!Actor.Tags.ContainsByPredicate([&Prefix, &Expected](const FName& Tag)
+				{
+					return Tag != Expected && Tag.ToString().StartsWith(Prefix);
+				});
+		}
+
 		void SetTagValue(AActor& Actor, const FString& Prefix, const FString& Value)
 		{
 			Actor.Tags.RemoveAll([&Prefix](const FName& Tag)
@@ -103,7 +113,6 @@ namespace ProjectWorldPresentationRealization
 			SetTagValue(Actor, ProfileHashPrefix, Profile.ProfileHash);
 			SetTagValue(Actor, GridPrefix, Bundle.GridId);
 			Actor.SetActorLabel(FString::Printf(TEXT("ProjectWorld_%s"), *Role), false);
-			Actor.SetFolderPath(TEXT("ProjectWorld/Generated/Environment"));
 			if (Actor.CanChangeIsSpatiallyLoadedFlag())
 			{
 				Actor.SetIsSpatiallyLoaded(false);
@@ -121,7 +130,7 @@ namespace ProjectWorldPresentationRealization
 			FProjectWorldRealizationResult& OutResult)
 		{
 			const FGuid ExpectedGuid = ProjectWorldGeneratedGeometry::StableGuid(
-				Bundle.GridId + TEXT("|") + Profile.ProfileId + TEXT("|") + Role);
+				Bundle.GridId + TEXT("|presentation|") + Role);
 			if (AActor* const* ExistingActor = Existing.Find(Role))
 			{
 				TActor* TypedActor = CastChecked<TActor>(*ExistingActor);
@@ -139,7 +148,7 @@ namespace ProjectWorldPresentationRealization
 
 			FActorSpawnParameters SpawnParameters;
 			SpawnParameters.Name = FName(*FString::Printf(TEXT("ProjectWorld_%s"), *Role));
-			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
 			SpawnParameters.OverrideActorGuid = ExpectedGuid;
 			TActor* Actor = World->SpawnActor<TActor>(TActor::StaticClass(), FTransform::Identity, SpawnParameters);
 			if (Actor != nullptr)
@@ -238,6 +247,26 @@ namespace ProjectWorldPresentationRealization
 		{
 			OutError = TEXT("Cannot remove a stale generated presentation actor.");
 			return false;
+		}
+		bool bPresentationCurrent = Existing.Num() == ExpectedClasses.Num();
+		for (const TPair<FString, UClass*>& Expected : ExpectedClasses)
+		{
+			AActor* const* Actor = Existing.Find(Expected.Key);
+			const FGuid ExpectedGuid = ProjectWorldGeneratedGeometry::StableGuid(
+				Bundle.GridId + TEXT("|presentation|") + Expected.Key);
+			bPresentationCurrent &= Actor != nullptr && (*Actor)->GetActorGuid() == ExpectedGuid &&
+				HasSingleTagValue(**Actor, RolePrefix, Expected.Key) &&
+				HasSingleTagValue(**Actor, ProfilePrefix, Profile.ProfileId) &&
+				HasSingleTagValue(**Actor, ProfileHashPrefix, Profile.ProfileHash) &&
+				HasSingleTagValue(**Actor, GridPrefix, Bundle.GridId) &&
+				(!(*Actor)->CanChangeIsSpatiallyLoadedFlag() || !(*Actor)->GetIsSpatiallyLoaded());
+		}
+		if (bPresentationCurrent)
+		{
+			OutResult.PresentationActorCount = ExpectedClasses.Num();
+			OutResult.CaptureViewpointCount = Profile.CaptureViewpoints.Num();
+			OutResult.PreservedActorCount += ExpectedClasses.Num();
+			return true;
 		}
 
 		ADirectionalLight* Sun = ReuseOrSpawn<ADirectionalLight>(World, TEXT("Sun"), Existing, Bundle, Profile, OutResult);

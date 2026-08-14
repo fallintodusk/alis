@@ -5,7 +5,9 @@
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedGeometry.h"
+#include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldRuntimeNavigation.h"
 #include "ProjectWorldRuntimeProfile.h"
 
 #include "ActorFactories/ActorFactory.h"
@@ -401,7 +403,7 @@ namespace ProjectWorldRuntimeRealization
 			FProjectWorldRealizationResult& OutResult)
 		{
 			const FGuid ExpectedGuid = ProjectWorldGeneratedGeometry::StableGuid(
-				Bundle.GridId + TEXT("|") + Profile.ProfileId + TEXT("|") + Role);
+				Bundle.GridId + TEXT("|runtime|") + Role);
 			AActor* Existing = nullptr;
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
@@ -431,7 +433,7 @@ namespace ProjectWorldRuntimeRealization
 
 			FActorSpawnParameters Parameters;
 			Parameters.Name = FName(*FString::Printf(TEXT("ProjectWorld_%s"), *Role));
-			Parameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+			Parameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
 			Parameters.OverrideActorGuid = ExpectedGuid;
 			AActor* Actor = World->SpawnActor<AActor>(ActorClass, FTransform::Identity, Parameters);
 			if (Actor != nullptr)
@@ -455,7 +457,6 @@ namespace ProjectWorldRuntimeRealization
 			SetTagValue(Actor, GridPrefix, Bundle.GridId);
 			SetTagValue(Actor, RoutePrefix, Profile.RouteId);
 			Actor.SetActorLabel(FString::Printf(TEXT("ProjectWorld_%s"), *Role), false);
-			Actor.SetFolderPath(TEXT("ProjectWorld/Generated/Runtime"));
 			Actor.bEnableAutoLODGeneration = false;
 			if (Actor.CanChangeIsSpatiallyLoadedFlag())
 			{
@@ -593,20 +594,17 @@ namespace ProjectWorldRuntimeRealization
 				InvokerOnlyProperty->SetPropertyValue_InContainer(Navigation, true);
 			}
 		};
-		ANavigationData* NavigationData = Navigation->GetDefaultNavDataInstance(FNavigationSystem::Create);
-		if (NavigationData == nullptr)
+		ARecastNavMesh* Recast = nullptr;
+		if (!ProjectWorldRuntimeNavigation::EnsureInternalData(
+			World,
+			Navigation,
+			Recast,
+			OutError))
 		{
 			RestoreInvokerOnly();
-			OutError = TEXT("Navigation data was not created for the accepted route.");
 			return false;
 		}
-		ARecastNavMesh* Recast = Cast<ARecastNavMesh>(NavigationData);
-		if (Recast == nullptr)
-		{
-			RestoreInvokerOnly();
-			OutError = TEXT("Accepted route requires the stock Recast navigation data.");
-			return false;
-		}
+		ANavigationData* NavigationData = Recast;
 		TArray<FBox> RegisteredNavigationBounds;
 		Navigation->GetNavigationBoundsForNavData(*Recast, RegisteredNavigationBounds);
 		if (RegisteredNavigationBounds.IsEmpty())
@@ -682,6 +680,7 @@ namespace ProjectWorldRuntimeRealization
 		bool bRouteUsesOnlyProceduralGeometry = true;
 		bool bRouteUsesNoInstancing = true;
 		bool bRouteActorsSpatiallyLoaded = true;
+		OutResult.HlodLayerReferenceCount = ProjectWorldPartitionPolicy::CountHLODLayerReferences(World);
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{
 			if (It->IsA<AWorldPartitionHLOD>())
@@ -691,6 +690,10 @@ namespace ProjectWorldRuntimeRealization
 			if (!It->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag))
 			{
 				continue;
+			}
+			if (It->bEnableAutoLODGeneration || It->GetHLODLayer() != nullptr)
+			{
+				++OutResult.HlodEligibleGeneratedActorCount;
 			}
 			++OutResult.GeneratedActorCount;
 			if (It->GetIsSpatiallyLoaded())
@@ -754,18 +757,23 @@ namespace ProjectWorldRuntimeRealization
 			RouteFeatureActorCount > 0 && bRouteUsesOnlyProceduralGeometry;
 		OutResult.bRuntimeInstancingPolicyProbed =
 			RouteFeatureActorCount > 0 && bRouteUsesNoInstancing;
-		OutResult.bRuntimeHlodPolicyProbed = OutResult.HlodProxyActorCount == 0;
+		OutResult.bRuntimeHlodPolicyProbed =
+			OutResult.HlodProxyActorCount == 0 &&
+			OutResult.HlodLayerReferenceCount == 0 &&
+			OutResult.HlodEligibleGeneratedActorCount == 0;
 		if (!OutResult.bRuntimeStreamingPolicyProbed || !OutResult.bRuntimeNanitePolicyProbed ||
 			!OutResult.bRuntimeInstancingPolicyProbed || !OutResult.bRuntimeHlodPolicyProbed)
 		{
 			OutError = FString::Printf(
-				TEXT("Runtime policy mismatch: streamed_route=%d always_loaded=%d route_cells=%d nanite=%d instancing=%d hlod=%d."),
+				TEXT("Runtime policy mismatch: streamed_route=%d always_loaded=%d route_cells=%d nanite=%d instancing=%d hlod=%d hlod_layers=%d hlod_eligible=%d."),
 				OutResult.RuntimeRouteSpatialActorCount,
 				OutResult.RuntimeAlwaysLoadedActorCount,
 				RouteFeatureActorCount,
 				OutResult.bRuntimeNanitePolicyProbed ? 1 : 0,
 				OutResult.bRuntimeInstancingPolicyProbed ? 1 : 0,
-				OutResult.bRuntimeHlodPolicyProbed ? 1 : 0);
+				OutResult.bRuntimeHlodPolicyProbed ? 1 : 0,
+				OutResult.HlodLayerReferenceCount,
+				OutResult.HlodEligibleGeneratedActorCount);
 			return false;
 		}
 

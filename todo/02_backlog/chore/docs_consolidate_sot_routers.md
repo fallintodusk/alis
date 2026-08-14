@@ -8,9 +8,9 @@ Why it matters: routers are what agents read first every session. Every
 duplicated fact is a future contradiction, and every stale command is a
 wrong action taken confidently. One fact, one home; routers only point.
 
-Priority note: the `territory_generation.md` split should land before
-territory-scale generation work, because that document is read on every
-world task. The rest is ordinary hygiene.
+The priority `territory_generation.md` entry-router split landed before
+Slice 2. The remaining items are ordinary hygiene and must not block world
+implementation without a concrete contradiction or file-size pressure.
 
 ## Already fixed (2026-08-07, no action needed)
 
@@ -25,21 +25,19 @@ world task. The rest is ordinary hygiene.
 - 17 non-ASCII characters in `world_partition.md`.
 - Audit check list and enrollment procedure moved out of the contract into
   `scripts/ue/world/README.md`; the contract keeps only the rules.
-- Routes table added to the top of `territory_generation.md`.
+- Lean `territory_generation.md` task router now fronts the deep contract.
 
-## Split `territory_generation.md` (678 lines)
+## Territory entry router - done 2026-08-12
 
-It owns too much: regeneration contract, anchors, manifest lifecycle,
-transactions, frozen layouts, proof split, envelope decision, delivery
-stages, acceptance. Proposed split, keeping the current file as the
-entry-point router:
+`territory_generation.md` is now a lean task router. The preserved deep text
+lives in `territory_contract.md`, so fresh agents do not import it by default.
+Split that deep contract further only when a changed section has a clear SRP
+owner; do not churn stable decisions merely to reach an arbitrary line count.
 
-| Target | Content |
+| Current file | Role |
 |---|---|
-| `territory_generation.md` (router, ~60 lines) | Purpose + fixed generation order, stable identity table, ownership-layers table, routes |
-| `docs/generated_content_authority.md` (~330) | Layer stack and invariants, anchor semantics, manifest + drift validation, acceptance lifecycle, transactional replacement, enrollment rule, activation/retirement, operation routes, both frozen layouts, proof split |
-| `docs/territory_delivery_stages.md` (~90) | The five delivery stages, acceptance criteria, building-geometry authority split |
-| `docs/decisions/kazan_territory_v1_envelope.md` (~90) | Envelope selection, grid invariant, clip-margin table, options considered, open operator confirmation |
+| `territory_generation.md` | Lean route by task and owner. |
+| `territory_contract.md` | Deep contract imported by exact section only. |
 
 Note while splitting: the envelope numbers are ALSO in the source/compiler
 profiles and the territory budget file, which are executable. Keep the

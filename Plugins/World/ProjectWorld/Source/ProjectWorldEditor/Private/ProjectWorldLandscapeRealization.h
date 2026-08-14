@@ -34,6 +34,8 @@ namespace ProjectWorldLandscapeRealization
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldLandscapeLayout& Layout,
+		const FString& LogicalLandscapeId,
+		int32 ComponentsPerProxy,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError,
 		UMaterialInterface* LandscapeMaterial = nullptr);

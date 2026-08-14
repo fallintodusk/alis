@@ -55,9 +55,10 @@ Accepted requirements:
   authority.
 
 The architecture is frozen. The automated performance slice still selects the
-winning runtime-grid values, proxy bundling, and HLOD topology from the bounded
-candidates below. Existing representative-map settings are evidence only and
-cannot silently become production defaults.
+winning runtime-grid values, Landscape proxy bundling, and measured
+Nanite/instancing settings from the bounded candidates below. HLOD is disabled
+for `kazan_territory_v1` and is not a candidate. Existing representative-map
+settings are evidence only and cannot silently become production defaults.
 
 ## Evidence-grounded starting design
 
@@ -67,7 +68,7 @@ runtime grids can negatively affect performance. Its Big City example uses a
 the baseline candidate and changes them only through the automated gate.
 
 The production profile exposes one 2D grid's cell size, loading range,
-streaming-source roles, slow-streaming policy, and HLOD references. The build
+streaming-source roles, slow-streaming policy, and geometry policy. The build
 applies those values and the receipt reads them back from the produced map.
 Candidate comparison starts with `128/768`, `256/768`, and `512/1536` metres;
 the gate may reject candidates before a full cook when per-cell actor/package
@@ -114,13 +115,59 @@ introduce a manual map-authoring authority.
    bundle.
 2. Create or update the minimal persistent map and generated-owned spatial
    actors.
-3. Apply the declared runtime hash, Landscape, Data Layer, and HLOD settings.
-4. Build required derived data through supported commandlets.
+3. Apply the declared runtime hash, Landscape, Data Layer, Nanite, and
+   instancing settings.
+4. Build required derived data through supported commandlets without an HLOD
+   build.
 5. Read the produced descriptors/settings back and emit an acceptance receipt.
 6. Activate immutable artifact manifests only after every gate passes.
 
 The generated map is a derived serialized representation. Editing it by hand
 does not change the source JSON and is rejected as generated-tree drift.
+
+### UE 5.8 native reuse gate
+
+ALIS owns geographic policy, deterministic canonical inputs, identity,
+provenance, dirty scope, orchestration, and acceptance. Unreal owns Unreal
+coordinate conversion, geometry primitives, asset construction, rendering,
+partitioning, serialization, and streaming. Before implementing a generator,
+inspect the installed UE 5.8 Runtime/Core APIs and plugins for a native
+primitive. Custom Unreal infrastructure is permitted only when a focused twin
+records the exact ALIS invariant the native path cannot satisfy.
+
+| Need | UE 5.8 first choice | ALIS boundary and required proof |
+|---|---|---|
+| Projected CRS to engine space | `GeoReferencing` Runtime plugin | Supply accepted CRS/origin data and prove the geodetic error budget; do not add a second CRS transformer. |
+| Landscape partitioning | `FLandscapeConfigHelper::PartitionLandscape` | Orchestrate one logical Landscape and verify proxy/cell identity; do not construct proxies manually. |
+| Polygon-with-holes and working mesh | `FGeneralPolygon2d` and `FDynamicMesh3` from `GeometryCore` | Keep canonical geometry in JSON; use native double-precision Unreal structures only while realizing it. |
+| Boolean, clipping, and constrained triangulation | `GeometryAlgorithms`, including `TConstrainedDelaunay2` | The installed `Geometry Processing` plugin is Beta in UE 5.8 and is enabled only for Editor targets. The exact twin proves holes, shared edges, semantic no-op identity, and save/reload. Packaged runtime consumes saved StaticMesh assets without this generation dependency; the integrated candidate must still prove cook and packaged loading before production admission. |
+| Persistent static mesh | `FMeshDescription` and `UStaticMesh::BuildFromMeshDescriptions` | Build and save inside the Editor commandlet transaction; do not invent static-mesh serialization or runtime generation. |
+| Water shading | Single Layer Water material shading model and native material output expression | UE 5.8 Nanite rejects this shading model, and the shading-model enum alone does not compile a valid water material. Water uses persistent non-Nanite StaticMesh assets; ALIS owns material parameters and canonical surface geometry, not another water renderer. |
+| Spatial ownership and streaming | World Partition and OFPA | ALIS maps canonical cells to actors/packages and audits them; UE loads and unloads spatial actors. |
+| Vegetation in 3C | Evaluate partitioned PCG before custom placement infrastructure | Admission still requires deterministic identity, exact manifests, dirty scope, Nanite/instancing, and measured runtime proof. |
+
+The immediate twin therefore routes accepted canonical data through
+GeoReferencing, LandscapeConfigHelper, GeometryCore and the gated
+GeometryAlgorithms module, MeshDescription/StaticMesh, Single Layer Water,
+Nanite only for compatible opaque geometry, and World Partition. Blueprint
+Geometry Script is not a core dependency.
+
+Generated-package no-op is decided from deterministic semantic input/output
+identity before serialization. Re-saving an unchanged Unreal package is not a
+byte-stability contract and must not be used to decide whether generation is a
+no-op.
+
+The Experimental Water plugin is not canonical or realization authority: its
+WaterBody lifecycle and implicit landscape behavior do not own ALIS identity,
+cell packages, dirty scope, or transaction semantics. Experimental
+MeshPartition/MegaMesh is also excluded from Slice 3. Either may be
+reconsidered only through a later operator-approved contract when Epic changes
+its maturity and a focused proof shows a simpler compliant path.
+
+ALIS references Epic headers and modules through normal Unreal Build Tool
+dependencies. Never copy or vendor Epic Engine source into the public
+repository; developers obtain the engine from Epic. Distribution remains
+subject to the current [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal).
 
 ### Landscape topology
 
@@ -164,10 +211,71 @@ authored corrections. Streaming proxies divide component/package ownership;
 edit layers divide terrain-edit authority. Neither replaces the world
 generation-layer manifest.
 
+### Production realization invariants
+
+The `kazan_territory_v1` realization uses
+`FLandscapeConfigHelper::PartitionLandscape(..., 1)` to produce exactly 210
+cell-owned components and 210 streaming proxies at 30 m sample spacing. Each
+component/proxy keeps its canonical cell identity. GeoReferencing placement is
+validated against the same projected coordinate authority with a maximum
+error of 0.01 m; the accepted production path currently observes zero error.
+
+Water is realized as persistent cell-local `UStaticMesh` assets and spatial
+actors. Each authoritative surface is prepared once over its complete
+canonical-cell domain, then the same prepared triangles are clipped into the
+dirty target cells. This keeps polygon holes, ribbon width, shared XY/Z seams,
+and semantic identity independent of whether the operation is full or
+incremental. Water assets use the profile-owned Single Layer Water material,
+remain non-Nanite, and generate no collision, navigation data, mesh distance
+field, authored LOD chain, or HLOD representation.
+
+An unchanged Apply must preserve actors, packages, layer manifests, and the
+active manifest set without invoking map serialization. UE 5.8 may retain an
+empty structural World Partition HLOD setup row; it is not an HLOD reference.
+Policy enforcement counts actual default/nested HLOD layer references and
+generated HLOD artifacts, all of which must remain zero. Clearing an empty
+structural row is forbidden because it creates false package churn when the
+engine restores that row on load.
+
+Clean reconstruction may recreate engine-internal identifiers, but it must
+reproduce the same stable cell/package ownership and layer semantic identity.
+Rejected operations restore the exact prior files, and protected Authored
+packages remain byte-identical across Apply, reconstruction, rollback, and
+Delete.
+
+### Geometry representation policy
+
+`kazan_territory_v1` has no HLOD layers, HLOD actors, proxy/merged/simplified
+HLOD meshes, or HLOD companion packages. The runtime gate verifies their
+absence. This rejects the second distant-representation authority and its
+territory-scale build, storage, cook, and regeneration cost.
+
+Supported generated static meshes use Nanite when their material path is
+compatible, instead of authored LOD chains or HLOD replacement geometry.
+UE 5.8 explicitly excludes Single Layer Water from Nanite's supported shading
+models, so cell-local water is a persistent non-Nanite StaticMesh with no
+authored LOD chain and no HLOD fallback. Landscape keeps its native component
+and World Partition proxy streaming and builds its Nanite representation; UE-required
+non-Nanite Landscape data remains an engine implementation dependency, not a
+second project LOD policy. Vegetation uses instance ownership (ISM/HISM or the
+accepted PCG output) with Nanite-enabled static meshes. Experimental Nanite
+Foliage systems are not required by this decision and still need their own
+profile-specific proof and supported fallback. Geometry that cannot use an
+admitted native or Nanite path is rejected from the territory profile until
+explicitly decided; water is the narrowly proven native material exception and
+does not authorize another custom renderer or HLOD.
+
+Active P0 and representative maps contain no HLOD companion assets or
+serialized HLOD layer references. Older immutable manifest generations retain
+their historical inventory for provenance and recovery. Generic transaction
+code may recognize those records for exact ownership, rollback, and cleanup,
+but active and future generation must not recreate them.
+
 Official basis:
 [Landscape heightmap import](https://dev.epicgames.com/documentation/en-us/unreal-engine/importing-and-exporting-landscape-heightmaps-in-unreal-engine) and
 [Landscape Technical Guide](https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-technical-guide-in-unreal-engine), plus
-[Landscape Edit Layers](https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-edit-layers-in-unreal-engine).
+[Landscape Edit Layers](https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-edit-layers-in-unreal-engine) and
+[Nanite Landscapes](https://dev.epicgames.com/documentation/en-us/unreal-engine/using-nanite-with-landscapes-in-unreal-engine).
 
 ---
 
@@ -193,7 +301,7 @@ The initial design is selected in three evidence stages:
 
 1. Static partition audit: actor bounds, reference bundles, expected cells,
    per-cell package weight, Landscape proxy ownership, Data Layer membership,
-   and HLOD coverage.
+   Nanite/instance policy, and confirmed HLOD absence.
 2. Commandlet/cook audit: generated descriptors, build success, cook size,
    missing packages, and settings read-back.
 3. Deterministic packaged traversal: dense centre, long diagonal, perimeter,
@@ -238,12 +346,12 @@ Medium to lower-end PCs. See the
 ### Quick Start (~5 minutes)
 
 1. **Launch Editor** from the repository root with `scripts/ue/run/run_editor.bat`.
-2. **Open Map**: `/ProjectWorld/Generated/Representative/L_ProjectWorldKazan_Representative`.
+2. **Open Map**: `/ProjectWorldData/Generated/Representative/L_ProjectWorldKazan_Representative`.
 3. **Verify World Partition**: World Settings -> World Partition checkbox enabled
 4. **Load Data Layers if present**: use the Data Layer Outliner and the names
    stored by the selected map; do not infer a layer from an example name.
 5. **Check Streaming Cells**: Verify correct cells are visible
-6. **Bake (if needed)**: Build -> Navigation/Lighting only if you touched relevant actors (skip HLOD unless necessary)
+6. **Bake (if needed)**: Build -> Navigation/Lighting only if you touched relevant actors; do not build HLOD for the territory profile
 7. **Save & Test**: run one exact relevant automation test through
    `scripts/ue/test/unit/run_single.ps1` as shown below.
 
@@ -267,9 +375,12 @@ Medium to lower-end PCs. See the
 - Toggle only the neighborhoods you're modifying (saves memory)
 - Use `stat levels` console command to verify loaded cells
 
-**HLOD / Foliage:**
-- **Avoid global rebuilds** - select HLOD layer and press *Build Selected*
-- Leave global rebuilds to nightly CI job
+**Nanite / Foliage:**
+- Keep generated static-mesh assets Nanite-enabled where their admitted
+  pipeline supports it.
+- Keep foliage instance-owned; do not assign territory actors or PCG output
+  to HLOD layers.
+- Do not run an HLOD build for the territory profile.
 
 **Data Layers:**
 - No ProjectWorld Data Layer naming convention is frozen yet.

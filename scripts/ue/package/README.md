@@ -32,6 +32,8 @@ Defaults:
 - uses `Shipping`
 - uses `-nodebuginfo` so staged `.pdb` files do not bloat the distributable package
 - uses `-skipencryption` for public release packaging
+- disables Asset Registry cache reads for the cook so replaced World Partition
+  external actors are discovered from the current content tree
 - uses `1700 MiB` split threshold for GitHub-safe archive transport
 - writes a `package_summary.txt` into the output directory
 - accepts `-RequiredCookMap` for validation runs; this preserves the configured
@@ -42,8 +44,9 @@ Defaults:
 Lists every packaged IoStore container through the configured engine's
 `UnrealPak`, proves one exact required package entry, and writes a structured
 receipt with the largest listed entries. It does not infer payload presence
-from Asset Registry text or a cook configuration mention. Listed ProjectWorld
-bytes are observability, not a dependency-closure or without-world delta.
+from Asset Registry text or a cook configuration mention. It rejects any
+`ProjectWorldTestData` entry. Listed ProjectWorld production bytes are
+observability, not a dependency-closure or without-world delta.
 - can sign the exact output directory after archive creation with `-SignRelease`
 - with `-SignRelease`, moves `Windows/` and summary files under `debug/` so the release root is upload-ready
 
@@ -79,6 +82,15 @@ Key parameters:
 ### `package_release.bat`
 
 Windows wrapper for `package_release.ps1`.
+
+The packager fails closed unless every file under the UAT staged Windows tree
+exists in the archive with the same size. This guards against UAT reporting a
+successful archive after copy retries were exhausted. For an exact L0 check of
+this verifier without cooking or packaging, run:
+
+```powershell
+python -m unittest scripts/ue/package/tests/test_verify_staged_archive.py
+```
 
 Example:
 

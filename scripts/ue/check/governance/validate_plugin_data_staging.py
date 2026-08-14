@@ -13,8 +13,8 @@ journal mapping was lost in 2026-04 Shipping for exactly this reason).
 
 What this check does
 --------------------
-1. Scan Plugins/**/Source/**/*.{cpp,h} for GetPluginDataDir(TEXT("X")) and
-   collect the set of plugin names that read runtime data.
+1. Scan descriptor-declared Shipping modules for GetPluginDataDir(TEXT("X"))
+   and collect the set of plugin names that read runtime data.
 2. For each plugin name, locate its .uplugin and confirm at least one
    Build.cs in that plugin stages a Data/ directory through one of:
      - StageDataDir(Target) helper (canonical pattern -- see ProjectUI)
@@ -31,6 +31,7 @@ Default repo-root: directory two levels above this script.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -52,25 +53,35 @@ STAGE_HELPER_CALL_RE = re.compile(r'(?<!void\s)(?<!void )StageDataDir\s*\(')
 # C-style line comments and block comments to strip before regex matching.
 LINE_COMMENT_RE = re.compile(r'//[^\n]*')
 BLOCK_COMMENT_RE = re.compile(r'/\*.*?\*/', re.DOTALL)
+SHIPPING_MODULE_TYPES = {
+    "ClientOnly",
+    "CookedOnly",
+    "Runtime",
+    "RuntimeAndProgram",
+    "RuntimeNoCommandlet",
+}
 
 
 def find_plugin_data_readers(plugins_dir: Path) -> dict[str, list[Path]]:
     """Return {plugin_name: [files referencing it]} for every plugin name
-    fed to GetPluginDataDir(TEXT("...")) anywhere under Plugins/."""
+    fed to GetPluginDataDir(TEXT("...")) from a module present in Shipping."""
     result: dict[str, list[Path]] = {}
-    for source_file in plugins_dir.rglob("*.cpp"):
-        path_str = str(source_file).replace("\\", "/")
-        if "/Source/" not in path_str:
-            continue
-        if "/Tests/" in path_str or "/Intermediate/" in path_str:
-            continue
-        try:
-            text = source_file.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        for match in DATA_DIR_CALL_RE.finditer(text):
-            name = match.group(1)
-            result.setdefault(name, []).append(source_file)
+    for descriptor_path in plugins_dir.rglob("*.uplugin"):
+        descriptor = json.loads(descriptor_path.read_text(encoding="utf-8"))
+        for module in descriptor.get("Modules", []):
+            if module.get("Type") not in SHIPPING_MODULE_TYPES:
+                continue
+            source_root = descriptor_path.parent / "Source" / module["Name"]
+            for source_file in source_root.rglob("*.cpp"):
+                if "Tests" in source_file.relative_to(source_root).parts:
+                    continue
+                try:
+                    text = source_file.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                for match in DATA_DIR_CALL_RE.finditer(text):
+                    name = match.group(1)
+                    result.setdefault(name, []).append(source_file)
     return result
 
 

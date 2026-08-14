@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../../../../tools/World/CanonicalCompilation/contracts/authored-overlay.schema.json",
+  "schema_version": 1,
+  "overlay_id": "synthetic_authored_overlay_v1",
+  "terrain_patches": [
+    {"patch_id": "boundary_height_correction", "center": [0.0, 500.0], "radius_m": 250.0, "delta_m": 1.0}
+  ],
+  "feature_overrides": [
+    {"feature_id": "alis:synthetic:way:203", "set": {"height_m": 12.0, "height_basis": "authored"}}
+  ],
+  "missing_target_policy": "reject_and_require_rebase"
+}

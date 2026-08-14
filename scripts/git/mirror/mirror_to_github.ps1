@@ -88,7 +88,8 @@ function Convert-ToWslPath {
         [string]$Path
     )
 
-    $Converted = & wsl.exe wslpath -a $Path
+    # Embedded single quotes keep Windows backslashes intact through wsl.exe.
+    $Converted = & wsl.exe wslpath -a "'$Path'"
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to convert path to WSL form: $Path"
     }
@@ -126,12 +127,17 @@ if (-not $BypassDirtyCheck) {
 $ForwardArgs = New-Object System.Collections.Generic.List[string]
 for ($Index = 0; $Index -lt $MirrorArgs.Count; $Index++) {
     $Arg = $MirrorArgs[$Index]
-    if ($Arg -eq "--exclude-file" -or $Arg -eq "--forbidden-patterns-file") {
+    if ($Arg -eq "--exclude-file" -or
+        $Arg -eq "--forbidden-patterns-file" -or
+        $Arg -eq "--developer-release-dir") {
         $ForwardArgs.Add($Arg) | Out-Null
         if ($Index + 1 -ge $MirrorArgs.Count) {
             throw "Missing value for $Arg"
         }
         $Value = $MirrorArgs[$Index + 1]
+        if ($Arg -eq "--developer-release-dir" -and -not [System.IO.Path]::IsPathRooted($Value)) {
+            $Value = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Value))
+        }
         if ([System.IO.Path]::IsPathRooted($Value)) {
             $Value = Convert-ToWslPath -Path $Value
         }

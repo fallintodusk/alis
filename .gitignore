@@ -143,6 +143,13 @@ Plugins/**/Intermediate/
 # Content stays tracked:
 # Plugins/**/Content/**  (do NOT ignore)
 
+# ProjectWorldTestData generated Unreal fixtures are transient L1/L2 output.
+# Authored fixtures and input profiles remain tracked.
+/Plugins/World/ProjectWorldTestData/Content/Generated/
+/Plugins/World/ProjectWorldTestData/Content/__ExternalActors__/Generated/
+/Plugins/World/ProjectWorldTestData/Content/__ExternalObjects__/Generated/
+/Plugins/World/ProjectWorldTestData/Data/Manifests/
+
 ############################################
 # Notes
 # - Track large binary assets with Git LFS via .gitattributes (uasset/umap, audio, video).

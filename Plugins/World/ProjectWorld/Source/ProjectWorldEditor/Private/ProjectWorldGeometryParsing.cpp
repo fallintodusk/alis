@@ -63,7 +63,7 @@ namespace ProjectWorldGeometryParsing
 
 	bool ReadPolygon(
 		const TArray<TSharedPtr<FJsonValue>>& Rings,
-		TArray<FVector2D>& OutOuterPoints,
+		FProjectWorldCanonicalPolygon& OutPolygon,
 		FProjectWorldCanonicalValidation& Validation)
 	{
 		if (Rings.IsEmpty())
@@ -85,10 +85,14 @@ namespace ProjectWorldGeometryParsing
 			}
 			if (RingIndex == 0)
 			{
-				OutOuterPoints.Append(Ring);
+				OutPolygon.Outer = MoveTemp(Ring);
+			}
+			else
+			{
+				OutPolygon.Holes.Add(MoveTemp(Ring));
 			}
 		}
-		return true;
+		return !OutPolygon.Outer.IsEmpty();
 	}
 
 	bool ReadGeometry(
@@ -96,7 +100,8 @@ namespace ProjectWorldGeometryParsing
 		FString& OutType,
 		TArray<FVector2D>& OutOuterPoints,
 		FProjectWorldCanonicalValidation& OutValidation,
-		TArray<TArray<FVector2D>>* OutParts)
+		TArray<TArray<FVector2D>>* OutParts,
+		TArray<FProjectWorldCanonicalPolygon>* OutPolygons)
 	{
 		const TArray<TSharedPtr<FJsonValue>>* Coordinates = nullptr;
 		if (!Geometry->TryGetStringField(TEXT("type"), OutType) || OutType.IsEmpty() ||
@@ -181,15 +186,19 @@ namespace ProjectWorldGeometryParsing
 		}
 		if (OutType == TEXT("Polygon"))
 		{
-			TArray<FVector2D> Polygon;
+			FProjectWorldCanonicalPolygon Polygon;
 			if (!ReadPolygon(*Coordinates, Polygon, OutValidation))
 			{
 				return false;
 			}
-			OutOuterPoints.Append(Polygon);
+			OutOuterPoints.Append(Polygon.Outer);
 			if (OutParts != nullptr)
 			{
-				OutParts->Add(MoveTemp(Polygon));
+				OutParts->Add(Polygon.Outer);
+			}
+			if (OutPolygons != nullptr)
+			{
+				OutPolygons->Add(MoveTemp(Polygon));
 			}
 			return true;
 		}
@@ -203,16 +212,20 @@ namespace ProjectWorldGeometryParsing
 			for (const TSharedPtr<FJsonValue>& PolygonValue : *Coordinates)
 			{
 				const TArray<TSharedPtr<FJsonValue>>* Rings = nullptr;
-				TArray<FVector2D> Polygon;
+				FProjectWorldCanonicalPolygon Polygon;
 				if (!PolygonValue->TryGetArray(Rings) || Rings == nullptr ||
 					!ReadPolygon(*Rings, Polygon, OutValidation))
 				{
 					return false;
 				}
-				OutOuterPoints.Append(Polygon);
+				OutOuterPoints.Append(Polygon.Outer);
 				if (OutParts != nullptr)
 				{
-					OutParts->Add(MoveTemp(Polygon));
+					OutParts->Add(Polygon.Outer);
+				}
+				if (OutPolygons != nullptr)
+				{
+					OutPolygons->Add(MoveTemp(Polygon));
 				}
 			}
 			return !OutOuterPoints.IsEmpty();

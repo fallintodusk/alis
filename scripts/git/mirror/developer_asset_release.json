@@ -1,0 +1,44 @@
+{
+  "$schema": "contracts/developer_asset_release.schema.json",
+  "schema_version": 1,
+  "contract_id": "alis_public_developer_assets_v1",
+  "asset_authorities": [
+    {
+      "owner": "ProjectObject",
+      "manifest_path": "Plugins/Resources/ProjectObject/Data/Manifests/public_generated_definitions.json",
+      "license_id": "MPL-2.0",
+      "distribution_class": "rights_cleared_first_party_code_bearing",
+      "dependency_payload_policy": "references_only",
+      "collections": [
+        {
+          "asset_class": "ObjectDefinition",
+          "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+          "source_root": "Plugins/Resources/ProjectObject/Content",
+          "package_root": "/ProjectObject",
+          "artifact_root": "Plugins/Resources/ProjectObject/Content"
+        },
+        {
+          "asset_class": "DialogueTreeDefinition",
+          "schema_path": "Plugins/Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+          "source_root": "Plugins/Resources/ProjectObject/Content",
+          "package_root": "/ProjectObject",
+          "artifact_root": "Plugins/Resources/ProjectObject/Content"
+        },
+        {
+          "asset_class": "AudioPresetDefinition",
+          "schema_path": "Plugins/Gameplay/ProjectObjectCapabilities/Data/Schemas/audio.schema.json",
+          "source_root": "Plugins/Resources/ProjectObject/Content",
+          "package_root": "/ProjectObject",
+          "artifact_root": "Plugins/Resources/ProjectObject/Content"
+        },
+        {
+          "asset_class": "LootProfileDefinition",
+          "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/loot_profile.schema.json",
+          "source_root": "Plugins/Resources/ProjectObject/Data/LootProfiles",
+          "package_root": "/ProjectObject/LootProfiles",
+          "artifact_root": "Plugins/Resources/ProjectObject/Content/LootProfiles"
+        }
+      ]
+    }
+  ]
+}

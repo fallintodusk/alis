@@ -3,8 +3,9 @@
 
 #include "ProjectWorldSchemaReference.h"
 
-#include "ProjectWorldDataRoots.h"
+#include "ProjectPaths.h"
 
+#include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 
 namespace ProjectWorldSchemaReference
@@ -22,14 +23,17 @@ namespace ProjectWorldSchemaReference
 			return false;
 		}
 
-		FProjectWorldDataRoots SchemaOwner;
-		if (!FProjectWorldDataRoots::Resolve(TEXT("ProjectWorld"), SchemaOwner, OutError))
+		const TSharedPtr<IPlugin> SchemaOwner = IPluginManager::Get().FindPlugin(TEXT("ProjectWorld"));
+		const FString SchemaDataRoot = FProjectPaths::GetPluginDataDir(TEXT("ProjectWorld"));
+		if (!SchemaOwner.IsValid() || SchemaOwner->GetType() != EPluginType::Project ||
+			SchemaDataRoot.IsEmpty())
 		{
+			OutError = TEXT("Canonical ProjectWorld schema owner is unavailable.");
 			return false;
 		}
 
 		FString ExpectedPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(
-			SchemaOwner.DataRoot,
+			SchemaDataRoot,
 			TEXT("Schemas"),
 			ExpectedSchemaFilename));
 		FString ResolvedPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(

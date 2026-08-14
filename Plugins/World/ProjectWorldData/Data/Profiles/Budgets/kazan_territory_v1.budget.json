@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../../../../tools/World/EndToEndValidation/contracts/territory-budget.schema.json",
+  "schema_version": 1,
+  "budget_id": "kazan_territory_v1",
+  "source_profile_id": "kazan_territory_v1",
+  "compiler_profile_id": "kazan_territory_v1",
+  "validation_profile_id": "kazan_territory_v1",
+  "ceilings": {
+    "source_bytes": {
+      "max": 1073741824,
+      "unit": "bytes",
+      "kind": "hard",
+      "basis": "The accepted source plan is 823461438 bytes; 1 GiB is the frozen acquisition ceiling."
+    },
+    "canonical_bytes": {
+      "max": 2147483648,
+      "unit": "bytes",
+      "kind": "hard",
+      "basis": "The 2-cell representative compile used 10870545 bytes; linear 105x cell scaling is about 1.14 GB and the 2 GiB ceiling retains bounded feature-density headroom."
+    },
+    "full_compile_seconds": {
+      "max": 900,
+      "unit": "seconds",
+      "kind": "hard",
+      "basis": "The accepted 2-cell compile took 4.965 seconds; linear 105x scaling is about 522 seconds and the 15-minute ceiling covers larger feature selection without accepting an unbounded build."
+    },
+    "features": {
+      "max": 100000,
+      "unit": "canonical_features",
+      "kind": "hard",
+      "basis": "The representative source produced 1194 selected features; the territory bbox is about 18x larger and 100000 retains more than 4x density headroom."
+    },
+    "cells": {
+      "max": 210,
+      "unit": "canonical_cells",
+      "kind": "hard",
+      "basis": "The frozen inclusive selection x=-6..8 and y=-6..7 contains exactly 210 cells."
+    },
+    "generated_packages": {
+      "max": 8192,
+      "unit": "packages",
+      "kind": "provisional",
+      "basis": "Allows map, 210 terrain cells, World Partition external packages, and bounded layer packages; Slice 3 measurements may tighten it."
+    },
+    "unreal_import_seconds": {
+      "max": 1800,
+      "unit": "seconds",
+      "kind": "provisional",
+      "basis": "A 30-minute unattended realization ceiling protects iteration time before territory-scale measurements exist."
+    },
+    "cook_seconds": {
+      "max": 3600,
+      "unit": "seconds",
+      "kind": "provisional",
+      "basis": "A one-hour clean shipping cook ceiling is conservative for the first 210-cell package and must be attributed against the no-territory baseline."
+    },
+    "installed_bytes": {
+      "max": 8589934592,
+      "unit": "bytes",
+      "kind": "provisional",
+      "basis": "The current staged build is about 4.82 GB; 8 GiB caps the first territory build while leaving measurable content headroom."
+    },
+    "generated_actor_count": {
+      "max": 20000,
+      "unit": "actors",
+      "kind": "provisional",
+      "basis": "Terrain and unique generated objects remain actors; repeated foliage and similar populations must use instancing rather than one actor per feature."
+    },
+    "p95_frame_time_ms": {
+      "max": 16.67,
+      "unit": "milliseconds",
+      "kind": "provisional",
+      "basis": "Operator target is 60 FPS at High settings on desktop RTX 4070-class hardware."
+    },
+    "peak_memory_bytes": {
+      "max": 12884901888,
+      "unit": "bytes",
+      "kind": "provisional",
+      "basis": "Caps packaged process memory at 12 GiB on the reference traversal before measured tuning."
+    },
+    "peak_gpu_memory_bytes": {
+      "max": 10737418240,
+      "unit": "bytes",
+      "kind": "provisional",
+      "basis": "Caps dedicated GPU memory at 10 GiB, retaining headroom on the 12 GiB desktop RTX 4070 reference target."
+    },
+    "streaming_cell_load_seconds": {
+      "max": 2,
+      "unit": "seconds",
+      "kind": "provisional",
+      "basis": "Each requested World Partition cell must become usable within two seconds during deterministic traversal."
+    },
+    "streaming_hitch_ms": {
+      "max": 50,
+      "unit": "milliseconds",
+      "kind": "provisional",
+      "basis": "Streaming must not create a measured hitch longer than 50 ms on the reference route."
+    },
+    "territory_traversal_seconds": {
+      "max": 900,
+      "unit": "seconds",
+      "kind": "provisional",
+      "basis": "The automated route may accelerate travel but must exercise load, unload, reload, collision, and frame sampling across the 11.16 km product diameter within 15 minutes."
+    }
+  }
+}

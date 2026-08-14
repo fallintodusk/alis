@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "synthetic_landscape_water_twin_v1",
+  "world_data_plugin": "ProjectWorldTestData",
+  "grid_id": "grid_24b9032e5f87005d",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "synthetic_landscape_water_twin",
+      "horizontal_accuracy_m": 0.01
+    }
+  ],
+  "overlays": []
+}

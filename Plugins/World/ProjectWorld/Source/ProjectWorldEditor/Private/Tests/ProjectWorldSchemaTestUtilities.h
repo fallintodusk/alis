@@ -27,9 +27,18 @@ namespace ProjectWorldSchemaTestUtilities
 		const FString& DocumentPath,
 		const TCHAR* SchemaFilename)
 	{
-		return Source.Replace(
-			*FString::Printf(TEXT("../Schemas/%s"), SchemaFilename),
-			*ReferenceFor(DocumentPath, SchemaFilename),
-			ESearchCase::CaseSensitive);
+		const FString Marker = TEXT("\"$schema\": \"");
+		const int32 MarkerIndex = Source.Find(Marker, ESearchCase::CaseSensitive);
+		if (MarkerIndex == INDEX_NONE)
+		{
+			return Source;
+		}
+		const int32 ValueIndex = MarkerIndex + Marker.Len();
+		const int32 ValueEnd = Source.Find(TEXT("\""), ESearchCase::CaseSensitive, ESearchDir::FromStart, ValueIndex);
+		if (ValueEnd == INDEX_NONE)
+		{
+			return Source;
+		}
+		return Source.Left(ValueIndex) + ReferenceFor(DocumentPath, SchemaFilename) + Source.Mid(ValueEnd);
 	}
 }

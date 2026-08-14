@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../../tools/World/SourceIngestion/contracts/source-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "synthetic_two_cell",
+  "network_budget_bytes": 0,
+  "area": {
+    "area_id": "synthetic_two_cell",
+    "label": "Synthetic two-cell fixture",
+    "bbox": [-1.5, -0.5, 2.5, 1.5],
+    "axis_order": "longitude_latitude",
+    "crs": "EPSG:4326"
+  },
+  "sources": [
+    {
+      "source_id": "synthetic_two_cell_v1",
+      "adapter": "synthetic_json",
+      "provider": "ALIS synthetic fixture",
+      "dataset": "synthetic-boundary-crossing",
+      "release": "1",
+      "local_path": "../../Fixtures/Provider/synthetic_two_cell/synthetic_provider.json",
+      "file_name": "synthetic_provider.json",
+      "expected_bytes": 2551,
+      "hashes": {"sha256": "63bc34749a6fe624d3e6d79295ae1864d399a62ab1c75e0e62ff79cb87328051"},
+      "coverage_bbox": [-1.5, -0.5, 2.5, 1.5],
+      "crs": {"horizontal": "EPSG:4326", "axis_order": "longitude_latitude", "vertical": "EPSG:3855", "vertical_unit": "metre"},
+      "accuracy": {"horizontal_accuracy_m": 0.0, "vertical_accuracy_m": 0.0, "confidence": "fixture_exact"},
+      "license": {"id": "CC0-1.0", "attribution": "ALIS"},
+      "admission": {
+        "policy_result": "approved",
+        "commercial_transformation": true,
+        "generated_artifact_publication": "approved",
+        "acquisition": "repository_fixture"
+      }
+    }
+  ]
+}

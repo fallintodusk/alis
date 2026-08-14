@@ -50,6 +50,31 @@ namespace ProjectWorldGeneratedGeometry
 					HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId) &&
 					HasTagValue(Actor, TEXT("ProjectWorld.Runtime="), RuntimeProfileId);
 			}
+			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
+				{
+					return Tag.ToString().StartsWith(TEXT("ProjectWorld.AuthoredOverlay="));
+				}))
+			{
+				return HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId);
+			}
+			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
+				{
+					return Tag.ToString().StartsWith(TEXT("ProjectWorld.WaterCell="));
+				}))
+			{
+				if (!HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId))
+				{
+					return false;
+				}
+				for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+				{
+					if (HasTagValue(Actor, TEXT("ProjectWorld.WaterCell="), Cell.CellId))
+					{
+						return true;
+					}
+				}
+				return false;
+			}
 			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 			{
 				if (HasTagValue(Actor, TEXT("ProjectWorld.Cell="), Cell.CellId))

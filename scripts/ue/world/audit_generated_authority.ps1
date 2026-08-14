@@ -13,7 +13,8 @@
 [CmdletBinding()]
 param(
     [string]$ProjectRoot = '',
-    [string]$WorldDataPlugin = 'ProjectWorld',
+    [Parameter(Mandatory = $true)]
+    [string]$WorldDataPlugin,
     [string]$ManifestRoot,
     [string[]]$GeneratedRoots,
     [string]$EvidencePath

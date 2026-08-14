@@ -22,12 +22,17 @@ public class ProjectWorldEditor : ModuleRules
 			"AssetRegistry",
 			"Foliage",
 			"GeoReferencing",
+			"GeometryAlgorithms",
+			"GeometryCore",
 			"Json",
 			"Landscape",
+			"MeshDescription",
 			"NavigationSystem",
 			"ProceduralMeshComponent",
 			"ProjectCore",
 			"Projects",
+			"RHI",
+			"StaticMeshDescription",
 			"UnrealEd"
 		});
 	}

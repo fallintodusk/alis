@@ -7,7 +7,7 @@
 
 struct FProjectWorldCanonicalBundle;
 
-// Authored (hand-made) content placed above disposable generated geography.
+// Authored (hand-made) content placed above replaceable generated geography.
 // Regeneration replaces generated layers wholesale, so authored packages are
 // never touched; they are re-attached through these anchor records instead.
 // Canonical coordinates are the durable authority - an Unreal transform is

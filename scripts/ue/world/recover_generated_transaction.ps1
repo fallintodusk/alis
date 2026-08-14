@@ -11,7 +11,8 @@
 
 [CmdletBinding()]
 param(
-    [string]$WorldDataPlugin = "ProjectWorld",
+    [Parameter(Mandatory = $true)]
+    [string]$WorldDataPlugin,
 
     # Manifest authority root; defaults to the durable root.
     [string]$ManifestRoot = ""

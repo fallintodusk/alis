@@ -3,6 +3,7 @@
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedGeometry.h"
+#include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimeRealization.h"
@@ -25,7 +26,7 @@ namespace ProjectWorldRuntimeTests
 	{
 		return FPaths::Combine(
 			FPaths::ProjectPluginsDir(),
-			TEXT("World/ProjectWorld/Data/Runtime/kazan_representative_playable_v1.json"));
+			TEXT("World/ProjectWorldTestData/Data/Runtime/synthetic_representative_playable_v1.json"));
 	}
 
 	FProjectWorldCanonicalBundle MakeBundle(const FProjectWorldRuntimeProfile& Profile)
@@ -87,7 +88,7 @@ bool FProjectWorldRuntimeProfileContractTest::RunTest(const FString& Parameters)
 	TestTrue(
 		TEXT("The shipped runtime profile passes its executable contract."),
 		ProjectWorldRuntimeProfile::Load(ShippedProfilePath(), Profile, ErrorCode, Error));
-	TestEqual(TEXT("Runtime profile identity."), Profile.ProfileId, FString(TEXT("kazan_representative_playable_v1")));
+	TestEqual(TEXT("Runtime profile identity."), Profile.ProfileId, FString(TEXT("synthetic_representative_playable_v1")));
 	TestEqual(TEXT("Runtime profile SHA-256 is complete."), Profile.ProfileHash.Len(), 64);
 	TestEqual(TEXT("HLOD is explicitly disabled for the bounded procedural route."), Profile.HlodPolicy, FString(TEXT("disabled_for_bounded_route")));
 
@@ -258,6 +259,31 @@ bool FProjectWorldRuntimeRouteCollisionTest::RunTest(const FString& Parameters)
 	}
 	TestEqual(TEXT("Collision is proven in both route fragment cells."), CollisionProbeCount, 2);
 	TestEqual(TEXT("Collision orientation is proven in both route fragment cells."), OrientationProbeCount, 2);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldNoHLODPartitionPolicyTest,
+	"Project.World.Realization.Runtime.NoHLODPartitionPolicy",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldNoHLODPartitionPolicyTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GEditor->NewMap(true);
+	FString Error;
+	AActor* Generated = World->SpawnActor<AActor>();
+	Generated->Tags.Add(TEXT("ProjectWorld.Generated.v1"));
+	Generated->bEnableAutoLODGeneration = true;
+	TestTrue(
+		TEXT("Production realization removes all default HLOD references."),
+		ProjectWorldPartitionPolicy::DisableHLOD(World, Error));
+	ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
+	TestEqual(
+		TEXT("No World Partition HLOD layer remains."),
+		ProjectWorldPartitionPolicy::CountHLODLayerReferences(World),
+		0);
+	TestFalse(TEXT("Generated actors cannot enter HLOD generation."), Generated->bEnableAutoLODGeneration);
+	TestNull(TEXT("Generated actors retain no HLOD layer."), Generated->GetHLODLayer());
 	return true;
 }
 

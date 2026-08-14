@@ -7,6 +7,7 @@ Use this section to understand which tests exist, when to run them, and where th
 ## Decision Guide
 
 If you need:
+- world-pipeline test level selection -> [world_pipeline_layers.md](world_pipeline_layers.md)
 - a fast health check -> [smoke_tests.md](smoke_tests.md)
 - multi-system validation -> [integration_tests.md](integration_tests.md)
 - isolated logic verification -> [unit_tests.md](unit_tests.md)

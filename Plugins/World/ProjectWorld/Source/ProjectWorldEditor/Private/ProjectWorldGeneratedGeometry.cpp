@@ -495,9 +495,9 @@ namespace ProjectWorldGeneratedGeometry
 			Actor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Terrain=%s"), *Cell.Terrain.ArtifactHash)));
 			Actor->Tags.Add(FName(TEXT("ProjectWorld.Geometry=preview_v2")));
 			Actor->SetActorLabel(ObjectName);
-			Actor->SetFolderPath(FName(*FString::Printf(TEXT("ProjectWorld/Generated/%s"), *Bundle.GridId)));
 			Actor->SetIsSpatiallyLoaded(true);
-			Actor->bEnableAutoLODGeneration = CollisionRoadFeatureId.IsEmpty();
+			Actor->bEnableAutoLODGeneration = false;
+			Actor->SetHLODLayer(nullptr);
 
 			UProceduralMeshComponent* Mesh = bUpdatingActor
 				? Actor->FindComponentByClass<UProceduralMeshComponent>()
@@ -659,12 +659,13 @@ namespace ProjectWorldGeneratedGeometry
 				}
 			}
 			const bool bUpdatingActor = Geo != nullptr;
+			const FGuid ExpectedGuid = StableGuid(Bundle.GridId + TEXT("|georeferencing"));
 			if (!bUpdatingActor)
 			{
 				FActorSpawnParameters SpawnParameters;
 				SpawnParameters.Name = FName(*StableObjectName(TEXT("ProjectWorld_Geo"), Bundle.GridId));
 				SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
-				SpawnParameters.OverrideActorGuid = StableGuid(Bundle.GridId + TEXT("|georeferencing"));
+				SpawnParameters.OverrideActorGuid = ExpectedGuid;
 				Geo = World->SpawnActor<AGeoReferencingSystem>(
 					AGeoReferencingSystem::StaticClass(),
 					FVector::ZeroVector,
@@ -677,21 +678,33 @@ namespace ProjectWorldGeneratedGeometry
 				return TNumericLimits<double>::Max();
 			}
 
-			Geo->Modify();
-			Geo->Tags.Reset();
-			Geo->Tags.Add(GeneratedTag);
-			Geo->Tags.Add(GridTag);
-			Geo->SetActorLabel(TEXT("ProjectWorld GeoReferencing"));
-			Geo->SetFolderPath(FName(TEXT("ProjectWorld/Generated")));
-			Geo->SetIsSpatiallyLoaded(false);
-			Geo->PlanetShape = EPlanetShape::FlatPlanet;
-			Geo->ProjectedCRS = Bundle.CanonicalCrs;
-			Geo->GeographicCRS = TEXT("EPSG:4326");
-			Geo->bOriginLocationInProjectedCRS = true;
-			Geo->OriginProjectedCoordinatesEasting = Bundle.EngineGeoreferenceOriginMeters.X;
-			Geo->OriginProjectedCoordinatesNorthing = Bundle.EngineGeoreferenceOriginMeters.Y;
-			Geo->OriginProjectedCoordinatesUp = Bundle.HeightOriginMeters;
-			Geo->ApplySettings();
+			const bool bCurrentActor = bUpdatingActor && Geo->GetActorGuid() == ExpectedGuid &&
+				Geo->Tags.Contains(GridTag) && !Geo->GetIsSpatiallyLoaded() &&
+				Geo->PlanetShape == EPlanetShape::FlatPlanet &&
+				Geo->ProjectedCRS == Bundle.CanonicalCrs && Geo->GeographicCRS == TEXT("EPSG:4326") &&
+				Geo->bOriginLocationInProjectedCRS &&
+				FMath::IsNearlyEqual(
+					Geo->OriginProjectedCoordinatesEasting, Bundle.EngineGeoreferenceOriginMeters.X) &&
+				FMath::IsNearlyEqual(
+					Geo->OriginProjectedCoordinatesNorthing, Bundle.EngineGeoreferenceOriginMeters.Y) &&
+				FMath::IsNearlyEqual(Geo->OriginProjectedCoordinatesUp, Bundle.HeightOriginMeters);
+			if (!bCurrentActor)
+			{
+				Geo->Modify();
+				Geo->Tags.Reset();
+				Geo->Tags.Add(GeneratedTag);
+				Geo->Tags.Add(GridTag);
+				Geo->SetActorLabel(TEXT("ProjectWorld GeoReferencing"));
+				Geo->SetIsSpatiallyLoaded(false);
+				Geo->PlanetShape = EPlanetShape::FlatPlanet;
+				Geo->ProjectedCRS = Bundle.CanonicalCrs;
+				Geo->GeographicCRS = TEXT("EPSG:4326");
+				Geo->bOriginLocationInProjectedCRS = true;
+				Geo->OriginProjectedCoordinatesEasting = Bundle.EngineGeoreferenceOriginMeters.X;
+				Geo->OriginProjectedCoordinatesNorthing = Bundle.EngineGeoreferenceOriginMeters.Y;
+				Geo->OriginProjectedCoordinatesUp = Bundle.HeightOriginMeters;
+				Geo->ApplySettings();
+			}
 
 			double MaximumRoundTripError = 0.0;
 			double MaximumPlacementError = 0.0;
@@ -714,7 +727,11 @@ namespace ProjectWorldGeneratedGeometry
 			OutResult.bGeoReferencingProbed = true;
 			if (bPersistActor)
 			{
-				if (bUpdatingActor)
+				if (bCurrentActor)
+				{
+					++OutResult.PreservedActorCount;
+				}
+				else if (bUpdatingActor)
 				{
 					++OutResult.UpdatedActorCount;
 				}
@@ -722,7 +739,10 @@ namespace ProjectWorldGeneratedGeometry
 				{
 					++OutResult.CreatedActorCount;
 				}
-				Geo->MarkPackageDirty();
+				if (!bCurrentActor)
+				{
+					Geo->MarkPackageDirty();
+				}
 			}
 			else
 			{

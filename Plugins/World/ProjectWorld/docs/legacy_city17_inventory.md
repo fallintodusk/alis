@@ -1,10 +1,11 @@
 # Legacy City17 Inventory (read-only, Slice 1 record)
 
-File-level inventory of the City17 legacy map plugin, taken 2026-08-06
-before any migration decision. Nothing was modified. Deep asset-registry
-reference analysis still requires an editor commandlet pass (see final
-section). Migration decisions are owned by the territory milestone's
-content-integration slice, not by this record.
+Read-only inventory of the City17 legacy map plugin. The file pass was taken
+2026-08-06 and the live editor pass was completed 2026-08-12. No asset was
+modified or saved. The full 2,814-actor record is transient evidence at
+`Saved/Validation/World/legacy_city17_editor_inventory.json`; this SOT keeps
+only migration-relevant facts. Migration decisions remain owned by the
+territory milestone's content-integration slice.
 
 ## Layout and size
 
@@ -13,26 +14,33 @@ content-integration slice, not by this record.
   ProjectSinglePlay and ProjectOnlinePlay, `EnabledByDefault: false`.
 - Tracked content: 29,158,749 bytes (27.8 MiB), 2,888 files.
 - One map: `Content/Maps/City17_Persistent_WP.umap` (World Partition,
-  `WorldPartitionRuntimeHashSet`; editor spatial hash CellSize=12800).
-  No sublevels or streaming-level umaps.
+  `WorldPartitionRuntimeHashSet`). The live object tree contains two
+  `RuntimePartitionLHGrid` objects and one persistent partition. The serialized
+  editor spatial hash cell size is 12,800 cm; the exact runtime loading ranges
+  are legacy inputs, not defaults for ProjectWorld. No sublevels or streaming
+  level maps exist.
 - External actors: 2,825 files; external objects: 51 files.
-- Actor-class census (string scan): 2,528 StaticMeshActor,
-  203 ObjectDefinition, 7 InstancedFoliageActor, 1 PlayerStart,
-  1 Landscape, 1 each of the sky/light/fog/postprocess set.
-- HLOD: two layer assets exist (`_Merged`, `_Instanced`) despite the
-  plugin TODO stating "No HLOD in ALIS" - reconcile at decision time.
-- Data Layers: 7 assets in `Content/DataLayers/` (flat); the WP convert
-  ini points at `/City17/DataLayers/City17_Persistent_WP/` which does
-  NOT exist - config/layout mismatch.
-- BuiltData: 2.75 MB `City17_Persistent_WP_BuiltData.uasset` of unknown
-  freshness.
+- The original name-table census found 2,528 StaticMeshActor and 203
+  ObjectDefinition records. The authoritative loaded-class census below
+  resolves those serialized identities to the current 2,511 StaticMeshActor,
+  202 InteractableActor, and one DefinitionCharacter classes.
+- HLOD: `_Merged` and `_Instanced` layer definitions are hard/management
+  dependencies, but there are no generated HLOD proxy assets or loaded HLOD
+  actors. They are configuration, not reusable generated geometry.
+- Data Layers: 7 flat assets exist under `Content/DataLayers/`, but the live
+  world reports zero active Data Layers and all 2,814 loaded actors have empty
+  membership. The WP convert ini also points at a nonexistent nested folder.
+  Treat these assets as unintegrated legacy data, not a layer contract.
+- BuiltData: the 2.75 MB `City17_Persistent_WP_BuiltData.uasset` is a hard map
+  dependency. A live Map Check completed with 0 errors and 0 warnings, including
+  no lighting-rebuild warning; this is operational evidence, not provenance.
 
 ## Gameplay and config coupling (inbound)
 
-The file and string sweep found executable coupling only in the UI tier
-plus root config. This does NOT establish confinement: binary assets
-outside the plugin, Level Blueprint logic, and map-object references can
-only be ruled out by the editor pass listed at the end.
+The file/string sweep and live Asset Registry pass found executable coupling
+only in the UI tier plus root config. No package outside `/City17/` refers to
+the map. Its 2,876 package referencers are its own external actors/objects, so
+there is no hidden binary consumer that blocks later map retirement.
 
 - `Alis.uproject`: plugin enabled.
 - `Config/DefaultEngine.ini`: `EditorStartupMap=/City17/Maps/...`.
@@ -48,22 +56,24 @@ only be ruled out by the editor pass listed at the end.
   registration; `City17Module.cpp` registers `UCity17ExperienceDescriptor`
   (map path `/City17/Maps/City17_Persistent_WP`).
 - `scripts/ue/cinematic/_drive_mrq_render.py` pins the City17 map path.
+- The Level Blueprint contains only disconnected, disabled default BeginPlay
+  and Tick nodes. It owns no gameplay logic.
 
-## Outbound content dependencies (string scan of name tables)
+## Outbound content dependencies (resolved editor closure)
 
-Counts are name-table occurrences, not resolved references:
+The live transitive Asset Registry closure resolves 1,104 external content
+packages. Project-owned resolved bytes total 789.73 MiB: ProjectObject owns
+1,001 packages/726.32 MiB, `/Game` owns 59/56.02 MiB, and MotionMatching owns
+2/6.19 MiB. The remaining 38 project packages total about 1.2 MiB across
+ProjectElement, ProjectMaterial, ProjectMesh, ProjectAudio, ProjectTexture,
+and ProjectSkeletalCapabilities. Three DatasmithContent and one SunPosition
+packages are engine/plugin content and are excluded from the project byte sum.
 
-- `/ProjectObject/`: 3,579 occurrences across 878 distinct packages -
-  the heaviest cross-plugin coupling by far.
-- `/Game/`: 75 distinct paths - AdvancedGlassPack (22), MetaHumans
-  GrandPa + Common (22), Project decals/environment placeables,
-  `/Game/Project/Core/Templates/Attacher` (660 occurrences),
-  M_S_House materials, toys, noise textures.
-- Smaller: `/ProjectMesh/` 89, `/ProjectMaterial/` 63,
-  `/ProjectElement/` 29, `/ProjectAudio/` 7, `/MotionMatching/` 4.
-- Script imports include ProjectObject, ProjectMotionSystem,
-  ProjectObjectCapabilities, ProjectSinglePlay, ProjectDialogue,
-  ProjectVitals, NavigationSystem, Foliage.
+The City17 plugin itself owns 2,888 content files/27.81 MiB. The map directly
+owns all of its external actors/objects and all City17 map packages except the
+seven inactive Data Layer assets. It therefore has a small exclusive shell but
+a large dependency on shared ProjectObject and `/Game` art; retained art must
+move by explicit asset provenance, never by copying the map package.
 
 ## Licensing flags for kit reuse
 
@@ -71,17 +81,29 @@ Counts are name-table occurrences, not resolved references:
 content carry third-party licenses; verify redistribution terms before
 any kit is fed into the procedural polish route.
 
-## Requires editor pass (not resolvable from files)
+## Live world facts and migration boundary
 
-1. True hard/soft dependency graph (AssetRegistry query, both directions;
-   especially reverse referencers of `/City17/Maps/City17_Persistent_WP`).
-2. Per-actor identity, transforms, and Data Layer membership (external
-   actor files are content-hash GUID names).
-3. WorldSettings exact GameMode binding, KillZ, navigation config.
-4. The single PlayerStart's location and tag.
-5. Runtime WP grid parameters (README claims 256 m cells, unverified).
-6. HLOD reality (generated proxies or dead assets).
-7. Foliage instance counts in the 7 InstancedFoliageActor files
-   (foliage-carrier cells 0/61, 0/SZ, 8/3H, 9/4D, A/JP).
-8. Landscape component/layer layout.
-9. BuiltData staleness.
+- Loaded actor census: 2,814 actors in 31 classes. The dominant presentation
+  content is 2,511 StaticMeshActors. Gameplay-bearing content is explicit:
+  202 `InteractableActor`, one `DefinitionCharacter` (`GrandPa`), one
+  untagged `PlayerStart`, and the registered SinglePlayer GameMode.
+- WorldSettings: `/Script/ProjectSinglePlay.SinglePlayerGameMode`, KillZ
+  -1,048,575 cm, world-bounds checks enabled, and a
+  `NavigationSystemModuleConfig`. There are zero NavMeshBoundsVolumes, zero
+  RecastNavMesh actors, and zero nav links; City17 owns no usable nav coverage.
+- PlayerStart: location `[-4990, 12090, 270]` cm, yaw `-40` degrees,
+  no tag, no Data Layer, and always loaded.
+- Foliage: 7 InstancedFoliageActors with 3,073 resolved instances. Per-carrier
+  counts are 465, 657, 2, 1,486, 454, 7, and 2. This is legacy baked placement,
+  not a generation profile.
+- Landscape: one actor, 49 LandscapeComponents, 49 collision components,
+  229 spline-mesh components, and 3 grass ISM components. Bounds are about
+  441 x 504 m; the material comes from ProjectObject.
+- No actor or landmark carries a geodetic anchor. PlayerStart and GrandPa are
+  only local transforms, and no actor label identifies a Kazan hero landmark.
+  Any retained gameplay/art placement must be re-authored against the
+  ProjectWorld coordinate contract; City17 transforms are not 1:1 evidence.
+
+This closes the Slice 1 read-only inventory. City17 stays supported as the
+legacy menu experience, but contributes no territory authority, runtime-grid
+defaults, generated layers, navigation coverage, or coordinate truth.

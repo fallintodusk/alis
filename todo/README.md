@@ -47,6 +47,8 @@ If a task does not fit any category -- create a new one in both
 - Finish task: move from `00_current/` to `01_done/<category>/`
 - Cancel task: move from anywhere to `03_cancelled/`
 - No index to maintain -- file names are the index
+- Multi-slice initiatives keep exactly one clearly numbered slice file active.
+  On acceptance, move that file to its done category before creating the next.
 
 ## Rules
 

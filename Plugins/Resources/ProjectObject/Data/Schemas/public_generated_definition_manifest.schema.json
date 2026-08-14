@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Public Generated Definition Authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema", "schema_version", "manifest_id", "release_contract_sha256",
+    "owner", "assets"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "manifest_id": { "type": "string", "minLength": 1 },
+    "release_contract_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "owner": { "const": "ProjectObject" },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "asset_class", "package_name", "artifact_path", "artifact_sha256",
+          "source_path", "source_sha256", "source_json_hash_md5", "schema_path"
+        ],
+        "properties": {
+          "asset_class": { "type": "string", "minLength": 1 },
+          "package_name": { "type": "string", "pattern": "^/ProjectObject/" },
+          "artifact_path": { "type": "string", "pattern": "\\.uasset$" },
+          "artifact_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "source_path": { "type": "string", "pattern": "\\.json$" },
+          "source_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "source_json_hash_md5": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+          "schema_path": { "type": "string", "pattern": "\\.schema\\.json$" }
+        }
+      }
+    }
+  }
+}

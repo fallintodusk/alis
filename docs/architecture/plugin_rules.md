@@ -48,7 +48,11 @@ Plugins/
       -> World Partition/HLOD/streaming policies + UProjectWorldManifest data assets
       -> World framework (tiles, streaming, spatial queries)
 
-    ProjectWorldData/  # Approved target; creation is an open execution task
+    ProjectWorldTestData/
+      -> Editor-only synthetic profiles, authored fixtures, and generated packages
+      -> Data/content-only; enabled through ProjectIntegrationTests
+
+    ProjectWorldData/
       -> Data/content-only Kazan JSON, manifests, generated maps, and authored overlays
       -> Depends on ProjectWorld contracts; no Source module or custom generator logic
 
@@ -117,9 +121,10 @@ Guardrails
 - Systems vs World: Infrastructure (save/load/settings) -> Systems. Geography/maps -> World.
 - World logic vs data: ProjectWorld owns reusable world schemas, definition
   types, generators, realization, serialization/replication support, runtime
-  services, and validation. ProjectWorldData owns authoritative Kazan JSON and
-  its derived Unreal content under its own mount; it is data/content-only and
-  does not fork world-generation logic.
+  services, and validation, and has no UE content. ProjectWorldTestData owns
+  tracked synthetic inputs/authored fixtures and ignored generated test
+  output; ProjectWorldData owns authoritative Kazan data and persistent
+  content. Neither data plugin forks world-generation logic.
 - Features are self-contained: Each Feature defines own interfaces, Gameplay modes orchestrate them.
 - Immutable rule: do not add new plugins to `Alis.uproject`. Boot stays minimal; Orchestrator registers plugin paths at runtime via `IPluginManager` and activates by manifest.
 - No global FSM: Use native GameMode/MatchState for match lifecycle. Menu coordinates via ILoadingService.
@@ -139,6 +144,8 @@ Systems/                 # Can depend on Foundation
     |
     v
 World/ProjectWorld       # Can depend on Foundation, Systems
+    |
+    +--> World/ProjectWorldTestData  # Editor-only data/content; consumes ProjectWorld contracts
     |
     +--> World/ProjectWorldData  # Data/content-only; consumes ProjectWorld contracts
     |
@@ -163,7 +170,7 @@ Current State Snapshot
   - Boot: Orchestrator (Plugins/Boot/Orchestrator)
   - Foundation: ProjectCore (Plugins/Foundation/)
   - Systems: ProjectLoading, ProjectSave, ProjectSettings (Plugins/Systems/)
-  - World: ProjectWorld, ProjectWorldData (approved target), City17, MainMenuWorld (Plugins/World/)
+  - World: ProjectWorld, ProjectWorldTestData, ProjectWorldData, City17, MainMenuWorld (Plugins/World/)
   - World/PCG: ProjectPCG, ProjectForestBiomesPack, ProjectUrbanRuinsPCGRecipe (Plugins/World/PCG/)
   - UI: ProjectUI, ProjectMenuMain, ProjectMenuGame, ProjectSettingsUI (Plugins/UI/)
   - Gameplay: ProjectGameplay, ProjectMenuPlay, ProjectSinglePlay, ProjectOnlinePlay (Plugins/Gameplay/)

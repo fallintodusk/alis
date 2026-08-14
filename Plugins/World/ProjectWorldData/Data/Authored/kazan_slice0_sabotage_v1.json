@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "kazan_slice0_sabotage_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "grid_id": "grid_413718bc833994e5",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "slice0_kazan_control",
+      "horizontal_accuracy_m": 0.25
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "missing_feature_marker",
+      "authored_package": "/ProjectWorldData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "feature",
+        "feature_id": "alis:osm:way:missing",
+        "expected_feature_class": "road",
+        "expected_geometry_type": "LineString",
+        "expected_easting_m": 380680.03,
+        "expected_northing_m": 6184943.81,
+        "placement_class": "standard",
+        "provenance_ref": "slice0_kazan_control",
+        "horizontal_tolerance_m": 1.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 20.0
+      }
+    }
+  ]
+}

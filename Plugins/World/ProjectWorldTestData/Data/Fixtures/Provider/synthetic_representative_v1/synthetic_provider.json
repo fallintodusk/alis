@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../../../../../tools/World/SourceIngestion/contracts/synthetic-provider.schema.json",
+  "schema_version": 1,
+  "provider": "synthetic",
+  "release": "1",
+  "area": {
+    "area_id": "synthetic_representative_v1",
+    "bbox": [-1.5, -0.5, 2.5, 1.5],
+    "crs": "EPSG:4326"
+  },
+  "features": [
+    {
+      "provider_feature_id": "way/100",
+      "provider_class": "highway",
+      "geometry": {"type": "LineString", "coordinates": [[-0.9, 0.2], [0.0, 0.5], [0.9, 0.8]]},
+      "properties": {"highway": "residential", "name": "Boundary Road"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/201",
+      "provider_class": "building",
+      "geometry": {"type": "Polygon", "coordinates": [[[-0.8, 0.2], [-0.6, 0.2], [-0.6, 0.4], [-0.8, 0.4], [-0.8, 0.2]]]},
+      "properties": {"building": "yes", "building:levels": "2"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/202",
+      "provider_class": "building",
+      "geometry": {"type": "Polygon", "coordinates": [[[-0.2, 0.6], [0.2, 0.6], [0.2, 0.8], [-0.2, 0.8], [-0.2, 0.6]]]},
+      "properties": {"building": "apartments", "building:levels": "5"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/203",
+      "provider_class": "building",
+      "geometry": {"type": "Polygon", "coordinates": [[[0.35, 0.15], [0.55, 0.15], [0.55, 0.35], [0.35, 0.35], [0.35, 0.15]]]},
+      "properties": {"building": "house"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/204",
+      "provider_class": "building",
+      "geometry": {"type": "Polygon", "coordinates": [[[0.65, 0.55], [0.85, 0.55], [0.85, 0.75], [0.65, 0.75], [0.65, 0.55]]]},
+      "properties": {"building": "industrial"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/300",
+      "provider_class": "water",
+      "geometry": {"type": "Polygon", "coordinates": [[[-0.2, 0.05], [0.2, 0.05], [0.2, 0.25], [-0.2, 0.25], [-0.2, 0.05]]]},
+      "properties": {"natural": "water", "water": "pond"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/301",
+      "provider_class": "land_cover",
+      "geometry": {"type": "Polygon", "coordinates": [[[-0.9, 0.55], [-0.4, 0.55], [-0.4, 0.9], [-0.9, 0.9], [-0.9, 0.55]]]},
+      "properties": {"landuse": "meadow", "surface": "grass"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/302",
+      "provider_class": "vegetation_area",
+      "geometry": {"type": "Polygon", "coordinates": [[[0.3, 0.2], [0.8, 0.2], [0.8, 0.6], [0.3, 0.6], [0.3, 0.2]]]},
+      "properties": {"natural": "wood", "leaf_type": "mixed"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "node/303",
+      "provider_class": "foliage_point",
+      "geometry": {"type": "Point", "coordinates": [0.25, 0.75]},
+      "properties": {"natural": "tree", "leaf_type": "deciduous"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    }
+  ],
+  "raster": {
+    "raster_class": "DSM",
+    "size": [9, 5],
+    "transform": [-1.5, 0.5, 0.0, 1.5, 0.0, -0.5],
+    "pixel_type": "Float32",
+    "nodata": null,
+    "samples": [
+      [98.0, 99.0, 101.0, 104.0, 108.0, 113.0, 119.0, 126.0, 134.0],
+      [99.0, 100.0, 102.0, 105.0, 109.0, 114.0, 120.0, 127.0, 135.0],
+      [100.0, 101.0, 104.0, 108.0, 113.0, 119.0, 126.0, 134.0, 143.0],
+      [102.0, 103.0, 107.0, 112.0, 118.0, 125.0, 133.0, 142.0, 152.0],
+      [105.0, 106.0, 110.0, 115.0, 121.0, 128.0, 136.0, 145.0, 155.0]
+    ]
+  }
+}

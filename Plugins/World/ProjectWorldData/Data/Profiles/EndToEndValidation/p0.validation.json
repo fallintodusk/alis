@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../tools/World/EndToEndValidation/contracts/validation-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "p0",
+  "thresholds": {
+    "full_compile_seconds": 60.0,
+    "incremental_compile_seconds": 30.0,
+    "canonical_bytes": 67108864,
+    "unreal_import_seconds": 180.0,
+    "generated_packages": 64,
+    "provider_payload_bytes": 1073741824
+  },
+  "profiles": {
+    "synthetic": {
+      "world_data_plugin": "ProjectWorldTestData",
+      "source_profile": "synthetic_two_cell",
+      "source_profile_path": "Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_two_cell.source.json",
+      "compiler_profile": "synthetic_two_cell",
+      "compiler_profile_path": "Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_two_cell.compile.json",
+      "presentation_profile": "Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json",
+      "authored_overlay_profile": "Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_slice0_v1.json",
+      "authored_overlay_sabotage_profile": "Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_slice0_sabotage_v1.json",
+      "map_package": "/ProjectWorldTestData/Generated/P0/L_ProjectWorldSynthetic",
+      "require_landscape": false,
+      "expected_features": 5,
+      "expected_realized_features": 5,
+      "expected_road_fragments": 2,
+      "expected_buildings": 4,
+      "incremental_bounds": [600.0, 600.0, 800.0, 800.0]
+    },
+    "kazan": {
+      "world_data_plugin": "ProjectWorldData",
+      "source_profile": "kazan_p0",
+      "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_p0.source.json",
+      "compiler_profile": "kazan_p0",
+      "compiler_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/CanonicalCompilation/kazan_p0.compile.json",
+      "presentation_profile": "Plugins/World/ProjectWorldData/Data/Presentation/kazan_representative_v1.json",
+      "authored_overlay_profile": "Plugins/World/ProjectWorldData/Data/Authored/kazan_slice0_v1.json",
+      "authored_overlay_sabotage_profile": "Plugins/World/ProjectWorldData/Data/Authored/kazan_slice0_sabotage_v1.json",
+      "map_package": "/ProjectWorldData/Generated/P0/L_ProjectWorldKazan",
+      "require_landscape": true,
+      "expected_features": 1074,
+      "expected_realized_features": 5,
+      "expected_road_fragments": 2,
+      "expected_buildings": 4,
+      "incremental_bounds": [381000.0, 6184400.0, 381200.0, 6184600.0]
+    }
+  },
+  "package": {
+    "required_map": "/ProjectWorldData/Generated/P0/L_ProjectWorldKazan",
+    "forbidden_suffixes": [".pbf", ".osm", ".tif", ".tiff", ".dem", ".vrt", ".gpkg", ".parquet"],
+    "forbidden_names": ["provider_metadata.json", "source_ledger.json", "run_contract.json", "download_metadata.json"]
+  }
+}

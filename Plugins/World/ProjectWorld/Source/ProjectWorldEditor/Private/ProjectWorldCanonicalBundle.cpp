@@ -3,6 +3,7 @@
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeometryParsing.h"
+#include "ProjectWorldWaterContractParsing.h"
 
 #include "Dom/JsonObject.h"
 #include "HAL/PlatformFileManager.h"
@@ -715,7 +716,8 @@ namespace ProjectWorldCanonical
 					Feature.GeometryType,
 					Feature.GeometryPoints,
 					Validation,
-					&Feature.GeometryParts))
+					&Feature.GeometryParts,
+					&Feature.GeometryPolygons))
 			{
 				return false;
 			}
@@ -729,6 +731,10 @@ namespace ProjectWorldCanonical
 
 			Attributes->TryGetNumberField(TEXT("width_m"), Feature.WidthMeters);
 			Attributes->TryGetNumberField(TEXT("height_m"), Feature.HeightMeters);
+			if (!ProjectWorldWaterContractParsing::Read(Attributes, Feature, Validation))
+			{
+				return false;
+			}
 			const TArray<TSharedPtr<FJsonValue>>* Representations = nullptr;
 			if (!RequireArray(*FeaturePtr, TEXT("representations"), Representations, Validation))
 			{
@@ -761,7 +767,8 @@ namespace ProjectWorldCanonical
 						Type,
 						Representation.Points,
 						Validation,
-						&Representation.Parts))
+						&Representation.Parts,
+						&Representation.Polygons))
 					{
 						return false;
 					}

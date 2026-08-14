@@ -14,8 +14,8 @@
 
 # Config / Data
 *.json text eol=lf
+Plugins/World/*/Data/Canonical/**/*.zip -text
 
 # Scripts & Hooks
 *.sh text eol=lf
 scripts/** text eol=lf
-

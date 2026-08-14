@@ -33,10 +33,12 @@ bool FProjectWorldDataRootsTest::RunTest(const FString& Parameters)
 	FProjectWorldDataRoots FixtureRoots;
 	FProjectWorldDataRoots ProductionRoots;
 	FString Error;
-	TestTrue(TEXT("Fixture roots resolve from the ProjectWorld plugin descriptor."),
-		FProjectWorldDataRoots::Resolve(TEXT("ProjectWorld"), FixtureRoots, Error));
+	TestTrue(TEXT("Fixture roots resolve from the ProjectWorldTestData plugin descriptor."),
+		FProjectWorldDataRoots::Resolve(TEXT("ProjectWorldTestData"), FixtureRoots, Error));
 	TestTrue(TEXT("Production roots resolve from the ProjectWorldData plugin descriptor."),
 		FProjectWorldDataRoots::Resolve(TEXT("ProjectWorldData"), ProductionRoots, Error));
+	TestEqual(TEXT("Fixture generated mount is derived from its data owner."),
+		FixtureRoots.GeneratedPackageRoot, FString(TEXT("/ProjectWorldTestData/Generated/")));
 	TestEqual(TEXT("Production generated mount is derived."),
 		ProductionRoots.GeneratedPackageRoot, FString(TEXT("/ProjectWorldData/Generated/")));
 	TestEqual(TEXT("Production authored mount is derived."),
@@ -177,6 +179,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FProjectWorldGeoReferencingPlacementTest::RunTest(const FString& Parameters)
 {
 	FProjectWorldCanonicalBundle Bundle;
+	Bundle.GridId = TEXT("georeferencing_noop_test");
 	Bundle.CanonicalCrs = TEXT("EPSG:32639");
 	Bundle.LatticeOriginMeters = FVector2D(379760.0, 6184170.0);
 	Bundle.EngineGeoreferenceOriginMeters = FVector2D(379760.0, 6184170.0);
@@ -190,15 +193,23 @@ bool FProjectWorldGeoReferencingPlacementTest::RunTest(const FString& Parameters
 		Bundle.Cells.Add(MoveTemp(Cell));
 	}
 
+	UWorld* World = GEditor->NewMap(false);
 	FProjectWorldRealizationResult Result;
 	FString Error;
 	const double ErrorMeters = ProjectWorldGeneratedGeometry::MeasureCoordinateRoundTrip(
-		GEditor->NewMap(false), Bundle, false, Result, Error);
+		World, Bundle, true, Result, Error);
 	TestTrue(TEXT("GeoReferencing reverse round trip stays inside tolerance."), ErrorMeters <= 0.01);
 	TestTrue(
 		TEXT("GeoReferencing placement equals the canonical actor transform."),
 		Result.GeoReferencingPlacementErrorMeters <= 0.01);
 	TestTrue(TEXT("Both cell corners and shared edge are probed."), Result.GeoReferencingProbePointCount >= 8);
+	TestEqual(TEXT("The first persistent probe creates one GeoReferencing actor."), Result.CreatedActorCount, 1);
+
+	FProjectWorldRealizationResult UnchangedResult;
+	ProjectWorldGeneratedGeometry::MeasureCoordinateRoundTrip(
+		World, Bundle, true, UnchangedResult, Error);
+	TestEqual(TEXT("An unchanged probe updates no GeoReferencing actor."), UnchangedResult.UpdatedActorCount, 0);
+	TestEqual(TEXT("An unchanged probe preserves the GeoReferencing actor."), UnchangedResult.PreservedActorCount, 1);
 	return true;
 }
 
@@ -327,6 +338,8 @@ bool FProjectWorldGeneratedCellPlacementTest::RunTest(const FString& Parameters)
 			World,
 			Bundle,
 			Layout,
+			TEXT("placement_fixture"),
+			1,
 			Result,
 			Error,
 			PresentationMaterial));
@@ -348,7 +361,7 @@ bool FProjectWorldGeneratedCellPlacementTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	for (const ULandscapeComponent* Component : Landscape->LandscapeComponents)
+	Landscape->GetLandscapeInfo()->ForAllLandscapeComponents([this, PresentationMaterial](ULandscapeComponent* Component)
 	{
 		const UMaterialInstance* MaterialInstance = Component->GetMaterialInstance(0, false);
 		TestNotNull(TEXT("Landscape component material instance is generated."), MaterialInstance);
@@ -358,7 +371,7 @@ bool FProjectWorldGeneratedCellPlacementTest::RunTest(const FString& Parameters)
 				TEXT("Landscape component instance uses the assigned material base."),
 				MaterialInstance->GetMaterial() == PresentationMaterial->GetMaterial());
 		}
-	}
+	});
 	const FBox LandscapeBounds = Landscape->GetComponentsBoundingBox(true);
 	for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 	{
@@ -377,6 +390,8 @@ bool FProjectWorldGeneratedCellPlacementTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
+		TestFalse(TEXT("Generated cell never enters HLOD generation."), CellActor->bEnableAutoLODGeneration);
+		TestNull(TEXT("Generated cell has no HLOD layer."), CellActor->GetHLODLayer());
 		const FVector ExpectedOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 			Bundle,
 			FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
@@ -433,7 +448,8 @@ bool FProjectWorldAuthoredLandscapeLayerTest::RunTest(const FString& Parameters)
 	FString Error;
 	TestTrue(
 		TEXT("Test Landscape can be created."),
-		ProjectWorldLandscapeRealization::CreateOrUpdate(World, Bundle, Layout, FirstResult, Error));
+		ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("authored_fixture"), 1, FirstResult, Error));
 
 	ALandscape* Landscape = nullptr;
 	for (TActorIterator<ALandscape> It(World); It; ++It)
@@ -470,10 +486,13 @@ bool FProjectWorldAuthoredLandscapeLayerTest::RunTest(const FString& Parameters)
 	FProjectWorldRealizationResult SecondResult;
 	TestTrue(
 		TEXT("Generated Base can be updated."),
-		ProjectWorldLandscapeRealization::CreateOrUpdate(World, Bundle, Layout, SecondResult, Error));
+		ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("authored_fixture"), 1, SecondResult, Error));
 	uint16 PreservedMarker = 0;
-	FLandscapeEditDataInterface ReadData(Landscape->GetLandscapeInfo(), AuthoredGuid, false);
-	ReadData.GetHeightDataFast(1, 1, 1, 1, &PreservedMarker, 1);
+	{
+		FLandscapeEditDataInterface ReadData(Landscape->GetLandscapeInfo(), AuthoredGuid, false);
+		ReadData.GetHeightDataFast(1, 1, 1, 1, &PreservedMarker, 1);
+	}
 	TestEqual(TEXT("Authored correction payload survives base regeneration."), PreservedMarker, Marker);
 	TestTrue(TEXT("A lower terrain minimum cannot move an authored actor."), AuthoredActor->GetActorLocation().Equals(AuthoredLocation));
 	TestTrue(TEXT("A lower terrain minimum cannot move the generated Landscape origin."), Landscape->GetActorLocation().Equals(LandscapeLocation));
@@ -484,11 +503,13 @@ bool FProjectWorldAuthoredLandscapeLayerTest::RunTest(const FString& Parameters)
 	FProjectWorldRealizationResult RowContractResult;
 	TestTrue(
 		TEXT("A stale terrain-row contract can be corrected."),
-		ProjectWorldLandscapeRealization::CreateOrUpdate(World, Bundle, Layout, RowContractResult, Error));
+		ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("authored_fixture"), 1, RowContractResult, Error));
 	TestEqual(
 		TEXT("Changing the terrain-row contract refreshes the complete Landscape."),
 		RowContractResult.UpdatedLandscapeComponentCount,
 		2);
+
 	return true;
 }
 
@@ -552,6 +573,7 @@ bool FProjectWorldCommandletBoundaryTest::RunTest(const FString& Parameters)
 	UProjectWorldRealizeCommandlet* Commandlet = NewObject<UProjectWorldRealizeCommandlet>();
 	const FString MissingCompile = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation/MissingCompileResult.json"));
 	const FString UnsafeResult = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world/unsafe_realization.json"));
+	const FString MapPackage = TEXT("/ProjectWorldTestData/Generated/P0/L_ProjectWorldSynthetic");
 	const FString SafeResult = FPaths::Combine(
 		FPaths::ProjectSavedDir(),
 		TEXT("Validation/WorldRealization/Automation/delete_without_presentation.json"));
@@ -567,17 +589,19 @@ bool FProjectWorldCommandletBoundaryTest::RunTest(const FString& Parameters)
 	TestEqual(
 		TEXT("The real commandlet rejects evidence outside its owned validation root."),
 		Commandlet->Main(FString::Printf(
-			TEXT("-CompileResult=\"%s\" -Result=\"%s\" -Mode=delete"),
+			TEXT("-CompileResult=\"%s\" -Result=\"%s\" -Map=\"%s\" -Mode=delete"),
 			*MissingCompile,
-			*UnsafeResult)),
+			*UnsafeResult,
+			*MapPackage)),
 		2);
 	TestFalse(TEXT("Unsafe commandlet evidence is not emitted."), IFileManager::Get().FileExists(*UnsafeResult));
 	TestEqual(
 		TEXT("Delete reaches canonical validation without a presentation profile."),
 		Commandlet->Main(FString::Printf(
-			TEXT("-CompileResult=\"%s\" -Result=\"%s\" -Mode=delete"),
+			TEXT("-CompileResult=\"%s\" -Result=\"%s\" -Map=\"%s\" -Mode=delete"),
 			*MissingCompile,
-			*SafeResult)),
+			*SafeResult,
+			*MapPackage)),
 		4);
 	TestTrue(TEXT("Safe commandlet evidence is emitted."), IFileManager::Get().FileExists(*SafeResult));
 	IFileManager::Get().Delete(*SafeResult, false, true, true);

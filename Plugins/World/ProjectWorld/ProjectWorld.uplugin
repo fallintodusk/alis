@@ -3,16 +3,17 @@
   "Version": 1,
   "VersionName": "0.1.0",
   "FriendlyName": "ProjectWorld",
-  "Description": "World Partition, HLOD, and streaming policies/services.",
+  "Description": "Georeferenced world realization, partitioning, and streaming policies/services.",
   "Category": "Project.World",
   "EnabledByDefault": false,
-  "CanContainContent": true,
+  "CanContainContent": false,
   "Modules": [
     { "Name": "ProjectWorld", "Type": "Runtime", "LoadingPhase": "Default" },
     { "Name": "ProjectWorldEditor", "Type": "Editor", "LoadingPhase": "Default" }
   ],
   "Plugins": [
     { "Name": "GeoReferencing", "Enabled": true },
+    { "Name": "GeometryProcessing", "Enabled": true, "TargetAllowList": ["Editor"] },
     { "Name": "ProceduralMeshComponent", "Enabled": true },
     { "Name": "ProjectCore", "Enabled": true }
   ]

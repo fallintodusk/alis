@@ -127,3 +127,125 @@ originals), or hoist one shared implementation.
 vs `.../ProjectWorldPresentationGate.cpp`.
 
 **Regression test.** The build itself; no runtime test applies.
+
+---
+
+## 5. UE-created navigation data changes external-actor package paths
+
+**Symptom.** An unchanged clean reconstruction intermittently fails with
+`generated_package_path_churn`; one `RecastNavMesh` external-actor path is
+removed and a different path appears.
+
+**Root cause.** `GetDefaultNavDataInstance(Create)` spawns navigation data
+with a new actor GUID. World Partition derives the external package path from
+that GUID, so equivalent rebuilds can produce different persistent paths.
+
+**Fix.** Keep the single always-loaded Recast authority inside the map package.
+It is not a streamable world actor and therefore must not claim an external
+actor package path. The helper is separate from route probing because package
+ownership is a persistence concern.
+
+**File.** `Source/ProjectWorldEditor/Private/ProjectWorldRuntimeNavigation.cpp`.
+
+**Regression test.**
+`Project.World.Realization.Runtime.NavigationDataOwnership`, plus the Matrix
+generated-package path-stability gate.
+
+---
+
+## 6. Centerline pruning drops edge water before its width exists
+
+**Symptom.** A ribbon whose centerline is outside the selected territory is
+missing even though its buffered surface enters an edge cell. A careless fix
+can also resurrect a centreline that polygon authority intentionally removed.
+
+**Root cause.** The compiler selected water by original-geometry cell
+membership before resolving width and buffering. Later footprint membership
+could not recover an already-discarded feature. Filtering intermediate water
+state also erased `visible=None`, the marker for a fully polygon-suppressed
+axis, allowing its raw source line to fall through.
+
+**Fix.** Classify the complete admitted water population first. Use polygons
+and final quantized ribbon footprints for target relevance, preserve every
+suppression marker, and use the existing canonical terrain halo only when a
+footprint enters while its axis stays outside the core. Reject an axis beyond
+that halo instead of guessing Z.
+
+**Files.** `tools/World/CanonicalCompilation/app/features.py`, `water.py`,
+and `water_geometry.py`.
+
+**Regression tests.** `WaterSemanticsTests.test_ribbon_outside_grid_uses_footprint_and_terrain_halo`,
+`test_ribbon_reaching_beyond_terrain_halo_fails_closed`,
+`test_complete_water_prepass_keeps_fully_suppressed_axis_hidden`, and
+`test_complete_water_prepass_does_not_promote_outside_non_surface`.
+
+---
+
+## 7. Polygon-suppressed river tails are not necessarily a broken seam
+
+**Symptom.** A valid grouped river fails canonical seam validation after its
+polygon-owned middle section suppresses the overlapping centerline ribbon.
+
+**Root cause.** The validator required every pair of same-identity line
+representations in adjacent cells to share an endpoint. Suppression can leave
+two disconnected uncovered tails whose endpoints do not lie on the common cell
+boundary, so there is no seam to compare.
+
+**Fix.** Compare line endpoints only when both representations actually touch
+the same common cell boundary. A real shared-boundary mismatch still fails.
+Keep the stricter rule for roads: every multi-cell road fragment must
+participate in an exact shared-boundary seam.
+
+**File.** `tools/World/CanonicalCompilation/app/validation.py`.
+
+**Regression tests.**
+`GeometryAuthorityTests.test_polygon_suppressed_river_tails_need_no_false_shared_seam`
+`GeometryAuthorityTests.test_disconnected_cross_cell_road_still_fails_closed`,
+and `LandscapeWaterTwinTests`.
+
+---
+
+## 8. Outer-ring-only loading loses canonical water authority
+
+**Symptom.** Unreal fills a lake island/hole and cannot reproduce the canonical
+standing or flowing water Z function even though the JSON is valid.
+
+**Root cause.** The reusable geometry loader retained only polygon outer rings,
+and the canonical feature model had no typed, versioned water-surface function.
+
+**Fix.** Preserve polygon and multipolygon hole topology, parse the closed water
+surface contract fail-closed, retain `function_version`, accept only the two
+implemented v1 ID/version pairs, and pass the result to the
+GeometryCore/GeometryAlgorithms MeshDescription adapter.
+
+**Files.** `ProjectWorldGeometryParsing.*`,
+`ProjectWorldWaterContractParsing.*`, and `ProjectWorldWaterMeshBuilder.*`.
+
+**Regression tests.**
+`Project.World.Realization.NativeTwin.WaterCanonicalContract` and
+`LandscapeWaterTwinTests`.
+
+---
+
+## 9. Water material enum and package bytes are not realization identity
+
+**Symptom.** A generated Single Layer Water material reports a shader compile
+warning, or an unchanged re-save changes the `.uasset` SHA-256 and is mistaken
+for a semantic regeneration.
+
+**Root cause.** UE 5.8 requires a
+`UMaterialExpressionSingleLayerWaterMaterialOutput` node with connected water
+inputs; `SetShadingModel(MSM_SingleLayerWater)` alone is invalid. Unreal package
+serialization may also change bytes across a save even when generated semantics
+are unchanged.
+
+**Fix.** Build the native Single Layer Water output expression and finish shader
+compilation before accepting the material. Decide no-op from deterministic
+generated semantic identity before writing; package hashes authenticate the
+bytes that were written, not whether a new write is required.
+
+**Files.** `ProjectWorldWaterMeshBuilder.*` and
+`Tests/ProjectWorldWaterNativeTwinTests.cpp`.
+
+**Regression test.**
+`Project.World.Realization.NativeTwin.WaterAssetPersistence`.

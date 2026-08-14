@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/compiler-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "synthetic_landscape_water_twin",
+  "source_profile_id": "synthetic_landscape_water_twin",
+  "source_profile": "Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_landscape_water_twin.source.json",
+  "world_data_plugin": "ProjectWorldTestData",
+  "engine_georeference_origin": [0, 0],
+  "identity_namespace": "synthetic_twin",
+  "grid": {
+    "terrain_grid_version": 1,
+    "canonical_crs": "ALIS:FIXTURE_METRE_V1",
+    "vertical_datum": "ALIS:FIXTURE_HEIGHT_V1",
+    "vertical_origin_m": 0.0,
+    "coordinate_transform": "fixture_affine",
+    "fixture_scale_m": 100.0,
+    "origin": [0.0, 0.0],
+    "sample_spacing": [1.0, 1.0],
+    "coordinate_quantization": 0.01,
+    "height_quantization": 0.1,
+    "nodata_policy": "reject",
+    "resampling_method": "bilinear",
+    "cell_quads": [63, 63],
+    "alignment_cell_bounds": [0, 0, 1, 0],
+    "halo_samples": 1,
+    "operation_halos": {"terrain_resampling": 1, "water_surface": 1}
+  },
+  "water_semantics": {
+    "policy_id": "synthetic_landscape_water_twin_v1",
+    "policy_version": 1,
+    "coordinate_match_tolerance_m": 0.01,
+    "class_rules": [
+      {"water_class": "lake", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "river", "geometry": "polygon", "result": "surface", "behavior": "flowing"},
+      {"water_class": "river", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "stream", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "fairway", "geometry": "line", "result": "non_surface"}
+    ],
+    "modifier_rules": [
+      {"tag": "tunnel", "value": "culvert", "result": "hidden"},
+      {"tag": "covered", "value": "yes", "result": "hidden"},
+      {"tag": "location", "value": "underground", "result": "hidden"},
+      {"tag": "intermittent", "value": "yes", "result": "temporal"},
+      {"tag": "intermittent", "value": "no", "result": "visible"},
+      {"tag": "seasonal", "value": "*", "result": "temporal"}
+    ],
+    "feature_rules": [],
+    "surface_groups": [
+      {
+        "surface_group_id": "synthetic_cross_cell_river",
+        "polygon_source_id": "relation/1002",
+        "flow_axis_source_ids": ["way/1003"]
+      }
+    ],
+    "width": {
+      "fallback_accuracy": "heuristic_visual_not_surveyed",
+      "fallback_m": {"river": 12.0, "canal": 6.0, "stream": 1.5, "ditch": 1.0, "drain": 1.0},
+      "ribbon_buffer": {"cap_style": "round", "join_style": "round", "quadrant_segments": 8, "suppression_clearance_m": 0.02}
+    },
+    "elevation": {
+      "quantile_interpolation": "linear_r7",
+      "rolling_endpoint_policy": "shrink_to_available_samples",
+      "standing": {
+        "function_id": "standing_polygon_quantile",
+        "function_version": 1,
+        "quantile": 0.5,
+        "empty_sample_fallback": "ogr_point_on_surface_bilinear"
+      },
+      "flowing": {
+        "function_id": "rolling_quantile_l1_isotonic",
+        "function_version": 1,
+        "sample_spacing_m": 10.0,
+        "quantile": 0.5,
+        "rolling_radius": 2,
+        "direction": "non_increasing_by_source_direction",
+        "loss": "l1",
+        "tie_break": "lower_elevation"
+      }
+    }
+  },
+  "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
+  "quality_cells": [{"role": "cross_cell_boundary", "cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}]}],
+  "authored_overlay": "Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_landscape_water_twin/authored_overlay.json",
+  "fixture_features": null,
+  "algorithm_version": "alis-world-compiler-1"
+}

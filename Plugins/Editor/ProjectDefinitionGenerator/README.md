@@ -328,6 +328,11 @@ separate ALIS downloads.
 - [../../Resources/ProjectObject/README.md](../../Resources/ProjectObject/README.md) - Example consumer of generated object definitions
 
 Note:
-- the public mirror includes source JSON and schemas under plugin `Data/` folders
-- generated `.uasset` files and other binary project assets are intentionally excluded; run the
-  generator in Unreal Editor to produce them
+- the public Git branch includes schemas and text data outside excluded Content
+  trees;
+- the developer release includes approved source JSON plus the exact persistent
+  generated DataAssets selected by plugin-owned authority;
+- generation is the authoring/update path, not a required bootstrap step for
+  already accepted assets. After generation, run
+  `scripts/git/mirror/refresh_developer_asset_authority.ps1`, review the
+  authority diff, and commit source, DataAsset, and authority together.

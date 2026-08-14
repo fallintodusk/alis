@@ -8,11 +8,13 @@
 
 #include "EngineUtils.h"
 #include "Landscape.h"
+#include "LandscapeConfigHelper.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeEdit.h"
 #include "LandscapeEditLayer.h"
 #include "LandscapeInfo.h"
 #include "LandscapeProxy.h"
+#include "LandscapeStreamingProxy.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/SecureHash.h"
 
@@ -24,6 +26,8 @@ namespace ProjectWorldLandscapeRealization
 	const FName GeneratedRoadsLayerName(TEXT("Generated Roads"));
 	const FName AuthoredCorrectionsLayerName(TEXT("Authored Corrections"));
 	const FName TerrainRowOrderTag(TEXT("ProjectWorld.TerrainRows=north_to_south_v1"));
+	const FString LogicalLandscapeTagPrefix(TEXT("ProjectWorld.LogicalLandscape="));
+	const FString TerrainCellTagPrefix(TEXT("ProjectWorld.TerrainCell="));
 
 	FGuid StableGuid(const FString& Value)
 	{
@@ -32,13 +36,23 @@ namespace ProjectWorldLandscapeRealization
 		return Guid;
 	}
 
-	void SetIdentityTag(AActor* Actor, const FString& Prefix, const FString& Value)
+	bool SetIdentityTag(AActor* Actor, const FString& Prefix, const FString& Value)
 	{
+		const FName Expected(*(Prefix + Value));
+		if (Actor->Tags.Contains(Expected) &&
+			!Actor->Tags.ContainsByPredicate([&Prefix, &Expected](const FName& Tag)
+			{
+				return Tag != Expected && Tag.ToString().StartsWith(Prefix);
+			}))
+		{
+			return false;
+		}
 		Actor->Tags.RemoveAll([&Prefix](const FName& Tag)
 		{
 			return Tag.ToString().StartsWith(Prefix);
 		});
-		Actor->Tags.Add(FName(*(Prefix + Value)));
+		Actor->Tags.Add(Expected);
+		return true;
 	}
 
 	void RemoveIdentityTags(AActor* Actor, const FString& Prefix)
@@ -54,7 +68,121 @@ namespace ProjectWorldLandscapeRealization
 		return Actor->Tags.Contains(FName(*(Prefix + Value)));
 	}
 
-	bool AddRequiredLayers(ALandscape* Landscape, FProjectWorldRealizationResult& OutResult, FString& OutError)
+	int32 CountLandscapeComponents(ULandscapeInfo* LandscapeInfo)
+	{
+		int32 Count = 0;
+		LandscapeInfo->ForAllLandscapeComponents([&Count](ULandscapeComponent*)
+		{
+			++Count;
+		});
+		return Count;
+	}
+
+	bool EnsureCellProxyTopology(
+		UWorld* World,
+		ALandscape* Landscape,
+		const FProjectWorldCanonicalBundle& Bundle,
+		const FProjectWorldLandscapeLayout& Layout,
+		int32 ComponentsPerProxy,
+		bool& bOutChanged,
+		FString& OutError)
+	{
+		bOutChanged = false;
+		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+		if (LandscapeInfo == nullptr || ComponentsPerProxy != 1)
+		{
+			OutError = TEXT("Landscape profile does not resolve to one component per streaming proxy.");
+			return false;
+		}
+		const int32 ExpectedComponents = Layout.ComponentCount.X * Layout.ComponentCount.Y;
+		if (CountLandscapeComponents(LandscapeInfo) != ExpectedComponents)
+		{
+			OutError = TEXT("Landscape component population differs from the canonical cell domain.");
+			return false;
+		}
+		if (!World->IsPartitionedWorld())
+		{
+			return true;
+		}
+
+		bool bNeedsPartition = Landscape->LandscapeComponents.Num() > 0;
+		int32 ProxyCount = 0;
+		for (TActorIterator<ALandscapeStreamingProxy> It(World); It; ++It)
+		{
+			if (It->GetLandscapeActor() != Landscape)
+			{
+				continue;
+			}
+			++ProxyCount;
+			bNeedsPartition |= It->LandscapeComponents.Num() != 1;
+		}
+		bNeedsPartition |= ProxyCount != ExpectedComponents;
+		if (bNeedsPartition && !FLandscapeConfigHelper::PartitionLandscape(
+			World,
+			LandscapeInfo,
+			static_cast<uint32>(ComponentsPerProxy)))
+		{
+			OutError = TEXT("Epic LandscapeConfigHelper could not partition the logical Landscape.");
+			return false;
+		}
+		bOutChanged |= bNeedsPartition;
+
+		int32 MinimumCellX = MAX_int32;
+		int32 MaximumCellY = MIN_int32;
+		const int32 ComponentQuads = Layout.SectionsPerComponent * Layout.QuadsPerSection;
+		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+		{
+			MinimumCellX = FMath::Min(MinimumCellX, Cell.CellX);
+			MaximumCellY = FMath::Max(MaximumCellY, Cell.CellY);
+		}
+		TSet<ALandscapeStreamingProxy*> ClaimedProxies;
+		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+		{
+			const FIntPoint ComponentIndex(
+				((Cell.CellX - MinimumCellX) * Bundle.CellQuads.X) / ComponentQuads,
+				((MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y) / ComponentQuads);
+			ULandscapeComponent* const* Component = LandscapeInfo->XYtoComponentMap.Find(ComponentIndex);
+			ALandscapeStreamingProxy* Proxy = Component != nullptr
+				? Cast<ALandscapeStreamingProxy>((*Component)->GetTypedOuter<ALandscapeProxy>())
+				: nullptr;
+			if (Proxy == nullptr || ClaimedProxies.Contains(Proxy))
+			{
+				OutError = FString::Printf(
+					TEXT("Canonical cell has no unique Landscape streaming proxy: %s"),
+					*Cell.CellId);
+				return false;
+			}
+			ClaimedProxies.Add(Proxy);
+			bool bProxyChanged = SetIdentityTag(Proxy, TerrainCellTagPrefix, Cell.CellId);
+			if (!Proxy->GetIsSpatiallyLoaded())
+			{
+				Proxy->SetIsSpatiallyLoaded(true);
+				bProxyChanged = true;
+			}
+			if (Proxy->bEnableAutoLODGeneration || Proxy->GetHLODLayer() != nullptr)
+			{
+				Proxy->bEnableAutoLODGeneration = false;
+				Proxy->SetHLODLayer(nullptr);
+				bProxyChanged = true;
+			}
+			if (bProxyChanged)
+			{
+				Proxy->MarkPackageDirty();
+				bOutChanged = true;
+			}
+		}
+		if (Landscape->GetIsSpatiallyLoaded())
+		{
+			Landscape->SetIsSpatiallyLoaded(false);
+			bOutChanged = true;
+		}
+		return ClaimedProxies.Num() == ExpectedComponents;
+	}
+
+	bool AddRequiredLayers(
+		ALandscape* Landscape,
+		FProjectWorldRealizationResult& OutResult,
+		FString& OutError)
 	{
 		ULandscapeEditLayerBase* BaseLayer = Landscape->GetEditLayer(0);
 		if (BaseLayer == nullptr)
@@ -70,12 +198,11 @@ namespace ProjectWorldLandscapeRealization
 			OutError = TEXT("Cannot create the required generated and authored Landscape layers.");
 			return false;
 		}
-
-		const ULandscapeEditLayerBase* AuthoredLayer =
-			Landscape->GetEditLayerConst(AuthoredCorrectionsLayerName);
-		if (AuthoredLayer == nullptr)
+		ULandscapeEditLayerBase* RoadsLayer = Landscape->GetEditLayer(GeneratedRoadsLayerName);
+		ULandscapeEditLayerBase* AuthoredLayer = Landscape->GetEditLayer(AuthoredCorrectionsLayerName);
+		if (RoadsLayer == nullptr || AuthoredLayer == nullptr)
 		{
-			OutError = TEXT("Authored Corrections Landscape layer was not created.");
+			OutError = TEXT("Landscape layer creation returned no editable layer.");
 			return false;
 		}
 		OutResult.AuthoredCorrectionLayerGuid =
@@ -278,6 +405,8 @@ namespace ProjectWorldLandscapeRealization
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldLandscapeLayout& Layout,
+		const FString& LogicalLandscapeId,
+		int32 ComponentsPerProxy,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError,
 		UMaterialInterface* LandscapeMaterial)
@@ -307,11 +436,15 @@ namespace ProjectWorldLandscapeRealization
 		const int32 ComponentQuads = Layout.SectionsPerComponent * Layout.QuadsPerSection;
 		if (Landscape != nullptr)
 		{
+			ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
 			if (!HasIdentityTag(Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId) ||
+				(!LogicalLandscapeId.IsEmpty() &&
+					!HasIdentityTag(Landscape, LogicalLandscapeTagPrefix, LogicalLandscapeId)) ||
 				Landscape->ComponentSizeQuads != ComponentQuads ||
 				Landscape->NumSubsections != Layout.SectionsPerComponent ||
 				Landscape->SubsectionSizeQuads != Layout.QuadsPerSection ||
-				Landscape->LandscapeComponents.Num() != Layout.ComponentCount.X * Layout.ComponentCount.Y)
+				LandscapeInfo == nullptr ||
+				CountLandscapeComponents(LandscapeInfo) != Layout.ComponentCount.X * Layout.ComponentCount.Y)
 			{
 				OutError = TEXT("Existing generated Landscape identity or component layout differs from canonical input.");
 				return false;
@@ -337,7 +470,9 @@ namespace ProjectWorldLandscapeRealization
 			FActorSpawnParameters SpawnParameters;
 			SpawnParameters.Name = FName(TEXT("ProjectWorld_Landscape"));
 			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
-			SpawnParameters.OverrideActorGuid = StableGuid(Bundle.GridId + TEXT("|landscape"));
+			SpawnParameters.OverrideActorGuid = StableGuid(LogicalLandscapeId.IsEmpty()
+				? Bundle.GridId + TEXT("|landscape")
+				: Bundle.GridId + TEXT("|landscape|") + LogicalLandscapeId);
 			Landscape = World->SpawnActor<ALandscape>(
 				ALandscape::StaticClass(),
 				ActorLocation,
@@ -358,7 +493,6 @@ namespace ProjectWorldLandscapeRealization
 			Landscape->Tags.Add(LandscapeTag);
 			Landscape->Tags.Add(TerrainRowOrderTag);
 			Landscape->SetActorLabel(TEXT("ProjectWorld Landscape"));
-			Landscape->SetFolderPath(FName(TEXT("ProjectWorld/Generated")));
 			Landscape->SetIsSpatiallyLoaded(false);
 			TMap<FGuid, TArray<uint16>> HeightData;
 			HeightData.Add(FGuid(), Heightfield.EncodedHeights);
@@ -393,21 +527,46 @@ namespace ProjectWorldLandscapeRealization
 			++OutResult.CreatedActorCount;
 		}
 
-		SetIdentityTag(Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId);
-		SetIdentityTag(Landscape, TEXT("ProjectWorld.Input="), Bundle.InputsHash);
 		UMaterialInterface* DesiredLandscapeMaterial = LandscapeMaterial != nullptr
 			? LandscapeMaterial
 			: LoadObject<UMaterialInterface>(
 				nullptr,
 				TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
 		const bool bMaterialChanged = Landscape->LandscapeMaterial != DesiredLandscapeMaterial;
+		bool bLandscapeChanged = bCreatedLandscape || bMaterialChanged ||
+			OutResult.UpdatedLandscapeComponentCount > 0;
+		bLandscapeChanged |= SetIdentityTag(Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId);
+		if (!LogicalLandscapeId.IsEmpty())
+		{
+			bLandscapeChanged |= SetIdentityTag(Landscape, LogicalLandscapeTagPrefix, LogicalLandscapeId);
+		}
+		bLandscapeChanged |= SetIdentityTag(Landscape, TEXT("ProjectWorld.Input="), Bundle.InputsHash);
 		Landscape->LandscapeMaterial = DesiredLandscapeMaterial;
 		if (bCreatedLandscape || bMaterialChanged)
 		{
 			Landscape->UpdateAllComponentMaterialInstances(true);
 		}
-		Landscape->MarkPackageDirty();
-		OutResult.LandscapeComponentCount = Landscape->LandscapeComponents.Num();
+		bool bTopologyChanged = false;
+		if (!EnsureCellProxyTopology(
+			World,
+			Landscape,
+			Bundle,
+			Layout,
+			ComponentsPerProxy,
+			bTopologyChanged,
+			OutError))
+		{
+			return false;
+		}
+		if (bLandscapeChanged || bTopologyChanged)
+		{
+			Landscape->MarkPackageDirty();
+			if (!bCreatedLandscape)
+			{
+				++OutResult.UpdatedActorCount;
+			}
+		}
+		OutResult.LandscapeComponentCount = Layout.ComponentCount.X * Layout.ComponentCount.Y;
 		return true;
 	}
 
@@ -462,8 +621,11 @@ namespace ProjectWorldLandscapeRealization
 		OutResult.bAuthoredCorrectionLayerPreserved = true;
 		OutResult.AuthoredCorrectionLayerGuid =
 			AuthoredGuid.ToString(EGuidFormats::DigitsWithHyphensLower);
-		OutResult.LandscapeComponentCount = Landscape->LandscapeComponents.Num();
-		OutResult.UpdatedLandscapeComponentCount = Landscape->LandscapeComponents.Num();
+		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+		OutResult.LandscapeComponentCount = LandscapeInfo != nullptr
+			? CountLandscapeComponents(LandscapeInfo)
+			: 0;
+		OutResult.UpdatedLandscapeComponentCount = OutResult.LandscapeComponentCount;
 		return true;
 	}
 }

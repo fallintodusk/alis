@@ -146,7 +146,7 @@ namespace ProjectWorldCanonicalContractTests
 			? TEXT("grid_0123456789abcdef:x99:y0")
 			: TEXT("grid_0123456789abcdef:x0:y0");
 		const FString Coverage = FString::Printf(
-			LR"({"$schema":"https://alis.world/schemas/world-compiler/coverage-manifest-v1.json","schema_version":%d,"profile_id":"fixture","world_data_plugin":"ProjectWorld","engine_georeference_origin":[10,20],"grid_id":"grid_0123456789abcdef","grid":{"canonical_crs":"EPSG:32639","vertical_datum":"EPSG:3855","vertical_origin_m":0,"coordinate_transform":"always_xy","origin":[0,0],"sample_spacing":[1,1],"cell_quads":[1,1],"coordinate_quantization":0.01,"height_quantization":0.1},"cells":[{"cell_id":"%s","path":"%s","sha256":"%s"},{"cell_id":"grid_0123456789abcdef:x1:y0","path":"%s","sha256":"%s"}]})",
+			LR"({"$schema":"https://alis.world/schemas/world-compiler/coverage-manifest-v1.json","schema_version":%d,"profile_id":"fixture","world_data_plugin":"ProjectWorldTestData","engine_georeference_origin":[10,20],"grid_id":"grid_0123456789abcdef","grid":{"canonical_crs":"EPSG:32639","vertical_datum":"EPSG:3855","vertical_origin_m":0,"coordinate_transform":"always_xy","origin":[0,0],"sample_spacing":[1,1],"cell_quads":[1,1],"coordinate_quantization":0.01,"height_quantization":0.1},"cells":[{"cell_id":"%s","path":"%s","sha256":"%s"},{"cell_id":"grid_0123456789abcdef:x1:y0","path":"%s","sha256":"%s"}]})",
 			CoverageVersion,
 			*FirstCoverageCellId,
 			*Cells[0].Path,
@@ -202,7 +202,7 @@ bool FProjectWorldCanonicalContractsFailClosedTest::RunTest(const FString& Param
 	FProjectWorldCanonicalValidation Validation;
 	TestTrue(TEXT("Compatible v1 fixture loads."), FProjectWorldCanonicalLoader::Load(ReceiptPath, Bundle, Validation));
 	TestEqual(TEXT("Grid-owned vertical origin is loaded."), Bundle.HeightOriginMeters, 0.0);
-	TestEqual(TEXT("World-data owner is loaded."), Bundle.WorldDataPluginName, FString(TEXT("ProjectWorld")));
+	TestEqual(TEXT("World-data owner is loaded."), Bundle.WorldDataPluginName, FString(TEXT("ProjectWorldTestData")));
 	TestEqual(TEXT("Lattice origin remains grid-owned."), Bundle.LatticeOriginMeters, FVector2D::ZeroVector);
 	TestEqual(
 		TEXT("Engine origin is independent from lattice identity."),

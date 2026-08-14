@@ -347,23 +347,37 @@ function Write-ReleaseReadme {
 
     $ReadmePath = Join-Path $Directory "INSTALL.txt"
     $ArchiveAssets = @($Assets | Where-Object { $_.Name -like "*.zip*" -or $_.Name -like "*.7z*" })
+    $IsDeveloperRelease = @($Assets | Where-Object { $_.Name -like "*.developer-payload.json" }).Count -gt 0
 
-    $Lines = @(
-        "ALIS Install Guide",
-        "",
-        "Fast install:",
-        "1. Download all archive parts to one folder.",
-        "2. Install 7-Zip if needed:",
-        "   - Website: https://www.7-zip.org/",
-        "   - Windows package manager: winget install --id 7zip.7zip -e",
-        "3. Right-click the first archive part and extract it with 7-Zip.",
-        "4. Run Alis.exe.",
-        "",
-        "Normal users do not need to verify signatures before install.",
-        "Advanced users can verify authenticity before extraction.",
-        "",
-        "Archive parts in this release:"
-    )
+    if ($IsDeveloperRelease) {
+        $Lines = @(
+            "ALIS Developer Project Install Guide",
+            "",
+            "Fast install:",
+            "1. Clone the public ALIS source repository.",
+            "2. Download every file from this release into one separate folder.",
+            "3. Check out the exact public source tag named by the payload manifest.",
+            "4. From that clean checkout, run scripts/git/mirror/install_developer_payload.ps1 -ProjectRoot <alis-path> -ReleaseDir <this-folder> -RequireReleaseSignature.",
+            "5. Open Alis.uproject with the supported Unreal Engine version.",
+            "",
+            "The installer verifies and joins numbered parts automatically.",
+            "Do not manually extract, rename parts, or execute downloaded helper scripts.",
+            "",
+            "Archive parts in this release:"
+        )
+    } else {
+        $Lines = @(
+            "ALIS Install Guide",
+            "",
+            "Fast install:",
+            "1. Download all archive parts to one folder.",
+            "2. Install 7-Zip if needed: https://www.7-zip.org/",
+            "3. Right-click the first archive part and extract it with 7-Zip.",
+            "4. Run Alis.exe.",
+            "",
+            "Archive parts in this release:"
+        )
+    }
 
     foreach ($Asset in $ArchiveAssets) {
         $Lines += "- $($Asset.Name)"
@@ -409,8 +423,8 @@ function Write-ReleaseReadme {
         "",
         "Important for split archives:",
         "- keep all parts in the same folder",
-        "- extract the first part only",
-        "- do not try to open part 2 by itself",
+        "- packaged game: extract the first part only",
+        "- developer project: run INSTALL_ALIS_DEVELOPER_PROJECT.ps1",
         "",
         "Bundled helper files in this release:",
         "- INSTALL.txt",

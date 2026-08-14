@@ -9,6 +9,7 @@ PROJECT_FILE := $(CURDIR)/Alis.uproject
 REPORTS_DIR := $(CURDIR)/Saved/Validation/Reports
 DEFAULT_MIRROR_REMOTE_URL ?= git@github.com:fallintodusk/alis.git
 EFFECTIVE_MIRROR_REMOTE_URL := $(if $(strip $(MIRROR_REMOTE_URL)),$(strip $(MIRROR_REMOTE_URL)),$(DEFAULT_MIRROR_REMOTE_URL))
+MIRROR_DEVELOPER_ARGS := $(if $(MIRROR_DEVELOPER_RELEASE_DIR),--developer-release-dir "$(MIRROR_DEVELOPER_RELEASE_DIR)" )$(if $(MIRROR_DEVELOPER_VERSION),--developer-version "$(MIRROR_DEVELOPER_VERSION)" )$(if $(MIRROR_DEVELOPER_PART_SIZE_MIB),--developer-part-size-mib "$(MIRROR_DEVELOPER_PART_SIZE_MIB)" )
 
 # Detect WSL to handle Windows tool invocation and path conversion
 # Environment detection
@@ -98,6 +99,7 @@ help:
 	@echo "    make mirror MIRROR_DRY_RUN=1 - Preview against default mirror baseline"
 	@echo "    make mirror MIRROR_REMOTE_URL=<url> - Override mirror remote explicitly"
 	@echo "    make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1 - One-off local preview without remote"
+	@echo "    make mirror MIRROR_DEVELOPER_RELEASE_DIR=<dir> MIRROR_DEVELOPER_VERSION=<version> - Add developer payload"
 	@echo ""
 
 # Fast check suite (recommended before commits)
@@ -388,6 +390,9 @@ ifeq ($(IS_WSL),1)
 	if [ -n "$(MIRROR_BRANCH)" ]; then set -- "$$@" --branch "$(MIRROR_BRANCH)"; fi; \
 	if [ -n "$(MIRROR_EXCLUDE_FILE)" ]; then set -- "$$@" --exclude-file "$(MIRROR_EXCLUDE_FILE)"; fi; \
 	if [ -n "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" ]; then set -- "$$@" --forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)"; fi; \
+	if [ -n "$(MIRROR_DEVELOPER_RELEASE_DIR)" ]; then set -- "$$@" --developer-release-dir "$(MIRROR_DEVELOPER_RELEASE_DIR)"; fi; \
+	if [ -n "$(MIRROR_DEVELOPER_VERSION)" ]; then set -- "$$@" --developer-version "$(MIRROR_DEVELOPER_VERSION)"; fi; \
+	if [ -n "$(MIRROR_DEVELOPER_PART_SIZE_MIB)" ]; then set -- "$$@" --developer-part-size-mib "$(MIRROR_DEVELOPER_PART_SIZE_MIB)"; fi; \
 	if [ "$(MIRROR_DRY_RUN)" = "1" ]; then \
 		set -- "$$@" --dry-run; \
 	else \
@@ -405,8 +410,8 @@ ifeq ($(IS_WSL),1)
 else
 	@echo [INFO] mirror target uses PowerShell wrapper on Windows
 	@echo [INFO] mirror remote: $(EFFECTIVE_MIRROR_REMOTE_URL)
-	@echo [INFO] mirror args: --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
-	@$(if $(MIRROR_GIT_SSH_COMMAND),set "MIRROR_GIT_SSH_COMMAND=$(MIRROR_GIT_SSH_COMMAND)" && )powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
+	@echo [INFO] mirror args: --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(MIRROR_DEVELOPER_ARGS)$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
+	@$(if $(MIRROR_GIT_SSH_COMMAND),set "MIRROR_GIT_SSH_COMMAND=$(MIRROR_GIT_SSH_COMMAND)" && )powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(MIRROR_DEVELOPER_ARGS)$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
 endif
 
 # Source engine path comes from scripts/config/ue_path.conf via ue_env.mk

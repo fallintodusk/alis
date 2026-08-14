@@ -2,9 +2,13 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldAuthoredOverlay.h"
+#include "ProjectWorldAuthoredOverlayRealization.h"
 #include "Tests/ProjectWorldSchemaTestUtilities.h"
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldRealizationService.h"
 
+#include "Editor.h"
+#include "LevelInstance/LevelInstanceActor.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -18,7 +22,7 @@ namespace ProjectWorldAuthoredOverlayTests
 	FProjectWorldCanonicalBundle MakeBundle(bool bIncludeAnchoredFeature = true)
 	{
 		FProjectWorldCanonicalBundle Bundle;
-		Bundle.WorldDataPluginName = TEXT("ProjectWorld");
+		Bundle.WorldDataPluginName = TEXT("ProjectWorldTestData");
 		Bundle.GridId = GridId;
 		Bundle.CanonicalCrs = TEXT("EPSG:32639");
 		Bundle.VerticalDatum = TEXT("EPSG:3855");
@@ -59,7 +63,7 @@ namespace ProjectWorldAuthoredOverlayTests
 	{
 		FProjectWorldAuthoredOverlaySet Set;
 		Set.OverlaySetId = TEXT("fixture");
-		Set.WorldDataPluginName = TEXT("ProjectWorld");
+		Set.WorldDataPluginName = TEXT("ProjectWorldTestData");
 		Set.GridId = GridId;
 		Set.ResolverVersion = ProjectWorldAuthoredOverlay::SupportedResolverVersion;
 		FProjectWorldAnchorProvenance Provenance;
@@ -80,7 +84,7 @@ namespace ProjectWorldAuthoredOverlayTests
 	{
 		FProjectWorldAuthoredOverlay Overlay;
 		Overlay.OverlayId = TEXT("hero_prop");
-		Overlay.AuthoredPackage = TEXT("/ProjectWorld/Authored/Fixtures/L_HeroProp");
+		Overlay.AuthoredPackage = TEXT("/ProjectWorldTestData/Authored/Fixtures/L_HeroProp");
 		Overlay.Anchor.Kind = EProjectWorldAnchorKind::Feature;
 		Overlay.Anchor.FeatureId = TEXT("alis:osm:way:1151612452");
 		Overlay.Anchor.ExpectedFeatureClass = TEXT("road");
@@ -114,7 +118,7 @@ bool FProjectWorldAuthoredOverlayCoordinateTest::RunTest(const FString& Paramete
 
 	FProjectWorldAuthoredOverlay Overlay;
 	Overlay.OverlayId = TEXT("plaza_marker");
-	Overlay.AuthoredPackage = TEXT("/ProjectWorld/Authored/Fixtures/L_PlazaMarker");
+	Overlay.AuthoredPackage = TEXT("/ProjectWorldTestData/Authored/Fixtures/L_PlazaMarker");
 	Overlay.Anchor.Kind = EProjectWorldAnchorKind::Coordinate;
 	Overlay.Anchor.PlacementClass = EProjectWorldPlacementClass::Precision;
 	Overlay.Anchor.ProvenanceRef = TEXT("fixture_control");
@@ -298,6 +302,43 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	"Project.World.Authored.Anchor.Contract",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldAuthoredOverlayActorNoOpTest,
+	"Project.World.Authored.Anchor.ActorNoOp",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldAuthoredOverlayActorNoOpTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldAuthoredOverlayTests;
+	const FProjectWorldCanonicalBundle Bundle = MakeBundle();
+	FProjectWorldAuthoredOverlaySet Set = MakeSet();
+	Set.SetHash = TEXT("5e639e08c851f4f49ffa275cff545dad666f6f4b6f0db3e1130cc4edbe7da830");
+	FProjectWorldAuthoredAnchorEvidence Evidence;
+	Evidence.OverlayId = TEXT("marker");
+	Evidence.AuthoredPackage = TEXT("/ProjectWorldTestData/Authored/Fixtures/L_ProjectWorldMarker");
+	Evidence.WorldLocation = FVector(100.0, 200.0, 300.0);
+	Evidence.WorldRotation = FRotator(0.0, 15.0, 0.0);
+	Evidence.bPlaces = true;
+
+	UWorld* World = GEditor->NewMap(false);
+	FProjectWorldRealizationResult FirstResult;
+	FirstResult.AuthoredAnchors.Add(Evidence);
+	FString Error;
+	TestTrue(
+		TEXT("The real authored-overlay path creates its stable Level Instance."),
+		ProjectWorldAuthoredOverlayRealization::Apply(World, Bundle, Set, FirstResult, Error));
+	TestEqual(TEXT("First realization creates one authored anchor actor."), FirstResult.CreatedActorCount, 1);
+
+	FProjectWorldRealizationResult UnchangedResult;
+	UnchangedResult.AuthoredAnchors.Add(Evidence);
+	TestTrue(
+		TEXT("The same authored-overlay contract is accepted again."),
+		ProjectWorldAuthoredOverlayRealization::Apply(World, Bundle, Set, UnchangedResult, Error));
+	TestEqual(TEXT("Unchanged authored-overlay identity updates no actor."), UnchangedResult.UpdatedActorCount, 0);
+	TestEqual(TEXT("Unchanged authored-overlay identity preserves its actor."), UnchangedResult.PreservedActorCount, 1);
+	return true;
+}
+
 bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters)
 {
 	using namespace ProjectWorldSchemaTestUtilities;
@@ -309,7 +350,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
   "$schema": "../Schemas/project_world_authored_overlay.schema.json",
   "schema_version": 1,
   "overlay_set_id": "fixture",
-  "world_data_plugin": "ProjectWorld",
+  "world_data_plugin": "ProjectWorldTestData",
   "grid_id": "grid_413718bc833994e5",
   "resolver_version": 3,
   "provenance": [{
@@ -323,7 +364,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
   "overlays": [
     {
       "overlay_id": "plaza_marker",
-      "authored_package": "/ProjectWorld/Authored/Fixtures/L_PlazaMarker",
+      "authored_package": "/ProjectWorldTestData/Authored/Fixtures/L_PlazaMarker",
       "anchor": {
         "kind": "coordinate",
         "placement_class": "precision",
@@ -346,7 +387,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
   "$schema": "../Schemas/project_world_authored_overlay.schema.json",
   "schema_version": 1,
   "overlay_set_id": "fixture",
-  "world_data_plugin": "ProjectWorld",
+  "world_data_plugin": "ProjectWorldTestData",
   "grid_id": "grid_413718bc833994e5",
   "resolver_version": 3,
   "provenance": [{
@@ -355,7 +396,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
   }],
   "overlays": [{
     "overlay_id": "road_marker",
-    "authored_package": "/ProjectWorld/Authored/Fixtures/L_RoadMarker",
+    "authored_package": "/ProjectWorldTestData/Authored/Fixtures/L_RoadMarker",
     "anchor": {
       "kind": "feature",
       "placement_class": "precision",
@@ -376,7 +417,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
   "$schema": "../Schemas/project_world_authored_overlay.schema.json",
   "schema_version": 1,
   "overlay_set_id": "fixture",
-  "world_data_plugin": "ProjectWorld",
+  "world_data_plugin": "ProjectWorldTestData",
   "grid_id": "grid_413718bc833994e5",
   "resolver_version": 3,
   "provenance": [{
@@ -385,7 +426,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
   }],
   "overlays": [{
     "overlay_id": "plaza_mask",
-    "authored_package": "/ProjectWorld/Authored/Fixtures/L_PlazaMask",
+    "authored_package": "/ProjectWorldTestData/Authored/Fixtures/L_PlazaMask",
     "anchor": {
       "kind": "mask",
       "canonical_crs": "EPSG:32639",
@@ -436,9 +477,9 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
 			*ReferenceFor(Path, TEXT("project_world_authored_overlay.schema.json")),
 			*ProductionSchema,
 			ESearchCase::CaseSensitive)
-		.Replace(TEXT("\"world_data_plugin\": \"ProjectWorld\""),
+		.Replace(TEXT("\"world_data_plugin\": \"ProjectWorldTestData\""),
 			TEXT("\"world_data_plugin\": \"ProjectWorldData\""))
-		.Replace(TEXT("/ProjectWorld/Authored/"), TEXT("/ProjectWorldData/Authored/"));
+		.Replace(TEXT("/ProjectWorldTestData/Authored/"), TEXT("/ProjectWorldData/Authored/"));
 	IFileManager::Get().MakeDirectory(*ProductionRoot, true);
 	TestTrue(TEXT("Production-root fixture is writable."),
 		FFileHelper::SaveStringToFile(ProductionOwned, *ProductionPath));
@@ -448,8 +489,8 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
 	// Authored content under a generated root would be destroyed by the very
 	// regeneration these anchors exist to survive.
 	const FString Escaped = Valid.Replace(
-		TEXT("/ProjectWorld/Authored/Fixtures/L_PlazaMarker"),
-		TEXT("/ProjectWorld/Generated/P0/L_PlazaMarker"));
+		TEXT("/ProjectWorldTestData/Authored/Fixtures/L_PlazaMarker"),
+		TEXT("/ProjectWorldTestData/Generated/P0/L_PlazaMarker"));
 	TestTrue(TEXT("Escaped fixture is writable."), FFileHelper::SaveStringToFile(Escaped, *Path));
 	FProjectWorldAuthoredOverlaySet Rejected;
 	TestFalse(TEXT("Authored content may not live under a generated root."),
@@ -489,7 +530,7 @@ bool FProjectWorldAuthoredOverlayContractTest::RunTest(const FString& Parameters
 	const FString PartialFailure = Valid.Replace(TEXT("  ]\n}"), TEXT(R"(  ,
     {
       "overlay_id": "bad_path",
-      "authored_package": "/ProjectWorld/Generated/Bad",
+      "authored_package": "/ProjectWorldTestData/Generated/Bad",
       "anchor": {
         "kind": "coordinate",
         "placement_class": "precision",
@@ -536,6 +577,10 @@ REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	FProjectWorldAuthoredOverlayContractTest,
 	"Project.World.Authored.Anchor.Contract",
+	"[Fast][Integration][World]")
+REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
+	FProjectWorldAuthoredOverlayActorNoOpTest,
+	"Project.World.Authored.Anchor.ActorNoOp",
 	"[Fast][Integration][World]")
 
 #endif

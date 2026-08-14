@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "synthetic_representative_v1",
+  "materials": {
+    "terrain": "/Engine/OpenWorldTemplate/LandscapeMaterial/MI_ProcGrid.MI_ProcGrid",
+    "road": "/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial",
+    "building": "/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial",
+    "cloud": "/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst"
+  },
+  "terrain_parameters": {
+    "primary_color": [0.055, 0.14, 0.035, 1.0],
+    "secondary_color": [0.09, 0.21, 0.055, 1.0],
+    "line_color": [0.055, 0.14, 0.035, 1.0],
+    "tile_scale": 350.0
+  },
+  "outdoor_environment": {
+    "sun_rotation": [-38.0, -32.0, 0.0],
+    "sun_intensity_lux": 50000.0,
+    "sky_light_intensity": 1.0,
+    "fog_density": 0.002,
+    "fog_height_falloff": 0.2,
+    "fixed_exposure_ev100": 12.0
+  },
+  "capture_viewpoints": [
+    {
+      "name": "overview",
+      "location_normalized": [0.5, -0.35],
+      "height_m": 900.0,
+      "look_at_normalized": [0.5, 0.5],
+      "look_at_height_m": 0.0,
+      "fov_degrees": 55.0
+    },
+    {
+      "name": "terrain_oblique",
+      "location_normalized": [-0.15, -0.15],
+      "height_m": 320.0,
+      "look_at_normalized": [0.6, 0.55],
+      "look_at_height_m": 0.0,
+      "fov_degrees": 60.0
+    },
+    {
+      "name": "road_oblique",
+      "location_normalized": [0.44, 0.32],
+      "height_m": 90.0,
+      "look_at_normalized": [0.494, 0.365],
+      "look_at_height_m": 58.0,
+      "fov_degrees": 60.0
+    }
+  ]
+}

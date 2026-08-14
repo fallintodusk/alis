@@ -35,13 +35,14 @@ $containers = @(
 if ($containers.Count -eq 0) {
     throw "No IoStore containers exist under the package root."
 }
-if ($RequiredPackage -notmatch '^/ProjectWorld/Generated/[A-Za-z0-9_/-]+$') {
-    throw "RequiredPackage is outside the generated ProjectWorld mount."
+if ($RequiredPackage -notmatch '^/(?<Plugin>[A-Za-z][A-Za-z0-9_]*)/Generated/[A-Za-z0-9_/-]+$') {
+    throw "RequiredPackage is outside a generated plugin mount."
 }
 
-$relativePackage = $RequiredPackage.Substring('/ProjectWorld/'.Length)
+$pluginName = $Matches.Plugin
+$relativePackage = $RequiredPackage.Substring(("/$pluginName/").Length)
 $expectedSuffix = (
-    "Alis/Plugins/World/ProjectWorld/Content/{0}.umap" -f $relativePackage
+    "Alis/Plugins/World/{0}/Content/{1}.umap" -f $pluginName, $relativePackage
 ).Replace('\', '/')
 $resolvedResult = [System.IO.Path]::GetFullPath($ResultPath)
 $resultParent = Split-Path -Parent $resolvedResult
@@ -76,11 +77,17 @@ foreach ($container in $containers) {
 }
 
 $requiredEntries = @($entries | Where-Object { $_.path.EndsWith($expectedSuffix, [System.StringComparison]::OrdinalIgnoreCase) })
-$projectWorldEntries = @($entries | Where-Object { $_.path -match '/Plugins/World/ProjectWorld/' })
-$accepted = $requiredEntries.Count -eq 1
+$projectWorldEntries = @($entries | Where-Object { $_.path -match '/Plugins/World/ProjectWorld(?:TestData|Data)?/' })
+$testDataEntries = @($entries | Where-Object { $_.path -match '/Plugins/World/ProjectWorldTestData/' })
+$accepted = $requiredEntries.Count -eq 1 -and $testDataEntries.Count -eq 0
 $receiptErrors = @()
 if (-not $accepted) {
-    $receiptErrors += "Expected exactly one required map entry; found $($requiredEntries.Count)."
+    if ($requiredEntries.Count -ne 1) {
+        $receiptErrors += "Expected exactly one required map entry; found $($requiredEntries.Count)."
+    }
+    if ($testDataEntries.Count -ne 0) {
+        $receiptErrors += "Editor-only ProjectWorldTestData leaked into IoStore; found $($testDataEntries.Count) entries."
+    }
 }
 $receipt = [ordered]@{
     '$schema' = 'https://alis.world/schemas/iostore/inspection-result-v1.json'
@@ -92,6 +99,7 @@ $receipt = [ordered]@{
     listed_entry_count = $entries.Count
     project_world_entry_count = $projectWorldEntries.Count
     project_world_listed_bytes = [int64](($projectWorldEntries | Measure-Object -Property size_bytes -Sum).Sum)
+    project_world_test_data_entry_count = $testDataEntries.Count
     largest_entries = @($entries | Sort-Object size_bytes -Descending | Select-Object -First 20)
     listing_logs = $listingLogs
     errors = @($receiptErrors)

@@ -51,17 +51,21 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
     BeforeEach {
         # TestDrive persists across tests in one block; isolate every test.
         $projectRoot = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
-        $contentRoot = Join-Path $projectRoot 'Plugins\World\ProjectWorld\Content'
-        $manifestRoot = Join-Path $projectRoot 'Plugins\World\ProjectWorld\Data\Manifests'
+        $contentRoot = Join-Path $projectRoot 'Plugins\World\ProjectWorldTestData\Content'
+        $manifestRoot = Join-Path $projectRoot 'Plugins\World\ProjectWorldTestData\Data\Manifests'
         $transactionParent = Join-Path $projectRoot 'tmp\world\world_realization\transactions'
-        $mapPackage = '/ProjectWorld/Generated/Representative/L_TestWorld'
+        $mapPackage = '/ProjectWorldTestData/Generated/Representative/L_TestWorld'
+        $generatedPackageRoot = '/ProjectWorldTestData/Generated/'
         $mapRoot = Join-Path $contentRoot 'Generated\Representative'
         $mapFile = Join-Path $mapRoot 'L_TestWorld.umap'
         $externalRoot = Join-Path $contentRoot '__ExternalActors__\Generated\Representative\L_TestWorld'
         $presentationRoot = Join-Path $contentRoot 'Generated\Presentation'
         New-Item -ItemType Directory -Path $mapRoot, $externalRoot, $presentationRoot, $manifestRoot, $transactionParent -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $projectRoot 'Plugins\World\ProjectWorld\ProjectWorld.uplugin') `
+        Set-Content -LiteralPath (Join-Path $projectRoot 'Plugins\World\ProjectWorldTestData\ProjectWorldTestData.uplugin') `
             -Value '{"FileVersion":3,"CanContainContent":true}' -NoNewline
+        New-Item -ItemType Directory -Path (Join-Path $projectRoot 'Plugins\World\ProjectWorld') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $projectRoot 'Plugins\World\ProjectWorld\ProjectWorld.uplugin') `
+            -Value '{"FileVersion":3,"CanContainContent":false}' -NoNewline
 
         $schemaRoot = Join-Path $projectRoot 'Plugins\World\ProjectWorld\Data\Schemas'
         New-Item -ItemType Directory -Path $schemaRoot -Force | Out-Null
@@ -73,9 +77,12 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         Set-Content -LiteralPath (Join-Path $externalRoot 'actor.uasset') -Value 'actor-bytes' -NoNewline
         Set-Content -LiteralPath (Join-Path $presentationRoot 'material.uasset') -Value 'material-bytes' -NoNewline
 
-        $mapScopeId = Get-ProjectWorldMapScopeId -MapPackage $mapPackage
+        $mapScopeId = Get-ProjectWorldMapScopeId `
+            -MapPackage $mapPackage -GeneratedPackageRoot $generatedPackageRoot
         $presentationScopeId = Get-ProjectWorldPresentationScopeId -ProfileId 'test_profile'
-        $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $mapPackage -IncludePresentation $false)
+        $mapScopePaths = @(Get-ProjectWorldGeneratedPaths `
+            -ContentRoot $contentRoot -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot -IncludePresentation $false)
         $presentationScopePaths = @($presentationRoot)
         $identity = [ordered]@{
             compile_result_sha256 = 'a' * 64
@@ -116,7 +123,13 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
                 operation = $Operation
                 map_package = $mapPackage
                 snapshot_root = $SnapshotRoot
-                snapshot_records = @($Records | ForEach-Object { [ordered]@{ source = $_.Source; backup = $_.Backup } })
+                snapshot_records = @($Records | ForEach-Object {
+                    [ordered]@{
+                        source = $_.Source
+                        backup = $_.Backup
+                        existed = $(if ($_.PSObject.Properties.Name -contains 'Existed') { [bool]$_.Existed } else { $true })
+                    }
+                })
                 candidate_manifest_paths = $Candidates
                 expected_active_set_sha256 = $ExpectedSha
                 prior_active_set_sha256 = $Prior
@@ -250,12 +263,12 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             Should -Throw '*does not follow prior generation*'
         # Two candidates claiming one artifact path are rejected together.
         $legit = NewCandidate -ScopeId $mapScopeId -Generation 2 -Paths $mapScopePaths
-        $thief = NewCandidate -ScopeId 'layer_thief' -Generation 1 -Paths $mapScopePaths -Layer 'layer'
+        $thief = NewCandidate -ScopeId 'map_thief' -Generation 1 -Paths $mapScopePaths -Layer 'map'
         { Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('e' * 32) `
             -OperationId 'theft' -CandidateManifests @($legit, $thief) -PriorActiveSet $activeSet } |
             Should -Throw '*Ambiguous ownership*'
         # A consumer reference must resolve inside the prospective set.
-        $dangling = NewCandidate -ScopeId 'layer_new' -Generation 1 -Paths @() -Layer 'layer' -Consumers @('map_absent')
+        $dangling = NewCandidate -ScopeId 'map_new' -Generation 1 -Paths @() -Layer 'map' -Consumers @('map_absent')
         { Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('e' * 32) `
             -OperationId 'dangling' -CandidateManifests @($dangling) -PriorActiveSet $activeSet } |
             Should -Throw '*not in the prospective active set*'
@@ -274,7 +287,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         Test-Path -LiteralPath (Join-Path $manifestRoot 'active_set.json') | Should -BeFalse
     }
 
-    It 'keeps manifest documents immutable' {
+    It 'keeps manifest documents immutable and advances past inert generations' {
         Enroll | Out-Null
         $activeSet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
         $inert = NewCandidate -ScopeId $mapScopeId -Generation 2 -Paths $mapScopePaths
@@ -282,7 +295,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $again = NewCandidate -ScopeId $mapScopeId -Generation 2 -Paths $mapScopePaths
         { Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('e' * 32) `
             -OperationId 'dup' -CandidateManifests @($again) -PriorActiveSet $activeSet } |
-            Should -Throw '*Immutable manifest already exists*'
+            Should -Throw '*does not follow prior generation 2*'
     }
 
     It 'activates only through the active-set record and rejects unknown root entries' {
@@ -318,7 +331,9 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         Enroll | Out-Null
         $priorActiveSha = (Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot).Sha256
         $snapshotRoot = Join-Path $transactionParent ('1' * 32)
-        $records = @(New-ProjectWorldGeneratedSnapshot -ContentRoot $contentRoot -MapPackage $mapPackage -SnapshotRoot $snapshotRoot)
+        $records = @(New-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot -SnapshotRoot $snapshotRoot)
         Set-Content -LiteralPath $mapFile -Value 'half-written' -NoNewline
         Write-ProjectWorldTransactionJournal -ManifestRoot $manifestRoot -Journal (NewJournal -Phase 'mutating' -SnapshotRoot $snapshotRoot -Records $records -Candidates @("scopes/$mapScopeId.2.json") -Prior $priorActiveSha)
         $result = Invoke-ProjectWorldTransactionRecovery -ManifestRoot $manifestRoot -ContentRoot $contentRoot -ProjectRoot $projectRoot
@@ -328,11 +343,41 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         Test-Path -LiteralPath $snapshotRoot | Should -BeFalse
     }
 
+    It 'recovers existing and initially absent layer roots from one interrupted transaction' {
+        Enroll | Out-Null
+        $priorActiveSha = (Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot).Sha256
+        $terrainRoot = Join-Path $contentRoot 'Generated\Representative\Terrain'
+        $waterRoot = Join-Path $contentRoot 'Generated\Representative\Water'
+        New-Item -ItemType Directory -Path $terrainRoot -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $terrainRoot 'terrain.uasset') -Value 'accepted-terrain' -NoNewline
+        $snapshotRoot = Join-Path $transactionParent ('a' * 32)
+        $records = @(New-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot -SnapshotRoot $snapshotRoot `
+            -AdditionalPaths @($terrainRoot, $waterRoot))
+        Set-Content -LiteralPath (Join-Path $terrainRoot 'terrain.uasset') -Value 'partial-terrain' -NoNewline
+        New-Item -ItemType Directory -Path $waterRoot -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $waterRoot 'water.uasset') -Value 'partial-water' -NoNewline
+        Write-ProjectWorldTransactionJournal -ManifestRoot $manifestRoot -Journal (NewJournal `
+            -Phase 'mutating' -SnapshotRoot $snapshotRoot -Records $records `
+            -Candidates @('scopes/layer_terrain.1.json', 'scopes/layer_water.1.json') `
+            -Prior $priorActiveSha `
+            -MutationScopes @($mapScopeId, 'layer_terrain', 'layer_water'))
+
+        $result = Invoke-ProjectWorldTransactionRecovery `
+            -ManifestRoot $manifestRoot -ContentRoot $contentRoot -ProjectRoot $projectRoot
+        $result.State | Should -Be 'rolled_back'
+        Get-Content -LiteralPath (Join-Path $terrainRoot 'terrain.uasset') -Raw | Should -Be 'accepted-terrain'
+        Test-Path -LiteralPath $waterRoot | Should -BeFalse
+    }
+
     It 'rolls back a real partial activation including active-set staging debris' {
         Enroll | Out-Null
         $priorActiveSha = (Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot).Sha256
         $snapshotRoot = Join-Path $transactionParent ('2' * 32)
-        $records = @(New-ProjectWorldGeneratedSnapshot -ContentRoot $contentRoot -MapPackage $mapPackage -SnapshotRoot $snapshotRoot)
+        $records = @(New-ProjectWorldGeneratedSnapshot `
+            -ContentRoot $contentRoot -MapPackage $mapPackage `
+            -GeneratedPackageRoot $generatedPackageRoot -SnapshotRoot $snapshotRoot)
         Set-Content -LiteralPath $mapFile -Value 'candidate-bytes' -NoNewline
         # Real crash sequence: candidate written, staging active set written,
         # journal at 'publishing', process dies before the atomic replace.
@@ -460,20 +505,25 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
     It 'excludes read-only verifiers and test sources from the generator fingerprint' {
         $root = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
         $dir = Join-Path $root 'scripts\ue\world'
+        $editorDir = Join-Path $root 'Plugins\World\ProjectWorld\Source\ProjectWorldEditor\Private'
         New-Item -ItemType Directory -Path (Join-Path $dir 'test') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $editorDir 'Tests') -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $dir 'gen.ps1') -Value 'generator-bytes' -NoNewline
         Set-Content -LiteralPath (Join-Path $dir 'audit_generated_authority.ps1') -Value 'auditor-v1' -NoNewline
         Set-Content -LiteralPath (Join-Path $dir 'test\some.Tests.ps1') -Value 'test-v1' -NoNewline
+        Set-Content -LiteralPath (Join-Path $editorDir 'Generator.cpp') -Value 'cpp-generator-v1' -NoNewline
+        Set-Content -LiteralPath (Join-Path $editorDir 'Tests\GeneratorTests.cpp') -Value 'cpp-test-v1' -NoNewline
         $baseline = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $root
 
         # Editing the read-only auditor or a test cannot change generated bytes,
         # so it must not invalidate every accepted manifest.
         Set-Content -LiteralPath (Join-Path $dir 'audit_generated_authority.ps1') -Value 'auditor-v2-rewritten' -NoNewline
         Set-Content -LiteralPath (Join-Path $dir 'test\some.Tests.ps1') -Value 'test-v2-rewritten' -NoNewline
+        Set-Content -LiteralPath (Join-Path $editorDir 'Tests\GeneratorTests.cpp') -Value 'cpp-test-v2-rewritten' -NoNewline
         Get-ProjectWorldGeneratorFingerprint -ProjectRoot $root | Should -Be $baseline
 
         # A real generator edit still moves it.
-        Set-Content -LiteralPath (Join-Path $dir 'gen.ps1') -Value 'generator-byteX' -NoNewline
+        Set-Content -LiteralPath (Join-Path $editorDir 'Generator.cpp') -Value 'cpp-generator-v2' -NoNewline
         Get-ProjectWorldGeneratorFingerprint -ProjectRoot $root | Should -Not -Be $baseline
     }
 
@@ -492,7 +542,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $genA = Join-Path $contentRoot 'Generated'
         $genB = Join-Path $contentRoot '__ExternalActors__\Generated'
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$audit' -ProjectRoot '$projectRoot' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
+            "& '$audit' -ProjectRoot '$projectRoot' -WorldDataPlugin 'ProjectWorldTestData' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
         $LASTEXITCODE | Should -Be 1
         $receipt = Get-Content -LiteralPath $evidence -Raw | ConvertFrom-Json
         ($receipt.failures -join ';') | Should -BeLike '*generator_fingerprint_current*'
@@ -619,6 +669,57 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         @(Get-ChildItem -LiteralPath (Join-Path $manifestRoot 'archive')).Count | Should -Be 1
     }
 
+    It 'retires a map and its last presentation consumer atomically' {
+        Enroll | Out-Null
+        $activeSet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('c3' * 16) `
+            -OperationId 'retire-last-consumer' -CandidateManifests @() `
+            -RetiredScopeIds @($mapScopeId, $presentationScopeId) -PriorActiveSet $activeSet | Out-Null
+        $after = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        $after.Manifests.Count | Should -Be 0
+    }
+
+    It 'continues immutable generations when a retired scope is re-enrolled' {
+        Enroll | Out-Null
+        $activeSet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('e5' * 16) `
+            -OperationId 'retire-all' -CandidateManifests @() `
+            -RetiredScopeIds @($mapScopeId, $presentationScopeId) -PriorActiveSet $activeSet | Out-Null
+        $emptySet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        $candidates = @(
+            (NewCandidate -ScopeId $mapScopeId -Generation 2 -Paths $mapScopePaths),
+            (NewCandidate -ScopeId $presentationScopeId -Generation 2 -Paths $presentationScopePaths `
+                -Layer 'presentation' -Consumers @($mapScopeId))
+        )
+        Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('f6' * 16) `
+            -OperationId 're-enroll' -CandidateManifests $candidates -PriorActiveSet $emptySet | Out-Null
+        $after = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        $after.Manifests[$mapScopeId].generation | Should -Be 2
+        $after.Manifests[$presentationScopeId].generation | Should -Be 2
+    }
+
+    It 'preserves presentation provenance while removing one consumer' {
+        Enroll | Out-Null
+        $activeSet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        $prior = $activeSet.Manifests[$presentationScopeId]
+        $priorIdentity = [ordered]@{
+            compile_result_sha256 = [string]$prior.input_identity.compile_result_sha256
+            presentation_profile_sha256 = [string]$prior.input_identity.presentation_profile_sha256
+            runtime_profile_sha256 = [string]$prior.input_identity.runtime_profile_sha256
+            map_package = [string]$prior.input_identity.map_package
+        }
+        $candidate = New-ProjectWorldCandidateManifest `
+            -ProjectRoot $projectRoot -ScopeId $presentationScopeId -Generation 2 `
+            -OwningLayer 'presentation' -OperationId ('c' * 32) `
+            -InputIdentity $priorIdentity -ScopePaths $presentationScopePaths `
+            -ConsumerReferences @() -GeneratorFingerprint $script:SandboxFingerprint
+        Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot -TransactionId ('d4' * 16) `
+            -OperationId 'unlink-consumer' -CandidateManifests @($candidate) -PriorActiveSet $activeSet | Out-Null
+        $after = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        $after.Manifests[$presentationScopeId].input_identity.presentation_profile_sha256 |
+            Should -Be ('b' * 64)
+    }
+
     It 'honors delegated content-lock ownership only against a live matching owner' {
         $owner = Enter-ProjectWorldContentLock -ProjectRoot $projectRoot
         try {
@@ -667,7 +768,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $genA = Join-Path $contentRoot 'Generated'
         $genB = Join-Path $contentRoot '__ExternalActors__\Generated'
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$audit' -ProjectRoot '$projectRoot' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
+            "& '$audit' -ProjectRoot '$projectRoot' -WorldDataPlugin 'ProjectWorldTestData' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
         $LASTEXITCODE | Should -Be 0
         $receipt = Get-Content -LiteralPath $evidence -Raw | ConvertFrom-Json
         $receipt.status | Should -Be 'accepted'
@@ -686,7 +787,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $genA = Join-Path $contentRoot 'Generated'
         $genB = Join-Path $contentRoot '__ExternalActors__\Generated'
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$audit' -ProjectRoot '$projectRoot' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
+            "& '$audit' -ProjectRoot '$projectRoot' -WorldDataPlugin 'ProjectWorldTestData' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
         $LASTEXITCODE | Should -Be 1
         $receipt = Get-Content -LiteralPath $evidence -Raw | ConvertFrom-Json
         $receipt.status | Should -Be 'rejected'
@@ -705,7 +806,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $audit = (Resolve-Path (Join-Path $PSScriptRoot '..\audit_generated_authority.ps1')).Path
         $evidence = Join-Path $projectRoot 'audit.json'
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$audit' -ProjectRoot '$projectRoot' -ManifestRoot '$manifestRoot' -EvidencePath '$evidence'" | Out-Null
+            "& '$audit' -ProjectRoot '$projectRoot' -WorldDataPlugin 'ProjectWorldTestData' -ManifestRoot '$manifestRoot' -EvidencePath '$evidence'" | Out-Null
         $LASTEXITCODE | Should -Be 1
         $receipt = Get-Content -LiteralPath $evidence -Raw | ConvertFrom-Json
         ($receipt.failures -join ';') | Should -BeLike '*orphan.uasset*'
@@ -719,7 +820,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $genA = Join-Path $contentRoot 'Generated'
         $genB = Join-Path $contentRoot '__ExternalActors__\Generated'
         powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$audit' -ProjectRoot '$projectRoot' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
+            "& '$audit' -ProjectRoot '$projectRoot' -WorldDataPlugin 'ProjectWorldTestData' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$genA','$genB') -EvidencePath '$evidence'" | Out-Null
         $LASTEXITCODE | Should -Be 1
         $receipt = Get-Content -LiteralPath $evidence -Raw | ConvertFrom-Json
         $receipt.status | Should -Be 'rejected'

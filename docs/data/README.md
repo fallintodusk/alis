@@ -24,6 +24,18 @@ This section documents the **External, Text-Based Data Architecture** (JSON, INI
     be required for cook, loading, serialization, replication, or runtime
     queries, but it never becomes a competing editable SOT.
 
+Generated does not mean temporary. Accepted derived JSON and Unreal packages
+remain persistent, versioned build products when downstream cook or runtime
+systems depend on them. They are replaced only by an accepted regeneration;
+scratch data and rejected candidates are the disposable outputs.
+
+Public transport follows the same ownership. The Git branch carries text that
+is inside its mirror boundary; approved persistent binaries and excluded source
+JSON travel in the verified developer payload selected by
+[the mirror release contract](../../scripts/git/mirror/developer_asset_release.json)
+and plugin-owned manifests. A file extension or Content path never grants
+distribution permission by itself.
+
 ## Data Pipeline Architecture
 
 The project implements a **decentralized data pipeline** with three distinct flows, each owned by specialized plugins.
@@ -91,11 +103,14 @@ ProjectPlacementEditor (owns PROPAGATION logic)
 | Plugin | Data Type | Schema Location | Purpose |
 |--------|-----------|-----------------|---------|
 | [ProjectObject](../../Plugins/Resources/ProjectObject/README.md) | Object definitions (JSON) | `ProjectObject/Data/Schemas/` | Composed actors (doors, furniture, interactive elements, inventory items) |
-| ProjectWorldData (approved target; creation pending) | Kazan world JSON and manifests | `ProjectWorldData/Data/` | Authoritative world data plus derived generated/authored content under its own mount |
+| [ProjectWorldTestData](../../Plugins/World/ProjectWorldTestData/README.md) | Synthetic world profiles and authored/input fixtures | Contracts stay with interpreting logic; test data lives under `ProjectWorldTestData/Data/` | Generated packages/manifests are ignored transient test output |
+| [ProjectWorldData](../../Plugins/World/ProjectWorldData/README.md) | Kazan source, control, accepted canonical JSON, and manifests | Contracts stay with the interpreting logic; Kazan data lives under `ProjectWorldData/Data/` | Persistent world data plus generated and authored Unreal content under its own mount |
 
-World reconstruction follows the same one-way authority pattern while keeping
-all reusable logic in ProjectWorld. ProjectWorldData contains no custom
-generator logic; its accepted root and regeneration contract are documented in
+World reconstruction follows the same one-way authority pattern. Reusable
+realization logic stays in ProjectWorld, while ingestion and canonical
+compilation contracts stay with their owning tools. ProjectWorldTestData and
+ProjectWorldData contain no custom generator logic; their accepted roots and
+regeneration contract are documented in
 [territory_generation.md](../../Plugins/World/ProjectWorld/docs/territory_generation.md).
 
 **See individual plugin READMEs for detailed implementation.**

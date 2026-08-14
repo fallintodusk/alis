@@ -48,23 +48,25 @@ ProjectWorld is intended to become a thin helper plugin that provides:
 - **Event/Data Layer mapping** - Toggle UE Data Layers by event name
 - **Validation and incremental build hooks** - Shared logic for world builders
 
-ProjectWorld contains no production world-specific data or content. Generic
-fixtures and representative adapter assets may live here only to prove the
-machinery that any world-data plugin can use.
+ProjectWorld contains no world instance data or UE content. Synthetic fixtures
+live in the editor-only `ProjectWorldTestData` plugin; Kazan production data
+lives in `ProjectWorldData`.
 
 **World-tier plugin:** Lives under `Plugins/World/ProjectWorld/`; used by world plugins (City17, future worlds).
 
 
 ## 2. Architecture Overview
 
+First read: [World Reconstruction Architecture and Observability](docs/architecture_overview.md).
+
 ### 3. Key Concepts
  
  - **World Partition**: We use grid-based streaming. [See docs/world_partition.md](docs/world_partition.md) for data layer rules and Grid naming.
  - **Territory generation**: Expand generated geography before importing or
    polishing legacy map content. [See docs/territory_generation.md](docs/territory_generation.md).
- - **Hierarchical LOD (HLOD)**: Optional profile-specific representation for
-   unloaded actors; adoption requires profiling against Nanite, instancing,
-   storage, and rebuild cost.
+ - **Geometry representation**: Production generated worlds use World
+   Partition streaming, Nanite where supported, and instance ownership. HLOD
+   generation is disabled; see [docs/world_partition.md](docs/world_partition.md).
 
 ### Three Layers (Don't Fight WP)
 
@@ -87,7 +89,8 @@ provider partition -> compiler cell -> generated artifact -> World Partition cel
 - Source ingestion preserves provider IDs, coordinates, precision, and terms.
 - The external World Compiler converts accepted inputs into canonical ALIS
   features and an aligned metric terrain grid.
-- A narrow Unreal adapter realizes canonical cells as disposable engine assets.
+- A narrow Unreal adapter realizes canonical cells as persistent,
+  transactionally replaceable engine assets.
 - ProjectWorld and stock World Partition own runtime lookup and streaming.
 
 Compiler cells are addressed by generated `grid_id` plus integer x/y. They do
@@ -117,8 +120,10 @@ exact schema version, coverage/provenance profile identity, grid/cell identity,
 terrain bounds and spacing, manifest-to-feature ownership, provenance result,
 and coordinate contract. It never reads raw provider data.
 
-Production generated maps are restricted to
-`/ProjectWorldData/Generated/`. `/ProjectWorld/Generated/` is fixture-only.
+Generated maps are restricted to the declared data owner:
+`/ProjectWorldTestData/Generated/` for tests and
+`/ProjectWorldData/Generated/` for Kazan. `/ProjectWorld/Generated/` is
+invalid.
 Owned actors use stable GUIDs and the `ProjectWorld.Generated.v1` tag; input,
 grid, cell, terrain, and feature identities remain on actor tags. Untagged
 authored actors are preserved. An Apply run records actual actor/component
@@ -129,9 +134,11 @@ place, removes only stale generated identities, and rebuilds their owned mesh
 payloads. This keeps World Partition external-actor packages stable while
 ensuring a same-identity algorithm or presentation change reaches the saved
 map.
-The D3 fingerprint includes edit-layer names and content, not UE-assigned
-layer GUIDs. A receipt records the GUID separately to prove preservation within
-an existing map while clean regeneration remains semantically deterministic.
+The D3 fingerprint includes edit-layer names and content, not engine-assigned
+layer GUIDs. A receipt proves the protected authored-correction layer keeps its
+GUID and bytes while an existing Landscape is regenerated. Clean reconstruction
+may receive new internal layer GUIDs without changing semantic or package-path
+identity.
 
 The representative adapter imports one stock 16-bit Landscape without engine
 resampling. Production topology is one logical Landscape partitioned into
@@ -164,12 +171,13 @@ documents, schema-safe identifier tokens, the approved parameterized terrain
 parent, and `/Engine/` references for the other materials. ALIS stores the
 configuration and generated actor identities; it neither copies nor relicenses
 the referenced engine content. Fixture Apply derives the terrain material
-instance under `/ProjectWorld/Generated/Presentation/`; production Apply uses
+instance under `/ProjectWorldTestData/Generated/Presentation/`; production Apply uses
 `/ProjectWorldData/Generated/Presentation/`. It creates
 or updates one generated actor per environment role, and owns one stable
-camera per named viewpoint. Actor GUIDs derive from grid ID, profile ID, and
-role, so a clean-map rebuild preserves D3 identity while style edits update
-the same actors. An unchanged material instance is not saved again. Untagged
+camera per named viewpoint. Actor GUIDs derive from grid ID, presentation
+role, and actor role, so profile/style transitions update the same actors and
+a clean-map rebuild preserves D3 identity. An unchanged material instance is
+not saved again. Untagged
 hero overlays remain outside this ownership boundary and survive regeneration.
 
 The fixed EV100 value is realized through deterministic Manual metering and
@@ -188,7 +196,8 @@ budget before editor mutation.
 Apply gives only the pinned road collision and navigation ownership, keeps its
 generated cell actors and route endpoints spatially loaded, and keeps the
 route navigation volume always loaded. A persisted navigation invoker covers
-the full route. Acceptance performs one real visibility hit in every declared
+the full route. The single always-loaded Recast authority stays internal to
+the map package; it is not a streamable external actor. Acceptance performs one real visibility hit in every declared
 route-fragment cell, projects both endpoints onto Recast, and requires a
 nonzero cross-cell path. It verifies the exact streamed and always-loaded actor
 roles, proves that the unique route uses procedural rather than Nanite or
@@ -215,7 +224,8 @@ whichever tick it first appears. The per-tick inspection cost is deliberately
 inside the measured window; it biases p95 upward, the fail-safe direction.
 The gate receipt records the measuring process identity, and validation
 requires it to be the staged Shipping executable for the same end-to-end
-operation. HLOD remains disabled until a later profile proves a net benefit.
+operation. The gate requires zero HLOD layers, proxies, and HLOD-eligible
+generated actors.
 
 The supported wrapper treats generated map, World Partition external payload,
 and generated presentation material as one bounded transaction. A rejected
@@ -226,8 +236,9 @@ instead of deleting the only source for manual recovery.
 
 Water, land-cover, vegetation-area, and explicit foliage-point records now
 enter through Source Ingestion and Canonical Compilation, never through this
-visual profile. Their later PCG, water, and foliage realizations are disposable
-consumers of those records. This prevents presentation tuning from becoming a
+visual profile. Their later PCG, water, and foliage realizations are
+transactionally replaceable consumers of those records. This prevents
+presentation tuning from becoming a
 second GIS source of truth.
 
 The compiler grid owns one stable vertical origin used by coordinate mapping,
@@ -706,19 +717,18 @@ Edit JSON -> save -> see changes in viewport.
 
 ## 13. Streaming Hints and Render Profiles
 
-### Why HLOD Is Profile-Specific
+### Production Geometry Policy
 
-HLOD can keep unloaded World Partition actors visible and can reduce draw
-calls. It also has material costs for a large, frequently regenerated world:
+Production ALIS generated worlds have no secondary HLOD proxy world. World
+Partition streams cells, supported static geometry uses Nanite, and repeated
+objects remain instance-owned. Landscape and other admitted geometry retain
+their native representation paths.
 
-- Every HLOD cluster = **extra mesh asset** on disk
-- Thousands of clusters = tens or hundreds of GB of proxies
-- Every rebuild = **long bake times** and huge I/O
-- Layout changes = must rebuild HLOD again
-
-Nanite manages geometry detail for loaded meshes; it does not automatically
-replace HLOD's unloaded-cell representation or draw-call aggregation. The
-policy is therefore neither "always HLOD" nor "never HLOD."
+If future far-field coverage is required beyond streamed cells, it must be an
+explicit coarse geography layer with its own source, identity, ownership, and
+regeneration contract. It must not be introduced as HLOD-generated proxy
+geometry. Generic lifecycle code still recognizes immutable historical HLOD
+records for audit, recovery, and cleanup only.
 
 ### Candidate Techniques
 
@@ -729,11 +739,10 @@ policy is therefore neither "always HLOD" nor "never HLOD."
 | **Instancing** | Trees, props, facade pieces use HISM/ISM + Nanite; low draw calls |
 | **Design-level LOD** | Outer/procedural areas: fewer buildings, simpler shapes, less clutter |
 
-The first representative region must benchmark at least these profiles:
+The representative region benchmarks these concerns:
 
 1. Far field: coarse streamed or generated representation.
-2. Playable district: World Partition with Nanite/instancing, with and without
-   HLOD.
+2. Playable district: World Partition with Nanite and instancing.
 3. Immediate gameplay area: native collision, navigation, interaction, and
    replication-authoritative geometry.
 
@@ -769,8 +778,9 @@ if (Building.StreamingPriority == EStreamingPriority::Critical)
 
 ### HLOD Decision
 
-No global HLOD policy is approved. Each content profile must use measured
-budgets and keep generated proxies disposable and reproducible.
+HLOD is disabled for active and future production generation. Acceptance
+requires zero HLOD layers, actors, proxy geometry, companion packages, and
+HLOD-eligible generated actors. Historical manifests remain immutable.
 
 
 ## 14. Validation
@@ -832,16 +842,21 @@ FWorldDataDiff Diff = UProjectWorldDiff::ComputeDiff(OldData, NewData);
 
 ## 16. What Stays in World-Data Plugins
 
-`ProjectWorldData` owns:
+World-data plugins own:
 
-- authoritative world JSON and accepted source/profile manifests;
+- source, profiles, controls, and accepted canonical JSON bundles;
+- accepted canonical indexes and generated Unreal artifact manifests;
 - generated definitions and serialized Unreal assets derived from that JSON;
 - World Partition maps and external actors/objects;
 - authored overlays protected by the regeneration contract;
 - world-specific values selected through ProjectWorld schemas and interfaces.
 
-ProjectWorld owns all reusable world logic, definition/serialization types,
-generators, replication support, runtime services, and validation.
+ProjectWorld owns all reusable world logic, schemas,
+definition/serialization types, generators, replication support, runtime
+services, and validation. It has `CanContainContent=false` and owns no
+concrete artifact manifests. Actor types and generation lifecycle code are
+reusable logic; actor instances are serialized only in the owning data
+plugin's map and external-package files.
 `ProjectWorldData` is data/content-only: its authoritative JSON lives under
 `Plugins/World/ProjectWorldData/Data/`, durable generation manifests under
 `Data/Manifests/`, derived packages under `/ProjectWorldData/Generated/`, and
@@ -849,6 +864,16 @@ protected authored packages under `/ProjectWorldData/Authored/`. Its descriptor
 activates the ProjectWorld dependency and supplies one validated content mount;
 it does not add a `Source` module, fork generator logic, or provide a custom
 builder.
+
+Realization layer contracts use the reusable schema under
+`ProjectWorld/Data/Schemas/project_world_realization_profile.schema.json` and
+concrete owner profiles under `Data/Profiles/Realization/`. The generic
+commandlet emits exact layer inventories; the existing world transaction
+wrapper verifies them and publishes conditional `layer_*` manifests. There is
+no second layer authority, transaction engine, or filename-based ownership.
+
+`ProjectWorldTestData` has the same data/content-only boundary for synthetic
+fixtures, but is enabled only for Editor targets and excluded from shipping.
 
 
 ## 17. Public API (Planned)

@@ -6,14 +6,19 @@ Files:
 - `mirror_to_github.sh`: main mirror script. Battle-tested flow copied from the async mirror pattern and adapted for ALIS validation.
 - `mirror_to_github.ps1`: Windows wrapper that runs the Bash script through WSL.
 - `mirror_to_github.bat`: simple batch entrypoint for Windows shells.
+- `compose_developer_payload.py`: builds the authority-driven binary complement
+  for public developers.
+- `install_developer_payload.ps1`: verifies and installs that complement into
+  a matching ALIS source checkout.
 - `mirror.exclude`: blacklist of files and folders removed from the public mirror snapshot.
 - `forbidden_text_patterns.regex`: hard-fail content validation for text files that must never survive filtering.
 
 ## Why This Exists
 
 Goal:
-- publish source code and public docs to GitHub;
-- avoid UE assets, generated artifacts, local workspace files, and internal-only material;
+- publish source code and public docs to the GitHub branch;
+- publish approved generated runtime assets as a separate release payload;
+- avoid test outputs, unclassified third-party assets, and local workspace files;
 - keep the working repository remotes untouched.
 
 The script does not change local `origin` and does not push from your working repository.
@@ -30,14 +35,20 @@ name alone does not make content private.
   UI layouts, vitals) are public references; source in a folder named `Data` is
   code and stays public too.
 
-What stays out of the mirror:
+What stays out of the Git branch:
 - secrets and credentials;
 - private keys and key material (`*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`);
 - machine-local config;
-- generated outputs;
+- disposable generated outputs;
 - licensed or non-redistributable asset payloads;
 - UE asset/binary/media file TYPES anywhere - including inside published `Data/`
   dirs, where only text/JSON survives.
+
+Approved persistent generated binaries are not lost. They are selected from
+active world authority or an explicit plugin-owned public asset manifest and
+published as the separate developer release described below. The Git branch
+remains small and cloneable. Unclassified and restricted dependencies remain
+outside that release until they are replaced or separately approved.
 
 This matches the long-term direction:
 - open-source development;
@@ -117,6 +128,137 @@ Windows wrapper:
 .\scripts\git\mirror\mirror_to_github.ps1 --remote-url git@github.com:org/repo.git --push
 ```
 
+## Developer Project Release
+
+After changing generated definitions, refresh the reviewed binary authority:
+
+```powershell
+.\scripts\git\mirror\refresh_developer_asset_authority.ps1
+```
+
+This reads the live Unreal Asset Registry, requires every declared source JSON
+to have a generated asset with the same normalized source hash, and rewrites
+the plugin-owned authority manifest. Review and commit source, `.uasset`, and
+manifest changes together. Release composition then requires a clean tree.
+
+Compose the text-only mirror preview and its matching binary developer payload:
+
+```powershell
+.\scripts\git\mirror\mirror_to_github.ps1 `
+  --dry-run --ephemeral-preview `
+  --developer-release-dir ..\alis-developer-v1 `
+  --developer-version v1
+```
+
+The output is one logical archive with a human-readable name. It is either one
+file:
+
+```text
+ALIS_DeveloperProject_v1_<identity>.zip
+```
+
+or, when large, numbered parts:
+
+```text
+ALIS_DeveloperProject_v1_<identity>.zip.001
+ALIS_DeveloperProject_v1_<identity>.zip.002
+```
+
+An archive below the threshold remains a single `.zip`. Larger archives are
+split into numbered raw parts, 1700 MiB by default. This stays below GitHub's
+2 GiB per-release-asset limit without changing the logical ZIP. The release
+also contains its identity manifest, extracted attribution notices, and
+`INSTALL_ALIS_DEVELOPER_PROJECT.*`. Applicable ALIS license texts are copied
+beside the release so they remain visible before installation.
+
+The composer includes only:
+
+- active manifest-owned production `.uasset` and `.umap` files;
+- selected immutable canonical ZIP bundles and their active indexes;
+- the active manifest set and selected scope manifests needed to authenticate
+  the generated tree;
+- every source JSON and persistent generated `.uasset` selected by
+  `developer_asset_release.json` and its plugin-owned authority manifest.
+
+It rejects TestData, stale generations, HLOD artifacts, incomplete source
+collections, untracked files, wrong hashes, and paths outside declared owners.
+It does not scan every Content folder or guess whether an unrelated third-party
+asset is public. A generated definition may retain a soft reference to a
+separately obtained dependency; the referenced dependency bytes are not copied.
+
+The payload is composed only after the filtered public candidate commit exists.
+Its manifest records the exact full public commit, branch, and intended source
+tag. The internal repository `HEAD` is not used as public source identity.
+An ordinary public source-branch advance does not redefine an earlier release:
+that payload remains installable from its recorded immutable tag. Only a new
+tagged developer release creates a new source/payload pair.
+
+For publication, sign the finished developer release directory with the same
+release signer used for game archives:
+
+```powershell
+.\scripts\ue\package\sign_release.ps1 -ReleaseDir ..\alis-developer-v1
+```
+
+Developer install from the exact public source tag recorded by the release:
+
+```powershell
+# Run the trusted installer from the clean source checkout.
+.\scripts\git\mirror\install_developer_payload.ps1 `
+  -ProjectRoot E:\path\to\Alis `
+  -ReleaseDir C:\Downloads\ALIS_DeveloperProject_v1 `
+  -RequireReleaseSignature
+```
+
+The installer requires clean Git state and exact commit/tag identity, then uses
+the trusted source checkout's `verify_release.ps1` to authenticate the download.
+It never executes the downloaded installer or verifier. It next verifies every
+part, archive, safe path, inventory entry, and existing target before copying.
+A conflict aborts the whole install. The receipt is ignored under
+`Saved/DeveloperPayload`.
+
+Release copies of the installer are convenience material only and are not a
+trust root. Do not execute downloaded scripts before authenticating them.
+
+The installer restores all currently approved ALIS payloads. It does not make
+an unclassified or restricted third-party dependency redistributable. As those
+dependencies are replaced by ALIS-generated assets, add their plugin-owned
+authority and the same release/install route picks them up.
+
+### Publication boundary
+
+Composition and installation are implemented. Asset publication itself stays
+fail-closed: the mirror refuses `--push` when developer release arguments are
+present; use `--dry-run` to compose candidates, then sign and upload the
+release manually. `mirror --push` does not publish assets.
+
+Routine source pushes are intentionally NOT blocked when generated public
+authority (canonical data, public manifests, release selection) changed. The
+model is:
+
+- the public source branch is the development tip and advances freely;
+- public developers obtain matching binary assets from a tagged developer
+  release, whose installer pins the exact recorded commit/tag;
+- an advanced source tip therefore never breaks an already published release,
+  it only means assets for the newest tip are not installable until the next
+  tagged developer release;
+- source/asset coherence is enforced at release time by the release flow
+  (compose + sign + verify against the exact filtered commit/tag), not by the
+  mirror push.
+
+When a push advances authority data past the latest release, the mirror prints
+a `[WARN]` so the operator knows a new developer release is eventually due.
+
+### Future direction: continuous asset distribution
+
+Tagged developer releases remain the channel for stable, signed drops tied to
+a stable game release. Open research item: a smoother channel that gives
+developers the current tip's generated assets without cutting a full release
+per commit - candidates include a dedicated asset repository/submodule or a
+decentralized distribution channel not subject to GitHub commercial size and
+bandwidth restrictions, with the same hash/signature verification model so
+developers can fetch and append exactly the data their checkout needs.
+
 Batch wrapper:
 ```bat
 scripts\git\mirror\mirror_to_github.bat --remote-url git@github.com:org/repo.git --dry-run
@@ -151,6 +293,14 @@ make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1
 Allow dirty tree:
 ```bash
 make mirror MIRROR_DRY_RUN=1 MIRROR_FORCE=1
+```
+
+Compose the matching developer release:
+
+```bash
+make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1 \
+  MIRROR_DEVELOPER_RELEASE_DIR=../alis-developer-v1 \
+  MIRROR_DEVELOPER_VERSION=v1
 ```
 
 Override branch or exclude file:

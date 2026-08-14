@@ -4,7 +4,8 @@
 #   and Data-named source folders are published as reference; only forbidden file
 #   TYPES (UE assets, binaries, media, key material) are stripped from them
 # - code, docs, schemas, JSON data/config, and build/release scripts are public by default
-# - secrets, licensed assets, generated outputs, and local machine state are never public
+# - secrets, restricted assets, and local state are never public
+# - approved active generated outputs use the separate developer release, not Git history
 # - if a future workflow needs secrets, keep them outside the repository and outside the mirror
 
 # Workspace and local machine state
@@ -69,8 +70,8 @@ credentials/**
 **/wireguard/**
 
 # Game content and packaged assets
-# Public mirror excludes UE asset payloads and packaged binaries.
-# This keeps the mirror compatible with open-source code flow while avoiding redistribution of licensed content.
+# The source branch excludes UE assets. Approved active generated packages use
+# the authority-driven developer release; unclassified/restricted content stays out.
 **/*.uasset
 **/*.umap
 **/*.ubulk

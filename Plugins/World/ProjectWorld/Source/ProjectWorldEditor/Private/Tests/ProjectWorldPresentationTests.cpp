@@ -31,7 +31,7 @@ namespace ProjectWorldPresentationTests
 	{
 		return FPaths::Combine(
 			FPaths::ProjectPluginsDir(),
-			TEXT("World/ProjectWorld/Data/Presentation/kazan_representative_v1.json"));
+			TEXT("World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json"));
 	}
 
 	FProjectWorldCanonicalBundle MakeBundle()
@@ -83,7 +83,7 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 	TestTrue(
 		TEXT("The shipped presentation profile passes its runtime contract."),
 		ProjectWorldPresentationProfile::Load(ShippedProfilePath(), Profile, ErrorCode, Error));
-	TestEqual(TEXT("Presentation profile identity."), Profile.ProfileId, FString(TEXT("kazan_representative_v1")));
+	TestEqual(TEXT("Presentation profile identity."), Profile.ProfileId, FString(TEXT("synthetic_representative_v1")));
 	TestEqual(TEXT("Presentation profile has three fixed capture viewpoints."), Profile.CaptureViewpoints.Num(), 3);
 	TestEqual(TEXT("Presentation profile SHA-256 is complete."), Profile.ProfileHash.Len(), 64);
 
@@ -186,7 +186,7 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 	TestEqual(TEXT("Viewpoint rejection is structured."), ErrorCode, FString(TEXT("presentation-profile-viewpoints")));
 
 	const FString InvalidProfileIdPath = FPaths::Combine(Root, TEXT("invalid_profile_id.json"));
-	const FString InvalidProfileId = Source.Replace(TEXT("kazan_representative_v1"), TEXT("Kazan Invalid"));
+	const FString InvalidProfileId = Source.Replace(TEXT("synthetic_representative_v1"), TEXT("Synthetic Invalid"));
 	TestTrue(TEXT("Invalid profile-id fixture is writable."), FFileHelper::SaveStringToFile(InvalidProfileId, *InvalidProfileIdPath));
 	TestFalse(
 		TEXT("Profile identity uses the schema token contract at runtime."),
@@ -223,10 +223,10 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		ProjectWorldPresentationMaterialRealization::Prepare(
 			Profile,
 			FirstMaterialResources,
-			TEXT("/ProjectWorld/Generated/"),
+			TEXT("/ProjectWorldTestData/Generated/"),
 			Error));
 	const FString MaterialFilename = FPackageName::LongPackageNameToFilename(
-		TEXT("/ProjectWorld/Generated/Presentation/MI_ProjectWorldTerrain_kazan_representative_v1"),
+		TEXT("/ProjectWorldTestData/Generated/Presentation/MI_ProjectWorldTerrain_synthetic_representative_v1"),
 		FPackageName::GetAssetPackageExtension());
 	const FDateTime FirstTimestamp = IFileManager::Get().GetTimeStamp(*MaterialFilename);
 	FPlatformProcess::Sleep(1.1f);
@@ -239,7 +239,7 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		ProjectWorldPresentationMaterialRealization::Prepare(
 			Profile,
 			SecondMaterialResources,
-			TEXT("/ProjectWorld/Generated/"),
+			TEXT("/ProjectWorldTestData/Generated/"),
 			Error));
 	TestEqual(
 		TEXT("Unchanged terrain material keeps its package timestamp."),
@@ -370,7 +370,8 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 		ProjectWorldPresentationRealization::Apply(World, Bundle, Profile, Resources, SecondResult, Error));
 	TestEqual(TEXT("Unchanged realization creates no actor."), SecondResult.CreatedActorCount, 0);
 	TestEqual(TEXT("Unchanged realization removes no actor."), SecondResult.RemovedActorCount, 0);
-	TestEqual(TEXT("Unchanged realization updates the nine stable actors."), SecondResult.UpdatedActorCount, 9);
+	TestEqual(TEXT("Unchanged realization updates no stable actor."), SecondResult.UpdatedActorCount, 0);
+	TestEqual(TEXT("Unchanged realization preserves the nine stable actors."), SecondResult.PreservedActorCount, 9);
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		const FString Role = PresentationRole(**It);
@@ -424,10 +425,10 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 		ExistingEvidence.SemanticFingerprint);
 
 	FProjectWorldPresentationProfile TransitionProfile = Profile;
-	TransitionProfile.ProfileId = TEXT("kazan_representative_v2");
+	TransitionProfile.ProfileId = TEXT("synthetic_representative_v2");
 	FProjectWorldRealizationResult TransitionResult;
 	TestTrue(
-		TEXT("Applying another profile replaces actors whose deterministic identity changed."),
+		TEXT("Applying another profile updates the stable role actors in place."),
 		ProjectWorldPresentationRealization::Apply(
 			CleanWorld,
 			Bundle,
@@ -435,8 +436,9 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 			Resources,
 			TransitionResult,
 			Error));
-	TestEqual(TEXT("Profile transition replaces every old presentation actor."), TransitionResult.RemovedActorCount, 9);
-	TestEqual(TEXT("Profile transition creates every new presentation actor."), TransitionResult.CreatedActorCount, 9);
+	TestEqual(TEXT("Profile transition removes no stable presentation actor."), TransitionResult.RemovedActorCount, 0);
+	TestEqual(TEXT("Profile transition creates no duplicate presentation actor."), TransitionResult.CreatedActorCount, 0);
+	TestEqual(TEXT("Profile transition updates every presentation actor."), TransitionResult.UpdatedActorCount, 9);
 	for (TActorIterator<AActor> It(CleanWorld); It; ++It)
 	{
 		const FString Role = PresentationRole(**It);
@@ -446,7 +448,7 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 				TEXT("Transitioned actor owns the target profile GUID."),
 				It->GetActorGuid(),
 				ProjectWorldGeneratedGeometry::StableGuid(
-					Bundle.GridId + TEXT("|") + TransitionProfile.ProfileId + TEXT("|") + Role));
+					Bundle.GridId + TEXT("|presentation|") + Role));
 		}
 	}
 	FProjectWorldRealizationResult TransitionEvidence;

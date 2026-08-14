@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "synthetic_slice0_sabotage_v1",
+  "world_data_plugin": "ProjectWorldTestData",
+  "grid_id": "grid_0daecb7b1297da7d",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "slice0_fixture_survey",
+      "horizontal_accuracy_m": 0.05
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "missing_feature_marker",
+      "authored_package": "/ProjectWorldTestData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "feature",
+        "feature_id": "alis:synthetic:way:missing",
+        "expected_feature_class": "road",
+        "expected_geometry_type": "LineString",
+        "expected_easting_m": 0.0,
+        "expected_northing_m": 500.0,
+        "placement_class": "precision",
+        "provenance_ref": "slice0_fixture_survey",
+        "horizontal_tolerance_m": 0.1,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 0.1
+      }
+    }
+  ]
+}

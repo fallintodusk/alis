@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../ProjectWorld/Data/Schemas/project_world_realization_profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "synthetic_landscape_water_twin",
+  "world_data_plugin": "ProjectWorldTestData",
+  "canonical_profile_id": "synthetic_landscape_water_twin",
+  "map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldLandscapeWaterTwin",
+  "runtime_profile_id": "none",
+  "landscape": {
+    "logical_landscape_id": "synthetic_main",
+    "components_per_proxy": 1
+  },
+  "protected_authored_roots": [
+    "/ProjectWorldTestData/Authored/"
+  ],
+  "excluded_runtime_state_roots": [
+    "/ProjectWorldTestData/Runtime/"
+  ],
+  "layers": [
+    {
+      "layer_id": "terrain",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_landscape",
+      "generator_version": 1,
+      "depends_on": [],
+      "canonical_selectors": ["terrain"],
+      "artifact_root": "/ProjectWorldTestData/Generated/Twin/Terrain/",
+      "spatial_ownership": "logical_landscape_with_cell_proxies",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_owner",
+      "settings": {
+        "components_per_proxy": 1
+      }
+    },
+    {
+      "layer_id": "water",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_water_mesh",
+      "generator_version": 1,
+      "depends_on": ["terrain"],
+      "canonical_selectors": ["water"],
+      "artifact_root": "/ProjectWorldTestData/Generated/Twin/Water/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "material_shading_model": "single_layer_water",
+        "nanite": false,
+        "scattering_coefficients": [0.005, 0.01, 0.015],
+        "absorption_coefficients": [0.01, 0.02, 0.03]
+      }
+    }
+  ]
+}

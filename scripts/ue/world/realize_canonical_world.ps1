@@ -19,6 +19,10 @@ param(
 
 	[string]$RuntimeProfile = "",
 
+    [string]$AuthoredOverlayProfile = "",
+
+    [string]$RealizationProfile = "",
+
     [string]$EvidencePath = "",
 
 	[ValidateRange(0, 1000)]
@@ -28,6 +32,9 @@ param(
 	[int]$MaxBuildings = 4,
 
     [switch]$RequireLandscape,
+
+    [AllowEmptyCollection()]
+    [string[]]$DirtyUnit = @(),
 
     # Manifest authority root; defaults to the durable root. Isolated
     # validation runs pass a transient sandbox root and never touch the
@@ -43,7 +50,11 @@ param(
     # fully absent or exactly match its accepted state - partial absence or
     # mixed unknown content rejects. Absence alone NEVER authorizes
     # regeneration; this named flag does.
-    [switch]$Reconstruct
+    [switch]$Reconstruct,
+
+    # CI and other automation must opt in explicitly. Interactive mutation
+    # requires an operator confirmation after the exact scope preview.
+    [switch]$NonInteractive
 )
 
 # Manifest-refusal exit codes:
@@ -57,6 +68,8 @@ $configDirectory = Join-Path $projectRoot "scripts\config"
 . (Join-Path $configDirectory "Resolve-UEConfig.ps1")
 . (Join-Path $scriptDirectory "generated_content_transaction.ps1")
 . (Join-Path $scriptDirectory "generated_manifest.ps1")
+. (Join-Path $scriptDirectory "realization_layer_operation.ps1")
+. (Join-Path $scriptDirectory "operator_controls.ps1")
 $config = Resolve-UEConfig -ConfigDir $configDirectory
 
 $editorCommand = Join-Path $config.UE_PATH "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -79,6 +92,21 @@ $runtimeProfilePath = if ($modeName -eq "delete" -or [string]::IsNullOrWhiteSpac
 }
 else {
 	[System.IO.Path]::GetFullPath($RuntimeProfile)
+}
+$authoredOverlayProfilePath = if ($modeName -eq "delete") {
+    ""
+}
+elseif ([string]::IsNullOrWhiteSpace($AuthoredOverlayProfile)) {
+    throw 'Apply and Validate require an explicit world-data-owned authored overlay profile.'
+}
+else {
+    [System.IO.Path]::GetFullPath($AuthoredOverlayProfile)
+}
+$realizationProfilePath = if ([string]::IsNullOrWhiteSpace($RealizationProfile)) {
+    ""
+}
+else {
+    [System.IO.Path]::GetFullPath($RealizationProfile)
 }
 if (-not (Test-Path -LiteralPath $compileResultPath -PathType Leaf)) {
     throw "Compile result does not exist: $compileResultPath"
@@ -108,10 +136,7 @@ if (-not [string]::IsNullOrWhiteSpace($WorldDataPlugin) -and $WorldDataPlugin -c
 $WorldDataPlugin = $declaredWorldDataPlugin
 $worldDataRoots = Resolve-ProjectWorldDataRoots -ProjectRoot $projectRoot -PluginName $WorldDataPlugin
 if ([string]::IsNullOrWhiteSpace($Map)) {
-    if ($WorldDataPlugin -cne 'ProjectWorld') {
-        throw 'Production realization requires an explicit generated map package.'
-    }
-    $Map = '/ProjectWorld/Generated/P0/L_ProjectWorldSynthetic'
+    throw 'World realization requires an explicit generated map package.'
 }
 $presentationProfilePath = if ($modeName -eq "delete") {
     ""
@@ -119,11 +144,8 @@ $presentationProfilePath = if ($modeName -eq "delete") {
 elseif (-not [string]::IsNullOrWhiteSpace($PresentationProfile)) {
     [System.IO.Path]::GetFullPath($PresentationProfile)
 }
-elseif ($WorldDataPlugin -ceq 'ProjectWorld') {
-    Join-Path $worldDataRoots.DataRoot 'Presentation\kazan_representative_v1.json'
-}
 else {
-    throw 'Production realization requires an explicit world-data-owned presentation profile.'
+    throw 'Apply and Validate require an explicit world-data-owned presentation profile.'
 }
 if ($modeName -ne "delete" -and -not (Test-Path -LiteralPath $presentationProfilePath -PathType Leaf)) {
     throw "Presentation profile does not exist: $presentationProfilePath"
@@ -132,8 +154,16 @@ if (-not [string]::IsNullOrWhiteSpace($runtimeProfilePath) -and
 	-not (Test-Path -LiteralPath $runtimeProfilePath -PathType Leaf)) {
 	throw "Runtime profile does not exist: $runtimeProfilePath"
 }
+if (-not [string]::IsNullOrWhiteSpace($authoredOverlayProfilePath) -and
+    -not (Test-Path -LiteralPath $authoredOverlayProfilePath -PathType Leaf)) {
+    throw "Authored overlay profile does not exist: $authoredOverlayProfilePath"
+}
+if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath) -and
+    -not (Test-Path -LiteralPath $realizationProfilePath -PathType Leaf)) {
+    throw "Realization profile does not exist: $realizationProfilePath"
+}
 $dataRootPrefix = $worldDataRoots.DataRoot.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-foreach ($profilePath in @($presentationProfilePath, $runtimeProfilePath)) {
+foreach ($profilePath in @($presentationProfilePath, $runtimeProfilePath, $authoredOverlayProfilePath, $realizationProfilePath)) {
     if (-not [string]::IsNullOrWhiteSpace($profilePath) -and
         -not $profilePath.StartsWith($dataRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "World realization profile must belong to $($worldDataRoots.PluginName) Data: $profilePath"
@@ -156,16 +186,47 @@ $runtimeProfileHash = if ([string]::IsNullOrWhiteSpace($runtimeProfilePath)) {
 else {
 	(Get-FileHash -LiteralPath $runtimeProfilePath -Algorithm SHA256).Hash.ToLowerInvariant()
 }
+$authoredOverlayProfileHash = if ([string]::IsNullOrWhiteSpace($authoredOverlayProfilePath)) {
+    "none"
+}
+else {
+    (Get-FileHash -LiteralPath $authoredOverlayProfilePath -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+$realizationProfileHash = if ([string]::IsNullOrWhiteSpace($realizationProfilePath)) {
+    "none"
+}
+else {
+    (Get-FileHash -LiteralPath $realizationProfilePath -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+$realizationDocument = $null
+$layerDefinitions = [ordered]@{}
+$layerScopePaths = @{}
+if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath)) {
+    $realizationDocument = Get-Content -LiteralPath $realizationProfilePath -Raw | ConvertFrom-Json
+    if ([string]$realizationDocument.world_data_plugin -cne $WorldDataPlugin -or
+        [string]$realizationDocument.canonical_profile_id -cne [string]$compileReceipt.profile_id -or
+        [string]$realizationDocument.map_package -cne $Map) {
+        throw 'Realization profile owner, canonical profile, or map does not match this operation.'
+    }
+    $resolvedLayers = Resolve-ProjectWorldRealizationLayers `
+        -RealizationDocument $realizationDocument `
+        -WorldDataRoots $worldDataRoots
+    $layerDefinitions = $resolvedLayers.Definitions
+    $layerScopePaths = $resolvedLayers.ScopePaths
+}
 if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
     $identity = [ordered]@{
         schema_version = 1
         compile_result_sha256 = $compileResultHash
         presentation_profile_sha256 = $presentationProfileHash
 		runtime_profile_sha256 = $runtimeProfileHash
+        authored_overlay_profile_sha256 = $authoredOverlayProfileHash
+        realization_profile_sha256 = $realizationProfileHash
         map = $Map
         max_roads = $MaxRoads
         max_buildings = $MaxBuildings
         require_landscape = [bool]$RequireLandscape
+        dirty_units = @($DirtyUnit | Sort-Object -Unique)
     }
     $identityBytes = [System.Text.Encoding]::UTF8.GetBytes(($identity | ConvertTo-Json -Compress))
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -217,6 +278,9 @@ $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -Map
 $presentationScopePaths = @(Join-Path $contentRoot 'Generated\Presentation')
 $activeSet = $null
 $scopeGenerations = @{}
+$retirePresentation = $false
+$firstLayerApply = $false
+$removedLayerScopes = @()
 $authorityLock = $null
 if ($transactionActive) {
     # The project-global content mutation lock serializes EVERY generated
@@ -236,6 +300,11 @@ if ($transactionActive) {
     if ($null -ne $presentationScopeId) {
         $participating[$presentationScopeId] = $presentationScopePaths
     }
+    if ($modeName -eq 'apply') {
+        foreach ($scopeId in $layerScopePaths.Keys) {
+            $participating[$scopeId] = $layerScopePaths[$scopeId]
+        }
+    }
     if ($modeName -eq 'delete' -and $null -ne $activeSet) {
         # A map delete also mutates any shared presentation scope that
         # lists this map as a consumer (consumer removal, same transaction).
@@ -244,6 +313,17 @@ if ($transactionActive) {
                 $mapScopeId -in @($activeSet.Manifests[$scopeId].consumer_references)) {
                 $presentationScopeId = $scopeId
                 $participating[$presentationScopeId] = $presentationScopePaths
+                $consumers = @($activeSet.Manifests[$presentationScopeId].consumer_references)
+                $retirePresentation = $consumers.Count -eq 1
+            }
+        }
+        foreach ($scopeId in @($activeSet.Manifests.Keys)) {
+            if ($scopeId -like 'layer_*' -and
+                $mapScopeId -in @($activeSet.Manifests[$scopeId].consumer_references)) {
+                $contract = $activeSet.Manifests[$scopeId].layer_contract
+                $layerScopePaths[$scopeId] = @(Get-ProjectWorldLayerScopePath `
+                    -WorldDataRoots $worldDataRoots -LayerContract $contract)
+                $participating[$scopeId] = $layerScopePaths[$scopeId]
             }
         }
     }
@@ -258,6 +338,28 @@ if ($transactionActive) {
     }
     else {
         Test-ProjectWorldGlobalOwnership -Manifests $activeSet.Manifests
+        if ($modeName -eq 'apply') {
+            $otherPresentationScopes = @($activeSet.Manifests.Keys | Where-Object {
+                $_ -like 'presentation_*' -and $_ -ne $presentationScopeId
+            })
+            if ($otherPresentationScopes.Count -gt 0) {
+                Write-Host "[WorldRealization] REFUSED: presentation profile transition requires explicit retirement of: $($otherPresentationScopes -join ', ')."
+                exit 7
+            }
+            if ($null -ne $realizationDocument) {
+                foreach ($scopeId in @($activeSet.Manifests.Keys)) {
+                    if ($scopeId -notlike 'layer_*' -or $layerDefinitions.Contains($scopeId) -or
+                        $mapScopeId -notin @($activeSet.Manifests[$scopeId].consumer_references)) {
+                        continue
+                    }
+                    $contract = $activeSet.Manifests[$scopeId].layer_contract
+                    $layerScopePaths[$scopeId] = @(Get-ProjectWorldLayerScopePath `
+                        -WorldDataRoots $worldDataRoots -LayerContract $contract)
+                    $participating[$scopeId] = $layerScopePaths[$scopeId]
+                    $removedLayerScopes += $scopeId
+                }
+            }
+        }
         foreach ($scopeId in @($participating.Keys)) {
             if (-not $activeSet.Manifests.Contains($scopeId) -and -not $EnrollManifests) {
                 Write-Host "[WorldRealization] REFUSED: scope '$scopeId' has no accepted manifest. Enrollment via -EnrollManifests is required."
@@ -267,20 +369,34 @@ if ($transactionActive) {
         if ($Reconstruct) {
             # Explicit clean reconstruction: each declared scope must be
             # fully absent or exactly match its accepted manifest.
-            foreach ($scopeId in @($participating.Keys)) {
-                if (-not $activeSet.Manifests.Contains($scopeId)) { continue }
-                $current = @(Get-ProjectWorldScopeArtifactRecords -ProjectRoot $projectRoot -ScopePaths $participating[$scopeId])
-                if ($current.Count -eq 0) { continue }
-                Test-ProjectWorldScopeDrift -ProjectRoot $projectRoot -ActiveSet $activeSet -ScopePathsById @{ $scopeId = $participating[$scopeId] }
-            }
+            Test-ProjectWorldReconstructionScopeState `
+                -ProjectRoot $projectRoot -ActiveSet $activeSet `
+                -ScopePathsById $participating
         }
         else {
             Test-ProjectWorldScopeDrift -ProjectRoot $projectRoot -ActiveSet $activeSet -ScopePathsById $participating
         }
     }
+    if ($modeName -eq 'apply' -and $layerScopePaths.Count -gt 0) {
+        $acceptedLayerCount = if ($null -eq $activeSet) { 0 } else {
+            @($layerScopePaths.Keys | Where-Object { $activeSet.Manifests.Contains($_) }).Count
+        }
+        $firstLayerApply = $acceptedLayerCount -eq 0
+    }
     # A Delete must resolve its exact prior authority BEFORE any mutation;
     # retiring an unowned scope is refused, never recorded as empty evidence.
     $retiredJournalEntries = @()
+    if ($modeName -eq 'apply') {
+        foreach ($scopeId in $removedLayerScopes) {
+            $priorLayerEntry = $activeSet.Record.scopes |
+                Where-Object { $_.scope_id -eq $scopeId }
+            $retiredJournalEntries += , ([ordered]@{
+                scope_id = $scopeId
+                prior_manifest_path = $priorLayerEntry.manifest_path
+                prior_manifest_sha256 = $priorLayerEntry.manifest_sha256
+            })
+        }
+    }
     if ($modeName -eq 'delete') {
         $priorEntry = if ($null -ne $activeSet) {
             $activeSet.Record.scopes | Where-Object { $_.scope_id -eq $mapScopeId }
@@ -295,36 +411,82 @@ if ($transactionActive) {
             prior_manifest_path = $priorEntry.manifest_path
             prior_manifest_sha256 = $priorEntry.manifest_sha256
         })
+        if ($retirePresentation) {
+            $priorPresentationEntry = $activeSet.Record.scopes |
+                Where-Object { $_.scope_id -eq $presentationScopeId }
+            $retiredJournalEntries += , ([ordered]@{
+                scope_id = $presentationScopeId
+                prior_manifest_path = $priorPresentationEntry.manifest_path
+                prior_manifest_sha256 = $priorPresentationEntry.manifest_sha256
+            })
+        }
+        foreach ($scopeId in @($layerScopePaths.Keys)) {
+            $priorLayerEntry = $activeSet.Record.scopes |
+                Where-Object { $_.scope_id -eq $scopeId }
+            $retiredJournalEntries += , ([ordered]@{
+                scope_id = $scopeId
+                prior_manifest_path = $priorLayerEntry.manifest_path
+                prior_manifest_sha256 = $priorLayerEntry.manifest_sha256
+            })
+        }
     }
     foreach ($scopeId in @($participating.Keys)) {
-        $prior = if ($null -ne $activeSet -and $activeSet.Manifests.Contains($scopeId)) {
+        $activeGeneration = if ($null -ne $activeSet -and $activeSet.Manifests.Contains($scopeId)) {
             [int]$activeSet.Manifests[$scopeId].generation
         }
         else { 0 }
+        $historicalGeneration = Get-ProjectWorldHighestManifestGeneration `
+            -ManifestRoot $resolvedManifestRoot -ScopeId $scopeId
+        $prior = [Math]::Max($activeGeneration, $historicalGeneration)
         $scopeGenerations[$scopeId] = $prior + 1
     }
+    $operationRoute = if ($EnrollManifests -and $null -eq $activeSet) { 'enroll' }
+        elseif ($Reconstruct) { 'reconstruct' }
+        elseif ($modeName -eq 'delete') { 'delete' }
+        else { 'apply' }
+    Confirm-ProjectWorldMutation `
+        -Operation $operationRoute `
+        -MapPackage $Map `
+        -ParticipatingScopes $participating `
+        -ActiveSet $activeSet `
+        -AuthoredContentRoot (Join-Path $contentRoot 'Authored') `
+        -NonInteractive:$NonInteractive
     $transactionRecords = @(New-ProjectWorldGeneratedSnapshot `
         -ContentRoot $contentRoot `
         -MapPackage $Map `
         -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot `
-        -SnapshotRoot $transactionRoot)
+        -SnapshotRoot $transactionRoot `
+        -AdditionalPaths @($layerScopePaths.Values | ForEach-Object { @($_) }))
     $plannedCandidates = @($scopeGenerations.Keys | ForEach-Object { "scopes/$_.$($scopeGenerations[$_]).json" })
     Write-ProjectWorldTransactionJournal -ManifestRoot $resolvedManifestRoot -Journal ([ordered]@{
         transaction_id = $transactionId
         phase = 'mutating'
         map_package = $Map
         snapshot_root = $transactionRoot
-        snapshot_records = @($transactionRecords | ForEach-Object { [ordered]@{ source = $_.Source; backup = $_.Backup } })
+        snapshot_records = @($transactionRecords | ForEach-Object {
+            [ordered]@{ source = $_.Source; backup = $_.Backup; existed = [bool]$_.Existed }
+        })
         candidate_manifest_paths = $plannedCandidates
         expected_active_set_sha256 = ''
         prior_active_set_sha256 = $(if ($null -ne $activeSet) { $activeSet.Sha256 } else { 'none' })
         mutation_scope_ids = @($participating.Keys | Sort-Object)
-        operation = $(if ($EnrollManifests -and $null -eq $activeSet) { 'enroll' }
-            elseif ($Reconstruct) { 'reconstruct' }
-            elseif ($modeName -eq 'delete') { 'delete' }
-            else { 'apply' })
+        operation = $operationRoute
         retired_scopes = $retiredJournalEntries
     })
+}
+
+$layerDirtyInputPath = ""
+$layerDirtyInputHash = "none"
+if ($modeName -eq 'apply' -and $layerDefinitions.Count -gt 0) {
+    $dirtyInput = New-ProjectWorldLayerDirtyInput `
+        -ProjectRoot $projectRoot `
+        -OutputDirectory $evidenceDirectory `
+        -RealizationDocument $realizationDocument `
+        -LayerDefinitions $layerDefinitions `
+        -ActiveSet $activeSet `
+        -OperatorDirtyUnits $DirtyUnit
+    $layerDirtyInputPath = $dirtyInput.Path
+    $layerDirtyInputHash = $dirtyInput.Sha256
 }
 
 $unrealArguments = @(
@@ -346,9 +508,19 @@ $unrealArguments = @(
 )
 if ($modeName -ne "delete") {
     $unrealArguments += "-PresentationProfile=$presentationProfilePath"
+    $unrealArguments += "-AuthoredOverlayProfile=$authoredOverlayProfilePath"
 }
 if (-not [string]::IsNullOrWhiteSpace($runtimeProfilePath)) {
 	$unrealArguments += "-RuntimeProfile=$runtimeProfilePath"
+}
+if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath)) {
+    $unrealArguments += "-RealizationProfile=$realizationProfilePath"
+}
+if (-not [string]::IsNullOrWhiteSpace($layerDirtyInputPath)) {
+    $unrealArguments += "-LayerDirtyInput=$layerDirtyInputPath"
+}
+if ($firstLayerApply) {
+    $unrealArguments += "-FirstLayerApply"
 }
 if ($RequireLandscape) {
     $unrealArguments += "-RequireLandscape"
@@ -358,6 +530,8 @@ Write-Host "[WorldRealization] mode=$modeName"
 Write-Host "[WorldRealization] input=$compileResultPath"
 Write-Host "[WorldRealization] presentation=$($presentationProfilePath.Trim())"
 Write-Host "[WorldRealization] runtime=$($runtimeProfilePath.Trim())"
+Write-Host "[WorldRealization] authored_overlay=$($authoredOverlayProfilePath.Trim())"
+Write-Host "[WorldRealization] realization=$($realizationProfilePath.Trim())"
 Write-Host "[WorldRealization] evidence=$resultPath"
 $engineExitCode = -1
 $result = $null
@@ -390,6 +564,121 @@ elseif ($null -eq $invocationFailure) {
 if ($transactionActive) {
     $accepted = ($engineExitCode -eq 0 -and $childStatus -eq 'accepted')
     if ($accepted) {
+        $layerCandidatesByScope = @{}
+        if ($modeName -eq 'apply' -and $layerDefinitions.Count -gt 0) {
+            $mapScopePaths = @(Get-ProjectWorldGeneratedPaths `
+                -ContentRoot $contentRoot -MapPackage $Map `
+                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot `
+                -IncludePresentation $false)
+            $layerExternalRoots = @($mapScopePaths | Where-Object {
+                (Test-Path -LiteralPath $_ -PathType Container) -and
+                ($_ -match '[\\/]__External(Actors|Objects)__[\\/]')
+            })
+            if ([string]$result.realization_profile -cne [string]$realizationDocument.profile_id -or
+                [string]$result.realization_profile_sha256 -cne $realizationProfileHash -or
+                [string]$result.layer_dirty_input_sha256 -cne $layerDirtyInputHash) {
+                throw 'Accepted child result does not authenticate the selected realization profile.'
+            }
+            $inventories = @($result.layer_inventories)
+            if ($inventories.Count -ne $layerDefinitions.Count) {
+                throw 'Accepted child result does not contain exactly one inventory per generated layer.'
+            }
+            foreach ($inventory in $inventories) {
+                $scopeId = [string]$inventory.scope_id
+                if (-not $layerDefinitions.Contains($scopeId) -or $layerCandidatesByScope.ContainsKey($scopeId)) {
+                    throw "Accepted child emitted an unknown or duplicate layer inventory: $scopeId"
+                }
+                $definition = $layerDefinitions[$scopeId]
+                if ([string]$inventory.layer_id -cne [string]$definition.layer_id -or
+                    [string]$inventory.generator_id -cne [string]$definition.generator_id -or
+                    [int]$inventory.generator_version -ne [int]$definition.generator_version -or
+                    [string]$inventory.artifact_root -cne [string]$definition.artifact_root -or
+                    [string]$inventory.normalized_layer_contract_sha256 -notmatch '^[a-f0-9]{64}$') {
+                    throw "Accepted child layer inventory conflicts with the realization profile: $scopeId"
+                }
+                $declaredRecords = @($inventory.artifacts | ForEach-Object {
+                    [ordered]@{
+                        path = [string]$_.path
+                        kind = [string]$_.kind
+                        digest_kind = [string]$_.digest_kind
+                        digest = [string]$_.digest
+                    }
+                })
+                $records = @(Get-ProjectWorldExactLayerArtifactRecords `
+                    -ProjectRoot $projectRoot `
+                    -ArtifactRootPath $layerScopePaths[$scopeId][0] `
+                    -Inventory $declaredRecords `
+                    -AllowedExternalRoots $layerExternalRoots)
+                $semanticOutputs = @($inventory.artifacts | ForEach-Object {
+                    if ([string]$_.semantic_sha256 -notmatch '^[a-f0-9]{64}$') {
+                        throw "Layer artifact has no valid semantic identity: $($_.path)"
+                    }
+                    [ordered]@{
+                        artifact_path = [string]$_.path
+                        semantic_sha256 = [string]$_.semantic_sha256
+                    }
+                })
+                $contract = [ordered]@{
+                    realization_profile_id = [string]$realizationDocument.profile_id
+                    realization_profile_sha256 = $realizationProfileHash
+                    normalized_layer_contract_sha256 = [string]$inventory.normalized_layer_contract_sha256
+                    generator_id = [string]$inventory.generator_id
+                    generator_version = [int]$inventory.generator_version
+                    artifact_root = [string]$inventory.artifact_root
+                    canonical_inputs = @($inventory.canonical_inputs)
+                    dependency_inputs = @($inventory.dependency_inputs)
+                    final_dirty_units = @($inventory.final_dirty_units)
+                    semantic_outputs = $semanticOutputs
+                }
+                $layerCandidatesByScope[$scopeId] = [pscustomobject]@{
+                    Records = $records
+                    Contract = $contract
+                }
+            }
+        }
+        # The commandlet removes generated actors but can leave an empty map,
+        # HLOD assets, or external-package directories. Delete owns complete
+        # scope absence, so remove every confined map artifact before the
+        # active-set retirement commit. The transaction snapshot restores all
+        # of them if any later publication step fails.
+        if ($modeName -eq 'delete') {
+            Remove-ProjectWorldGeneratedPaths -ContentRoot $contentRoot `
+                -MapPackage $Map `
+                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot `
+                -IncludePresentation $false
+            foreach ($scopeId in $layerScopePaths.Keys) {
+                foreach ($path in $layerScopePaths[$scopeId]) {
+                    if (Test-Path -LiteralPath $path) {
+                        Remove-Item -LiteralPath $path -Recurse -Force
+                    }
+                }
+            }
+        }
+        if ($modeName -eq 'apply') {
+            # The commandlet has already removed every map/runtime HLOD
+            # reference. Retire the old companion definitions inside the same
+            # recoverable transaction before publishing the new map manifest.
+            Remove-ProjectWorldGeneratedHLODArtifacts -ContentRoot $contentRoot `
+                -MapPackage $Map `
+                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot
+            foreach ($scopeId in $removedLayerScopes) {
+                foreach ($path in $layerScopePaths[$scopeId]) {
+                    if (Test-Path -LiteralPath $path) {
+                        Remove-Item -LiteralPath $path -Recurse -Force
+                    }
+                }
+            }
+        }
+        # The last map consumer and its shared presentation scope retire in
+        # one recoverable transaction, so owner migration cannot leave an
+        # orphaned generated profile behind.
+        if ($modeName -eq 'delete' -and $retirePresentation) {
+            foreach ($path in $presentationScopePaths) {
+                if (Test-Path -LiteralPath $path) {
+                    Remove-Item -LiteralPath $path -Recurse -Force
+                }
+            }
+        }
         # Contract order: artifacts already replaced by the child; write
         # immutable candidate manifests; flip the journal to 'publishing'
         # with the expected hash; atomically replace the active set LAST.
@@ -397,14 +686,25 @@ if ($transactionActive) {
             compile_result_sha256 = $compileResultHash
             presentation_profile_sha256 = $presentationProfileHash
             runtime_profile_sha256 = $runtimeProfileHash
+            authored_overlay_profile_sha256 = $authoredOverlayProfileHash
             map_package = $Map
         }
         $candidates = @()
-        $retired = @()
+        $retired = @($removedLayerScopes)
         $generatorFingerprint = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot
         $priorPresentation = if ($null -ne $activeSet -and $null -ne $presentationScopeId -and
             $activeSet.Manifests.Contains($presentationScopeId)) {
             $activeSet.Manifests[$presentationScopeId]
+        }
+        else { $null }
+        $priorPresentationIdentity = if ($null -ne $priorPresentation) {
+            [ordered]@{
+                compile_result_sha256 = [string]$priorPresentation.input_identity.compile_result_sha256
+                presentation_profile_sha256 = [string]$priorPresentation.input_identity.presentation_profile_sha256
+                runtime_profile_sha256 = [string]$priorPresentation.input_identity.runtime_profile_sha256
+                authored_overlay_profile_sha256 = [string]$priorPresentation.input_identity.authored_overlay_profile_sha256
+                map_package = [string]$priorPresentation.input_identity.map_package
+            }
         }
         else { $null }
         $priorConsumers = if ($null -ne $priorPresentation) { @($priorPresentation.consumer_references) } else { @() }
@@ -415,30 +715,77 @@ if ($transactionActive) {
             compile_result_sha256 = 'none'
             presentation_profile_sha256 = $presentationProfileHash
             runtime_profile_sha256 = 'none'
+            authored_overlay_profile_sha256 = 'none'
             map_package = 'shared'
         }
         if ($modeName -eq 'delete') {
-            $retired = @($mapScopeId)
+            $retired = @($mapScopeId) + @($layerScopePaths.Keys)
             if ($null -ne $presentationScopeId -and $mapScopeId -in $priorConsumers) {
-                # Consumer removal is a new immutable presentation generation
-                # in the SAME transaction, even with unchanged bytes.
-                $candidates += , (New-ProjectWorldCandidateManifest `
-                    -ProjectRoot $projectRoot -ScopeId $presentationScopeId `
-                    -Generation $scopeGenerations[$presentationScopeId] `
-                    -OwningLayer 'presentation' -OperationId $transactionId `
-                    -InputIdentity $presentationIdentity -ScopePaths $presentationScopePaths -GeneratorFingerprint $generatorFingerprint `
-                    -ConsumerReferences @($priorConsumers | Where-Object { $_ -ne $mapScopeId }))
+                if ($retirePresentation) {
+                    $retired += $presentationScopeId
+                }
+                else {
+                    # Consumer removal is a new immutable presentation
+                    # generation in the SAME transaction.
+                    $candidates += , (New-ProjectWorldCandidateManifest `
+                        -ProjectRoot $projectRoot -ScopeId $presentationScopeId `
+                        -Generation $scopeGenerations[$presentationScopeId] `
+                        -OwningLayer 'presentation' -OperationId $transactionId `
+                        -InputIdentity $priorPresentationIdentity -ScopePaths $presentationScopePaths -GeneratorFingerprint $generatorFingerprint `
+                        -ConsumerReferences @($priorConsumers | Where-Object { $_ -ne $mapScopeId }))
+                }
             }
         }
         else {
             # Re-expand the map scope paths: the preflight expansion predates
             # the child, which may have created the map and external roots.
             $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot -IncludePresentation $false)
-            $candidates += , (New-ProjectWorldCandidateManifest `
+            $layerOwnedPaths = @{}
+            foreach ($scopeId in $layerCandidatesByScope.Keys) {
+                foreach ($record in @($layerCandidatesByScope[$scopeId].Records)) {
+                    $layerOwnedPaths[[string]$record.path] = $true
+                }
+            }
+            $mapRecords = @(Get-ProjectWorldScopeArtifactRecords `
+                -ProjectRoot $projectRoot -ScopePaths $mapScopePaths | Where-Object {
+                    -not $layerOwnedPaths.ContainsKey([string]$_.path)
+                })
+            $mapCandidate = New-ProjectWorldCandidateManifest `
                 -ProjectRoot $projectRoot -ScopeId $mapScopeId `
                 -Generation $scopeGenerations[$mapScopeId] `
                 -OwningLayer 'map' -OperationId $transactionId `
-                -InputIdentity $inputIdentity -ScopePaths $mapScopePaths -GeneratorFingerprint $generatorFingerprint)
+                -InputIdentity $inputIdentity -ScopePaths @() -ArtifactRecords $mapRecords `
+                -GeneratorFingerprint $generatorFingerprint
+            $priorMap = if ($null -ne $activeSet -and $activeSet.Manifests.Contains($mapScopeId)) {
+                $activeSet.Manifests[$mapScopeId]
+            }
+            else { $null }
+            if (-not (Test-ProjectWorldManifestSemanticallyUnchanged `
+                -PriorManifest $priorMap -CandidateManifest $mapCandidate `
+                -GeneratorFingerprint $generatorFingerprint)) {
+                $candidates += , $mapCandidate
+            }
+            foreach ($scopeId in $layerCandidatesByScope.Keys) {
+                $candidateInfo = $layerCandidatesByScope[$scopeId]
+                $layerCandidate = New-ProjectWorldCandidateManifest `
+                    -ProjectRoot $projectRoot -ScopeId $scopeId `
+                    -Generation $scopeGenerations[$scopeId] `
+                    -OwningLayer ([string]$layerDefinitions[$scopeId].layer_id) `
+                    -OperationId $transactionId -InputIdentity $inputIdentity `
+                    -ScopePaths @() -ArtifactRecords $candidateInfo.Records `
+                    -LayerContract $candidateInfo.Contract `
+                    -ConsumerReferences @($mapScopeId) `
+                    -GeneratorFingerprint $generatorFingerprint
+                $priorLayer = if ($null -ne $activeSet -and $activeSet.Manifests.Contains($scopeId)) {
+                    $activeSet.Manifests[$scopeId]
+                }
+                else { $null }
+                if (-not (Test-ProjectWorldManifestSemanticallyUnchanged `
+                    -PriorManifest $priorLayer -CandidateManifest $layerCandidate `
+                    -GeneratorFingerprint $generatorFingerprint -CompareLayerContract)) {
+                    $candidates += , $layerCandidate
+                }
+            }
             if ($null -ne $presentationScopeId) {
                 $presentationCandidate = New-ProjectWorldCandidateManifest `
                     -ProjectRoot $projectRoot -ScopeId $presentationScopeId `

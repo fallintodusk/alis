@@ -9,6 +9,8 @@
 
 Set-StrictMode -Version Latest
 
+. (Join-Path $PSScriptRoot 'generated_layer_manifest.ps1')
+
 . (Join-Path $PSScriptRoot 'world_data_roots.ps1')
 
 $script:ManifestSchemaId = 'https://alis.world/schemas/project-world/generated-manifest-v1.json'
@@ -47,7 +49,7 @@ function Get-ProjectWorldManifestSchemaReferences {
 function Get-ProjectWorldDefaultManifestRoot {
     param(
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
-        [string]$WorldDataPlugin = 'ProjectWorld'
+        [Parameter(Mandatory = $true)][string]$WorldDataPlugin
     )
     return (Resolve-ProjectWorldDataRoots -ProjectRoot $ProjectRoot -PluginName $WorldDataPlugin).ManifestRoot
 }
@@ -147,6 +149,7 @@ function Get-ProjectWorldGeneratorFingerprint {
             # fingerprint-currency gate fail on edits that provably change
             # nothing, which trains operators to bypass the gate.
             if ($relative -like 'scripts/ue/world/test/*' -or
+                $relative -like 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/*' -or
                 $relative -eq 'scripts/ue/world/audit_generated_authority.ps1') {
                 continue
             }
@@ -184,7 +187,7 @@ function Enter-ProjectWorldAuthorityLock {
 function Get-ProjectWorldMapScopeId {
     param(
         [Parameter(Mandatory = $true)][string]$MapPackage,
-        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/'
+        [Parameter(Mandatory = $true)][string]$GeneratedPackageRoot
     )
     if (-not $MapPackage.StartsWith($GeneratedPackageRoot, [System.StringComparison]::Ordinal) -or
         $MapPackage.Length -le $GeneratedPackageRoot.Length -or
@@ -199,6 +202,28 @@ function Get-ProjectWorldPresentationScopeId {
     param([Parameter(Mandatory = $true)][string]$ProfileId)
     $token = $ProfileId.ToLowerInvariant() -replace '[^a-z0-9]', '_'
     return "presentation_$token"
+}
+
+function Get-ProjectWorldHighestManifestGeneration {
+    param(
+        [Parameter(Mandatory = $true)][string]$ManifestRoot,
+        [Parameter(Mandatory = $true)][string]$ScopeId
+    )
+    if ($ScopeId -notmatch '^(map|presentation|layer)_[a-z0-9_]+$') {
+        throw "Manifest scope ID is invalid: $ScopeId"
+    }
+    $highest = 0
+    $pattern = '^{0}\.(?<generation>[1-9][0-9]*)\.json$' -f [Regex]::Escape($ScopeId)
+    foreach ($directoryName in @('scopes', 'archive')) {
+        $directory = Join-Path $ManifestRoot $directoryName
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
+        foreach ($file in Get-ChildItem -LiteralPath $directory -Filter "$ScopeId.*.json" -File) {
+            if ($file.Name -match $pattern) {
+                $highest = [Math]::Max($highest, [int]$Matches.generation)
+            }
+        }
+    }
+    return $highest
 }
 
 function Get-ProjectWorldFileSha256 {
@@ -297,12 +322,26 @@ function Test-ProjectWorldManifestDocument {
     if ([string]$Manifest.scope_id -notmatch '^(map|presentation|layer)_[a-z0-9_]+$') {
         throw "Manifest scope_id is invalid: $($Manifest.scope_id)"
     }
+    $layerContractProperty = $Manifest.PSObject.Properties['layer_contract']
+    Test-ProjectWorldLayerManifestContract `
+        -ScopeId ([string]$Manifest.scope_id) `
+        -LayerContract $(if ($null -ne $layerContractProperty) { $layerContractProperty.Value } else { $null })
     if ([int]$Manifest.generation -lt 1) { throw "Manifest generation must be >= 1 for $($Manifest.scope_id)." }
     if ([string]$Manifest.owning_layer -notmatch '^[a-z0-9_]+$') {
         throw "Manifest owning_layer is invalid for $($Manifest.scope_id)."
     }
     if ([string]::IsNullOrWhiteSpace([string]$Manifest.accepted_operation_id)) {
         throw "Manifest accepted_operation_id is missing for $($Manifest.scope_id)."
+    }
+    $acceptedAtProperty = $Manifest.PSObject.Properties['accepted_at_utc']
+    $acceptedAt = [DateTimeOffset]::MinValue
+    if ($null -ne $acceptedAtProperty -and
+        -not [DateTimeOffset]::TryParse(
+            [string]$acceptedAtProperty.Value,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::RoundtripKind,
+            [ref]$acceptedAt)) {
+        throw "Manifest accepted_at_utc is invalid for $($Manifest.scope_id)."
     }
     if (-not ($Manifest.PSObject.Properties.Name -contains 'generator_fingerprint') -or
         [string]$Manifest.generator_fingerprint -notmatch '^[a-f0-9]{64}$') {
@@ -320,6 +359,11 @@ function Test-ProjectWorldManifestDocument {
             throw "Manifest input_identity.$field is missing or invalid for $($Manifest.scope_id)."
         }
     }
+    $authoredIdentity = $inputIdentity.PSObject.Properties['authored_overlay_profile_sha256']
+    if ($null -ne $authoredIdentity -and [string]$authoredIdentity.Value -ne 'none' -and
+        [string]$authoredIdentity.Value -notmatch '^[a-f0-9]{64}$') {
+        throw "Manifest input_identity.authored_overlay_profile_sha256 is invalid for $($Manifest.scope_id)."
+    }
     $mapProperty = $inputIdentity.PSObject.Properties['map_package']
     if ($null -eq $mapProperty -or [string]::IsNullOrWhiteSpace([string]$mapProperty.Value)) {
         throw "Manifest input_identity.map_package is missing for $($Manifest.scope_id)."
@@ -335,6 +379,15 @@ function Test-ProjectWorldManifestDocument {
         }
         if ($paths.ContainsKey($p)) { throw "Manifest lists artifact path twice: $p" }
         $paths[$p] = $true
+    }
+    if ([string]$Manifest.scope_id -like 'layer_*') {
+        $semanticPaths = @($Manifest.layer_contract.semantic_outputs | ForEach-Object {
+            [string]$_.artifact_path
+        } | Sort-Object -Unique)
+        $artifactPaths = @($paths.Keys | Sort-Object)
+        if (($semanticPaths -join "`n") -cne ($artifactPaths -join "`n")) {
+            throw "Layer semantic outputs do not exactly cover owned artifacts for $($Manifest.scope_id)."
+        }
     }
     foreach ($consumer in @($Manifest.consumer_references)) {
         if ([string]$consumer -notmatch '^(map|presentation|layer)_[a-z0-9_]+$') {
@@ -416,27 +469,39 @@ function Test-ProjectWorldScopeDrift {
         [Parameter(Mandatory = $true)][object]$ActiveSet,
         [Parameter(Mandatory = $true)][hashtable]$ScopePathsById
     )
+    $acceptedGlobally = @{}
+    foreach ($manifest in $ActiveSet.Manifests.Values) {
+        foreach ($artifact in @($manifest.artifacts)) {
+            $acceptedGlobally[[string]$artifact.path] = [string]$artifact.digest
+        }
+    }
+    $projectPrefix = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\', '/') +
+        [System.IO.Path]::DirectorySeparatorChar
     foreach ($scopeId in $ScopePathsById.Keys) {
         if (-not $ActiveSet.Manifests.Contains($scopeId)) { continue }
         $accepted = @{}
         foreach ($artifact in $ActiveSet.Manifests[$scopeId].artifacts) {
             $accepted[$artifact.path] = $artifact.digest
         }
-        $current = Get-ProjectWorldScopeArtifactRecords `
-            -ProjectRoot $ProjectRoot -ScopePaths $ScopePathsById[$scopeId]
-        $currentByPath = @{}
-        foreach ($record in $current) { $currentByPath[$record.path] = $record.digest }
         foreach ($path in $accepted.Keys) {
-            if (-not $currentByPath.ContainsKey($path)) {
+            $fullPath = [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $path.Replace('/', '\')))
+            if (-not $fullPath.StartsWith($projectPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+                -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
                 throw "Unowned or drifted generated content: accepted artifact missing for scope ${scopeId}: $path"
             }
-            if ($currentByPath[$path] -ne $accepted[$path]) {
+            if ((Get-ProjectWorldFileSha256 -Path $fullPath) -ne $accepted[$path]) {
                 throw "Unowned or drifted generated content: artifact drifted in scope ${scopeId}: $path"
             }
         }
-        foreach ($path in $currentByPath.Keys) {
-            if (-not $accepted.ContainsKey($path)) {
+        $current = Get-ProjectWorldScopeArtifactRecords `
+            -ProjectRoot $ProjectRoot -ScopePaths $ScopePathsById[$scopeId]
+        foreach ($record in $current) {
+            $path = [string]$record.path
+            if (-not $acceptedGlobally.ContainsKey($path)) {
                 throw "Unowned or drifted generated content: unowned artifact in scope ${scopeId}: $path"
+            }
+            if ([string]$record.digest -ne $acceptedGlobally[$path]) {
+                throw "Unowned or drifted generated content: artifact drifted in scope ${scopeId}: $path"
             }
         }
     }
@@ -452,20 +517,32 @@ function New-ProjectWorldCandidateManifest {
         [Parameter(Mandatory = $true)][hashtable]$InputIdentity,
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$ScopePaths,
         [AllowEmptyCollection()][string[]]$ConsumerReferences = @(),
-        [Parameter(Mandatory = $true)][string]$GeneratorFingerprint
+        [Parameter(Mandatory = $true)][string]$GeneratorFingerprint,
+        [object]$LayerContract = $null,
+        [object[]]$ArtifactRecords = $null
     )
-    return [ordered]@{
+    Test-ProjectWorldLayerManifestContract -ScopeId $ScopeId -LayerContract $LayerContract
+    [object[]]$resolvedArtifacts = @()
+    if ($null -ne $ArtifactRecords) {
+        $resolvedArtifacts = @($ArtifactRecords | Sort-Object path)
+    } else {
+        $resolvedArtifacts = @(Get-ProjectWorldScopeArtifactRecords -ProjectRoot $ProjectRoot -ScopePaths $ScopePaths)
+    }
+    $manifest = [ordered]@{
         '$schema' = $script:ManifestSchemaId
         schema_version = 1
         scope_id = $ScopeId
         generation = $Generation
         owning_layer = $OwningLayer
         accepted_operation_id = $OperationId
+        accepted_at_utc = [DateTimeOffset]::UtcNow.ToString('o', [System.Globalization.CultureInfo]::InvariantCulture)
         generator_fingerprint = $GeneratorFingerprint
         input_identity = $InputIdentity
-        artifacts = @(Get-ProjectWorldScopeArtifactRecords -ProjectRoot $ProjectRoot -ScopePaths $ScopePaths)
+        artifacts = $resolvedArtifacts
         consumer_references = @($ConsumerReferences | Sort-Object -Unique)
     }
+    if ($null -ne $LayerContract) { $manifest['layer_contract'] = $LayerContract }
+    return $manifest
 }
 
 function Write-ProjectWorldJson {
@@ -538,8 +615,10 @@ function Test-ProjectWorldJournal {
     if ($Journal.operation -eq 'delete' -and @($Journal.retired_scopes).Count -lt 1) {
         throw 'Recovery journal for a delete operation has no retirement evidence; recovery fails closed.'
     }
-    if ($Journal.operation -ne 'delete' -and @($Journal.retired_scopes).Count -gt 0) {
-        throw 'Recovery journal declares retirement outside a delete operation; recovery fails closed.'
+    if ($Journal.operation -ne 'delete' -and @($Journal.retired_scopes | Where-Object {
+        [string]$_.scope_id -notlike 'layer_*'
+    }).Count -gt 0) {
+        throw 'Recovery journal declares non-layer retirement outside a delete operation; recovery fails closed.'
     }
     $seenRetired = @{}
     foreach ($retired in @($Journal.retired_scopes)) {
@@ -588,7 +667,8 @@ function Test-ProjectWorldProspectiveSet {
     param(
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$CandidateManifests,
         [AllowEmptyCollection()][string[]]$RetiredScopeIds = @(),
-        [object]$PriorActiveSet = $null
+        [object]$PriorActiveSet = $null,
+        [hashtable]$PriorGenerations = @{}
     )
     $prospective = [ordered]@{}
     if ($null -ne $PriorActiveSet) {
@@ -605,7 +685,10 @@ function Test-ProjectWorldProspectiveSet {
         if ($candidateSeen.ContainsKey($scopeId)) { throw "Duplicate candidate scope: $scopeId" }
         $candidateSeen[$scopeId] = $true
         if ($scopeId -in $RetiredScopeIds) { throw "Scope '$scopeId' is both candidate and retired." }
-        $prior = if ($null -ne $PriorActiveSet -and $PriorActiveSet.Manifests.Contains($scopeId)) {
+        $prior = if ($PriorGenerations.ContainsKey($scopeId)) {
+            [int]$PriorGenerations[$scopeId]
+        }
+        elseif ($null -ne $PriorActiveSet -and $PriorActiveSet.Manifests.Contains($scopeId)) {
             [int]$PriorActiveSet.Manifests[$scopeId].generation
         }
         else { 0 }
@@ -625,7 +708,7 @@ function Test-ProjectWorldProspectiveSet {
     foreach ($retired in $RetiredScopeIds) {
         if ($null -eq $PriorActiveSet -or -not $PriorActiveSet.Manifests.Contains($retired)) { continue }
         $remaining = @($PriorActiveSet.Manifests[$retired].consumer_references | Where-Object { $_ -notin $RetiredScopeIds })
-        if ($remaining.Count -gt 0) {
+        if ($retired -notlike 'layer_*' -and $remaining.Count -gt 0) {
             throw "Scope '$retired' cannot be retired while active consumers remain: $($remaining -join ',')."
         }
     }
@@ -648,10 +731,31 @@ function Publish-ProjectWorldActiveSet {
         [object]$PriorActiveSet = $null,
         [scriptblock]$BeforeCommit = $null
     )
+    $priorGenerations = @{}
+    foreach ($candidate in $CandidateManifests) {
+        $scopeId = [string]$candidate.scope_id
+        $priorGenerations[$scopeId] = Get-ProjectWorldHighestManifestGeneration `
+            -ManifestRoot $ManifestRoot -ScopeId $scopeId
+    }
     [void](Test-ProjectWorldProspectiveSet `
         -CandidateManifests $CandidateManifests `
         -RetiredScopeIds $RetiredScopeIds `
-        -PriorActiveSet $PriorActiveSet)
+        -PriorActiveSet $PriorActiveSet `
+        -PriorGenerations $priorGenerations)
+    if ($CandidateManifests.Count -eq 0 -and $RetiredScopeIds.Count -eq 0) {
+        if ($null -eq $PriorActiveSet) {
+            throw 'An empty candidate set cannot initialize manifest authority.'
+        }
+        if ($null -ne $BeforeCommit) {
+            & $BeforeCommit $PriorActiveSet.Sha256
+        }
+        return [pscustomobject]@{
+            Path = Join-Path $ManifestRoot 'active_set.json'
+            Sha256 = $PriorActiveSet.Sha256
+            PriorSha256 = $PriorActiveSet.Sha256
+            Entries = @($PriorActiveSet.Record.scopes)
+        }
+    }
     $scopesDir = Join-Path $ManifestRoot 'scopes'
     $schemaReferences = Get-ProjectWorldManifestSchemaReferences `
         -ManifestRoot $ManifestRoot `
@@ -827,7 +931,11 @@ function Invoke-ProjectWorldTransactionRecovery {
         throw 'Interrupted transaction has no recovery snapshot; partial state fails closed. A separately named destructive operator procedure is required.'
     }
     $records = @($journal.snapshot_records | ForEach-Object {
-        [pscustomobject]@{ Source = $_.source; Backup = $_.backup }
+        [pscustomobject]@{
+            Source = $_.source
+            Backup = $_.backup
+            Existed = $(if ($_.PSObject.Properties.Name -contains 'existed') { [bool]$_.existed } else { $true })
+        }
     })
     Restore-ProjectWorldGeneratedSnapshot `
         -ContentRoot $ContentRoot `

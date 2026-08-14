@@ -87,6 +87,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectWorldTestData",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectDefinitionGenerator",
 			"Enabled": true
 		},

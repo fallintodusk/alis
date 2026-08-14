@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../../../../tools/World/SourceIngestion/contracts/synthetic-provider.schema.json",
+  "schema_version": 1,
+  "provider": "synthetic",
+  "release": "1",
+  "area": {
+    "area_id": "synthetic_landscape_water_twin",
+    "bbox": [-0.1, -0.1, 1.4, 0.7],
+    "crs": "EPSG:4326"
+  },
+  "features": [
+    {
+      "provider_feature_id": "way/1001",
+      "provider_class": "water",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[0.1, 0.08], [0.55, 0.08], [0.55, 0.22], [0.1, 0.22], [0.1, 0.08]],
+          [[0.2525, 0.1225], [0.2525, 0.1825], [0.4025, 0.1825], [0.4025, 0.1225], [0.2525, 0.1225]]
+        ]
+      },
+      "properties": {"natural": "water", "water": "lake"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "relation/1002",
+      "provider_class": "water",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[0.35, 0.3], [1.1, 0.3], [1.1, 0.45], [0.35, 0.45], [0.35, 0.3]]]
+      },
+      "properties": {"natural": "water", "water": "river"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/1003",
+      "provider_class": "water",
+      "geometry": {"type": "LineString", "coordinates": [[0.25, 0.375], [1.25, 0.375]]},
+      "properties": {"waterway": "river"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/1004",
+      "provider_class": "water",
+      "geometry": {"type": "LineString", "coordinates": [[0.6, 0.5], [0.6, 0.65]]},
+      "properties": {"waterway": "river"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/1005",
+      "provider_class": "water",
+      "geometry": {"type": "LineString", "coordinates": [[0.05, 0.6], [0.45, 0.6]]},
+      "properties": {"waterway": "stream", "intermittent": "yes"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/1006",
+      "provider_class": "water",
+      "geometry": {"type": "LineString", "coordinates": [[0.75, 0.58], [1.0, 0.58]]},
+      "properties": {"waterway": "stream", "tunnel": "culvert", "layer": "-1"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    },
+    {
+      "provider_feature_id": "way/1007",
+      "provider_class": "water",
+      "geometry": {"type": "LineString", "coordinates": [[0.1, 0.62], [1.1, 0.62]]},
+      "properties": {"waterway": "fairway"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    }
+  ],
+  "raster": {
+    "raster_class": "DSM",
+    "size": [8, 5],
+    "transform": [-0.1, 0.2, 0.0, 0.7, 0.0, -0.2],
+    "pixel_type": "Float32",
+    "nodata": null,
+    "samples": [
+      [31.0, 30.0, 28.0, 29.0, 26.0, 25.0, 24.0, 22.0],
+      [30.0, 29.0, 27.0, 28.0, 25.0, 24.0, 23.0, 21.0],
+      [29.0, 28.0, 26.0, 27.0, 24.0, 23.0, 22.0, 20.0],
+      [30.0, 29.0, 27.0, 28.0, 25.0, 24.0, 23.0, 21.0],
+      [32.0, 31.0, 29.0, 30.0, 27.0, 26.0, 25.0, 23.0]
+    ]
+  }
+}

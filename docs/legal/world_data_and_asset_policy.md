@@ -85,7 +85,8 @@ not a license. Its embedded or referenced content determines the boundary.
 | Asset containing OSM or ODbL-classified Overture feature tables or recoverable geometry | Conditional | Treat conservatively as an ODbL Derivative Database, not merely an ALIS asset |
 | Asset containing a non-extractable ODbL-derived rendered mesh | Conditional | May be a Produced Work; attribute it and offer the underlying Derivative Database or alteration method |
 | Fab Standard, Marketplace, Megascans, or MetaHuman source content | No | Keep source private; distribute only as the applicable agreement permits |
-| Unreal Starter Content, Examples, Engine Code, or copied Engine material | No public source by default | Follow the Unreal Engine EULA and Epic Content License Agreement |
+| Unreal Examples from the installed Samples or Templates folders | Yes under the current Unreal Engine EULA | Record the exact Example origin, retain Epic notices, and do not relicense the Epic portion |
+| Unreal Starter Content, Engine Code, or copied Engine material | No public source by default | Reference the separately installed engine; distribute only through an EULA-permitted Product or another express grant |
 | Mixed or undocumented asset | No | Quarantine until every embedded dependency is identified |
 
 Epic states that developers own rights in their Products other than Licensed
@@ -93,6 +94,16 @@ Technology and identifies qualifying self-developed asset files as Non-Engine
 Products. An asset that references ordinary Unreal classes is therefore not
 automatically Epic-owned. It still must not copy Engine Code, Starter Content,
 or restricted source content into the public package.
+
+The Unreal Engine EULA defines `Examples` narrowly as material in the Samples
+and Templates folders and expressly permits distributing Examples, modified or
+unmodified, in source or object form to any third party. `Starter Content` is a
+separate category and does not inherit that permission. Ordinary
+`/Engine/...` cubes, materials, maps, and other installed defaults should
+therefore remain references to the developer's Unreal installation rather than
+copies in the public developer payload. A zero price never proves source
+redistribution rights. Fab, Marketplace, Learn, and Megascans downloads remain
+under the Epic Content License Agreement or their service-specific terms.
 
 ### 4.1 No "Combined Epic + ALIS License"
 
@@ -155,6 +166,40 @@ Use `alis_license: null` when ALIS has no right to apply its own license.
 | OpenTopography datasets | DTM, LiDAR, and terrain improvements | Dataset-by-dataset approval; acknowledge the source and service |
 | Owned surveys and photography | Hero terrain and landmarks | Approved when releases and ownership are recorded |
 | Local government data under CC0, CC BY 4.0, ODbL, or equivalent open terms | Regional corrections | Approved only after the exact dataset terms are recorded |
+
+Copernicus suitability is not source admission. Before any Copernicus payload
+or derivative enters the accepted ledger, the admission receipt must pin the
+official product terms and access source, their version or retrieval date, the
+payload hash, required attribution/notices, and the permissions for each ALIS
+boundary: verification-cache storage, tracked canonical data, generated Unreal
+assets, packaged runtime distribution, and public source redistribution. If a
+boundary is not expressly supported, that boundary remains closed; raw tiles
+may stay outside the repository while their hashes and provenance remain
+reproducible. Product naming or prior local use is never license evidence.
+
+#### Accepted Copernicus GLO-30 production boundary
+
+Operator acceptance was recorded on 2026-08-11 for the official
+`COP-DEM-GLO-30-F` licence retrieved that day. The exact terms identity,
+SHA-256, notices, payload identities, and five boundary decisions are owned by
+the executable
+[`kazan_territory_v1` source profile](../../Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json).
+
+The licence grants worldwide, time-unlimited reproduction, distribution,
+public communication, adaptation, and combination rights without a use-purpose
+restriction. ALIS therefore admits local verification-cache storage, tracked
+canonical derivatives, generated Unreal assets, and packaged commercial
+distribution with the required modified-output, liability, no-endorsement,
+and downstream pass-through obligations. Raw provider tiles remain untracked
+by project policy even though redistribution is available with obligations.
+
+Acquisition uses the anonymous AWS GLO-30 Public COG route. The July 2026 CDSE
+view-service account change does not redefine that separately documented AWS
+distribution. Primary evidence:
+
+- [official GLO-30 licence](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/DEM/resources/license/License-COPDEM-30.pdf);
+- [AWS Open Data distribution](https://registry.opendata.aws/copernicus-dem/);
+- [CDSE view-service change](https://dataspace.copernicus.eu/news/2026-7-17-copernicus-dem-30m-view-service-license-acceptance).
 
 ### 5.2 Conditional Inputs
 
@@ -269,9 +314,10 @@ license and operations audit.
 ## 7. Distribution Boundary
 
 The existing public mirror is text-only and excludes binaries and Git LFS
-pointers. Publishing approved `.uasset` files therefore requires a separate
-public asset repository, a dedicated GitHub release, or an explicit future
-change to the mirror policy.
+pointers. Approved production-generated binaries are published through the
+dedicated developer release built by
+[`compose_developer_payload.py`](../../scripts/git/mirror/compose_developer_payload.py).
+The source branch and binary release are two transports for one project.
 
 | Artifact | Main source mirror | Public asset/data release | Private developer cache | Packaged game |
 |---|---|---|---|---|
@@ -288,6 +334,36 @@ change to the mirror policy.
 Fab Standard assets may be shared privately with collaborators working on the
 project, but may not be redistributed publicly on a standalone basis. Public
 GitHub is not a private collaborator repository.
+
+Public source must remain operationally complete. If a public tracked index
+selects a redistributable canonical authority that is excluded from the source
+branch, the same exact payload must be available through an authenticated
+public data release with its SHA-256, attribution, licence, modification, and
+liability notices. A dangling public authority pointer is forbidden.
+
+The developer release is authority-driven. World payloads come from active
+`ProjectWorldData` manifests and canonical authority. Other persistent assets
+come from the explicit release contract at
+[`developer_asset_release.json`](../../scripts/git/mirror/developer_asset_release.json)
+and a manifest owned by the data plugin that owns each artifact. That manifest
+authenticates the source, generated package, declared distribution class, and
+license. Generated definitions use `references_only`: a soft reference may be
+distributed, but the referenced third-party payload is not copied.
+
+The release rejects TestData, stale generations, HLOD artifacts, incomplete
+source collections, untracked content, and mismatched hashes. It must not
+expand into a blind scan of every `.uasset`: unclassified and restricted
+third-party content remains closed even when it is free to download. Release
+files are one logical ZIP, split below 2 GiB per part, signed through the
+standard ALIS release signer, and installed only after full path, inventory,
+size, and hash verification.
+
+The payload identity is the exact filtered public source commit and intended
+source tag, not the private repository commit. Installation runs the verifier
+from that clean matching source checkout; downloaded helper scripts are never
+the trust root. A direct mirror push is forbidden when public generated
+authority changes until the matching signed payload and source tag can be
+staged, remotely inventoried, and published through one reviewed transaction.
 
 ## 8. Reproducible Developer Workflow
 
@@ -356,7 +432,8 @@ A public asset, data release, or packaged build must fail review when:
 - a public binary lacks a matching manifest and hash;
 - required attribution is absent;
 - an ODbL Derivative Database or alteration method is not offered when needed;
-- Epic/Fab/Marketplace source content appears in a public-source artifact;
+- Epic/Fab/Marketplace source content without an express public-source grant
+  appears in a public-source artifact;
 - a NonCommercial or NoDerivatives input reaches an incompatible release;
 - a service output is treated as owned data without export rights;
 - the exact tool and data versions cannot be reproduced; or
@@ -367,6 +444,7 @@ A public asset, data release, or packaged build must fail review when:
 
 - [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal)
 - [Epic Content License Agreement](https://www.unrealengine.com/eula/content)
+- [GitHub release asset limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases#storage-and-bandwidth-quotas)
 - [Fab Standard License](https://www.fab.com/eula?lang=en)
 - [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
 - [CDLA Permissive 2.0](https://cdla.dev/permissive-2-0/)

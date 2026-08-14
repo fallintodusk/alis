@@ -1,0 +1,24 @@
+{
+    "$schema":  "../../../ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json",
+    "schema_version":  1,
+    "transaction_id":  "a4937ad42b8a4cfbbd76b53b67535665",
+    "accepted_operation_id":  "a4937ad42b8a4cfbbd76b53b67535665",
+    "prior_active_set_sha256":  "918a19d984613ac96a203cbd1857628a356c5a57bd5551bbba89b1c6ca3624cd",
+    "scopes":  [
+                   {
+                       "scope_id":  "map_p0_l_projectworldkazan",
+                       "manifest_path":  "scopes/map_p0_l_projectworldkazan.7.json",
+                       "manifest_sha256":  "0d2eacb7818e54502080269ef57aab05710fd4611f0f1251a708d0af4a57617f"
+                   },
+                   {
+                       "scope_id":  "map_representative_l_projectworldkazan_representative",
+                       "manifest_path":  "scopes/map_representative_l_projectworldkazan_representative.7.json",
+                       "manifest_sha256":  "948b4effaf8e002a24b47cf1fdfbc4b13c236f3977cbd5da8eff3d0917c7bfde"
+                   },
+                   {
+                       "scope_id":  "presentation_kazan_representative_v1",
+                       "manifest_path":  "scopes/presentation_kazan_representative_v1.8.json",
+                       "manifest_sha256":  "fc019ed25031a0e9f4f7254422c5fc641ff9a50463d5d276d53e35dee1ab004b"
+                   }
+               ]
+}

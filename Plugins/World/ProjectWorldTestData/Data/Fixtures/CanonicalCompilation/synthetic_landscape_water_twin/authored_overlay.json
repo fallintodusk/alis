@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../../../../tools/World/CanonicalCompilation/contracts/authored-overlay.schema.json",
+  "schema_version": 1,
+  "overlay_id": "synthetic_landscape_water_twin_empty_v1",
+  "terrain_patches": [],
+  "feature_overrides": [],
+  "missing_target_policy": "reject_and_require_rebase"
+}

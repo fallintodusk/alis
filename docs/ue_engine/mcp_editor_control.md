@@ -45,6 +45,29 @@ Official plugin activation and its Editor-only target are owned by
 [`Alis.uproject`](../../Alis.uproject). Do not copy machine-local roots or
 credentials into tracked files or duplicate activation state in another doc.
 
+## Agent-owned startup and recovery
+
+An agent that needs a live editor owns routine startup. Do not stop and ask the
+operator merely because `UnrealEditor.exe` or an MCP listener is absent.
+
+1. Check for an existing `UnrealEditor` process. Never terminate an existing
+   interactive editor just to obtain a fresh connection.
+2. If none exists, launch the project in the background through
+   [`run_editor.bat`](../../scripts/ue/run/run_editor.bat). That script resolves
+   the project root and launcher engine from repository-owned paths.
+3. Wait for `LogInit: Display: Engine is initialized` and the required
+   loopback listener (`8000` official, `8091` `ue-mcp`, or `9847`
+   `blueprint-mcp`). A window title or mounted-plugin log line is not ready.
+4. Retry the connection proof, then perform editor calls sequentially.
+5. If startup fails because editor binaries are stale, use the project build
+   route in [`workflow.md`](../build/workflow.md), relaunch, and inspect
+   `Saved/Logs/Alis.log`. Escalate only an actual build/startup failure or an
+   operation that requires human interaction.
+
+If one MCP route is still starting, use another connected route only within
+the routing and concurrency rules above. Starting the editor and waiting for
+its owned endpoints is normal task work, not a user dependency.
+
 ## Evidence Boundary
 
 MCP may provide live evidence for:

@@ -16,6 +16,7 @@ This is the best entry point if you want to understand how the repository is str
 
 - Workspace DSL: [diagrams/workspace.dsl](diagrams/workspace.dsl)
 - Focused views: [diagrams/views/](diagrams/views/)
+- World reconstruction Mermaid view: [ProjectWorld architecture and observability](../../Plugins/World/ProjectWorld/docs/architecture_overview.md)
 
 ## Plugin Tier Routers
 

@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ALIS Developer Asset Release Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "contract_id", "asset_authorities"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "contract_id": { "type": "string", "minLength": 1 },
+    "asset_authorities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "owner", "manifest_path", "license_id", "distribution_class",
+          "dependency_payload_policy", "collections"
+        ],
+        "properties": {
+          "owner": { "type": "string", "minLength": 1 },
+          "manifest_path": { "type": "string", "minLength": 1 },
+          "license_id": { "enum": ["MPL-2.0", "CC-BY-4.0", "CC0-1.0"] },
+          "distribution_class": { "type": "string", "minLength": 1 },
+          "dependency_payload_policy": { "const": "references_only" },
+          "collections": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["asset_class", "schema_path", "source_root", "package_root", "artifact_root"],
+              "properties": {
+                "asset_class": { "type": "string", "minLength": 1 },
+                "schema_path": { "type": "string", "minLength": 1 },
+                "source_root": { "type": "string", "minLength": 1 },
+                "package_root": { "type": "string", "pattern": "^/" },
+                "artifact_root": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

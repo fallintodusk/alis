@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/compiler-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "kazan_representative_v1",
+  "source_profile_id": "kazan_representative_v1",
+  "source_profile": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_representative_v1.source.json",
+  "world_data_plugin": "ProjectWorldData",
+  "engine_georeference_origin": [379760, 6184170],
+  "identity_namespace": "osm",
+  "grid": {
+    "terrain_grid_version": 1,
+    "canonical_crs": "EPSG:32639",
+    "vertical_datum": "EPSG:3855",
+    "vertical_origin_m": 0.0,
+    "coordinate_transform": "wgs84_utm_zone_39n",
+    "origin": [379760.0, 6184170.0],
+    "sample_spacing": [30.0, 30.0],
+    "coordinate_quantization": 0.01,
+    "height_quantization": 0.1,
+    "nodata_policy": "reject",
+    "resampling_method": "bilinear",
+    "cell_quads": [31, 31],
+    "alignment_cell_bounds": [-256, -256, 255, 255],
+    "halo_samples": 1,
+    "operation_halos": {"terrain_resampling": 1, "road_representation": 0, "building_massing": 0}
+  },
+  "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
+  "authored_overlay": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
+  "fixture_features": null,
+  "algorithm_version": "alis-world-compiler-1"
+}

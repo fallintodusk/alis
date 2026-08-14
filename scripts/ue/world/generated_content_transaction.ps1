@@ -29,7 +29,8 @@ function Get-ProjectWorldGeneratedPaths {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
-        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+        [Parameter(Mandatory = $true)]
+        [string]$GeneratedPackageRoot,
 
         [bool]$IncludePresentation = $true
     )
@@ -48,10 +49,18 @@ function Get-ProjectWorldGeneratedPaths {
     $paths = [System.Collections.Generic.List[string]]::new()
     $parent = Split-Path -Parent $mapBase
     $leaf = Split-Path -Leaf $mapBase
-    if (Test-Path -LiteralPath $parent -PathType Container) {
-        Get-ChildItem -LiteralPath $parent -Filter "$leaf*" | ForEach-Object {
-            $paths.Add((Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $_.FullName))
+    foreach ($candidate in @("$mapBase.umap", "${mapBase}_BuiltData.uasset")) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            $paths.Add((Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $candidate))
         }
+    }
+    if (Test-Path -LiteralPath $parent -PathType Container) {
+        # The generator reserves this explicit companion namespace. A plain
+        # map-name prefix is never ownership: L_City must not claim L_CityNight.
+        Get-ChildItem -LiteralPath $parent -Filter "${leaf}_HLODLayer_*.uasset" -File |
+            ForEach-Object {
+                $paths.Add((Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $_.FullName))
+            }
     }
     foreach ($externalRoot in @('__ExternalActors__', '__ExternalObjects__')) {
         $candidate = Join-Path (Join-Path $ContentRoot $externalRoot) $relative
@@ -76,22 +85,68 @@ function New-ProjectWorldGeneratedSnapshot {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
-        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+        [Parameter(Mandatory = $true)]
+        [string]$GeneratedPackageRoot,
 
         [Parameter(Mandatory = $true)]
-        [string]$SnapshotRoot
+        [string]$SnapshotRoot,
+
+        [AllowEmptyCollection()]
+        [string[]]$AdditionalPaths = @()
     )
 
     New-Item -ItemType Directory -Path $SnapshotRoot -Force | Out-Null
     $records = [System.Collections.Generic.List[object]]::new()
     $index = 0
-    foreach ($source in Get-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot -MapPackage $MapPackage -GeneratedPackageRoot $GeneratedPackageRoot) {
+    $standardPaths = @(Get-ProjectWorldGeneratedPaths `
+        -ContentRoot $ContentRoot -MapPackage $MapPackage `
+        -GeneratedPackageRoot $GeneratedPackageRoot)
+    $allPaths = @($standardPaths)
+    foreach ($path in $AdditionalPaths) {
+        $allPaths += Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $path
+    }
+    foreach ($source in @($allPaths | Sort-Object -Unique)) {
         $backup = Join-Path $SnapshotRoot $index
-        Copy-Item -LiteralPath $source -Destination $backup -Recurse -Force
-        $records.Add([pscustomobject]@{ Source = $source; Backup = $backup })
+        $existed = Test-Path -LiteralPath $source
+        if ($existed) {
+            Copy-Item -LiteralPath $source -Destination $backup -Recurse -Force
+        }
+        $records.Add([pscustomobject]@{ Source = $source; Backup = $backup; Existed = $existed })
         ++$index
     }
     return @($records)
+}
+
+function Remove-ProjectWorldGeneratedPaths {
+    param(
+        [Parameter(Mandatory = $true)][string]$ContentRoot,
+        [Parameter(Mandatory = $true)][string]$MapPackage,
+        [Parameter(Mandatory = $true)]
+        [string]$GeneratedPackageRoot,
+        [bool]$IncludePresentation = $true
+    )
+    foreach ($path in Get-ProjectWorldGeneratedPaths `
+        -ContentRoot $ContentRoot -MapPackage $MapPackage `
+        -GeneratedPackageRoot $GeneratedPackageRoot `
+        -IncludePresentation $IncludePresentation) {
+        Remove-Item -LiteralPath $path -Recurse -Force
+    }
+}
+
+function Remove-ProjectWorldGeneratedHLODArtifacts {
+    param(
+        [Parameter(Mandatory = $true)][string]$ContentRoot,
+        [Parameter(Mandatory = $true)][string]$MapPackage,
+        [Parameter(Mandatory = $true)][string]$GeneratedPackageRoot
+    )
+    foreach ($path in Get-ProjectWorldGeneratedPaths `
+        -ContentRoot $ContentRoot -MapPackage $MapPackage `
+        -GeneratedPackageRoot $GeneratedPackageRoot `
+        -IncludePresentation $false) {
+        if ((Split-Path -Leaf $path) -like '*_HLODLayer_*.uasset') {
+            Remove-Item -LiteralPath $path -Force
+        }
+    }
 }
 
 function Restore-ProjectWorldGeneratedSnapshot {
@@ -102,18 +157,25 @@ function Restore-ProjectWorldGeneratedSnapshot {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
-        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+        [Parameter(Mandatory = $true)]
+        [string]$GeneratedPackageRoot,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
         [object[]]$Records
     )
 
-    foreach ($path in Get-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot -MapPackage $MapPackage -GeneratedPackageRoot $GeneratedPackageRoot) {
-        Remove-Item -LiteralPath $path -Recurse -Force
-    }
+    Remove-ProjectWorldGeneratedPaths -ContentRoot $ContentRoot `
+        -MapPackage $MapPackage -GeneratedPackageRoot $GeneratedPackageRoot
     foreach ($record in $Records) {
         $destination = Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $record.Source
+        if (Test-Path -LiteralPath $destination) {
+            Remove-Item -LiteralPath $destination -Recurse -Force
+        }
+        $existedProperty = $record.PSObject.Properties['Existed']
+        if ($null -ne $existedProperty -and -not [bool]$existedProperty.Value) {
+            continue
+        }
         New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
         Copy-Item -LiteralPath $record.Backup -Destination $destination -Recurse -Force
     }
@@ -162,7 +224,8 @@ function Complete-ProjectWorldGeneratedTransaction {
         [Parameter(Mandatory = $true)]
         [string]$MapPackage,
 
-        [string]$GeneratedPackageRoot = '/ProjectWorld/Generated/',
+        [Parameter(Mandatory = $true)]
+        [string]$GeneratedPackageRoot,
 
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]

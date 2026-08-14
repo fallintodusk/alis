@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/canonical-authority.schema.json",
+  "schema_version": 1,
+  "authority_id": "kazan_territory_v1:86821a9914b758e4c536f72fd549333b1953605decbb74ba9c71c2c32360809b",
+  "world_data_plugin": "ProjectWorldData",
+  "profile_id": "kazan_territory_v1",
+  "inputs_hash": "f45066565b9afee46c2b8eaf43831a757253b575be7ca7881f38fbaf21d480b4",
+  "profile_sha256": "99bab388e77d7ea0e5cb682c1d21d095314b2f95a21b05c8a591a1407a37194e",
+  "external_inputs": {
+    "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json",
+    "source_profile_sha256": "8d88d6e9c2fa859ce925f47164a6ed18c17826f49a670fdd02874733f11f5e43",
+    "authored_overlay_path": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
+    "authored_overlay_sha256": "a1dceda2b459b6e9279dda4ca6c140b719795bc3e0310443e2ee790d9ecbeb59",
+    "fixture_features_path": null,
+    "fixture_features_sha256": null,
+    "budget_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/Budgets/kazan_territory_v1.budget.json",
+    "budget_profile_sha256": "33be49f73f81e3406473d1fc1bb767319e876ff99a8318c7b2bbb6eda2b40a18",
+    "control_profile_path": "Plugins/World/ProjectWorldData/Data/Controls/kazan_territory_v1.control.json",
+    "control_profile_sha256": "8794798bd7058c7a36525fe0026ac9dc94ebe1cfb0b062767f6faf497b5fffdd",
+    "source_run_inputs_hash": "a8c81d589333df769f3be55415653b624905f4328b952db63de12a9ea3a98db3"
+  },
+  "admission_receipt_sha256": "f9c8d930f7f8f822347d5a4e040a2e686589ccc782a27374cf40fd99b02aa01f",
+  "admission_artifacts": [
+    {
+      "path": "admission/territory_admission_receipt.json",
+      "sha256": "f9c8d930f7f8f822347d5a4e040a2e686589ccc782a27374cf40fd99b02aa01f",
+      "byte_size": 2307
+    },
+    {
+      "path": "admission/source_plan.json",
+      "sha256": "14f92af2beb5a03ea8af05a9f983b100cfd748a8ec409eda5293f0e744ec47f5",
+      "byte_size": 7089
+    },
+    {
+      "path": "admission/control_network_receipt.json",
+      "sha256": "650273ac6aa096ad2ee638fb72f203d7f5335c8a2eb1ea7cf16391403c1862fc",
+      "byte_size": 2550
+    }
+  ],
+  "compile_result_sha256": "c781bd87c98c63c475191b7890b4d405904ed622332fa11fd017a6daacc4b2c6",
+  "output_count": 637,
+  "bundle": {
+    "format": "deterministic_zip_v1",
+    "path": "bundles/86821a9914b758e4c536f72fd549333b1953605decbb74ba9c71c2c32360809b.zip",
+    "byte_size": 10236853,
+    "sha256": "c64bfab68a4ce9c2016dbe3f8cbb6239ff7fdf514affde7ac29e563c819f361f"
+  }
+}

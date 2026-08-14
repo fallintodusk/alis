@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../../../tools/World/SourceIngestion/contracts/provider-feature.schema.json",
+  "schema_version": 1,
+  "snapshot_id": "synthetic_two_cell_v1:c3ee01e99379976e",
+  "provider": "ALIS synthetic fixture",
+  "release": "1",
+  "area": {"area_id": "synthetic_two_cell", "area_fingerprint": "sha256:cf18d6a1160c9ac93111fd317424e656d888715875ffaee9492effc5727c54f4"},
+  "shard_id": "9999",
+  "features": [
+    {
+      "provider_feature_id": "way/999",
+      "provider_class": "building",
+      "geometry": {"type": "Polygon", "coordinates": [[[-0.4, 0.2], [0.4, 0.8], [-0.4, 0.8], [0.4, 0.2], [-0.4, 0.2]]]},
+      "properties": {"building": "yes", "building:levels": "3"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
+    }
+  ],
+  "license": {"id": "CC0-1.0", "attribution": "ALIS"}
+}

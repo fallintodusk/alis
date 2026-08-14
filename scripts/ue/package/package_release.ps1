@@ -103,7 +103,10 @@ $Args = @(
     "-archivedirectory=$OutputDir",
     "-NoP4",
     "-utf8output",
-    "-unattended"
+    "-unattended",
+    # Generated World Partition actors can replace external packages between
+    # cooks. A release cook must scan the current tree, not a prior AR cache.
+    '-AdditionalCookerOptions="-NoAssetRegistryCache"'
 )
 
 if (-not $SkipBuild) {
@@ -249,6 +252,18 @@ if ($ExitCode -ne 0) {
 $WindowsDir = Join-Path $OutputDir "Windows"
 if (-not (Test-Path $WindowsDir)) {
     throw "Packaging succeeded but output folder was not found: $WindowsDir"
+}
+
+# UAT can return success after SafeCopyFile exhausts its retries. Prove the
+# archive contains every staged byte before any content-specific checks run.
+$ArchiveIntegrityScript = Join-Path $ScriptDir "verify_staged_archive.py"
+$StagedWindowsDir = Join-Path $ProjectRoot "Saved\StagedBuilds\Windows"
+if (-not $pythonExe -or -not (Test-Path $ArchiveIntegrityScript)) {
+    throw "Post-package archive integrity verification is unavailable."
+}
+& $pythonExe $ArchiveIntegrityScript --staged-root $StagedWindowsDir --archive-root $WindowsDir
+if ($LASTEXITCODE -ne 0) {
+    throw "Post-package archive integrity verification failed."
 }
 
 # Post-package smoke check: confirm runtime-read JSON files survived the cook.

@@ -34,6 +34,9 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	const FString* CompileResult = Parameters.Find(TEXT("CompileResult"));
 	const FString* PresentationProfile = Parameters.Find(TEXT("PresentationProfile"));
 	const FString* RuntimeProfile = Parameters.Find(TEXT("RuntimeProfile"));
+	const FString* AuthoredOverlayProfile = Parameters.Find(TEXT("AuthoredOverlayProfile"));
+	const FString* RealizationProfile = Parameters.Find(TEXT("RealizationProfile"));
+	const FString* LayerDirtyInput = Parameters.Find(TEXT("LayerDirtyInput"));
 	const FString* ResultPath = Parameters.Find(TEXT("Result"));
 	const FString* MapPath = Parameters.Find(TEXT("Map"));
 	const FString* ModeValue = Parameters.Find(TEXT("Mode"));
@@ -56,13 +59,14 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 		UE_LOG(LogProjectWorldRealization, Error, TEXT("[ProjectWorldRealizeCommandlet::Main] Invalid mode - %s"), *Mode);
 		return 2;
 	}
-	if (CompileResult == nullptr || ResultPath == nullptr ||
-		(ParsedMode != EProjectWorldRealizationMode::Delete && PresentationProfile == nullptr))
+	if (CompileResult == nullptr || ResultPath == nullptr || MapPath == nullptr ||
+		(ParsedMode != EProjectWorldRealizationMode::Delete &&
+			(PresentationProfile == nullptr || AuthoredOverlayProfile == nullptr)))
 	{
 		UE_LOG(
 			LogProjectWorldRealization,
 			Error,
-			TEXT("[ProjectWorldRealizeCommandlet::Main] Usage - require -CompileResult=<path> -Result=<path> [-PresentationProfile=<path> for validate/apply] [-RuntimeProfile=<path>] [-Mode=validate|apply|delete] [-Map=/<world-data-plugin>/Generated/...]."));
+			TEXT("[ProjectWorldRealizeCommandlet::Main] Usage - require -CompileResult=<path> -Result=<path> -Map=/<world-data-plugin>/Generated/... [-PresentationProfile=<path> -AuthoredOverlayProfile=<path> for validate/apply] [-RuntimeProfile=<path>] [-RealizationProfile=<path> -LayerDirtyInput=<path> -FirstLayerApply] [-Mode=validate|apply|delete]."));
 		return 2;
 	}
 
@@ -74,15 +78,26 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	Request.RuntimeProfilePath = RuntimeProfile == nullptr
 		? FString()
 		: FPaths::ConvertRelativePathToFull(*RuntimeProfile);
+	Request.AuthoredOverlayProfilePath = AuthoredOverlayProfile == nullptr
+		? FString()
+		: FPaths::ConvertRelativePathToFull(*AuthoredOverlayProfile);
+	Request.RealizationProfilePath = RealizationProfile == nullptr
+		? FString()
+		: FPaths::ConvertRelativePathToFull(*RealizationProfile);
+	Request.LayerDirtyInputPath = LayerDirtyInput == nullptr
+		? FString()
+		: FPaths::ConvertRelativePathToFull(*LayerDirtyInput);
 	Request.ResultPath = FPaths::ConvertRelativePathToFull(*ResultPath);
-	Request.MapPackagePath = MapPath == nullptr
-		? TEXT("/ProjectWorld/Generated/P0/L_ProjectWorldSynthetic")
-		: *MapPath;
+	Request.MapPackagePath = *MapPath;
 	Request.Mode = ParsedMode;
 
 	Request.bRequireLandscapeCompatible = Switches.ContainsByPredicate([](const FString& Switch)
 	{
 		return Switch.Equals(TEXT("RequireLandscape"), ESearchCase::IgnoreCase);
+	});
+	Request.bFirstLayerApply = Switches.ContainsByPredicate([](const FString& Switch)
+	{
+		return Switch.Equals(TEXT("FirstLayerApply"), ESearchCase::IgnoreCase);
 	});
 	auto ParseFeatureLimit = [&Parameters](const TCHAR* Name, int32& OutValue)
 	{
@@ -110,11 +125,13 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	UE_LOG(
 		LogProjectWorldRealization,
 		Display,
-		TEXT("[ProjectWorldRealizeCommandlet::Main] Start - mode=%s input=%s presentation=%s runtime=%s map=%s"),
+		TEXT("[ProjectWorldRealizeCommandlet::Main] Start - mode=%s input=%s presentation=%s runtime=%s authored=%s realization=%s map=%s"),
 		*Mode,
 		*Request.CompileResultPath,
 		*Request.PresentationProfilePath,
 		*Request.RuntimeProfilePath,
+		*Request.AuthoredOverlayProfilePath,
+		*Request.RealizationProfilePath,
 		*Request.MapPackagePath);
 	FProjectWorldRealizationResult Result;
 	const int32 ExitCode = FProjectWorldRealizationService::Run(Request, Result);

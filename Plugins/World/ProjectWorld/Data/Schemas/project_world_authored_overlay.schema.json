@@ -140,7 +140,7 @@
         "vertical_mode",
         "vertical_tolerance_m"
       ],
-      "description": "Resolved through the accepted resolver against the canonical feature, NEVER by a direct reference, attachment, or outer relationship to a disposable generated actor.",
+      "description": "Resolved through the accepted resolver against the canonical feature, NEVER by a direct reference, attachment, or outer relationship to a generated actor.",
       "properties": {
         "kind": {"const": "feature"},
         "placement_class": {"enum": ["precision", "standard"]},

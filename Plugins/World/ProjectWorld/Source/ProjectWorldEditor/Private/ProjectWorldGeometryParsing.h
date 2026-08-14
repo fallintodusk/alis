@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 
 class FJsonObject;
+struct FProjectWorldCanonicalPolygon;
 struct FProjectWorldCanonicalValidation;
 
 namespace ProjectWorldGeometryParsing
@@ -15,5 +16,6 @@ namespace ProjectWorldGeometryParsing
 		FString& OutType,
 		TArray<FVector2D>& OutOuterPoints,
 		FProjectWorldCanonicalValidation& OutValidation,
-		TArray<TArray<FVector2D>>* OutParts = nullptr);
+		TArray<TArray<FVector2D>>* OutParts = nullptr,
+		TArray<FProjectWorldCanonicalPolygon>* OutPolygons = nullptr);
 }

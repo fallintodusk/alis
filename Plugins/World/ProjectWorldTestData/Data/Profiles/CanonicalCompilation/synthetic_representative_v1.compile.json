@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/compiler-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "synthetic_representative_v1",
+  "source_profile_id": "synthetic_representative_v1",
+  "source_profile": "Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_representative_v1.source.json",
+  "world_data_plugin": "ProjectWorldTestData",
+  "engine_georeference_origin": [-1000, 0],
+  "identity_namespace": "synthetic",
+  "grid": {
+    "terrain_grid_version": 1,
+    "canonical_crs": "ALIS:FIXTURE_METRE_V1",
+    "vertical_datum": "ALIS:FIXTURE_HEIGHT_V1",
+    "vertical_origin_m": 0.0,
+    "coordinate_transform": "fixture_affine",
+    "fixture_scale_m": 1000.0,
+    "origin": [-1000.0, 0.0],
+    "sample_spacing": [500.0, 500.0],
+    "coordinate_quantization": 0.01,
+    "height_quantization": 0.1,
+    "nodata_policy": "reject",
+    "resampling_method": "bilinear",
+    "cell_quads": [2, 2],
+    "alignment_cell_bounds": [0, 0, 3, 0],
+    "halo_samples": 1,
+    "operation_halos": {"terrain_resampling": 1, "road_representation": 0, "building_massing": 0}
+  },
+  "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
+  "authored_overlay": "Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_two_cell/authored_overlay.json",
+  "fixture_features": "Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_two_cell/invalid_features.json",
+  "algorithm_version": "alis-world-compiler-1"
+}
