@@ -42,18 +42,73 @@ never imply promotion by themselves.
 
 ## Review Cadence
 
-Use two deliberate review points per slice:
+Use two deliberate review points per slice. They are named, and both are
+performed by an INDEPENDENT reviewer:
 
-1. Before production code, review the complete lifecycle: identities, owner,
-   mutable inputs, current versus historical evidence, budgets, retry,
-   rollback, and concurrency.
-2. After focused L0/L1 tests pass, review the integrated system once. Fix a
-   discovered defect class across the whole lifecycle before requesting the
-   final affected L2 gate.
+| Gate | When | Scope |
+|---|---|---|
+| R1 | before production code | complete lifecycle: identities, owner, mutable inputs, current versus historical evidence, budgets, retry, rollback, concurrency |
+| R2 | after focused L0/L1 tests pass | the integrated system once; fix a discovered defect class across the whole lifecycle before requesting the final affected L2 gate |
+
+Independence is the invariant, not tooling: the reviewer must not have authored
+the production change under review. A different model or tool is PREFERRED
+because it decorrelates blind spots, but it is not mandatory - the operator
+chooses the reviewer.
+
+Reviewer inputs: the slice plan, its read-first SOTs, and the diff plus
+evidence. Verdicts are `PASS`, `PATCH`, or `BLOCKER`. On `PATCH`, the
+implementer makes the correction and the SAME independent reviewer may recheck
+it; a brand-new reviewer per correction adds ceremony without adding
+independence. The reviewer never authors the fix - doing so would make it the
+author of the change it is reviewing, which is the one thing the R1/R2 contract
+exists to prevent.
 
 Do not alternate reviewer comments with Matrix runs. While code or contracts
 are still changing, stay at L0/L1. A fresh Check and the planner-selected
 Matrix runs happen once at the coherent slice boundary.
+
+## Proof Traceability
+
+Every slice plan carries ONE table binding what it intends to guarantee to what
+actually proves it. Two unlinked lists - "required invariants" here, "proof
+classes" there - is how an invariant reaches production with nothing measuring
+it, and how a gate gets reported as broader than it is.
+
+| Invariant | Acceptance surface | Execution envelope | Cheapest proof | Final proof | Stop condition |
+|---|---|---|---|---|---|
+
+Column meanings:
+
+- **Invariant** - the property that must hold. One row each.
+- **Acceptance surface** - the representation actually consumed at the boundary
+  being accepted, never one of its inputs.
+- **Execution envelope** - executable, editor vs commandlet, RHI/headless mode,
+  flags, build configuration. Stated up front, not discovered after a failure.
+- **Cheapest proof** - the smallest L0/L1 check that can falsify the invariant
+  during iteration.
+- **Final proof** - the evidence that authenticates the invariant at slice exit.
+- **Stop condition** - what a failure of the final proof blocks.
+
+Rules:
+
+1. Every invariant has a final proof.
+2. Every ACCEPTANCE proof maps to an invariant. A gate that answers to no
+   stated invariant is either an undeclared requirement or wasted expense.
+3. Diagnostic evidence MAY exist with no invariant, but only when labelled
+   `DIAGNOSTIC / NON-AUTHORITATIVE`. It never gates anything. Keeping useful
+   instruments from falsified hypotheses is correct; presenting one as
+   acceptance is not.
+4. An acceptance proof run in a materially different execution envelope does
+   NOT authenticate the shipping envelope. Mark it diagnostic, or rerun it in
+   the shipping envelope.
+
+R1 rejects a plan that shows any of: an invariant with no final proof; an
+acceptance proof that maps to no invariant; a wrong-envelope proof presented as
+acceptance.
+
+Related: the four gate-scope questions in
+[canonical.md section 7](../agents/canonical.md), and the evidence rails in
+[scientific_debugging.md](../agents/scientific_debugging.md).
 
 Operational commands and evidence contracts are owned by
 [World End-to-End Validation](../../tools/World/EndToEndValidation/README.md).

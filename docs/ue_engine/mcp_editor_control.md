@@ -38,6 +38,19 @@ the protocol, and reach the current editor. It does not prove that an external
 client process restarted; where restart identity matters, record operator
 attestation separately.
 
+The official route needs its own proof because it fails silently. `unreal-mcp`
+is an HTTP attachment to the in-editor listener, so the client binds it once at
+session start; if the editor is still loading a heavy map then, the game thread
+cannot service the handshake and the server is dropped with no error surfaced.
+The session simply runs with zero `mcp__unreal-mcp__*` tools while the stdio
+routes keep working, which reads as "the official route is unavailable" rather
+than "it was never attached". Start the editor and let it go idle before
+starting the agent, then confirm `unreal-mcp` is listed by `/mcp` and that
+`list_toolsets` returns toolsets. A raw
+`POST http://127.0.0.1:8000/mcp` `initialize` is the out-of-band check when the
+client shows nothing; note that `GET /mcp` answering `405` is correct, because
+the server is POST-only and offers no SSE channel.
+
 Configuration templates are owned by
 [`scripts/config/mcp.json.example`](../../scripts/config/mcp.json.example) and
 [`scripts/config/tools.conf.example`](../../scripts/config/tools.conf.example).

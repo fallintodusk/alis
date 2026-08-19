@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectWorldTerrainVerification.h"
 
 struct FProjectWorldCanonicalBundle;
 
@@ -151,6 +152,12 @@ struct FProjectWorldRealizationResult
 	double RuntimeP95FrameTimeBudgetMilliseconds = 0.0;
 	double AuthoredAnchorMaximumDriftMeters = 0.0;
 	FString CrossCellRoadFeatureId;
+	// SOURCE surface: the Generated Base edit layer, one input to UE's edit-layer blend.
+	// Diagnostic only - a correct source layer does not imply correct rendered terrain.
+	FProjectWorldTerrainHeightComparison TerrainHeight;
+	// FINAL surface: the blended final/base heightmap that renders, collides, and drives
+	// cached bounds. This is the acceptance surface.
+	FProjectWorldTerrainHeightComparison TerrainFinalHeight;
 	bool bWorldPartition = false;
 	bool bLandscapeCompatible = false;
 	bool bGeoReferencingProbed = false;

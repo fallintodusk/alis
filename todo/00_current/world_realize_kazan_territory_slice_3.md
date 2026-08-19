@@ -1,9 +1,15 @@
 # Realize Kazan Territory Geography - Slice 3
 
-**Status:** REVIEW - R1, 3-PRE canonical water, the UE 5.8 native two-cell
-Landscape/water twin, 3-CORE, and production 3A realization are complete.
-The isolated 210-cell lifecycle is accepted and ready for one R2 review before
-the deferred Matrix/L2 and L3 authority work.
+**Status:** PAUSED - World implementation suspended at the 2026-08-18
+operator/process checkpoint pending the agent-development-system audit. Resume
+only from the unchecked items in "WORLD IMPLEMENTATION PAUSED" at the end of
+this document, after that audit is reviewed and any accepted agent/process
+rails are implemented.
+
+**Prior status (superseded, retained for context):** R1, 3-PRE canonical water,
+the UE 5.8 native twin, 3-CORE, production 3A realization, and R2 are accepted.
+Territory Matrix/L2, L3 enrollment, and the post-enrollment operator visual
+diagnostic remain before Slice 3 can close.
 **Scope:** Active canonical authority -> persistent World Partition territory,
 extensible generated layers, transactional enrollment, and Slice 3 evidence.
 **Stable documentation owner:**
@@ -34,6 +40,7 @@ rollback, or evidence.
 - [Generation SOT](../../Plugins/World/ProjectWorld/docs/territory_generation.md)
 - [World Partition SOT](../../Plugins/World/ProjectWorld/docs/world_partition.md)
 - [Architecture overview](../../Plugins/World/ProjectWorld/docs/architecture_overview.md)
+- [MCP Editor control](../../docs/ue_engine/mcp_editor_control.md)
 - [Test layers](../../docs/testing/world_pipeline_layers.md)
 - [Canonical commands](../../tools/World/CanonicalCompilation/README.md)
 - [World realization commands](../../scripts/ue/world/README.md)
@@ -294,7 +301,7 @@ For every surface-touched cell:
 This is the primary water representation, not HLOD or far-field duplication.
 The experimental Water plugin remains disabled.
 
-### F. Add territory Matrix and one L3 command
+### F. Add territory Matrix, one L3 command, and durable visual diagnostic
 
 Replace fixed road/building-only validation with profile-scoped layer evidence
 and authenticate the realization profile closure. Add
@@ -308,6 +315,31 @@ existing wrapper once; audits the prospective/final authority; and writes one
 receipt binding active-set/manifest hashes. It neither packages nor publishes.
 Retire the manual ordering only after synthetic failure/recovery and one real
 enrollment prove the replacement.
+
+L2 remains the structural `-NullRHI` Matrix and restores its candidate package
+tree. It cannot claim appearance approval. The existing packaged rendered gate
+is an L4 boundary and remains deferred; do not add a retained pre-L3 candidate,
+parallel capture framework, or early package run merely to obtain screenshots.
+
+Before any L3 enrollment, realize the territory as an isolated, reversible
+transient candidate, then launch UE 5.8 through the repository Editor script and
+connect through the stable MCP route. Open
+`/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory`, reload it
+once, and inspect that exact candidate without editing generated content. Use the
+single existing ProjectWorldData presentation authority for overview and
+terrain views; do not create a second presentation scope. Add focused MCP
+viewport poses for standing water, a flowing cross-cell seam, and a technical
+territory edge. Record the exact active-set/map hashes, canonical surface/cell
+IDs, viewport transforms, and screenshot filenames in this todo's review
+record so the operator reviews the actual current generation rather than the
+August 7 representative-map captures. A visual rejection regenerates through
+canonical/profile/layer authority and another transient candidate; it never
+permits a hand edit to generated packages and never advances to L3. Only after
+explicit operator approval does the frozen tree run the final authenticated
+gates and one L3 enrollment. These screenshots are diagnostic/operator evidence,
+while Matrix/L3 receipts remain acceptance authority. A post-L3 MCP pass is
+optional read-only verification, not the approval checkpoint. Authenticated
+packaged captures remain the later L4 responsibility.
 
 ## Rejected alternatives
 
@@ -425,6 +457,15 @@ Changing the estimator or width policy creates new canonical authority.
   cross-sections, identical seam Z, and ribbon output only for an uncovered tail.
 - [ ] Extend Matrix closure/layer expectations and add the territory profile.
 - [ ] Implement/authenticate the L3 command and stale/tampered evidence rejects.
+- [ ] Before L3, open/reload the exact transient territory candidate through
+  live Editor MCP and capture overview, terrain, standing-water,
+  flowing-cross-cell, and technical-edge diagnostics. Bind the record to the
+  candidate identity/semantic hashes and exact canonical surface/cell IDs; make
+  no manual generated-content edits.
+- [ ] Obtain operator visual approval of those current territory screenshots.
+  Old P0/representative screenshots do not satisfy this checkpoint.
+- [ ] Only after that approval, run the final authenticated gates and one L3
+  enrollment on the frozen tree.
 
 ### 3-CORE
 
@@ -500,8 +541,9 @@ Mandatory proof classes:
   provenance, standing level, flowing longitudinal/cross-section constraints,
   unknown rejection, full/incremental/clean;
 - DAG missing/cycle/root escape/duplicate owner/narrowing/transitive/no-op;
-- Landscape 2/2 synthetic, 210/210 production, one-cell update, edit-layer
-  survival, no-op, and rollback;
+- Landscape 2 x 3 synthetic, 210/210 production, actual SectionBase/canonical
+  bounds, one-cell proxy-package update with an unchanged logical map,
+  edit-layer survival, water-only terrain no-op, and rollback;
 - water multipart/hole/cross-cell polygon and ribbon/standing level/flow
   cross-section/shared XY-Z/no duplicate surface authority/persistent
   Single Layer Water StaticMesh/exclusion/no collision/one-member dirty/clean
@@ -525,8 +567,10 @@ context; Mermaid owns close-to-code flow. Stable files never reference this todo
 
 1. Correct/promote canonical water before Matrix constants.
 2. Prove new machinery in disposable ProjectWorldTestData.
-3. Run territory only in Matrix isolation until R2/L2 pass.
-4. Run one L3 through the existing snapshot/journal transaction. Pre-commit
+3. Run territory only in isolation, open that exact transient candidate through
+   MCP, and stop for operator visual approval.
+4. After approval, run the final selected L2 gates and one L3 through the
+   existing snapshot/journal transaction. Pre-commit
    failure restores prior state; post-commit audit failure blocks later gates and
    preserves evidence for recovery.
 5. Leave P0/representative and legacy maps untouched.
@@ -539,7 +583,10 @@ context; Mermaid owns close-to-code flow. Stable files never reference this todo
   exact seams/holes, one surface authority per visible XY, budgets, protected
   bytes, and zero HLOD.
 - `plan`, fresh Check, and only selected Matrix pass.
-- One L3 publishes audited map/terrain/water scopes; no-op is clean.
+- The exact transient candidate is opened and reloaded through live Editor MCP;
+  the operator accepts its bound diagnostic screenshots before L3.
+- After approval, one L3 publishes audited map/terrain/water scopes; no-op is
+  clean. This does not replace the later packaged rendered gate.
 - Stable SOT/router/diagram updates match landed code with no todo references.
 - No unrelated release, mirror, TestData binary, legacy map, or commit work.
 
@@ -640,3 +687,298 @@ context; Mermaid owns close-to-code flow. Stable files never reference this todo
   terrain cell updates exactly one Landscape component and one changed water
   cell updates exactly one persistent water actor and semantic identity. No
   Matrix, L3, L4, persistent authority, or commit was run.
+- 2026-08-14: the R2 PATCH findings were valid. Whole-bundle and per-cell
+  terrain input identities no longer live on the logical Landscape; each
+  component owns its terrain input while its proxy owns the canonical cell.
+  The 2 x 3 native proof verifies actual SectionBase-derived bounds on both
+  axes and proves a terrain-cell edit dirties only its proxy package, while a
+  water-only identity change dirties no terrain package. Exact Landscape,
+  Authored-layer, incremental-inventory, and persistent-water tests pass 1/1;
+  lifecycle Pester passes 60/60. Production isolation run
+  `c92492ae08f04c17a8b0fbd04b6d7e03` repeated the complete lifecycle with 210
+  cells/proxies, 145 water actors, zero observed georeference error, zero HLOD,
+  exact rollback/reconstruction, and zero scopes after Delete. The outer
+  production tree was restored; no Matrix, L3, L4, persistent authority, or
+  commit was run.
+- 2026-08-14: the final R2 persistence finding was valid. Correctly clean
+  in-memory root flags were insufficient because the outer service still
+  called `SaveLevel()` for any changed Landscape component. Synthetic red run
+  `074edbb4608042a6b150ff1f573e2eff` proved a genuine one-cell terrain input
+  rewrote logical-map bytes. The save boundary now serializes the persistent
+  level only for new/root-owned changes and otherwise saves dirty external
+  packages. Accepted L1 run `abc809ad1d8543c5b41e65b2b4497229` proves cell
+  `grid_24b9032e5f87005d:x1:y0` alone rewrites its exact proxy package, the
+  logical map stays at SHA-256
+  `16a502e36dcfc6a63b17116a0ff4fcddfda757800fd1b9df2e50fbee1ab7ef08`,
+  a genuine water-only change rewrites no terrain package, and only the
+  semantically changed layer manifest advances. Production isolation run
+  `a299a8c0708144cf93f8fc07f192b6e5` then repeated the accepted 210-cell
+  lifecycle with 210 proxies, 145 water actors, zero observed georeference
+  error, zero HLOD, exact rollback/reconstruction, and zero scopes after
+  Delete. The Editor build, exact Landscape native test, and lifecycle Pester
+  suite pass; no Matrix, L3, L4, persistent authority, or commit was run.
+- 2026-08-14: external review accepted R2 and closed 3A. A follow-up evidence
+  audit found that all current territory runs were `-NullRHI` isolation runs
+  whose generated trees were restored. The latest MCP/world screenshots are
+  dated August 7 and show the earlier representative world, not the 210-cell
+  territory; no Unreal Editor/MCP process was live during the audit. The exit
+  plan at that time required a post-L3, hash-bound MCP visual diagnostic and
+  explicit operator approval before archiving Slice 3 or starting 3B. L4 and its
+  authenticated packaged capture remain deferred.
+  SUPERSEDED 2026-08-17: the approval checkpoint is now pre-L3. The ordering is
+  transient candidate -> live MCP inspection -> explicit operator approval ->
+  final authenticated gates -> one L3 enrollment. A post-L3 MCP pass is optional
+  read-only verification only.
+- 2026-08-17: transient checkpoint preview
+  `preview-20260817T111839Z` loaded the exact territory map through live UE 5.8
+  MCP. The receipt reports 210 cells/proxies, 145 water actors/assets, 11,914
+  triangles, 0 m observed georeference error, and zero HLOD; durable
+  `active_set.json` remained byte-identical. Visual approval is blocked because
+  grounded captures render a nearly uniform blue surface and detached distant
+  presentation geometry. No L3 was executed.
+- 2026-08-17: visual rejection diagnosed through the live UE 5.8 MCP route
+  against the loaded `L_ProjectWorldKazanTerritory`. Two independent defects.
+  (1) Terrain is flat. All 210 `LandscapeStreamingProxy` actors report bounds
+  Z -25700..-25500, which is exactly raw heightmap value 0 under the landscape
+  Z-scale of 100. Canonical `canonical/terrain/cell_x0_y0.json` carries real
+  relief (46.9 m to 61.5 m) and water is realized correctly at Z 4950 (49.5 m),
+  so water sheets float about 305 m above a featureless plain - the "detached
+  geometry" and the flat blue field. `realization.log` proves the mechanism:
+  every component logs `old CachedLocalBox Min=(Z=103.797) Max=(Z=124.797)` ->
+  `new CachedLocalBox Min=(Z=-257.000) Max=(Z=-255.000)`, immediately after
+  `Automatically enabling edit layers on ALandscape`. `ALandscape::Import`
+  seeds only the base heightmap; the create path never seeded the generated
+  base edit layer, so compositing the layer stack discarded the relief. Fixed
+  by `WriteGeneratedBaseHeights` in `ProjectWorldLandscapeRealization.cpp`,
+  mirroring the existing `UpdateGeneratedBase` path, plus a relief assertion in
+  the native twin test. Not yet compiled or re-realized.
+  (2) MCP visual evidence was unreliable. The editor viewport served
+  byte-identical stale frames across camera moves, view-mode changes, realtime
+  toggling, and `focus_actor`; it only refreshed after the window was forced
+  foreground, and `set_camera` still failed to re-frame afterwards. Screenshot
+  captures from this session must not be treated as pose-accurate, and the
+  rejected preview captures are suspect for the same reason. Structural gates
+  cannot detect either defect, so the checkpoint needs a terrain-relief
+  assertion in addition to counts before it can be trusted.
+- 2026-08-17: pipeline audit of why every gate passed a flat territory.
+  No stage validates terrain elevation. `expected_topology` in all three
+  validation profiles carries only counts plus `maximum_georeferencing_error_m`;
+  `MeasureCoordinateRoundTrip` probes cell corners/centres at the constant
+  `Bundle.HeightOriginMeters`, so "0 m georeference error" only ever proved XY
+  round-trip; `AppendLandscape` hashes edit-layer heights, which makes an
+  all-zero heightmap deterministic rather than wrong; and the native twin test
+  asserted partitioning and XY corners but no relief. `grep` for
+  height/elevation across `tools/World/EndToEndValidation/app` and `contracts`
+  returns nothing.
+  The landscape generator is also gate-disjoint from the visual gate. Only two
+  realization profiles exist (`kazan_territory_v1`,
+  `synthetic_landscape_water_twin`), so `project_landscape` runs for the
+  territory and synthetic twin maps only. The single `presentation_gate` lives
+  on `representative_v1`, whose Kazan map has 19 external actors and no
+  realization profile. The rendered gate and the terrain generator therefore
+  never meet, which is why the August 7 representative approval never
+  transferred to the territory.
+  > **SUPERSEDED / FALSIFIED (2026-08-18):**
+  > The diagnosis below was an intermediate hypothesis, not the final root
+  > cause. Fresh exact-envelope testing later proved the Landscape source data
+  > was correct. The proven cause was two conditions, both required:
+  >
+  > ```text
+  > render-capable envelope required:
+  >   -NullRHI prevented Landscape RDG composition
+  >
+  > commandlet completion barrier required:
+  >   RequestLayersContentUpdateForceAll only requested work
+  >   ForceUpdateLayersContent synchronously completed it
+  > ```
+  >
+  > Retained only as investigation history. Do not cite it as a cause.
+
+  The create-path gap is latent, not a regression: `Import` is followed
+  directly by `AddRequiredLayers` in all of 825965348, b83f916a5, 185e02f6c,
+  28fbcb300, 7c1ea9cfe, and f54a29f95. UE 5.8.1 `Landscape.cpp`
+  `RegisterLandscapeActorWithProxyInternal` calls `ConvertNonEditLayerLandscape`
+  at actor registration, which the log shows firing on `/Temp/Untitled_1`
+  before `Import` populates components, so the default edit layer is created
+  empty and composites to zero.
+
+---
+
+## WORLD IMPLEMENTATION PAUSED (2026-08-18)
+
+**Reason:** run the independent agent-development-system audit before
+continuing this multi-month slice. Resume from the unchecked items below only
+after that process audit is reviewed and any accepted agent/process rails are
+implemented.
+
+No Check, no Matrix, no L3, nothing staged or committed by the paused session.
+The `Generated/Territory` tree remains a TRANSIENT CANDIDATE, not authority.
+
+### Resume proof traceability
+
+Contract and column meanings:
+[world_pipeline_layers.md](../../docs/testing/world_pipeline_layers.md)
+section "Proof Traceability". This table governs RESUME scope: the still-open
+invariants below plus the still-binding accepted invariants they depend on.
+Accepted historical evidence in "Review record" is preserved as-is and is not
+rewritten.
+
+Invariant 15 did not exist before 2026-08-17. Its absence is why every
+structural gate passed a flat territory: the invariant set was count-shaped,
+so no proof measured relief. It is listed first deliberately.
+
+| # | Invariant | Acceptance surface | Execution envelope | Cheapest proof | Final proof | Stop condition |
+|---|---|---|---|---|---|---|
+| 15 | Realized terrain relief reproduces canonical elevation | FINAL composed Landscape heightmap, NOT the Generated Base edit layer | render-capable; `-NullRHI` cannot compose edit layers, commandlet needs an explicit completion barrier | native twin relief assertion (L1) | 210-cell relief metrics vs canonical | blocks L3 |
+| 16 | Canonical terrain is an acceptable SURFACE | canonical elevation samples, measured engine-independently | pure Python, no engine | `surface.py` on one cell | `surface.py` on the territory (`terrace_ratio`, `level_utilisation`) | blocks operator visual approval; operator-owned decision |
+| 5 | Canonical 930 m cells stay independent of runtime 256 m streaming cells | generated world runtime hash and cell descriptors | standalone game world (`World Type = Game`), NOT Editor | descriptor inspection (L1) | territory runtime policy read-back | blocks runtime acceptance |
+| 17 | Dynamic streaming locality actually unloads AND reloads | activated/resident cell and actor set over time | standalone game, native streaming-settled waits | TestData two-cell traversal | `centre -> edge -> centre` on the territory | blocks runtime acceptance |
+| 12 | Territory artifacts and manifests contain zero HLOD | commandlet layer inventory | commandlet | L1 TestData inventory | territory Matrix inventory | blocks L3 |
+| 10 | Pre-commit failure restores prior bytes; active set commits last | on-disk path/hash set after rollback | isolated production tree | L1 TestData rollback | territory Apply plus rejected rollback | blocks L3 |
+| 18 | Planner-selected dirty work is never vetoed by a cache identity tag | the REALIZED output, not the `ProjectWorld.TerrainInput` tag | commandlet | L1 regression on a forced-dirty cell | one-cell forced rebuild rewrites its proxy | blocks L3 (known debt) |
+| 19 | The transaction snapshot covers every mutated generated root | restored path/hash set, including `Generated/Presentation` | isolated production tree | L1 rollback incl. presentation root | territory rollback | blocks L3 (known debt) |
+| 20 | Operator visual approval is bound to the CURRENT candidate | fresh captures bound to candidate identity and semantic hashes | live Editor MCP, render-capable, OUTSIDE `GIsAutomationTesting` comparison mode | `plan_vantages.py` vantage plan | five operator views with authenticated dimensions and freshness | blocks L3 |
+
+Diagnostic evidence for this slice - `DIAGNOSTIC / NON-AUTHORITATIVE`, maps to
+no invariant and gates nothing:
+
+- UE 5.8 World Streaming Insights trace (experimental API; cell state,
+  priority, memory).
+- Editor-world frame rate. All 210 proxies and 145 water actors are resident in
+  the Editor; that is a diagnostic environment, never runtime authority.
+- CsvProfiler prototype `p50`/`p95` numbers. They predate 3B roads and 3D
+  buildings, so they authenticate nothing about shipping performance and must
+  be re-measured once that content lands.
+- The removed `VisualSweep` automation test. It ran inside
+  `Automation RunTests`, where `TakeHighResScreenshot` waits on screenshot
+  COMPARISON against absent ground truth - the wrong execution envelope, which
+  is exactly why it was removed rather than left looking green.
+
+### Verified findings to keep
+
+Runtime World Partition, measured on the generated territory in a standalone
+game world (not the Editor):
+
+```text
+runtime World Partition initialization : proven (World Type = Game, IsGame = 1)
+runtime hash                           : UWorldPartitionRuntimeHashSet (modern)
+runtime grids                          : one; every descriptor RuntimeGrid:None
+PlayerController streaming source      : proven (Priority 128, Local, Activated)
+initial locality                       : 5 activated cells
+resident runtime actors                : 4 Landscape proxies + 4 water actors
+```
+
+Compare the Editor world, where all 210 Landscape proxies and 145 water actors
+are resident and the viewport runs at 3-4 FPS. **That number is an Editor
+diagnostic only and is not runtime performance authority.**
+
+Runtime prototype performance (CsvProfiler, 302 frames):
+
+```text
+FrameTime    p50 =  9.26 ms   p95 = 16.14 ms
+GameThread   p50 =  3.57 ms   p95 =  6.66 ms
+RenderThread p50 =  9.29 ms   p95 = 17.17 ms
+GPUTime      p50 =  6.22 ms   p95 =  6.97 ms
+```
+
+Conclusion: **no performance optimization work now.** Do not treat p50 as the
+product gate and do not claim large 60 FPS headroom: p95 frame time of
+`16.14 ms` passes the `16.67 ms` budget only narrowly, and later world content
+must remeasure. RenderThread is the leading cost.
+
+Also verified this pass:
+- `256 m / 768 m` is DOCUMENTED policy that was never applied; the territory
+  currently runs on World Partition defaults. See `world_partition.md`.
+- UE 5.8 native tooling survey recorded in `world_partition.md`, including
+  World Streaming Insights and FastGeo Streaming (experimental, deferred).
+- Canonical terrain terracing is real and measured; see the decision item below.
+
+### Runtime World Partition acceptance
+
+- [ ] Decide the territory's real HashSet-native runtime policy. `256 m / 768 m`
+      is currently docs-only. Either apply it through a territory runtime
+      profile and read it back from the generated world, or explicitly revise
+      the policy against measured UE 5.8 defaults. Do not recreate
+      `UWorldPartitionRuntimeSpatialHash`.
+- [ ] Prove `centre -> edge -> centre` using native streaming-settled waits and
+      demonstrate actual cell/proxy/water unload AND reload, not merely moving
+      the streaming source. Initial-spawn locality is proven; dynamic locality
+      is not.
+- [ ] Capture one UE 5.8 World Streaming Insights trace for cell state,
+      priority and memory. Diagnostics only; its API is experimental.
+- [ ] Re-measure Game/Render/GPU/Frame **p95** once 3B roads and 3D buildings
+      materially increase runtime content. Until then no optimization task
+      exists.
+
+### Visual / operator checkpoint
+
+The `Project.World.Realization.Territory.VisualSweep` automation test was
+REMOVED this pass rather than left as a green-looking evidence path. It used
+the wrong execution envelope: inside `Automation RunTests`,
+`GIsAutomationTesting` is true, so `TakeHighResScreenshot` waits on
+`OnScreenshotCompared` (screenshot COMPARISON against absent ground truth)
+instead of capture, and the run additionally burns the full 600 s
+`FWaitForInteractiveFrameRate` gate. Details in ProjectWorld pitfall 13.
+
+Aspect-correct vantage planning survives in
+`tools/World/VisualVerification/app/plan_vantages.py`, which runs green.
+
+- [ ] Implement the non-automation UE-native Editor/exec evidence capture
+      route. It must: use the UE-native camera/screenshot API; run OUTSIDE
+      `GIsAutomationTesting` comparison mode; authenticate file existence;
+      authenticate exact requested dimensions; prove a fresh camera frame;
+      capture the five operator views; and leave territory bytes unchanged.
+- [ ] Produce fresh aspect-correct overview, opposing obliques, and two water
+      inspection views. Note the water views' standoff offsets are heuristic,
+      not derived.
+- [ ] Authenticate requested image dimensions and freshness before operator
+      review.
+
+### Known correctness debt discovered during this investigation
+
+- [ ] Resolve the duplicated dirtiness authority: planner-selected dirty
+      terrain must not be vetoed solely by `ProjectWorld.TerrainInput` tags.
+      This is a recovery/incremental correctness defect, not the flat-terrain
+      root cause.
+- [ ] Fix transaction snapshot scope before another destructive territory run:
+      `Generated/Presentation` was missed once and had to be restored manually.
+- [ ] Remove or demote the temporary A-D terrain diagnostic test if it still
+      depends on `tmp/`; committed tests may not depend on a disposable
+      materialized cache.
+
+### Canonical visual-quality decision (operator-owned)
+
+Measured directly against canonical, independent of the engine:
+
+```text
+terrace_ratio       = 0.498   (gate requires <= 0.45)
+level_utilisation   = 0.111   (gate requires >= 0.20)
+height_quantization = 0.1 m
+```
+
+Roughly half of adjacent canonical samples are bit-identical, producing flat
+plateaus separated by 10 cm cliffs; that is the corduroy banding seen in
+operator review.
+
+Gate ownership, stated precisely:
+
+```text
+realization height gate = realization FIDELITY
+    "does Unreal faithfully realize canonical elevation?"
+    Correctly answered yes. Deriving its tolerance from height_quantization is
+    correct for that question - it must not flag differences finer than the
+    data's own precision.
+
+surface.py = canonical SURFACE QUALITY
+    "is canonical terrain itself acceptable as a surface?"
+    A separate acceptance dimension that did not previously exist.
+```
+
+The fidelity gate is not defective and was not bypassed. The failure was a
+MISSING ACCEPTANCE DIMENSION, compounded by reporting a fidelity result as
+though it proved terrain correctness. `surface.py` adds the missing dimension by
+measuring canonical directly, independent of the engine.
+
+- [ ] Resolve this as an operator/canonical-authority decision: reduce
+      quantization, OR consciously accept it and address appearance
+      downstream. **Do not silently alter canonical authority.**

@@ -27,7 +27,9 @@ param(
 
     [switch]$AllowProductionIsolation,
 
-    [switch]$ProveReconstruction
+    [switch]$ProveReconstruction,
+
+    [switch]$ProvePackageLocality
 )
 
 $ErrorActionPreference = 'Stop'
@@ -104,6 +106,78 @@ function Get-ProjectWorldLayerSemanticDigest {
     }
 }
 
+function Get-ProjectWorldIntegrationLayer {
+    param(
+        [Parameter(Mandatory = $true)][object]$Result,
+        [Parameter(Mandatory = $true)][string]$LayerId
+    )
+
+    $matches = @($Result.layer_inventories | Where-Object { $_.layer_id -ceq $LayerId })
+    Assert-ProjectWorldIntegration -Condition ($matches.Count -eq 1) `
+        -Message "Expected one layer inventory: $LayerId"
+    return $matches[0]
+}
+
+function Get-ProjectWorldIntegrationFileHashes {
+    param([Parameter(Mandatory = $true)][object[]]$Artifacts)
+
+    $hashes = @{}
+    foreach ($artifact in $Artifacts) {
+        $path = Resolve-ProjectPath -Path ([string]$artifact.path)
+        Assert-ProjectWorldIntegration -Condition (
+            $path.StartsWith($projectRoot, [System.StringComparison]::OrdinalIgnoreCase) -and
+            (Test-Path -LiteralPath $path -PathType Leaf)) `
+            -Message "Layer artifact is unavailable: $path"
+        $hashes[[string]$artifact.path] =
+            (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    return $hashes
+}
+
+function Get-ProjectWorldChangedHashPaths {
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Before,
+        [Parameter(Mandatory = $true)][hashtable]$After
+    )
+
+    Assert-ProjectWorldIntegration -Condition (
+        @($Before.Keys | Where-Object { -not $After.ContainsKey($_) }).Count -eq 0 -and
+        @($After.Keys | Where-Object { -not $Before.ContainsKey($_) }).Count -eq 0) `
+        -Message 'Layer artifact paths changed during a package-local update.'
+    return @($Before.Keys | Where-Object { $Before[$_] -cne $After[$_] } | Sort-Object)
+}
+
+function Get-ProjectWorldIntegrationTextSha256 {
+    param([Parameter(Mandatory = $true)][string]$Value)
+
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+function Get-ProjectWorldIntegrationScopeEntry {
+    param(
+        [Parameter(Mandatory = $true)][object]$ActiveSet,
+        [Parameter(Mandatory = $true)][string]$ScopeId
+    )
+
+    $entries = @($ActiveSet.Record.scopes | Where-Object { $_.scope_id -ceq $ScopeId })
+    Assert-ProjectWorldIntegration -Condition (
+        $entries.Count -eq 1 -and $ActiveSet.Manifests.Contains($ScopeId)) `
+        -Message "Expected one active scope: $ScopeId"
+    return [pscustomobject]@{
+        scope_id = [string]$entries[0].scope_id
+        manifest_path = [string]$entries[0].manifest_path
+        manifest_sha256 = [string]$entries[0].manifest_sha256
+        generation = [int]$ActiveSet.Manifests[$ScopeId].generation
+    }
+}
+
 $compileResultPath = Resolve-ProjectPath -Path $CompileResult
 $presentationPath = Resolve-ProjectPath -Path $PresentationProfile
 $authoredPath = Resolve-ProjectPath -Path $AuthoredOverlayProfile
@@ -115,6 +189,11 @@ Assert-ProjectWorldIntegration -Condition (
     $worldDataPlugin -ceq 'ProjectWorldTestData' -or
     ($isProductionIsolation -and $AllowProductionIsolation)) `
     -Message 'Production isolation requires ProjectWorldData plus -AllowProductionIsolation.'
+if ($ProvePackageLocality) {
+    Assert-ProjectWorldIntegration -Condition (
+        $worldDataPlugin -ceq 'ProjectWorldTestData' -and $ProveReconstruction) `
+        -Message 'Package-locality proof requires TestData plus -ProveReconstruction.'
+}
 $mapPackage = [string]$realization.map_package
 $roots = Resolve-ProjectWorldDataRoots -ProjectRoot $projectRoot -PluginName $worldDataPlugin
 $runId = [System.Guid]::NewGuid().ToString('N')
@@ -140,18 +219,21 @@ $powerShellExe = (Get-Process -Id $PID).Path
 $priorDelegatedToken = $env:ALIS_WORLD_CONTENT_LOCK_TOKEN
 $contentLock = $null
 $snapshotRecords = @()
+$packageLocality = $null
+$packageLocalityProof = $null
 
 function Invoke-ProjectWorldIntegrationRun {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][ValidateSet('Apply', 'Delete')][string]$Mode,
+        [string]$RunCompileResult = $compileResultPath,
         [string[]]$ExtraArguments = @()
     )
 
     $evidencePath = Join-Path $evidenceRoot "$Name.json"
     $arguments = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $wrapper,
-        '-CompileResult', $compileResultPath,
+        '-CompileResult', $RunCompileResult,
         '-Mode', $Mode,
         '-Map', $mapPackage,
         '-RealizationProfile', $realizationPath,
@@ -180,7 +262,148 @@ function Invoke-ProjectWorldIntegrationRun {
     return [pscustomobject]@{ ExitCode = $exitCode; Path = $evidencePath; Result = $result }
 }
 
+function Invoke-ProjectWorldPackageLocalityProof {
+    param(
+        [Parameter(Mandatory = $true)][object]$BaseResult,
+        [Parameter(Mandatory = $true)][object]$BaseActive,
+        [Parameter(Mandatory = $true)][object]$Variants
+    )
+
+    $baseTerrain = Get-ProjectWorldIntegrationLayer -Result $BaseResult -LayerId 'terrain'
+    $baseWater = Get-ProjectWorldIntegrationLayer -Result $BaseResult -LayerId 'water'
+    $mapScopeId = Get-ProjectWorldMapScopeId `
+        -MapPackage $mapPackage -GeneratedPackageRoot $roots.GeneratedPackageRoot
+    $mapRelative = $mapPackage.Substring($roots.MountRoot.Length).Replace(
+        '/', [System.IO.Path]::DirectorySeparatorChar)
+    $mapPath = Join-Path $roots.ContentRoot ($mapRelative + '.umap')
+    $baseMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $baseTerrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $baseTerrain.artifacts
+
+    $terrainRun = Invoke-ProjectWorldIntegrationRun `
+        -Name '03a-genuine-terrain-change' -Mode Apply `
+        -RunCompileResult ([string]$Variants.terrain_compile_result)
+    Assert-ProjectWorldIntegration -Condition (
+        $terrainRun.ExitCode -eq 0 -and $terrainRun.Result.status -ceq 'accepted') `
+        -Message 'Genuine one-cell terrain Apply did not commit.'
+    $terrainInventory = Get-ProjectWorldIntegrationLayer -Result $terrainRun.Result -LayerId 'terrain'
+    Assert-ProjectWorldIntegration -Condition (
+        @($terrainInventory.final_dirty_units).Count -eq 1 -and
+        [string]$terrainInventory.final_dirty_units[0] -ceq [string]$Variants.terrain_changed_cell_id) `
+        -Message 'Genuine terrain change did not select exactly its canonical cell.'
+
+    $terrainMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    Assert-ProjectWorldIntegration -Condition ($terrainMapHash -ceq $baseMapHash) `
+        -Message 'A genuine cell-local terrain change rewrote logical map bytes.'
+    $terrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $terrainInventory.artifacts
+    $changedTerrainPaths = @(Get-ProjectWorldChangedHashPaths `
+        -Before $baseTerrainHashes -After $terrainHashes)
+    Assert-ProjectWorldIntegration -Condition ($changedTerrainPaths.Count -eq 1) `
+        -Message 'A genuine terrain change did not rewrite exactly one proxy package.'
+
+    $cellId = [string]$Variants.terrain_changed_cell_id
+    Assert-ProjectWorldIntegration -Condition ($cellId -match ':x(-?\d+):y(-?\d+)$') `
+        -Message 'Terrain variant cell ID is malformed.'
+    $cellX = [int]$Matches[1]
+    $cellY = [int]$Matches[2]
+    $allCoordinates = @($terrainInventory.canonical_inputs | ForEach-Object {
+        Assert-ProjectWorldIntegration -Condition ([string]$_.unit_id -match ':x(-?\d+):y(-?\d+)$') `
+            -Message 'Terrain canonical-input cell ID is malformed.'
+        [pscustomobject]@{ X = [int]$Matches[1]; Y = [int]$Matches[2] }
+    })
+    $coveragePath = Join-Path (Split-Path ([string]$Variants.terrain_compile_result)) 'canonical\coverage.json'
+    $coverage = Get-Content -LiteralPath $coveragePath -Raw | ConvertFrom-Json
+    $componentQuads = [int]$coverage.grid.cell_quads[0]
+    $minimumX = [int](($allCoordinates | Measure-Object -Property X -Minimum).Minimum)
+    $maximumY = [int](($allCoordinates | Measure-Object -Property Y -Maximum).Maximum)
+    $canonicalInput = @($terrainInventory.canonical_inputs | Where-Object { $_.unit_id -ceq $cellId })
+    Assert-ProjectWorldIntegration -Condition ($canonicalInput.Count -eq 1) `
+        -Message 'Changed terrain cell has no canonical input identity.'
+    $sectionX = ($cellX - $minimumX) * $componentQuads
+    $sectionY = ($maximumY - $cellY) * $componentQuads
+    $semanticText = "project_landscape_proxy_v1|$([string]$realization.landscape.logical_landscape_id)|" +
+        "$cellId|$([string]$canonicalInput[0].sha256)|$sectionX,$sectionY"
+    $expectedSemantic = Get-ProjectWorldIntegrationTextSha256 -Value $semanticText
+    $expectedArtifacts = @($terrainInventory.artifacts | Where-Object {
+        $_.semantic_sha256 -ceq $expectedSemantic
+    })
+    Assert-ProjectWorldIntegration -Condition (
+        $expectedArtifacts.Count -eq 1 -and
+        [string]$expectedArtifacts[0].path -ceq [string]$changedTerrainPaths[0]) `
+        -Message 'Changed proxy package does not belong to the changed canonical terrain cell.'
+
+    $terrainActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
+    $baseTerrainScope = Get-ProjectWorldIntegrationScopeEntry `
+        -ActiveSet $BaseActive -ScopeId ([string]$baseTerrain.scope_id)
+    $terrainScope = Get-ProjectWorldIntegrationScopeEntry `
+        -ActiveSet $terrainActive -ScopeId ([string]$terrainInventory.scope_id)
+    $baseMapScope = Get-ProjectWorldIntegrationScopeEntry -ActiveSet $BaseActive -ScopeId $mapScopeId
+    $terrainMapScope = Get-ProjectWorldIntegrationScopeEntry -ActiveSet $terrainActive -ScopeId $mapScopeId
+    Assert-ProjectWorldIntegration -Condition (
+        [int]$terrainScope.generation -gt [int]$baseTerrainScope.generation -and
+        [string]$terrainScope.manifest_sha256 -cne [string]$baseTerrainScope.manifest_sha256) `
+        -Message 'Actual terrain semantics did not advance terrain authority.'
+    Assert-ProjectWorldIntegration -Condition (
+        [string]$terrainMapScope.manifest_sha256 -ceq [string]$baseMapScope.manifest_sha256) `
+        -Message 'Cell-local terrain change advanced logical map authority.'
+
+    $waterRun = Invoke-ProjectWorldIntegrationRun `
+        -Name '03b-genuine-water-only-change' -Mode Apply `
+        -RunCompileResult ([string]$Variants.water_compile_result)
+    Assert-ProjectWorldIntegration -Condition (
+        $waterRun.ExitCode -eq 0 -and $waterRun.Result.status -ceq 'accepted') `
+        -Message 'Genuine water-only Apply did not commit.'
+    $waterTerrain = Get-ProjectWorldIntegrationLayer -Result $waterRun.Result -LayerId 'terrain'
+    $waterInventory = Get-ProjectWorldIntegrationLayer -Result $waterRun.Result -LayerId 'water'
+    Assert-ProjectWorldIntegration -Condition (
+        @($waterTerrain.final_dirty_units).Count -eq 0 -and
+        @($waterInventory.final_dirty_units).Count -gt 0) `
+        -Message 'Water-only change crossed the terrain dirty boundary or changed no water.'
+    $waterMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    Assert-ProjectWorldIntegration -Condition ($waterMapHash -ceq $terrainMapHash) `
+        -Message 'A genuine water-only change rewrote logical map bytes.'
+    $waterTerrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $waterTerrain.artifacts
+    Assert-ProjectWorldIntegration -Condition (
+        @(Get-ProjectWorldChangedHashPaths -Before $terrainHashes -After $waterTerrainHashes).Count -eq 0) `
+        -Message 'A genuine water-only change rewrote a terrain proxy package.'
+
+    $waterActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
+    $waterTerrainScope = Get-ProjectWorldIntegrationScopeEntry `
+        -ActiveSet $waterActive -ScopeId ([string]$waterTerrain.scope_id)
+    $terrainWaterScope = Get-ProjectWorldIntegrationScopeEntry `
+        -ActiveSet $terrainActive -ScopeId ([string]$baseWater.scope_id)
+    $waterScope = Get-ProjectWorldIntegrationScopeEntry `
+        -ActiveSet $waterActive -ScopeId ([string]$waterInventory.scope_id)
+    $waterMapScope = Get-ProjectWorldIntegrationScopeEntry -ActiveSet $waterActive -ScopeId $mapScopeId
+    Assert-ProjectWorldIntegration -Condition (
+        [string]$waterTerrainScope.manifest_sha256 -ceq [string]$terrainScope.manifest_sha256) `
+        -Message 'Water-only change advanced terrain authority.'
+    Assert-ProjectWorldIntegration -Condition (
+        [int]$waterScope.generation -gt [int]$terrainWaterScope.generation -and
+        [string]$waterScope.manifest_sha256 -cne [string]$terrainWaterScope.manifest_sha256) `
+        -Message 'Actual water semantics did not advance water authority.'
+    Assert-ProjectWorldIntegration -Condition (
+        [string]$waterMapScope.manifest_sha256 -ceq [string]$terrainMapScope.manifest_sha256) `
+        -Message 'Water-only change advanced logical map authority.'
+
+    return [pscustomobject]@{
+        TerrainCellId = $cellId
+        TerrainProxyPath = [string]$changedTerrainPaths[0]
+        LogicalMapSha256 = $waterMapHash
+        TerrainManifestGeneration = [int]$terrainScope.generation
+        WaterManifestGeneration = [int]$waterScope.generation
+    }
+}
+
 try {
+    if ($ProvePackageLocality) {
+        $variantBuilder = Join-Path $PSScriptRoot 'generate_package_locality_variants.py'
+        $variantRoot = Join-Path $workRoot 'canonical-variants'
+        $variantOutput = & python $variantBuilder --output-root $variantRoot
+        Assert-ProjectWorldIntegration -Condition ($LASTEXITCODE -eq 0) `
+            -Message 'Canonical package-locality variants failed to compile.'
+        $packageLocality = $variantOutput | ConvertFrom-Json
+        $compileResultPath = [string]$packageLocality.base_compile_result
+    }
     $contentLock = Enter-ProjectWorldContentLock -ProjectRoot $projectRoot
     if ([string]::IsNullOrWhiteSpace($priorDelegatedToken)) {
         $lockPath = Join-Path $projectRoot 'tmp\world\world_realization\content_mutation.lock'
@@ -293,6 +516,12 @@ try {
         (Get-ProjectWorldIntegrationDigest -Paths @((Join-Path $roots.ContentRoot 'Authored'))) -ceq
         $protectedAuthoredSha256) -Message 'One-cell Apply changed protected authored bytes.'
 
+    if ($ProvePackageLocality) {
+        $packageLocalityProof = Invoke-ProjectWorldPackageLocalityProof `
+            -BaseResult $incremental.Result -BaseActive $incrementalActive `
+            -Variants $packageLocality
+    }
+
     $currentMapPaths = @(Get-ProjectWorldGeneratedPaths `
         -ContentRoot $roots.ContentRoot -MapPackage $mapPackage `
         -GeneratedPackageRoot $roots.GeneratedPackageRoot -IncludePresentation $false)
@@ -308,8 +537,13 @@ try {
         -Message 'Rejected mutation did not restore exact content and authority state.'
 
     $lifecycle = [System.Collections.Generic.List[string]]::new()
-    @('first_apply', 'unchanged_apply', 'one_cell_apply', 'rejected_rollback') |
+    @('first_apply', 'unchanged_apply', 'one_cell_apply') |
         ForEach-Object { $lifecycle.Add($_) }
+    if ($ProvePackageLocality) {
+        $lifecycle.Add('genuine_terrain_change')
+        $lifecycle.Add('genuine_water_only_change')
+    }
+    $lifecycle.Add('rejected_rollback')
     if ($ProveReconstruction) {
         Remove-ProjectWorldGeneratedPaths -ContentRoot $roots.ContentRoot `
             -MapPackage $mapPackage -GeneratedPackageRoot $roots.GeneratedPackageRoot
@@ -369,6 +603,7 @@ try {
         unchanged_active_set_sha256 = $unchangedActive.Sha256
         protected_authored_sha256 = $protectedAuthoredSha256
         layer_semantic_reconstruction_sha256 = $(if ($ProveReconstruction) { $firstLayerSemanticSha256 } else { $null })
+        package_locality = $packageLocalityProof
         active_scope_count_after_delete = 0
     })
 }

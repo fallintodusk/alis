@@ -338,16 +338,6 @@ namespace ProjectWorldPresentationRealization
 			ConfigureFixedExposure(CameraComponent->PostProcessSettings, Profile.FixedExposureEv100);
 			SetIdentity(*Camera, Role, Bundle, Profile);
 		}
-		for (TActorIterator<AActor> It(World); It; ++It)
-		{
-			if (It->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag))
-			{
-				SetTagValue(**It, ProfilePrefix, Profile.ProfileId);
-				SetTagValue(**It, ProfileHashPrefix, Profile.ProfileHash);
-				It->MarkPackageDirty();
-			}
-		}
-
 		OutResult.PresentationActorCount = ExpectedClasses.Num();
 		OutResult.CaptureViewpointCount = Profile.CaptureViewpoints.Num();
 		return true;

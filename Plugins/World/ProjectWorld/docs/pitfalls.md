@@ -249,3 +249,181 @@ bytes that were written, not whether a new write is required.
 
 **Regression test.**
 `Project.World.Realization.NativeTwin.WaterAssetPersistence`.
+
+---
+
+## 10. Global identity on the logical Landscape breaks cell-local regeneration
+
+**Symptom.** One changed terrain cell, or even a water-only canonical-input
+change, dirties the logical map package instead of only the affected spatial
+package.
+
+**Root cause.** The logical Landscape stored the whole bundle input hash and
+per-cell terrain hashes, and treated any updated component as a reason to dirty
+the root actor. Those identities changed more broadly than the package owner.
+Even after correcting those flags, the outer service unconditionally called
+`SaveLevel()` for cell-local changes and rewrote clean logical-map bytes.
+
+**Fix.** Keep only stable topology, grid, material, edit-layer, and logical
+identity on the root Landscape. Store each terrain-input identity on its
+Landscape component and the cell ID on its streaming proxy. Validate the
+component's actual `SectionBase` and canonical bounds before accepting that
+ownership. Save the persistent level only for a new map or a genuinely dirty
+root package; otherwise save only dirty external packages.
+
+**Files.** `ProjectWorldLandscapeRealization.cpp`,
+`ProjectWorldRealizationService.cpp`, `Tests/ProjectWorldNativeTwinTests.cpp`,
+and `scripts/ue/world/test/integration/realization_layer_lifecycle.ps1`.
+
+**Regression tests.**
+`Project.World.Realization.NativeTwin.LandscapePartitionAndEditLayers` proves
+ownership and dirty flags. The isolated L1 runner's `-ProvePackageLocality`
+mode proves that a genuine one-cell terrain change rewrites exactly its proxy,
+that a water-only change rewrites no terrain package, and that both leave the
+logical `.umap` byte-identical through the real wrapper/commandlet save path.
+
+---
+
+## 11. A realized territory "looks broken" but every layer is present
+
+**Symptom.** Operator opens the generated territory, flies the camera, and
+reports "just a piece of terrain, no World Partition auto loading, no water".
+Reported live 2026-08-18 on the 210-cell Kazan territory.
+
+**Root cause.** Three independent things, none of which is a generation defect:
+
+1. **Editor World Partition never streams by camera.** Editor loading is by
+   Loaded Region / always-loaded adapter, not viewport position. Camera-driven
+   streaming is a RUNTIME behaviour. Absence of streaming in the editor is
+   correct, not a defect.
+2. **Everything was already resident**, so nothing could appear to stream.
+   `obj list class=LandscapeStreamingProxy` returned all 210, and
+   `obj list class=StaticMeshActor` returned all 145 water actors.
+3. **Every capture camera framed a fraction of the world.** The presentation
+   profile's `ProjectWorld_Capture_*` cameras carry authored altitudes sized
+   for a small tile: 90 m, 320 m and 900 m. Framing a 13,950 m territory at
+   90 degrees horizontal FOV needs 6,975 m. Those cameras therefore showed
+   1.3%, 4.6% and 12.9% of the territory, and two of the three sat OUTSIDE the
+   territory extent entirely.
+
+**Fix.** Derive capture altitude from the realized extent
+(`altitude = span / 2 / tan(fov/2)`), never author it as a constant. Diagnose
+presence with descriptors before ever reaching for a screenshot.
+
+**File.** `tools/World/VisualVerification/app/{census,plan_vantages}.py`;
+`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/ProjectWorldTerritoryVisualSweepTests.cpp`.
+
+**Regression test.** `Project.World.Realization.Territory.VisualSweep` solves
+the overview altitude from measured proxy bounds, so an authored constant
+cannot reintroduce the framing failure.
+
+---
+
+## 12. `wp.Editor.DumpActorDescs` is the fast scene-truth tool
+
+**Symptom.** Diagnosing "is the world actually there" by launching editors,
+taking screenshots, and eyeballing them - slow, subjective, and it answers the
+wrong question.
+
+**Root cause.** World Partition actor descriptors are readable WITHOUT loading
+the actors. Reaching for rendering first skips the cheap, total, objective
+check.
+
+**Fix.** With the territory open:
+
+```
+wp.Editor.DumpActorDescs <repo>/tmp/world/visual_verification/actor_descs.csv
+python tools/World/VisualVerification/app/census.py <csv> <receipt.json>
+```
+
+Full 210-cell census in milliseconds: per-class counts, spatial-loading flags,
+bounds, extent, relief, lighting set. No rendering, no editor build. Run this
+BEFORE any visual step. Note the dump is space-delimited `key:value`, not real
+CSV, and always-loaded actors (e.g. `DirectionalLight`) carry
+`IsValid=false` with no `Min`/`Max`, so bounds must be parsed optionally or
+those rows vanish and the lighting check falsely fails.
+
+**File.** `tools/World/VisualVerification/app/census.py`.
+
+---
+
+## 13. Automated screenshots must use the engine automation path
+
+**Symptom.** Console-driven capture (`BugItGo` + `HighResShot`) silently
+produces no file, or a stale frame from the previous camera position.
+
+**Root cause.** `HighResShot` captures on the next RENDERED frame. A
+backgrounded or occluded editor does not render, so the request never
+completes. `Slate.bAllowThrottling 0` alone does not fix it. Worse, the
+workaround (stealing OS foreground) fights the operator for focus and is
+refused outright by Windows when another process owns foreground. Console `|`
+chaining is also not supported - only the first command runs.
+
+**Fix.** Use the engine's own automation screenshot path,
+`UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(ResX, ResY,
+Filename, Camera, ...)`. It locks the level viewport to a supplied
+`ACameraActor` in pilot mode, forces game view, flushes pending loads, delays a
+configurable interval, and returns a pollable `UAutomationEditorTask`. Epic has
+shipped this since 4.27 alongside `AScreenshotFunctionalTest` and
+`TakeAutomationScreenshotAtCamera`. Engine source:
+`Engine/Source/Developer/FunctionalTesting/`. Requires the `FunctionalTesting`
+module in `.Build.cs`.
+
+**Two gates bite when this is driven from inside `Automation RunTests`.**
+
+1. `FWaitForInteractiveFrameRate` requires >= 10 FPS and times out at 600 s,
+   then `AddError`s and proceeds. The 210-proxy territory with HLOD disabled
+   and everything resident sustains **3-4 FPS**, so this always burns the full
+   600 s and fails the test on framerate alone. Measured 2026-08-18; shaders
+   were NOT compiling, this is steady-state cost.
+
+2. `TakeHighResScreenshot`'s completion state branches on `GIsAutomationTesting`
+   (`AutomationBlueprintFunctionLibrary.cpp`, `FScreenshotTakenState`):
+   - inside an automation test it waits on
+     `FAutomationTestFramework::OnScreenshotCompared` - i.e. screenshot
+     **comparison**, not capture;
+   - outside one it waits on `FScreenshotRequest::OnScreenshotRequestProcessed`
+     - i.e. capture.
+
+   With no ground-truth baseline established, `OnScreenshotCompared` never
+   fires and every task hangs until its own timeout. Observed: all five
+   vantages timed out at 60 s while the surrounding test correctly measured
+   the territory (span 13950 m, relief 94.3 m, 210 proxies, 145 water actors)
+   and solved the 6975 m overview altitude.
+
+**Therefore:** to capture EVIDENCE images, drive `TakeHighResScreenshot` from
+an editor commandlet or exec path where `GIsAutomationTesting` is false, so
+completion means capture. Use the in-test path only for genuine screenshot
+COMPARISON against stored `GroundTruthData`, which is what
+`AScreenshotFunctionalTest` and `TakeAutomationScreenshotAtCamera` are built
+for. Choosing the wrong branch is the single easiest way to lose a day here.
+
+**File.** `Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/ProjectWorldTerritoryVisualSweepTests.cpp`.
+
+---
+
+## 14. Canonical height quantization terraces flat terrain
+
+**Symptom.** Rendered terrain shows regular corduroy banding, strongest when
+viewed top-down over near-flat ground, while the realization height gate
+reports a perfect match.
+
+**Root cause.** The canonical profile declares `height_quantization: 0.1`, so
+every sample snaps to a 10 cm lattice. On Kazan's floodplain that produces flat
+plateaus separated by 10 cm cliffs: measured over 40 cells, ~50% of adjacent
+samples are EXACTLY equal and only ~11% of possible levels are distinct. Flat
+plateaus have constant normals and the cliffs are normal discontinuities, which
+shading renders as bands. This is data, not a shading artifact, and it is NOT
+nearest-neighbour upsampling (run-length analysis shows no spike at k=2/3).
+
+**Fix.** Not yet chosen - reduce quantization, or accept it and rely on a
+terrain material with detail normals. What IS fixed is that it can no longer
+pass unnoticed; see the self-referential-gate rule in
+[canonical.md](../../../../docs/agents/canonical.md).
+
+**File.** `tools/World/VisualVerification/app/surface.py`.
+
+**Regression test.** `surface.py` gates `terrace_ratio <= 0.45` and
+`level_utilisation >= 0.20`, both measured against canonical directly rather
+than against the engine. It currently FAILS at 0.498 / 0.111, which is the
+correct report for the present data.

@@ -276,6 +276,9 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 
 	UWorld* World = GEditor->NewMap(false);
 	AActor* AuthoredActor = World->SpawnActor<AActor>();
+	AActor* GeneratedGeography = World->SpawnActor<AActor>();
+	GeneratedGeography->Tags.Add(ProjectWorldGeneratedGeometry::GeneratedTag);
+	GeneratedGeography->Tags.Add(FName(TEXT("ProjectWorld.Cell=grid_0daecb7b1297da7d:x0:y0")));
 	const FProjectWorldCanonicalBundle Bundle = MakeBundle();
 	FProjectWorldRealizationResult FirstResult;
 	TestTrue(
@@ -283,6 +286,14 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 		ProjectWorldPresentationRealization::Apply(World, Bundle, Profile, Resources, FirstResult, Error));
 	TestEqual(TEXT("Six environment actors and three viewpoints are generated."), FirstResult.PresentationActorCount, 9);
 	TestEqual(TEXT("First realization creates every presentation actor."), FirstResult.CreatedActorCount, 9);
+	TestFalse(
+		TEXT("Presentation realization does not claim generated geography."),
+		GeneratedGeography->Tags.ContainsByPredicate([](const FName& Tag)
+		{
+			return Tag.ToString().StartsWith(TEXT("ProjectWorld.Presentation=")) ||
+				Tag.ToString().StartsWith(TEXT("ProjectWorld.PresentationHash="));
+		}));
+	World->EditorDestroyActor(GeneratedGeography, true);
 
 	TMap<FString, FGuid> ActorGuids;
 	ADirectionalLight* Sun = nullptr;

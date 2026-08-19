@@ -24,6 +24,103 @@
     "halo_samples": 1,
     "operation_halos": {"terrain_resampling": 1, "road_representation": 0, "building_massing": 0}
   },
+  "water_semantics": {
+    "policy_id": "kazan_water_v1",
+    "policy_version": 1,
+    "coordinate_match_tolerance_m": 0.01,
+    "class_rules": [
+      {"water_class": "lake", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "pond", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "reservoir", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "oxbow", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "stream_pool", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "wastewater", "geometry": "polygon", "result": "surface", "behavior": "standing"},
+      {"water_class": "river", "geometry": "polygon", "result": "surface", "behavior": "flowing"},
+      {"water_class": "canal", "geometry": "polygon", "result": "surface", "behavior": "flowing"},
+      {"water_class": "river", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "canal", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "stream", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "ditch", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "drain", "geometry": "line", "result": "surface", "behavior": "flowing"},
+      {"water_class": "fairway", "geometry": "line", "result": "non_surface"},
+      {"water_class": "boatyard", "geometry": "line", "result": "non_surface"},
+      {"water_class": "boatyard", "geometry": "polygon", "result": "non_surface"},
+      {"water_class": "weir", "geometry": "point", "result": "non_surface"}
+    ],
+    "modifier_rules": [
+      {"tag": "tunnel", "value": "culvert", "result": "hidden"},
+      {"tag": "covered", "value": "yes", "result": "hidden"},
+      {"tag": "location", "value": "underground", "result": "hidden"},
+      {"tag": "intermittent", "value": "yes", "result": "temporal"},
+      {"tag": "intermittent", "value": "no", "result": "visible"},
+      {"tag": "seasonal", "value": "*", "result": "temporal"}
+    ],
+    "feature_rules": [
+      {
+        "source_ids": [
+          "relation/15700993", "relation/15700994", "relation/2163000", "relation/5217340",
+          "way/1088792019", "way/1102287574", "way/1108024299", "way/1113679984",
+          "way/114722964", "way/1160942353", "way/1160942354", "way/116418433",
+          "way/116418488", "way/1207446902", "way/1207446911", "way/1207446918",
+          "way/1269302233", "way/1303668740", "way/1304844496", "way/131742044",
+          "way/1348008998", "way/1415074103", "way/1415074889", "way/1489393877",
+          "way/160106090", "way/186455581", "way/187168175", "way/188330050",
+          "way/200351150", "way/200351151", "way/228249813", "way/229984336",
+          "way/232001726", "way/243887528", "way/261044118", "way/264603611",
+          "way/322842080", "way/371744136", "way/40280265", "way/450126975",
+          "way/479604730", "way/551406373", "way/565463341", "way/576447245",
+          "way/670798348", "way/70759664", "way/70759764", "way/70759932",
+          "way/71169657", "way/72571725", "way/73658427", "way/89611330",
+          "way/90487543", "way/95425473"
+        ],
+        "result": "surface",
+        "behavior": "standing"
+      },
+      {"source_ids": ["way/96682996"], "result": "deferred"}
+    ],
+    "surface_groups": [
+      {
+        "surface_group_id": "kazan_kazanka",
+        "polygon_source_id": "relation/7493502",
+        "flow_axis_source_ids": ["way/158410597", "way/1198626814", "way/1198626813"]
+      },
+      {
+        "surface_group_id": "kazan_bulak",
+        "polygon_source_id": "relation/3974314",
+        "flow_axis_source_ids": ["way/263336432"]
+      }
+    ],
+    "width": {
+      "fallback_accuracy": "heuristic_visual_not_surveyed",
+      "fallback_m": {"river": 12.0, "canal": 6.0, "stream": 1.5, "ditch": 1.0, "drain": 1.0},
+      "ribbon_buffer": {
+        "cap_style": "round",
+        "join_style": "round",
+        "quadrant_segments": 8,
+        "suppression_clearance_m": 0.02
+      }
+    },
+    "elevation": {
+      "quantile_interpolation": "linear_r7",
+      "rolling_endpoint_policy": "shrink_to_available_samples",
+      "standing": {
+        "function_id": "standing_polygon_quantile",
+        "function_version": 1,
+        "quantile": 0.5,
+        "empty_sample_fallback": "ogr_point_on_surface_bilinear"
+      },
+      "flowing": {
+        "function_id": "rolling_quantile_l1_isotonic",
+        "function_version": 1,
+        "sample_spacing_m": 30.0,
+        "quantile": 0.5,
+        "rolling_radius": 2,
+        "direction": "non_increasing_by_source_direction",
+        "loss": "l1",
+        "tie_break": "lower_elevation"
+      }
+    }
+  },
   "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
   "authored_overlay": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
   "fixture_features": null,

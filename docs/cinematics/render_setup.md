@@ -188,11 +188,10 @@ Steps:
 
 Result: under render, the project's real init flow runs - HUD widget spawns, player pawn ticks, interaction component fires focus traces from the recorded camera direction, custom-depth highlight applies as the gameplay path does it. UE's `bCinematicMode` flag is still ON for any code that gates on it (so input-driven systems stay silent, sequencer owns the camera).
 
-Full architecture rationale, decisions, and open questions are in [todo/00_current/cinematic_capture_pipeline.md](../../todo/00_current/cinematic_capture_pipeline.md).
 
 ### Explicitly NOT used
 
-The following were considered and rejected after engine-source review (see the todo doc):
+The following were considered and rejected after engine-source review:
 
 - A separate `UCinematicModeSubsystem` / `ICinematicModeService` event bus. Duplicates UE's existing `bCinematicMode` flag for no gain.
 - An `alis.cinematic.highlight_all` console command. The real interaction system already drives highlight when the pawn ticks - no parallel mechanism needed.
@@ -213,7 +212,23 @@ Two practical knobs to set on the project's Take Preset before recording:
 - **Player source -> Record to Possessable.** Stops the sequence from cloning the pawn at render (the cinematic gamemode spawns the real one).
 - **World source** added (or the "record nearby spawns" option on the player source enabled). One of these captures mid-take spawns as Spawnables.
 
-After a test take, **open the LevelSequence in Sequencer and inspect the bindings list directly**: confirm a single Possessable for the player pawn + a Spawnable entry for every actor that came into existence mid-take. Don't infer this from "it looked right in the render". Full acceptance test in the "Possessable AND Spawnable" section of [the todo doc](../../todo/00_current/cinematic_capture_pipeline.md).
+After a test take, **open the LevelSequence in Sequencer and inspect the bindings list directly**: confirm a single Possessable for the player pawn + a Spawnable entry for every actor that came into existence mid-take. Don't infer this from "it looked right in the render".
+
+Acceptance - what the Sequencer outliner must show after a test take:
+
+- a Camera Cuts track (from Take Recorder);
+- the player pawn as a single **Possessable** binding, with its
+  transform/anim/audio tracks;
+- for every actor the player interacted with, a **Possessable** binding plus
+  child Possessable bindings for each of its components, each carrying a
+  transform track with the real sampled motion;
+- a **Spawnable** entry for every actor that came into existence mid-take;
+- a master Event Track at the sequence root with one trigger key per UI panel
+  toggle.
+
+Scrubbing the playhead must reproduce the motion the player saw, including
+spring overshoot and settle. UI events do NOT fire on scrub - that is an engine
+limitation and expected; press Play to see them.
 
 ## Path Tracer
 

@@ -8,6 +8,7 @@
 
 #include "EngineUtils.h"
 #include "Landscape.h"
+#include "LandscapeComponent.h"
 #include "LandscapeConfigHelper.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeEdit.h"
@@ -28,6 +29,7 @@ namespace ProjectWorldLandscapeRealization
 	const FName TerrainRowOrderTag(TEXT("ProjectWorld.TerrainRows=north_to_south_v1"));
 	const FString LogicalLandscapeTagPrefix(TEXT("ProjectWorld.LogicalLandscape="));
 	const FString TerrainCellTagPrefix(TEXT("ProjectWorld.TerrainCell="));
+	const FString TerrainInputTagPrefix(TEXT("ProjectWorld.TerrainInput="));
 
 	FGuid StableGuid(const FString& Value)
 	{
@@ -55,17 +57,44 @@ namespace ProjectWorldLandscapeRealization
 		return true;
 	}
 
-	void RemoveIdentityTags(AActor* Actor, const FString& Prefix)
+	bool RemoveIdentityTags(AActor* Actor, const FString& Prefix)
 	{
-		Actor->Tags.RemoveAll([&Prefix](const FName& Tag)
+		return Actor->Tags.RemoveAll([&Prefix](const FName& Tag)
 		{
 			return Tag.ToString().StartsWith(Prefix);
-		});
+		}) > 0;
 	}
 
 	bool HasIdentityTag(const AActor* Actor, const FString& Prefix, const FString& Value)
 	{
 		return Actor->Tags.Contains(FName(*(Prefix + Value)));
+	}
+
+	bool SetComponentIdentityTag(ULandscapeComponent* Component, const FString& Prefix, const FString& Value)
+	{
+		const FName Expected(*(Prefix + Value));
+		if (Component->ComponentTags.Contains(Expected) &&
+			!Component->ComponentTags.ContainsByPredicate([&Prefix, &Expected](const FName& Tag)
+			{
+				return Tag != Expected && Tag.ToString().StartsWith(Prefix);
+			}))
+		{
+			return false;
+		}
+		Component->ComponentTags.RemoveAll([&Prefix](const FName& Tag)
+		{
+			return Tag.ToString().StartsWith(Prefix);
+		});
+		Component->ComponentTags.Add(Expected);
+		return true;
+	}
+
+	bool HasComponentIdentityTag(
+		const ULandscapeComponent* Component,
+		const FString& Prefix,
+		const FString& Value)
+	{
+		return Component->ComponentTags.Contains(FName(*(Prefix + Value)));
 	}
 
 	int32 CountLandscapeComponents(ULandscapeInfo* LandscapeInfo)
@@ -100,8 +129,34 @@ namespace ProjectWorldLandscapeRealization
 			OutError = TEXT("Landscape component population differs from the canonical cell domain.");
 			return false;
 		}
+		int32 MinimumCellX = MAX_int32;
+		int32 MaximumCellY = MIN_int32;
+		const int32 ComponentQuads = Layout.SectionsPerComponent * Layout.QuadsPerSection;
+		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+		{
+			MinimumCellX = FMath::Min(MinimumCellX, Cell.CellX);
+			MaximumCellY = FMath::Max(MaximumCellY, Cell.CellY);
+		}
 		if (!World->IsPartitionedWorld())
 		{
+			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+			{
+				const FIntPoint ComponentIndex(
+					((Cell.CellX - MinimumCellX) * Bundle.CellQuads.X) / ComponentQuads,
+					((MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y) / ComponentQuads);
+				ULandscapeComponent* const* Component = LandscapeInfo->XYtoComponentMap.Find(ComponentIndex);
+				if (Component == nullptr)
+				{
+					OutError = FString::Printf(
+						TEXT("Canonical cell has no Landscape component: %s"),
+						*Cell.CellId);
+					return false;
+				}
+				if (SetComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
+				{
+					(*Component)->MarkPackageDirty();
+				}
+			}
 			return true;
 		}
 
@@ -127,14 +182,6 @@ namespace ProjectWorldLandscapeRealization
 		}
 		bOutChanged |= bNeedsPartition;
 
-		int32 MinimumCellX = MAX_int32;
-		int32 MaximumCellY = MIN_int32;
-		const int32 ComponentQuads = Layout.SectionsPerComponent * Layout.QuadsPerSection;
-		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
-		{
-			MinimumCellX = FMath::Min(MinimumCellX, Cell.CellX);
-			MaximumCellY = FMath::Max(MaximumCellY, Cell.CellY);
-		}
 		TSet<ALandscapeStreamingProxy*> ClaimedProxies;
 		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 		{
@@ -152,8 +199,59 @@ namespace ProjectWorldLandscapeRealization
 					*Cell.CellId);
 				return false;
 			}
+			if (!Proxy->IsPackageExternal() || !Proxy->IsMainPackageActor() || !Proxy->IsAsset())
+			{
+				OutError = FString::Printf(
+					TEXT("Landscape proxy is not a discoverable external actor: cell=%s external=%d main=%d asset=%d."),
+					*Cell.CellId,
+					Proxy->IsPackageExternal() ? 1 : 0,
+					Proxy->IsMainPackageActor() ? 1 : 0,
+					Proxy->IsAsset() ? 1 : 0);
+				return false;
+			}
+			const FIntPoint ExpectedSectionBase = ComponentIndex * ComponentQuads;
+			if ((*Component)->GetSectionBase() != ExpectedSectionBase)
+			{
+				OutError = FString::Printf(
+					TEXT("Landscape component SectionBase differs from canonical cell %s."),
+					*Cell.CellId);
+				return false;
+			}
+			const FVector NorthWest = FProjectWorldCanonicalLoader::UnrealToCanonical(
+				Bundle,
+				Landscape->GetActorTransform().TransformPosition(
+					FVector(ExpectedSectionBase.X, ExpectedSectionBase.Y, 0.0)));
+			const FVector SouthEast = FProjectWorldCanonicalLoader::UnrealToCanonical(
+				Bundle,
+				Landscape->GetActorTransform().TransformPosition(FVector(
+					ExpectedSectionBase.X + ComponentQuads,
+					ExpectedSectionBase.Y + ComponentQuads,
+					0.0)));
+			const double Tolerance = FMath::Max(Bundle.CoordinateQuantizationMeters, 0.000001);
+			if (!FVector2D(NorthWest.X, NorthWest.Y).Equals(FVector2D(Cell.Bounds.X, Cell.Bounds.W), Tolerance) ||
+				!FVector2D(SouthEast.X, SouthEast.Y).Equals(FVector2D(Cell.Bounds.Z, Cell.Bounds.Y), Tolerance))
+			{
+				OutError = FString::Printf(
+					TEXT("Landscape component bounds differ from canonical cell %s."),
+					*Cell.CellId);
+				return false;
+			}
 			ClaimedProxies.Add(Proxy);
 			bool bProxyChanged = SetIdentityTag(Proxy, TerrainCellTagPrefix, Cell.CellId);
+			if (!Proxy->Tags.Contains(GeneratedTag))
+			{
+				Proxy->Tags.Add(GeneratedTag);
+				bProxyChanged = true;
+			}
+			if (!Proxy->Tags.Contains(LandscapeTag))
+			{
+				Proxy->Tags.Add(LandscapeTag);
+				bProxyChanged = true;
+			}
+			if (SetComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
+			{
+				(*Component)->MarkPackageDirty();
+			}
 			if (!Proxy->GetIsSpatiallyLoaded())
 			{
 				Proxy->SetIsSpatiallyLoaded(true);
@@ -254,15 +352,6 @@ namespace ProjectWorldLandscapeRealization
 		FLandscapeEditDataInterface EditData(LandscapeInfo, BaseLayer->GetGuid());
 		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 		{
-			const FString TerrainTagPrefix = FString::Printf(
-				TEXT("ProjectWorld.TerrainCell=%s="),
-				*Cell.CellId);
-			if (!bTerrainRowOrderChanged &&
-				HasIdentityTag(Landscape, TerrainTagPrefix, Cell.Terrain.ArtifactHash))
-			{
-				continue;
-			}
-
 			const int32 CanonicalOffsetX = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
 			const int32 CanonicalOffsetY = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
 			const int32 RegionX1 = CanonicalOffsetX;
@@ -277,6 +366,25 @@ namespace ProjectWorldLandscapeRealization
 					*Cell.CellId);
 				return false;
 			}
+			const FIntPoint ComponentIndex(
+				CanonicalOffsetX / ComponentQuads,
+				CanonicalOffsetY / ComponentQuads);
+			ULandscapeComponent* const* Component = LandscapeInfo->XYtoComponentMap.Find(ComponentIndex);
+			ALandscapeProxy* Proxy = Component != nullptr
+				? (*Component)->GetTypedOuter<ALandscapeProxy>()
+				: nullptr;
+			if (Proxy == nullptr)
+			{
+				OutError = FString::Printf(
+					TEXT("Changed terrain cell has no Landscape proxy: %s"),
+					*Cell.CellId);
+				return false;
+			}
+			if (!bTerrainRowOrderChanged &&
+				HasComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
+			{
+				continue;
+			}
 
 			EditData.SetHeightData(
 				RegionX1,
@@ -287,7 +395,8 @@ namespace ProjectWorldLandscapeRealization
 					RegionY1 * Heightfield.VertexCount.X + RegionX1,
 				Heightfield.VertexCount.X,
 				true);
-			SetIdentityTag(Landscape, TerrainTagPrefix, Cell.Terrain.ArtifactHash);
+			SetComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash);
+			(*Component)->MarkPackageDirty();
 			OutResult.UpdatedLandscapeComponentCount +=
 				(Bundle.CellQuads.X / ComponentQuads) * (Bundle.CellQuads.Y / ComponentQuads);
 		}
@@ -302,12 +411,23 @@ namespace ProjectWorldLandscapeRealization
 		OutResult.AuthoredCorrectionLayerGuid =
 			AuthoredGuidBefore.ToString(EGuidFormats::DigitsWithHyphensLower);
 		Landscape->Tags.AddUnique(TerrainRowOrderTag);
+
+		// Composition barrier. RequestLayersContentUpdateForceAll only MARKS the edit-layer
+		// stack dirty; the merge itself is driven by ALandscape::TickLayers, which requires an
+		// editor tick loop that a commandlet never runs. Without this synchronous force the
+		// Generated Base source layer is correct while the final/base heightmap keeps its
+		// initialized flat contents (raw height 0 = -256 m) - the shipped Kazan defect.
+		// ForceUpdateLayersContent waits for streaming and flushes render, so the final
+		// surface is composed before anything is verified or saved. It needs a render-capable
+		// envelope: UE skips PrepareTextureResources when FApp::CanEverRender() is false, so
+		// the realize wrapper declares Rendering=Required (scripts/ue/world/execution_envelope.ps1).
+		Landscape->ForceUpdateLayersContent();
 		return true;
 	}
 
 	bool IsGeneratedLandscape(const AActor* Actor)
 	{
-		return Actor != nullptr && Actor->IsA<ALandscape>() &&
+		return Actor != nullptr && Actor->IsA<ALandscapeProxy>() &&
 			Actor->Tags.Contains(GeneratedTag) && Actor->Tags.Contains(LandscapeTag);
 	}
 
@@ -419,6 +539,7 @@ namespace ProjectWorldLandscapeRealization
 
 		ALandscape* Landscape = nullptr;
 		bool bCreatedLandscape = false;
+		bool bLogicalContractChanged = false;
 		for (TActorIterator<ALandscape> It(World); It; ++It)
 		{
 			if (!IsGeneratedLandscape(*It))
@@ -437,16 +558,54 @@ namespace ProjectWorldLandscapeRealization
 		if (Landscape != nullptr)
 		{
 			ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-			if (!HasIdentityTag(Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId) ||
-				(!LogicalLandscapeId.IsEmpty() &&
-					!HasIdentityTag(Landscape, LogicalLandscapeTagPrefix, LogicalLandscapeId)) ||
+			if (LandscapeInfo == nullptr)
+			{
+				OutError = TEXT("Existing generated Landscape has no LandscapeInfo.");
+				return false;
+			}
+			// External proxies load after the persistent Landscape. Rebuild Epic's
+			// registry before validating the complete logical family.
+			ULandscapeInfo::RecreateLandscapeInfo(World, false);
+			bLogicalContractChanged = !Landscape->Tags.Contains(TerrainRowOrderTag);
+			LandscapeInfo = Landscape->GetLandscapeInfo();
+			const bool bGridMatches = HasIdentityTag(
+				Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId);
+			const bool bLogicalIdentityMatches = LogicalLandscapeId.IsEmpty() ||
+				HasIdentityTag(Landscape, LogicalLandscapeTagPrefix, LogicalLandscapeId);
+			const int32 ActualComponentCount = LandscapeInfo != nullptr
+				? CountLandscapeComponents(LandscapeInfo)
+				: -1;
+			const int32 ExpectedComponentCount = Layout.ComponentCount.X * Layout.ComponentCount.Y;
+			if (!bGridMatches || !bLogicalIdentityMatches ||
 				Landscape->ComponentSizeQuads != ComponentQuads ||
 				Landscape->NumSubsections != Layout.SectionsPerComponent ||
 				Landscape->SubsectionSizeQuads != Layout.QuadsPerSection ||
-				LandscapeInfo == nullptr ||
-				CountLandscapeComponents(LandscapeInfo) != Layout.ComponentCount.X * Layout.ComponentCount.Y)
+				LandscapeInfo == nullptr || ActualComponentCount != ExpectedComponentCount)
 			{
-				OutError = TEXT("Existing generated Landscape identity or component layout differs from canonical input.");
+				int32 LoadedProxyCount = 0;
+				int32 LoadedProxyComponentCount = 0;
+				for (TActorIterator<ALandscapeStreamingProxy> It(World); It; ++It)
+				{
+					if (It->GetLandscapeGuid() == Landscape->GetLandscapeGuid())
+					{
+						++LoadedProxyCount;
+						LoadedProxyComponentCount += It->LandscapeComponents.Num();
+					}
+				}
+				OutError = FString::Printf(
+					TEXT("Existing generated Landscape differs: grid=%d logical=%d component_quads=%d/%d subsections=%d/%d subsection_quads=%d/%d components=%d/%d loaded_proxies=%d loaded_proxy_components=%d."),
+					bGridMatches ? 1 : 0,
+					bLogicalIdentityMatches ? 1 : 0,
+					Landscape->ComponentSizeQuads,
+					ComponentQuads,
+					Landscape->NumSubsections,
+					Layout.SectionsPerComponent,
+					Landscape->SubsectionSizeQuads,
+					Layout.QuadsPerSection,
+					ActualComponentCount,
+					ExpectedComponentCount,
+					LoadedProxyCount,
+					LoadedProxyComponentCount);
 				return false;
 			}
 			if (!UpdateGeneratedBase(Landscape, Bundle, Layout, Heightfield, OutResult, OutError))
@@ -491,7 +650,9 @@ namespace ProjectWorldLandscapeRealization
 				100.0));
 			Landscape->Tags.Add(GeneratedTag);
 			Landscape->Tags.Add(LandscapeTag);
-			Landscape->Tags.Add(TerrainRowOrderTag);
+			// TerrainRowOrderTag is deliberately NOT set here. UpdateGeneratedBase treats a
+			// missing tag as "write every cell" and adds the tag itself once the canonical
+			// heights have landed in Generated Base, so creation cannot silently skip cells.
 			Landscape->SetActorLabel(TEXT("ProjectWorld Landscape"));
 			Landscape->SetIsSpatiallyLoaded(false);
 			TMap<FGuid, TArray<uint16>> HeightData;
@@ -515,12 +676,13 @@ namespace ProjectWorldLandscapeRealization
 			{
 				return false;
 			}
-			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+			// Import() only bootstraps Landscape topology and the raw heightmap, which UE
+			// discards as soon as the edit-layer stack composites. Imported raw heights are
+			// never successful generated terrain on their own, so creation goes through the
+			// same Generated Base write path as incremental update.
+			if (!UpdateGeneratedBase(Landscape, Bundle, Layout, Heightfield, OutResult, OutError))
 			{
-				SetIdentityTag(
-					Landscape,
-					FString::Printf(TEXT("ProjectWorld.TerrainCell=%s="), *Cell.CellId),
-					Cell.Terrain.ArtifactHash);
+				return false;
 			}
 			OutResult.UpdatedLandscapeComponentCount =
 				Layout.ComponentCount.X * Layout.ComponentCount.Y;
@@ -533,14 +695,14 @@ namespace ProjectWorldLandscapeRealization
 				nullptr,
 				TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
 		const bool bMaterialChanged = Landscape->LandscapeMaterial != DesiredLandscapeMaterial;
-		bool bLandscapeChanged = bCreatedLandscape || bMaterialChanged ||
-			OutResult.UpdatedLandscapeComponentCount > 0;
+		bool bLandscapeChanged = bCreatedLandscape || bMaterialChanged || bLogicalContractChanged;
 		bLandscapeChanged |= SetIdentityTag(Landscape, TEXT("ProjectWorld.Grid="), Bundle.GridId);
 		if (!LogicalLandscapeId.IsEmpty())
 		{
 			bLandscapeChanged |= SetIdentityTag(Landscape, LogicalLandscapeTagPrefix, LogicalLandscapeId);
 		}
-		bLandscapeChanged |= SetIdentityTag(Landscape, TEXT("ProjectWorld.Input="), Bundle.InputsHash);
+		bLandscapeChanged |= RemoveIdentityTags(Landscape, TEXT("ProjectWorld.Input="));
+		bLandscapeChanged |= RemoveIdentityTags(Landscape, TEXT("ProjectWorld.TerrainCell="));
 		Landscape->LandscapeMaterial = DesiredLandscapeMaterial;
 		if (bCreatedLandscape || bMaterialChanged)
 		{

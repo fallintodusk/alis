@@ -25,6 +25,49 @@
     "halo_samples": 1,
     "operation_halos": {"terrain_resampling": 1, "road_representation": 0, "building_massing": 0}
   },
+  "water_semantics": {
+    "policy_id": "synthetic_representative_water_v1",
+    "policy_version": 1,
+    "coordinate_match_tolerance_m": 0.01,
+    "class_rules": [
+      {"water_class": "pond", "geometry": "polygon", "result": "surface", "behavior": "standing"}
+    ],
+    "modifier_rules": [
+      {"tag": "tunnel", "value": "culvert", "result": "hidden"},
+      {"tag": "covered", "value": "yes", "result": "hidden"},
+      {"tag": "location", "value": "underground", "result": "hidden"},
+      {"tag": "intermittent", "value": "yes", "result": "temporal"},
+      {"tag": "intermittent", "value": "no", "result": "visible"},
+      {"tag": "seasonal", "value": "*", "result": "temporal"}
+    ],
+    "feature_rules": [],
+    "surface_groups": [],
+    "width": {
+      "fallback_accuracy": "heuristic_visual_not_surveyed",
+      "fallback_m": {"river": 12.0, "canal": 6.0, "stream": 1.5, "ditch": 1.0, "drain": 1.0},
+      "ribbon_buffer": {"cap_style": "round", "join_style": "round", "quadrant_segments": 8, "suppression_clearance_m": 0.02}
+    },
+    "elevation": {
+      "quantile_interpolation": "linear_r7",
+      "rolling_endpoint_policy": "shrink_to_available_samples",
+      "standing": {
+        "function_id": "standing_polygon_quantile",
+        "function_version": 1,
+        "quantile": 0.5,
+        "empty_sample_fallback": "ogr_point_on_surface_bilinear"
+      },
+      "flowing": {
+        "function_id": "rolling_quantile_l1_isotonic",
+        "function_version": 1,
+        "sample_spacing_m": 10.0,
+        "quantile": 0.5,
+        "rolling_radius": 2,
+        "direction": "non_increasing_by_source_direction",
+        "loss": "l1",
+        "tie_break": "lower_elevation"
+      }
+    }
+  },
   "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
   "authored_overlay": "Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_two_cell/authored_overlay.json",
   "fixture_features": "Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_two_cell/invalid_features.json",

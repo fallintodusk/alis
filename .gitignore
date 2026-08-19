@@ -168,3 +168,10 @@ Alis.code-workspace.backup
 
 # Claude Code temp files
 tmpclaude-*
+
+# Codex reads repo skills from .agents/skills; Claude owns the originals in
+# .claude/skills. This is a LOCAL junction created by
+# scripts/agents/link_codex_skills.ps1, never tracked: core.symlinks=false on
+# Windows would materialize a committed link as a text stub and Codex would
+# silently discover zero skills.
+.agents/

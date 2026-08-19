@@ -21,21 +21,28 @@
 #include "ProjectWorldSemanticEvidence.h"
 #include "ProjectWorldWaterRealization.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
 #include "Editor.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Landscape.h"
+#include "ProjectWorldTerrainVerification.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 #include "UObject/UObjectGlobals.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldRealizationService, Log, All);
 
 namespace ProjectWorldRealization
 {
@@ -69,6 +76,23 @@ namespace ProjectWorldRealization
 		bOutExisting = IFileManager::Get().FileExists(*MapFilename);
 		if (bOutExisting)
 		{
+			IAssetRegistry& AssetRegistry =
+				FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+			const FString ExternalActorsPath = ULevel::GetExternalActorsPath(MapPackagePath);
+			TArray<FString> ExternalActorFiles;
+			IFileManager::Get().FindFilesRecursive(
+				ExternalActorFiles,
+				*FPackageName::LongPackageNameToFilename(ExternalActorsPath),
+				TEXT("*.uasset"),
+				true,
+				false);
+			AssetRegistry.ScanFilesSynchronous(ExternalActorFiles, true);
+			UE_LOG(
+				LogProjectWorldRealizationService,
+				Display,
+				TEXT("[ProjectWorldRealizationService::LoadOrCreateWorld] Scanned external actor packages - count=%d map=%s"),
+				ULevel::GetOnDiskExternalActorPackages(ExternalActorsPath).Num(),
+				*MapPackagePath);
 			if (!FEditorFileUtils::LoadMap(MapFilename, false, false))
 			{
 				OutError = TEXT("Cannot load the generated target map.");
@@ -88,6 +112,11 @@ namespace ProjectWorldRealization
 
 	bool SaveGeneratedWorld(UWorld* World, const FString& MapPackagePath)
 	{
+		const FString MapFilename = FPackageName::LongPackageNameToFilename(
+			MapPackagePath,
+			FPackageName::GetMapPackageExtension());
+		const bool bSavePersistentLevel =
+			!IFileManager::Get().FileExists(*MapFilename) || World->PersistentLevel->GetPackage()->IsDirty();
 		// The editor creates this preview actor with a time-based UAID. It has no
 		// cooked/runtime role and would make clean reconstruction change packages.
 		TArray<AWorldPartitionMiniMap*> MiniMaps;
@@ -102,16 +131,30 @@ namespace ProjectWorldRealization
 				return false;
 			}
 		}
-		const FString MapFilename = FPackageName::LongPackageNameToFilename(
-			MapPackagePath,
-			FPackageName::GetMapPackageExtension());
 		IFileManager::Get().MakeDirectory(*FPaths::GetPath(MapFilename), true);
-		FString SavedFilename;
-		if (!FEditorFileUtils::SaveLevel(World->PersistentLevel, MapFilename, &SavedFilename))
+		if (bSavePersistentLevel)
 		{
-			return false;
+			FString SavedFilename;
+			if (!FEditorFileUtils::SaveLevel(World->PersistentLevel, MapFilename, &SavedFilename))
+			{
+				return false;
+			}
 		}
-		return FEditorFileUtils::SaveDirtyPackages(false, true, true, true, false, false);
+		else
+		{
+			World->PersistentLevel->GetPackage()->SetDirtyFlag(false);
+		}
+		const bool bSaved = FEditorFileUtils::SaveDirtyPackages(false, true, true, true, false, false);
+		if (bSaved)
+		{
+			UE_LOG(
+				LogProjectWorldRealizationService,
+				Display,
+				TEXT("[ProjectWorldRealizationService::SaveGeneratedWorld] Saved external actor packages - count=%d map=%s"),
+				ULevel::GetOnDiskExternalActorPackages(ULevel::GetExternalActorsPath(MapPackagePath)).Num(),
+				*MapPackagePath);
+		}
+		return bSaved;
 	}
 }
 
@@ -434,6 +477,12 @@ int32 FProjectWorldRealizationService::Run(
 		WorldPartition != nullptr && WorldPartition->IsInitialized())
 	{
 		WorldPartition->LoadAllActors(LoadedActorReferences);
+		UE_LOG(
+			LogProjectWorldRealizationService,
+			Display,
+			TEXT("[ProjectWorldRealizationService::Run] Loaded World Partition actor references - count=%d map=%s"),
+			LoadedActorReferences.Num(),
+			*Request.MapPackagePath);
 	}
 	const bool bPreserveLandscape = Layout.bCompatible;
 	const bool bOwnedActorsPrepared = Request.Mode == EProjectWorldRealizationMode::Apply
@@ -572,6 +621,104 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 
+	// Terrain correctness, deliberately BEFORE SaveGeneratedWorld: a wrong acceptance surface
+	// must never reach disk and then be rejected. Semantic evidence hashes whatever Unreal
+	// produced, which makes a completely flat Landscape perfectly deterministic - it answers
+	// "same terrain again", not "the terrain canonical specified". Save/reload remains the
+	// separate persistence proof.
+	if (Layout.bCompatible && Request.Mode != EProjectWorldRealizationMode::Delete)
+	{
+		// Fail closed. A Landscape-compatible canonical grid that produced no generated
+		// Landscape, or more than one, must reject rather than silently skip verification or
+		// arbitrarily pick a logical Landscape to verify.
+		ALandscape* GeneratedLandscape = nullptr;
+		int32 GeneratedLandscapeCount = 0;
+		for (TActorIterator<ALandscape> It(World); It; ++It)
+		{
+			if (ProjectWorldLandscapeRealization::IsGeneratedLandscape(*It))
+			{
+				++GeneratedLandscapeCount;
+				if (GeneratedLandscape == nullptr)
+				{
+					GeneratedLandscape = *It;
+				}
+			}
+		}
+		if (GeneratedLandscapeCount != 1)
+		{
+			Reject(
+				OutResult,
+				TEXT("terrain-height"),
+				TEXT("Terrain verification requires exactly one generated logical Landscape."),
+				FString::Printf(
+					TEXT("Landscape-compatible canonical grid resolved %d generated Landscapes."),
+					GeneratedLandscapeCount));
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
+		{
+			FString TerrainError;
+			if (!FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
+					GeneratedLandscape, Bundle, OutResult.TerrainHeight, TerrainError))
+			{
+				Reject(
+					OutResult,
+					TEXT("terrain-height"),
+					TEXT("Cannot verify realized terrain against canonical elevation."),
+					TerrainError);
+				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+				return OutResult.ExitCode();
+			}
+			// Measure the FINAL/base heightmap too. Source is only an input to UE's blend;
+			// the final surface is what renders, collides, and sets cached bounds, so it is
+			// the acceptance authority. Both are measured before any rejection so the receipt
+			// always records what the artifact actually contains.
+			if (!FProjectWorldTerrainVerification::CompareFinalHeightmapToCanonical(
+					GeneratedLandscape, Bundle, OutResult.TerrainFinalHeight, TerrainError))
+			{
+				Reject(
+					OutResult,
+					TEXT("terrain-final-height"),
+					TEXT("Cannot verify the final Landscape heightmap against canonical elevation."),
+					TerrainError);
+				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+				return OutResult.ExitCode();
+			}
+			if (OutResult.TerrainHeight.MismatchCount > 0 ||
+				OutResult.TerrainHeight.SampleCount != OutResult.TerrainHeight.ExpectedSampleCount)
+			{
+				Reject(
+					OutResult,
+					TEXT("terrain-source-height"),
+					TEXT("Generated Base source layer does not match canonical elevation."),
+					OutResult.TerrainHeight.FirstMismatch.IsEmpty()
+						? FString::Printf(
+							TEXT("compared %d of %d canonical samples"),
+							OutResult.TerrainHeight.SampleCount,
+							OutResult.TerrainHeight.ExpectedSampleCount)
+						: OutResult.TerrainHeight.FirstMismatch);
+				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+				return OutResult.ExitCode();
+			}
+			if (OutResult.TerrainFinalHeight.MismatchCount > 0 ||
+				OutResult.TerrainFinalHeight.SampleCount
+					!= OutResult.TerrainFinalHeight.ExpectedSampleCount)
+			{
+				Reject(
+					OutResult,
+					TEXT("terrain-final-height"),
+					TEXT("Final composed Landscape heightmap does not match canonical elevation."),
+					OutResult.TerrainFinalHeight.FirstMismatch.IsEmpty()
+						? FString::Printf(
+							TEXT("compared %d of %d canonical samples"),
+							OutResult.TerrainFinalHeight.SampleCount,
+							OutResult.TerrainFinalHeight.ExpectedSampleCount)
+						: OutResult.TerrainFinalHeight.FirstMismatch);
+				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+				return OutResult.ExitCode();
+			}
+		}
+	}
 	OutResult.UpdatedActorCount += ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
 	const bool bGeneratedWorldChanged = bPartitionHlodPolicyChanged ||
 		OutResult.CreatedActorCount > 0 || OutResult.UpdatedActorCount > 0 ||
@@ -796,6 +943,56 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetBoolField(
 		TEXT("authored_correction_layer_preserved"),
 		Result.bAuthoredCorrectionLayerPreserved);
+	// SOURCE-layer evidence, diagnostic only. These describe the Generated Base edit layer,
+	// an input to UE's edit-layer blend - NOT the final composed heightmap that renders,
+	// collides, and drives component bounds. The Kazan territory reported zero source
+	// mismatches across 215,040 samples while its final surface was flat. Acceptance belongs
+	// to the terrain_final_height_* fields below.
+	Root->SetNumberField(
+		TEXT("terrain_source_height_sample_count"), Result.TerrainHeight.SampleCount);
+	Root->SetNumberField(
+		TEXT("terrain_source_height_expected_sample_count"),
+		Result.TerrainHeight.ExpectedSampleCount);
+	Root->SetNumberField(
+		TEXT("terrain_source_height_mismatch_count"), Result.TerrainHeight.MismatchCount);
+	Root->SetNumberField(
+		TEXT("terrain_source_height_max_error_m"), Result.TerrainHeight.MaximumErrorMeters);
+	Root->SetNumberField(
+		TEXT("terrain_source_height_min_m"), Result.TerrainHeight.MinimumHeightMeters);
+	Root->SetNumberField(
+		TEXT("terrain_source_height_max_m"), Result.TerrainHeight.MaximumHeightMeters);
+	Root->SetNumberField(
+		TEXT("terrain_source_relief_m"), Result.TerrainHeight.ReliefMeters);
+	Root->SetNumberField(
+		TEXT("terrain_source_height_tolerance_m"), Result.TerrainHeight.ToleranceMeters);
+	Root->SetStringField(
+		TEXT("terrain_source_height_semantic_sha256"),
+		Result.TerrainHeight.RealizedHeightHash);
+	// FINAL surface evidence: the blended heightmap that renders and collides. This is the
+	// acceptance authority; the source fields above stay diagnostic.
+	Root->SetNumberField(
+		TEXT("terrain_final_height_sample_count"), Result.TerrainFinalHeight.SampleCount);
+	Root->SetNumberField(
+		TEXT("terrain_final_height_expected_sample_count"),
+		Result.TerrainFinalHeight.ExpectedSampleCount);
+	Root->SetNumberField(
+		TEXT("terrain_final_height_mismatch_count"), Result.TerrainFinalHeight.MismatchCount);
+	Root->SetNumberField(
+		TEXT("terrain_final_height_max_error_m"), Result.TerrainFinalHeight.MaximumErrorMeters);
+	Root->SetNumberField(
+		TEXT("terrain_final_height_min_m"), Result.TerrainFinalHeight.MinimumHeightMeters);
+	Root->SetNumberField(
+		TEXT("terrain_final_height_max_m"), Result.TerrainFinalHeight.MaximumHeightMeters);
+	Root->SetNumberField(
+		TEXT("terrain_final_relief_m"), Result.TerrainFinalHeight.ReliefMeters);
+	Root->SetNumberField(
+		TEXT("terrain_final_height_tolerance_m"), Result.TerrainFinalHeight.ToleranceMeters);
+	Root->SetStringField(
+		TEXT("terrain_final_height_semantic_sha256"),
+		Result.TerrainFinalHeight.RealizedHeightHash);
+	// Deliberately no "verified" boolean. A boolean cannot distinguish "measured" from
+	// "correct" - the broken Kazan artifact measured cleanly and was 100% wrong. Acceptance
+	// must be derived from the metrics above so it can be independently rejected.
 
 	TSharedRef<FJsonObject> Changes = MakeShared<FJsonObject>();
 	Changes->SetNumberField(TEXT("created_actors"), Result.CreatedActorCount);

@@ -324,11 +324,19 @@ function Sync-UEUserEnv {
         [Parameter()][ValidateSet("User", "Process")][string]$Scope = "User"
     )
     $winRoot = ($NewLauncherRoot -replace '/', '\')
+    # UE_EDITOR_CMD is DERIVED from the same root, never configured separately.
+    # Consumers that cannot expand ${UE_PATH} in their own config (Codex MCP
+    # env blocks) inherit this instead of pinning a versioned literal, which
+    # is how a stale engine silently drove the wrong execution envelope.
+    $editorCmd = Join-Path $winRoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
     if ($Scope -eq "Process") {
         $Env:UE_PATH = $winRoot
+        $Env:UE_EDITOR_CMD = $editorCmd
     } else {
         [Environment]::SetEnvironmentVariable("UE_PATH", $winRoot, "User")
+        [Environment]::SetEnvironmentVariable("UE_EDITOR_CMD", $editorCmd, "User")
         $Env:UE_PATH = $winRoot
+        $Env:UE_EDITOR_CMD = $editorCmd
     }
     return $winRoot
 }

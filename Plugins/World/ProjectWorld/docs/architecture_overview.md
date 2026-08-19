@@ -132,9 +132,14 @@ flowchart TD
     PROMOTE["Promote authenticated canonical result"]
     BUNDLE["Data/Canonical profile authority"]
     MATERIALIZE["Materialize authenticated accepted base"]
-    L3["L3 operator-controlled Unreal realization"]
+    TRANSIENT["Transient reversible candidate realization"]
+    MCP["Live Editor/MCP visual inspection of the transient candidate"]
+    APPROVAL["Explicit operator visual approval"]
+    GATES["Final authenticated gates on the frozen tree"]
+    L3["L3 operator-approved Unreal enrollment"]
     UE_TREE["Content/Generated plus external packages"]
     ACTIVE["Data/Manifests/active_set.json"]
+    POST_MCP["Optional read-only post-L3 recheck bound to enrolled hashes"]
     L4["L4 locked audit, package, render, and post-audit"]
 
     SOURCE_PROFILE --> PLAN
@@ -161,10 +166,16 @@ flowchart TD
     ADMIT --> PROMOTE
     PROMOTE --> BUNDLE
     BUNDLE --> MATERIALIZE
-    MATERIALIZE --> L3
-    MATRIX -->|accepted evidence| L3
+    MATERIALIZE --> TRANSIENT
+    MATRIX -->|semantic evidence| TRANSIENT
+    TRANSIENT --> MCP
+    MCP --> APPROVAL
+    APPROVAL --> GATES
+    GATES --> L3
     L3 --> UE_TREE
     L3 --> ACTIVE
+    UE_TREE -.-> POST_MCP
+    ACTIVE -.-> POST_MCP
     UE_TREE --> L4
     ACTIVE --> L4
 ```
@@ -179,6 +190,63 @@ Persistent derived layers:
 `tmp/world/` candidates and `Saved/Validation/` evidence are not editable
 authority. Matrix may regenerate UE packages but restores the exact pre-run
 tree.
+
+## 3.1 Terrain elevation correctness
+
+Structural evidence cannot detect wrong terrain. Cell/component/proxy counts, layer
+inventories, artifact digests, and the semantic edit-layer hash are all satisfied by a
+completely flat Landscape, because they answer "did Unreal produce the same terrain
+again", not "did Unreal produce the terrain canonical specified".
+
+Elevation passes through three distinct surfaces, and they can disagree:
+
+```text
+canonical terrain samples
+  -> Generated Base edit layer      SOURCE. An input to UE's edit-layer blend.
+                                    Read with FLandscapeEditDataInterface(info, guid),
+                                    documented as "the specified edit layer".
+  -> final (base) heightmap         ACCEPTANCE. The blended result that actually
+                                    renders. Documented contract:
+                                    ULandscapeComponent::GetHeightmap(FGuid()) returns
+                                    the final (base) heightmap for an invalid GUID.
+  -> cached bounds and collision    DERIVATIVE of the final surface.
+```
+
+**Verified 2026-08-17 on the Kazan territory: source and final disagreed.** The same
+on-disk packages report a correct Generated Base (215,040/215,040 canonical samples,
+relief 94.297 m) while every landscape proxy reports flat bounds (Z -25700..-25500, raw
+height 0) and a downward line trace finds no terrain collision. Source-layer evidence is
+therefore **diagnostic only** and must never accept terrain.
+
+Current state: `terrain_source_height_*` receipt fields describe the source layer.
+`terrain_final_surface_verified` is emitted as `false` because no final-surface verifier
+exists yet, and L2 layered validation fails closed on that flag. Acceptance will move to
+final-surface comparison; source comparison stays as the signal that distinguishes a
+canonical/source defect from a composition defect.
+
+Note that `FLandscapeEditDataInterface(info, FGuid(), ...)` is **not** a documented
+final-heightmap accessor - its contract is "current/specified edit layer". Do not treat an
+invalid GUID there as the final surface.
+
+Verification is fail-closed: a Landscape-compatible canonical grid that resolves zero or
+more than one generated logical Landscape is rejected rather than skipped.
+
+GeoReferencing placement error is a separate metric and is **not** elevation evidence. It
+probes cell corners and centres at a constant height origin, so it proves XY round-trip
+only. A territory can report zero georeference error while every height is wrong.
+
+Static `Validate` mode does not load the world; it is profile/contract validation. Terrain
+evidence is produced by the real Apply path and authenticated downstream from its receipts.
+
+## 3.2 Operator visual checkpoint
+
+Visual approval precedes durable enrollment. The operator checkpoint is an
+isolated, reversible candidate opened through the repository Editor/MCP route
+and inspected live; explicit operator approval is required before the final
+authenticated gates and the single L3 enrollment. A post-L3 MCP pass may still
+be used as optional read-only verification, but it is not the approval
+checkpoint. Neither pass replaces Matrix/L3 receipt authority, and neither
+permits manual edits to generated packages.
 
 ## 4. Safe Unreal regeneration transaction
 
@@ -242,7 +310,8 @@ flowchart TD
     NANITE["Nanite-compatible opaque geometry"]
     WATER["Non-Nanite Single Layer Water geometry"]
     WP["One World Partition world"]
-    LAND["One logical Landscape with 210 component/proxy cells"]
+    LAND["Topology-only logical Landscape"]
+    LAND_CELLS["210 cell-owned component/proxy packages"]
     STATIC["Cell-local water StaticMesh and supported static geometry"]
     INST["ISM, HISM, or admitted PCG instance ownership"]
     AUTH["Protected authored and dynamic gameplay layers"]
@@ -252,13 +321,13 @@ flowchart TD
     CANON --> REF
     REF --> GRID
     GRID --> WP
-    GRID --> LAND_API --> LAND --> WP
+    GRID --> LAND_API --> LAND --> LAND_CELLS --> WP
     GRID --> GEOM --> MESH
     MESH --> NANITE --> STATIC
     MESH --> WATER --> STATIC --> WP
     WP --> INST
     WP --> AUTH
-    LAND --> GAME
+    LAND_CELLS --> GAME
     STATIC --> GAME
     INST --> GAME
     AUTH --> GAME

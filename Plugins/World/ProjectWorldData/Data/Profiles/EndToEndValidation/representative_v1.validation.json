@@ -40,7 +40,7 @@
       "runtime_profile": "Plugins/World/ProjectWorldData/Data/Runtime/kazan_representative_playable_v1.json",
       "map_package": "/ProjectWorldData/Generated/Representative/L_ProjectWorldKazan_Representative",
       "require_landscape": true,
-      "expected_features": 1194,
+      "expected_features": 1193,
       "expected_realized_features": 5,
       "expected_road_fragments": 2,
       "expected_buildings": 4,

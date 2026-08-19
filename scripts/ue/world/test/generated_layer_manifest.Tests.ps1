@@ -299,6 +299,13 @@ Describe 'ProjectWorld exact layer manifests' {
             -PriorManifest $firstActive.Manifests['map_twin_l_twin'] `
             -CandidateManifest $noOpMap -GeneratorFingerprint $fingerprint | Should -BeTrue
 
+        $noOpTerrain = LayerCandidate 'terrain' 2 $terrainRoot '/ProjectWorldTestData/Generated/Twin/Terrain/'
+        $noOpTerrain.input_identity.compile_result_sha256 = ('9' * 64)
+        Test-ProjectWorldManifestSemanticallyUnchanged `
+            -PriorManifest $firstActive.Manifests['layer_terrain'] `
+            -CandidateManifest $noOpTerrain -GeneratorFingerprint $fingerprint `
+            -CompareLayerContract | Should -BeTrue
+
         $noOpWater = LayerCandidate 'water' 2 $waterRoot '/ProjectWorldTestData/Generated/Twin/Water/'
         Test-ProjectWorldManifestSemanticallyUnchanged `
             -PriorManifest $firstActive.Manifests['layer_water'] `

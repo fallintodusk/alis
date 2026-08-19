@@ -12,6 +12,7 @@
 #include "LandscapeEdit.h"
 #include "LandscapeEditLayer.h"
 #include "LandscapeInfo.h"
+#include "LandscapeStreamingProxy.h"
 #include "Misc/PackageName.h"
 #include "ProceduralMeshComponent.h"
 
@@ -36,6 +37,22 @@ namespace ProjectWorldSemanticEvidence
 			Scale.X,
 			Scale.Y,
 			Scale.Z);
+	}
+
+	FString SemanticActorIdentity(const AActor* Actor)
+	{
+		if (Actor->IsA<ALandscapeStreamingProxy>())
+		{
+			for (const FName& Tag : Actor->Tags)
+			{
+				const FString Value = Tag.ToString();
+				if (Value.StartsWith(TEXT("ProjectWorld.TerrainCell=")))
+				{
+					return TEXT("landscape_proxy|") + Value;
+				}
+			}
+		}
+		return Actor->GetActorGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
 	}
 
 	bool HashBytes(const void* Data, int32 ByteCount, FString& OutHash)
@@ -104,7 +121,7 @@ namespace ProjectWorldSemanticEvidence
 	}
 
 	void AppendProceduralMesh(
-		const FGuid& ActorGuid,
+		const FString& ActorIdentity,
 		UProceduralMeshComponent* ProceduralMesh,
 		TArray<FString>& Records)
 	{
@@ -117,7 +134,7 @@ namespace ProjectWorldSemanticEvidence
 			}
 			FString Geometry = FString::Printf(
 				TEXT("mesh|%s|section=%d|"),
-				*ActorGuid.ToString(EGuidFormats::Digits),
+				*ActorIdentity,
 				SectionIndex);
 			for (const FProcMeshVertex& Vertex : Section->ProcVertexBuffer)
 			{
@@ -164,9 +181,10 @@ namespace ProjectWorldSemanticEvidence
 				Tags.Add(Tag.ToString());
 			}
 			Tags.Sort();
+			const FString ActorIdentity = SemanticActorIdentity(Actor);
 			Records.Add(FString::Printf(
 				TEXT("actor|%s|%s|%s|spatial=%d|auto_hlod=%d|%s"),
-				*Actor->GetActorGuid().ToString(EGuidFormats::DigitsWithHyphensLower),
+				*ActorIdentity,
 				*Actor->GetClass()->GetPathName(),
 				*StableTransform(Actor->GetActorTransform()),
 				Actor->GetIsSpatiallyLoaded() ? 1 : 0,
@@ -191,13 +209,13 @@ namespace ProjectWorldSemanticEvidence
 						static_cast<int32>(ProceduralMesh->GetMobility()));
 				Records.Add(FString::Printf(
 					TEXT("component|%s|%s|sections=%d%s"),
-					*Actor->GetActorGuid().ToString(EGuidFormats::Digits),
+					*ActorIdentity,
 					*Component->GetClass()->GetPathName(),
 					ProceduralMesh == nullptr ? -1 : ProceduralMesh->GetNumSections(),
 					*RuntimeState));
 				if (ProceduralMesh != nullptr)
 				{
-					AppendProceduralMesh(Actor->GetActorGuid(), ProceduralMesh, Records);
+					AppendProceduralMesh(ActorIdentity, ProceduralMesh, Records);
 				}
 			}
 

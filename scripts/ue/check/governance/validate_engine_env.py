@@ -1,6 +1,6 @@
 """Engine-environment governance validator.
 
-Three jobs:
+Four jobs:
   A. Engine identity: resolved UE_PATH is a real engine root whose
      Build.version Major.Minor matches Alis.uproject EngineAssociation.
   B. Hardcoded-path governance: no tracked text file outside the
@@ -9,6 +9,8 @@ Three jobs:
      shared strict parser.
   C. Unreal MCP boundary: the official server and toolsets remain enabled
      only for Editor targets.
+  D. Machine-local agent config: ~/.codex/config.toml must not pin a
+     different engine than the conf resolves. Skipped when absent.
 
 Wired into validate_all.bat like the other governance checks.
 Self-tests: scripts/ue/check/governance/test/test_validate_engine_env.py
@@ -242,6 +244,51 @@ def check_mcp_editor_boundary(repo_root):
     return problems
 
 
+def check_machine_local_agent_config(values):
+    """D. Machine-local agent config must not pin a different engine.
+
+    `~/.codex/config.toml` carries a derived UE_EDITOR_CMD literal. It is NOT
+    covered by scripts/setup/setup_ue_env.ps1, whose machine-local planner is
+    JSON-only (.claude/settings.local.json, .mcp.json, .vscode), so nothing
+    rewrites it on an engine change. That is exactly how it silently pinned
+    UE_5.7 while the project ran 5.8 - a Codex agent would have driven a 5.7
+    editor against a 5.8 project.
+
+    The conf stays the single authority; this check makes the derived copy's
+    drift loud instead of silent. Absent file = skip: the check must stay green
+    on CI and on machines without Codex installed.
+    """
+    configured = values.get("UE_PATH") if values else None
+    if not configured:
+        return []
+
+    path = os.path.join(os.path.expanduser("~"), ".codex", "config.toml")
+    if not os.path.isfile(path):
+        return []
+
+    expected = ENGINE_PATH_RE.search(configured.replace("\\", "/"))
+    if not expected:
+        return []
+    expected_token = expected.group(0)
+
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            text = fh.read()
+    except OSError as exc:
+        return ["cannot read %s: %s" % (path, exc)]
+
+    problems = []
+    for found in sorted(set(ENGINE_PATH_RE.findall(text))):
+        if found != expected_token:
+            problems.append(
+                "~/.codex/config.toml pins engine '%s' but "
+                "scripts/config/ue_path.conf resolves '%s' - update the Codex "
+                "literal (it is a derived cache, not an authority)"
+                % (found, expected_token)
+            )
+    return problems
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
@@ -262,6 +309,7 @@ def main(argv=None):
     violations += check_hardcoded_paths(repo_root)
     violations += check_plugin_pins(repo_root)
     violations += check_mcp_editor_boundary(repo_root)
+    violations += check_machine_local_agent_config(values)
 
     if violations:
         print("[validate_engine_env] FAILED: %d violation(s)" % len(violations))

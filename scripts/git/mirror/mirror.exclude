@@ -18,9 +18,7 @@ tmp/**
 tmpclaude-*
 .env
 .ignore
-.clinerules
 .vsconfig
-agent_policy.yaml
 AGENTS.md
 CLAUDE.md
 CODEX.md

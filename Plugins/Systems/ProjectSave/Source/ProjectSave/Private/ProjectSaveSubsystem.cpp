@@ -348,8 +348,7 @@ void UProjectSaveSubsystem::ApplyGameSettings(const FProjectGameSettings& Settin
 	UserSettings->SetScreenResolution(FIntPoint(Settings.ResolutionWidth, Settings.ResolutionHeight));
 	// WindowedFullscreen instead of exclusive Fullscreen: avoids DWM force-break /
 	// restore cascade under GPU stalls. Matches AlisGI::EnsureFirstRunDefaults and
-	// ProjectSettingsService::ApplyGraphics. See
-	// todo/00_current/investigate_shipping_crash_sprint_jump.md.
+	// ProjectSettingsService::ApplyGraphics.
 	UserSettings->SetFullscreenMode(Settings.bFullscreen ? EWindowMode::WindowedFullscreen : EWindowMode::Windowed);
 
 	// Apply settings

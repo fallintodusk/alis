@@ -1,7 +1,6 @@
 ; A/B profile: BASE
 ; Resets all Phase 1 Lumen knobs back to engine defaults / pre-tuning values.
 ; Use this as the "before" side of the A/B vs cvar_clean.txt and cvar_full.txt.
-; Companion todo: todo/00_current/fix_lumen_indoor_noise.md
 ;
 ; Invoke (PIE console, UE 5.7 syntax):
 ;   execfile <project-root>/scripts/ue/editor/render/cvar_base.txt

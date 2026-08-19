@@ -211,6 +211,43 @@ def test_placeholders_are_clean():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_machine_local_agent_config_drift():
+    """Job D: the Codex literal is a derived cache, so drift must be loud.
+
+    This is the exact failure that shipped: ~/.codex/config.toml pinned UE_5.7
+    while the conf resolved UE_5.8, so a Codex agent would have driven a 5.7
+    editor against a 5.8 project. setup_ue_env.ps1 cannot catch it - its
+    machine-local planner is JSON-only and never reads this TOML file.
+    """
+    tmp = tempfile.mkdtemp()
+    codex_dir = os.path.join(tmp, ".codex")
+    os.makedirs(codex_dir)
+    cfg = os.path.join(codex_dir, "config.toml")
+    real_expanduser = os.path.expanduser
+    os.path.expanduser = lambda p: tmp if p == "~" else real_expanduser(p)
+    values = {"UE_PATH": "<ue-path>"}
+    try:
+        with open(cfg, "w", encoding="utf-8") as fh:
+            fh.write('UE_EDITOR_CMD = "<ue-path>/x.exe"')
+        check("codex engine drift detected",
+              len(vee.check_machine_local_agent_config(values)) == 1)
+
+        with open(cfg, "w", encoding="utf-8") as fh:
+            fh.write('UE_EDITOR_CMD = "<ue-path>/x.exe"')
+        check("codex engine match passes",
+              vee.check_machine_local_agent_config(values) == [])
+
+        os.remove(cfg)
+        check("absent codex config skips (CI has no Codex)",
+              vee.check_machine_local_agent_config(values) == [])
+
+        check("no configured UE_PATH skips",
+              vee.check_machine_local_agent_config({}) == [])
+    finally:
+        os.path.expanduser = real_expanduser
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     test_clean_repo_passes()
     test_hardcoded_path_detected()
@@ -221,6 +258,7 @@ if __name__ == "__main__":
     test_pin_invariant_detected()
     test_mcp_editor_boundary_detected()
     test_placeholders_are_clean()
+    test_machine_local_agent_config_drift()
     if failures:
         print("FAILED: %d" % len(failures))
         sys.exit(1)

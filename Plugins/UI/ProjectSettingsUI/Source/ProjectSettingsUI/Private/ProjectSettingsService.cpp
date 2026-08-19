@@ -227,7 +227,6 @@ void UProjectSettingsService::ApplyGraphics(const FProjectUserSettings& S, const
 		// shows up as repeated swapchain resizes (1 -> 0 -> 1) that can land mid
 		// device-removed recovery. Borderless removes that cascade. Custom resolutions
 		// are now driven via internal upscaling (TSR / DLSS) rather than panel mode.
-		// See todo/00_current/investigate_shipping_crash_sprint_jump.md.
 		if (D.IsChanged(GET_MEMBER_NAME_CHECKED(FProjectUserSettings, bFullscreen)))
 		{
 			const EWindowMode::Type Mode = S.bFullscreen ? EWindowMode::WindowedFullscreen : EWindowMode::Windowed;

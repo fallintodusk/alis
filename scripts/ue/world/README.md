@@ -172,6 +172,15 @@ receipt and all child evidence remain for review; the outer snapshot restores
 the TestData content tree even on failure. This is L1 and is not part of the
 fast Pester suite or the common Check.
 
+Add `-ProveReconstruction -ProvePackageLocality` for the intentional TestData
+package-persistence proof. The runner compiles a genuine one-cell terrain
+variant and a genuine water-only variant, applies both through the real
+wrapper/commandlet path, and hashes the `.umap` plus every terrain proxy before
+and after. It requires exactly the changed cell's proxy to move, keeps the map
+and unrelated terrain bytes stable, and verifies the corresponding layer
+manifest advancement. This mode is TestData-only L1 evidence and is not part
+of common Check.
+
 For the production 3A topology proof, pass the explicit ProjectWorldData
 compile, presentation, authored-overlay, and realization profiles plus:
 

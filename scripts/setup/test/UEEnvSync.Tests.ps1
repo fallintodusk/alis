@@ -261,3 +261,38 @@ Write-Output "RC1=`$rc1 RC2=`$rc2 RC3=`$rc3"
         $joined | Should -Match "RC3=0"  # resolver passes afterwards
     }
 }
+
+Describe "Sync-UEUserEnv derives UE_EDITOR_CMD (C10 engine parity)" {
+    # Regression for the drift that let Codex drive a UE 5.7 editor against a
+    # 5.8 project: UE_EDITOR_CMD must be DERIVED from the same root as
+    # UE_PATH, never configured independently. Process scope only - these
+    # tests must not mutate the operator's User environment.
+
+    BeforeEach {
+        $script:SavedPath = $Env:UE_PATH
+        $script:SavedCmd  = $Env:UE_EDITOR_CMD
+    }
+    AfterEach {
+        $Env:UE_PATH = $script:SavedPath
+        $Env:UE_EDITOR_CMD = $script:SavedCmd
+    }
+
+    It "derives UE_EDITOR_CMD from the launcher root" {
+        Sync-UEUserEnv -NewLauncherRoot $script:NewL -Scope Process | Out-Null
+        $Env:UE_EDITOR_CMD | Should -Be `
+            "<ue-path>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+    }
+
+    It "keeps UE_EDITOR_CMD under the same root as UE_PATH" {
+        Sync-UEUserEnv -NewLauncherRoot $script:NewL -Scope Process | Out-Null
+        $Env:UE_EDITOR_CMD | Should -BeLike "$($Env:UE_PATH)\*"
+    }
+
+    It "follows the root when the configured engine changes" {
+        Sync-UEUserEnv -NewLauncherRoot $script:PreviousL -Scope Process | Out-Null
+        $Env:UE_EDITOR_CMD | Should -BeLike "*UE_5.7*"
+        Sync-UEUserEnv -NewLauncherRoot $script:NewL -Scope Process | Out-Null
+        $Env:UE_EDITOR_CMD | Should -BeLike "*UE_5.8*"
+        $Env:UE_EDITOR_CMD | Should -Not -BeLike "*UE_5.7*"
+    }
+}

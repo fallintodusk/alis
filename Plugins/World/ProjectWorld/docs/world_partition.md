@@ -45,6 +45,38 @@ Accepted requirements:
   player collision, and proves spatial load, unload, and reload;
 - World Partition configuration is data/profile-driven and reproduced by
   automation rather than retained as undocumented editor state;
+> **Applied-vs-documented status (measured 2026-08-18).** The `256 m` / `768 m`
+> values below are a DOCUMENTED baseline that is **not yet applied** to the
+> Kazan territory. The only runtime profile on disk is
+> `Plugins/World/ProjectWorldData/Data/Runtime/kazan_representative_playable_v1.json`,
+> which covers the representative map. There is no territory runtime profile,
+> so the territory currently runs on World Partition defaults. Runtime evidence:
+> the map initializes as a game world on the modern
+> `UWorldPartitionRuntimeHashSet` with a single default grid (every descriptor
+> reports `RuntimeGrid:None`), and the PlayerController streaming source
+> activated **5 cells** at territory centre - locality works, but on defaults,
+> not on this policy. Apply the baseline only through the HashSet-native
+> runtime-partition mechanism; do NOT recreate legacy
+> `UWorldPartitionRuntimeSpatialHash` infrastructure to satisfy older docs.
+
+### UE 5.8 native-tool survey (required before custom instrumentation)
+
+Per [scientific_debugging.md](../../../../docs/agents/scientific_debugging.md)
+section 0, verified against the installed engine, not documentation:
+
+| Tool | Installed location | Status |
+| --- | --- | --- |
+| World Streaming Insights | `Engine/Plugins/WorldStreamingInsights` | **Use first** for cell state / priority / memory and session playback. API is experimental; diagnostics only. |
+| `wp.Runtime.DumpStreamingSources` | `WorldPartitionSubsystem.cpp:164` | Confirmed. Prints each source with priority and position. |
+| `wp.Runtime.ToggleDraw*` family | `WorldPartitionDebugHelper.cpp` | Runtime cell/perf/source overlays, filterable by grid, status and Data Layer. |
+| `wp.Editor.DumpActorDescs` | `WorldPartition.cpp:248` | Editor-side full census without loading actors. |
+| FastGeo Streaming | `Engine/Plugins/Experimental/FastGeoStreaming` | **Evaluated / experimental / DEFERRED.** `EnabledByDefault: false`. Extracts and converts a partitioned world's geometry to optimize world streaming. Adopt ONLY if measured runtime evidence shows streaming or CPU pressure that ordinary World Partition plus Nanite does not resolve. Not a substitute for correct residency. |
+
+Optimization order is residency first, then CPU/Game/Draw, then GPU. Nanite
+decides how efficiently loaded geometry renders; World Partition decides what
+exists around the player. Nanite Landscape additionally streams **on top of**
+ordinary Landscape data rather than replacing it, so both reside in memory.
+
 - use one profile-driven 2D runtime grid; `256 m` cells and a `768 m` loading
   range are the evidence-based baseline, not an editor default;
 - use one logical Landscape for Kazan v1, divided into streaming proxies;
@@ -216,9 +248,27 @@ generation-layer manifest.
 The `kazan_territory_v1` realization uses
 `FLandscapeConfigHelper::PartitionLandscape(..., 1)` to produce exactly 210
 cell-owned components and 210 streaming proxies at 30 m sample spacing. Each
-component/proxy keeps its canonical cell identity. GeoReferencing placement is
-validated against the same projected coordinate authority with a maximum
-error of 0.01 m; the accepted production path currently observes zero error.
+proxy keeps its canonical cell identity, and its Landscape component keeps the
+cell terrain-input identity. The logical Landscape owns only stable grid,
+topology, material, edit-layer, and logical-Landscape identity. It never owns a
+whole canonical-bundle hash or per-cell artifact hashes. Therefore one changed
+terrain cell dirties only its component/proxy package, and a water-only input
+change dirties no Landscape package.
+
+The commandlet save boundary preserves the same ownership. It serializes the
+persistent level only when that root package is new or already dirty from a
+root-owned change; cell-local work saves dirty external packages without
+re-saving the logical map. The isolated wrapper regression hashes physical
+packages before and after genuine terrain and water changes to enforce this
+on-disk invariant, not only the in-memory dirty flags.
+
+Topology admission validates every component's actual `SectionBase` and the
+canonical north-west/south-east bounds derived through its Landscape transform.
+Unique cell tags alone are insufficient. The native 2 x 3 proof pins both axes,
+and production requires all 210 cell, component-coordinate, bounds, and proxy
+associations to agree. GeoReferencing placement is validated against the same
+projected coordinate authority with a maximum error of 0.01 m; the accepted
+production path currently observes zero error.
 
 Water is realized as persistent cell-local `UStaticMesh` assets and spatial
 actors. Each authoritative surface is prepared once over its complete
@@ -270,6 +320,22 @@ serialized HLOD layer references. Older immutable manifest generations retain
 their historical inventory for provenance and recovery. Generic transaction
 code may recognize those records for exact ownership, rollback, and cleanup,
 but active and future generation must not recreate them.
+
+#### Rejected representation alternatives
+
+Recorded here because reversing any of them reopens the realization contract,
+not merely one slice.
+
+| Rejected | Why |
+|---|---|
+| Custom Landscape proxy construction, or a second/external tiled heightmap importer | Epic's tiled-heightmap World Partition import plus `FLandscapeConfigHelper::PartitionLandscape` already own proxy/cell identity. A parallel importer is a second authority over the same identity, and any divergence surfaces as terrain that passes its own gate while disagreeing with canonical. |
+| `ProceduralMesh` water | Wrong on four axes at once: persistence (not a saved package the transaction can own), Nanite (no supported path), identity (no stable package identity for dirty scope), and cook boundary. Cell-local water is a persistent non-Nanite StaticMesh instead. |
+| One actor per water feature | Large river bounds defeat streaming locality - a single actor's bounds span cells that should stream independently. |
+| One whole-map manifest | Layers could not be owned or advanced independently. |
+| New transaction framework or manifest v2 | No demonstrated need; the existing transaction already provides ownership, rollback, and cleanup. |
+
+The Experimental Water plugin is rejected separately and for different reasons;
+see the maturity/authority argument above in this document.
 
 Official basis:
 [Landscape heightmap import](https://dev.epicgames.com/documentation/en-us/unreal-engine/importing-and-exporting-landscape-heightmaps-in-unreal-engine) and

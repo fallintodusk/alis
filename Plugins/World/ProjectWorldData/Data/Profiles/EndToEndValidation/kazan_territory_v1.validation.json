@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../../../tools/World/EndToEndValidation/contracts/validation-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "kazan_territory_v1",
+  "thresholds": {
+    "full_compile_seconds": 900.0,
+    "incremental_compile_seconds": 300.0,
+    "canonical_bytes": 2147483648,
+    "unreal_import_seconds": 1800.0,
+    "generated_packages": 8192,
+    "provider_payload_bytes": 1073741824
+  },
+  "profiles": {
+    "synthetic": {
+      "world_data_plugin": "ProjectWorldTestData",
+      "source_profile": "synthetic_landscape_water_twin",
+      "source_profile_path": "Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_landscape_water_twin.source.json",
+      "compiler_profile": "synthetic_landscape_water_twin",
+      "compiler_profile_path": "Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_landscape_water_twin.compile.json",
+      "presentation_profile": "Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json",
+      "authored_overlay_profile": "Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_landscape_water_twin_v1.json",
+      "authored_overlay_sabotage_profile": "Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_slice0_sabotage_v1.json",
+      "realization_profile": "Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_landscape_water_twin.realization.json",
+      "map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldLandscapeWaterTwin",
+      "require_landscape": true,
+      "expected_features": 4,
+      "expected_rejections": 3,
+      "expected_authored": {"resolved": 0, "placed": 0, "masks": 0, "minimum_package_files": 0},
+      "expected_topology": {
+        "canonical_cells": 2,
+        "sample_spacing_m": 1.0,
+        "landscape_components": 2,
+        "landscape_proxies": 2,
+        "water_cell_actors": 2,
+        "water_mesh_assets": 2,
+        "water_triangles": 100,
+        "maximum_georeferencing_error_m": 0.01
+      },
+      "expected_layers": [
+        {"layer_id": "terrain", "generator_id": "project_landscape", "generator_version": 1, "artifact_root": "/ProjectWorldTestData/Generated/Twin/Terrain/", "canonical_input_count": 2, "artifact_count": 2, "incremental_dirty_count": 0},
+        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldTestData/Generated/Twin/Water/", "canonical_input_count": 2, "artifact_count": 5, "incremental_dirty_count": 0}
+      ],
+      "incremental_bounds": [10.0, 10.0, 20.0, 20.0]
+    },
+    "kazan": {
+      "world_data_plugin": "ProjectWorldData",
+      "source_profile": "kazan_territory_v1",
+      "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json",
+      "compiler_profile": "kazan_territory_v1",
+      "compiler_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/CanonicalCompilation/kazan_territory_v1.compile.json",
+      "presentation_profile": "Plugins/World/ProjectWorldData/Data/Presentation/kazan_representative_v1.json",
+      "authored_overlay_profile": "Plugins/World/ProjectWorldData/Data/Authored/kazan_slice0_v1.json",
+      "authored_overlay_sabotage_profile": "Plugins/World/ProjectWorldData/Data/Authored/kazan_slice0_sabotage_v1.json",
+      "realization_profile": "Plugins/World/ProjectWorldData/Data/Profiles/Realization/kazan_territory_v1.realization.json",
+      "canonical_authority": true,
+      "map_package": "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+      "require_landscape": true,
+      "expected_features": 67136,
+      "expected_rejections": 0,
+      "expected_authored": {"resolved": 3, "placed": 2, "masks": 1, "minimum_package_files": 1},
+      "expected_topology": {
+        "canonical_cells": 210,
+        "sample_spacing_m": 30.0,
+        "landscape_components": 210,
+        "landscape_proxies": 210,
+        "water_cell_actors": 145,
+        "water_mesh_assets": 145,
+        "water_triangles": 11914,
+        "maximum_georeferencing_error_m": 0.01
+      },
+      "expected_layers": [
+        {"layer_id": "terrain", "generator_id": "project_landscape", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Terrain/", "canonical_input_count": 210, "artifact_count": 210, "incremental_dirty_count": 0},
+        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Water/", "canonical_input_count": 210, "artifact_count": 291, "incremental_dirty_count": 0}
+      ],
+      "incremental_bounds": [379800.0, 6184201.0, 379900.0, 6184300.0]
+    }
+  },
+  "package": {
+    "required_map": "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+    "forbidden_suffixes": [".pbf", ".osm", ".tif", ".tiff", ".dem", ".vrt", ".gpkg", ".parquet"],
+    "forbidden_names": ["provider_metadata.json", "source_ledger.json", "run_contract.json", "download_metadata.json"]
+  }
+}

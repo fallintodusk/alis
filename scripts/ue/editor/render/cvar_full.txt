@@ -1,7 +1,6 @@
 ; A/B profile: FULL
 ; Phase 1 in full. Above + denser probe rays + Quality 3 + reflection samples 16.
 ; Expected GPU cost vs base: ~0.5-1.5 ms on RTX 3060.
-; Companion todo: todo/00_current/fix_lumen_indoor_noise.md
 ;
 ; Invoke (PIE console, UE 5.7 syntax):
 ;   execfile <project-root>/scripts/ue/editor/render/cvar_full.txt

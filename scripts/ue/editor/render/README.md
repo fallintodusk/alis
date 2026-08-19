@@ -5,7 +5,6 @@ Lumen tuning session. Tracked in git so the tuning history is reviewable.
 
 **!! READ THE TODO BEFORE USING THESE !!**
 
-Companion todo: [todo/00_current/fix_lumen_indoor_noise.md](../../../../todo/00_current/fix_lumen_indoor_noise.md)
 
 These profiles encode the early experimental CVar campaign. The todo's
 final research-grounded plan **superseded** this approach. Specifically:

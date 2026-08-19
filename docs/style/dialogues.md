@@ -148,7 +148,6 @@ Player is disoriented (recently woke up in a ruined world, missing memory). Voic
 - Authoring/technical: [../gameplay/dialogue_guide.md](../gameplay/dialogue_guide.md)
 - Narrative principles: [../architecture/principles.md](../architecture/principles.md)
 - Worked example: `Plugins/Resources/ProjectObject/Content/Human/GrandPa/DLG_GrandPa_Entry.json` and the grandpa dialogue chain
-- Active rewrite todo: `todo/00_current/fix_grandpa_dialogue.md`
 
 ## Sources
 

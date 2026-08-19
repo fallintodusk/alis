@@ -70,6 +70,7 @@ $configDirectory = Join-Path $projectRoot "scripts\config"
 . (Join-Path $scriptDirectory "generated_manifest.ps1")
 . (Join-Path $scriptDirectory "realization_layer_operation.ps1")
 . (Join-Path $scriptDirectory "operator_controls.ps1")
+. (Join-Path $scriptDirectory "execution_envelope.ps1")
 $config = Resolve-UEConfig -ConfigDir $configDirectory
 
 $editorCommand = Join-Path $config.UE_PATH "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
@@ -503,9 +504,12 @@ $unrealArguments = @(
     "-unattended"
     "-nop4"
     "-nosplash"
-    "-NullRHI"
     "-FullStdOutLogOutput"
 )
+# ProjectWorldRealize composes Landscape edit layers through UE's RDG merge, so it is a
+# render-required step. The envelope helper owns the flags; see execution_envelope.ps1.
+$projectWorldRealizeRendering = 'Required'
+$unrealArguments += Get-ProjectWorldExecutionEnvelopeArguments -Rendering $projectWorldRealizeRendering
 if ($modeName -ne "delete") {
     $unrealArguments += "-PresentationProfile=$presentationProfilePath"
     $unrealArguments += "-AuthoredOverlayProfile=$authoredOverlayProfilePath"
@@ -526,6 +530,9 @@ if ($RequireLandscape) {
     $unrealArguments += "-RequireLandscape"
 }
 
+# Contradictory envelopes fail before the editor launches, not after a flat map is written.
+Assert-ProjectWorldExecutionEnvelope -Rendering $projectWorldRealizeRendering -Arguments $unrealArguments
+Write-Host "[WorldRealization] rendering=$projectWorldRealizeRendering"
 Write-Host "[WorldRealization] mode=$modeName"
 Write-Host "[WorldRealization] input=$compileResultPath"
 Write-Host "[WorldRealization] presentation=$($presentationProfilePath.Trim())"

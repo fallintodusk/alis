@@ -2,7 +2,6 @@
 ; Cheapest stability gain only. No extra ray count - just longer temporal
 ; accumulation + firefly clamp + HWRT ShortRangeAO.
 ; Expected GPU cost vs base: ~0 ms.
-; Companion todo: todo/00_current/fix_lumen_indoor_noise.md
 ;
 ; Invoke (PIE console, UE 5.7 syntax):
 ;   execfile <project-root>/scripts/ue/editor/render/cvar_clean.txt
