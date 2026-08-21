@@ -21,6 +21,20 @@ function Assert-ProjectWorldOwnedPath {
     return $candidate
 }
 
+function Get-ProjectWorldPresentationRoot {
+    # SINGLE authority for the shared generated presentation root.
+    # C++ owner: ProjectWorldPresentationMaterialRealization writes
+    # <GeneratedPackageRoot>Presentation/<asset>, so this root is mutated by
+    # every Apply while belonging to no map scope. It must never be re-derived
+    # by a second copy of the literal; invariant 19 depends on one authority.
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentRoot
+    )
+
+    return Join-Path $ContentRoot 'Generated\Presentation'
+}
+
 function Get-ProjectWorldGeneratedPaths {
     param(
         [Parameter(Mandatory = $true)]
@@ -69,12 +83,41 @@ function Get-ProjectWorldGeneratedPaths {
         }
     }
     if ($IncludePresentation) {
-        $presentation = Join-Path $ContentRoot 'Generated\Presentation'
+        $presentation = Get-ProjectWorldPresentationRoot -ContentRoot $ContentRoot
         if (Test-Path -LiteralPath $presentation) {
             $paths.Add((Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $presentation))
         }
     }
     return @($paths | Sort-Object -Unique)
+}
+
+function Assert-ProjectWorldSnapshotCoverage {
+    # Invariant 19 fail-closed guard: a transaction may not begin unless its
+    # snapshot covers every generated root the operation can mutate. The map
+    # scope is derived from the map package, and layer roots arrive as declared
+    # AdditionalPaths, but the shared presentation root belongs to no scope and
+    # is therefore the one root a caller can silently omit. Refuse rather than
+    # discover the omission during a failed rollback.
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContentRoot,
+
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [object[]]$Records
+    )
+
+    $presentation = Get-ProjectWorldPresentationRoot -ContentRoot $ContentRoot
+    if (-not (Test-Path -LiteralPath $presentation)) {
+        return
+    }
+    $target = [System.IO.Path]::GetFullPath($presentation).TrimEnd('\', '/')
+    $covered = @($Records | ForEach-Object {
+        [System.IO.Path]::GetFullPath([string]$_.Source).TrimEnd('\', '/')
+    })
+    if ($covered -notcontains $target) {
+        throw "Generated content transaction does not cover the shared presentation root: $target"
+    }
 }
 
 function New-ProjectWorldGeneratedSnapshot {
@@ -114,6 +157,7 @@ function New-ProjectWorldGeneratedSnapshot {
         $records.Add([pscustomobject]@{ Source = $source; Backup = $backup; Existed = $existed })
         ++$index
     }
+    Assert-ProjectWorldSnapshotCoverage -ContentRoot $ContentRoot -Records @($records)
     return @($records)
 }
 

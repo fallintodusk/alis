@@ -17,7 +17,7 @@ The city gets attention. The survival loop earns belief.
 The only hook strong enough to stop strangers scrolling: a survival game set in a real city you can find on a map.
 
 - [ ] Generate the Kazan territory layers needed for a believable capture
-  ([execution](world_compile_kazan_territory_slice_2.md))
+  ([execution](world_realize_kazan_territory_slice_3b_roads.md))
 - [ ] Capture comparison footage: real place vs in-game (side-by-side)
 - [ ] Edit 60-90 second video - city first, survival glimpse second
 - [ ] Post to r/unrealengine, r/indiegaming, r/gamedev

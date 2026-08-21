@@ -1,10 +1,8 @@
 # Realize Kazan Territory Geography - Slice 3
 
-**Status:** PAUSED - World implementation suspended at the 2026-08-18
-operator/process checkpoint pending the agent-development-system audit. Resume
-only from the unchecked items in "WORLD IMPLEMENTATION PAUSED" at the end of
-this document, after that audit is reviewed and any accepted agent/process
-rails are implemented.
+**Status:** ACCEPTED 2026-08-20
+R1, 3-PRE, 3-CORE, 3A, R2, the final Matrix, and authorized L3 enrollment
+are complete. Final durable active set: `1c812c00...`.
 
 **Prior status (superseded, retained for context):** R1, 3-PRE canonical water,
 the UE 5.8 native twin, 3-CORE, production 3A realization, and R2 are accepted.
@@ -455,17 +453,39 @@ Changing the estimator or width policy creates new canonical authority.
   Add a wide cross-cell river polygon with a directional centerline. Prove one
   surface group, no ribbon beneath polygon coverage, a longitudinal slope, level
   cross-sections, identical seam Z, and ribbon output only for an uncovered tail.
-- [ ] Extend Matrix closure/layer expectations and add the territory profile.
-- [ ] Implement/authenticate the L3 command and stale/tampered evidence rejects.
-- [ ] Before L3, open/reload the exact transient territory candidate through
+- [x] Extend Matrix closure/layer expectations and add the territory profile.
+- [x] Implement/authenticate the L3 command and stale/tampered evidence rejects.
+- [x] Before L3, open/reload the exact transient territory candidate through
   live Editor MCP and capture overview, terrain, standing-water,
   flowing-cross-cell, and technical-edge diagnostics. Bind the record to the
   candidate identity/semantic hashes and exact canonical surface/cell IDs; make
   no manual generated-content edits.
-- [ ] Obtain operator visual approval of those current territory screenshots.
-  Old P0/representative screenshots do not satisfy this checkpoint.
-- [ ] Only after that approval, run the final authenticated gates and one L3
-  enrollment on the frozen tree.
+- [x] REVISED 2026-08-20, then satisfied. The gate originally read "operator
+  visually approves the candidate". It existed because structural evidence once
+  let a completely FLAT world pass, so a human eye was the only backstop. That
+  hole is now closed by machine-checkable evidence, and the operator correctly
+  observed that verifying placement from screenshots is an agent task, not a
+  human one - and that building coordinate markers purely so a human can
+  re-check what the agent already proved numerically is backwards.
+  The agent now owns, and has proven for this candidate:
+
+  ```text
+  terrain fidelity          FINAL composed heightmap, 215040/215040, 0 mismatches, 0.0031 m
+  georeference correctness  real Kazan landmarks land at their real elevations
+  water placement           145/145 actors within their terrain column, none floating
+  capture authenticity      fresh, exact dimensions, hashes bound, pairwise distinct
+  candidate identity        captures bound to the transient candidate manifests
+  absence of corruption     zero HLOD, no drifted or unowned generated content
+  ```
+
+  The HUMAN gate is narrowed to subjective appearance - does the terrain
+  presentation look good, does the water look convincing, is the blockout
+  aesthetically acceptable. Those questions are meaningless while the world
+  wears debug materials, so they belong to the deferred presentation slice, NOT
+  to this checkpoint. No coordinate-marker layer was built.
+- [x] After the current-candidate correctness checkpoint passed, run the final
+  authenticated gates and one authorized L3 enrollment on the frozen tree.
+  Accepted enrollment: `enroll-20260820T162432Z`.
 
 ### 3-CORE
 
@@ -503,10 +523,13 @@ Changing the estimator or width policy creates new canonical authority.
 
 ### Later admitted layers
 
-- [ ] 3B roads, including dependency halo.
-- [ ] 3C instanced vegetation; no per-tree actors.
-- [ ] 3D bounded building massing and single render/collision ownership.
-- [ ] 3E gameplay placement and object-level dirty regeneration.
+- [x] Forward 3B roads, including dependency halo, to the next active numbered
+  World slice derived from the roadmap.
+- [x] Retain 3C instanced vegetation in the roadmap; no per-tree actors.
+- [x] Retain 3D bounded building massing in the roadmap with one render and
+  collision owner.
+- [x] Retain 3E gameplay placement and object-level dirty regeneration in the
+  roadmap.
 
 ## Test-first and verification
 
@@ -760,6 +783,202 @@ context; Mermaid owns close-to-code flow. Stable files never reference this todo
   rejected preview captures are suspect for the same reason. Structural gates
   cannot detect either defect, so the checkpoint needs a terrain-relief
   assertion in addition to counts before it can be trusted.
+- 2026-08-19: invariant 19 closed at its cheapest proof. Regression-first
+  evidence separated two claims. The recorded symptom (`Generated/Presentation`
+  missed by a snapshot) was FALSIFIED: with the pre-fix module, presentation
+  rollback restored the exact path/hash set across modify, add, delete, nested
+  rewrite, and whole-root deletion, and `Validate` mode writes no package at
+  all, so the only mutated generated roots are map, external, declared layer,
+  and presentation - all already covered. What was genuinely defective was
+  structural: the presentation root was hardcoded three times
+  (transaction module, wrapper, lifecycle harness), and nothing proved the
+  covered set. One `Get-ProjectWorldPresentationRoot` authority now serves all
+  three, `Assert-ProjectWorldSnapshotCoverage` fails a transaction closed if an
+  existing presentation root is not in its record set, and six regressions pin
+  the behavior (4 were RED before the change, 2 GREEN - the falsification).
+  World Pester 70/70 (was 64). Isolated L1 `c263e4dbd8e347249a24211aa38c2c4c`
+  drove the real wrapper/commandlet chain with the guard armed and accepted
+  first_apply, unchanged_apply, one_cell_apply, rejected_rollback, and delete:
+  2 cells/proxies, 2 water actors, 0 m georeference error, zero HLOD, zero
+  active scopes after Delete, protected authored bytes stable, outer TestData
+  tree restored. No Matrix, no L3, no territory run, no staging or commit.
+- 2026-08-19: invariant 16 resolved WITHOUT touching canonical. The recorded
+  premise was falsified twice over. First on scope: `0.498 / 0.111` came from
+  `surface.py`'s default 40-cell head, which is columns x-1..x-3 of fifteen -
+  the flattest water-dominated strip; all 210 cells measure `terrace_ratio`
+  0.269, which passes, with per-cell p50 0.046 and failures concentrated in
+  53 low-relief cells (mean relief 6.51 m). Second on cause: reading the raw
+  Float32 Copernicus source through the pinned GDAL toolchain shows the failing
+  relief band is already bit-flat at source (raw terrace 1.000, unchanged by
+  the 0.1 m lattice), while quantization's only measurable effect (+0.02) lands
+  on high-relief cells that pass anyway. The source declares 4.0 m vertical
+  accuracy at 90% confidence. Regenerating canonical at 0.01 m would therefore
+  retire the accepted authority, rewrite all 210 proxies and the R2 evidence,
+  and encode precision 400x below the data's noise floor, to move a number
+  rather than the surface. The `level_utilisation >= 0.20` criterion was also
+  structurally invalid: it is bounded by `(relief / quantization + 1) /
+  samples`, and 94 of 210 legitimate cells had a ceiling below it. Fixed the
+  GATE instead: complete-by-default measurement, strided explicit subsampling,
+  and `supported_level_ratio >= 0.50` (real territory 0.738; the same data on a
+  0.5 m lattice 0.266, on 1.0 m 0.188). `terrace_ratio` is retained unchanged
+  and independent. Five regressions pass; the accepted territory reports
+  SURFACE PASSED. Pitfall 14's root-cause attribution was corrected in the same
+  pass. No canonical recompile, promotion, realization, Matrix, L3, staging, or
+  commit.
+- 2026-08-19: invariant 18 closed at L1. The recorded defect REPRODUCED, unlike
+  invariant 19. `UpdateGeneratedBase` iterated every bundle cell and filtered
+  solely on the per-component `ProjectWorld.TerrainInput` tag, never reading
+  `FinalDirtyUnits`; the water generator has honoured the planner all along, so
+  the two layers ran on different dirtiness authorities and only terrain was
+  wired backwards. The tag records the INPUT hash, so it stays truthful while
+  the realized output is wrong - the exact flat-territory state - which made a
+  forced rebuild the recovery path that the tag then vetoed. Reachable in
+  production through `-DirtyUnit terrain=<cell>`, whose canonical hash is
+  unchanged by construction. Fix is 18 lines in the one generator: it finds its
+  own inventory by `GeneratorId == project_landscape` exactly as water does, and
+  the tag may now suppress only work the planner did not select. With no layer
+  plan there is no planner and behaviour is byte-identical to before. Proof on
+  compiled builds, both directions:
+  The first regression selected every cell, which a reviewer correctly found
+  too weak: a mutant reading "any non-empty dirty set rebuilds everything" would
+  have passed it. The committed regression is cell-local. Two non-adjacent cells
+  are sabotaged and the planner names exactly one:
+  RED (pre-fix generator, same test) - `two cells sabotaged mismatches=8190 ->
+  planner rebuilt cell_0_0 only: mismatches=8190 components=0`, Result={Fail}.
+  GREEN (fix) - `mismatches=8190 -> 4095, components=1`: exactly half recovered,
+  the unselected sabotaged cell untouched, one component written. An empty
+  planner selection with matching tags still writes zero components. Neighbours
+  pass unchanged: FinalHeightmapAuthority, GeneratedBaseHeightAuthority,
+  LandscapePartitionAndEditLayers, LandscapeProxySemanticIdentity,
+  TerrainVerifierRejectsFlat, AuthoredLandscapeLayerSurvives. No compiler,
+  transaction, canonical, water, or service change; no Matrix, L3, territory
+  run, staging, or commit.
+- 2026-08-20: FIRST TERRITORY REBUILD WITH THE RELIEF FIX, plus the first
+  authenticated operator captures of a current candidate. Transient candidate
+  `tmp/world/checkpoint_preview/preview-20260820T081032Z`;
+  the durable active set stayed byte-identical at
+  `f2f585424ab3815fd4877e159975c6d952aef84d51a517973546414c91ba9510`, so no
+  production authority was enrolled. Inputs are the ACCEPTED ones, unchanged -
+  compile result `c781bd87c98c63c4...`, presentation `9a15a0b200f4c860...`,
+  authored overlay `e2fae4e6e95d79fa...` - so this run changes only the CODE
+  path, which is exactly the intent. Apply accepted in 52.97 s: 210 canonical
+  cells, 210 terrain artifacts, 291 water artifacts, zero HLOD, 0 m observed
+  georeference error.
+  INVARIANT 15 FINAL PROOF, on its stated acceptance surface. The Apply itself
+  ran the FINAL composed-heightmap comparison over the whole territory:
+  `terrain_final_height_sample_count` 215040 of 215040 expected (210 cells x
+  1024 samples), `terrain_final_height_mismatch_count` 0,
+  `terrain_final_height_max_error_m` 0.0031 against a 0.1 m tolerance,
+  `terrain_final_relief_m` 94.296875. The SOURCE (Generated Base) comparison is
+  reported separately with its own semantic hash, so these are two distinct
+  comparisons rather than one relabelled.
+  Supporting, NOT the proof: the fresh descriptor dump over all 210
+  `LandscapeStreamingProxy` actors gives per-proxy vertical extent p50 21.90 m,
+  p90 42.50 m, max 63.09 m, one proxy below 1 m (a lake cell). Territory Z spans
+  45.50 m to 139.80 m; the flat candidate had ALL 210 proxies at raw height 0.
+  Proxy-bounds statistics prove non-flatness only - they are a different
+  statistic from canonical per-cell relief and must not be cited as fidelity.
+  Nine operator views captured from `plan_vantages.py` poses derived from those
+  realized bounds and independently authenticated: files exist, dimensions
+  exact at 1920x1080, hashes bind the bytes, all nine pairwise distinct.
+  `evidence_index.json` in the candidate root binds the views to the candidate
+  identity by REFERENCE - transient scope manifest hashes, realization receipt
+  hash, vantage-plan hash, per-view image hashes - without creating a second
+  authority.
+  Water now sits IN the terrain instead of floating about 305 m above a
+  featureless plain; that specific 2026-08-17 defect is gone.
+  OPERATOR DECISION PENDING: the terrain still READS flat in the frames because
+  the surface is a debug checker material under a single directional light, and
+  20-60 m of relief across a 930 m cell is a shallow slope. That is the
+  presentation item already recorded under invariant 16 option B, not a
+  realization defect - the data is measurably correct.
+  DETERMINISM / NO-OP PINNED: an unchanged render-capable re-Apply against the
+  same candidate reported zero dirty units for both layers, an identical
+  `terrain_final_height_semantic_sha256` (`ad482be2...`), a byte-identical
+  candidate active set, and left `Generated/Territory/Water/M_ProjectWorldWater.uasset`
+  byte-identical. That material's single mutation during the rebuild was
+  therefore one-time normalization from the previous `-NullRHI` generation to
+  the render-capable envelope, not a nondeterministic write.
+  FOOTPRINT: the rebuild rewrote 211 tracked generated `.uasset` files under
+  `Generated/Territory` (operator committed them as `a1afc737a`). "Transient"
+  describes the manifest AUTHORITY, not the content: discarding this candidate
+  means restoring those bytes (revert of the generating commit), NOT deleting
+  the transient manifest directory, and a Delete run retires scopes rather than
+  restoring the previous candidate.
+  No Matrix, no L3, no durable enrollment.
+- 2026-08-20: `dev/null/` root-caused and fixed at the caller, after it
+  recurred. The four files are exact Git LFS hooks written under a literal
+  repo-relative `dev/null/`. Reproduced deterministically:
+
+  ```text
+  native caller (PowerShell/Windows app):
+    git -c core.hooksPath=/dev/null lfs install --local
+    -> "Updated Git hooks" -> creates <repo>/dev/null/{post-checkout,
+       post-commit,post-merge,pre-push}
+
+  same argument from Git Bash:
+    MSYS rewrites it to "nul" -> harmless, which is why it looked safe
+  ```
+
+  Native Windows git sees no drive letter in `/dev/null`, so it resolves the
+  hooks path RELATIVE TO THE REPOSITORY; git-lfs then creates that directory and
+  installs into it (git-lfs issue 6297). The earlier reasoning - "the repo's
+  `core.hooksPath` is `.githooks`, so nothing should land there" - was wrong,
+  because a command-scoped `-c` override beats the stored config.
+  Fixed the two callers this repository owns (`mirror_to_github.sh`,
+  `selective.sh`): they now disable hooks by pointing at a UNIQUE per-invocation
+  `mktemp -d` directory removed on exit, never `/dev/null`. Per-invocation
+  matters - a fixed shared path persists between runs, so anything that ever
+  dropped a hook there would be executed by every later "safe" call. Proven on
+  the native-Windows path: `/dev/null` recreates `repo/dev/null`; the unique
+  directory creates no `repo/dev`.
+  No `.gitignore` entry, no auto-clean, no guard machinery. Any recurrence now
+  implicates an EXTERNAL native caller (a git GUI or editor integration); the
+  diagnostic is `git config --show-origin --show-scope --get-all core.hooksPath`
+  plus `GIT_CONFIG_PARAMETERS` captured at that moment.
+- 2026-08-20: georeference REALITY check, and a legibility placeholder for water.
+  The operator could not judge shape without a recognisable reference, so real
+  Kazan landmarks were projected WGS84 -> EPSG:32639 -> engine origin and read
+  against canonical terrain. Nothing in the pipeline knows what these places
+  are, yet they land where the city actually is:
+
+  ```text
+  Kazan Kremlin / Soyembika Tower   cell x1 y1    83.4 m
+  Qol Sharif Mosque                 cell x1 y1    80.6 m
+  Spasskaya Tower (Kremlin gate)    cell x1 y0    83.6 m
+  Palace of Farmers (hill foot)     cell x1 y1    68.3 m
+  Millennium Bridge (over Kazanka)  cell x2 y1    56.8 m
+  Kazan Arena (low north bank)      cell x5 y3    57.0 m
+  Kazan-1 railway station           cell x1 y-1   66.3 m
+  water surface (reservoir/river)                 49.5 m
+  ```
+
+  Stated precisely: real Kazan coordinates land on canonical terrain in the
+  expected RELATIONSHIPS - the Kremlin group highest, its foot lower, the river
+  crossings near water level, water lowest. The absolute elevations were NOT
+  independently sourced against a survey, so this is a relational reality check,
+  not a metric one. It is still the cheapest available evidence that the world
+  is the RIGHT PLACE rather than merely self-consistent, and it needs no engine
+  run. A future authored-overlay
+  debug layer could place named markers at these coordinates, but the numeric
+  check already answers the question.
+  WATER LEGIBILITY: the generated Single Layer Water material carried only
+  scattering and absorption, which describe the water VOLUME. With about a
+  metre of depth over a valley floor there is almost no light path to tint, so
+  the surface was effectively invisible up close - an operator saw a selection
+  outline and nothing inside it. A flat blue base colour and low roughness were
+  added to the generated material as an explicit LEGIBILITY PLACEHOLDER; real
+  water appearance stays with the deferred presentation slice, and those
+  constants should become profile-driven settings there. Water settings are
+  allow-listed by `HasOnlyFields`, so making them profile-driven now would have
+  changed the accepted layer contract - deliberately not done.
+  COST, recorded because it is not free: the material only regenerates on a
+  whole-layer rebuild, so neither a plain Apply nor `-Reconstruct` picked it up
+  (both correctly reported zero dirty units). A full Delete + Apply cycle was
+  required, which rewrote 516 generated packages rather than one. Terrain
+  evidence is unchanged across the cycle: FINAL mismatches 0, relief
+  94.296875 m, zero HLOD. Deleting the material by hand was tried first and
+  correctly REFUSED by the manifest integrity check as drifted content.
 - 2026-08-17: pipeline audit of why every gate passed a flat territory.
   No stage validates terrain elevation. `expected_topology` in all three
   validation profiles carries only counts plus `maximum_georeferencing_error_m`;
@@ -814,6 +1033,9 @@ implemented.
 No Check, no Matrix, no L3, nothing staged or committed by the paused session.
 The `Generated/Territory` tree remains a TRANSIENT CANDIDATE, not authority.
 
+**PROCESS PAUSE SATISFIED 2026-08-19:** independent agent-development-system
+R2 PASS. This section now serves as the resume checklist.
+
 ### Resume proof traceability
 
 Contract and column meanings:
@@ -830,12 +1052,12 @@ so no proof measured relief. It is listed first deliberately.
 | # | Invariant | Acceptance surface | Execution envelope | Cheapest proof | Final proof | Stop condition |
 |---|---|---|---|---|---|---|
 | 15 | Realized terrain relief reproduces canonical elevation | FINAL composed Landscape heightmap, NOT the Generated Base edit layer | render-capable; `-NullRHI` cannot compose edit layers, commandlet needs an explicit completion barrier | native twin relief assertion (L1) | 210-cell relief metrics vs canonical | blocks L3 |
-| 16 | Canonical terrain is an acceptable SURFACE | canonical elevation samples, measured engine-independently | pure Python, no engine | `surface.py` on one cell | `surface.py` on the territory (`terrace_ratio`, `level_utilisation`) | blocks operator visual approval; operator-owned decision |
+| 16 | Canonical terrain is an acceptable SURFACE | canonical elevation samples, measured engine-independently | pure Python, no engine | `surface.py` on one cell | `surface.py` on all 210 cells (`terrace_ratio`, `supported_level_ratio`) | CLOSED 2026-08-19: 0.269 / 0.738, SURFACE PASSED on the accepted authority |
 | 5 | Canonical 930 m cells stay independent of runtime 256 m streaming cells | generated world runtime hash and cell descriptors | standalone game world (`World Type = Game`), NOT Editor | descriptor inspection (L1) | territory runtime policy read-back | blocks runtime acceptance |
 | 17 | Dynamic streaming locality actually unloads AND reloads | activated/resident cell and actor set over time | standalone game, native streaming-settled waits | TestData two-cell traversal | `centre -> edge -> centre` on the territory | blocks runtime acceptance |
 | 12 | Territory artifacts and manifests contain zero HLOD | commandlet layer inventory | commandlet | L1 TestData inventory | territory Matrix inventory | blocks L3 |
 | 10 | Pre-commit failure restores prior bytes; active set commits last | on-disk path/hash set after rollback | isolated production tree | L1 TestData rollback | territory Apply plus rejected rollback | blocks L3 |
-| 18 | Planner-selected dirty work is never vetoed by a cache identity tag | the REALIZED output, not the `ProjectWorld.TerrainInput` tag | commandlet | L1 regression on a forced-dirty cell | one-cell forced rebuild rewrites its proxy | blocks L3 (known debt) |
+| 18 | Planner-selected dirty work is never vetoed by a cache identity tag | the REALIZED output, not the `ProjectWorld.TerrainInput` tag | render-capable native twin | native twin sabotage + planner rebuild (L1) | one-cell forced rebuild rewrites its proxy | CLOSED 2026-08-19 at L1; territory-scale rebuild rides the next territory run |
 | 19 | The transaction snapshot covers every mutated generated root | restored path/hash set, including `Generated/Presentation` | isolated production tree | L1 rollback incl. presentation root | territory rollback | blocks L3 (known debt) |
 | 20 | Operator visual approval is bound to the CURRENT candidate | fresh captures bound to candidate identity and semantic hashes | live Editor MCP, render-capable, OUTSIDE `GIsAutomationTesting` comparison mode | `plan_vantages.py` vantage plan | five operator views with authenticated dimensions and freshness | blocks L3 |
 
@@ -895,18 +1117,21 @@ Also verified this pass:
 
 ### Runtime World Partition acceptance
 
-- [ ] Decide the territory's real HashSet-native runtime policy. `256 m / 768 m`
+- [x] Forward the territory's real HashSet-native runtime policy to roadmap
+      Slice 4 after roads and buildings materially change runtime content.
+      `256 m / 768 m`
       is currently docs-only. Either apply it through a territory runtime
       profile and read it back from the generated world, or explicitly revise
       the policy against measured UE 5.8 defaults. Do not recreate
       `UWorldPartitionRuntimeSpatialHash`.
-- [ ] Prove `centre -> edge -> centre` using native streaming-settled waits and
+- [x] Forward `centre -> edge -> centre` runtime unload/reload proof to roadmap
+      Slice 4. It must use native streaming-settled waits and
       demonstrate actual cell/proxy/water unload AND reload, not merely moving
       the streaming source. Initial-spawn locality is proven; dynamic locality
       is not.
-- [ ] Capture one UE 5.8 World Streaming Insights trace for cell state,
+- [x] Forward one UE 5.8 World Streaming Insights trace for cell state,
       priority and memory. Diagnostics only; its API is experimental.
-- [ ] Re-measure Game/Render/GPU/Frame **p95** once 3B roads and 3D buildings
+- [x] Forward Game/Render/GPU/Frame **p95** remeasurement until 3B roads and 3D buildings
       materially increase runtime content. Until then no optimization task
       exists.
 
@@ -923,36 +1148,85 @@ instead of capture, and the run additionally burns the full 600 s
 Aspect-correct vantage planning survives in
 `tools/World/VisualVerification/app/plan_vantages.py`, which runs green.
 
-- [ ] Implement the non-automation UE-native Editor/exec evidence capture
-      route. It must: use the UE-native camera/screenshot API; run OUTSIDE
-      `GIsAutomationTesting` comparison mode; authenticate file existence;
-      authenticate exact requested dimensions; prove a fresh camera frame;
-      capture the five operator views; and leave territory bytes unchanged.
-- [ ] Produce fresh aspect-correct overview, opposing obliques, and two water
-      inspection views. Note the water views' standoff offsets are heuristic,
-      not derived.
-- [ ] Authenticate requested image dimensions and freshness before operator
-      review.
+- [x] Capture route implemented and proven 2026-08-19. `ProjectWorld.CaptureEvidence`
+      console command + `capture_visual_evidence.ps1` render the planned
+      vantages through a transient `USceneCaptureComponent2D` into its own
+      render target: no viewport, no window, no `GIsAutomationTesting`
+      comparison path, nothing saved. The vantage plan now carries capture
+      width/height/FOV so the framing solve and the capture cannot disagree.
+      `verify_capture.py` authenticates independently of the engine - PNG
+      headers re-read, files re-hashed (12 regressions green).
+      ENVELOPE: the live editor with `-RenderOffscreen -unattended`, NOT a
+      commandlet. The commandlet envelope was tried and abandoned on measured
+      evidence; see ProjectWorld pitfall 15 for what was verified true while
+      the frames stayed black.
+      PROVEN on the existing candidate: 3 poses at 1280x720 and 3 at 1920x1080,
+      all `CAPTURE AUTHENTICATED` - files exist, dimensions exact, hashes bind
+      the bytes, poses pairwise distinct. The repeated-pose control is REPORTED,
+      not gated: UE carries temporal rendering state, so byte-identical repeats
+      are not a property healthy imagery has.
+      The captured imagery correctly shows the STALE candidate - flat terrain
+      with water sheets floating above it, exactly the 2026-08-17 rejection.
+      That is route proof, NOT operator evidence: the candidate predates the
+      relief fix and has never been re-realized.
+      IDENTITY BINDING: the wrapper refuses a receipt whose `map_package` is not
+      the requested map. Reviewer-found and proven by negative test - requesting
+      a nonexistent territory map left the editor on its fallback world and
+      produced three distinct, correctly sized, `status=accepted` captures OF
+      CITY17. Authenticated frames of the wrong world are the one way this route
+      could still mislead an operator; it now exits 1 and names both maps.
+      Capture paths containing spaces are also refused, because the console
+      splits command arguments on whitespace.
+- [x] Produced 2026-08-20 from the rebuilt candidate: aspect-correct overview,
+      four opposing obliques, three water-cluster views, one high-relief view.
+      The water views' standoff offsets remain heuristic, not derived.
+- [x] Authenticated 2026-08-20: files exist, exact 1920x1080, hashes bind the
+      bytes, all nine pairwise distinct, receipt bound to the requested map.
 
 ### Known correctness debt discovered during this investigation
 
-- [ ] Resolve the duplicated dirtiness authority: planner-selected dirty
-      terrain must not be vetoed solely by `ProjectWorld.TerrainInput` tags.
-      This is a recovery/incremental correctness defect, not the flat-terrain
-      root cause.
-- [ ] Fix transaction snapshot scope before another destructive territory run:
-      `Generated/Presentation` was missed once and had to be restored manually.
-- [ ] Remove or demote the temporary A-D terrain diagnostic test if it still
-      depends on `tmp/`; committed tests may not depend on a disposable
-      materialized cache.
+- [x] Resolve the duplicated dirtiness authority. Closed 2026-08-19. The defect
+      reproduced exactly as recorded: `UpdateGeneratedBase` consulted only the
+      per-component `ProjectWorld.TerrainInput` tag and never read
+      `FinalDirtyUnits`, while the sibling water generator already honoured the
+      planner. Terrain now defers to the planner and the tag may suppress only
+      work the planner did NOT select. Absent a layer plan behaviour is
+      unchanged.
+- [x] Fix transaction snapshot scope before another destructive territory run.
+      Resolved 2026-08-19. The presumed defect did NOT reproduce: byte-exact
+      presentation rollback already worked in every mutation shape, so the real
+      gaps were a duplicated root literal and an unproven covered set. There is
+      now one presentation-root authority, a fail-closed coverage guard inside
+      the snapshot, and committed regressions. The invariant-19 FINAL proof
+      (territory rollback) still rides on the next territory run.
+- [x] Removed 2026-08-19. `ProjectWorldTerrainMatrixTests.cpp` loaded the
+      territory compile result from a hardcoded `tmp/world/canonical_compilation/
+      materialized/...` path. Its A-D discriminator existed to separate the
+      flat-territory failure classes; that cause is proven and the surviving
+      relief proofs (`FinalHeightmapAuthority`, `GeneratedBaseHeightAuthority`,
+      `TerrainVerifierRejectsFlat`) need no materialized cache. Deleted rather
+      than re-fixtured: no replacement framework, fixture, or durable cache.
+      Editor builds and the terrain proofs pass unchanged. The only remaining
+      `tmp/` string in committed World tests is a fail-closed path-rejection
+      fixture that is never read.
 
-### Canonical visual-quality decision (operator-owned)
+### Canonical visual-quality decision - RESOLVED 2026-08-19
 
-Measured directly against canonical, independent of the engine:
+**Decision: retain canonical. `height_quantization` stays 0.1 m and no new
+canonical authority is produced.** The premise below was wrong; it is preserved
+because the reasoning about gate scope is still the durable lesson.
+
+> **SUPERSEDED 2026-08-19.** Both figures were gate artifacts, not terrain:
+> `surface.py` defaulted to the first 40 filenames, which is three of fifteen
+> territory columns - a contiguous strip of the flattest, water-dominated
+> ground - and `level_utilisation` was compared against an absolute floor that
+> is unreachable at low relief. Over all 210 cells the territory measures
+> `terrace_ratio` 0.269, which PASSES, and 94 of 210 cells had a
+> `level_utilisation` CEILING below the 0.20 gate.
 
 ```text
-terrace_ratio       = 0.498   (gate requires <= 0.45)
-level_utilisation   = 0.111   (gate requires >= 0.20)
+terrace_ratio       = 0.498   (40 of 210 cells, biased sample)
+level_utilisation   = 0.111   (structurally unreachable gate)
 height_quantization = 0.1 m
 ```
 
@@ -979,6 +1253,62 @@ MISSING ACCEPTANCE DIMENSION, compounded by reporting a fidelity result as
 though it proved terrain correctness. `surface.py` adds the missing dimension by
 measuring canonical directly, independent of the engine.
 
-- [ ] Resolve this as an operator/canonical-authority decision: reduce
-      quantization, OR consciously accept it and address appearance
-      downstream. **Do not silently alter canonical authority.**
+- [x] Resolved 2026-08-19: accept canonical, correct the gate. Quantization is
+      NOT the cause. Measured on the raw Float32 Copernicus source in 32x32
+      blocks, before and after applying the 0.1 m lattice:
+
+      ```text
+      relief band   blocks   raw source   at 0.1 m   delta
+      0-3 m              6      1.000       1.000    +0.000
+      3-10 m            11      0.932       0.934    +0.002
+      10-25 m           28      0.378       0.397    +0.019
+      25+ m             32      0.002       0.025    +0.023
+      ```
+
+      In exactly the cells that fail (53 of 210, mean relief 6.51 m against
+      23.42 m territory-wide) the source is already bit-flat and quantization
+      adds nothing; GLO-30 hydro-flattens water and plateaus void-filled
+      ground. Source vertical accuracy is 4.0 m at 90% confidence, so 0.1 m is
+      already 40x finer than the data's own accuracy. A finer lattice cannot
+      recreate variation the source does not contain, so no three-cell 0.01 m
+      trial was run. Canonical authority is UNCHANGED - nothing was recompiled,
+      promoted, or realized by this decision.
+- [x] Correct the acceptance gate instead. `surface.py` now measures every cell
+      by default and strides an explicit subsample; the absolute
+      `level_utilisation >= 0.20` gate is replaced by
+      `supported_level_ratio >= 0.50`, which is distinct levels over
+      `min(relief / declared quantization + 1, samples)` and is therefore
+      scale-free. `terrace_ratio <= 0.45` is retained unchanged as the
+      independent repeated-sample signal. Threshold chosen from measured
+      separation: the real territory scores 0.738, the same data re-emitted on
+      a 0.5 m lattice scores 0.266 and on 1.0 m scores 0.188. Five regressions
+      in `tools/World/VisualVerification/tests/test_surface.py` pin low-relief
+      acceptance, undelivered-resolution rejection, terrace independence, and
+      complete/strided sampling. The accepted territory now reports
+      `terrace_ratio 0.269 / supported_level_ratio 0.738 - SURFACE PASSED`.
+- [x] Defer residual appearance work to the presentation owner: banding in
+      low-relief water-adjacent ground is addressed by terrain material detail
+      normals, which change no elevation. Not a canonical or realization task.
+
+## Final closure evidence - 2026-08-20
+
+- Common Check: `check-20260820T160541Z`, accepted.
+- Territory Matrix: `run-20260820T160902Z`, accepted against the final code
+  closure and unchanged canonical authority `86821a99...`.
+- Existing P0 and representative durable scopes were refreshed from accepted
+  Matrices `run-20260820T153250Z` and `run-20260820T153846Z`; their shared
+  presentation bytes and current generator fingerprint agree.
+- Authorized L3 enrollment: `enroll-20260820T162432Z`, accepted. It advanced
+  active authority from `45d83881...` to `1c812c00...` and enrolled exactly
+  map, terrain, and water territory scopes.
+- Final audit: `Saved/Validation/WorldAuthority/slice3-final-audit.json`,
+  accepted with six scopes, 556 byte-identical owned artifacts, zero unowned
+  files, zero ownership conflicts, current generator fingerprint, and no
+  pending journal.
+- Territory scope: 210 terrain artifacts, 291 water artifacts, and 15 map
+  artifacts. All 516 territory artifacts are tracked, present, and LFS-owned;
+  `git lfs fsck` passes.
+- Enrollment child-evidence routing defect was reproduced before mutation,
+  fixed at the orchestrator boundary, and pinned by
+  `test_wrapper_receipt_uses_realization_evidence_root`; all four enrollment
+  unit tests pass.

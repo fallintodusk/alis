@@ -45,6 +45,12 @@ struct FProjectWorldCanonicalFeature
 	TArray<FProjectWorldCanonicalPolygon> GeometryPolygons;
 	TArray<FProjectWorldCanonicalRepresentation> Representations;
 	FProjectWorldCanonicalWaterSurface WaterSurface;
+	FString RoadClass;
+	FString VegetationClass;
+	FString FoliageClass;
+	FString LeafType;
+	FString LeafCycle;
+	FString Species;
 	double WidthMeters = 0.0;
 	double HeightMeters = 0.0;
 };

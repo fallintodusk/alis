@@ -19,6 +19,7 @@
 #include "EngineUtils.h"
 #include "HAL/FileManager.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "MeshDescription.h"
@@ -196,6 +197,19 @@ namespace ProjectWorldWaterRealization
 				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("Scattering"));
 			UMaterialExpressionConstant3Vector* Absorption =
 				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("Absorption"));
+			// LEGIBILITY PLACEHOLDER, not art. Scattering and absorption alone describe the
+			// water VOLUME; with a metre of depth over a valley floor there is almost no light
+			// path to tint, so the surface reads as invisible and an operator cannot see where
+			// water was placed. A flat blue base colour and low roughness make the blockout
+			// visible without touching geometry or elevation. Real water appearance - surface
+			// normals, waves, foam, flow - belongs to the presentation slice, which is where
+			// these constants should become profile-driven settings.
+			UMaterialExpressionConstant3Vector* BaseColor =
+				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("BaseColor"));
+			UMaterialExpressionConstant* Roughness =
+				NewObject<UMaterialExpressionConstant>(OutMaterial, TEXT("Roughness"));
+			BaseColor->Constant = FLinearColor(0.012f, 0.075f, 0.150f);
+			Roughness->R = 0.06f;
 			UMaterialExpressionSingleLayerWaterMaterialOutput* Output =
 				NewObject<UMaterialExpressionSingleLayerWaterMaterialOutput>(OutMaterial, TEXT("WaterOutput"));
 			Scattering->Constant = Settings.Scattering;
@@ -204,7 +218,12 @@ namespace ProjectWorldWaterRealization
 			Output->AbsorptionCoefficients.Connect(0, Absorption);
 			OutMaterial->GetExpressionCollection().AddExpression(Scattering);
 			OutMaterial->GetExpressionCollection().AddExpression(Absorption);
+			OutMaterial->GetExpressionCollection().AddExpression(BaseColor);
+			OutMaterial->GetExpressionCollection().AddExpression(Roughness);
 			OutMaterial->GetExpressionCollection().AddExpression(Output);
+			UMaterialEditorOnlyData* EditorOnly = OutMaterial->GetEditorOnlyData();
+			EditorOnly->BaseColor.Connect(0, BaseColor);
+			EditorOnly->Roughness.Connect(0, Roughness);
 			OutMaterial->SetShadingModel(MSM_SingleLayerWater);
 			OutMaterial->PostEditChange();
 			FAssetCompilingManager::Get().FinishAllCompilation();

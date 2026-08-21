@@ -27,6 +27,14 @@ missing asset dependencies.
 - [ ] Replace every restricted dependency needed by the public runtime path.
 - [ ] Prove a fresh public source checkout plus developer payload opens and runs
       with no missing references.
+- [ ] Clean reconstruction agent-environment proof: on that same clean
+      checkout, run the normal ALIS setup and prove it recreates
+      `.agents/skills`, that `scripts/agents/link_codex_skills.ps1 -Verify`
+      passes, and that Claude and Codex discover the same tracked project skill
+      set. `.agents/skills` is a gitignored local junction, so it exists only
+      after setup runs - a clean clone is the only honest way to authenticate
+      that bootstrap. Deferred here deliberately: it belongs to mirror and
+      reconstruction acceptance, not to any World or process gate.
 
 ## Rules
 

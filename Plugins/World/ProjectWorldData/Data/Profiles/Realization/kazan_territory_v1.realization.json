@@ -51,6 +51,57 @@
         "scattering_coefficients": [0.005, 0.01, 0.015],
         "absorption_coefficients": [0.01, 0.02, 0.03]
       }
+    },
+    {
+      "layer_id": "roads",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_road_mesh",
+      "generator_version": 1,
+      "depends_on": ["terrain"],
+      "canonical_selectors": ["roads"],
+      "artifact_root": "/ProjectWorldData/Generated/Territory/Roads/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 1,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "selected_classes": ["primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "residential", "unclassified", "living_street"],
+        "surface_offset_m": 0.15,
+        "maximum_segment_length_m": 7.5,
+        "nanite": true,
+        "collision": "complex_as_simple",
+        "structure_fallback": "terrain_drape",
+        "intersection_policy": "overlap_same_owner"
+      }
+    },
+    {
+      "layer_id": "vegetation",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_vegetation_instances",
+      "generator_version": 1,
+      "depends_on": ["terrain", "water", "roads"],
+      "canonical_selectors": ["vegetation"],
+      "artifact_root": "/ProjectWorldData/Generated/Territory/Vegetation/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "mesh_assets": [
+          "/ProjectObject/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.SM_Tree_Hornbeam_Medium",
+          "/ProjectObject/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.SM_Tree_AmurCork_Big"
+        ],
+        "area_spacing_m": 45.0,
+        "area_jitter_fraction": 0.35,
+        "minimum_scale": 0.85,
+        "maximum_scale": 1.15,
+        "maximum_instances_per_cell": 1024,
+        "deterministic_seed": 31052026,
+        "surface_offset_m": 0.0,
+        "nanite": true,
+        "collision": "no_collision",
+        "placement_policy": "canonical_points_and_lattice_areas"
+      }
     }
   ]
 }

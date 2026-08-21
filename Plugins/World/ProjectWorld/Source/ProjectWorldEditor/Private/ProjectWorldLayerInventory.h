@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 
 struct FProjectWorldCanonicalBundle;
+struct FProjectWorldAuthoredOverlaySet;
 struct FProjectWorldLayerDirtyInput;
 struct FProjectWorldRealizationProfile;
 struct FProjectWorldRealizationResult;
@@ -16,6 +17,7 @@ namespace ProjectWorldLayerInventory
 	bool Build(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
+		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		bool bFirstApply,
 		const FProjectWorldLayerDirtyInput* DirtyInput,
 		FProjectWorldRealizationResult& OutResult,
@@ -25,6 +27,7 @@ namespace ProjectWorldLayerInventory
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
+		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError);
 }

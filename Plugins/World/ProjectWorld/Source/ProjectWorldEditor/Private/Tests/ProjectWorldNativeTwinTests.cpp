@@ -640,4 +640,215 @@ REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	"Project.World.Realization.NativeTwin.FinalHeightmapAuthority",
 	"[Fast][Integration][World]")
 
+// Invariant 18. The dirty planner owns which units are rebuilt; the per-component
+// ProjectWorld.TerrainInput tag is a cache identity, not a second authority. A tag can be
+// truthful about its INPUT while the realized output is wrong - which is exactly what the flat
+// territory looked like - so a forced rebuild must not be vetoed by it. This sabotages the
+// realized Generated Base of one cell, leaves its tag and its canonical artifact hash untouched,
+// and requires the planner-selected rebuild to restore the surface.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldPlannerDirtyOverridesCacheTagTest,
+	"Project.World.Realization.NativeTwin.PlannerDirtyOverridesCacheTag",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+namespace ProjectWorldNativeTwinTests
+{
+	ALandscape* FindGeneratedLandscape(UWorld* World)
+	{
+		for (TActorIterator<ALandscape> It(World); It; ++It)
+		{
+			if (ProjectWorldLandscapeRealization::IsGeneratedLandscape(*It))
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
+	// Flatten ONE canonical cell's region of the realized Generated Base without touching any
+	// identity tag: that component keeps claiming the canonical artifact it no longer contains.
+	// Cell-local rather than whole-extent, so an unselected cell can act as a control.
+	bool SabotageCellRegion(
+		ALandscape* Landscape,
+		const FProjectWorldCanonicalBundle& Bundle,
+		const FProjectWorldCanonicalCell& Cell,
+		FString& OutError)
+	{
+		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+		const ULandscapeEditLayerBase* BaseLayer = Landscape->GetEditLayer(TEXT("Generated Base"));
+		if (LandscapeInfo == nullptr || BaseLayer == nullptr)
+		{
+			OutError = TEXT("Generated Landscape is missing LandscapeInfo or the Generated Base layer.");
+			return false;
+		}
+		// Same cell-to-region mapping the generator uses, so the sabotage lands exactly on the
+		// component the planner will later name.
+		int32 MinimumCellX = MAX_int32;
+		int32 MaximumCellY = MIN_int32;
+		for (const FProjectWorldCanonicalCell& Candidate : Bundle.Cells)
+		{
+			MinimumCellX = FMath::Min(MinimumCellX, Candidate.CellX);
+			MaximumCellY = FMath::Max(MaximumCellY, Candidate.CellY);
+		}
+		const int32 RegionX1 = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
+		const int32 RegionY1 = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
+		const int32 RegionX2 = RegionX1 + Bundle.CellQuads.X;
+		const int32 RegionY2 = RegionY1 + Bundle.CellQuads.Y;
+		const int32 Width = RegionX2 - RegionX1 + 1;
+		const int32 Height = RegionY2 - RegionY1 + 1;
+		TArray<uint16> FlatHeights;
+		FlatHeights.Init(LandscapeDataAccess::GetTexHeight(0.0f), Width * Height);
+		FScopedSetLandscapeEditingLayer LayerScope(
+			Landscape,
+			BaseLayer->GetGuid(),
+			[Landscape]()
+			{
+				Landscape->RequestLayersContentUpdateForceAll();
+			});
+		FLandscapeEditDataInterface EditData(LandscapeInfo, BaseLayer->GetGuid(), false);
+		EditData.SetHeightData(
+			RegionX1, RegionY1, RegionX2, RegionY2, FlatHeights.GetData(), Width, true);
+		return true;
+	}
+
+	FProjectWorldLayerInventory TerrainInventory(const TArray<FString>& DirtyUnits)
+	{
+		FProjectWorldLayerInventory Inventory;
+		Inventory.LayerId = TEXT("terrain");
+		Inventory.GeneratorId = TEXT("project_landscape");
+		Inventory.GeneratorVersion = 1;
+		Inventory.FinalDirtyUnits = DirtyUnits;
+		return Inventory;
+	}
+}
+
+bool FProjectWorldPlannerDirtyOverridesCacheTagTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldNativeTwinTests;
+	UWorld* World = GEditor->NewMap(true);
+	FProjectWorldCanonicalBundle Bundle = BuildLandscapeBundle();
+	const FProjectWorldLandscapeLayout Layout =
+		FProjectWorldCanonicalLoader::SelectLandscapeLayout(Bundle);
+	FProjectWorldRealizationResult Result;
+	FString Error;
+	if (!ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("planner_authority"), 1, Result, Error))
+	{
+		AddError(FString::Printf(TEXT("Landscape creation failed: %s"), *Error));
+		return false;
+	}
+	ALandscape* Landscape = FindGeneratedLandscape(World);
+	if (Landscape == nullptr)
+	{
+		AddError(TEXT("No generated Landscape was created."));
+		return false;
+	}
+	// Two cells are sabotaged and only ONE is named by the planner. The unselected cell is the
+	// control: production dirtiness is canonical-cell granular, so "any non-empty dirty set
+	// rebuilds the whole Landscape" must fail this test as loudly as "the tag vetoes the
+	// planner" does. cell_0_0 and cell_1_2 share no edge, so neither sabotage can repair the
+	// other through a shared seam.
+	const FProjectWorldCanonicalCell* Target = Bundle.Cells.FindByPredicate(
+		[](const FProjectWorldCanonicalCell& Cell)
+		{
+			return Cell.CellId == TEXT("cell_0_0");
+		});
+	const FProjectWorldCanonicalCell* Control = Bundle.Cells.FindByPredicate(
+		[](const FProjectWorldCanonicalCell& Cell)
+		{
+			return Cell.CellId == TEXT("cell_1_2");
+		});
+	if (Target == nullptr || Control == nullptr)
+	{
+		AddError(TEXT("The twin bundle no longer exposes the expected target and control cells."));
+		return false;
+	}
+	FProjectWorldTerrainHeightComparison Healthy;
+	FString CompareError;
+	if (!FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
+			Landscape, Bundle, Healthy, CompareError))
+	{
+		AddError(CompareError);
+		return false;
+	}
+	if (Healthy.MismatchCount != 0)
+	{
+		AddError(TEXT("Baseline realization does not match canonical, so nothing below is meaningful."));
+		return false;
+	}
+	if (!SabotageCellRegion(Landscape, Bundle, *Target, Error) ||
+		!SabotageCellRegion(Landscape, Bundle, *Control, Error))
+	{
+		AddError(Error);
+		return false;
+	}
+	FProjectWorldTerrainHeightComparison Sabotaged;
+	if (!FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
+			Landscape, Bundle, Sabotaged, CompareError))
+	{
+		AddError(CompareError);
+		return false;
+	}
+	if (Sabotaged.MismatchCount == 0)
+	{
+		AddError(TEXT("Sabotage did not change the realized surface, so the test proves nothing."));
+		return false;
+	}
+
+	// Canonical is byte-identical, so every component's ProjectWorld.TerrainInput tag still
+	// matches. Only the planner can authorize this work, and only for the cell it named.
+	FProjectWorldRealizationResult Rebuild;
+	Rebuild.LayerInventories.Add(TerrainInventory({ Target->CellId }));
+	if (!ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("planner_authority"), 1, Rebuild, Error))
+	{
+		AddError(FString::Printf(TEXT("Planner-selected rebuild failed: %s"), *Error));
+		return false;
+	}
+	FProjectWorldTerrainHeightComparison Restored;
+	if (!FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
+			Landscape, Bundle, Restored, CompareError))
+	{
+		AddError(CompareError);
+		return false;
+	}
+	AddInfo(FString::Printf(
+		TEXT("two cells sabotaged mismatches=%d -> planner rebuilt %s only: mismatches=%d components=%d relief=%.3f m"),
+		Sabotaged.MismatchCount,
+		*Target->CellId,
+		Restored.MismatchCount,
+		Rebuild.UpdatedLandscapeComponentCount,
+		Restored.ReliefMeters));
+	TestTrue(
+		TEXT("The planner-selected cell is rebuilt even though its terrain input tag is unchanged."),
+		Restored.MismatchCount < Sabotaged.MismatchCount);
+	TestTrue(
+		TEXT("The unselected sabotaged cell is left alone; the rebuild is not territory-wide."),
+		Restored.MismatchCount > 0);
+	TestEqual(
+		TEXT("Exactly the planner-selected cell's component was written."),
+		Rebuild.UpdatedLandscapeComponentCount,
+		1);
+
+	// The cache tag must still suppress work the planner did NOT select.
+	FProjectWorldRealizationResult NoOp;
+	NoOp.LayerInventories.Add(TerrainInventory(TArray<FString>()));
+	if (!ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("planner_authority"), 1, NoOp, Error))
+	{
+		AddError(FString::Printf(TEXT("Unselected no-op run failed: %s"), *Error));
+		return false;
+	}
+	TestEqual(
+		TEXT("An unselected cell with a matching terrain input tag stays a no-op."),
+		NoOp.UpdatedLandscapeComponentCount,
+		0);
+	return true;
+}
+
+REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
+	FProjectWorldPlannerDirtyOverridesCacheTagTest,
+	"Project.World.Realization.NativeTwin.PlannerDirtyOverridesCacheTag",
+	"[Fast][Integration][World]")
+
 #endif

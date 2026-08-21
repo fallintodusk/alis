@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldRealizationProfile.h"
+#include "ProjectWorldAuthoredOverlay.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldLayerInventory.h"
@@ -51,14 +52,27 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 	TestEqual(TEXT("Profile identity is loaded."), Profile.ProfileId, FString(TEXT("synthetic_landscape_water_twin")));
 	TestEqual(TEXT("Profile owner is data-defined."), Profile.WorldDataPluginName, FString(TEXT("ProjectWorldTestData")));
 	TestEqual(TEXT("Epic partitioning remains one component per proxy."), Profile.ComponentsPerProxy, 1);
-	TestEqual(TEXT("The layer DAG has two nodes."), Profile.TopologicalLayerIds.Num(), 2);
-	TestEqual(TEXT("Terrain executes before water."), Profile.TopologicalLayerIds[0], FString(TEXT("terrain")));
-	TestEqual(TEXT("Water executes after terrain."), Profile.TopologicalLayerIds[1], FString(TEXT("water")));
+	TestEqual(TEXT("The layer DAG has three nodes."), Profile.TopologicalLayerIds.Num(), 3);
+	TestEqual(TEXT("Terrain executes before dependent layers."), Profile.TopologicalLayerIds[0], FString(TEXT("terrain")));
+	TestEqual(TEXT("Roads execute after their terrain dependency."), Profile.TopologicalLayerIds[1], FString(TEXT("roads")));
+	TestEqual(TEXT("Water executes after its terrain dependency."), Profile.TopologicalLayerIds[2], FString(TEXT("water")));
 	TestEqual(TEXT("Each layer has a normalized contract SHA-256."), Profile.Layers[0].ContractHash.Len(), 64);
 	TestTrue(
 		TEXT("The exact landscape generator pair is registered."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
 			TEXT("project_landscape"),
+			1,
+			EProjectWorldLayerKind::GeneratedGeography));
+	TestTrue(
+		TEXT("The exact road generator pair is registered."),
+		ProjectWorldRealizationProfile::IsGeneratorRegistered(
+			TEXT("project_road_mesh"),
+			1,
+			EProjectWorldLayerKind::GeneratedGeography));
+	TestTrue(
+		TEXT("The exact vegetation generator pair is registered."),
+		ProjectWorldRealizationProfile::IsGeneratorRegistered(
+			TEXT("project_vegetation_instances"),
 			1,
 			EProjectWorldLayerKind::GeneratedGeography));
 	TestFalse(
@@ -91,6 +105,24 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 			TEXT("project_gameplay_placement"),
 			1,
 			EProjectWorldLayerKind::GeneratedGameplayPlacement));
+
+	FProjectWorldRealizationProfile WithVegetation = Profile;
+	FProjectWorldRealizationLayer Vegetation;
+	Vegetation.LayerId = TEXT("vegetation");
+	Vegetation.LayerKind = EProjectWorldLayerKind::GeneratedGeography;
+	Vegetation.GeneratorId = TEXT("project_vegetation_instances");
+	Vegetation.GeneratorVersion = 1;
+	Vegetation.DependsOn = {TEXT("terrain"), TEXT("water"), TEXT("roads")};
+	Vegetation.CanonicalSelectors = {TEXT("vegetation")};
+	Vegetation.ArtifactRoot = TEXT("/ProjectWorldTestData/Generated/Twin/Vegetation/");
+	Vegetation.SpatialOwnership = TEXT("cell_local");
+	Vegetation.DirtyGranularity = EProjectWorldDirtyGranularity::CanonicalCell;
+	Vegetation.RuntimeMapping = TEXT("world_partition_spatial");
+	Vegetation.NormalizedSettings = TEXT("{\"area_jitter_fraction\":0.25,\"area_spacing_m\":40,\"collision\":\"no_collision\",\"deterministic_seed\":7,\"maximum_instances_per_cell\":256,\"maximum_scale\":1.1,\"mesh_assets\":[\"/ProjectObject/Test.SM_Test\"],\"minimum_scale\":0.9,\"nanite\":true,\"placement_policy\":\"canonical_points_and_lattice_areas\",\"surface_offset_m\":0}");
+	WithVegetation.Layers.Add(Vegetation);
+	TestTrue(
+		TEXT("The registered vegetation tuple joins the existing layer DAG."),
+		ProjectWorldRealizationProfile::ValidateAndFinalize(WithVegetation, Error));
 
 	FProjectWorldRealizationProfile RenamedLandscape = Profile;
 	RenamedLandscape.LogicalLandscapeId = TEXT("synthetic_main_v2");
@@ -193,6 +225,8 @@ bool FProjectWorldRealizationDirtyClosureTest::RunTest(const FString& Parameters
 	Incremental.ValidUnits.FindOrAdd(TEXT("terrain")).Add(TEXT("gridtwin:x1:y0"));
 	Incremental.ValidUnits.FindOrAdd(TEXT("water")).Add(TEXT("gridtwin:x0:y0"));
 	Incremental.ValidUnits.FindOrAdd(TEXT("water")).Add(TEXT("gridtwin:x1:y0"));
+	Incremental.ValidUnits.FindOrAdd(TEXT("roads")).Add(TEXT("gridtwin:x0:y0"));
+	Incremental.ValidUnits.FindOrAdd(TEXT("roads")).Add(TEXT("gridtwin:x1:y0"));
 	Incremental.OperatorValidUnits = Incremental.ValidUnits;
 	Incremental.ComputedUnits.FindOrAdd(TEXT("terrain")).Add(ChangedCell);
 	Incremental.OperatorAdditions.FindOrAdd(TEXT("water")).Add(TEXT("gridtwin:x1:y0"));
@@ -201,14 +235,17 @@ bool FProjectWorldRealizationDirtyClosureTest::RunTest(const FString& Parameters
 		ProjectWorldRealizationProfile::BuildDirtyPlan(Profile, Incremental, Plan, Error));
 	const FProjectWorldLayerDirtyPlan* Terrain = FindPlan(Plan, TEXT("terrain"));
 	const FProjectWorldLayerDirtyPlan* Water = FindPlan(Plan, TEXT("water"));
+	const FProjectWorldLayerDirtyPlan* Roads = FindPlan(Plan, TEXT("roads"));
 	TestNotNull(TEXT("Terrain plan exists."), Terrain);
 	TestNotNull(TEXT("Water plan exists."), Water);
-	if (Terrain != nullptr && Water != nullptr)
+	TestNotNull(TEXT("Road plan exists."), Roads);
+	if (Terrain != nullptr && Water != nullptr && Roads != nullptr)
 	{
 		TestEqual(TEXT("The computed terrain unit is retained."), Terrain->DirtyUnits.Num(), 1);
 		TestTrue(TEXT("Terrain changes propagate to water."), Water->DirtyUnits.Contains(ChangedCell));
 		TestTrue(TEXT("Operator additions can expand water work."), Water->DirtyUnits.Contains(TEXT("gridtwin:x1:y0")));
 		TestEqual(TEXT("The dependent halo is clipped to the real two-cell domain."), Water->DirtyUnits.Num(), 2);
+		TestEqual(TEXT("The road dependency halo includes both adjacent cells."), Roads->DirtyUnits.Num(), 2);
 	}
 
 	FProjectWorldDirtyInputs Invalid;
@@ -269,9 +306,11 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	Bundle.Features.Add(Lake.FeatureId, MoveTemp(Lake));
 
 	FProjectWorldRealizationResult Baseline;
+	const FProjectWorldAuthoredOverlaySet AuthoredOverlaySet;
 	TestTrue(
 		TEXT("First Apply derives the current typed layer input domains."),
-		ProjectWorldLayerInventory::Build(Bundle, Profile, true, nullptr, Baseline, Error));
+		ProjectWorldLayerInventory::Build(
+			Bundle, Profile, AuthoredOverlaySet, true, nullptr, Baseline, Error));
 	auto BaselineInventory = [&Baseline](const FString& LayerId)
 	{
 		return Baseline.LayerInventories.FindByPredicate([&LayerId](const auto& Inventory)
@@ -342,7 +381,8 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	FProjectWorldRealizationResult Result;
 	TestTrue(
 		TEXT("Current unit identities are compared with the accepted layer base."),
-		ProjectWorldLayerInventory::Build(Bundle, Profile, false, &DirtyInput, Result, Error));
+		ProjectWorldLayerInventory::Build(
+			Bundle, Profile, AuthoredOverlaySet, false, &DirtyInput, Result, Error));
 	const FProjectWorldLayerInventory* Terrain = Result.LayerInventories.FindByPredicate([](const auto& Inventory)
 	{
 		return Inventory.LayerId == TEXT("terrain");
@@ -379,7 +419,7 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	Result.LayerInventories.Reset();
 	TestTrue(
 		TEXT("Matching accepted inputs build a no-op inventory."),
-		ProjectWorldLayerInventory::Build(Bundle, Profile, false, &NoOp, Result, Error));
+		ProjectWorldLayerInventory::Build(Bundle, Profile, AuthoredOverlaySet, false, &NoOp, Result, Error));
 	for (const FProjectWorldLayerInventory& Inventory : Result.LayerInventories)
 	{
 		TestEqual(TEXT("No-op layers carry no dirty units."), Inventory.FinalDirtyUnits.Num(), 0);
@@ -390,7 +430,8 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	Result.LayerInventories.Reset();
 	TestTrue(
 		TEXT("An unrelated feature-artifact change remains a valid layer comparison."),
-		ProjectWorldLayerInventory::Build(RoadOnlyChange, Profile, false, &NoOp, Result, Error));
+		ProjectWorldLayerInventory::Build(
+			RoadOnlyChange, Profile, AuthoredOverlaySet, false, &NoOp, Result, Error));
 	const FProjectWorldLayerInventory* UnchangedWater = Result.LayerInventories.FindByPredicate([](const auto& Inventory)
 	{
 		return Inventory.LayerId == TEXT("water");
@@ -409,7 +450,8 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	Result.LayerInventories.Reset();
 	TestTrue(
 		TEXT("A canonical water change remains a valid layer comparison."),
-		ProjectWorldLayerInventory::Build(WaterChange, Profile, false, &NoOp, Result, Error));
+		ProjectWorldLayerInventory::Build(
+			WaterChange, Profile, AuthoredOverlaySet, false, &NoOp, Result, Error));
 	const FProjectWorldLayerInventory* ChangedWater = Result.LayerInventories.FindByPredicate([](const auto& Inventory)
 	{
 		return Inventory.LayerId == TEXT("water");

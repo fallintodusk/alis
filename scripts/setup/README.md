@@ -101,11 +101,11 @@ this workstation (PowerShell 5.1.19041, UE bundled Python 3):
 | `[System.IO.Directory]::Delete($p, $false)` / `os.rmdir()` | removes the link, target intact - **use this** |
 
 The widely repeated claim that a recursive delete destroys the junction target
-did NOT reproduce here; it describes older PowerShell (<= 5.0) reparse-point
-handling. Do not depend on that either way: the version-specific behaviour is
-not a contract, so delete a junction explicitly with
-`[System.IO.Directory]::Delete($path, $false)` (or `os.rmdir`) rather than
-relying on a recursive delete happening to stop at the reparse point.
+did NOT reproduce on the version measured above. No version boundary is
+asserted here - only what was observed. Do not depend on it either way: this is
+reparse-point handling, not a documented contract, so delete a junction
+explicitly with `[System.IO.Directory]::Delete($path, $false)` (or `os.rmdir`)
+rather than relying on a recursive delete happening to stop at the link.
 
 The `os.path.islink()` False result is the genuine trap: code that branches on
 it will treat a junction as an ordinary directory. Test with the
@@ -113,6 +113,37 @@ it will treat a junction as an ordinary directory. Test with the
 
 Live example: `.agents/skills` is a junction to `.claude/skills`
 (see [link_codex_skills.ps1](../agents/link_codex_skills.ps1)).
+
+**[!] Filename casing: verify the index, not the disk.**
+
+`core.ignorecase` is `true` here because NTFS really is case-insensitive. Git
+sets it by probing the filesystem - it DESCRIBES the filesystem and is not a
+policy knob. Never set it `false`: that tells git the filesystem distinguishes
+`Foo.md` from `foo.md` when it does not, producing phantom duplicate index
+entries and checkout collisions.
+
+The consequence to plan for is that a wrong-cased name is invisible locally:
+
+| Command | Reports |
+|---------|---------|
+| directory listing / `Get-ChildItem` | the on-disk name - matches whatever you expect |
+| `git status` | clean, because the two paths compare equal |
+| `git ls-files` | **the truth: what is actually recorded** |
+
+So a file committed as `skill.md` while the disk shows `SKILL.md` looks correct
+on every Windows check and breaks only for whoever clones onto a case-sensitive
+filesystem. Verify casing with `git ls-files`, never with `git status` or a
+listing.
+
+Repair with a forced rename, which rewrites the index entry directly instead of
+depending on the filesystem to tell the names apart:
+
+```bash
+git mv -f path/skill.md path/SKILL.md
+```
+
+The resulting staged rename IS the fix. Unstaging it writes the old name back
+and `git status` returns to clean, which reads like success - commit it.
 
 **Hook not running:**
 ```bash

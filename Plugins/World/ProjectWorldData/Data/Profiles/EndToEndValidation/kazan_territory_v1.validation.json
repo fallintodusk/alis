@@ -23,7 +23,7 @@
       "realization_profile": "Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_landscape_water_twin.realization.json",
       "map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldLandscapeWaterTwin",
       "require_landscape": true,
-      "expected_features": 4,
+      "expected_features": 5,
       "expected_rejections": 3,
       "expected_authored": {"resolved": 0, "placed": 0, "masks": 0, "minimum_package_files": 0},
       "expected_topology": {
@@ -34,11 +34,22 @@
         "water_cell_actors": 2,
         "water_mesh_assets": 2,
         "water_triangles": 100,
+        "road_cell_actors": 2,
+        "road_mesh_assets": 2,
+        "road_triangles": 30,
+        "vegetation_cell_actors": 0,
+        "vegetation_components": 0,
+        "vegetation_instances": 0,
+        "vegetation_candidates": 0,
+        "vegetation_road_exclusions": 0,
+        "vegetation_water_exclusions": 0,
+        "vegetation_authored_mask_exclusions": 0,
         "maximum_georeferencing_error_m": 0.01
       },
       "expected_layers": [
         {"layer_id": "terrain", "generator_id": "project_landscape", "generator_version": 1, "artifact_root": "/ProjectWorldTestData/Generated/Twin/Terrain/", "canonical_input_count": 2, "artifact_count": 2, "incremental_dirty_count": 0},
-        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldTestData/Generated/Twin/Water/", "canonical_input_count": 2, "artifact_count": 5, "incremental_dirty_count": 0}
+        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldTestData/Generated/Twin/Water/", "canonical_input_count": 2, "artifact_count": 5, "incremental_dirty_count": 0},
+        {"layer_id": "roads", "generator_id": "project_road_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldTestData/Generated/Twin/Roads/", "canonical_input_count": 2, "artifact_count": 4, "incremental_dirty_count": 0}
       ],
       "incremental_bounds": [10.0, 10.0, 20.0, 20.0]
     },
@@ -66,11 +77,23 @@
         "water_cell_actors": 145,
         "water_mesh_assets": 145,
         "water_triangles": 11914,
+        "road_cell_actors": 161,
+        "road_mesh_assets": 161,
+        "road_triangles": 227820,
+        "vegetation_cell_actors": 146,
+        "vegetation_components": 279,
+        "vegetation_instances": 7490,
+        "vegetation_candidates": 7528,
+        "vegetation_road_exclusions": 7,
+        "vegetation_water_exclusions": 30,
+        "vegetation_authored_mask_exclusions": 1,
         "maximum_georeferencing_error_m": 0.01
       },
       "expected_layers": [
         {"layer_id": "terrain", "generator_id": "project_landscape", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Terrain/", "canonical_input_count": 210, "artifact_count": 210, "incremental_dirty_count": 0},
-        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Water/", "canonical_input_count": 210, "artifact_count": 291, "incremental_dirty_count": 0}
+        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Water/", "canonical_input_count": 210, "artifact_count": 291, "incremental_dirty_count": 0},
+        {"layer_id": "roads", "generator_id": "project_road_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Roads/", "canonical_input_count": 210, "artifact_count": 322, "incremental_dirty_count": 0},
+        {"layer_id": "vegetation", "generator_id": "project_vegetation_instances", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Vegetation/", "canonical_input_count": 210, "artifact_count": 146, "incremental_dirty_count": 0}
       ],
       "incremental_bounds": [379800.0, 6184201.0, 379900.0, 6184300.0]
     }

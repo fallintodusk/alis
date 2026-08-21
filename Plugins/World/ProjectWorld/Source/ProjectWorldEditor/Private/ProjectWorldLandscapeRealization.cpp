@@ -342,6 +342,20 @@ namespace ProjectWorldLandscapeRealization
 
 		const int32 ComponentQuads = Layout.SectionsPerComponent * Layout.QuadsPerSection;
 		const bool bTerrainRowOrderChanged = !Landscape->Tags.Contains(TerrainRowOrderTag);
+		// Invariant 18. The dirty planner decides WHAT is rebuilt; the per-component
+		// ProjectWorld.TerrainInput tag is a cache identity over the INPUT, so it can be
+		// truthful while the realized output is wrong - which is what a flat territory looked
+		// like. The tag may therefore suppress work the planner did not select, and never work
+		// the planner did select. Absent a layer plan there is no planner to defer to and the
+		// tag remains the only signal, exactly as before.
+		const FProjectWorldLayerInventory* TerrainInventory =
+			OutResult.LayerInventories.FindByPredicate(
+				[](const FProjectWorldLayerInventory& Candidate)
+				{
+					return Candidate.GeneratorId == TEXT("project_landscape");
+				});
+		const bool bWholeDirty =
+			TerrainInventory != nullptr && TerrainInventory->FinalDirtyUnits.Contains(TEXT("*"));
 		FScopedSetLandscapeEditingLayer LayerScope(
 			Landscape,
 			BaseLayer->GetGuid(),
@@ -380,7 +394,10 @@ namespace ProjectWorldLandscapeRealization
 					*Cell.CellId);
 				return false;
 			}
-			if (!bTerrainRowOrderChanged &&
+			const bool bPlannerSelected =
+				TerrainInventory != nullptr &&
+				(bWholeDirty || TerrainInventory->FinalDirtyUnits.Contains(Cell.CellId));
+			if (!bTerrainRowOrderChanged && !bPlannerSelected &&
 				HasComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
 			{
 				continue;

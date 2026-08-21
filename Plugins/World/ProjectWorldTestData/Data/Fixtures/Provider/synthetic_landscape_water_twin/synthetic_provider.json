@@ -73,6 +73,14 @@
       "properties": {"waterway": "fairway"},
       "precision": {"coordinate_decimals": 7},
       "confidence": null
+    },
+    {
+      "provider_feature_id": "way/1008",
+      "provider_class": "highway",
+      "geometry": {"type": "LineString", "coordinates": [[0.2, 0.55], [0.65, 0.52], [1.2, 0.55]]},
+      "properties": {"highway": "primary", "name": "Twin Boundary Road"},
+      "precision": {"coordinate_decimals": 7},
+      "confidence": null
     }
   ],
   "raster": {

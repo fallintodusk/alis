@@ -3,7 +3,7 @@
   Non-stop entry script for Overnight Autonomous CI.
 
 .DESCRIPTION
-  Sets up branch/logs and prints a NON-STOP prompt aligned with SKILL.md. Use this as the primary entry.
+  Sets up branch/logs and prints a NON-STOP prompt aligned with docs/agents/overnight_mode.md. Use this as the primary entry.
   Runs until all agent-compatible TODOs are complete (manual/editor tasks are optional by design).
 
 .USAGE
@@ -42,7 +42,7 @@ function Ensure-ArtifactsDir {
 function Test-Prerequisites {
     Write-Log "Pre-flight checks..."
     if (-not (Test-Path "$ProjectRoot\.git")) { throw "Not a git repository: $ProjectRoot" }
-    if (-not (Test-Path "$ProjectRoot\.claude\skills\ue-gamefeature-ci\SKILL.md")) { throw "Skill file missing: .claude/skills/ue-gamefeature-ci/SKILL.md" }
+    if (-not (Test-Path "$ProjectRoot\docs\agents\overnight_mode.md")) { throw "Operating rulebook missing: docs/agents/overnight_mode.md" }
     Ensure-ArtifactsDir
 }
 
@@ -89,7 +89,9 @@ function Show-NonStopPrompt {
     Pop-Location
 
     $Prompt = @"
-Use the UE GameFeature Autonomous CI skill in INFINITE LOOP mode.
+Follow docs/agents/overnight_mode.md (Overnight Autonomous Mode - Operating
+Rulebook) in INFINITE LOOP mode. It owns commit policy, autonomous scope,
+forbidden shortcuts, and the queue source.
 
 ========================================
 INFINITE LOOP PROTOCOL:

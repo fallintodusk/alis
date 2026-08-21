@@ -731,6 +731,12 @@ namespace ProjectWorldCanonical
 
 			Attributes->TryGetNumberField(TEXT("width_m"), Feature.WidthMeters);
 			Attributes->TryGetNumberField(TEXT("height_m"), Feature.HeightMeters);
+			Attributes->TryGetStringField(TEXT("road_class"), Feature.RoadClass);
+			Attributes->TryGetStringField(TEXT("vegetation_class"), Feature.VegetationClass);
+			Attributes->TryGetStringField(TEXT("foliage_class"), Feature.FoliageClass);
+			Attributes->TryGetStringField(TEXT("leaf_type"), Feature.LeafType);
+			Attributes->TryGetStringField(TEXT("leaf_cycle"), Feature.LeafCycle);
+			Attributes->TryGetStringField(TEXT("species"), Feature.Species);
 			if (!ProjectWorldWaterContractParsing::Read(Attributes, Feature, Validation))
 			{
 				return false;

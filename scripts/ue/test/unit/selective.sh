@@ -50,10 +50,22 @@ declare -A PLUGIN_TEST_FILTER_MAP=(
     ["ProjectUI"]="ProjectUI"
 )
 
+# Hooks are disabled by pointing at a UNIQUE, empty, per-invocation directory -
+# never at /dev/null. On Windows a native git resolves "/dev/null" RELATIVE to the
+# repository (it has no drive letter), so git-lfs creates a literal
+# <repo>/dev/null/ directory and installs post-checkout, post-commit, post-merge
+# and pre-push into it. Git Bash happens to rewrite the argument to "nul" today,
+# which only hides the hazard. See git-lfs issue 6297.
+# The directory must be per-invocation: a fixed shared path persists between runs,
+# so anything that ever drops a hook there would be executed by every later
+# "safe" call - the opposite of the guarantee this makes.
+PROJECT_EMPTY_HOOKS="$(mktemp -d "${TMPDIR:-/tmp}/project-empty-hooks.XXXXXX")"
+trap 'rm -rf "$PROJECT_EMPTY_HOOKS" 2>/dev/null || true' EXIT
+
 git_safe() {
     GIT_LFS_SKIP_SMUDGE=1 git \
         -c core.fsmonitor=false \
-        -c core.hooksPath=/dev/null \
+        -c core.hooksPath="$PROJECT_EMPTY_HOOKS" \
         -c core.safecrlf=false \
         -c filter.lfs.process= \
         -c filter.lfs.required=false \

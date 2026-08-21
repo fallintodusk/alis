@@ -3,11 +3,11 @@
 Per-session console-variable batches used during the 2026-05-15 indoor
 Lumen tuning session. Tracked in git so the tuning history is reviewable.
 
-**!! READ THE TODO BEFORE USING THESE !!**
+**!! DO NOT SHIP THESE VALUES - read this whole file first !!**
 
-
-These profiles encode the early experimental CVar campaign. The todo's
-final research-grounded plan **superseded** this approach. Specifically:
+These profiles encode the early experimental CVar campaign from that session.
+A later research-grounded plan **superseded** this approach. Everything needed
+to use or retire these files is stated below; no external plan is required.
 
 - `cvar_clean.txt` and `cvar_full.txt` raise
   `r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated` to 32 and
@@ -16,18 +16,26 @@ final research-grounded plan **superseded** this approach. Specifically:
   smear** on moving casters (door open, NPC walk). They reduce static
   noise but at the cost of the "shleif" artifact. **Do not ship these
   values.**
-- The safe subset that does NOT cause smear is documented in the todo's
-  Track A7 (in `DefaultEngine.ini`):
+- The safe subset that does NOT cause smear (verified during the 2026-05-15
+  experimentation) belongs in `DefaultEngine.ini` under
+  `[/Script/Engine.RendererSettings]`, and only after the content-side fixes
+  below have landed:
   - `r.Lumen.ScreenProbeGather.MaxRayIntensity=4`
   - `r.Lumen.ScreenProbeGather.ShortRangeAO.HardwareRayTracing=1`
   - `r.Lumen.Reflections.RoughnessFadeLength=0.6`
-- The main fix path is **content-side** (Tracks A1-A6: mesh split,
-  SkyLight RTC off, Rect Lights per window, etc.), not CVar.
-- The dynamic-shadow smear ("shleif") is a **known UE 5.7.0 VSM
-  regression** targeted for fix in 5.7.3 (Track B1).
+- The main fix path is **content-side**, not CVar: apartment mesh split,
+  stopping the SkyLight cubemap-recapture treadmill, direct-light anchors
+  (Rect Lights per window), volumetric-fog god rays, a material roughness
+  floor, and post-process-volume override cleanup. The CVar pack above is a
+  residual trim applied only after those land.
+- The dynamic-shadow smear ("shleif") was diagnosed as a **UE 5.7.0 VSM
+  regression**, with the preferred response being to wait for the engine fix
+  rather than work around it. That analysis predates the current engine, so
+  re-test the door-open scenario before assuming it still applies.
 
-This directory is a candidate for **deletion** once the todo's plan
-lands. Kept temporarily so the experimental trail is reviewable.
+This directory is a candidate for **deletion** once the content-side fixes
+land and final values roll into config. Kept meanwhile so the experimental
+trail stays reviewable.
 
 Scope: editor-only tuning aid. Once final values are agreed, they roll into
 [`Config/DefaultEngine.ini`](../../../../Config/DefaultEngine.ini) and

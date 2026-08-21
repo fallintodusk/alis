@@ -80,9 +80,21 @@ function Format-AuditProblems {
     return ($shown -join '; ') + $suffix
 }
 
+function Get-AuditObjectSha256 {
+    param([Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Value)
+    $json = @($Value) | ConvertTo-Json -Depth 8 -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace(
+            '-', '').ToLowerInvariant()
+    }
+    finally { $sha.Dispose() }
+}
+
 $activeSummary = $null
 $scopeSummaries = @()
-$currentFingerprint = $null
+$currentFingerprints = [ordered]@{}
 $contentLock = $null
 $authorityLock = $null
 try {
@@ -127,7 +139,7 @@ try {
             Add-AuditCheck 'global_ownership' $false $_.Exception.Message
         }
 
-        $activeScopeIds = @($active.Manifests.Keys)
+        $activeScopeIds = @($active.Manifests.Keys | Sort-Object)
         $consumerProblems = [System.Collections.Generic.List[string]]::new()
         foreach ($scopeId in $activeScopeIds) {
             foreach ($consumer in @($active.Manifests[$scopeId].consumer_references)) {
@@ -140,18 +152,23 @@ try {
             if ($consumerProblems.Count -eq 0) { 'Every consumer reference resolves to an active scope.' }
             else { Format-AuditProblems -Problems @($consumerProblems) })
 
-        $currentFingerprint = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $ProjectRoot
         $staleFingerprints = [System.Collections.Generic.List[string]]::new()
         foreach ($scopeId in $activeScopeIds) {
-            if ([string]$active.Manifests[$scopeId].generator_fingerprint -ne $currentFingerprint) {
-                $staleFingerprints.Add("scope $scopeId was accepted by a different generator")
+            $manifest = $active.Manifests[$scopeId]
+            $producerId = Get-ProjectWorldManifestProducerId -Manifest $manifest
+            if (-not $currentFingerprints.Contains($producerId)) {
+                $currentFingerprints[$producerId] = Get-ProjectWorldGeneratorFingerprint `
+                    -ProjectRoot $ProjectRoot -ProducerId $producerId
+            }
+            if ([string]$manifest.generator_fingerprint -ne [string]$currentFingerprints[$producerId]) {
+                $staleFingerprints.Add("scope $scopeId was accepted by a different $producerId producer")
             }
         }
         # This is the final pre-package authority proof: an accepted tree must
         # be reproducible by the CURRENT generator, so a stale fingerprint
         # fails closed rather than being reported as informational.
         Add-AuditCheck 'generator_fingerprint_current' ($staleFingerprints.Count -eq 0) $(
-            if ($staleFingerprints.Count -eq 0) { "Every active manifest carries the current generator fingerprint $($currentFingerprint.Substring(0, 16))." }
+            if ($staleFingerprints.Count -eq 0) { 'Every active manifest carries its current producer-local generator fingerprint.' }
             else { Format-AuditProblems -Problems @($staleFingerprints) })
         $ownedDigests = @{}
         $ownedScopes = @{}
@@ -189,6 +206,8 @@ try {
                 $inputIdentity[$property.Name] = [string]$property.Value
             }
             $manifestEntry = $active.Record.scopes | Where-Object { $_.scope_id -eq $scopeId }
+            $producerId = Get-ProjectWorldManifestProducerId -Manifest $manifest
+            $expectedFingerprint = [string]$currentFingerprints[$producerId]
             $scopeSummaries += [ordered]@{
                 scope_id = $scopeId
                 manifest_path = [string]$manifestEntry.manifest_path
@@ -199,10 +218,14 @@ try {
                 owning_layer = [string]$manifest.owning_layer
                 accepted_operation_id = [string]$manifest.accepted_operation_id
                 artifact_count = @($manifest.artifacts).Count
+                artifact_set_sha256 = Get-AuditObjectSha256 `
+                    -Value @($manifest.artifacts | Sort-Object path)
                 verified_artifact_count = $scopeArtifacts
                 verified_artifact_bytes = $scopeBytes
+                producer_id = $producerId
                 generator_fingerprint = [string]$manifest.generator_fingerprint
-                generator_fingerprint_is_current = ([string]$manifest.generator_fingerprint -eq $currentFingerprint)
+                generator_fingerprint_expected = $expectedFingerprint
+                generator_fingerprint_is_current = ([string]$manifest.generator_fingerprint -eq $expectedFingerprint)
             }
         }
         Add-AuditCheck 'artifacts_intact' ($artifactProblems.Count -eq 0) $(
@@ -240,7 +263,7 @@ $receipt = [ordered]@{
     status = $status
     manifest_root = ConvertTo-AuditRelativePath -Path $ManifestRoot
     generated_roots = @($GeneratedRoots | ForEach-Object { ConvertTo-AuditRelativePath -Path $_ })
-    generator_fingerprint_current = $currentFingerprint
+    generator_fingerprints_current = $currentFingerprints
     active_set = $activeSummary
     scopes = @($scopeSummaries)
     checks = @($checks)

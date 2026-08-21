@@ -4,6 +4,7 @@
 #include "ProjectWorldRealizationProfile.h"
 
 #include "ProjectWorldDataRoots.h"
+#include "ProjectWorldRealizationGeneratorRegistry.h"
 #include "ProjectWorldSchemaReference.h"
 
 #include "Dom/JsonObject.h"
@@ -240,86 +241,6 @@ namespace ProjectWorldRealizationProfile
 			return Root.Len() > Parent.Len() && IsRootUnder(Root, Parent);
 		}
 
-		bool HasSingleSelector(const FProjectWorldRealizationLayer& Layer, const TCHAR* Selector)
-		{
-			return Layer.CanonicalSelectors.Num() == 1 && Layer.CanonicalSelectors[0] == Selector;
-		}
-
-		bool HasNonnegativeRgb(const TSharedPtr<FJsonObject>& Settings, const TCHAR* Field)
-		{
-			const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
-			if (!Settings->TryGetArrayField(Field, Values) || Values == nullptr || Values->Num() != 3)
-			{
-				return false;
-			}
-			for (const TSharedPtr<FJsonValue>& Value : *Values)
-			{
-				double Number = 0.0;
-				if (!Value.IsValid() || !Value->TryGetNumber(Number) ||
-					!FMath::IsFinite(Number) || Number < 0.0)
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-
-		bool ValidateGeneratorSettings(const FProjectWorldRealizationLayer& Layer, FString& OutError)
-		{
-			TSharedPtr<FJsonObject> Settings;
-			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Layer.NormalizedSettings);
-			if (!FJsonSerializer::Deserialize(Reader, Settings) || !Settings.IsValid())
-			{
-				OutError = FString::Printf(TEXT("Generator settings are not an object: %s"), *Layer.LayerId);
-				return false;
-			}
-			if (Layer.GeneratorId == TEXT("project_landscape"))
-			{
-				double ComponentsPerProxy = 0.0;
-				if (Layer.LayerKind != EProjectWorldLayerKind::GeneratedGeography ||
-					!HasSingleSelector(Layer, TEXT("terrain")) ||
-					Layer.SpatialOwnership != TEXT("logical_landscape_with_cell_proxies") ||
-					Layer.DirtyGranularity != EProjectWorldDirtyGranularity::CanonicalCell ||
-					Layer.RuntimeMapping != TEXT("world_partition_owner") ||
-					!HasOnlyFields(Settings, {TEXT("components_per_proxy")}, OutError) ||
-					!Settings->TryGetNumberField(TEXT("components_per_proxy"), ComponentsPerProxy) ||
-					ComponentsPerProxy != 1.0)
-				{
-					OutError = TEXT("project_landscape:v1 does not match its registered executable tuple.");
-					return false;
-				}
-				return true;
-			}
-			if (Layer.GeneratorId == TEXT("project_water_mesh"))
-			{
-				FString ShadingModel;
-				bool bNanite = true;
-				if (Layer.LayerKind != EProjectWorldLayerKind::GeneratedGeography ||
-					!HasSingleSelector(Layer, TEXT("water")) ||
-					Layer.SpatialOwnership != TEXT("cell_local") ||
-					Layer.DirtyGranularity != EProjectWorldDirtyGranularity::CanonicalCell ||
-					Layer.RuntimeMapping != TEXT("world_partition_spatial") ||
-					!HasOnlyFields(Settings, {
-						TEXT("material_shading_model"), TEXT("nanite"),
-						TEXT("scattering_coefficients"), TEXT("absorption_coefficients")}, OutError) ||
-					!Settings->TryGetStringField(TEXT("material_shading_model"), ShadingModel) ||
-					ShadingModel != TEXT("single_layer_water") ||
-					!Settings->TryGetBoolField(TEXT("nanite"), bNanite) || bNanite ||
-					!HasNonnegativeRgb(Settings, TEXT("scattering_coefficients")) ||
-					!HasNonnegativeRgb(Settings, TEXT("absorption_coefficients")))
-				{
-					OutError = TEXT("project_water_mesh:v1 does not match its registered executable tuple.");
-					return false;
-				}
-				return true;
-			}
-			OutError = FString::Printf(
-				TEXT("Generator settings are not registered for: %s:v%d"),
-				*Layer.GeneratorId,
-				Layer.GeneratorVersion);
-			return false;
-		}
-
 		bool ExpandUnits(
 			const TSet<FString>& Units,
 			EProjectWorldDirtyGranularity Granularity,
@@ -383,12 +304,10 @@ namespace ProjectWorldRealizationProfile
 		int32 GeneratorVersion,
 		EProjectWorldLayerKind LayerKind)
 	{
-		if (GeneratorVersion != 1)
-		{
-			return false;
-		}
-		return LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
-			(GeneratorId == TEXT("project_landscape") || GeneratorId == TEXT("project_water_mesh"));
+		return ProjectWorldRealizationGeneratorRegistry::IsRegistered(
+			GeneratorId,
+			GeneratorVersion,
+			LayerKind);
 	}
 
 	bool ValidateAndFinalize(FProjectWorldRealizationProfile& Profile, FString& OutError)
@@ -448,7 +367,7 @@ namespace ProjectWorldRealizationProfile
 				OutError = FString::Printf(TEXT("Generator pair is not registered: %s:v%d"), *Layer.GeneratorId, Layer.GeneratorVersion);
 				return false;
 			}
-			if (!ValidateGeneratorSettings(Layer, OutError))
+			if (!ProjectWorldRealizationGeneratorRegistry::ValidateSettings(Layer, OutError))
 			{
 				return false;
 			}

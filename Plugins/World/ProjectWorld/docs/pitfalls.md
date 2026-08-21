@@ -310,12 +310,15 @@ Reported live 2026-08-18 on the 210-cell Kazan territory.
 (`altitude = span / 2 / tan(fov/2)`), never author it as a constant. Diagnose
 presence with descriptors before ever reaching for a screenshot.
 
-**File.** `tools/World/VisualVerification/app/{census,plan_vantages}.py`;
-`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/ProjectWorldTerritoryVisualSweepTests.cpp`.
+**File.** `tools/World/VisualVerification/app/{census,plan_vantages}.py`.
 
-**Regression test.** `Project.World.Realization.Territory.VisualSweep` solves
-the overview altitude from measured proxy bounds, so an authored constant
-cannot reintroduce the framing failure.
+**Regression test.** `plan_vantages` solves the overview altitude from measured
+proxy bounds, so an authored constant cannot reintroduce the framing failure.
+The former `Project.World.Realization.Territory.VisualSweep` automation test
+that first carried this solve was REMOVED - it ran inside
+`Automation RunTests`, where the screenshot gates below make evidence capture
+impossible. Ownership moved to the VisualVerification component; do not
+reintroduce an in-automation sweep to recover it.
 
 ---
 
@@ -359,9 +362,11 @@ workaround (stealing OS foreground) fights the operator for focus and is
 refused outright by Windows when another process owns foreground. Console `|`
 chaining is also not supported - only the first command runs.
 
-**Fix.** Use the engine's own automation screenshot path,
+**Fix.** Use the engine's own screenshot API,
 `UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(ResX, ResY,
-Filename, Camera, ...)`. It locks the level viewport to a supplied
+Filename, Camera, ...)` - but read the envelope rule at the end of this entry
+before choosing where to call it from, because the same call means different
+things inside and outside an automation test. It locks the level viewport to a supplied
 `ACameraActor` in pilot mode, forces game view, flushes pending loads, delays a
 configurable interval, and returns a pollable `UAutomationEditorTask`. Epic has
 shipped this since 4.27 alongside `AScreenshotFunctionalTest` and
@@ -398,7 +403,9 @@ COMPARISON against stored `GroundTruthData`, which is what
 `AScreenshotFunctionalTest` and `TakeAutomationScreenshotAtCamera` are built
 for. Choosing the wrong branch is the single easiest way to lose a day here.
 
-**File.** `Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/ProjectWorldTerritoryVisualSweepTests.cpp`.
+**File.** `tools/World/VisualVerification/` owns evidence capture. The
+`ProjectWorldTerritoryVisualSweepTests.cpp` automation test that originally hit
+this was removed precisely because it sat inside the wrong envelope.
 
 ---
 
@@ -408,22 +415,209 @@ for. Choosing the wrong branch is the single easiest way to lose a day here.
 viewed top-down over near-flat ground, while the realization height gate
 reports a perfect match.
 
-**Root cause.** The canonical profile declares `height_quantization: 0.1`, so
-every sample snaps to a 10 cm lattice. On Kazan's floodplain that produces flat
-plateaus separated by 10 cm cliffs: measured over 40 cells, ~50% of adjacent
-samples are EXACTLY equal and only ~11% of possible levels are distinct. Flat
-plateaus have constant normals and the cliffs are normal discontinuities, which
-shading renders as bands. This is data, not a shading artifact, and it is NOT
-nearest-neighbour upsampling (run-length analysis shows no spike at k=2/3).
+**Root cause (CORRECTED 2026-08-19).** The banding is real and is in the data,
+but it is INHERITED FROM THE SOURCE, not produced by `height_quantization:
+0.1`. Copernicus GLO-30 hydro-flattens water bodies and plateaus low-relief and
+void-filled ground, so adjacent 30 m postings are already bit-identical before
+canonical compilation touches them. Measured on the raw Float32 source in
+32x32 blocks, before and after applying the 0.1 m lattice:
 
-**Fix.** Not yet chosen - reduce quantization, or accept it and rely on a
-terrain material with detail normals. What IS fixed is that it can no longer
-pass unnoticed; see the self-referential-gate rule in
-[canonical.md](../../../../docs/agents/canonical.md).
+```text
+relief band   blocks   raw source   at 0.1 m   delta
+0-3 m              6      1.000       1.000    +0.000
+3-10 m            11      0.932       0.934    +0.002
+10-25 m           28      0.378       0.397    +0.019
+25+ m             32      0.002       0.025    +0.023
+```
+
+In exactly the cells that fail, quantization contributes nothing; its only
+measurable effect lands on high-relief cells, which pass comfortably. The
+source also declares 4.0 m vertical accuracy at 90% confidence, so the 0.1 m
+lattice is already 40x finer than the data's own accuracy.
+
+**Superseded claim.** The original entry blamed the 0.1 m lattice, citing ~50%
+equal adjacent samples and ~11% distinct levels over 40 cells. Both figures were
+gate artifacts: the 40-cell default sample was the first 40 filenames, which is
+three of fifteen territory columns - a contiguous strip of the flattest,
+water-dominated ground - and `level_utilisation` was compared against an
+absolute floor it cannot reach at low relief. Over all 210 cells the territory
+measures `terrace_ratio` 0.269, which passes.
+
+**Fix.** Canonical terrain and its 0.1 m quantization are RETAINED; a finer
+lattice cannot recreate variation the source does not contain. The acceptance
+gate was corrected instead (see below). Residual banding in low-relief,
+water-adjacent ground is a presentation concern to be addressed by terrain
+material detail normals, which change no elevation.
+
+The transferable lesson is a MISSING ACCEPTANCE DIMENSION, not a
+self-referential gate. The height gate was correct and its tolerance was
+legitimate: comparing FINAL against canonical at source precision is a valid
+fidelity check. It simply never claimed to measure surface quality, and no
+other gate did either - so a real defect was structurally invisible to a green
+board. Apply the four gate-scope questions in
+[canonical.md section 7](../../../../docs/agents/canonical.md): what does this
+gate prove, over what authority, which defect classes are invisible to it, and
+does another quality dimension need its own independent gate.
 
 **File.** `tools/World/VisualVerification/app/surface.py`.
 
 **Regression test.** `surface.py` gates `terrace_ratio <= 0.45` and
-`level_utilisation >= 0.20`, both measured against canonical directly rather
-than against the engine. It currently FAILS at 0.498 / 0.111, which is the
-correct report for the present data.
+`supported_level_ratio >= 0.50`, both measured against canonical directly
+rather than against the engine, over EVERY cell by default. The accepted
+territory reports 0.269 / 0.738 and passes. `level_utilisation` is retained as
+a diagnostic only: it is bounded by `(relief / quantization + 1) / samples`, so
+comparing it to an absolute floor rejects legitimately flat ground.
+`tools/World/VisualVerification/tests/test_surface.py` pins both the low-relief
+acceptance and the undelivered-resolution rejection.
+
+## 15. A commandlet cannot render a scene capture
+
+**Symptom.** `USceneCaptureComponent2D::CaptureScene()` in a commandlet writes
+perfectly valid PNGs of the render target's clear colour. Every structural
+signal says the capture should work.
+
+**What was verified before concluding.** All of these were true and the frames
+were still black:
+
+```text
+FApp::CanEverRender()            true (-AllowCommandletRendering, no -NullRHI)
+RHI                              real D3D12, feature level SM6
+World->Scene                     non-null
+World Partition editor cells     explicitly loaded via FLoaderAdapterShape
+actors / visible primitives      378 / 566, including a DirectionalLight
+capture component                registered and visible, target 1920x1080
+UpdateWorldComponents + SendAllEndOfFrameUpdates
+CommandletHelpers::TickEngine    one simulated engine frame, render section
+                                 gated on exactly this envelope
+FlushRenderingCommands           after every CaptureScene
+```
+
+**Root cause.** A commandlet is a deliberately raw host. `CaptureScene()`
+enqueues a scene render through `ISceneRenderBuilder`, but the surrounding
+frame lifecycle a commandlet provides is not sufficient for the capture to
+composite. Chasing the remaining difference inside the renderer is not worth
+it.
+
+**Fix.** Run evidence capture in the LIVE EDITOR, which runs the ordinary frame
+loop, and trigger it with the `ProjectWorld.CaptureEvidence` console command
+plus `-RenderOffscreen -unattended`. Offscreen keeps a real RHI and a real
+frame loop while opening no window, so the capture neither fights the operator
+for foreground focus nor depends on it. The capture code itself is unchanged
+between the two hosts - only the host differs.
+
+**Lesson.** `-AllowCommandletRendering` makes *some* rendering work
+(the Landscape edit-layer merge in pitfall 14 genuinely needs it and genuinely
+works). It does not make a commandlet a rendering host in general. Verify the
+specific rendering feature in the specific envelope before building on it.
+
+**File.** `Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEditorModule.cpp`,
+`scripts/ue/world/capture_visual_evidence.ps1`.
+
+**Regression test.** `tools/World/VisualVerification/tests/test_verify_capture.py`
+rejects a capture set whose poses return identical bytes, which is what a
+non-rendering host produces.
+
+## 16. An empty recovery journal is not metadata-only
+
+**Symptom.** A metadata-only manifest publication fails before commit. Running
+the supported transaction recovery removes an existing generated map and the
+shared presentation root even though the attempted operation never edited
+content.
+
+**Root cause.** Generated-content recovery always removes the journal's map
+and presentation paths before replaying `snapshot_records`. An empty record
+set means those paths were initially absent; it does not mean "do not touch
+content." Writing an `apply` journal with an existing map but no real snapshot
+therefore makes recovery correctly restore the wrong declared state.
+
+**Fix.** Any operation using the generated-content journal must create its
+records through `New-ProjectWorldGeneratedSnapshot` before writing the
+journal, even when the intended authority change is metadata-only. Use the
+smallest valid map as the recovery anchor, clean the snapshot and journal on
+success, and invoke the supported recovery path on failure. Do not hand-author
+an empty record set for existing content.
+
+**File.** `scripts/ue/world/generated_content_transaction.ps1`,
+`scripts/ue/world/generated_manifest.ps1`.
+
+**Regression test.**
+`scripts/ue/world/test/generated_content_transaction.Tests.ps1` proves both
+directions: existing map/presentation bytes are restored from real snapshot
+records, while an initially absent target is removed when the record set is
+empty.
+
+## 17. Destroying an external actor does not retire its package file
+
+**Symptom.** Regeneration changes a cell from populated to empty. The actor is
+gone from the editor world, but its old World Partition external-actor package
+remains on disk and later appears as stale or unowned generated content.
+
+**Root cause.** `UWorld::EditorDestroyActor` destroys the actor object; it does
+not guarantee deletion of the actor's existing external `.uasset`. Counting
+that path as a self-saved mutation can also suppress the broad world save, so
+no later operation retires the file.
+
+**Fix.** Capture the external package filename before destroying the actor,
+destroy the actor, then explicitly delete the package file. Fail the operation
+if either step fails.
+
+**File.**
+`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationRealization.cpp`.
+
+**Regression test.**
+`Project.World.Realization.Vegetation.RetirementPersistence` creates an
+occupied cell and an external package marker, regenerates the cell with zero
+instances, and requires the package file to be absent.
+
+## 18. Do not rebuild water meshes to classify vegetation candidates
+
+**Symptom.** Kazan realization remains CPU-bound in vegetation input capture
+after roads finish, and the Matrix can exceed its outer timeout.
+
+**Root cause.** Rebuilding constrained Delaunay water meshes for every cell and
+again for hash, apply, and capture turns a point-exclusion query into repeated
+whole-feature triangulation. Large canonical water polygons make that cost
+dominate the realization.
+
+**Fix.** Classify vegetation points directly against canonical polygon rings,
+holes, and ribbon clearances. Build one resolved exclusion context per cell and
+reuse it for both the input hash and placement. The water mesh is a water-layer
+artifact, not a vegetation input.
+
+**File.**
+`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationExclusions.cpp`,
+`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationPlacement.cpp`.
+
+**Regression test.**
+`Project.World.Realization.Vegetation.ExclusionContract` covers polygons,
+holes, ribbons, roads, masks, and input dirtiness. The Kazan Matrix exercises
+the full 210-cell input capture under the acceptance timeout.
+
+## 19. Replace components before positioning a generated cell actor
+
+**Symptom.** Generated vegetation cells have distinct stable identities and
+correct instance counts, but their actors and instances overlap near world
+origin instead of occupying their canonical cells.
+
+**Root cause.** A generic `AActor` has no transform independent of its root.
+The generated HISM root was registered at identity, so the external package
+owned no durable cell origin. A second lifecycle defect hid attempted fixes:
+whole-layer producer drift reused actors when their old semantic tag matched,
+allowing a new producer fingerprint to advance without rebuilding old bytes.
+
+**Fix.** Assign the canonical cell origin to the new HISM root before component
+registration. A whole-layer dirty marker must bypass per-actor semantic reuse.
+The wrapper adds that marker whenever an accepted layer manifest carries a
+stale producer fingerprint, so implementation changes reconstruct their layer
+before new authority can be published.
+
+**File.**
+`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationRealization.cpp`.
+
+**Regression test.**
+`Project.World.Realization.Vegetation.RetirementPersistence` requires the root
+to own the canonical cell origin and proves whole-layer producer refreshes
+rewrite unchanged cell semantics. `generated_layer_manifest.Tests.ps1`
+requires stale producer fingerprints to inject whole-layer dirty work. Live
+editor evidence compares vegetation and road actors for the same cell identity
+after save and reload.

@@ -23,6 +23,11 @@
     this script exists to prevent. If the junction cannot be created, this
     fails loudly so the operator fixes the cause.
 
+    KNOWN LIMITATION - Codex-managed worktrees. A managed worktree starts from
+    Git content, so a gitignored local junction is not inherited. Run this
+    script inside such a worktree before using ALIS skills there. Automating
+    that is deliberately deferred until repeated usage justifies it.
+
     Idempotent. Safe to re-run.
 
 .EXAMPLE
@@ -31,7 +36,7 @@
 #>
 [CmdletBinding()]
 param(
-    # Prove the exposure resolves and the skill sets match. Creates nothing.
+    # Prove the exposure satisfies the whole contract and exit. Creates nothing.
     [switch]$Verify
 )
 
@@ -69,29 +74,81 @@ function Get-SkillNames {
         Select-Object -ExpandProperty Name | Sort-Object)
 }
 
-if ($Verify) {
+function Get-SkillExposureProblems {
+    # THE single definition of "correctly exposed". Used by -Verify AND
+    # immediately after creation, so the creation path can never report success
+    # against a weaker standard than the one -Verify enforces.
+    $problems = @()
+
     if (-not (Test-ReparsePoint $link)) {
-        Write-Host '[LinkCodexSkills] FAIL - .agents/skills is not a junction. Run scripts/agents/link_codex_skills.ps1'
-        exit 1
+        return @(".agents/skills is not a junction")
     }
 
     $canonicalNames = Get-SkillNames $canonical
     $exposedNames = Get-SkillNames $link
 
     if ($canonicalNames.Count -eq 0) {
-        Write-Host '[LinkCodexSkills] FAIL - canonical .claude/skills is empty'
-        exit 1
+        return @("canonical .claude/skills is empty")
     }
 
     # Set equality is the acceptance criterion, never a hardcoded count.
     if (Compare-Object $canonicalNames $exposedNames) {
-        Write-Host "[LinkCodexSkills] FAIL - set mismatch"
-        Write-Host "  canonical: $($canonicalNames -join ', ')"
-        Write-Host "  exposed  : $($exposedNames -join ', ')"
-        exit 1
+        $problems += ("set mismatch - canonical: $($canonicalNames -join ', ') " +
+            "| exposed: $($exposedNames -join ', ')")
     }
 
-    Write-Host "[LinkCodexSkills] OK - .agents/skills -> .claude/skills ($($exposedNames -join ', '))"
+    # Both tools require the entrypoint to be exactly SKILL.md. Windows is
+    # case-insensitive, so a lowercase skill.md resolves here and still fails a
+    # case-sensitive consumer - check the stored name, not just existence.
+    foreach ($name in $exposedNames) {
+        $dir = Join-Path $link $name
+        $exact = @(Get-ChildItem $dir -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -ceq 'SKILL.md' })
+        if ($exact.Count -ne 1) {
+            $actual = @(Get-ChildItem $dir -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -ieq 'SKILL.md' } |
+                Select-Object -ExpandProperty Name)
+            $problems += ("$name entrypoint must be exactly SKILL.md (found: " +
+                "$(if ($actual) { $actual -join ', ' } else { 'none' }))")
+        }
+    }
+
+    # Disk casing is NOT enough. core.ignorecase is true on Windows because
+    # NTFS really is case-insensitive, so Get-ChildItem above reports SKILL.md
+    # even when git has skill.md recorded. Whoever clones onto a case-sensitive
+    # filesystem then gets the lowercase name and discovers no skill. That is
+    # exactly how a lowercase entry survived several commits unnoticed, with
+    # `git status` reporting clean the whole time.
+    #
+    # Do NOT "fix" this by setting core.ignorecase=false: that flag describes
+    # the filesystem, and lying about it causes phantom duplicate entries and
+    # checkout collisions. Check the index instead, and repair with
+    # `git mv -f <lower> <UPPER>`.
+    $tracked = @(& git ls-files --cached -- $canonical 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $tracked.Count -gt 0) {
+        foreach ($rel in $tracked) {
+            $leaf = Split-Path $rel -Leaf
+            if ($leaf -ieq 'SKILL.md' -and $leaf -cne 'SKILL.md') {
+                $parent = (Split-Path $rel -Parent) -replace '\\', '/'
+                $problems += ("git records '$rel' - the index entry must be " +
+                    "exactly SKILL.md. Repair: git mv -f '$rel' " +
+                    "'$parent/SKILL.md'")
+            }
+        }
+    }
+
+    return $problems
+}
+
+if ($Verify) {
+    $problems = @(Get-SkillExposureProblems)
+    if ($problems.Count -gt 0) {
+        Write-Host "[LinkCodexSkills] FAIL"
+        $problems | ForEach-Object { Write-Host "  $_" }
+        Write-Host "  Fix with: scripts/agents/link_codex_skills.ps1"
+        exit 1
+    }
+    Write-Host "[LinkCodexSkills] OK - .agents/skills -> .claude/skills ($((Get-SkillNames $link) -join ', '))"
     exit 0
 }
 
@@ -115,10 +172,13 @@ if (-not (Test-Path $linkParent)) {
 # relative target against the caller's working directory, not the link location.
 New-Item -ItemType Junction -Path $link -Target $canonical -Force | Out-Null
 
-# Creation can report success while the link fails to resolve, so prove it reads.
-$exposed = Get-SkillNames $link
-if ($exposed.Count -eq 0) {
-    throw "[LinkCodexSkills] Junction created at $link but resolves to nothing. Codex would see zero skills."
+# Creating the junction is not the contract - satisfying the whole exposure
+# contract is. Prove it with the SAME checks -Verify runs.
+$problems = @(Get-SkillExposureProblems)
+if ($problems.Count -gt 0) {
+    Write-Host "[LinkCodexSkills] Junction created but the exposure is INVALID:"
+    $problems | ForEach-Object { Write-Host "  $_" }
+    throw "[LinkCodexSkills] Codex skill exposure failed verification."
 }
 
-Write-Host "[LinkCodexSkills] Created junction .agents/skills -> .claude/skills ($($exposed -join ', '))"
+Write-Host "[LinkCodexSkills] Created junction .agents/skills -> .claude/skills ($((Get-SkillNames $link) -join ', '))"

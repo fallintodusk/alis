@@ -418,7 +418,7 @@ layer accepted -> territory-scale realization allowed.
   manual dirty-set union; transitive cell propagation. Test add/remove,
   generator replacement, display-only reorder, cycles, unknown generators,
   root overlap, cell precision, unchanged-scope equality, and rollback.
-- [ ] 3B-EXT Add dependency halo propagation with the first roads/water
+- [x] 3B-EXT Add dependency halo propagation with the first roads/water
   consumer that requires neighboring cells; keep zero-halo layers exact.
 - [ ] 3E-EXT Add stable-object dirty selection with generated gameplay
   placement, its first real consumer. Do not prebuild unused selector modes.
@@ -436,10 +436,10 @@ layer accepted -> territory-scale realization allowed.
   behavior, elevation, shoreline intersection, cross-cell ownership,
   material/collision policy, navigation policy); deterministic clean
   rebuild; continuous cross-cell water.
-- [ ] 3B Roads: select realized road classes; widths, bridge/tunnel
+- [x] 3B Roads: select realized road classes; widths, bridge/tunnel
   fallback, intersections, terrain conformance, and player collision across
   the product territory. AI navigation remains scenario-owned.
-- [ ] 3C Vegetation: passes per-layer admission; derived only from canonical
+- [x] 3C Vegetation: passes per-layer admission; derived only from canonical
   records; deterministic seeds from stable feature/cell identity;
   road/water/overlay exclusion masks; no per-tree actors at territory
   scale; frozen density, instance, package, and runtime budgets;

@@ -1,0 +1,36 @@
+# ALIS agent command policy for Codex.
+#
+# Mirrors the Claude-side deny rules in .claude/settings.json so the same
+# invariant holds in both tools:
+#
+#     agent git commit -> forbidden
+#     agent git push   -> forbidden
+#     git add, read-only git -> allowed
+#
+# Only the operator commits in this repo. See the AUTONOMOUS COMMIT POLICY
+# section of AGENTS.md for the rationale.
+#
+# "forbidden" blocks the request without prompting, so an agent cannot talk
+# itself past it the way it could past an approval prompt.
+#
+# Verify with:  codex execpolicy check
+#
+# Accepted residual, deliberately not chased: prefix matching does not catch
+# indirect forms such as `git -C <path> commit`, a wrapper script that itself
+# runs git, or redirection/substitution that defeats command splitting. That
+# residual is documented rather than solved - the heavyweight guard that
+# covered it was removed as speculative infrastructure. Reinstate stronger
+# enforcement only on evidence that an agent actually reached one of those
+# forms.
+
+prefix_rule(
+    pattern = ["git", "commit"],
+    decision = "forbidden",
+    justification = "Committing is an operator decision in ALIS. Stage and draft the message; the operator commits after review.",
+)
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "forbidden",
+    justification = "Pushing is an operator decision and always requires explicit per-push approval.",
+)

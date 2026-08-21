@@ -19,6 +19,21 @@ namespace ProjectWorldGeneratedGeometry
 			return Actor.Tags.Contains(FName(*(Prefix + Value)));
 		}
 
+		bool HasCurrentCellTag(
+			const AActor& Actor,
+			const FProjectWorldCanonicalBundle& Bundle,
+			const FString& Prefix)
+		{
+			if (!HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId))
+			{
+				return false;
+			}
+			return Bundle.Cells.ContainsByPredicate([&Actor, &Prefix](const FProjectWorldCanonicalCell& Cell)
+			{
+				return HasTagValue(Actor, Prefix, Cell.CellId);
+			});
+		}
+
 		bool IsCurrentGeneratedActor(
 			const AActor& Actor,
 			const FProjectWorldCanonicalBundle& Bundle,
@@ -62,18 +77,21 @@ namespace ProjectWorldGeneratedGeometry
 					return Tag.ToString().StartsWith(TEXT("ProjectWorld.WaterCell="));
 				}))
 			{
-				if (!HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId))
+				return HasCurrentCellTag(Actor, Bundle, TEXT("ProjectWorld.WaterCell="));
+			}
+			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
 				{
-					return false;
-				}
-				for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+					return Tag.ToString().StartsWith(TEXT("ProjectWorld.RoadCell="));
+				}))
+			{
+				return HasCurrentCellTag(Actor, Bundle, TEXT("ProjectWorld.RoadCell="));
+			}
+			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
 				{
-					if (HasTagValue(Actor, TEXT("ProjectWorld.WaterCell="), Cell.CellId))
-					{
-						return true;
-					}
-				}
-				return false;
+					return Tag.ToString().StartsWith(TEXT("ProjectWorld.VegetationCell="));
+				}))
+			{
+				return HasCurrentCellTag(Actor, Bundle, TEXT("ProjectWorld.VegetationCell="));
 			}
 			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 			{

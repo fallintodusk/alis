@@ -45,6 +45,13 @@ param(
     # Without this switch, a missing active set or missing scope refuses.
     [switch]$EnrollManifests,
 
+    # Explicit operator authorization for durable production enrollment. Only the
+    # sanctioned L3 command (EndToEndValidation "enroll") passes this, and only
+    # after the operator authorized that exact operation. Without it an
+    # unattended -EnrollManifests into the durable root still refuses, so an
+    # agent cannot decide to grant production authority on its own.
+    [switch]$DurableEnrollmentAuthorized,
+
     # Explicit clean reconstruction (contract route 2). Requires accepted
     # manifests for the declared scope set; each participating scope must be
     # fully absent or exactly match its accepted state - partial absence or
@@ -269,6 +276,37 @@ $resolvedManifestRoot = if ([string]::IsNullOrWhiteSpace($ManifestRoot)) {
 else {
     [System.IO.Path]::GetFullPath($ManifestRoot)
 }
+# C8 operator control, revised 2026-08-20. The authority boundary is the MANIFEST
+# ROOT, not the owning plugin.
+#
+# DURABLE root (the plugin's Data/Manifests): enrollment grants durable authority
+# to a brand-new production scope. Operator-executed, never unattended.
+#
+# TRANSIENT root (anywhere else, e.g. a candidate under tmp/): the durable active
+# set is neither read, written, nor retired. Building pre-approval candidates and
+# admitting new generated layers depends on this being unattended-legal - the
+# territory Matrix itself enrolls into its own sandbox root, and every future
+# layer admission does the same. Generated packages it rewrites are regenerable
+# and transaction-protected.
+#
+# This lives HERE, not in a Claude/Codex permission rule, because it is a
+# property of the irreversible operation itself. A tool-level rule only covers
+# the tools someone remembered to configure; a third agent, a CI job, or a
+# script would bypass it. Checked after the canonical owner and manifest root are
+# resolved, and before any lock, snapshot, or journal, so a refused run leaves no
+# trace. TestData enrollment stays unattended-legal in every root.
+$durableManifestRoot =
+    [System.IO.Path]::GetFullPath($worldDataRoots.ManifestRoot).TrimEnd('\', '/')
+$enrollmentTargetsDurableAuthority =
+    [System.IO.Path]::GetFullPath($resolvedManifestRoot).TrimEnd('\', '/') -ieq $durableManifestRoot
+if ($EnrollManifests -and $NonInteractive -and -not $DurableEnrollmentAuthorized -and
+    $WorldDataPlugin -ceq 'ProjectWorldData' -and $enrollmentTargetsDurableAuthority) {
+    throw ('Refused: production enrollment (-EnrollManifests on ' +
+        'ProjectWorldData into the durable manifest root) cannot run with ' +
+        '-NonInteractive. Enrollment of production authority is ' +
+        'operator-executed after approval.')
+}
+
 $mapScopeId = Get-ProjectWorldMapScopeId -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot
 $presentationScopeId = $null
 if ($modeName -eq "apply") {
@@ -276,7 +314,7 @@ if ($modeName -eq "apply") {
     $presentationScopeId = Get-ProjectWorldPresentationScopeId -ProfileId $presentationProfileId
 }
 $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot -IncludePresentation $false)
-$presentationScopePaths = @(Join-Path $contentRoot 'Generated\Presentation')
+$presentationScopePaths = @(Get-ProjectWorldPresentationRoot -ContentRoot $contentRoot)
 $activeSet = $null
 $scopeGenerations = @{}
 $retirePresentation = $false
@@ -698,7 +736,10 @@ if ($transactionActive) {
         }
         $candidates = @()
         $retired = @($removedLayerScopes)
-        $generatorFingerprint = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot
+        $mapGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
+            -ProjectRoot $projectRoot -ProducerId 'map:v1'
+        $presentationGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
+            -ProjectRoot $projectRoot -ProducerId 'presentation:v1'
         $priorPresentation = if ($null -ne $activeSet -and $null -ne $presentationScopeId -and
             $activeSet.Manifests.Contains($presentationScopeId)) {
             $activeSet.Manifests[$presentationScopeId]
@@ -738,7 +779,7 @@ if ($transactionActive) {
                         -ProjectRoot $projectRoot -ScopeId $presentationScopeId `
                         -Generation $scopeGenerations[$presentationScopeId] `
                         -OwningLayer 'presentation' -OperationId $transactionId `
-                        -InputIdentity $priorPresentationIdentity -ScopePaths $presentationScopePaths -GeneratorFingerprint $generatorFingerprint `
+                        -InputIdentity $priorPresentationIdentity -ScopePaths $presentationScopePaths -GeneratorFingerprint $presentationGeneratorFingerprint `
                         -ConsumerReferences @($priorConsumers | Where-Object { $_ -ne $mapScopeId }))
                 }
             }
@@ -762,18 +803,21 @@ if ($transactionActive) {
                 -Generation $scopeGenerations[$mapScopeId] `
                 -OwningLayer 'map' -OperationId $transactionId `
                 -InputIdentity $inputIdentity -ScopePaths @() -ArtifactRecords $mapRecords `
-                -GeneratorFingerprint $generatorFingerprint
+                -GeneratorFingerprint $mapGeneratorFingerprint
             $priorMap = if ($null -ne $activeSet -and $activeSet.Manifests.Contains($mapScopeId)) {
                 $activeSet.Manifests[$mapScopeId]
             }
             else { $null }
             if (-not (Test-ProjectWorldManifestSemanticallyUnchanged `
                 -PriorManifest $priorMap -CandidateManifest $mapCandidate `
-                -GeneratorFingerprint $generatorFingerprint)) {
+                -GeneratorFingerprint $mapGeneratorFingerprint)) {
                 $candidates += , $mapCandidate
             }
             foreach ($scopeId in $layerCandidatesByScope.Keys) {
                 $candidateInfo = $layerCandidatesByScope[$scopeId]
+                $layerProducerId = "$([string]$candidateInfo.Contract.generator_id):v$([int]$candidateInfo.Contract.generator_version)"
+                $layerGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
+                    -ProjectRoot $projectRoot -ProducerId $layerProducerId
                 $layerCandidate = New-ProjectWorldCandidateManifest `
                     -ProjectRoot $projectRoot -ScopeId $scopeId `
                     -Generation $scopeGenerations[$scopeId] `
@@ -782,14 +826,14 @@ if ($transactionActive) {
                     -ScopePaths @() -ArtifactRecords $candidateInfo.Records `
                     -LayerContract $candidateInfo.Contract `
                     -ConsumerReferences @($mapScopeId) `
-                    -GeneratorFingerprint $generatorFingerprint
+                    -GeneratorFingerprint $layerGeneratorFingerprint
                 $priorLayer = if ($null -ne $activeSet -and $activeSet.Manifests.Contains($scopeId)) {
                     $activeSet.Manifests[$scopeId]
                 }
                 else { $null }
                 if (-not (Test-ProjectWorldManifestSemanticallyUnchanged `
                     -PriorManifest $priorLayer -CandidateManifest $layerCandidate `
-                    -GeneratorFingerprint $generatorFingerprint -CompareLayerContract)) {
+                    -GeneratorFingerprint $layerGeneratorFingerprint -CompareLayerContract)) {
                     $candidates += , $layerCandidate
                 }
             }
@@ -798,7 +842,7 @@ if ($transactionActive) {
                     -ProjectRoot $projectRoot -ScopeId $presentationScopeId `
                     -Generation $scopeGenerations[$presentationScopeId] `
                     -OwningLayer 'presentation' -OperationId $transactionId `
-                    -InputIdentity $presentationIdentity -ScopePaths $presentationScopePaths -GeneratorFingerprint $generatorFingerprint `
+                    -InputIdentity $presentationIdentity -ScopePaths $presentationScopePaths -GeneratorFingerprint $presentationGeneratorFingerprint `
                     -ConsumerReferences @(@($priorConsumers) + $mapScopeId | Sort-Object -Unique)
                 # Unchanged means artifacts AND consumers AND identity equal;
                 # any difference publishes a new immutable generation.
@@ -809,7 +853,7 @@ if ($transactionActive) {
                      ($presentationCandidate.consumer_references -join ',')) -and
                     (($priorPresentation.input_identity | ConvertTo-Json) -eq
                      ($presentationCandidate.input_identity | ConvertTo-Json)) -and
-                    ([string]$priorPresentation.generator_fingerprint -eq $generatorFingerprint)
+                    ([string]$priorPresentation.generator_fingerprint -eq $presentationGeneratorFingerprint)
                 if (-not $presentationUnchanged) {
                     $candidates += , $presentationCandidate
                 }

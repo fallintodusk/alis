@@ -7,6 +7,7 @@
 #include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRealizeCommandlet.h"
+#include "ProjectWorldSavePolicy.h"
 
 #include "Editor.h"
 #include "EngineUtils.h"
@@ -22,6 +23,31 @@
 #include "Materials/MaterialInstance.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldSavePolicyTest,
+	"Project.World.Realization.SavePolicy",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldSavePolicyTest::RunTest(const FString& Parameters)
+{
+	FProjectWorldRealizationResult Result;
+	TestFalse(TEXT("A no-op needs no broad save."),
+		ProjectWorldSavePolicy::RequiresBroadWorldSave(Result, true, false));
+	Result.CreatedActorCount = 1;
+	Result.SelfSavedActorMutationCount = 1;
+	TestFalse(TEXT("A self-saved road-only change on an existing map needs no broad save."),
+		ProjectWorldSavePolicy::RequiresBroadWorldSave(Result, true, false));
+	TestTrue(TEXT("A new map still needs a broad save."),
+		ProjectWorldSavePolicy::RequiresBroadWorldSave(Result, false, false));
+	Result.UpdatedActorCount = 1;
+	TestTrue(TEXT("A mixed actor change needs a broad save."),
+		ProjectWorldSavePolicy::RequiresBroadWorldSave(Result, true, false));
+	Result.UpdatedActorCount = 0;
+	TestTrue(TEXT("A partition policy change needs a broad save."),
+		ProjectWorldSavePolicy::RequiresBroadWorldSave(Result, true, true));
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldDataRootsTest,

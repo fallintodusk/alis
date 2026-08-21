@@ -140,6 +140,36 @@ if ($written) {
     Write-Host "  [OK] env UE_PATH ($EnvScope) = $written" -ForegroundColor Green
 }
 
+# Codex reads repo skills from .agents/skills; the canonical bodies live in
+# .claude/skills. The junction is machine-local and gitignored, so a fresh
+# clone has no Codex-facing skills until it is created. Creating it here means
+# the normal setup command is sufficient - no second hidden step to remember.
+$linkScript = Join-Path $PSScriptRoot "..\agents\link_codex_skills.ps1"
+$skillsExposed = $false
+if (Test-Path $linkScript) {
+    try {
+        & $linkScript | ForEach-Object { Write-Host "  $_" -ForegroundColor Green }
+        $skillsExposed = ($LASTEXITCODE -eq 0 -or $null -eq $LASTEXITCODE)
+    } catch {
+        Write-Host "  [!] Codex skill exposure failed: $($_.Exception.Message)" `
+            -ForegroundColor Yellow
+    }
+}
+else {
+    Write-Host "  [!] Missing $linkScript" -ForegroundColor Yellow
+}
+
 Write-Host ""
+if (-not $skillsExposed) {
+    # The engine environment is repaired above and stays repaired - that work is
+    # not rolled back. But reporting full success while Codex has zero ALIS
+    # skills would be a green light over a missing interface, which is the
+    # failure mode this whole setup path exists to prevent.
+    Write-Host "PARTIAL: engine environment synchronized, Codex skill exposure FAILED." `
+        -ForegroundColor Yellow
+    Write-Host "Fix with: scripts/agents/link_codex_skills.ps1" -ForegroundColor Yellow
+    exit 3
+}
+
 Write-Host "Machine-local state synchronized with the conf SOT." -ForegroundColor Green
 Write-Host "Restart VS Code / MCP host / persistent editor to inherit UE_PATH." -ForegroundColor Yellow

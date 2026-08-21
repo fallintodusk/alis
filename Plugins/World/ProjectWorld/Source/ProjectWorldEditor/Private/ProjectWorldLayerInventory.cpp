@@ -7,9 +7,12 @@
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldRoadRealization.h"
+#include "ProjectWorldVegetationRealization.h"
 #include "ProjectWorldWaterRealization.h"
 #include "Utilities/ProjectSha256.h"
 
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -19,6 +22,7 @@
 #include "MaterialShared.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "PhysicsEngine/BodySetup.h"
 
 namespace ProjectWorldLayerInventory
 {
@@ -200,6 +204,7 @@ namespace ProjectWorldLayerInventory
 	bool Build(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
+		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		bool bFirstApply,
 		const FProjectWorldLayerDirtyInput* DirtyInput,
 		FProjectWorldRealizationResult& OutResult,
@@ -215,7 +220,8 @@ namespace ProjectWorldLayerInventory
 			TArray<FProjectWorldLayerInputInventory>& LayerInputs = CurrentInputs.Add(Layer.LayerId);
 			for (const FString& Selector : Layer.CanonicalSelectors)
 			{
-				if (Selector != TEXT("terrain") && Selector != TEXT("water"))
+				if (Selector != TEXT("terrain") && Selector != TEXT("water") &&
+					Selector != TEXT("roads") && Selector != TEXT("vegetation"))
 				{
 					OutError = FString::Printf(TEXT("Generator selector is unsupported: %s"), *Selector);
 					return false;
@@ -227,9 +233,20 @@ namespace ProjectWorldLayerInventory
 					{
 						Hash = Cell.Terrain.ArtifactHash;
 					}
-					else if (!HashWaterCell(Bundle, Cell, Hash))
+					else if (Selector == TEXT("water") && !HashWaterCell(Bundle, Cell, Hash))
 					{
 						OutError = FString::Printf(TEXT("Cannot hash water input for cell: %s"), *Cell.CellId);
+						return false;
+					}
+					else if (Selector == TEXT("roads") &&
+						!ProjectWorldRoadRealization::HashCellInput(Bundle, Cell, Layer, Hash, OutError))
+					{
+						return false;
+					}
+					else if (Selector == TEXT("vegetation") &&
+						!ProjectWorldVegetationRealization::HashCellInput(
+							Bundle, Cell, Layer, Profile, AuthoredOverlaySet, Hash, OutError))
+					{
 						return false;
 					}
 					if (!Hash.IsEmpty())
@@ -354,11 +371,14 @@ namespace ProjectWorldLayerInventory
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
+		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError)
 	{
 		FProjectWorldLayerInventory* Terrain = FindInventory(OutResult, TEXT("project_landscape"));
 		FProjectWorldLayerInventory* Water = FindInventory(OutResult, TEXT("project_water_mesh"));
+		FProjectWorldLayerInventory* Roads = FindInventory(OutResult, TEXT("project_road_mesh"));
+		FProjectWorldLayerInventory* Vegetation = FindInventory(OutResult, TEXT("project_vegetation_instances"));
 		if (Terrain == nullptr || Water == nullptr)
 		{
 			OutError = TEXT("Executable terrain/water layer inventories are incomplete.");
@@ -366,6 +386,14 @@ namespace ProjectWorldLayerInventory
 		}
 		Terrain->Artifacts.Reset();
 		Water->Artifacts.Reset();
+		if (Roads != nullptr)
+		{
+			Roads->Artifacts.Reset();
+		}
+		if (Vegetation != nullptr)
+		{
+			Vegetation->Artifacts.Reset();
+		}
 
 		TMap<FString, const FProjectWorldCanonicalCell*> CellsById;
 		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
@@ -473,6 +501,156 @@ namespace ProjectWorldLayerInventory
 		}
 		OutResult.WaterCellActorCount = WaterCells.Num();
 		OutResult.WaterMeshAssetCount = WaterCells.Num();
+		if (Roads != nullptr)
+		{
+			const FProjectWorldRealizationLayer* RoadLayer = Profile.Layers.FindByPredicate([](const auto& Layer)
+			{
+				return Layer.GeneratorId == TEXT("project_road_mesh");
+			});
+			TSet<FString> ExpectedRoadCells;
+			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+			{
+				bool bExpected = false;
+				if (RoadLayer == nullptr || !ProjectWorldRoadRealization::ExpectsCellOutput(
+					Bundle, Cell, *RoadLayer, bExpected, OutError))
+				{
+					return false;
+				}
+				if (bExpected)
+				{
+					ExpectedRoadCells.Add(Cell.CellId);
+				}
+			}
+			TSet<FString> RoadCells;
+			for (TActorIterator<AStaticMeshActor> It(World); It; ++It)
+			{
+				FString CellId;
+				FString MeshSemantic;
+				if (!ProjectWorldRoadRealization::ReadActorIdentity(*It, CellId, MeshSemantic))
+				{
+					continue;
+				}
+				UStaticMeshComponent* Component = It->GetStaticMeshComponent();
+				UStaticMesh* Mesh = Component != nullptr ? Component->GetStaticMesh() : nullptr;
+				FString OwnershipFailure;
+				if (!ExpectedRoadCells.Contains(CellId)) OwnershipFailure = TEXT("cell has no selected canonical roads");
+				else if (RoadCells.Contains(CellId)) OwnershipFailure = TEXT("cell actor is duplicated");
+				else if (Mesh == nullptr) OwnershipFailure = TEXT("StaticMesh is missing");
+				else if (!Mesh->GetNaniteSettings().bEnabled) OwnershipFailure = TEXT("road mesh has Nanite disabled");
+				else if (Mesh->GetBodySetup() == nullptr || Mesh->GetBodySetup()->CollisionTraceFlag != CTF_UseComplexAsSimple)
+					OwnershipFailure = TEXT("road collision is not complex-as-simple");
+				else if (!It->GetIsSpatiallyLoaded()) OwnershipFailure = TEXT("actor is not spatially loaded");
+				else if (It->bEnableAutoLODGeneration) OwnershipFailure = TEXT("actor permits HLOD generation");
+				else if (It->GetHLODLayer() != nullptr) OwnershipFailure = TEXT("actor has an HLOD layer");
+				else if (Component->CanEverAffectNavigation()) OwnershipFailure = TEXT("road affects navigation");
+				if (!OwnershipFailure.IsEmpty())
+				{
+					OutError = FString::Printf(TEXT("Persistent road ownership is invalid for cell %s: %s"), *CellId, *OwnershipFailure);
+					return false;
+				}
+				RoadCells.Add(CellId);
+				if (!AddPackageArtifact(Mesh->GetOutermost()->GetName(), TEXT("asset"), MeshSemantic, *Roads, OutError))
+				{
+					return false;
+				}
+				FString ActorSemantic;
+				if (!HashText(TEXT("project_road_actor_v1|") + CellId + TEXT("|") + MeshSemantic, ActorSemantic) ||
+					!AddPackageArtifact(It->GetPackage()->GetName(), TEXT("external_actor"), ActorSemantic, *Roads, OutError))
+				{
+					return false;
+				}
+			}
+			if (RoadCells.Num() != ExpectedRoadCells.Num())
+			{
+				OutError = TEXT("Road cell inventory does not exactly cover selected canonical roads.");
+				return false;
+			}
+			OutResult.RoadCellActorCount = RoadCells.Num();
+			OutResult.RoadMeshAssetCount = RoadCells.Num();
+		}
+		if (Vegetation != nullptr)
+		{
+			OutResult.VegetationCandidateCount = 0;
+			OutResult.VegetationRoadExcludedCount = 0;
+			OutResult.VegetationWaterExcludedCount = 0;
+			OutResult.VegetationAuthoredMaskExcludedCount = 0;
+			const FProjectWorldRealizationLayer* VegetationLayer = Profile.Layers.FindByPredicate([](const auto& Layer)
+			{
+				return Layer.GeneratorId == TEXT("project_vegetation_instances");
+			});
+			TSet<FString> ExpectedCells;
+			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+			{
+				TArray<FProjectWorldVegetationInstance> Instances;
+				FProjectWorldVegetationPlacementStats Stats;
+				FString Semantic;
+				if (VegetationLayer == nullptr || !ProjectWorldVegetationRealization::BuildCellInstances(
+					Bundle, Cell, *VegetationLayer, Profile, AuthoredOverlaySet,
+					Instances, &Stats, Semantic, OutError))
+				{
+					return false;
+				}
+				OutResult.VegetationCandidateCount += Stats.CandidateCount;
+				OutResult.VegetationRoadExcludedCount += Stats.RoadExcludedCount;
+				OutResult.VegetationWaterExcludedCount += Stats.WaterExcludedCount;
+				OutResult.VegetationAuthoredMaskExcludedCount += Stats.AuthoredMaskExcludedCount;
+				if (!Instances.IsEmpty())
+				{
+					ExpectedCells.Add(Cell.CellId);
+				}
+			}
+			TSet<FString> ActualCells;
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				FString CellId;
+				FString Semantic;
+				if (!ProjectWorldVegetationRealization::ReadActorIdentity(*It, CellId, Semantic))
+				{
+					continue;
+				}
+				TArray<UHierarchicalInstancedStaticMeshComponent*> Components;
+				It->GetComponents(Components);
+				FString OwnershipFailure;
+				int32 ActorInstances = 0;
+				if (!ExpectedCells.Contains(CellId)) OwnershipFailure = TEXT("cell has no canonical vegetation");
+				else if (ActualCells.Contains(CellId)) OwnershipFailure = TEXT("cell actor is duplicated");
+				else if (Components.IsEmpty()) OwnershipFailure = TEXT("actor has no HISM components");
+				else if (!It->GetIsSpatiallyLoaded()) OwnershipFailure = TEXT("actor is not spatially loaded");
+				else if (It->bEnableAutoLODGeneration || It->GetHLODLayer() != nullptr)
+					OwnershipFailure = TEXT("actor participates in HLOD");
+				for (UHierarchicalInstancedStaticMeshComponent* Component : Components)
+				{
+					UStaticMesh* Mesh = Component != nullptr ? Component->GetStaticMesh() : nullptr;
+					if (Mesh == nullptr || !Mesh->GetNaniteSettings().bEnabled ||
+						Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision ||
+						Component->CanEverAffectNavigation() || Component->GetInstanceCount() <= 0)
+					{
+						OwnershipFailure = TEXT("HISM component violates mesh, Nanite, collision, navigation, or population policy");
+						break;
+					}
+					ActorInstances += Component->GetInstanceCount();
+				}
+				if (!OwnershipFailure.IsEmpty())
+				{
+					OutError = FString::Printf(TEXT("Persistent vegetation ownership is invalid for cell %s: %s"),
+						*CellId, *OwnershipFailure);
+					return false;
+				}
+				ActualCells.Add(CellId);
+				OutResult.VegetationComponentCount += Components.Num();
+				OutResult.VegetationInstanceCount += ActorInstances;
+				if (!AddPackageArtifact(It->GetPackage()->GetName(), TEXT("external_actor"), Semantic, *Vegetation, OutError))
+				{
+					return false;
+				}
+			}
+			if (ActualCells.Num() != ExpectedCells.Num())
+			{
+				OutError = TEXT("Vegetation cell inventory does not exactly cover canonical vegetation.");
+				return false;
+			}
+			OutResult.VegetationCellActorCount = ActualCells.Num();
+		}
 		for (FProjectWorldLayerInventory& Inventory : OutResult.LayerInventories)
 		{
 			Inventory.Artifacts.Sort([](const auto& Left, const auto& Right)

@@ -106,6 +106,40 @@ R1 rejects a plan that shows any of: an invariant with no final proof; an
 acceptance proof that maps to no invariant; a wrong-envelope proof presented as
 acceptance.
 
+## Change Locality
+
+For a substantial change, R1 also records four lines BEFORE coding:
+
+```text
+owning black box:
+public interface / contract:
+expected components CHANGED:
+expected components UNTOUCHED:
+```
+
+If implementation then requires editing an owner listed as untouched, that is
+ARCHITECTURAL RED: stop and review the boundary before continuing. It is not
+"just more implementation work" - it is the boundary telling you it is in the
+wrong place, and it is far cheaper to hear that in R1 than after the change has
+spread.
+
+Worked example - adding a second road generator:
+
+```text
+owning black box:   road generator
+contract:           generator registration + road profile
+CHANGED:            road generator, registration, road profile, focused tests
+UNTOUCHED:          terrain generator, water generator, transaction engine,
+                    canonical ownership, active-set machinery
+```
+
+"To add this road type I also need to modify terrain, water, and the
+transaction engine" is an R1 `PATCH`, not a progress report.
+
+This is the testable form of open/closed for ALIS: it names, in advance, which
+black boxes are expected to stay shut, so a violation is observable instead of
+arguable.
+
 Related: the four gate-scope questions in
 [canonical.md section 7](../agents/canonical.md), and the evidence rails in
 [scientific_debugging.md](../agents/scientific_debugging.md).

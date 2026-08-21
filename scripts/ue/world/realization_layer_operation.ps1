@@ -27,7 +27,67 @@ function Assert-ProjectWorldExecutableLayerTuple {
         @($Layer.settings.absorption_coefficients).Count -eq 3 -and
         @($Layer.settings.scattering_coefficients | Where-Object { [double]$_ -lt 0 }).Count -eq 0 -and
         @($Layer.settings.absorption_coefficients | Where-Object { [double]$_ -lt 0 }).Count -eq 0
-    if (-not $landscape -and -not $water) {
+    $roadClasses = if ($Layer.settings.PSObject.Properties.Name -contains 'selected_classes') {
+        @($Layer.settings.selected_classes)
+    } else {
+        @()
+    }
+    $roads = $common -and
+        [string]$Layer.generator_id -ceq 'project_road_mesh' -and
+        $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'roads' -and
+        [string]$Layer.spatial_ownership -ceq 'cell_local' -and
+        [string]$Layer.runtime_mapping -ceq 'world_partition_spatial' -and
+        [int]$Layer.dependency_halo_cells -eq 1 -and
+        $roadClasses.Count -gt 0 -and
+        @($roadClasses | Select-Object -Unique).Count -eq $roadClasses.Count -and
+        [double]$Layer.settings.surface_offset_m -gt 0.0 -and
+        [double]$Layer.settings.surface_offset_m -le 2.0 -and
+        [double]$Layer.settings.maximum_segment_length_m -gt 0.0 -and
+        [double]$Layer.settings.maximum_segment_length_m -le 30.0 -and
+        [bool]$Layer.settings.nanite -eq $true -and
+        [string]$Layer.settings.collision -ceq 'complex_as_simple' -and
+        [string]$Layer.settings.structure_fallback -ceq 'terrain_drape' -and
+        [string]$Layer.settings.intersection_policy -ceq 'overlap_same_owner'
+    [object[]]$vegetationMeshes = @()
+    if ($Layer.settings.PSObject.Properties.Name -contains 'mesh_assets') {
+        $vegetationMeshes = @($Layer.settings.mesh_assets)
+    }
+    [object[]]$vegetationDependencies = @()
+    if ($Layer.PSObject.Properties.Name -contains 'depends_on') {
+        $vegetationDependencies = @($Layer.depends_on)
+    }
+    $vegetation = $common -and
+        [string]$Layer.generator_id -ceq 'project_vegetation_instances' -and
+        $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'vegetation' -and
+        $vegetationDependencies.Count -eq 3 -and
+        [string]$vegetationDependencies[0] -ceq 'terrain' -and
+        [string]$vegetationDependencies[1] -ceq 'water' -and
+        [string]$vegetationDependencies[2] -ceq 'roads' -and
+        [string]$Layer.spatial_ownership -ceq 'cell_local' -and
+        [string]$Layer.runtime_mapping -ceq 'world_partition_spatial' -and
+        [int]$Layer.dependency_halo_cells -eq 0 -and
+        $vegetationMeshes.Count -gt 0 -and
+        @($vegetationMeshes | Select-Object -Unique).Count -eq $vegetationMeshes.Count -and
+        @($vegetationMeshes | Where-Object {
+            [string]$_ -notmatch '^/Project[A-Za-z0-9]+/[A-Za-z0-9_/]+\.[A-Za-z0-9_]+$'
+        }).Count -eq 0 -and
+        [double]$Layer.settings.area_spacing_m -ge 5.0 -and
+        [double]$Layer.settings.area_spacing_m -le 100.0 -and
+        [double]$Layer.settings.area_jitter_fraction -ge 0.0 -and
+        [double]$Layer.settings.area_jitter_fraction -lt 0.5 -and
+        [double]$Layer.settings.minimum_scale -gt 0.0 -and
+        [double]$Layer.settings.minimum_scale -le [double]$Layer.settings.maximum_scale -and
+        [double]$Layer.settings.maximum_scale -le 3.0 -and
+        [int]$Layer.settings.maximum_instances_per_cell -ge 1 -and
+        [int]$Layer.settings.maximum_instances_per_cell -le 8192 -and
+        [int64]$Layer.settings.deterministic_seed -ge 0 -and
+        [int64]$Layer.settings.deterministic_seed -le 2147483647 -and
+        [double]$Layer.settings.surface_offset_m -ge 0.0 -and
+        [double]$Layer.settings.surface_offset_m -le 2.0 -and
+        [bool]$Layer.settings.nanite -eq $true -and
+        [string]$Layer.settings.collision -ceq 'no_collision' -and
+        [string]$Layer.settings.placement_policy -ceq 'canonical_points_and_lattice_areas'
+    if (-not $landscape -and -not $water -and -not $roads -and -not $vegetation) {
         throw "Realization layer does not match a registered executable tuple: $($Layer.layer_id)"
     }
 }
@@ -122,9 +182,21 @@ function New-ProjectWorldLayerDirtyInput {
     if ($null -ne $ActiveSet) {
         foreach ($scopeId in $LayerDefinitions.Keys) {
             if (-not $ActiveSet.Manifests.Contains($scopeId)) { continue }
-            $contract = $ActiveSet.Manifests[$scopeId].layer_contract
+            $priorManifest = $ActiveSet.Manifests[$scopeId]
+            $definition = $LayerDefinitions[$scopeId]
+            $layerId = [string]$definition.layer_id
+            $producerId = "$([string]$definition.generator_id):v$([int]$definition.generator_version)"
+            $currentFingerprint = Get-ProjectWorldGeneratorFingerprint `
+                -ProjectRoot $ProjectRoot -ProducerId $producerId
+            if ([string]$priorManifest.generator_fingerprint -cne $currentFingerprint) {
+                if (-not $operatorUnits.Contains($layerId)) {
+                    $operatorUnits[$layerId] = [System.Collections.Generic.List[string]]::new()
+                }
+                $operatorUnits[$layerId].Add('*')
+            }
+            $contract = $priorManifest.layer_contract
             $baseLayers += , ([ordered]@{
-                layer_id = [string]$LayerDefinitions[$scopeId].layer_id
+                layer_id = $layerId
                 normalized_layer_contract_sha256 = [string]$contract.normalized_layer_contract_sha256
                 canonical_inputs = @($contract.canonical_inputs)
             })
@@ -169,7 +241,7 @@ function Test-ProjectWorldManifestSemanticallyUnchanged {
         return $true
     }
     $stableFields = @(
-        'realization_profile_id', 'realization_profile_sha256',
+        'realization_profile_id',
         'normalized_layer_contract_sha256', 'generator_id', 'generator_version',
         'artifact_root', 'canonical_inputs', 'dependency_inputs', 'semantic_outputs')
     $priorStable = [ordered]@{}

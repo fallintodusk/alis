@@ -30,6 +30,7 @@ public class ProjectWorldEditor : ModuleRules
 			"NavigationSystem",
 			"ProceduralMeshComponent",
 			"ProjectCore",
+			"RenderCore",
 			"Projects",
 			"RHI",
 			"StaticMeshDescription",

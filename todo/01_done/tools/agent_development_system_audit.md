@@ -2,13 +2,19 @@
 
 **Type:** transient audit artifact. Stable docs must never link to this file.
 
-**Revision 2 (operator review applied).** Since revision 1, three changes were
-implemented by the operator and are marked DONE below: C1, C2, and the C6
-contradiction removal. Everything else in this report remains a PROPOSAL - not
-implemented. Two factual errors in revision 1 were corrected (C2 routing
-target, and the Codex "truncation" claim in G2); several proposals were
-narrowed on reviewer instruction. Corrections are called out inline so the
-revision-1 reasoning stays auditable.
+**Status: COMPLETED 2026-08-19. Independent R2 returned PASS.** All
+engineering work is finished, every accepted rule has a stable owner, and the
+integrated exit review passed with no regressions. World implementation is
+APPROVED to resume. This is an evidence archive, not a plan and not a
+contract. Every accepted rule has been lifted to a stable owner
+(see section 18); what remains here is the reasoning, the measurements, the
+refutations, and the rejected alternatives that produced those rules.
+
+Read it end to end or not at all. Earlier sections were written while the work
+was still in progress and were superseded repeatedly - later sections say so
+explicitly, and corrections are called out inline so the earlier reasoning
+stays auditable. Section 18 carries the final statuses; nothing above it should
+be quoted as current.
 
 **Scope:** meta-process for the upcoming multi-month World-generation
 implementation run on Claude Code + Codex. Not a World implementation review.
@@ -1400,7 +1406,7 @@ forbidden todo references               0
 
 No UE build, Editor, Check, Matrix, L3, or World execution.
 
-### R2 readiness
+### R2 readiness (see section 13 for revised statuses)
 
 READY for independent R2 review, with the three operator steps above listed as
 known-open rather than hidden. The reviewer must be fresh and must not have
@@ -1408,3 +1414,1133 @@ authored this change, per the contract in
 `docs/testing/world_pipeline_layers.md`.
 
 World remains PAUSED. Slice 3 carries the C3 proof table.
+
+---
+
+## 13. Architectural closure patch (2026-08-18)
+
+Four closure gaps raised against section 12. Statuses below SUPERSEDE section 12.
+
+### Refutation: pitfalls.md was not teaching the disproven path
+
+The claim that `ProjectWorld/docs/pitfalls.md` "teaches a path we deliberately
+disproved" is REFUTED. The entry already carried the corrected rule verbatim:
+
+> to capture EVIDENCE images, drive `TakeHighResScreenshot` from an editor
+> commandlet or exec path where `GIsAutomationTesting` is false, so completion
+> means capture. Use the in-test path only for genuine screenshot COMPARISON
+> against stored `GroundTruthData`.
+
+That is the same rule the patch asked to be written, with more measured detail
+than the proposed replacement (the 3-4 FPS steady-state finding, the
+`FScreenshotTakenState` branch, the 600 s `FWaitForInteractiveFrameRate`
+timeout). Overwriting it would have DELETED evidence.
+
+What was genuinely stale, and is now fixed:
+
+- two `File.` references to `ProjectWorldTerritoryVisualSweepTests.cpp`, which
+  no longer exists on disk or in git;
+- a `Regression test.` pointing at `Project.World.Realization.Territory.VisualSweep`,
+  a test that no longer exists. Ownership of the altitude solve moved to
+  `tools/World/VisualVerification/app/plan_vantages.py`, and the entry now says
+  so plus why the automation test was removed, so nobody reintroduces it;
+- the `Fix.` sentence led with "the engine's own automation screenshot path",
+  which reads as endorsement if the reader stops there. It now forward-refers
+  to the envelope rule in the same entry.
+
+Pitfall 14's pointer WAS wrong and is fixed. It cited "the self-referential-gate
+rule", but `canonical.md:315` explicitly narrows that framing and says source
+precision/quantization IS a legitimate tolerance for a fidelity comparison. The
+real lesson is a missing acceptance dimension: the height gate was correct and
+simply never claimed to measure surface quality, and no other gate did either.
+The entry now states that and routes to the four gate-scope questions.
+
+### 1. C7 cross-tool parity - IMPLEMENTED, verification is an operator step
+
+Added `.codex/rules/alis.rules` with native `prefix_rule(...
+decision = "forbidden")` for `git commit` and `git push`, mirroring the Claude
+deny rules. `forbidden` blocks without prompting, so an agent cannot talk
+itself past it.
+
+`guard_tool_use.py` was NOT restored. The `git -C <path> commit` residual stays
+documented in the rules file itself rather than solved.
+
+The Codex CLI is not installed on this workstation (`codex` is not on PATH), so
+`codex execpolicy check` could not be run here. That verification is operator
+step 4 below.
+
+### 2. C5 bootstrap - fixed; status downgraded as instructed
+
+`.agents/` is gitignored, so a fresh clone had no Codex-facing skills until
+someone remembered a second command. `scripts/agents/link_codex_skills.ps1` is
+now invoked from `scripts/setup/setup_ue_env.ps1`, which already declares
+itself the owner of ALL machine-local derived state. No new setup framework.
+
+Failure there is reported but does not fail the engine sync - the skills
+exposure must not be able to block environment repair.
+
+Status corrected to:
+
+```text
+C5 = IMPLEMENTED / PENDING OPERATOR + CLEAN-CLONE ACCEPTANCE
+```
+
+### 3. C10 single authority - completed, and my own excuse withdrawn
+
+Section 12 argued that `setup_ue_env.ps1` "cannot cover" the Codex config
+because its planner is JSON-only. That was today's implementation described as
+if it were an architectural constraint. WITHDRAWN.
+
+Added `Sync-UECodexConfig` to `UEEnvSync.psm1` and wired it into
+`setup_ue_env.ps1`. It rewrites ONLY the `UE_EDITOR_CMD` assignment - other
+projects in that file may legitimately target other engines, and a test asserts
+an unrelated `UE_5.4` path survives.
+
+Codex env-forwarding could not be verified without running Codex, so the
+authorized fallback was taken: the existing setup owner now writes the derived
+value. Acceptance now holds:
+
+```text
+change scripts/config/ue_path.conf
+run scripts/setup/setup_ue_env.ps1
+-> env UE_PATH + UE_EDITOR_CMD
+-> .vscode / .claude / .mcp.json
+-> ~/.codex/config.toml
+-> .agents/skills junction
+```
+
+No second engine version for a human to remember. `validate_engine_env.py`
+job D remains as defense-in-depth rather than as the mechanism.
+
+Tests: 27/27 in `UEEnvSync.Tests.ps1`, including 6 new projection tests
+(rewrite, preserve unrelated keys, do not touch another project's engine,
+idempotent, absent file, no such key).
+
+### Revised statuses
+
+| Item | State |
+|---|---|
+| C5 | IMPLEMENTED / PENDING OPERATOR + CLEAN-CLONE ACCEPTANCE |
+| C7 | IMPLEMENTED both tools / PENDING `codex execpolicy check` |
+| C10 | RESOLVED - propagation is automatic from one authority |
+| G3 | follows C5 - PENDING, not RESOLVED |
+| World pitfalls | CURRENT - dead references removed, Pitfall 14 re-routed |
+
+### Operator steps (supersedes section 12's list)
+
+1. `git mv .claude/skills/character-animation-dev/skill.md .claude/skills/character-animation-dev/SKILL.md`
+2. Decide on `~/.codex/skills/alis-character-animation-debug` - NOT a duplicate;
+   it carries a unique 7.7KB `scripts/run_character_debug.ps1`.
+3. Post-commit clean-clone: run `scripts/setup/setup_ue_env.ps1`, then
+   `scripts/agents/link_codex_skills.ps1 -Verify`.
+4. `codex execpolicy check` to confirm the new rules file parses and that
+   `git commit` / `git push` are reported forbidden.
+
+### Verification in this patch
+
+```text
+UEEnvSync.Tests.ps1                  27/27 pass (6 new)
+PowerShell parse check               setup_ue_env.ps1, UEEnvSync.psm1, link_codex_skills.ps1 OK
+Sync-UECodexConfig exported          OK
+setup wiring present                 both calls OK
+codex execpolicy check               NOT RUN - Codex CLI absent on this machine
+```
+
+World remains PAUSED. Ready for fresh R2 once the operator steps are closed.
+
+---
+
+## 14. Boundary patch (2026-08-18)
+
+Statuses here SUPERSEDE sections 12 and 13.
+
+### The reported defect was real - reproduced before fixing
+
+`Sync-UECodexConfig` used `[regex]::Replace`, which rewrites EVERY
+`UE_EDITOR_CMD` assignment in a user-global file. Measured:
+
+```text
+[mcp_servers.alis.env]           UE_5.7 -> UE_5.8   (intended)
+[mcp_servers.other-project.env]  UE_5.4 -> UE_5.8   (CLOBBERED)
+```
+
+The earlier test only proved a differently-NAMED key survived, never a second
+`UE_EDITOR_CMD`. A repo-owned script silently repointing another project's
+engine is exactly the coupling this work exists to remove, so the function was
+deleted rather than patched.
+
+### C10 - environment forwarding replaces machine-global mutation
+
+```text
+scripts/config/ue_path.conf          authority
+        -> setup_ue_env.ps1
+        -> UE_PATH + UE_EDITOR_CMD   (persisted, User scope)
+        -> Codex mcp_servers.blueprint-mcp.env_vars
+        -> MCP
+```
+
+Removed: `Sync-UECodexConfig`, its 6 tests, and the setup wiring. No Codex
+config now contains a versioned engine path.
+
+`UE_EDITOR_CMD` was persisted to the User environment during this pass (via
+`Sync-UEUserEnv`, the documented HKCU carve-out) because `env_vars` forwards
+nothing if the variable does not exist. Verified present afterwards.
+
+**Constraint found, and why the full repo migration was NOT done.** Moving the
+`blueprint-mcp` stanza into the tracked `.codex/config.toml` would commit its
+`command`, which is a personal home path (`<user-home>/.nvm/...`). The
+repository privacy rule forbids writing a personal home/profile path into the
+repo. The stanza therefore stays in the user-global config, but now carries NO
+version - only `env_vars`. The architectural goal (one authority, no duplicated
+engine version, no cross-project mutation) is met without violating that rule.
+Fully relocating it would require a portable `command`, which is an operator
+decision about their node installation.
+
+`validate_engine_env.py` job D now also asserts the TRACKED
+`.codex/config.toml` contains no versioned engine path at all - proven
+RED/GREEN/SKIP.
+
+### C5 - setup fails visibly, and the verify found two more defects
+
+`setup_ue_env.ps1` no longer prints unconditional success. Engine repair still
+completes and is not rolled back, but a failed skill exposure now reports
+PARTIAL and exits 3.
+
+`-Verify` now proves the entrypoint is exactly `SKILL.md` per skill directory,
+not just that the directory-name sets match. That check IMMEDIATELY found two
+more defects the set comparison could never see: `dialogue-dev` and
+`vitals-dev` both had lowercase `skill.md` on disk. All four are now `SKILL.md`.
+Git records the correct case for three; `character-animation-dev` still needs
+the operator `git mv`.
+
+**The personal-skill merge was attempted and REVERTED.** The unique
+`run_character_debug.ps1` is a wrapper around `capture_parity.ps1` - and the
+canonical skill explicitly lists "creating redundant wrapper scripts around
+`capture_parity.ps1` without a proven gap" as an anti-pattern, and repeats the
+rule near the top. Merging it would have made the skill contradict itself on
+its own first page. No proven gap was demonstrated, so the honest outcome is an
+operator decision, not a silent merge. This is probably why it never reached
+the repo in the first place.
+
+### C8 - the invariant moved into the operation itself
+
+`realize_canonical_world.ps1` now refuses:
+
+```text
+-EnrollManifests + -NonInteractive + ProjectWorldData  -> REFUSED
+```
+
+Placed after the canonical owner is resolved (the declared owner beats the
+requested one) and before any lock, snapshot, or journal, so a refused run
+leaves no trace. Tool permission rules become defense in depth: a third agent,
+a CI job, or a plain shell now hits the same wall.
+
+Still allowed: TestData enrollment unattended (the E2E validator and lifecycle
+test bootstrap synthetic scopes that way), attended production enrollment, and
+ordinary production Apply/Validate/Reconstruct.
+
+4 regression tests added; 45/45 in `generated_manifest.Tests.ps1`.
+
+A placement finding: the wrapper validates profiles BEFORE resolving the
+canonical owner, so the first test version never reached the new check and
+three "allowed" assertions were passing vacuously. Fixed by giving all four
+cases the same call depth.
+
+### R1 change-locality rule
+
+Added to `docs/testing/world_pipeline_layers.md`: R1 records owning black box,
+contract, expected-changed and expected-UNTOUCHED components before coding. If
+implementation requires editing a component listed as untouched, that is
+ARCHITECTURAL RED and the boundary is reviewed before continuing. Worked
+example included. No new template, ADR, diagram, or skill.
+
+### Revised statuses
+
+| Item | State |
+|---|---|
+| C5 | IMPLEMENTED / PENDING OPERATOR + CLEAN-CLONE |
+| C7 | IMPLEMENTED both tools / PENDING `codex execpolicy check` |
+| C8 | RESOLVED - invariant at the domain entrypoint, 4 regressions |
+| C10 | RESOLVED - one authority, env forwarding, no version in any Codex config |
+| World pitfalls | CURRENT |
+
+### Operator steps
+
+1. `git mv .claude/skills/character-animation-dev/skill.md .claude/skills/character-animation-dev/SKILL.md`
+2. Decide `~/.codex/skills/alis-character-animation-debug`: its
+   `run_character_debug.ps1` conflicts with the canonical skill's stated
+   anti-pattern. Either demonstrate the gap and relax that rule, or keep the
+   script out and delete the personal skill.
+3. Post-commit clean clone: run `scripts/setup/setup_ue_env.ps1`, confirm exit 0.
+4. `codex execpolicy check` (Codex CLI absent here).
+5. Confirm Codex MCP still starts and sees `UE_EDITOR_CMD` via `env_vars`. If
+   that forwarding key is unsupported in the installed Codex, restore the
+   literal in the USER config only and reopen C10.
+
+### Verification
+
+```text
+UEEnvSync.Tests.ps1                     21/21 (projection tests removed with the function)
+generated_manifest.Tests.ps1            45/45 (4 new C8 regressions)
+test_validate_engine_env.py             ALL PASS
+validate_engine_env.py --skip-identity  OK
+repo .codex/config.toml check           RED/GREEN/SKIP proven
+link_codex_skills.ps1 -Verify           OK, exit 0
+regex-clobber reproduction              confirmed before deletion
+```
+
+No UE build, Editor, Matrix, L3, or World execution. Nothing staged.
+
+---
+
+## 15. Pre-R2 corrections (2026-08-18)
+
+Two code defects, one recorded limitation. Statuses here SUPERSEDE section 14.
+
+### Defect 1 - the validator kept the coupling it was meant to remove
+
+`check_machine_local_agent_config()` scanned the WHOLE user-global
+`~/.codex/config.toml` and treated any engine version differing from ALIS's as
+an ALIS violation. Reproduced before fixing:
+
+```text
+ALIS stanza clean (env_vars), another project pins UE_5.4
+-> ALIS validation FAILS with 1 violation
+```
+
+That is the same cross-project coupling that was removed from the mutation
+path, just moved into the read path: a repo-owned check failing over another
+project's legitimate engine choice.
+
+REMOVED. ALIS now validates only what ALIS owns: the tracked
+`.codex/config.toml` must contain no versioned engine path at all. The
+user-global ALIS stanza is proven by operator step 5 (a real Codex MCP start),
+not by ALIS policing a file full of other projects' settings.
+
+### Defect 2 - creation reported success against a weaker standard than -Verify
+
+`setup_ue_env.ps1` called the link script WITHOUT `-Verify`, and the creation
+path only checked that the junction resolved to at least one directory. So
+this was reachable:
+
+```text
+setup -> junction created -> a skill has lowercase skill.md -> SUCCESS
+      -> Codex entrypoint contract broken, nothing reports it
+```
+
+`Get-SkillExposureProblems` is now the single definition of "correctly
+exposed", used by BOTH `-Verify` and the creation path. Creation cannot report
+success against a weaker standard than verification enforces.
+
+Proven by deliberately lowercasing one skill entrypoint:
+
+```text
+creation path -> "vitals-dev entrypoint must be exactly SKILL.md (found: skill.md)"
+              -> terminating error, exit 1
+              -> setup_ue_env.ps1 catch -> PARTIAL -> exit 3
+```
+
+Casing restored; `-Verify` green afterwards.
+
+### Recorded limitation - Codex-managed worktrees
+
+`.agents/skills` is deliberately gitignored and machine-local, and a
+Codex-managed worktree starts from Git content, so the junction is NOT
+inherited there.
+
+```text
+DECIDED (Option A, KISS): local checkout is the supported path. A managed
+worktree must run scripts/agents/link_codex_skills.ps1 inside that worktree
+before ALIS skills are available.
+
+Automatic worktree bootstrap is DEFERRED - revisit only if managed worktrees
+become routine for World work.
+```
+
+Recorded in the script header so the next reader hits it at the point of use.
+No code change.
+
+### Revised statuses
+
+| Item | State |
+|---|---|
+| C5 | IMPLEMENTED / PENDING OPERATOR + CLEAN-CLONE |
+| C7 | IMPLEMENTED both tools / PENDING `codex execpolicy check` |
+| C8 | RESOLVED |
+| C10 | RESOLVED - and no longer couples ALIS validation to other projects |
+
+### Verification
+
+```text
+test_validate_engine_env.py        ALL PASS (job D now repo-scoped only)
+validate_engine_env.py             OK
+cross-project coupling             reproduced, then removed
+link creation with broken casing   FAILS (exit 1, terminating)
+link creation with valid casing    OK (exit 0)
+link -Verify                       OK (exit 0)
+```
+
+### World skill - IMPLEMENTED on operator instruction
+
+`world-engineering` is installed at `.claude/skills/world-engineering/` and
+exposed to Codex through the junction. It supersedes the earlier
+`world-realization-dev` working name, which was never implemented and should
+not be referenced again.
+
+It is a thin methodological router: owning black box and contract, CHANGED vs
+UNTOUCHED locality, architectural RED on unexpected propagation, extension
+points before new machinery, scientific debugging triggers, acceptance surface
+and execution envelope, diagnostic vs acceptance evidence, operator/authority
+stops, and fresh independent review. It routes to stable SOTs and to the
+current slice rather than restating either.
+
+Verified: every routed path resolves; frontmatter valid; exact `SKILL.md`;
+ASCII-clean; no versioned engine literals, hardcoded counts, todo filenames, or
+personal paths; PASS/PATCH/BLOCKER, CHANGED/UNTOUCHED and
+DIAGNOSTIC/NON-AUTHORITATIVE wording matches
+`docs/testing/world_pipeline_layers.md` exactly.
+
+No further skill is planned. A second one requires a genuinely separate
+repeatable workflow proven in practice, and explicit operator instruction.
+
+---
+
+## 16. Acceptance bookkeeping (2026-08-19)
+
+Statuses here SUPERSEDE all earlier sections.
+
+This pass is primarily acceptance bookkeeping. The only implementation change
+is the permanent Git-index casing check added to
+`scripts/agents/link_codex_skills.ps1` (section 17), which landed later in the
+same pass in response to the `core.ignorecase` question. Recording that
+precisely matters: this process depends on separating evidence and bookkeeping
+from implementation, so a section that quietly contains code changes while
+claiming otherwise would undermine the distinction it exists to enforce.
+
+### C7 RESOLVED - verified against the real Codex
+
+Codex CLI is installed with the VS Code ChatGPT extension, not on PATH:
+`~/.vscode/extensions/openai.chatgpt-*/bin/windows-x86_64/codex.exe`,
+version `codex-cli 0.148.0-alpha.15`.
+
+```text
+codex execpolicy check --rules .codex/rules/alis.rules git commit -m test
+  -> {"decision": "forbidden"}  (matchedPrefix ["git","commit"])
+
+codex execpolicy check --rules .codex/rules/alis.rules git push origin main
+  -> {"decision": "forbidden"}  (matchedPrefix ["git","push"])
+
+git status / git add . / git diff / git log
+  -> {"matchedRules": []}       (no rule matched; unaffected)
+```
+
+Both prohibitions and the allowed control are proven by the actual tool.
+
+### C10 RESOLVED - split by who proved what
+
+Verified by this agent (static/config):
+
+```text
+~/.codex/config.toml   UE_EDITOR_CMD removed from [mcp_servers.blueprint-mcp.env]
+                       declared only as env_vars = ["UE_EDITOR_CMD"]
+codex mcp get blueprint-mcp
+                       resolves env: UE_PORT, UE_PROJECT_DIR, UE_EDITOR_CMD
+no Codex config        contains a versioned engine path
+```
+
+Verified by the OPERATOR (runtime): a real Codex session started blueprint-mcp,
+`UE_EDITOR_CMD` arrived through `env_vars`, it resolved to the UE 5.8
+executable, and the commandlet initialized.
+
+Honest limit, now PROVEN rather than suspected. Overriding the declaration
+with a variable that provably does not exist:
+
+```text
+ALIS_NOT_SET_XYZ exists in environment? False
+codex mcp get blueprint-mcp -c 'mcp_servers.blueprint-mcp.env_vars=["ALIS_NOT_SET_XYZ"]'
+  -> env: UE_PORT=*****, UE_PROJECT_DIR=*****, ALIS_NOT_SET_XYZ=*****
+```
+
+`codex mcp get` prints DECLARED env_vars keys and masks values. It reports a
+key that does not exist. Therefore static config inspection CANNOT authenticate
+forwarding, and anyone using `mcp get` as proof is reading a declaration as if
+it were a measurement.
+
+In this repo's own terms: `codex mcp get` is DIAGNOSTIC / NON-AUTHORITATIVE for
+this invariant. The acceptance surface is the running MCP server's environment
+and the execution envelope is a real Codex session, so the operator's runtime
+start is the only valid acceptance evidence. Credited accordingly.
+
+### Case-only rename - CLOSED on operator authorization
+
+It was genuinely open (both the review and the instruction assumed otherwise):
+
+```text
+disk            .claude/skills/character-animation-dev/SKILL.md   (correct)
+git index       .claude/skills/character-animation-dev/skill.md   (lowercase)
+core.ignorecase true
+```
+
+FIXED with the operator's explicit authorization to stage:
+
+```text
+git mv -f .claude/skills/character-animation-dev/skill.md           .claude/skills/character-animation-dev/SKILL.md
+```
+
+`git mv -f` is the correct tool for a case-only rename under
+`core.ignorecase=true`: it rewrites the index entry directly instead of
+depending on the filesystem to distinguish the two names, so no temp-name
+two-step is needed. All five entrypoints are now recorded as exact `SKILL.md`.
+
+This is the ONE staged change in the tree - unavoidable, because the index is
+precisely what had to change. It awaits the operator's commit.
+
+The other four entrypoints were already recorded correctly:
+
+```text
+dialogue-dev/SKILL.md        [OK]
+inventory-dev/SKILL.md       [OK]
+vitals-dev/SKILL.md          [OK]
+world-engineering/SKILL.md   [OK]
+```
+
+`core.ignorecase=true` is exactly why the on-disk fix did not reach the index
+and why the intervening commits did not carry it. Left unfixed, a
+case-sensitive consumer reading a fresh clone would have seen `skill.md` and
+`link_codex_skills.ps1 -Verify` would have failed there while passing here -
+the local pass was Windows case-insensitivity, not correctness.
+
+### Clean-clone acceptance - MOVED OUT of the process gate
+
+Appended to the existing long-term todo
+`todo/00_current/publish_project_assets_mirror_policy.md` (Publish Full
+Runnable Uproject), whose goal is already a reconstructable public checkout.
+No new todo, no clone, no mirror work performed.
+
+The deferred item requires that on a future clean reconstructable checkout,
+normal ALIS setup recreates `.agents/skills`, `link_codex_skills.ps1 -Verify`
+passes, and Claude and Codex discover the same tracked skill set.
+
+### Personal Codex skill - RECOMMEND DELETE
+
+`~/.codex/skills/alis-character-animation-debug`
+
+Its only unique content is `scripts/run_character_debug.ps1`, a wrapper around
+`capture_parity.ps1`. The canonical `character-animation-dev` skill explicitly
+lists "creating redundant wrapper scripts around `capture_parity.ps1` without a
+proven gap" as an anti-pattern, and states the rule twice.
+
+DELETED on operator decision (2026-08-19).
+
+The decisive argument was NOT the wrapper anti-pattern - a doc rule is not
+sufficient grounds to destroy a working tool. It was that this was an untracked
+second ALIS workflow for the same domain: invisible to review and to every
+other machine, never updated when the canonical skill changes, and strictly
+thinner (4,930 chars covering Overview/Workflow/Quick Commands/Read On Demand
+versus 8,370 covering Mission, Core Rule, Fast Start, One SOT, Design
+Invariants, Data and Wiring, Runtime Ownership, Animation Flow, Debugging,
+Implementation Routes). Since Codex now discovers all tracked skills through
+the junction, it added no capability.
+
+Also noted: `~/.codex/skills` is not a documented Codex discovery path - the
+documented user path is `<home>/.agents/skills`, which exists separately on this
+machine with different skills. The copy may well have been inert already.
+
+A disposable backup is at
+`tmp/agent_development_system/removed_codex_skill/` in case the unique
+`run_character_debug.ps1` turns out to be wanted. `tmp/` is disposable by
+definition; promote the script into the canonical skill if a real gap in
+`capture_parity.ps1` is ever demonstrated.
+
+### world-engineering - IMPLEMENTED / ACCEPTED candidate for R2
+
+Installed, exposed to both tools, verified. Not to be expanded further. A
+second skill requires a genuinely separate repeatable workflow proven in
+practice plus explicit operator instruction.
+
+### Genuinely remaining open items
+
+```text
+1. commit the staged case rename (do NOT unstage it - that silently reverts it)
+2. fresh non-author R2 review of the whole process diff  -> DONE, PASS
+```
+
+Both are closed. R2 was an integrated review of the implemented diff, not a
+repeat of the `world-engineering` cold-start run; the two had different scopes
+(see section 18). Final R2 result is recorded in section 21.
+
+Everything else in this audit is RESOLVED, PARKED with a trigger, or REJECTED.
+Deferred to the mirror todo: the clean-reconstruction proof. World resume is
+APPROVED (section 21).
+
+---
+
+## 17. Filename casing: the config is right, the check was wrong
+
+### Do NOT set core.ignorecase=false
+
+```text
+git config --show-origin --get core.ignorecase
+  -> file:.git/config    true
+```
+
+Git set this itself by probing the filesystem at clone time. `core.ignorecase`
+DESCRIBES the filesystem; it is not a policy knob. NTFS genuinely is
+case-insensitive, so `true` is the accurate value.
+
+Setting it `false` tells git to assume the filesystem distinguishes `SKILL.md`
+from `skill.md` when it does not. That produces phantom duplicate index
+entries, spurious add/delete churn, and checkout collisions - trading a quiet
+bookkeeping problem for a noisy correctness problem. Do not override it.
+
+### The actual defect was the verification's blind spot
+
+`link_codex_skills.ps1 -Verify` checked the on-disk name with `Get-ChildItem`.
+On a case-insensitive filesystem that reports `SKILL.md` even when git has
+`skill.md` recorded, so the check passed while the tracked truth was wrong.
+`git status` also reported clean throughout, for the same reason. That is how
+a lowercase entrypoint survived several commits unnoticed.
+
+Whoever clones onto a case-sensitive filesystem gets the lowercase name and
+discovers no skill - and nothing on this machine would ever have told us.
+
+### Fix: verify the index, not just the disk
+
+`Get-SkillExposureProblems` now also reads `git ls-files --cached` for the
+canonical skills directory and fails when a tracked entrypoint is not exactly
+`SKILL.md`, emitting the repair command. Proven RED/GREEN by reverting the
+index casing and restoring it:
+
+```text
+index skill.md   -> FAIL, exit 1, with "Repair: git mv -f ..."
+index SKILL.md   -> OK,   exit 0
+```
+
+Skips cleanly when git is unavailable or the path is untracked.
+
+### Repair recipe (the supported one)
+
+```text
+git mv -f <path>/skill.md <path>/SKILL.md
+```
+
+`git mv -f` rewrites the index entry directly rather than depending on the
+filesystem to distinguish the names, so no temp-name two-step is needed.
+
+IMPORTANT: the staged rename IS the fix. Unstaging it writes the lowercase
+name back into the index and the repair silently disappears - `git status`
+then reads clean, which looks like success. This happened once during this
+work. Commit the rename; do not restore it.
+
+Verification of casing is `git ls-files`, never `git status` and never a
+directory listing.
+
+---
+
+## 18. Closure (2026-08-19)
+
+### world-engineering cold-start acceptance = PASS
+
+A fresh non-author agent ran the skill from a cold start.
+
+```text
+elapsed                        2m24s
+understood current task after  3 substantive docs
+substantive docs opened        8
+independent review score       19/22
+verdict                        PASS
+material skill defect          NONE
+repository drift surfaced      2
+```
+
+What the run demonstrated: the fresh agent found the active task quickly,
+distinguished stable SOT from current-plan state, preserved accepted
+architecture, identified black-box ownership and change locality, responded
+correctly to architectural RED, and independently detected stale repository
+documentation.
+
+The two deductions were reasoning nuances, NOT skill defects, and the skill is
+deliberately NOT changed for either:
+
+- execution envelope: the fresh agent over-constrained future capture to "not a
+  commandlet". The real invariant is render-capable UE execution outside
+  `Automation RunTests` / `GIsAutomationTesting` comparison mode.
+- performance: it overgeneralized Editor streaming behaviour. The proven fact
+  is narrower - THAT Editor workflow was fully resident and therefore is not
+  runtime performance authority.
+
+The skill already teaches the correct durable method in both cases. Encoding
+these two corrections into it would trade a durable method for a transient
+example.
+
+### Repository drifts fixed
+
+Both were stale routes, found by the cold-start run rather than by review:
+
+- `todo/00_current/00_focus.md` pointed the World item at
+  `world_compile_kazan_territory_slice_2.md`, which is archived under
+  `todo/01_done/world/`. Repointed at the active slice. No World state changed.
+- `tools/World/VisualVerification/README.md` still presented the removed
+  `Project.World.Realization.Territory.VisualSweep` automation path as the
+  current capture stage. Stage 3 now states that the capture route is an OPEN
+  implementation item, why the in-automation sweep was removed (wrong execution
+  envelope, not wrong idea), and the required properties of the accepted route.
+  The durable pitfalls (no `BugItGo`+`HighResShot`+sleeps, bounds-derived
+  vantages, transient capture actors) are preserved; the deleted
+  implementation's description is gone. Nothing was invented or implemented.
+
+### Final statuses
+
+| Item | State |
+|---|---|
+| C7 agent commit/push prohibition | RESOLVED - real Codex: commit and push `forbidden`, read/stage commands unaffected |
+| C10 engine authority | RESOLVED - real Codex session started BlueprintMCP with `UE_EDITOR_CMD` forwarded via `env_vars` against UE 5.8 |
+| Skill entrypoint casing | RESOLVED - git index records exact `SKILL.md` for all five |
+| Clean-clone proof | DEFERRED to `publish_project_assets_mirror_policy.md`; not a process or World gate |
+| Personal Codex animation skill | RESOLVED - deleted on operator decision; disposable backup under `tmp/` |
+| world-engineering | ACCEPTED via cold-start run |
+
+### Durable-lift check = PASS (after one patch)
+
+Every accepted rule was checked for a stable owner outside this todo. One real
+gap was found and lifted:
+
+- the filename-casing rule (never set `core.ignorecase=false`; verify with
+  `git ls-files`, not `git status` or a directory listing; repair with
+  `git mv -f`) existed only in this audit and in a comment inside
+  `link_codex_skills.ps1`, discoverable only while already reading that script.
+  It is a repo-wide practice, so it was lifted to `scripts/setup/README.md`
+  beside the Windows link primitives it belongs with.
+
+All other rules already had stable owners: `AGENTS.md`,
+`docs/testing/world_pipeline_layers.md`, `.claude/settings.json`,
+`.codex/rules/alis.rules`, `realize_canonical_world.ps1` plus its focused
+tests, `UEEnvSync.psm1`, `setup_ue_env.ps1`, `validate_engine_env.py`,
+`link_codex_skills.ps1`, `scripts/setup/README.md`,
+`ProjectWorld/docs/world_partition.md`, `ProjectWorld/docs/pitfalls.md`,
+`tools/World/VisualVerification/README.md`, and
+`.claude/skills/world-engineering/SKILL.md`.
+
+Historical reasoning was deliberately NOT copied into stable docs. Measured
+incidents, refutations, rejected alternatives, and the sequence of revisions
+remain here as evidence only.
+
+## Outcome
+
+```text
+Agent Development System Audit = COMPLETED (R2 PASS)
+
+- context/router architecture accepted
+- proof traceability accepted
+- change-locality architecture fitness accepted
+- Claude/Codex safety parity accepted
+- UE environment authority accepted
+- world-engineering cold-start acceptance PASS
+- integrated exit review (R2)  PASS, no regressions
+- World implementation resume  APPROVED
+```
+
+**Correction, recorded because the error is instructive.** An earlier version of
+this block declared the audit COMPLETED and cleared World to resume while
+section 16 still listed R2 as genuinely remaining. That was a real
+contradiction, caused by treating the `world-engineering` cold-start run as if
+it were R2. It was not:
+
+```text
+cold-start run  -> does the SKILL route a fresh agent correctly?
+                   scope: routing, comprehension speed, reasoning quality
+R2              -> is the IMPLEMENTED PROCESS WORK correct as a whole?
+                   scope: setup path, Codex rules, L3 domain guard,
+                          environment ownership, skill exposure contract,
+                          proof-traceability integration, hidden coupling
+```
+
+Passing the first says nothing about the second. This is exactly the
+gate-scope failure the audit itself documents in section 7 - a green gate
+reported as broader than the invariant it actually authenticates - so it is
+left visible here rather than quietly edited away.
+
+No stable document links to this audit; it is evidence, not a contract.
+
+---
+
+## 19. R2 Review Manifest (frozen scope)
+
+R2 has no authenticated acceptance surface without an exact boundary. `git diff`
+at HEAD shows only the last bookkeeping patch and would miss C1/C2/C7/C8/C10,
+the skill infrastructure, and proof traceability entirely - a false green.
+This section freezes what R2 reviews.
+
+### Boundary
+
+```text
+R2_BASE = 25fc7e0a7498e976c87d8f8f5a1c5978f7ecaf51   (25fc7e0a7)
+R2_HEAD = bb5777ee10351aa642a7b85d56c97c7434710249   (bb5777ee1)
+working tree = one modified file only:
+               todo/01_done/tools/agent_development_system_audit.md
+               (this manifest section; documentation, not implementation)
+```
+
+`R2_BASE` was reconstructed from history, not assumed. `0a72a1074` is the first
+commit containing accepted implementation (it removed the contradicting
+`ue-gamefeature-ci` skill, which is C6), and `25fc7e0a7` is its parent.
+
+`25fc7e0a7` is correctly EXCLUDED: it is the `canonical.md` gate-scope work that
+this audit BUILDS ON as pre-existing evidence (see section 7), not a product of
+it.
+
+The committed range is the complete REPO-OWNED implementation. The
+"External / machine-local effective state" subsection below completes the
+effective runtime and process scope - several accepted behaviours live outside
+Git by design, and two of the enforcement files are gitignored.
+
+The only working-tree delta is this manifest being written into the audit, which
+is documentation: it changes no code, config, contract, or skill. There are no
+untracked process files.
+
+Self-referential note: writing this manifest necessarily dirtied the tree, so
+the "clean tree" claim it was going to make would have been false by the time
+anyone read it. Stated as measured instead.
+
+### Commits in range, chronological
+
+```text
+0a72a1074  C6 - remove contradicting ue-gamefeature-ci skill; audit report
+d5433e055  C1/C2 - strip @ imports, add read-on-demand block (AGENTS.md)
+e72a81b9e  audit revision
+6dc4e0357  guard + Codex skill link infrastructure (guard later deleted)
+c0632792e  closure pass  <- SEE HAZARD 1
+ed182febf  Codex rules, engine path sync, doc/test fixes
+8c984c5eb  env forwarding + production enrollment guard (C8)
+dcf6be3e3  world-engineering skill + Codex config contract
+8190416fd  skill routing table + continuation routes
+239f1d073  skill filename index casing
+7be904b4a  casing rule lift + Kazan focus route fix
+bb5777ee1  audit status -> provisional pending R2
+```
+
+### Reading hazards - both would mislead a reviewer
+
+**HAZARD 1 - a misleading commit message.**
+`c0632792e "Update scripts and documentation for Jules release"` has nothing to
+do with a Jules release. It contains substantial process work: deletion of
+`guard_tool_use.py` and its tests, the `link_codex_skills.ps1` rewrite,
+`world_partition.md` rejected alternatives, `world_pipeline_layers.md`,
+`canonical.md`, and the production-C++ todo-reference removals. A reviewer
+filtering commits by message would skip the largest cleanup in the range.
+
+**HAZARD 2 - an apparent 1,928-line rewrite that is 40 lines of content.**
+`todo/00_current/world_realize_kazan_territory_slice_3.md` reports 984 added /
+944 removed, which reads like a full rewrite of the active World plan. It is
+not. The file was converted LF -> CRLF (0 CRLF at base, 984 now), so every line
+registers as changed. Measured EOL-insensitively, the real change is 40 lines:
+the proof-traceability table required by C3.
+
+Verify with:
+
+```text
+git show 25fc7e0a7:todo/00_current/world_realize_kazan_territory_slice_3.md
+```
+
+and compare ignoring line endings. `.gitattributes` sets no `text=auto` or
+`*.md eol` rule, so mixed EOLs are the repo's existing state and this is
+cosmetic churn, not a policy violation. It was deliberately NOT "fixed" here:
+changing it during a scope freeze would alter the very diff R2 is reviewing.
+
+### Commands
+
+```text
+git log --reverse --oneline 25fc7e0a7..HEAD
+git diff --name-status 25fc7e0a7..HEAD
+git diff 25fc7e0a7..HEAD -- <path of interest>
+git status --short                      # expected: only the audit file, if at all
+```
+
+### File scope (39 paths per `git diff --name-status`)
+
+```text
+agent contract / router
+  AGENTS.md
+  docs/agents/canonical.md
+
+process contracts
+  docs/testing/world_pipeline_layers.md
+
+enforcement
+  .codex/rules/alis.rules
+  scripts/ue/world/realize_canonical_world.ps1
+  scripts/ue/world/test/generated_manifest.Tests.ps1
+
+environment authority
+  scripts/setup/UEEnvSync.psm1
+  scripts/setup/setup_ue_env.ps1
+  scripts/setup/test/UEEnvSync.Tests.ps1
+  scripts/setup/README.md
+  scripts/ue/check/governance/validate_engine_env.py
+  scripts/ue/check/governance/test/test_validate_engine_env.py
+
+skills
+  .claude/skills/world-engineering/SKILL.md
+  .claude/skills/world-engineering/agents/openai.yaml
+  .claude/skills/character-animation-dev/skill.md -> SKILL.md   (case rename)
+  .claude/skills/ue-gamefeature-ci/SKILL.md                     (deleted)
+  scripts/agents/link_codex_skills.ps1
+  .gitignore
+
+World-owned docs (documentation only - no World code or data)
+  Plugins/World/ProjectWorld/docs/pitfalls.md
+  Plugins/World/ProjectWorld/docs/world_partition.md
+  tools/World/README.md
+  tools/World/VisualVerification/README.md
+
+hygiene / dead-reference removal
+  .clinerules                                    (deleted)
+  agent_policy.yaml                              (deleted)
+  scripts/git/mirror/mirror.exclude
+  scripts/README.md
+  scripts/ue/editor/render/README.md
+  scripts/ue/editor/render/cvar_{base,clean,full}.txt
+  docs/cinematics/render_setup.md
+  docs/style/dialogues.md
+  tools/agentic/inventory/dump_report.py
+  Plugins/Systems/ProjectSave/.../ProjectSaveSubsystem.cpp
+  Plugins/UI/ProjectSettingsUI/.../ProjectSettingsService.cpp
+
+todos
+  todo/00_current/00_focus.md
+  todo/00_current/publish_project_assets_mirror_policy.md
+  todo/00_current/world_realize_kazan_territory_slice_3.md
+  todo/01_done/tools/agent_development_system_audit.md
+```
+
+### World implementation - precise claim
+
+No World C++, data, asset, or generated authority changed in this range. The
+two production `.cpp` edits are dead todo-comment removals in ProjectSave and
+ProjectSettingsUI, which are not World.
+
+The one nuance R2 should confirm rather than assume: the active Slice 3 plan WAS
+edited (the 40-line proof table, plus the EOL churn). That is plan structure,
+not World implementation - but it is an edit to the live World plan, so R2
+should verify no World decision, status, or accepted evidence was altered while
+restructuring.
+
+### External / machine-local effective state
+
+The committed range is the complete REPO-OWNED implementation. It is not the
+whole system: several accepted behaviours are deliberately machine-local, and
+`.claude/settings.json` and `.claude/settings.local.json` are GITIGNORED, so the
+entire Claude enforcement layer sits outside the 39-path range.
+
+R2 must not read "not in Git" as "not in scope".
+
+Each item below states what R2 should do. `INSPECT` means read the current
+state; `ACCEPT RECEIPT` means a real-tool run already proved it and R2 should
+not re-run it. R2 must NOT mutate user config or the environment.
+
+```text
+Claude enforcement                                   INSPECT
+  .claude/settings.json  (gitignored)
+    verified 2026-08-19:
+      Bash(git commit:*)  denied
+      Bash(git commit)    denied
+      Bash(git push:*)    denied
+      Bash(git push)      denied
+
+Claude local allowlist                               INSPECT
+  .claude/settings.local.json  (gitignored)
+    verified 2026-08-19:
+      blanket realize_canonical_world.ps1:* pre-approval  REMOVED
+      77 allow rules remain
+    NOTE: the C8 refusal inside realize_canonical_world.ps1 is the PRIMARY
+    authority. This allowlist state is defense in depth, not the guarantee -
+    a tool-level rule only covers tools someone remembered to configure.
+
+Codex enforcement                                    ACCEPT RECEIPT
+  .codex/rules/alis.rules  (repo-owned, IS in the Git range)
+    real codex-cli 0.148.0-alpha.15 execpolicy, 2026-08-19:
+      git commit -m test    -> {"decision": "forbidden"}
+      git push origin main  -> {"decision": "forbidden"}
+      git add/status/diff/log -> {"matchedRules": []}
+
+Codex MCP machine-local adapter                      INSPECT
+  ~/.codex/config.toml  (user-global, outside the repo by design)
+    verified 2026-08-19:
+      blueprint-mcp declares env_vars = ["UE_EDITOR_CMD"]
+      zero versioned UE paths anywhere in the file
+    CAUTION: `codex mcp get` prints DECLARED env_vars keys and masks values.
+    It reports a key that does not exist (proven by declaring a nonexistent
+    variable). It is DIAGNOSTIC for forwarding, never acceptance.
+
+User environment                                     INSPECT
+  verified 2026-08-19:
+    UE_PATH        = <ue-path>
+    UE_EDITOR_CMD  = <ue-path>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe
+  Derived by Sync-UEUserEnv from scripts/config/ue_path.conf, never configured
+  independently.
+
+Skill exposure                                       INSPECT
+  .agents/skills  (gitignored local junction)
+    verified 2026-08-19:
+      resolves to <project-root>\.claude\skills
+      link_codex_skills.ps1 -Verify -> OK, exit 0
+      all five entrypoints exactly SKILL.md in the Git index
+
+Runtime forwarding receipt                           ACCEPT RECEIPT
+  operator-run real Codex session:
+    blueprint-mcp started, UE_EDITOR_CMD arrived via env_vars,
+    resolved to the UE 5.8 executable, commandlet initialized.
+  This is the ONLY valid acceptance evidence for forwarding - static config
+  inspection cannot authenticate it (see CAUTION above).
+```
+
+### Normalized Slice 3 check - CRLF churn must not hide semantic edits
+
+The apparent 984/944 rewrite is an LF -> CRLF conversion. Use git's own
+EOL-insensitive comparison rather than eyeballing it:
+
+```text
+git diff --ignore-cr-at-eol --stat 25fc7e0a7..HEAD -- todo/00_current/world_realize_kazan_territory_slice_3.md
+git diff --ignore-cr-at-eol        25fc7e0a7..HEAD -- todo/00_current/world_realize_kazan_territory_slice_3.md
+```
+
+Measured result, 2026-08-19:
+
+```text
+1 file changed, 40 insertions(+)
+```
+
+40 insertions, ZERO deletions - the change is purely ADDITIVE. Nothing in the
+Slice 3 plan was removed, reworded, or restructured. The addition is the
+"Resume proof traceability" section required by C3, which explicitly states
+that accepted historical evidence in the review record is preserved as-is.
+
+This answers the open question the manifest raised: no World decision, status,
+or accepted evidence was altered. R2 should confirm the command reproduces
+`40 insertions(+)` with no deletions rather than take this on trust.
+
+### Scope distinction for world-engineering
+
+```text
+behavioral acceptance   ALREADY PASSED by the cold-start benchmark
+                        (19/22, 2m24s). Do NOT re-score usability in R2 -
+                        the cold-start tested it more directly than any
+                        document review can.
+
+integration             INCLUDED in R2. Verify trigger and discovery,
+                        that every route resolves, consistency with stable
+                        SOTs, non-duplication of transient facts, exact
+                        SKILL.md exposure contract, and fit with the
+                        process contracts.
+```
+
+Audit status: COMPLETED, R2 PASS. World resume APPROVED. This manifest is
+retained as the record of the surface R2 actually reviewed.
+
+
+---
+
+## 20. R2 PATCH findings fixed (2026-08-19)
+
+Two confirmed R2 findings, fixed. Nothing else changed.
+
+### Finding 1 - C6 was NOT change-local
+
+Deleting `ue-gamefeature-ci` broke live consumers. This is the change-locality
+rule catching its own author: the skill was declared a self-contained black box
+and it was not.
+
+```text
+scripts/autonomous/claude/overnight/main.ps1:45   hard prerequisite -> THREW
+scripts/autonomous/claude/yolo/README.md          "Use the ue-gamefeature-ci skill"
+scripts/autonomous/claude/yolo/yolo.ps1           same
+scripts/autonomous/claude/yolo/yolo.sh            same
+tools/docs/cheat_sheet.md                         same (found by re-scan)
+```
+
+The deleted skill was NOT restored. All five now route to
+`docs/agents/overnight_mode.md`, the stable owner of that workflow.
+
+**Operator correction mid-fix:** overnight mode is DEPRECATED. Routing live
+consumers to a rulebook marked "Status: Active" would have been a second
+misstatement, so `overnight_mode.md` is now marked DEPRECATED and explicitly
+retained for legacy comparison only. The chain is now truthful end to end:
+deprecated entrypoints -> deprecated rulebook.
+
+Deletion of the whole `scripts/autonomous/claude/**` stack plus its rulebook is
+the policy-aligned follow-up under the public-repo migration rule, but that is
+an operator decision and was not taken unilaterally.
+
+Adjacent debt, deliberately PARKED (inside the deprecated stack, not part of
+the broken path): `tools/docs/cheat_sheet.md` allowlists `Bash(git commit:*)`
+under `--dangerously-skip-permissions`, contradicting C7. It dies with the
+stack if the stack is deleted.
+
+### Finding 2 - stable-lift gap in the render README
+
+Removing the todo link left `scripts/ue/editor/render/README.md` internally
+dangling: it said "READ THE TODO" with no link, and referenced Track A7,
+Tracks A1-A6, Track B1, and "once the todo's plan lands".
+
+The durable meaning was lifted from the still-active Lumen todo and the file is
+now self-contained: the safe CVar subset and its precondition, the content-side
+fix list in plain words, the VSM-regression diagnosis with an explicit note
+that it predates the current engine and needs re-testing, and a concrete
+deletion condition. No link back to the todo. No broader render cleanup.
+
+### Verification
+
+```text
+live refs to deleted skill        0
+dangling track labels             0
+todo links in stable docs         0 (only the documented overnight_mode exception)
+main.ps1 / yolo.ps1 parse         OK
+yolo.sh                           bash -n OK
+prerequisite target exists        docs/agents/overnight_mode.md
+```
+
+
+---
+
+## 21. R2 result - audit CLOSED
+
+Independent R2 was performed by a fresh non-author agent against the frozen
+surface in section 19 (`R2_BASE..R2_HEAD` plus the machine-local state and the
+accepted runtime receipts).
+
+```text
+R2 VERDICT:               PASS
+Finding 1 (C6 fallout):   PASS
+Finding 2 (stable lift):  PASS
+Regression from patch:    NONE
+Safe to resume World:     YES
+```
+
+Both R2 PATCH findings were fixed in section 20 and confirmed by the same
+reviewer with no regression.
+
+### Final state
+
+```text
+Agent Development System Audit   COMPLETED
+R2                               PASS
+World resume                     APPROVED
+Remaining process blockers       NONE
+```
+
+Deferred, and correctly owned elsewhere - not blockers:
+
+```text
+clean-reconstruction agent-environment proof
+  -> todo/00_current/publish_project_assets_mirror_policy.md
+deprecated scripts/autonomous/claude/** stack (keep or delete)
+  -> operator decision; marked deprecated, nothing depends on it
+```
+
+This file is now evidence only. It records how the decisions were reached -
+the measurements, the refutations, the rejected alternatives, and the
+corrections - not what the rules currently are. Every accepted rule lives with
+a stable owner (section 18, durable-lift check). No stable document links here,
+and none should.
+
+The next test of this process is real World development, not another audit.

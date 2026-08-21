@@ -211,7 +211,7 @@ $layerPaths = @($realization.layers | ForEach-Object {
 })
 $statePaths = @(
     $layerPaths
-    (Join-Path $roots.ContentRoot 'Generated\Presentation')
+    (Get-ProjectWorldPresentationRoot -ContentRoot $roots.ContentRoot)
     (Join-Path $roots.ContentRoot 'Authored')
     (Join-Path $manifestRoot 'active_set.json')
 )

@@ -125,6 +125,114 @@
               }
             }
           }
+        },
+        {
+          "if": {"properties": {"generator_id": {"const": "project_road_mesh"}}},
+          "then": {
+            "properties": {
+              "layer_kind": {"const": "generated_geography"},
+              "canonical_selectors": {
+                "prefixItems": [{"const": "roads"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "spatial_ownership": {"const": "cell_local"},
+              "dirty_granularity": {"const": "canonical_cell"},
+              "dependency_halo_cells": {"const": 1},
+              "runtime_mapping": {"const": "world_partition_spatial"},
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "selected_classes",
+                  "surface_offset_m",
+                  "maximum_segment_length_m",
+                  "nanite",
+                  "collision",
+                  "structure_fallback",
+                  "intersection_policy"
+                ],
+                "properties": {
+                  "selected_classes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/id"}
+                  },
+                  "surface_offset_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 2.0},
+                  "maximum_segment_length_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 30.0},
+                  "nanite": {"const": true},
+                  "collision": {"const": "complex_as_simple"},
+                  "structure_fallback": {"const": "terrain_drape"},
+                  "intersection_policy": {"const": "overlap_same_owner"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {"properties": {"generator_id": {"const": "project_vegetation_instances"}}},
+          "then": {
+            "properties": {
+              "layer_kind": {"const": "generated_geography"},
+              "depends_on": {
+                "prefixItems": [
+                  {"const": "terrain"},
+                  {"const": "water"},
+                  {"const": "roads"}
+                ],
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "canonical_selectors": {
+                "prefixItems": [{"const": "vegetation"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "spatial_ownership": {"const": "cell_local"},
+              "dirty_granularity": {"const": "canonical_cell"},
+              "dependency_halo_cells": {"const": 0},
+              "runtime_mapping": {"const": "world_partition_spatial"},
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "mesh_assets",
+                  "area_spacing_m",
+                  "area_jitter_fraction",
+                  "minimum_scale",
+                  "maximum_scale",
+                  "maximum_instances_per_cell",
+                  "deterministic_seed",
+                  "surface_offset_m",
+                  "nanite",
+                  "collision",
+                  "placement_policy"
+                ],
+                "properties": {
+                  "mesh_assets": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^/Project[A-Za-z0-9]+/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+                    }
+                  },
+                  "area_spacing_m": {"type": "number", "minimum": 5.0, "maximum": 100.0},
+                  "area_jitter_fraction": {"type": "number", "minimum": 0.0, "exclusiveMaximum": 0.5},
+                  "minimum_scale": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 3.0},
+                  "maximum_scale": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 3.0},
+                  "maximum_instances_per_cell": {"type": "integer", "minimum": 1, "maximum": 8192},
+                  "deterministic_seed": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+                  "surface_offset_m": {"type": "number", "minimum": 0.0, "maximum": 2.0},
+                  "nanite": {"const": true},
+                  "collision": {"const": "no_collision"},
+                  "placement_policy": {"const": "canonical_points_and_lattice_areas"}
+                }
+              }
+            }
+          }
         }
       ],
       "required": [

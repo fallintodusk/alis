@@ -11,6 +11,8 @@ Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot 'generated_layer_manifest.ps1')
 
+. (Join-Path $PSScriptRoot 'generator_fingerprint.ps1')
+
 . (Join-Path $PSScriptRoot 'world_data_roots.ps1')
 
 $script:ManifestSchemaId = 'https://alis.world/schemas/project-world/generated-manifest-v1.json'
@@ -122,50 +124,6 @@ function Enter-ProjectWorldContentLock {
     $stream.Write($bytes, 0, $bytes.Length)
     $stream.Flush()
     return $stream
-}
-
-function Get-ProjectWorldGeneratorFingerprint {
-    # Deterministic fingerprint of the generator implementation: editor
-    # module sources, frozen schemas, and the lifecycle scripts. Two
-    # different generators with identical inputs must be distinguishable
-    # in the durable authority.
-    param([Parameter(Mandatory = $true)][string]$ProjectRoot)
-    $roots = @(
-        (Join-Path $ProjectRoot 'Plugins\World\ProjectWorld\Source\ProjectWorldEditor'),
-        (Join-Path $ProjectRoot 'Plugins\World\ProjectWorld\Data\Schemas'),
-        (Join-Path $ProjectRoot 'scripts\ue\world')
-    )
-    # Repo-relative normalized paths ONLY: identical source bytes must
-    # produce identical fingerprints under any checkout root.
-    $repoPrefix = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-    $lines = [System.Collections.Generic.List[string]]::new()
-    foreach ($root in $roots) {
-        if (-not (Test-Path -LiteralPath $root)) { continue }
-        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File |
-            Where-Object { $_.Extension -in @('.cpp', '.h', '.cs', '.json', '.ps1') }) {
-            $relative = $file.FullName.Substring($repoPrefix.Length).Replace('\', '/')
-            # Read-only verifiers and test sources cannot influence generated
-            # bytes or manifest documents. Hashing them would make the audit's
-            # fingerprint-currency gate fail on edits that provably change
-            # nothing, which trains operators to bypass the gate.
-            if ($relative -like 'scripts/ue/world/test/*' -or
-                $relative -like 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/*' -or
-                $relative -eq 'scripts/ue/world/audit_generated_authority.ps1') {
-                continue
-            }
-            $lines.Add("$relative`0$(Get-ProjectWorldFileSha256 -Path $file.FullName)")
-        }
-    }
-    # Explicit ordinal comparison: locale must never influence the result.
-    $sorted = $lines.ToArray()
-    [System.Array]::Sort($sorted, [System.StringComparer]::Ordinal)
-    $lines = $sorted
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    }
-    finally { $sha.Dispose() }
 }
 
 function Enter-ProjectWorldAuthorityLock {
@@ -543,6 +501,22 @@ function New-ProjectWorldCandidateManifest {
     }
     if ($null -ne $LayerContract) { $manifest['layer_contract'] = $LayerContract }
     return $manifest
+}
+
+function New-ProjectWorldFingerprintMigrationCandidate {
+    param(
+        [Parameter(Mandatory = $true)][object]$PriorManifest,
+        [Parameter(Mandatory = $true)][int]$Generation,
+        [Parameter(Mandatory = $true)][string]$OperationId,
+        [Parameter(Mandatory = $true)][string]$GeneratorFingerprint
+    )
+    $candidate = $PriorManifest | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $candidate.generation = $Generation
+    $candidate.accepted_operation_id = $OperationId
+    $candidate.accepted_at_utc = [DateTimeOffset]::UtcNow.ToString(
+        'o', [System.Globalization.CultureInfo]::InvariantCulture)
+    $candidate.generator_fingerprint = $GeneratorFingerprint
+    return $candidate
 }
 
 function Write-ProjectWorldJson {

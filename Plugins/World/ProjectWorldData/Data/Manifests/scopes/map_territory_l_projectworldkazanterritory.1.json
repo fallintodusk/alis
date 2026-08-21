@@ -1,0 +1,112 @@
+{
+    "$schema":  "../../../../ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "map_territory_l_projectworldkazanterritory",
+    "generation":  1,
+    "owning_layer":  "map",
+    "accepted_operation_id":  "a5d916f96d5d4dde9498ef4c6d453b18",
+    "accepted_at_utc":  "2026-08-20T16:26:37.2197334+00:00",
+    "generator_fingerprint":  "c40a8b6d72d4e2474fd7b22fb8b4c036c89de7dd8c8e869a5fd7c058d943ae67",
+    "input_identity":  {
+                           "map_package":  "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+                           "runtime_profile_sha256":  "none",
+                           "authored_overlay_profile_sha256":  "e2fae4e6e95d79fa2568279ffd6365fd6d2bd52a861dc77d8feef2f8a841870d",
+                           "compile_result_sha256":  "c781bd87c98c63c475191b7890b4d405904ed622332fa11fd017a6daacc4b2c6",
+                           "presentation_profile_sha256":  "9a15a0b200f4c86081d831603da397a215ed086d4dd4574e803fd2ccab328cd2"
+                       },
+    "artifacts":  [
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/A/AV/MA2SOHT7012YH52XHN4VR3.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "e40d17dfe66cbfd411b2d75238a30213b9eeedbaeb8f5c2f3eb4df935784e2da"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/9/BX/RG5LT0OBRZXGWG2RFXKY7E.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "45f0bd63b5d2e61c81922436eeffb416b86a1e41a6764831e1d829ea1aca65b9"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/9/01/PNLST6G7QVFXR45E9LAWF4.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "b55707e2aef52d63488e98ea9fae89017ccc3281103f15741b5d6b57d5bba91f"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/A/U9/DT1O0OMDVTXTX3G60G129A.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "c1da89c9bc42bd2ac077cea66e66dd351db9465a243092ef87de824e2fe0142f"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/Generated/Territory/L_ProjectWorldKazanTerritory.umap",
+                          "kind":  "map",
+                          "digest_kind":  "sha256",
+                          "digest":  "9c47f1da66b7b3f4d3577fbed2fb4460280d4102f2c80ea38ba8f9875e7e0acd"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/E/J6/D2LE601YWIVA4LFBT3OXNB.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "856f7d970f0facc4d42843ee46e4a2ee3b7c83ff2d38d659fa61f9438e89d436"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/C/6Q/ODJSB41S46R5J32HKFS6X4.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "a6f1eaa1753db08a39ac330ad87fbb2f32e8a6a56660df6bb555eafdeb03bb74"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/6/OA/BHPKV8L7219YVMHZXQY45X.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "1e39979e53c96f2ded40c4462be9ae75f1ec0569e42a2afcdd76dcb51191d686"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/1/YT/6U6ZY4ZCMSLU20Q0T1T6L1.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "dba7e468ec82da153d6e96b932abba43a10eb9a611b5c6fe4f0136609e2c241f"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/1/O1/D16VS2NTBYBTDFPWHW9R0Z.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "348ef4321c4285af044d1194607cfc03e76ea55435bda5a5c810785dc06d4cc4"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/1/0L/2FFZQCM11D8961J0223BYQ.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "ecc4e10400d7461cff9eac809957e75bd4345cb2da9a5c84d6965ab3ff2945d8"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/2/O7/LOX9GQB2Z1Z8NQPUHS655J.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "00df564446c02a84eb16554e845357edd3cfec981dd6a2b7afd7c3c81b74ae04"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/5/VU/XLZ29GGY2GI2LLVYD6E2OU.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "cb555c0963a6c6ac8803fdb3fd8a582daeab26639630fe4496de4c0bd1d6c3ba"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/4/NE/H07N3RN9G24TO93XHKFTBJ.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "010eb6023e9e5d5715103d6debd7cb1f212e8549f9f197615e15c281f5f7013c"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/2/RP/OUEILSKFYTQ3XJK8OUCKWQ.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "e049584ebac31bc6307aaa52ca956b8449de4b7e795a52aa428fc469a51e66d4"
+                      }
+                  ],
+    "consumer_references":  [
+
+                            ]
+}

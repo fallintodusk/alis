@@ -176,7 +176,7 @@ records the exact ALIS invariant the native path cannot satisfy.
 | Persistent static mesh | `FMeshDescription` and `UStaticMesh::BuildFromMeshDescriptions` | Build and save inside the Editor commandlet transaction; do not invent static-mesh serialization or runtime generation. |
 | Water shading | Single Layer Water material shading model and native material output expression | UE 5.8 Nanite rejects this shading model, and the shading-model enum alone does not compile a valid water material. Water uses persistent non-Nanite StaticMesh assets; ALIS owns material parameters and canonical surface geometry, not another water renderer. |
 | Spatial ownership and streaming | World Partition and OFPA | ALIS maps canonical cells to actors/packages and audits them; UE loads and unloads spatial actors. |
-| Vegetation in 3C | Evaluate partitioned PCG before custom placement infrastructure | Admission still requires deterministic identity, exact manifests, dirty scope, Nanite/instancing, and measured runtime proof. |
+| Vegetation in 3C | Cell-owned HISM producer over accepted canonical records | Partitioned PCG was evaluated, but no admitted graph or biome pack exists; direct HISM preserves one placement authority. Admission still requires deterministic identity, exact manifests, dirty scope, Nanite/instancing, and measured runtime proof. |
 
 The immediate twin therefore routes accepted canonical data through
 GeoReferencing, LandscapeConfigHelper, GeometryCore and the gated
@@ -314,6 +314,11 @@ profile-specific proof and supported fallback. Geometry that cannot use an
 admitted native or Nanite path is rejected from the territory profile until
 explicitly decided; water is the narrowly proven native material exception and
 does not authorize another custom renderer or HLOD.
+
+The admitted vegetation v1 path is one spatial HISM actor per occupied
+canonical cell. Explicit foliage points and deterministic area-lattice points
+remain local transforms under that actor. PCG remains a future adapter option,
+not a second source of placement truth.
 
 Active P0 and representative maps contain no HLOD companion assets or
 serialized HLOD layer references. Older immutable manifest generations retain

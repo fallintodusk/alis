@@ -96,6 +96,40 @@ Describe 'ProjectWorld exact layer manifests' {
         }
     }
 
+    It 'forces a whole-layer rebuild when the accepted producer fingerprint is stale' {
+        Mock Get-ProjectWorldGeneratorFingerprint { return ('c' * 64) }
+        $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+        $output = Join-Path $TestDrive 'producer-drift'
+        New-Item -ItemType Directory -Path $output -Force | Out-Null
+        $scopeId = 'layer_synthetic_terrain'
+        $definitions = [ordered]@{
+            $scopeId = [pscustomobject]@{
+                layer_id = 'terrain'
+                generator_id = 'project_landscape'
+                generator_version = 1
+            }
+        }
+        $active = [pscustomobject]@{ Manifests = [ordered]@{
+            $scopeId = [pscustomobject]@{
+                generator_fingerprint = ('b' * 64)
+                layer_contract = [pscustomobject]@{
+                    normalized_layer_contract_sha256 = ('d' * 64)
+                    canonical_inputs = @()
+                }
+            }
+        } }
+
+        $result = New-ProjectWorldLayerDirtyInput `
+            -ProjectRoot $repoRoot -OutputDirectory $output `
+            -RealizationDocument ([pscustomobject]@{ profile_id = 'synthetic' }) `
+            -LayerDefinitions $definitions -ActiveSet $active
+        $document = Get-Content -LiteralPath $result.Path -Raw | ConvertFrom-Json
+
+        @($document.operator_additions).Count | Should -Be 1
+        $document.operator_additions[0].layer_id | Should -Be 'terrain'
+        @($document.operator_additions[0].units) | Should -Contain '*'
+    }
+
     It 'namespaces wrapper layer scopes by realization profile before mutation' {
         $roots = [pscustomobject]@{
             ContentRoot = $contentRoot
@@ -153,6 +187,39 @@ Describe 'ProjectWorld exact layer manifests' {
             Resolve-ProjectWorldRealizationLayers `
                 -RealizationDocument $document -WorldDataRoots $roots
         } | Should -Throw '*registered executable tuple*'
+    }
+
+    It 'admits only the exact registered vegetation tuple' {
+        $layer = [pscustomobject]@{
+            layer_id = 'vegetation'
+            layer_kind = 'generated_geography'
+            generator_id = 'project_vegetation_instances'
+            generator_version = 1
+			depends_on = @('terrain', 'water', 'roads')
+            canonical_selectors = @('vegetation')
+            spatial_ownership = 'cell_local'
+            dirty_granularity = 'canonical_cell'
+            dependency_halo_cells = 0
+            runtime_mapping = 'world_partition_spatial'
+            settings = [pscustomobject]@{
+                mesh_assets = @('/ProjectObject/Nature/SM_Tree.SM_Tree')
+                area_spacing_m = 45.0
+                area_jitter_fraction = 0.35
+                minimum_scale = 0.85
+                maximum_scale = 1.15
+                maximum_instances_per_cell = 1024
+                deterministic_seed = 31052026
+                surface_offset_m = 0.0
+                nanite = $true
+                collision = 'no_collision'
+                placement_policy = 'canonical_points_and_lattice_areas'
+            }
+        }
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
+
+        $layer.settings.placement_policy = 'unregistered'
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
+            Should -Throw '*registered executable tuple*'
     }
 
     It 'requires an exact complete commandlet inventory under the layer root' {
@@ -301,6 +368,12 @@ Describe 'ProjectWorld exact layer manifests' {
 
         $noOpTerrain = LayerCandidate 'terrain' 2 $terrainRoot '/ProjectWorldTestData/Generated/Twin/Terrain/'
         $noOpTerrain.input_identity.compile_result_sha256 = ('9' * 64)
+        Test-ProjectWorldManifestSemanticallyUnchanged `
+            -PriorManifest $firstActive.Manifests['layer_terrain'] `
+            -CandidateManifest $noOpTerrain -GeneratorFingerprint $fingerprint `
+            -CompareLayerContract | Should -BeTrue
+
+        $noOpTerrain.layer_contract.realization_profile_sha256 = ('f' * 64)
         Test-ProjectWorldManifestSemanticallyUnchanged `
             -PriorManifest $firstActive.Manifests['layer_terrain'] `
             -CandidateManifest $noOpTerrain -GeneratorFingerprint $fingerprint `

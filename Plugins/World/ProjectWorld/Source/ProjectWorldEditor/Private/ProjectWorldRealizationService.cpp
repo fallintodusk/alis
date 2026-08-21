@@ -18,7 +18,10 @@
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimeRealization.h"
+#include "ProjectWorldRoadRealization.h"
+#include "ProjectWorldSavePolicy.h"
 #include "ProjectWorldSemanticEvidence.h"
+#include "ProjectWorldVegetationRealization.h"
 #include "ProjectWorldWaterRealization.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -356,6 +359,7 @@ int32 FProjectWorldRealizationService::Run(
 	if (bNeedsLayerPlan && !ProjectWorldLayerInventory::Build(
 		Bundle,
 		RealizationProfile,
+		AuthoredOverlaySet,
 		Request.Mode == EProjectWorldRealizationMode::Apply && Request.bFirstLayerApply,
 		bNeedsDirtyInput ? &LayerDirtyInput : nullptr,
 		OutResult,
@@ -570,6 +574,20 @@ int32 FProjectWorldRealizationService::Run(
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
+		if (bNeedsLayerPlan && !ProjectWorldRoadRealization::Apply(
+			World, Bundle, RealizationProfile, PresentationResources.RoadMaterial, OutResult, EditorError))
+		{
+			Reject(OutResult, TEXT("geometry-roads"), TEXT("Cannot realize persistent cell-local roads."), EditorError);
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
+		if (bNeedsLayerPlan && !ProjectWorldVegetationRealization::Apply(
+			World, Bundle, RealizationProfile, AuthoredOverlaySet, OutResult, EditorError))
+		{
+			Reject(OutResult, TEXT("geometry-vegetation"), TEXT("Cannot realize cell-owned vegetation instances."), EditorError);
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
 		if (bNeedsRuntime && !ProjectWorldRuntimeRealization::Apply(
 			World,
 			Bundle,
@@ -720,10 +738,9 @@ int32 FProjectWorldRealizationService::Run(
 		}
 	}
 	OutResult.UpdatedActorCount += ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
-	const bool bGeneratedWorldChanged = bPartitionHlodPolicyChanged ||
-		OutResult.CreatedActorCount > 0 || OutResult.UpdatedActorCount > 0 ||
-		OutResult.RemovedActorCount > 0 || OutResult.UpdatedLandscapeComponentCount > 0;
-	if (bGeneratedWorldChanged && !SaveGeneratedWorld(World, Request.MapPackagePath))
+	if (ProjectWorldSavePolicy::RequiresBroadWorldSave(
+			OutResult, bExistingMap, bPartitionHlodPolicyChanged) &&
+		!SaveGeneratedWorld(World, Request.MapPackagePath))
 	{
 		Reject(OutResult, TEXT("save-map"), TEXT("Cannot save the generated World Partition map."), Request.MapPackagePath);
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
@@ -733,6 +750,7 @@ int32 FProjectWorldRealizationService::Run(
 		World,
 		Bundle,
 		RealizationProfile,
+		AuthoredOverlaySet,
 		OutResult,
 		EditorError))
 	{
@@ -1008,7 +1026,19 @@ bool FProjectWorldRealizationService::WriteResult(
 	Changes->SetNumberField(TEXT("water_cell_actors"), Result.WaterCellActorCount);
 	Changes->SetNumberField(TEXT("water_mesh_assets"), Result.WaterMeshAssetCount);
 	Changes->SetNumberField(TEXT("water_triangles"), Result.WaterTriangleCount);
+	Changes->SetNumberField(TEXT("road_cell_actors"), Result.RoadCellActorCount);
+	Changes->SetNumberField(TEXT("road_mesh_assets"), Result.RoadMeshAssetCount);
+	Changes->SetNumberField(TEXT("road_triangles"), Result.RoadTriangleCount);
 	Changes->SetNumberField(TEXT("road_sections"), Result.RoadSectionCount);
+	Changes->SetNumberField(TEXT("vegetation_cell_actors"), Result.VegetationCellActorCount);
+	Changes->SetNumberField(TEXT("vegetation_components"), Result.VegetationComponentCount);
+	Changes->SetNumberField(TEXT("vegetation_instances"), Result.VegetationInstanceCount);
+	Changes->SetNumberField(TEXT("vegetation_candidates"), Result.VegetationCandidateCount);
+	Changes->SetNumberField(TEXT("vegetation_road_exclusions"), Result.VegetationRoadExcludedCount);
+	Changes->SetNumberField(TEXT("vegetation_water_exclusions"), Result.VegetationWaterExcludedCount);
+	Changes->SetNumberField(TEXT("vegetation_authored_mask_exclusions"), Result.VegetationAuthoredMaskExcludedCount);
+	Changes->SetNumberField(TEXT("vegetation_instance_rewrites"), Result.VegetationInstanceRewriteCount);
+	Changes->SetNumberField(TEXT("self_saved_actor_mutations"), Result.SelfSavedActorMutationCount);
 	Changes->SetNumberField(TEXT("building_sections"), Result.BuildingSectionCount);
 	Changes->SetNumberField(TEXT("presentation_actors"), Result.PresentationActorCount);
 	Changes->SetNumberField(TEXT("capture_viewpoints"), Result.CaptureViewpointCount);
