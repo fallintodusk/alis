@@ -56,29 +56,32 @@ implementation until the owning contract is corrected.
   identity; prove synthetic exclusion and persistent empty-cell retirement.
 - [x] Replace the stale 3C acceptance, enroll the corrected vegetation
   authority, recapture visual evidence, audit, and clean owner temp files.
+- [x] Match ribbon-water exclusion to the frozen total-width contract, prove
+  the exact 5.9 m/6.1 m boundary, and refresh the vegetation authority.
 
 ## Accepted evidence
 
-- Common Check: `Saved/Validation/WorldPipeline/check-20260821T154750Z/result.json`.
-- Kazan Matrix: `Saved/Validation/WorldPipeline/run-20260821T155116Z/result.json`.
-  It proves 146 cell actors, 279 HISM components, 7,490 instances from 7,528
-  candidates, exact exclusions (road 7, water 30, mask 1), six realization
+- Common Check: `Saved/Validation/WorldPipeline/check-20260821T182611Z/result.json`.
+- Kazan Matrix: `Saved/Validation/WorldPipeline/run-20260821T182933Z/result.json`.
+  It proves 146 cell actors, 279 HISM components, 7,501 instances from 7,528
+  candidates, exact exclusions (road 7, water 19, mask 1), six realization
   legs, declared road-to-vegetation dirtiness, and byte-for-byte rollback.
-- Producer migration proof: the Matrix marks vegetation whole-layer dirty and
-  changes all 146 vegetation package digests before L3 publication.
-- L3 enrollment: `Saved/Validation/WorldEnrollment/enroll-20260821T161107Z/result.json`.
+- Producer locality proof: L3 advances only the vegetation manifest from
+  generation 5 to 6; all seven sibling scope manifest paths remain unchanged.
+- L3 enrollment: `Saved/Validation/WorldEnrollment/enroll-20260821T184830Z/result.json`.
 - Strict final audit:
-  `Saved/Validation/WorldAuthority/vegetation-slice3c-review-final-audit-v3.json`.
-  Active set `fc9a9d345b2f2ec7283397179b17f695c8569a8dedf413028f8368f005219f4e`
+  `Saved/Validation/WorldAuthority/vegetation-slice3c-ribbon-final-audit.json`.
+  Active set `29514887e2dc1adc612828e9cace0d4112ac533916c70bb2f664a5c0cf0041c3`
   owns 1,026 current, byte-intact artifacts with no unowned files or journal.
-- Authenticated nine-view capture:
+- Prior authenticated nine-view presentation and origin-lifecycle proof:
   `Saved/Validation/WorldVisualEvidence/vegetation-slice3c-review-final-v3/capture.json`.
-- Live MCP alignment and focused screenshots:
+- Prior live MCP alignment and focused screenshots:
   `Saved/Validation/WorldVisualEvidence/vegetation-slice3c-review-final-v3/mcp/receipt.json`.
   The reloaded vegetation and road actors for `x-6:y1` share the exact
-  `[-722900,-97900,0]` cell origin; 146 vegetation actors are tagged.
+  `[-722900,-97900,0]` cell origin; the half-width patch does not touch that
+  persistence or presentation path.
 - Focused regressions passed: manifest 9/9, fingerprint 4/4, exact Unreal
-  placement/exclusion/persistence tests, authenticated capture, and LFS fsck.
+  placement/exclusion/persistence tests, 22 Matrix contract tests, and LFS fsck.
 
 ## Stop conditions
 

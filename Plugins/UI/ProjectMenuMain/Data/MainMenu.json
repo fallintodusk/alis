@@ -153,6 +153,19 @@
                 "alignment": {"x": 0.5, "y": 0.5},
                 "variant": "Secondary",
                 "font": "Button"
+              },
+              {
+                "name": "Button_Map_KazanTerritory",
+                "type": "Button",
+                "icon": "\uDB80\uDF4E",
+                "text": "KAZAN",
+                "action": "LoadKazanTerritory",
+                "position": {"x": 0, "y": 0},
+                "size": {"x": 360, "y": 56},
+                "anchor": "Center",
+                "alignment": {"x": 0.5, "y": 0.5},
+                "variant": "Secondary",
+                "font": "Button"
               }
             ]
           },

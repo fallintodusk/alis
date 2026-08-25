@@ -59,6 +59,18 @@ function Get-TestSourceRoots {
                 $roots.Add($_.FullName)
             }
         }
+    Get-ChildItem $pluginsRoot -Recurse -Directory -Filter "Source" -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            Get-ChildItem $_.FullName -Directory -Filter "*Tests" -ErrorAction SilentlyContinue |
+                ForEach-Object {
+                    if (-not $_.FullName.StartsWith(
+                        $sharedRoot,
+                        [System.StringComparison]::OrdinalIgnoreCase) -and
+                        -not $roots.Contains($_.FullName)) {
+                        $roots.Add($_.FullName)
+                    }
+                }
+        }
     return $roots.ToArray()
 }
 
@@ -94,7 +106,7 @@ function Test-ExactQuotedLiteralInTestSource {
     $blob = Get-TestSourceBlob
     if ([string]::IsNullOrEmpty($blob)) { return $false }
     $escaped = [regex]::Escape($Filter)
-    # Match either "<filter>" or '<filter>' — UE IMPLEMENT_*_AUTOMATION_TEST
+    # Match either "<filter>" or '<filter>'; UE IMPLEMENT_*_AUTOMATION_TEST
     # macros use double-quoted literals, but tolerate either style.
     $pattern = '(?:"|' + "'" + ')' + $escaped + '(?:"|' + "'" + ')'
     return [regex]::IsMatch($blob, $pattern)

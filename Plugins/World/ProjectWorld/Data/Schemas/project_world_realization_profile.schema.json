@@ -233,6 +233,89 @@
               }
             }
           }
+        },
+        {
+          "if": {"properties": {"generator_id": {"const": "project_building_massing"}}},
+          "then": {
+            "properties": {
+              "layer_kind": {"const": "generated_geography"},
+              "depends_on": {
+                "prefixItems": [{"const": "terrain"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "canonical_selectors": {
+                "prefixItems": [{"const": "buildings"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "spatial_ownership": {"const": "cell_local"},
+              "dirty_granularity": {"const": "canonical_cell"},
+              "dependency_halo_cells": {"const": 0},
+              "runtime_mapping": {"const": "world_partition_spatial"},
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "maximum_height_m",
+                  "terrain_anchor_policy",
+                  "topology_policy",
+                  "duplicate_policy",
+                  "contained_policy",
+                  "conflict_policy",
+                  "nanite",
+                  "collision",
+                  "navigation"
+                ],
+                "properties": {
+                  "maximum_height_m": {"type": "number", "minimum": 50.0, "maximum": 1000.0},
+                  "terrain_anchor_policy": {"const": "owner_cell_clamped_bounds_center"},
+                  "topology_policy": {"const": "cell_local_classify_v1"},
+                  "duplicate_policy": {"const": "stable_feature_id"},
+                  "contained_policy": {"const": "associate_with_container"},
+                  "conflict_policy": {"const": "reject_affected_fragments"},
+                  "nanite": {"const": true},
+                  "collision": {"const": "complex_as_simple"},
+                  "navigation": {"const": "no_navigation"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {"properties": {"generator_id": {"const": "project_gameplay_placement"}}},
+          "then": {
+            "properties": {
+              "layer_kind": {"const": "generated_gameplay_placement"},
+              "depends_on": {
+                "prefixItems": [{"const": "terrain"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "canonical_selectors": {
+                "prefixItems": [{"const": "gameplay_placements"}],
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "spatial_ownership": {"const": "object_local"},
+              "dirty_granularity": {"const": "object_id"},
+              "dependency_halo_cells": {"const": 0},
+              "runtime_mapping": {"const": "world_partition_spatial"},
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["placement_source", "surface_policy", "runtime_state_policy"],
+                "properties": {
+                  "placement_source": {
+                    "type": "string",
+                    "pattern": "^GameplayPlacement/[A-Za-z0-9_/]+\\.json$"
+                  },
+                  "surface_policy": {"const": "canonical_terrain_snap"},
+                  "runtime_state_policy": {"const": "external_to_generation"}
+                }
+              }
+            }
+          }
         }
       ],
       "required": [

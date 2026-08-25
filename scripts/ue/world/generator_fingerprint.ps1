@@ -33,7 +33,6 @@ function Get-ProjectWorldProducerSourcePaths {
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldCoordinateMapping.cpp',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldDataRoots.cpp',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldDataRoots.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEditorModule.cpp',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeometryParsing.cpp',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeometryParsing.h',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerDirtyInput.cpp',
@@ -76,6 +75,10 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeNavigation.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeNavigation.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionRealization.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionRealization.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeProfile.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeProfile.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeRealization.cpp',
@@ -135,6 +138,40 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json',
             'Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.uasset',
             'Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset'
+        ) }
+        'project_building_massing:v1' { @(
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingInventory.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingInventory.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingMeshBuilder.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingMeshBuilder.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingRealization.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingRealization.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
+            'Plugins/World/ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json',
+            'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
+        ) }
+        'project_gameplay_placement:v1' { @(
+            'Plugins/Foundation/ProjectCore/Source/ProjectCore/Public/Services/IObjectSpawnService.h',
+            'Plugins/Resources/ProjectObject/Source/ProjectObject/Private/Services/ObjectSpawnServiceImpl.cpp',
+            'Plugins/Resources/ProjectObject/Source/ProjectObject/Private/Services/ObjectSpawnServiceImpl.h',
+            'Plugins/Resources/ProjectObject/Source/ProjectObject/Private/Spawning/ObjectSpawnUtility.cpp',
+            'Plugins/Resources/ProjectObject/Source/ProjectObject/Public/Spawning/ObjectSpawnUtility.h',
+            'Plugins/Gameplay/ProjectObjectCapabilities/Source/ProjectObjectCapabilities/Private/Pickup/PickupCapabilityComponent.cpp',
+            'Plugins/Gameplay/ProjectObjectCapabilities/Source/ProjectObjectCapabilities/Public/Pickup/PickupCapabilityComponent.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGameplayPlacement.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGameplayPlacement.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
+            'Plugins/World/ProjectWorld/Data/Schemas/project_world_gameplay_placement.schema.json'
         ) }
         default { throw "Unknown ProjectWorld manifest producer: $ProducerId" }
     }

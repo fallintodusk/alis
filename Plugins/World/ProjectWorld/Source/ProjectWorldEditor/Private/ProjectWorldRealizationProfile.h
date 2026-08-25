@@ -75,6 +75,8 @@ struct FProjectWorldDirtyInputs
 	TMap<FString, TSet<FString>> OperatorAdditions;
 	TMap<FString, TSet<FString>> ValidUnits;
 	TMap<FString, TSet<FString>> OperatorValidUnits;
+	// Key is "dependent_layer|dependency_layer"; inner key maps dependency unit to target units.
+	TMap<FString, TMap<FString, TSet<FString>>> DependencyUnitMappings;
 };
 
 namespace ProjectWorldRealizationProfile
@@ -83,7 +85,8 @@ namespace ProjectWorldRealizationProfile
 		const FString& Path,
 		FProjectWorldRealizationProfile& OutProfile,
 		FString& OutErrorCode,
-		FString& OutError);
+		FString& OutError,
+		const FString& TransientProfileRoot = FString());
 
 	bool ValidateAndFinalize(
 		FProjectWorldRealizationProfile& Profile,

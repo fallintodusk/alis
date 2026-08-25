@@ -11,14 +11,14 @@ Purpose: Direct Windows wrapper for Unreal Build Tool (UBT).
 Usage:
 
 ```bat
-build.bat [target] [config] [extra_args...]
+build.bat [target] [platform] [config] [extra_args...]
 ```
 
 Examples:
 
-- `build.bat` -> defaults to `AlisEditor Development`
-- `build.bat AlisEditor DebugGame`
-- `build.bat AlisEditor Development -Module=ProjectBoot`
+- `build.bat` -> defaults to `AlisEditor Win64 Development`
+- `build.bat AlisEditor Win64 DebugGame`
+- `build.bat AlisEditor Win64 Development -Module=ProjectBoot`
 
 ### `rebuild_module_safe.ps1`
 
@@ -34,6 +34,8 @@ rebuild_module_safe.ps1 -Module <ModuleName>
 
 - UE path is defined in `scripts/config/ue_path.conf`
 - project file is detected automatically relative to the script
+- `-NoHotReloadFromIDE` is supplied consistently so switching project build
+  entry points does not change UBT makefile identity
 
 ## Important
 

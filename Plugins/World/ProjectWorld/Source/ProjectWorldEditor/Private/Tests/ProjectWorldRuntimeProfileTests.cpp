@@ -8,11 +8,13 @@
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimeRealization.h"
 #include "ProjectWorldSemanticEvidence.h"
+#include "ProjectWorldStaticPartitionAudit.h"
 #include "Tests/ProjectWorldSchemaTestUtilities.h"
 
 #include "Editor.h"
 #include "Engine/TargetPoint.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerStart.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -156,6 +158,70 @@ bool FProjectWorldRuntimeProfileContractTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldRuntimeStaleIdentityReplacementTest,
+	"Project.World.Realization.Runtime.StaleIdentityReplacement",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldRuntimeStaleIdentityReplacementTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldRuntimeTests;
+	FProjectWorldRuntimeProfile Profile;
+	FString ErrorCode;
+	FString Error;
+	if (!ProjectWorldRuntimeProfile::Load(ShippedProfilePath(), Profile, ErrorCode, Error))
+	{
+		AddError(Error);
+		return false;
+	}
+	Profile.ProfileKind = TEXT("territory_product");
+	const FProjectWorldCanonicalBundle Bundle = MakeBundle(Profile);
+	UWorld* World = GEditor->NewMap(false);
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Name = TEXT("ProjectWorld_LegacyPlayerStart");
+	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+	APlayerStart* Stale = World->SpawnActor<APlayerStart>(
+		APlayerStart::StaticClass(), FTransform::Identity, SpawnParameters);
+	TestNotNull(TEXT("The stale persisted runtime actor is created."), Stale);
+	if (Stale == nullptr)
+	{
+		return false;
+	}
+	Stale->Tags.Add(TEXT("ProjectWorld.RuntimeRole=PlayerStart"));
+	SpawnParameters.Name = TEXT("ProjectWorld_PlayerStart");
+	APlayerStart* NameRemnant = World->SpawnActor<APlayerStart>(
+		APlayerStart::StaticClass(), FTransform::Identity, SpawnParameters);
+	TestNotNull(TEXT("A second stale actor occupies the deterministic name."), NameRemnant);
+	SpawnParameters.Name = TEXT("ProjectWorld_CurrentPlayerStart");
+	SpawnParameters.OverrideActorGuid = ProjectWorldGeneratedGeometry::StableGuid(
+		Bundle.GridId + TEXT("|runtime|PlayerStart"));
+	APlayerStart* StableIdentity = World->SpawnActor<APlayerStart>(
+		APlayerStart::StaticClass(), FTransform::Identity, SpawnParameters);
+	TestNotNull(TEXT("The persisted stable GUID actor is available for reuse."), StableIdentity);
+
+	FProjectWorldRealizationResult Result;
+	TestTrue(
+		TEXT("Runtime realization retires and replaces stale persisted identity."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, Result, Error));
+	TestEqual(TEXT("All competing identity owners are retired."), Result.RemovedActorCount, 3);
+	TestEqual(TEXT("One canonical actor replaces the competing owners."), Result.CreatedActorCount, 1);
+	TestEqual(TEXT("No actor is reused from a competing identity set."), Result.UpdatedActorCount, 0);
+	AActor* Replacement = FindObject<AActor>(World->PersistentLevel, TEXT("ProjectWorld_PlayerStart"));
+	TestNotNull(TEXT("The replacement reclaims the deterministic object name."), Replacement);
+	TestTrue(
+		TEXT("The replacement owns the stable runtime identity."),
+		Replacement != nullptr && Replacement->GetActorGuid() == ProjectWorldGeneratedGeometry::StableGuid(
+			Bundle.GridId + TEXT("|runtime|PlayerStart")));
+	TestTrue(
+		TEXT("The replacement owns the generated runtime-role tags."),
+		Replacement != nullptr && Replacement->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag) &&
+		Replacement->Tags.Contains(TEXT("ProjectWorld.RuntimeRole=PlayerStart")));
+	TestTrue(
+		TEXT("The replacement is always loaded for product boot."),
+		Replacement != nullptr && !Replacement->GetIsSpatiallyLoaded());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldRuntimeRouteCollisionTest,
 	"Project.World.Realization.Runtime.RouteCollision",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -288,6 +354,39 @@ bool FProjectWorldNoHLODPartitionPolicyTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldRuntimeProfileSwitchLifecycleTest,
+	"Project.World.Realization.Runtime.ProfileSwitchLifecycle",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldRuntimeProfileSwitchLifecycleTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldRuntimeTests;
+	FProjectWorldRuntimeProfile Profile;
+	FString ErrorCode;
+	FString Error;
+	if (!ProjectWorldRuntimeProfile::Load(ShippedProfilePath(), Profile, ErrorCode, Error))
+	{
+		AddError(Error);
+		return false;
+	}
+	const FProjectWorldCanonicalBundle Bundle = MakeBundle(Profile);
+	UWorld* World = GEditor->NewMap(false);
+	ATargetPoint* RuntimeActor = World->SpawnActor<ATargetPoint>();
+	RuntimeActor->Tags.Add(ProjectWorldGeneratedGeometry::GeneratedTag);
+	RuntimeActor->Tags.Add(TEXT("ProjectWorld.RuntimeRole=RouteStart"));
+	RuntimeActor->Tags.Add(TEXT("ProjectWorld.Runtime=baseline_profile"));
+	RuntimeActor->Tags.Add(FName(*FString::Printf(TEXT("ProjectWorld.Grid=%s"), *Bundle.GridId)));
+	FProjectWorldRealizationResult Result;
+	TestTrue(
+		TEXT("A runtime profile switch accepts the existing grid-owned actor for in-place update."),
+		ProjectWorldGeneratedGeometry::RemoveStaleOwnedActorsForApply(
+			World, Bundle, TEXT("candidate_profile"), false, Result));
+	TestEqual(TEXT("A candidate profile does not delete stable runtime identity."), Result.RemovedActorCount, 0);
+	TestTrue(TEXT("The runtime actor remains available to realization."), IsValid(RuntimeActor));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldRuntimeCleanupParityTest,
 	"Project.World.Realization.Runtime.CleanupParity",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -342,6 +441,35 @@ bool FProjectWorldRuntimeCleanupParityTest::RunTest(const FString& Parameters)
 		TEXT("Runtime-to-no-runtime Apply is semantically identical to a clean no-runtime Apply."),
 		TransitionedResult.SemanticFingerprint,
 		CleanResult.SemanticFingerprint);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldStaticPartitionCellSpanTest,
+	"Project.World.Realization.Runtime.StaticPartitionCellSpan",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldStaticPartitionCellSpanTest::RunTest(const FString& Parameters)
+{
+	TestEqual(
+		TEXT("Bounds wholly inside one runtime cell have one assignment."),
+		ProjectWorldStaticPartitionAudit::CountIntersectedCells(
+			FBox(FVector(100.0, 100.0, -100.0), FVector(1000.0, 1000.0, 100.0)), 128),
+		1);
+	TestEqual(
+		TEXT("Bounds crossing one boundary on each axis have four assignments."),
+		ProjectWorldStaticPartitionAudit::CountIntersectedCells(
+			FBox(FVector(12000.0, 12000.0, -100.0), FVector(14000.0, 14000.0, 100.0)), 128),
+		4);
+	TestEqual(
+		TEXT("A shifted 250 metre cell owner exposes nine assignments on a 128 metre grid."),
+		ProjectWorldStaticPartitionAudit::CountIntersectedCells(
+			FBox(FVector(6000.0, 6000.0, -100.0), FVector(31000.0, 31000.0, 100.0)), 128),
+		9);
+	TestEqual(
+		TEXT("Invalid bounds cannot manufacture a passing cell assignment."),
+		ProjectWorldStaticPartitionAudit::CountIntersectedCells(FBox(ForceInit), 128),
+		0);
 	return true;
 }
 

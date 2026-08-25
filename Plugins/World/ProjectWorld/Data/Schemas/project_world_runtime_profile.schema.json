@@ -8,7 +8,9 @@
     "$schema",
     "schema_version",
     "profile_id",
+    "profile_kind",
     "grid_id",
+    "runtime_partition",
     "gameplay_route",
     "optimization_policy",
     "budgets"
@@ -18,9 +20,28 @@
       "type": "string",
       "pattern": "^(?:\\.\\./)+(?:ProjectWorld/Data/)?Schemas/project_world_runtime_profile\\.schema\\.json$"
     },
-    "schema_version": { "const": 1 },
+    "schema_version": { "const": 2 },
     "profile_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "profile_kind": {
+      "enum": ["bounded_procedural_route", "territory_product"]
+    },
     "grid_id": { "type": "string", "pattern": "^grid_[a-z0-9]+$" },
+    "runtime_partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partition_class",
+        "cell_size_m",
+        "loading_range_m",
+        "block_on_slow_streaming"
+      ],
+      "properties": {
+        "partition_class": { "const": "lhgrid_2d" },
+        "cell_size_m": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "loading_range_m": { "type": "integer", "minimum": 1, "maximum": 32768 },
+        "block_on_slow_streaming": { "type": "boolean" }
+      }
+    },
     "gameplay_route": {
       "type": "object",
       "additionalProperties": false,
@@ -28,6 +49,7 @@
         "route_id",
         "feature_id",
         "endpoint_inset_m",
+        "surface_offset_m",
         "navigation_padding_m",
         "navigation_height_m"
       ],
@@ -35,6 +57,7 @@
         "route_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
         "feature_id": { "type": "string", "minLength": 1 },
         "endpoint_inset_m": { "type": "number", "minimum": 0, "maximum": 100 },
+        "surface_offset_m": { "type": "number", "minimum": 0, "maximum": 10 },
         "navigation_padding_m": { "type": "number", "minimum": 1, "maximum": 1000 },
         "navigation_height_m": { "type": "number", "minimum": 2, "maximum": 1000 }
       }
@@ -44,9 +67,15 @@
       "additionalProperties": false,
       "required": ["nanite", "instancing", "hlod"],
       "properties": {
-        "nanite": { "const": "not_applicable_procedural_mesh" },
-        "instancing": { "const": "not_applicable_unique_geometry" },
-        "hlod": { "const": "disabled_for_bounded_route" }
+        "nanite": {
+          "enum": ["not_applicable_procedural_mesh", "enabled_for_supported_generated_static_meshes"]
+        },
+        "instancing": {
+          "enum": ["not_applicable_unique_geometry", "cell_owned_hism"]
+        },
+        "hlod": {
+          "enum": ["disabled_for_bounded_route", "disabled_for_territory"]
+        }
       }
     },
     "budgets": {

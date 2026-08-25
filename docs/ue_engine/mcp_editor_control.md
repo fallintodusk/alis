@@ -77,6 +77,26 @@ operator merely because `UnrealEditor.exe` or an MCP listener is absent.
    `Saved/Logs/Alis.log`. Escalate only an actual build/startup failure or an
    operation that requires human interaction.
 
+### UE 5.8.1 map-switch and shutdown boundaries
+
+- Do not live-switch from an SM5 preview world to the generated Kazan SM6 map
+  with `MAP LOAD ... FEATURELEVEL=...`. UE 5.8.1 can finish World Partition
+  initialization and then assert in `GetGlobalShaderMap` while releasing the
+  prior render scene. Start a cold editor process with the target map package
+  on its command line instead. A successful cold start is the required control
+  before attributing the live-switch failure to project content.
+- A live editor that has used Sequencer/Details integration can crash during
+  `QUIT_EDITOR` after world and MCP teardown are already complete. The observed
+  UE 5.8.1 stack enters `UBrowseToAssetOverrideSubsystem` from a Details refresh
+  while `FLevelEditorSequencerIntegration` is releasing resources. Preserve the
+  crash context and verify terminal receipts/logs; do not treat this engine
+  shutdown stack as generated-world corruption or add a World-code workaround.
+- The unattended visual-evidence wrapper remains the preferred no-window route
+  when fixed scene-capture vantages are sufficient. A green capture receipt
+  authenticates files, dimensions, hashes, and frame freshness only. The agent
+  must still inspect the images and reject a set that does not frame its stated
+  subject.
+
 If one MCP route is still starting, use another connected route only within
 the routing and concurrency rules above. Starting the editor and waiting for
 its owned endpoints is normal task work, not a user dependency.

@@ -2,10 +2,14 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldEvidenceCapture.h"
+#include "ProjectWorldEvidenceReadiness.h"
 
+#include "AssetCompilingManager.h"
+#include "Containers/Ticker.h"
 #include "Editor.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformTime.h"
 #include "Modules/ModuleManager.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/WorldPartition.h"
@@ -15,6 +19,124 @@ DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldEvidenceCommand, Log, All);
 
 namespace
 {
+	constexpr double CaptureReadinessTimeoutSeconds = 180.0;
+
+	struct FPendingEvidenceCapture
+	{
+		TWeakObjectPtr<UWorld> World;
+		TWeakObjectPtr<UWorldPartition> WorldPartition;
+		UWorldPartitionEditorLoaderAdapter* LoaderAdapter = nullptr;
+		TArray<FProjectWorldCaptureVantage> Vantages;
+		FProjectWorldCaptureResult Result;
+		FProjectWorldEvidenceReadiness Readiness;
+		FString OutputDirectory;
+		FString ReceiptPath;
+		double RequestedSeconds = 0.0;
+		int32 Width = 0;
+		int32 Height = 0;
+	};
+
+	TUniquePtr<FPendingEvidenceCapture> GPendingCapture;
+
+	void ReleaseLoader(FPendingEvidenceCapture& Pending)
+	{
+		if (Pending.LoaderAdapter != nullptr && Pending.WorldPartition.IsValid())
+		{
+			Pending.WorldPartition->ReleaseEditorLoaderAdapter(Pending.LoaderAdapter);
+		}
+		Pending.LoaderAdapter = nullptr;
+	}
+
+	void WriteResultAndExit(FPendingEvidenceCapture& Pending)
+	{
+		ReleaseLoader(Pending);
+		FString ReceiptError;
+		if (!ProjectWorldEvidenceCapture::WriteReceipt(Pending.Result, Pending.ReceiptPath, ReceiptError))
+		{
+			UE_LOG(LogProjectWorldEvidenceCommand, Error, TEXT("[ProjectWorld.CaptureEvidence] %s"), *ReceiptError);
+		}
+		else
+		{
+			UE_LOG(
+				LogProjectWorldEvidenceCommand,
+				Display,
+				TEXT("[ProjectWorld.CaptureEvidence] status=%s views=%d receipt=%s"),
+				*Pending.Result.Status,
+				Pending.Result.Views.Num(),
+				*Pending.ReceiptPath);
+		}
+		if (FApp::IsUnattended())
+		{
+			FPlatformMisc::RequestExit(false);
+		}
+	}
+
+	bool TickPendingCapture(float DeltaSeconds)
+	{
+		if (!GPendingCapture.IsValid())
+		{
+			return false;
+		}
+		FPendingEvidenceCapture& Pending = *GPendingCapture;
+		UWorld* World = Pending.World.Get();
+		if (World == nullptr)
+		{
+			Pending.Result.Status = TEXT("rejected");
+			Pending.Result.Message = TEXT("The editor world was released while evidence capture was settling.");
+			WriteResultAndExit(Pending);
+			GPendingCapture.Reset();
+			return false;
+		}
+
+		const int32 RemainingCompilations = FAssetCompilingManager::Get().GetNumRemainingAssets();
+		if (!Pending.Readiness.Advance(GFrameCounter, RemainingCompilations))
+		{
+			if (FPlatformTime::Seconds() - Pending.RequestedSeconds <= CaptureReadinessTimeoutSeconds)
+			{
+				return true;
+			}
+			Pending.Result.Status = TEXT("rejected");
+			Pending.Result.Message = FString::Printf(
+				TEXT("Rendering did not settle within %.0f seconds; remaining compilations=%d."),
+				CaptureReadinessTimeoutSeconds,
+				RemainingCompilations);
+			WriteResultAndExit(Pending);
+			GPendingCapture.Reset();
+			return false;
+		}
+
+		FString Error;
+		const bool bCaptured = ProjectWorldEvidenceCapture::CaptureVantages(
+			World,
+			Pending.Vantages,
+			Pending.Width,
+			Pending.Height,
+			Pending.OutputDirectory,
+			Pending.Result,
+			Error);
+		if (!bCaptured)
+		{
+			Pending.Result.Status = TEXT("rejected");
+			Pending.Result.Message = Error;
+		}
+		else if (!Pending.Result.bViewsPairwiseDistinct)
+		{
+			Pending.Result.Status = TEXT("rejected");
+			Pending.Result.Message = TEXT("Two vantages produced identical bytes, which is the signature of a stale frame.");
+		}
+		else
+		{
+			Pending.Result.Status = TEXT("accepted");
+			Pending.Result.Message = FString::Printf(
+				TEXT("Captured %d operator views (repeat-pose control %s)."),
+				Pending.Result.Views.Num(),
+				Pending.Result.bControlMatches ? TEXT("byte-identical") : TEXT("differs; temporal state, not gated"));
+		}
+		WriteResultAndExit(Pending);
+		GPendingCapture.Reset();
+		return false;
+	}
+
 	// Evidence capture runs in the LIVE EDITOR, not in a commandlet.
 	//
 	// The commandlet envelope was tried and abandoned on measured evidence: with a real D3D12
@@ -34,6 +156,11 @@ namespace
 				TEXT("[ProjectWorld.CaptureEvidence] Usage - ProjectWorld.CaptureEvidence <vantage-plan> <output-dir> <receipt>"));
 			return;
 		}
+		if (GPendingCapture.IsValid())
+		{
+			UE_LOG(LogProjectWorldEvidenceCommand, Error, TEXT("[ProjectWorld.CaptureEvidence] A capture is already pending."));
+			return;
+		}
 		UWorld* World = GEditor != nullptr ? GEditor->GetEditorWorldContext().World() : nullptr;
 		if (World == nullptr)
 		{
@@ -41,14 +168,20 @@ namespace
 			return;
 		}
 
-		FProjectWorldCaptureResult Result;
-		Result.MapPackage = World->GetPackage() != nullptr ? World->GetPackage()->GetName() : FString();
+		TUniquePtr<FPendingEvidenceCapture> Pending = MakeUnique<FPendingEvidenceCapture>();
+		Pending->World = World;
+		Pending->Result.MapPackage = World->GetPackage() != nullptr ? World->GetPackage()->GetName() : FString();
+		Pending->OutputDirectory = Arguments[1];
+		Pending->ReceiptPath = Arguments[2];
+		Pending->RequestedSeconds = FPlatformTime::Seconds();
 		FString Error;
-		int32 Width = 0;
-		int32 Height = 0;
-		TArray<FProjectWorldCaptureVantage> Vantages;
 		if (!ProjectWorldEvidenceCapture::LoadVantagePlan(
-				Arguments[0], Width, Height, Vantages, Result.VantagePlanSha256, Error))
+				Arguments[0],
+				Pending->Width,
+				Pending->Height,
+				Pending->Vantages,
+				Pending->Result.VantagePlanSha256,
+				Error))
 		{
 			UE_LOG(LogProjectWorldEvidenceCommand, Error, TEXT("[ProjectWorld.CaptureEvidence] %s"), *Error);
 			return;
@@ -58,7 +191,7 @@ namespace
 		// none of them. Load the whole editor bounds explicitly: identical frames must mean a
 		// defect, never an unloaded world.
 		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		UWorldPartitionEditorLoaderAdapter* LoaderAdapter = nullptr;
+		Pending->WorldPartition = WorldPartition;
 		if (WorldPartition != nullptr)
 		{
 			FBox EditorBounds = WorldPartition->GetEditorWorldBounds();
@@ -68,65 +201,19 @@ namespace
 			}
 			if (EditorBounds.IsValid)
 			{
-				LoaderAdapter = WorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(
+				Pending->LoaderAdapter = WorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(
 					World, EditorBounds, TEXT("ProjectWorld evidence capture"));
-				LoaderAdapter->GetLoaderAdapter()->Load();
+				Pending->LoaderAdapter->GetLoaderAdapter()->Load();
 				World->UpdateWorldComponents(false, false);
 				World->SendAllEndOfFrameUpdates();
 			}
 		}
-
-		const bool bCaptured = ProjectWorldEvidenceCapture::CaptureVantages(
-			World, Vantages, Width, Height, Arguments[1], Result, Error);
-		if (!bCaptured)
-		{
-			Result.Status = TEXT("rejected");
-			Result.Message = Error;
-		}
-		else if (!Result.bViewsPairwiseDistinct)
-		{
-			Result.Status = TEXT("rejected");
-			Result.Message = TEXT("Two vantages produced identical bytes, which is the signature of a stale frame.");
-		}
-		else
-		{
-			Result.Status = TEXT("accepted");
-			// The repeated-pose control is REPORTED, not gated. UE carries temporal rendering
-			// state between frames - auto exposure alone reads the previous frame - so demanding
-			// byte-identical repeats would fail on healthy imagery. The property that actually
-			// matters is that distinct poses do not return the same frame, and that is gated.
-			Result.Message = FString::Printf(
-				TEXT("Captured %d operator views (repeat-pose control %s)."),
-				Result.Views.Num(),
-				Result.bControlMatches ? TEXT("byte-identical") : TEXT("differs; temporal state, not gated"));
-		}
-
-		if (LoaderAdapter != nullptr && WorldPartition != nullptr)
-		{
-			WorldPartition->ReleaseEditorLoaderAdapter(LoaderAdapter);
-		}
-
-		FString ReceiptError;
-		if (!ProjectWorldEvidenceCapture::WriteReceipt(Result, Arguments[2], ReceiptError))
-		{
-			UE_LOG(LogProjectWorldEvidenceCommand, Error, TEXT("[ProjectWorld.CaptureEvidence] %s"), *ReceiptError);
-			return;
-		}
-		// Nothing is ever saved: evidence production must not modify the territory it documents.
+		GPendingCapture = MoveTemp(Pending);
 		UE_LOG(
 			LogProjectWorldEvidenceCommand,
 			Display,
-			TEXT("[ProjectWorld.CaptureEvidence] status=%s views=%d receipt=%s"),
-			*Result.Status,
-			Result.Views.Num(),
-			*Arguments[2]);
-		// An unattended capture host exists only to produce this receipt. Quitting here rather
-		// than through a trailing "; Quit" in -ExecCmds keeps the semicolon out of the console
-		// argument list, which otherwise ends up appended to the receipt path.
-		if (FApp::IsUnattended())
-		{
-			FPlatformMisc::RequestExit(false);
-		}
+			TEXT("[ProjectWorld.CaptureEvidence] Loaded evidence bounds; waiting for three settled editor frames."));
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&TickPendingCapture));
 	}
 
 	FAutoConsoleCommand GCaptureEvidenceCommand(

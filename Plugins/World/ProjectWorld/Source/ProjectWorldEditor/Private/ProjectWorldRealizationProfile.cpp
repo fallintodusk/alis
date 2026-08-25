@@ -333,6 +333,22 @@ namespace ProjectWorldRealizationProfile
 			OutError = TEXT("Cannot hash the realization execution contract.");
 			return false;
 		}
+		const FString LayerExecutionIdentity = FString::Printf(
+			TEXT("%s|%s|%s|%s|%s|%d|%s|%s"),
+			*Profile.ProfileId,
+			*Profile.WorldDataPluginName,
+			*Profile.CanonicalProfileId,
+			*Profile.MapPackagePath,
+			*Profile.LogicalLandscapeId,
+			Profile.ComponentsPerProxy,
+			*FString::Join(ProtectedRoots, TEXT(",")),
+			*FString::Join(RuntimeRoots, TEXT(",")));
+		FString LayerExecutionHash;
+		if (!HashString(LayerExecutionIdentity, LayerExecutionHash))
+		{
+			OutError = TEXT("Cannot hash the realization layer contract.");
+			return false;
+		}
 		TMap<FString, int32> LayerIndices;
 		TArray<FString> Roots;
 		const FString GeneratedRoot = FString::Printf(TEXT("/%s/Generated/"), *Profile.WorldDataPluginName);
@@ -439,7 +455,7 @@ namespace ProjectWorldRealizationProfile
 			Selectors.Sort();
 			const FString Identity = FString::Printf(
 				TEXT("%s|%s|%s|%s|%d|%s|%s|%s|%s|%s|%d|%s|%s"),
-				*Profile.ExecutionHash,
+				*LayerExecutionHash,
 				*Layer.LayerId,
 				*KindName(Layer.LayerKind),
 				*Layer.GeneratorId,
@@ -465,7 +481,8 @@ namespace ProjectWorldRealizationProfile
 		const FString& Path,
 		FProjectWorldRealizationProfile& OutProfile,
 		FString& OutErrorCode,
-		FString& OutError)
+		FString& OutError,
+		const FString& TransientProfileRoot)
 	{
 		OutProfile = FProjectWorldRealizationProfile();
 		OutErrorCode.Reset();
@@ -505,11 +522,22 @@ namespace ProjectWorldRealizationProfile
 		}
 
 		FProjectWorldDataRoots DataRoots;
+		const FString FullProfilePath = FPaths::ConvertRelativePathToFull(Path);
+		const FString FullTransientRoot = FPaths::ConvertRelativePathToFull(TransientProfileRoot);
+		const FString ProjectTmpWorldRoot = FPaths::ConvertRelativePathToFull(
+			FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world")));
+		const bool bTransientProfileOwned = !TransientProfileRoot.IsEmpty() &&
+			FPaths::IsUnderDirectory(FullTransientRoot, ProjectTmpWorldRoot) &&
+			FPaths::IsUnderDirectory(FullProfilePath, FullTransientRoot);
 		if (!FProjectWorldDataRoots::Resolve(OutProfile.WorldDataPluginName, DataRoots, OutError) ||
-			!FPaths::IsUnderDirectory(FPaths::ConvertRelativePathToFull(Path), DataRoots.DataRoot) ||
+			(!FPaths::IsUnderDirectory(FullProfilePath, DataRoots.DataRoot) && !bTransientProfileOwned) ||
 			!DataRoots.IsGeneratedPackage(OutProfile.MapPackagePath))
 		{
 			OutErrorCode = TEXT("realization-profile-owner");
+			if (OutError.IsEmpty())
+			{
+				OutError = FString::Printf(TEXT("Profile is outside its Data root and confined test root: %s"), *Path);
+			}
 			return false;
 		}
 		const TSharedPtr<FJsonObject>* Landscape = nullptr;
@@ -623,7 +651,8 @@ namespace ProjectWorldRealizationProfile
 					{
 						continue;
 					}
-					if ((*Layer)->DirtyGranularity != EProjectWorldDirtyGranularity::CanonicalCell ||
+					if (((*Layer)->DirtyGranularity != EProjectWorldDirtyGranularity::CanonicalCell &&
+						(*Layer)->DirtyGranularity != EProjectWorldDirtyGranularity::ObjectId) ||
 						ValidUnits == nullptr || !ValidUnits->Contains(Unit))
 					{
 						OutError = FString::Printf(
@@ -666,9 +695,27 @@ namespace ProjectWorldRealizationProfile
 				if (const TSet<FString>* DependencyDirty = Dirty.Find(DependencyId); DependencyDirty != nullptr && !DependencyDirty->IsEmpty())
 				{
 					TSet<FString> Expanded;
+					const FProjectWorldRealizationLayer* Dependency = Layers.FindChecked(DependencyId);
 					const TSet<FString>* ValidUnits = Inputs.ValidUnits.Find(LayerId);
 					const TSet<FString> EmptyDomain;
-					if (!ExpandUnits(
+					if (Dependency->DirtyGranularity != Layer->DirtyGranularity)
+					{
+						if (DependencyDirty->Contains(TEXT("*")))
+						{
+							Expanded.Add(TEXT("*"));
+						}
+						else if (const TMap<FString, TSet<FString>>* Mapping =
+							Inputs.DependencyUnitMappings.Find(LayerId + TEXT("|") + DependencyId))
+						{
+							for (const FString& Unit : *DependencyDirty) Expanded.Append(Mapping->FindRef(Unit));
+						}
+						else
+						{
+							OutError = FString::Printf(TEXT("Dirty dependency has no typed unit mapping: %s -> %s"), *DependencyId, *LayerId);
+							return false;
+						}
+					}
+					else if (!ExpandUnits(
 						*DependencyDirty,
 						Layer->DirtyGranularity,
 						Layer->DependencyHaloCells,

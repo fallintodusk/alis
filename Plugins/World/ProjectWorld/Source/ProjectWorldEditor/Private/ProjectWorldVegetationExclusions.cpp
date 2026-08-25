@@ -310,7 +310,7 @@ namespace ProjectWorldVegetationExclusions
 							OutContext.WaterSegments.AddDefaulted_GetRef();
 						Segment.Start = Part[Index];
 						Segment.End = Part[Index + 1];
-						Segment.ClearanceMeters = Feature.WidthMeters;
+						Segment.ClearanceMeters = Feature.WidthMeters * 0.5;
 						AppendNumber(Identity, Segment.Start.X);
 						AppendNumber(Identity, Segment.Start.Y);
 						AppendNumber(Identity, Segment.End.X);

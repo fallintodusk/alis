@@ -10,5 +10,5 @@ popd
 set LOG=%PROJECT_ROOT%\Saved\Logs\build_full.log
 if not exist "%PROJECT_ROOT%\Saved\Logs" mkdir "%PROJECT_ROOT%\Saved\Logs"
 
-call "%~dp0build.bat" AlisEditor DebugGame -WaitMutex -NoHotReload > "%LOG%" 2>&1
+call "%~dp0build.bat" AlisEditor Win64 DebugGame -WaitMutex > "%LOG%" 2>&1
 exit /b %ERRORLEVEL%

@@ -19,10 +19,16 @@ struct FProjectWorldRuntimeProfile
 {
 	FString ProfileId;
 	FString ProfileHash;
+	FString ProfileKind;
 	FString GridId;
+	FString RuntimePartitionClass;
+	int32 RuntimeCellSizeMeters = 0;
+	int32 RuntimeLoadingRangeMeters = 0;
+	bool bBlockOnSlowStreaming = false;
 	FString RouteId;
 	FString RouteFeatureId;
 	double EndpointInsetMeters = 0.0;
+	double RouteSurfaceOffsetMeters = 0.0;
 	double NavigationPaddingMeters = 0.0;
 	double NavigationHeightMeters = 0.0;
 	FString NanitePolicy;

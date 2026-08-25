@@ -68,4 +68,21 @@ public:
 		FPrimaryAssetId ObjectId,
 		const FTransform& Transform,
 		FText* OutError = nullptr) = 0;
+
+	#if WITH_EDITOR
+	/** Spawn with deterministic editor identity for persistent generated actors. */
+	virtual AActor* SpawnFromDefinitionWithIdentity(
+		UWorld* World,
+		FPrimaryAssetId ObjectId,
+		const FTransform& Transform,
+		FName ActorName,
+		const FGuid& ActorGuid,
+		FText* OutError = nullptr) = 0;
+	#endif
+
+	/** Return the provider-owned immutable definition identity used by generators. */
+	virtual bool GetDefinitionIdentity(
+		FPrimaryAssetId ObjectId,
+		FString& OutIdentity,
+		FText* OutError = nullptr) = 0;
 };

@@ -45,19 +45,14 @@ Accepted requirements:
   player collision, and proves spatial load, unload, and reload;
 - World Partition configuration is data/profile-driven and reproduced by
   automation rather than retained as undocumented editor state;
-> **Applied-vs-documented status (measured 2026-08-18).** The `256 m` / `768 m`
-> values below are a DOCUMENTED baseline that is **not yet applied** to the
-> Kazan territory. The only runtime profile on disk is
-> `Plugins/World/ProjectWorldData/Data/Runtime/kazan_representative_playable_v1.json`,
-> which covers the representative map. There is no territory runtime profile,
-> so the territory currently runs on World Partition defaults. Runtime evidence:
-> the map initializes as a game world on the modern
-> `UWorldPartitionRuntimeHashSet` with a single default grid (every descriptor
-> reports `RuntimeGrid:None`), and the PlayerController streaming source
-> activated **5 cells** at territory centre - locality works, but on defaults,
-> not on this policy. Apply the baseline only through the HashSet-native
-> runtime-partition mechanism; do NOT recreate legacy
-> `UWorldPartitionRuntimeSpatialHash` infrastructure to satisfy older docs.
+> **Applied status (measured 2026-08-25).** The territory owns
+> `kazan_territory_512_1536_v1.json`, and the generated map reads back one native
+> 2D Runtime Hash Set partition with a `512 m` cell and `1536 m` loading range.
+> The packaged product route has proven menu-to-Kazan travel, normal player
+> movement/collision/interaction, and centre-edge-centre unload/reload on the
+> physical RTX 4070. All three bounded candidates passed the primary gate;
+> `512/1536` won the frozen p99 -> memory -> churn ordering.
+> Do NOT recreate legacy `UWorldPartitionRuntimeSpatialHash` infrastructure.
 
 ### UE 5.8 native-tool survey (required before custom instrumentation)
 
@@ -77,11 +72,13 @@ decides how efficiently loaded geometry renders; World Partition decides what
 exists around the player. Nanite Landscape additionally streams **on top of**
 ordinary Landscape data rather than replacing it, so both reside in memory.
 
-- use one profile-driven 2D runtime grid; `256 m` cells and a `768 m` loading
-  range are the evidence-based baseline, not an editor default;
+- use one profile-driven 2D runtime grid; `256/768` is the evidence-based
+  comparison baseline and `512/1536` is the measured selected default;
 - use one logical Landscape for Kazan v1, divided into streaming proxies;
-- the RTX 4070 quality target is High at 1440p and 60 FPS; RTX 3060-class
-  hardware targets Medium at 1080p and 60 FPS with an explicit 30 FPS fallback;
+- the Slice 4 primary prototype gate is physical RTX 4070 hardware at High,
+  1440p, and 60 FPS;
+- RTX 3060-class hardware at Medium, 1080p, and 60 FPS with an explicit 30 FPS
+  fallback is a separate shipping qualification;
   more expensive Epic or Cinematic presets are optional tiers, not gates;
 - manual editor traversal and screenshots are diagnostics, never acceptance
   authority.
@@ -177,6 +174,8 @@ records the exact ALIS invariant the native path cannot satisfy.
 | Water shading | Single Layer Water material shading model and native material output expression | UE 5.8 Nanite rejects this shading model, and the shading-model enum alone does not compile a valid water material. Water uses persistent non-Nanite StaticMesh assets; ALIS owns material parameters and canonical surface geometry, not another water renderer. |
 | Spatial ownership and streaming | World Partition and OFPA | ALIS maps canonical cells to actors/packages and audits them; UE loads and unloads spatial actors. |
 | Vegetation in 3C | Cell-owned HISM producer over accepted canonical records | Partitioned PCG was evaluated, but no admitted graph or biome pack exists; direct HISM preserves one placement authority. Admission still requires deterministic identity, exact manifests, dirty scope, Nanite/instancing, and measured runtime proof. |
+| Building massing in 3D | `FGeneralPolygon2d`, GeometryAlgorithms clipping/triangulation, and persistent StaticMesh assets | ProjectWorld owns topology admission and cell identity. Unreal owns polygon operations, mesh construction, serialization, Nanite, collision, OFPA, and World Partition streaming. ProjectBuildingAssembly remains an optional later consumer for selected buildings, not the territory massing owner. |
+| Gameplay placement in 3E | `IObjectSpawnService`, ObjectDefinition primary assets, and spatial OFPA actors | ProjectWorld owns placement identity, terrain snap, dirty scope, and generation manifests. ProjectObject remains the only definition/capability realization owner behind the ProjectCore interface. Mutable runtime state is never generation input. |
 
 The immediate twin therefore routes accepted canonical data through
 GeoReferencing, LandscapeConfigHelper, GeometryCore and the gated
@@ -188,6 +187,19 @@ Generated-package no-op is decided from deterministic semantic input/output
 identity before serialization. Re-saving an unchanged Unreal package is not a
 byte-stability contract and must not be used to decide whether generation is a
 no-op.
+
+Runtime partition settings are map-owned state. Runtime profile source and
+read-back code participate only in the map producer fingerprint; evidence
+hosts participate in no producer fingerprint. Layer manifests record no
+runtime-profile identity, and switching a runtime candidate must preserve all
+terrain, water, road, vegetation, building, and gameplay manifest entries and
+artifact bytes.
+
+Runtime-route actors have stable grid-and-role identity across candidate
+profiles. When another runtime profile is requested, stale cleanup preserves
+same-grid runtime actors for in-place tag and policy updates; it removes them
+only when runtime realization is absent or the canonical grid no longer owns
+them.
 
 The Experimental Water plugin is not canonical or realization authority: its
 WaterBody lifecycle and implicit landscape behavior do not own ALIS identity,
@@ -279,6 +291,23 @@ incremental. Water assets use the profile-owned Single Layer Water material,
 remain non-Nanite, and generate no collision, navigation data, mesh distance
 field, authored LOD chain, or HLOD representation.
 
+Building massing is also persistent and cell local: one Nanite-enabled opaque
+`UStaticMesh` and one spatial OFPA actor per occupied canonical cell. The actor
+uses complex-as-simple query-and-physics collision, contributes no navigation,
+and has no distance field, authored LOD chain, or HLOD representation. A
+cross-cell footprint is clipped into adjacent packages without internal seam
+walls; the shared top/bottom boundary has no overlapping area. Exact layer
+inventory proves every occupied cell has one mesh asset and one external actor.
+
+Gameplay placement is persistent and object local: one spatial OFPA actor per
+stable placement ID, spawned from an existing ObjectDefinition through
+`IObjectSpawnService`. Actor name, actor GUID, and DataId derive from the stable
+placement ID and survive clean reconstruction. The placement transform snaps to
+the accepted canonical terrain surface. Exact inventory proves definition,
+transform, collision, required capabilities, spatial loading, external package
+ownership, and absence of HLOD. Regeneration may replace the actor but never
+owns mutable runtime save or replication state.
+
 An unchanged Apply must preserve actors, packages, layer manifests, and the
 active manifest set without invoking map serialization. UE 5.8 may retain an
 empty structural World Partition HLOD setup row; it is not an HLOD reference.
@@ -314,6 +343,11 @@ profile-specific proof and supported fallback. Geometry that cannot use an
 admitted native or Nanite path is rejected from the territory profile until
 explicitly decided; water is the narrowly proven native material exception and
 does not authorize another custom renderer or HLOD.
+
+Building massing uses the same compatible-opaque Nanite rule, but remains a
+separate cell-owned StaticMesh producer because collision and footprint holes
+are part of its admitted geometry contract. It is not an HISM population and
+not a modular-building assembly output.
 
 The admitted vegetation v1 path is one spatial HISM actor per occupied
 canonical cell. Explicit foliage points and deterministic area-lattice points
@@ -368,19 +402,59 @@ Official basis:
 
 ## Automated design and performance gate
 
-The initial design is selected in three evidence stages:
+The gate is product-first. Static and cook preflight for the baseline may run
+first, but broad candidate comparison and optimization are forbidden until one
+cold-started packaged baseline passes the real game route:
+
+```text
+default game entry -> main-menu Kazan selection -> experience descriptor
+-> ProjectLoading travel -> SinglePlayer GameMode -> possessed player
+-> grounded movement and collision -> centre -> edge -> centre streaming
+```
+
+The product-route baseline used `256 m` / `768 m`; the selected applied
+default is now `512 m` / `1536 m`. The product receipt authenticates the selected experience,
+map and GameMode, player spawn on generated ground, normal player movement,
+terrain/road/building collision, the existing gameplay-object interaction and
+collision boundary, and spatial unload plus reload. A direct command-line map
+open, Editor fly-through, or synthetic pawn is diagnostic and cannot satisfy
+this product-route invariant. If this path fails, route the defect to its
+actual loading, game, character, interaction, packaging, or World owner; do
+not alter accepted generated-layer authority to make the test pass.
+
+After product correctness, capture baseline Frame/Game/Render/GPU p95, useful
+p99 hitch evidence, peak process memory, residency, streaming failures, and
+time-to-ready. Only then select the initial design in these stages:
 
 1. Static partition audit: actor bounds, reference bundles, expected cells,
    per-cell package weight, Landscape proxy ownership, Data Layer membership,
-   Nanite/instance policy, and confirmed HLOD absence.
+   Nanite/instance policy, source-speed coverage, and confirmed HLOD absence.
 2. Commandlet/cook audit: generated descriptors, build success, cook size,
    missing packages, and settings read-back.
-3. Deterministic packaged traversal: dense centre, long diagonal, perimeter,
-   unload/reload backtrack, and a future-vehicle speed stress route.
+3. Deterministic packaged candidate traversal through the same product harness:
+   dense centre, long diagonal, perimeter, unload/reload backtrack, and a
+   higher-speed streaming-source stress route. The higher-speed route does not
+   authorize implementing a vehicle or another traversal system. Instant
+   centre-edge teleports remain correctness probes only; performance traversal
+   must be time-resolved so streaming latency and hitches are observable.
 
 Receipts record loaded and activated cells, time-to-ready, streaming failures,
 peak process memory, p95/p99/max hitch, CPU/GPU frame time, and hardware/preset
 identity. A human walkthrough cannot accept or reject a configuration.
+World Streaming Insights remains experimental diagnostic evidence. Failure to
+capture its trace cannot fail a run whose stable packaged telemetry proves the
+same invariant.
+
+The static audit is read-only and runs against the launcher Editor. It must not
+call realization Apply or save the map. Canonical-cell ownership and runtime
+grid assignment are separate measurements: Kazan layer actors belong to frozen
+930 m canonical cells, so a valid actor may intersect several finer runtime
+base cells and be assigned by World Partition at a higher hierarchy level. A
+raw base-cell intersection count is therefore diagnostic, not a failure by
+itself. Invalid bounds, missing canonical-cell identity or external packages,
+undeclared non-Landscape actor reference bundles, unexpected Data Layer
+membership, invalid Landscape proxy ownership, HLOD participation, or less
+than three loading-range cells fail closed.
 
 The accepted primary quality gate is RTX 4070, High preset, 1440p, and 60 FPS.
 In frame terms, p95 must remain at or below `16.67 ms`; a `33.34 ms` threshold
@@ -388,11 +462,18 @@ is only a 30 FPS fallback/failure boundary, not a 60 FPS success gate. Epic or
 Cinematic presets may target stronger cards and are never allowed to weaken
 the High gate.
 
-The accepted lower tier is RTX 3060-class hardware, Medium preset, 1080p, with
-a 60 FPS target and an explicit user-selectable 30 FPS fallback. A vague
-`30-60 FPS` acceptance band is rejected because it permits unstable frame
-pacing. Use Unreal scalability groups, bounded TSR or resolution scaling, and
-normal `GameUserSettings`; do not create per-GPU rendering code.
+The accepted lower shipping tier is RTX 3060-class hardware, Medium preset,
+1080p, with a 60 FPS target and an explicit user-selectable 30 FPS fallback. A
+vague `30-60 FPS` acceptance band is rejected because it permits unstable
+frame pacing. Use Unreal scalability groups, bounded TSR or resolution
+scaling, and normal `GameUserSettings`; do not create per-GPU rendering code.
+Hardware evidence must name the physical adapter used. Extrapolation,
+downclocking, or a custom hardware-emulation framework cannot qualify another
+tier. If the lower-tier adapter is unavailable, record it as unqualified and
+keep its release qualification open rather than inventing a pass. Missing
+secondary hardware does not block Slice 4 prototype acceptance, its human
+walkthrough, or its promotion checkpoint after the physical RTX 4070 primary
+gate and all correctness/profile-selection gates pass.
 
 The performance slice evaluates the declared candidates with identical builds,
 routes, hardware state, and capture rules. Hard correctness, memory, cook,
@@ -404,6 +485,35 @@ when a candidate stays inside these frozen constraints. If none passes, or a
 solution would change quality, territory, hardware, data ownership, or the
 one-grid/one-logical-Landscape architecture, the slice stops for an operator
 decision.
+
+The accepted 2026-08-25 comparison used one byte-identical launcher-engine
+Development executable on the physical RTX 4070, D3D12, High, 2560x1440, and
+offscreen rendering. Every candidate reported zero streaming failures:
+
+| Profile | Frame p95 ms | Frame p99 ms | GPU p95 ms | Process MiB | GPU MiB | Activation churn |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `128/768` | 15.800 | 21.377 | 10.218 | 3820.3 | 3625.1 | 1074 |
+| `256/768` | 15.027 | 19.004 | 10.368 | 3716.8 | 3547.9 | 1081 |
+| `512/1536` | 14.999 | 17.773 | 10.295 | 3761.6 | 3545.3 | 1855 |
+
+The matching static audit accepted all three candidates. It found 850 generated
+actors, 210 Landscape proxies, 11,755,861 external-package bytes, zero generated
+actor reference bundles, zero Data Layer memberships, zero missing packages,
+and zero HLOD participation. Conservative runtime-cell package attribution was
+219,560 bytes maximum for `128/768` and `256/768`, and 223,816 bytes for
+`512/1536`. The selected profile reduced spatial actor cell assignments from
+39,715 (`128/768`) and 12,827 (`256/768`) to 4,899 (`512/1536`).
+
+Launcher Shipping compiles with native CSV profiling disabled. Do not rebuild
+or patch engine source to manufacture Shipping CSV evidence. Profile selection
+therefore uses packaged Development native CSV and native runtime telemetry;
+a separate launcher Shipping run proves the real menu/loading/gameplay route
+against the selected cooked world. Neither run may substitute for the other.
+
+After automated Slice 4 acceptance, a human Kazan walkthrough is the product
+promotion checkpoint before scenario or fidelity expansion. It is valuable
+product judgment, but it does not replace or override the automated technical
+receipt.
 
 Epic's Lumen guidance assigns High to a 60 FPS target, Epic to 30 FPS, and
 Medium to lower-end PCs. See the

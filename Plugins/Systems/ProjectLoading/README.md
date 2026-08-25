@@ -42,6 +42,22 @@ Module boundary: lives in Systems tier, depends on ProjectCore for interfaces an
 
 **Full implementation:** See ProjectLoading source for complete pattern with code examples.
 
+## Travel provenance and boot re-entry
+
+ProjectLoading appends the owner-only `ProjectLoadingRoute=1` URL option when
+it builds travel. The destination world uses that provenance to distinguish a
+completed loading route from a direct map open. A late initial-experience
+callback must not start the boot experience again after proven ProjectLoading
+travel, otherwise a successful menu selection can bounce back to the menu.
+Callers cannot supply or override the provenance option.
+
+Focused regression:
+
+```text
+ProjectLoading.Unit.TravelURL.Provenance
+ProjectLoading.DescriptorResolution.Kazan.ProductRouteProjection
+```
+
 ## 6-Phase Loading Pipeline
  
 ProjectLoading executes content loading in 6 sequential phases. 

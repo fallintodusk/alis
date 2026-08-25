@@ -1,6 +1,9 @@
-# bring_hope
+# Current product focus - Kazan proof
 
 One-month plan to make ALIS visible and believable.
+
+This file owns product outcomes, not implementation gates or evidence. It may
+point to the one active task currently advancing an outcome.
 
 **Vision SOT:** [VISION.md](../../VISION.md)
 
@@ -16,8 +19,9 @@ The city gets attention. The survival loop earns belief.
 
 The only hook strong enough to stop strangers scrolling: a survival game set in a real city you can find on a map.
 
-- [ ] Generate the Kazan territory layers needed for a believable capture
-  ([execution](world_realize_kazan_territory_slice_3b_roads.md))
+- [x] Generate the Kazan territory layers needed for a believable capture
+- [ ] Make Kazan playable through the normal game route
+  ([current execution](world_validate_kazan_territory_slice_4_runtime.md))
 - [ ] Capture comparison footage: real place vs in-game (side-by-side)
 - [ ] Edit 60-90 second video - city first, survival glimpse second
 - [ ] Post to r/unrealengine, r/indiegaming, r/gamedev

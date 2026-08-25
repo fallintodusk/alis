@@ -5,9 +5,11 @@
 
 #include "ProjectWorldAuthoredOverlay.h"
 #include "ProjectWorldAuthoredOverlayRealization.h"
+#include "ProjectWorldBuildingRealization.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldDataRoots.h"
 #include "ProjectWorldGeneratedGeometry.h"
+#include "ProjectWorldGameplayPlacement.h"
 #include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldLayerInventory.h"
 #include "ProjectWorldLayerDirtyInput.h"
@@ -17,6 +19,7 @@
 #include "ProjectWorldPresentationRealization.h"
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRuntimeProfile.h"
+#include "ProjectWorldRuntimePartitionRealization.h"
 #include "ProjectWorldRuntimeRealization.h"
 #include "ProjectWorldRoadRealization.h"
 #include "ProjectWorldSavePolicy.h"
@@ -226,7 +229,8 @@ int32 FProjectWorldRealizationService::Run(
 			Request.RealizationProfilePath,
 			RealizationProfile,
 			PresentationErrorCode,
-			PresentationError) ||
+			PresentationError,
+			Request.TransientRealizationProfileRoot) ||
 		RealizationProfile.WorldDataPluginName != Bundle.WorldDataPluginName ||
 		RealizationProfile.CanonicalProfileId != Bundle.ProfileId ||
 		RealizationProfile.MapPackagePath != Request.MapPackagePath))
@@ -336,6 +340,8 @@ int32 FProjectWorldRealizationService::Run(
 	OutResult.PresentationProfileHash = PresentationProfile.ProfileHash;
 	OutResult.RuntimeProfileId = RuntimeProfile.ProfileId;
 	OutResult.RuntimeProfileHash = RuntimeProfile.ProfileHash;
+	OutResult.RuntimeProfileKind = RuntimeProfile.ProfileKind;
+	OutResult.RuntimePartitionClass = RuntimeProfile.RuntimePartitionClass;
 	OutResult.RuntimeRouteId = RuntimeProfile.RouteId;
 	OutResult.RuntimeRouteFeatureId = RuntimeProfile.RouteFeatureId;
 	OutResult.RealizationProfileId = RealizationProfile.ProfileId;
@@ -456,7 +462,7 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 	OutResult.bWorldPartition = true;
-	const bool bPartitionHlodPolicyChanged =
+	bool bPartitionPolicyChanged =
 		ProjectWorldPartitionPolicy::CountHLODLayerReferences(World) > 0;
 	if (!ProjectWorldPartitionPolicy::DisableHLOD(World, EditorError))
 	{
@@ -464,6 +470,15 @@ int32 FProjectWorldRealizationService::Run(
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
+	bool bRuntimePartitionChanged = false;
+	if (bNeedsRuntime && !ProjectWorldRuntimePartitionRealization::ApplyAndCapture(
+		World, RuntimeProfile, OutResult, bRuntimePartitionChanged, EditorError))
+	{
+		Reject(OutResult, TEXT("editor-runtime-partition"), TEXT("Cannot apply the runtime partition profile."), EditorError);
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
+	bPartitionPolicyChanged |= bRuntimePartitionChanged;
 	if (Request.Mode == EProjectWorldRealizationMode::Apply &&
 		!ProjectWorldPresentationMaterialRealization::Prepare(
 			PresentationProfile,
@@ -585,6 +600,21 @@ int32 FProjectWorldRealizationService::Run(
 			World, Bundle, RealizationProfile, AuthoredOverlaySet, OutResult, EditorError))
 		{
 			Reject(OutResult, TEXT("geometry-vegetation"), TEXT("Cannot realize cell-owned vegetation instances."), EditorError);
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
+		if (bNeedsLayerPlan && !ProjectWorldBuildingRealization::Apply(
+			World, Bundle, RealizationProfile, AuthoredOverlaySet,
+			PresentationResources.BuildingMaterial, OutResult, EditorError))
+		{
+			Reject(OutResult, TEXT("geometry-buildings"), TEXT("Cannot realize cell-owned building massing."), EditorError);
+			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
+		if (bNeedsLayerPlan && !ProjectWorldGameplayPlacement::Apply(
+			World, Bundle, RealizationProfile, OutResult, EditorError))
+		{
+			Reject(OutResult, TEXT("gameplay-placement"), TEXT("Cannot realize ObjectDefinition gameplay placements."), EditorError);
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
@@ -739,7 +769,7 @@ int32 FProjectWorldRealizationService::Run(
 	}
 	OutResult.UpdatedActorCount += ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
 	if (ProjectWorldSavePolicy::RequiresBroadWorldSave(
-			OutResult, bExistingMap, bPartitionHlodPolicyChanged) &&
+			OutResult, bExistingMap, bPartitionPolicyChanged) &&
 		!SaveGeneratedWorld(World, Request.MapPackagePath))
 	{
 		Reject(OutResult, TEXT("save-map"), TEXT("Cannot save the generated World Partition map."), Request.MapPackagePath);
@@ -812,6 +842,13 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("presentation_profile_sha256"), Result.PresentationProfileHash);
 	Root->SetStringField(TEXT("runtime_profile"), Result.RuntimeProfileId);
 	Root->SetStringField(TEXT("runtime_profile_sha256"), Result.RuntimeProfileHash);
+	Root->SetStringField(TEXT("runtime_profile_kind"), Result.RuntimeProfileKind);
+	Root->SetStringField(TEXT("runtime_partition_class"), Result.RuntimePartitionClass);
+	Root->SetNumberField(TEXT("runtime_partition_count"), Result.RuntimePartitionCount);
+	Root->SetNumberField(TEXT("runtime_cell_size_m"), Result.RuntimeCellSizeMeters);
+	Root->SetNumberField(TEXT("runtime_loading_range_m"), Result.RuntimeLoadingRangeMeters);
+	Root->SetBoolField(TEXT("runtime_partition_is_2d"), Result.bRuntimePartitionIs2D);
+	Root->SetBoolField(TEXT("runtime_block_on_slow_streaming"), Result.bRuntimeBlockOnSlowStreaming);
 	Root->SetStringField(TEXT("runtime_route"), Result.RuntimeRouteId);
 	Root->SetStringField(TEXT("runtime_route_feature_id"), Result.RuntimeRouteFeatureId);
 	Root->SetStringField(TEXT("authored_overlay_set"), Result.AuthoredOverlaySetId);
@@ -1038,8 +1075,22 @@ bool FProjectWorldRealizationService::WriteResult(
 	Changes->SetNumberField(TEXT("vegetation_water_exclusions"), Result.VegetationWaterExcludedCount);
 	Changes->SetNumberField(TEXT("vegetation_authored_mask_exclusions"), Result.VegetationAuthoredMaskExcludedCount);
 	Changes->SetNumberField(TEXT("vegetation_instance_rewrites"), Result.VegetationInstanceRewriteCount);
+	Changes->SetNumberField(TEXT("building_cell_actors"), Result.BuildingCellActorCount);
+	Changes->SetNumberField(TEXT("building_mesh_assets"), Result.BuildingMeshAssetCount);
+	Changes->SetNumberField(TEXT("building_triangles"), Result.BuildingTriangleCount);
+	Changes->SetNumberField(TEXT("building_triangle_rewrites"), Result.BuildingTriangleRewriteCount);
+	Changes->SetNumberField(TEXT("building_candidate_fragments"), Result.BuildingCandidateFragmentCount);
+	Changes->SetNumberField(TEXT("building_accepted_fragments"), Result.BuildingAcceptedFragmentCount);
+	Changes->SetNumberField(TEXT("building_duplicate_fragments"), Result.BuildingDuplicateFragmentCount);
+	Changes->SetNumberField(TEXT("building_contained_fragments"), Result.BuildingContainedFragmentCount);
+	Changes->SetNumberField(TEXT("building_conflict_fragments"), Result.BuildingConflictFragmentCount);
+	Changes->SetNumberField(TEXT("building_malformed_fragments"), Result.BuildingMalformedFragmentCount);
+	Changes->SetNumberField(
+		TEXT("building_authored_mask_exclusions"), Result.BuildingAuthoredMaskExcludedFragmentCount);
 	Changes->SetNumberField(TEXT("self_saved_actor_mutations"), Result.SelfSavedActorMutationCount);
 	Changes->SetNumberField(TEXT("building_sections"), Result.BuildingSectionCount);
+	Changes->SetNumberField(TEXT("gameplay_placement_actors"), Result.GameplayPlacementActorCount);
+	Changes->SetNumberField(TEXT("gameplay_placement_rewrites"), Result.GameplayPlacementRewriteCount);
 	Changes->SetNumberField(TEXT("presentation_actors"), Result.PresentationActorCount);
 	Changes->SetNumberField(TEXT("capture_viewpoints"), Result.CaptureViewpointCount);
 	Changes->SetStringField(TEXT("cross_cell_road_feature_id"), Result.CrossCellRoadFeatureId);

@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_gameplay_placement.schema.json",
+  "schema_version": 1,
+  "placement_set_id": "kazan_territory_gameplay_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "canonical_profile_id": "kazan_territory_v1",
+  "placements": [
+    {
+      "object_id": "kazan_water_cache_01",
+      "definition_id": "ObjectDefinition:WaterBottle",
+      "cell_x": 0,
+      "cell_y": 0,
+      "easting_m": 380400.0,
+      "northing_m": 6184700.0,
+      "surface_offset_m": 0.05,
+      "yaw_degrees": 15.0
+    },
+    {
+      "object_id": "kazan_water_cache_02",
+      "definition_id": "ObjectDefinition:WaterBottleSmall",
+      "cell_x": 0,
+      "cell_y": 0,
+      "easting_m": 380450.0,
+      "northing_m": 6184750.0,
+      "surface_offset_m": 0.05,
+      "yaw_degrees": 135.0
+    },
+    {
+      "object_id": "kazan_water_cache_03",
+      "definition_id": "ObjectDefinition:WaterBottleBig",
+      "cell_x": 0,
+      "cell_y": 0,
+      "easting_m": 380500.0,
+      "northing_m": 6184800.0,
+      "surface_offset_m": 0.05,
+      "yaw_degrees": 255.0
+    }
+  ]
+}

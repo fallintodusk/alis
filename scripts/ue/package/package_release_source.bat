@@ -26,5 +26,5 @@ if not exist "%ENGINE_PYTHON%" (
 "%ENGINE_PYTHON%" "%~dp0..\check\governance\validate_engine_env.py" --repo-root "%~dp0..\..\.." --require-source-identity
 if errorlevel 1 exit /b 1
 
-powershell -ExecutionPolicy Bypass -File "%~dp0package_release.ps1" -EngineRoot "%UE_SOURCE_PATH%" -CreateReleaseArchive %*
+powershell -ExecutionPolicy Bypass -File "%~dp0package_release.ps1" -EngineRoot "%UE_SOURCE_PATH%" -SourceRelease -CreateReleaseArchive %*
 exit /b %ERRORLEVEL%

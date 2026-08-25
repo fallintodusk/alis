@@ -327,6 +327,7 @@ Layer stack, bottom to top:
 | Roads | Generated, profile-owned | Fully replaceable |
 | Vegetation and foliage | Generated, profile-owned | Fully replaceable |
 | Building massing (territory blockouts) | Generated, profile-owned | Fully replaceable |
+| Gameplay placement | Generated, profile-owned | Fully replaceable; mutable runtime state is external |
 | Modular building assembly (selected features; later generator) | Generated, profile-owned | Fully replaceable; passes admission before first territory/playable use |
 | Presentation material | Generated, profile-owned | Fully replaceable |
 | Authored overlay (hero locations, spatial anchors) | Authored, protected | Byte-identical across any regeneration |
@@ -370,11 +371,11 @@ It currently admits only these complete tuples:
 | `project_water_mesh:v1` | generated geography | water | cell local | canonical cell | World Partition spatial |
 | `project_road_mesh:v1` | generated geography | roads | cell local | canonical cell | World Partition spatial |
 | `project_vegetation_instances:v1` | generated geography | vegetation | cell-local HISM actors | canonical cell | World Partition spatial |
+| `project_building_massing:v1` | generated geography | buildings | cell-local StaticMesh actors | canonical cell | World Partition spatial |
+| `project_gameplay_placement:v1` | generated gameplay placement | gameplay placements | object-local ObjectDefinition actors | stable object ID | World Partition spatial |
 
-Gameplay placement is a future layer kind, not an executable generator pair.
-It is registered only when its selector, typed object domain, realization, and
-tests exist together. A layer artifact root must be a strict descendant of the
-owner's `Generated/` root; no layer may claim that complete root.
+A layer artifact root must be a strict descendant of the owner's `Generated/`
+root; no layer may claim that complete root.
 
 Dependencies form a directed acyclic graph and execute in topological order;
 cycles, unknown layers, unknown generators, and artifact-root overlap fail
@@ -392,16 +393,17 @@ therefore produces a contract mismatch and a full dirty layer; JSON whitespace
 alone does not.
 
 The dirty vocabulary supports whole layer, exact canonical cell, source tile,
-and stable object ID. Only canonical cells are executable in the current v1
-pairs. A future source-tile or object-ID generator fails closed until it
-supplies its typed unit domain. Computed removal units use the union of current
-and accepted-prior units. Operator additions may target only current units or
-explicit `*`. Canonical-cell halo expansion is clipped to the target layer's
-real domain, so it cannot invent off-territory cells. Input hashes discover the
-minimum dirty set. An operator may manually add work for design, but may never
-remove computed units or bypass transitive dependency expansion. Data Layers
-may group or toggle realized actors, but do not establish generation ownership
-by themselves.
+and stable object ID. Each executable pair supplies its typed unit domain.
+Cross-granularity dependencies require an explicit source-unit to target-unit
+mapping; terrain-cell changes therefore dirty only gameplay objects assigned
+to that cell. Computed removal units use the union of current and accepted-prior
+units. Operator additions may target only current units or explicit `*`.
+Canonical-cell halo expansion is clipped to the target layer's real domain, so
+it cannot invent off-territory cells. Input hashes discover the minimum dirty
+set. An operator may manually add work for design, but may never remove
+computed units or bypass transitive dependency expansion. Data Layers may group
+or toggle realized actors, but do not establish generation ownership by
+themselves.
 
 Terrain cell input identity is the authenticated canonical terrain artifact.
 Water cell input identity is a deterministic hash of only water semantics
@@ -413,6 +415,18 @@ Road cell input identity likewise covers only the terrain dependency and road
 semantics consumed by that cell. Adding another profile layer cannot invalidate
 an accepted layer merely because the aggregate profile document hash changed;
 the normalized layer contract remains that layer's behavior authority.
+Building cell input identity covers only intersecting canonical building
+geometry and admitted height, the owning terrain artifact, intersecting authored
+building masks, quantization, and the normalized building-layer contract. A
+building that crosses a cell boundary participates in each affected cell; an
+unrelated road, water, vegetation, or authored overlay does not dirty it.
+Gameplay-object input identity covers its typed placement record, referenced
+ObjectDefinition identity, owning terrain-cell input, provider contract, and
+normalized gameplay-layer contract. ProjectWorld consumes the ProjectCore
+spawn interface; ProjectObject remains the sole ObjectDefinition and capability
+realization owner. The generation source owns stable placement and definition
+identity only. Quantity, container contents, condition, interaction progress,
+and other mutable runtime state remain in runtime persistence and replication.
 
 Dirty selectors are transient operation input, not profile state. The wrapper
 writes one schema-validated dirty-input document from the accepted per-layer
@@ -697,7 +711,7 @@ current fingerprint of its owning producer, because the audit's claim is that
 the accepted scope is reproducible by today's producer. Producer-local source
 sets are explicit, not inferred transitively. True shared byte-producing or
 manifest-producing primitives participate in each affected producer; terrain,
-water, road, vegetation, presentation, and map implementation files participate
+water, road, vegetation, building, presentation, and map implementation files participate
 only in their owners. Direct shared placement/lifecycle dependencies participate
 in every producer that calls them. A road-only implementation edit therefore
 cannot stale terrain, water, vegetation, presentation, or map scopes. The
@@ -1130,14 +1144,31 @@ lattice and coordinate authority, not a competing v1 option.
   and roads. Candidate points inside selected road footprints, canonical water
   polygon/ribbon footprints matching water v1, or intersecting authored masks
   whose `excludes` contains `vegetation` are removed before placement. The cell
-  input hash includes only
-  the road fragments, water triangles, and authored masks intersecting that
-  cell, so relevant exclusion changes dirty vegetation and unrelated overlays
-  remain clean.
+  input hash includes only the road fragments, canonical water polygon/ribbon
+  footprint inputs, and authored masks intersecting that cell, so relevant
+  exclusion changes dirty vegetation and unrelated overlays remain clean.
 - Partitioned PCG was evaluated for v1. The reusable PCG module and forest pack
   contain no admitted graph or biome content, so routing v1 through PCG would
   create a second unproven placement authority. A future PCG adapter may replace
   the producer only through a new registered tuple and the same layer gates.
+- The building-massing v1 producer consumes accepted canonical `building`
+  Polygon or MultiPolygon geometry and its compiler-admitted `height_m`. It unions parts,
+  preserves holes, clips output to canonical cells, and creates one persistent
+  StaticMesh plus one spatial OFPA actor per occupied cell. Flat massing is
+  anchored to the owning terrain at the clamped footprint-bounds center.
+  Geometrically equal footprints keep the lowest stable feature ID; strictly
+  contained footprints associate with their container; both participants in
+  any remaining positive-area overlap are rejected with their stable IDs.
+  Malformed geometry, non-positive or over-profile height, and fragments that
+  intersect authored masks excluding `buildings` are rejected before mesh
+  output. Cell cuts do not emit internal seam walls, so adjacent fragments do
+  not duplicate visible or collision surfaces.
+- Building assets are Nanite-enabled opaque StaticMeshes with
+  complex-as-simple query-and-physics collision, no navigation contribution,
+  no distance field, no authored LOD chain, and no HLOD participation. They are
+  territory blockouts only: no interiors, doors, gameplay placement, or modular
+  assembly is implied. Later selected-feature assembly must replace only the
+  selected massing through its own admitted generator tuple.
 - Do not generate HLOD layers, proxy meshes, merged meshes, simplified
   meshes, or HLOD companion packages for `kazan_territory_v1`. HLOD adds a
   separate distant-representation build, storage, cook, and regeneration
@@ -1191,7 +1222,8 @@ A territory profile is accepted only when it proves:
 
 - deterministic source-to-Unreal regeneration without manual repair;
 - continuous terrain and cross-cell water/road topology;
-- bounded foliage and building generation with no duplicate identities;
+- bounded foliage and building generation with no duplicate identities or
+  cross-cell render/collision seam walls;
 - protected authored overlays survive unchanged regeneration;
 - every point inside the product boundary has generated ground and player
   collision, and territory routes prove load, unload, and reload behavior;

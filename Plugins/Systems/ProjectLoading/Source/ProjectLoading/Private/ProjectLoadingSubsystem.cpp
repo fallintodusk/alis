@@ -6,6 +6,7 @@
 #include "ProjectLoadingLog.h"
 #include "ProjectLoadPhaseExecutor.h"
 #include "ProjectLoadPhaseExecutors.h"
+#include "ProjectLoadingTravelURL.h"
 #include "ProjectServiceLocator.h"
 #include "Experience/ProjectExperienceRegistry.h"
 
@@ -347,6 +348,15 @@ void UProjectLoadingSubsystem::StartInitialExperience()
 	static bool bInitialLoadStarted = false;
 	if (bInitialLoadStarted)
 	{
+		return;
+	}
+	UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = GameInstance == nullptr ? nullptr : GameInstance->GetWorld();
+	if (World != nullptr && ProjectLoadingTravelURL::HasProvenance(World->URL))
+	{
+		UE_LOG(LogProjectLoading, Display,
+			TEXT("ProjectLoadingSubsystem: Skipping initial experience after ProjectLoading-owned travel"));
+		bInitialLoadStarted = true;
 		return;
 	}
 

@@ -517,7 +517,35 @@ specific rendering feature in the specific envelope before building on it.
 rejects a capture set whose poses return identical bytes, which is what a
 non-rendering host produces.
 
-## 16. An empty recovery journal is not metadata-only
+---
+
+## 16. Loaded actors do not prove startup rendering is settled
+
+**Symptom.** The unattended evidence receipt is accepted and reports all 861
+actors, 210 Landscape proxies and 1180 visible primitives, but the PNGs contain
+disconnected checkerboard Landscape components. The same map renders coherently
+after the live editor has advanced normally.
+
+**Root cause.** `-ExecCmds` runs during editor startup. Loading the complete
+World Partition bounds and calling `UpdateWorldComponents` does not make the
+new render state safe to capture in that same engine frame. A render-thread
+flush completes queued work, but it does not replace the missing game/editor
+frame boundaries.
+
+**Fix.** Keep the loader adapter alive and defer `CaptureScene()` until three
+distinct editor frames have passed with no pending asset compilation. Apply a
+bounded timeout and write a rejected receipt if readiness never arrives.
+
+**File.** `ProjectWorldEditorModule.cpp`,
+`ProjectWorldEvidenceReadiness.h`.
+
+**Regression test.** `Project.World.Evidence.ReadinessContract` pins the
+three-frame, compilation-reset rule. The rendered replacement gate is the cold
+`capture_visual_evidence.ps1` route itself; operator inspection must still
+confirm semantic coherence because hashes and dimensions cannot detect this
+failure class.
+
+## 17. An empty recovery journal is not metadata-only
 
 **Symptom.** A metadata-only manifest publication fails before commit. Running
 the supported transaction recovery removes an existing generated map and the
@@ -546,7 +574,7 @@ directions: existing map/presentation bytes are restored from real snapshot
 records, while an initially absent target is removed when the record set is
 empty.
 
-## 17. Destroying an external actor does not retire its package file
+## 18. Destroying an external actor does not retire its package file
 
 **Symptom.** Regeneration changes a cell from populated to empty. The actor is
 gone from the editor world, but its old World Partition external-actor package
@@ -569,7 +597,7 @@ if either step fails.
 occupied cell and an external package marker, regenerates the cell with zero
 instances, and requires the package file to be absent.
 
-## 18. Do not rebuild water meshes to classify vegetation candidates
+## 19. Do not rebuild water meshes to classify vegetation candidates
 
 **Symptom.** Kazan realization remains CPU-bound in vegetation input capture
 after roads finish, and the Matrix can exceed its outer timeout.
@@ -593,7 +621,7 @@ artifact, not a vegetation input.
 holes, ribbons, roads, masks, and input dirtiness. The Kazan Matrix exercises
 the full 210-cell input capture under the acceptance timeout.
 
-## 19. Replace components before positioning a generated cell actor
+## 20. Replace components before positioning a generated cell actor
 
 **Symptom.** Generated vegetation cells have distinct stable identities and
 correct instance counts, but their actors and instances overlap near world
@@ -621,3 +649,117 @@ rewrite unchanged cell semantics. `generated_layer_manifest.Tests.ps1`
 requires stale producer fingerprints to inject whole-layer dirty work. Live
 editor evidence compares vegetation and road actors for the same cell identity
 after save and reload.
+
+## 21. Configure unbound post-process volumes before making them nonspatial
+
+**Symptom.** Editor structure and product-route checks pass, but the packaged
+Kazan screenshot is an all-white frame under the generated sun. The intended
+fixed-exposure post-process actor is absent after World Partition streaming.
+
+**Root cause.** `APostProcessVolume::CanChangeIsSpatiallyLoadedFlag()` returns
+false while the volume is unbound. Setting `bUnbound` first therefore prevents
+the generator from clearing `bIsSpatiallyLoaded`; the actor stays spatial at
+world origin and can unload during real gameplay.
+
+**Fix.** Temporarily keep the volume bound, set it nonspatial, then make it
+unbound. Current-state validation must also reject an existing unbound spatial
+actor so regeneration migrates legacy packages instead of accepting them.
+
+**File.**
+`Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp`.
+
+**Regression test.**
+`Project.World.Realization.Presentation.ActorLifecycle` proves both new actor
+creation and migration of the legacy streamed state. Product screenshot
+validation independently rejects uniform white and black frames.
+
+---
+
+## 22. Runtime-only code must not fingerprint generated geography layers
+
+**Symptom.** Changing a World Partition runtime profile advances all six Kazan
+generated-layer scopes and can rewrite otherwise frozen actor or mesh packages.
+A candidate tournament then compares different world bytes instead of one
+world under different streaming profiles.
+
+**Root cause.** There were two propagation paths. Runtime partition and
+evidence-host sources were once included in the shared producer fingerprint.
+After that was corrected, the realization profile compiler still included
+`runtime_profile_id` in the execution hash consumed by every normalized layer
+contract. The first locality harness changed only the `-RuntimeProfile`
+argument, not the realization SOT field, so it produced a false green result.
+
+**Fix.** Fingerprint runtime partition realization only in the map producer,
+exclude evidence hosts from byte-producer fingerprints, and record `none` as
+the runtime identity of every geography/gameplay layer. Keep the full
+realization execution hash for the map, but derive layer contracts from a
+second execution identity that excludes `runtime_profile_id`. Exercise copied
+realization SOTs in owner-confined `tmp/world` authority and perform the
+one-time honest layer reconstruction before claiming locality.
+
+**File.** `ProjectWorldRealizationProfile.cpp`,
+`scripts/ue/world/generator_fingerprint.ps1`,
+`scripts/ue/world/realization_layer_operation.ps1`, and
+`scripts/ue/world/test/integration/runtime_profile_locality.ps1`.
+
+**Regression test.** `generator_fingerprint.Tests.ps1` proves source locality;
+`generated_layer_manifest.Tests.ps1` proves semantic stability; the production
+`runtime_profile_locality.ps1` integration changes the copied realization SOT
+`512/1536 -> 128/768 -> 512/1536` while requiring all six manifest entries and
+artifact hashes to remain identical.
+
+---
+
+## 23. A runtime profile switch must not retire stable route actors
+
+**Symptom.** A candidate profile Apply either cannot reclaim
+`ProjectWorld_PlayerStart` or reaches runtime acceptance with zero always-loaded
+player starts, even though the baseline map was valid.
+
+**Root cause.** Pre-Apply cleanup required the actor's mutable runtime-profile
+tag to equal the requested candidate. It destroyed the stable grid-and-role
+actor before runtime realization could update the tag. The pending UObject then
+retained its deterministic name until garbage collection.
+
+**Fix.** Treat same-grid runtime-role actors as current whenever runtime
+realization is requested, and keep this policy behind the map-owned runtime
+contract. Runtime identity reconciliation retires malformed competing owners
+before creating one deterministic replacement.
+
+**File.**
+`Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp`
+and `Source/ProjectWorldEditor/Private/ProjectWorldRuntimeRealization.cpp`.
+
+**Regression test.**
+`Project.World.Realization.Runtime.ProfileSwitchLifecycle` preserves stable
+identity across a candidate switch;
+`Project.World.Realization.Runtime.StaleIdentityReplacement` converges stale
+role, GUID, and object-name owners.
+
+---
+
+## 24. Canonical-cell ownership is not runtime base-cell containment
+
+**Symptom.** A static audit rejects every bounded runtime candidate because one
+930 m canonical-cell actor intersects more than four 128 m, 256 m, or 512 m
+runtime base cells, despite correct packaged streaming and stable ownership.
+
+**Root cause.** The audit treated the World Partition base-cell size as the
+generation ownership unit. Kazan generation is owned by frozen 930 m canonical
+cells. World Partition may assign a larger actor to a higher hierarchy level;
+road ribbon bounds may also extend slightly beyond the cell rectangle while
+remaining owned by one `RoadCell` identity.
+
+**Fix.** Validate cell-local layer actors against their canonical identity and
+the realized Landscape proxy cell extent. Record runtime-cell intersection and
+package attribution as candidate metrics. Fail invalid bounds, missing cell
+identity/packages, undeclared non-Landscape reference bundles, or broken
+Landscape/Data Layer/HLOD policy; do not invent a universal four-cell limit.
+
+**File.** `ProjectWorldStaticPartitionAudit.cpp` and
+`scripts/ue/world/audit_runtime_partition.ps1`.
+
+**Regression test.** `Project.World.Realization.Runtime.StaticPartitionCellSpan`
+proves the base-cell counting math. The read-only production audit verifies all
+three Kazan candidates against the same 850 generated actors without saving the
+map.

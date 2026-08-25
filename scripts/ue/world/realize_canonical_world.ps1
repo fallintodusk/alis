@@ -23,6 +23,10 @@ param(
 
     [string]$RealizationProfile = "",
 
+    # Test-only realization SOT copies may live under a caller-owned tmp/world
+    # root when the manifest authority is confined to that same sandbox.
+    [string]$TransientRealizationProfileRoot = "",
+
     [string]$EvidencePath = "",
 
 	[ValidateRange(0, 1000)]
@@ -171,10 +175,36 @@ if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath) -and
     throw "Realization profile does not exist: $realizationProfilePath"
 }
 $dataRootPrefix = $worldDataRoots.DataRoot.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-foreach ($profilePath in @($presentationProfilePath, $runtimeProfilePath, $authoredOverlayProfilePath, $realizationProfilePath)) {
+$transientRoot = ''
+foreach ($profilePath in @($presentationProfilePath, $runtimeProfilePath, $authoredOverlayProfilePath)) {
     if (-not [string]::IsNullOrWhiteSpace($profilePath) -and
         -not $profilePath.StartsWith($dataRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "World realization profile must belong to $($worldDataRoots.PluginName) Data: $profilePath"
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath) -and
+    -not $realizationProfilePath.StartsWith($dataRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $transientRoot = if ([string]::IsNullOrWhiteSpace($TransientRealizationProfileRoot)) {
+        ''
+    }
+    else { [System.IO.Path]::GetFullPath($TransientRealizationProfileRoot).TrimEnd('\', '/') }
+    $tmpWorldRoot = [System.IO.Path]::GetFullPath(
+        (Join-Path $projectRoot 'tmp\world')).TrimEnd('\', '/')
+    $transientPrefix = $transientRoot + [System.IO.Path]::DirectorySeparatorChar
+    $manifestRootPath = if ([string]::IsNullOrWhiteSpace($ManifestRoot)) {
+        ''
+    }
+    else { [System.IO.Path]::GetFullPath($ManifestRoot) }
+    $isConfinedTestProfile = $NonInteractive -and
+        $transientRoot.StartsWith(
+            $tmpWorldRoot + [System.IO.Path]::DirectorySeparatorChar,
+            [System.StringComparison]::OrdinalIgnoreCase) -and
+        $realizationProfilePath.StartsWith(
+            $transientPrefix, [System.StringComparison]::OrdinalIgnoreCase) -and
+        $manifestRootPath.StartsWith(
+            $transientPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+    if (-not $isConfinedTestProfile) {
+        throw "World realization profile must belong to $($worldDataRoots.PluginName) Data or an explicitly confined transient test root: $realizationProfilePath"
     }
 }
 if (-not (Test-Path -LiteralPath $editorCommand -PathType Leaf)) {
@@ -558,6 +588,9 @@ if (-not [string]::IsNullOrWhiteSpace($runtimeProfilePath)) {
 if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath)) {
     $unrealArguments += "-RealizationProfile=$realizationProfilePath"
 }
+if (-not [string]::IsNullOrWhiteSpace($transientRoot)) {
+    $unrealArguments += "-TransientRealizationProfileRoot=$transientRoot"
+}
 if (-not [string]::IsNullOrWhiteSpace($layerDirtyInputPath)) {
     $unrealArguments += "-LayerDirtyInput=$layerDirtyInputPath"
 }
@@ -734,6 +767,8 @@ if ($transactionActive) {
             authored_overlay_profile_sha256 = $authoredOverlayProfileHash
             map_package = $Map
         }
+		$layerInputIdentity = New-ProjectWorldLayerInputIdentity `
+			-OperationIdentity $inputIdentity
         $candidates = @()
         $retired = @($removedLayerScopes)
         $mapGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
@@ -822,7 +857,7 @@ if ($transactionActive) {
                     -ProjectRoot $projectRoot -ScopeId $scopeId `
                     -Generation $scopeGenerations[$scopeId] `
                     -OwningLayer ([string]$layerDefinitions[$scopeId].layer_id) `
-                    -OperationId $transactionId -InputIdentity $inputIdentity `
+                    -OperationId $transactionId -InputIdentity $layerInputIdentity `
                     -ScopePaths @() -ArtifactRecords $candidateInfo.Records `
                     -LayerContract $candidateInfo.Contract `
                     -ConsumerReferences @($mapScopeId) `

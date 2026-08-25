@@ -3,6 +3,19 @@
 
 Set-StrictMode -Version Latest
 
+function New-ProjectWorldLayerInputIdentity {
+    param([Parameter(Mandatory = $true)][System.Collections.IDictionary]$OperationIdentity)
+
+    $identity = [ordered]@{}
+    foreach ($entry in $OperationIdentity.GetEnumerator()) {
+        $identity[[string]$entry.Key] = $entry.Value
+    }
+    # Runtime partition policy is serialized only by the map owner. Generated
+    # layer producers must never claim it as an input or republish for it.
+    $identity.runtime_profile_sha256 = 'none'
+    return $identity
+}
+
 function Assert-ProjectWorldExecutableLayerTuple {
     param([Parameter(Mandatory = $true)][object]$Layer)
 
@@ -87,7 +100,47 @@ function Assert-ProjectWorldExecutableLayerTuple {
         [bool]$Layer.settings.nanite -eq $true -and
         [string]$Layer.settings.collision -ceq 'no_collision' -and
         [string]$Layer.settings.placement_policy -ceq 'canonical_points_and_lattice_areas'
-    if (-not $landscape -and -not $water -and -not $roads -and -not $vegetation) {
+    [object[]]$buildingDependencies = @()
+    if ($Layer.PSObject.Properties.Name -contains 'depends_on') {
+        $buildingDependencies = @($Layer.depends_on)
+    }
+    $buildings = $common -and
+        [string]$Layer.generator_id -ceq 'project_building_massing' -and
+        $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'buildings' -and
+        $buildingDependencies.Count -eq 1 -and
+        [string]$buildingDependencies[0] -ceq 'terrain' -and
+        [string]$Layer.spatial_ownership -ceq 'cell_local' -and
+        [string]$Layer.runtime_mapping -ceq 'world_partition_spatial' -and
+        [int]$Layer.dependency_halo_cells -eq 0 -and
+        [double]$Layer.settings.maximum_height_m -ge 50.0 -and
+        [double]$Layer.settings.maximum_height_m -le 1000.0 -and
+        [string]$Layer.settings.terrain_anchor_policy -ceq 'owner_cell_clamped_bounds_center' -and
+        [string]$Layer.settings.topology_policy -ceq 'cell_local_classify_v1' -and
+        [string]$Layer.settings.duplicate_policy -ceq 'stable_feature_id' -and
+        [string]$Layer.settings.contained_policy -ceq 'associate_with_container' -and
+        [string]$Layer.settings.conflict_policy -ceq 'reject_affected_fragments' -and
+        [bool]$Layer.settings.nanite -eq $true -and
+        [string]$Layer.settings.collision -ceq 'complex_as_simple' -and
+        [string]$Layer.settings.navigation -ceq 'no_navigation'
+    [object[]]$gameplayDependencies = @()
+    if ($Layer.PSObject.Properties.Name -contains 'depends_on') {
+        $gameplayDependencies = @($Layer.depends_on)
+    }
+    $gameplay = [string]$Layer.layer_kind -ceq 'generated_gameplay_placement' -and
+        [int]$Layer.generator_version -eq 1 -and
+        [string]$Layer.generator_id -ceq 'project_gameplay_placement' -and
+        $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'gameplay_placements' -and
+        $gameplayDependencies.Count -eq 1 -and
+        [string]$gameplayDependencies[0] -ceq 'terrain' -and
+        [string]$Layer.spatial_ownership -ceq 'object_local' -and
+        [string]$Layer.dirty_granularity -ceq 'object_id' -and
+        [int]$Layer.dependency_halo_cells -eq 0 -and
+        [string]$Layer.runtime_mapping -ceq 'world_partition_spatial' -and
+        [string]$Layer.settings.placement_source -match '^GameplayPlacement/[a-z0-9_]+\.json$' -and
+        [string]$Layer.settings.surface_policy -ceq 'canonical_terrain_snap' -and
+        [string]$Layer.settings.runtime_state_policy -ceq 'external_to_generation'
+    if (-not $landscape -and -not $water -and -not $roads -and -not $vegetation -and
+        -not $buildings -and -not $gameplay) {
         throw "Realization layer does not match a registered executable tuple: $($Layer.layer_id)"
     }
 }

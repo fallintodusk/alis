@@ -4,6 +4,7 @@
 #include "TravelPhaseExecutor.h"
 #include "ProjectLoadingLog.h"
 #include "ProjectLoadingSubsystem.h"
+#include "ProjectLoadingTravelURL.h"
 #include "Engine/AssetManager.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -82,37 +83,7 @@ FProjectPhaseResult FTravelPhaseExecutor::Execute(FProjectPhaseContext& Context)
 
 	ReportProgress(Context, 0.25f, LOCTEXT("TravelExecuting", "Traveling to map..."));
 
-	// Build travel URL with options
-	FString TravelURL = MapPath;
-
-	// IMPORTANT: The 'game=' URL option must come LAST because Unreal's parser
-	// reads this option value to end-of-string (not until next ? separator).
-	// If other options follow 'game=', they get incorrectly appended to the class name.
-	FString GameOptionValue;
-
-	// First pass: add all options EXCEPT 'game='
-	// NOTE: Unreal Engine URL options use '?' as separator for ALL options (not '&' like web URLs).
-	// Format: MapName?Option1=Value?Option2=Value?game=/Script/Module.ClassName
-	// NOTE: UClass name does NOT include 'A' prefix (C++ ASinglePlayerGameMode -> UClass SinglePlayerGameMode)
-	// See: https://dev.epicgames.com/documentation/en-us/unreal-engine/travelling-in-multiplayer-in-unreal-engine
-	// See: Plugins/Gameplay/ProjectGameplay/README.md for full syntax reference
-	for (const auto& Option : Context.Request.CustomOptions)
-	{
-		if (Option.Key.Equals(TEXT("game"), ESearchCase::IgnoreCase))
-		{
-			// Hold 'game=' for last
-			GameOptionValue = Option.Value;
-			continue;
-		}
-
-		TravelURL += FString::Printf(TEXT("?%s=%s"), *Option.Key, *Option.Value);
-	}
-
-	// Second pass: add 'game=' option LAST (if present)
-	if (!GameOptionValue.IsEmpty())
-	{
-		TravelURL += FString::Printf(TEXT("?game=%s"), *GameOptionValue);
-	}
+	const FString TravelURL = ProjectLoadingTravelURL::Build(MapPath, Context.Request.CustomOptions);
 
 	UE_LOG(LogProjectLoading, Display, TEXT("Phase 5: Travel - Travel URL: %s"), *TravelURL);
 
@@ -191,4 +162,3 @@ FProjectPhaseResult FTravelPhaseExecutor::Execute(FProjectPhaseContext& Context)
 }
 
 #undef LOCTEXT_NAMESPACE
-

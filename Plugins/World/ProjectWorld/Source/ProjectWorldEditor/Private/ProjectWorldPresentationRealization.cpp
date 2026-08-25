@@ -101,6 +101,18 @@ namespace ProjectWorldPresentationRealization
 				Volume.GetRootComponent()->Bounds.SphereRadius > UE_SMALL_NUMBER;
 		}
 
+		bool ConfigureAlwaysLoadedUnboundVolume(APostProcessVolume& Volume)
+		{
+			Volume.bUnbound = false;
+			if (!Volume.CanChangeIsSpatiallyLoadedFlag())
+			{
+				return false;
+			}
+			Volume.SetIsSpatiallyLoaded(false);
+			Volume.bUnbound = true;
+			return !Volume.GetIsSpatiallyLoaded();
+		}
+
 		void SetIdentity(
 			AActor& Actor,
 			const FString& Role,
@@ -259,7 +271,7 @@ namespace ProjectWorldPresentationRealization
 				HasSingleTagValue(**Actor, ProfilePrefix, Profile.ProfileId) &&
 				HasSingleTagValue(**Actor, ProfileHashPrefix, Profile.ProfileHash) &&
 				HasSingleTagValue(**Actor, GridPrefix, Bundle.GridId) &&
-				(!(*Actor)->CanChangeIsSpatiallyLoadedFlag() || !(*Actor)->GetIsSpatiallyLoaded());
+				!(*Actor)->GetIsSpatiallyLoaded();
 		}
 		if (bPresentationCurrent)
 		{
@@ -305,7 +317,11 @@ namespace ProjectWorldPresentationRealization
 			return false;
 		}
 		CloudComponent->SetMaterial(Resources.CloudMaterial);
-		PostProcess->bUnbound = true;
+		if (!ConfigureAlwaysLoadedUnboundVolume(*PostProcess))
+		{
+			OutError = TEXT("Generated Post Process Volume cannot be made always loaded.");
+			return false;
+		}
 		PostProcess->BlendWeight = 1.0f;
 		ConfigureFixedExposure(PostProcess->Settings, Profile.FixedExposureEv100);
 

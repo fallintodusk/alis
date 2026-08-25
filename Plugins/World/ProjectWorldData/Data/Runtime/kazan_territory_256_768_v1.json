@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json",
+  "schema_version": 2,
+  "profile_id": "kazan_territory_256_768_v1",
+  "profile_kind": "territory_product",
+  "grid_id": "grid_413718bc833994e5",
+  "runtime_partition": {
+    "partition_class": "lhgrid_2d",
+    "cell_size_m": 256,
+    "loading_range_m": 768,
+    "block_on_slow_streaming": true
+  },
+  "gameplay_route": {
+    "route_id": "kazan_product_start",
+    "feature_id": "alis:osm:way:1151612452",
+    "endpoint_inset_m": 3.0,
+    "surface_offset_m": 0.15,
+    "navigation_padding_m": 20.0,
+    "navigation_height_m": 100.0
+  },
+  "optimization_policy": {
+    "nanite": "enabled_for_supported_generated_static_meshes",
+    "instancing": "cell_owned_hism",
+    "hlod": "disabled_for_territory"
+  },
+  "budgets": {
+    "generated_source_bytes": 1073741824,
+    "procedural_mesh_buffer_bytes": 1,
+    "generated_actor_count": 5000,
+    "mesh_section_draw_call_upper_bound": 1,
+    "regeneration_seconds": 3600.0,
+    "p95_frame_time_ms": 16.67
+  }
+}

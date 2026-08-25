@@ -194,13 +194,76 @@ namespace ProjectWorldRealizationGeneratorRegistry
 				Settings->TryGetStringField(TEXT("placement_policy"), PlacementPolicy) &&
 				PlacementPolicy == TEXT("canonical_points_and_lattice_areas");
 		}
+
+		bool ValidateBuildings(const FProjectWorldRealizationLayer& Layer, const TSharedPtr<FJsonObject>& Settings, FString& OutError)
+		{
+			double MaximumHeight = 0.0;
+			bool bNanite = false;
+			FString AnchorPolicy;
+			FString TopologyPolicy;
+			FString DuplicatePolicy;
+			FString ContainedPolicy;
+			FString ConflictPolicy;
+			FString Collision;
+			FString Navigation;
+			return Layer.LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
+				HasSingleSelector(Layer, TEXT("buildings")) && Layer.DependsOn.Num() == 1 &&
+				Layer.DependsOn[0] == TEXT("terrain") && Layer.SpatialOwnership == TEXT("cell_local") &&
+				Layer.DirtyGranularity == EProjectWorldDirtyGranularity::CanonicalCell &&
+				Layer.RuntimeMapping == TEXT("world_partition_spatial") && Layer.DependencyHaloCells == 0 &&
+				HasOnlyFields(Settings, {TEXT("maximum_height_m"), TEXT("terrain_anchor_policy"),
+					TEXT("topology_policy"), TEXT("duplicate_policy"), TEXT("contained_policy"),
+					TEXT("conflict_policy"), TEXT("nanite"), TEXT("collision"), TEXT("navigation")}, OutError) &&
+				Settings->TryGetNumberField(TEXT("maximum_height_m"), MaximumHeight) &&
+				MaximumHeight >= 50.0 && MaximumHeight <= 1000.0 &&
+				Settings->TryGetStringField(TEXT("terrain_anchor_policy"), AnchorPolicy) &&
+				AnchorPolicy == TEXT("owner_cell_clamped_bounds_center") &&
+				Settings->TryGetStringField(TEXT("topology_policy"), TopologyPolicy) &&
+				TopologyPolicy == TEXT("cell_local_classify_v1") &&
+				Settings->TryGetStringField(TEXT("duplicate_policy"), DuplicatePolicy) &&
+				DuplicatePolicy == TEXT("stable_feature_id") &&
+				Settings->TryGetStringField(TEXT("contained_policy"), ContainedPolicy) &&
+				ContainedPolicy == TEXT("associate_with_container") &&
+				Settings->TryGetStringField(TEXT("conflict_policy"), ConflictPolicy) &&
+				ConflictPolicy == TEXT("reject_affected_fragments") &&
+				Settings->TryGetBoolField(TEXT("nanite"), bNanite) && bNanite &&
+				Settings->TryGetStringField(TEXT("collision"), Collision) && Collision == TEXT("complex_as_simple") &&
+				Settings->TryGetStringField(TEXT("navigation"), Navigation) && Navigation == TEXT("no_navigation");
+		}
+
+		bool ValidateGameplayPlacement(
+			const FProjectWorldRealizationLayer& Layer,
+			const TSharedPtr<FJsonObject>& Settings,
+			FString& OutError)
+		{
+			FString Source;
+			FString SurfacePolicy;
+			FString RuntimeStatePolicy;
+			return Layer.LayerKind == EProjectWorldLayerKind::GeneratedGameplayPlacement &&
+				HasSingleSelector(Layer, TEXT("gameplay_placements")) && Layer.DependsOn.Num() == 1 &&
+				Layer.DependsOn[0] == TEXT("terrain") && Layer.SpatialOwnership == TEXT("object_local") &&
+				Layer.DirtyGranularity == EProjectWorldDirtyGranularity::ObjectId &&
+				Layer.RuntimeMapping == TEXT("world_partition_spatial") && Layer.DependencyHaloCells == 0 &&
+				HasOnlyFields(Settings, {TEXT("placement_source"), TEXT("surface_policy"),
+					TEXT("runtime_state_policy")}, OutError) &&
+				Settings->TryGetStringField(TEXT("placement_source"), Source) &&
+				Source.StartsWith(TEXT("GameplayPlacement/")) && Source.EndsWith(TEXT(".json")) &&
+				!Source.Contains(TEXT("..")) && !Source.Contains(TEXT("\\")) &&
+				Settings->TryGetStringField(TEXT("surface_policy"), SurfacePolicy) &&
+				SurfacePolicy == TEXT("canonical_terrain_snap") &&
+				Settings->TryGetStringField(TEXT("runtime_state_policy"), RuntimeStatePolicy) &&
+				RuntimeStatePolicy == TEXT("external_to_generation");
+		}
 	}
 
 	bool IsRegistered(const FString& GeneratorId, int32 GeneratorVersion, EProjectWorldLayerKind LayerKind)
 	{
-		return GeneratorVersion == 1 && LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
+		return GeneratorVersion == 1 && ((LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
 			(GeneratorId == TEXT("project_landscape") || GeneratorId == TEXT("project_water_mesh") ||
-			 GeneratorId == TEXT("project_road_mesh") || GeneratorId == TEXT("project_vegetation_instances"));
+			 GeneratorId == TEXT("project_road_mesh") || GeneratorId == TEXT("project_vegetation_instances") ||
+			 GeneratorId == TEXT("project_building_massing"))) ||
+			(LayerKind == EProjectWorldLayerKind::GeneratedGameplayPlacement &&
+				GeneratorId == TEXT("project_gameplay_placement")));
 	}
 
 	bool ValidateSettings(const FProjectWorldRealizationLayer& Layer, FString& OutError)
@@ -216,6 +279,8 @@ namespace ProjectWorldRealizationGeneratorRegistry
 		else if (Layer.GeneratorId == TEXT("project_water_mesh")) bValid = ValidateWater(Layer, Settings, OutError);
 		else if (Layer.GeneratorId == TEXT("project_road_mesh")) bValid = ValidateRoads(Layer, Settings, OutError);
 		else if (Layer.GeneratorId == TEXT("project_vegetation_instances")) bValid = ValidateVegetation(Layer, Settings, OutError);
+		else if (Layer.GeneratorId == TEXT("project_building_massing")) bValid = ValidateBuildings(Layer, Settings, OutError);
+		else if (Layer.GeneratorId == TEXT("project_gameplay_placement")) bValid = ValidateGameplayPlacement(Layer, Settings, OutError);
 		else
 		{
 			OutError = FString::Printf(TEXT("Generator settings are not registered for: %s:v%d"), *Layer.GeneratorId, Layer.GeneratorVersion);

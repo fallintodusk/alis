@@ -251,6 +251,11 @@ void UW_MainMenu::BindCallbacks()
 					Button->OnClicked.AddUniqueDynamic(this, &UW_MainMenu::SelectMapCity17);
 					BoundCount++;
 				}
+				else if (ActionKey == TEXT("loadkazanterritory"))
+				{
+					Button->OnClicked.AddUniqueDynamic(this, &UW_MainMenu::SelectMapKazanTerritory);
+					BoundCount++;
+				}
 				else if (ActionKey == TEXT("confirmquit"))
 				{
 					Button->OnClicked.AddUniqueDynamic(this, &UW_MainMenu::ConfirmQuit);
@@ -308,6 +313,20 @@ void UW_MainMenu::SelectMapCity17()
 	else
 	{
 		UE_LOG(LogW_MainMenu, Error, TEXT("SelectMapCity17: MenuMainComposerSubsystem not available"));
+	}
+}
+
+void UW_MainMenu::SelectMapKazanTerritory()
+{
+	UE_LOG(LogW_MainMenu, Display, TEXT("[W_MainMenu::SelectMapKazanTerritory] Requesting experience - KazanTerritory"));
+
+	if (UMenuMainComposerSubsystem* Composer = GetGameInstance()->GetSubsystem<UMenuMainComposerSubsystem>())
+	{
+		Composer->RequestStartGame(TEXT("KazanTerritory"), TEXT("SinglePlayer"));
+	}
+	else
+	{
+		UE_LOG(LogW_MainMenu, Error, TEXT("[W_MainMenu::SelectMapKazanTerritory] Failed - MenuMainComposerSubsystem unavailable"));
 	}
 }
 

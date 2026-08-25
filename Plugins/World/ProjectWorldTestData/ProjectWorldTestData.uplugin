@@ -9,6 +9,7 @@
   "CanContainContent": true,
   "Modules": [],
   "Plugins": [
-    {"Name": "ProjectWorld", "Enabled": true}
+    {"Name": "ProjectWorld", "Enabled": true},
+    {"Name": "ProjectObject", "Enabled": true}
   ]
 }

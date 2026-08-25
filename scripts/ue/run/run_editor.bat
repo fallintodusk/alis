@@ -12,5 +12,5 @@ if not exist "%PROJ%" (
     exit /b 1
 )
 
-"%UE%\Engine\Binaries\Win64\UnrealEditor.exe" "%PROJ%" -NoLogTimes
+"%UE%\Engine\Binaries\Win64\UnrealEditor.exe" "%PROJ%" %* -NoLogTimes
 exit /b %ERRORLEVEL%

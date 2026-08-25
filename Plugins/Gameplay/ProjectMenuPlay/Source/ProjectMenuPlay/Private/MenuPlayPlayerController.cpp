@@ -4,6 +4,8 @@
 #include "MenuPlayPlayerController.h"
 
 #include "Engine/LocalPlayer.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Subsystems/MenuMainComposerSubsystem.h"
 #include "ProjectServiceLocator.h"
 #include "Services/ILoadingService.h"
@@ -33,6 +35,24 @@ void AMenuPlayPlayerController::BeginPlay()
 		// Subscribe to game start requests before showing menu
 		Composer->OnRequestStartGame.AddDynamic(this, &AMenuPlayPlayerController::OnRequestStartGame);
 		Composer->ShowMainMenu(this);
+
+		FString AutomatedExperience;
+		if (FParse::Value(
+				FCommandLine::Get(),
+				TEXT("ProjectMenuPlayAutoExperience="),
+				AutomatedExperience) &&
+			!AutomatedExperience.IsEmpty())
+		{
+			FString AutomatedMode(TEXT("SinglePlayer"));
+			FParse::Value(FCommandLine::Get(), TEXT("ProjectMenuPlayAutoMode="), AutomatedMode);
+			UE_LOG(
+				LogMenuPlayPC,
+				Display,
+				TEXT("[AMenuPlayPlayerController::BeginPlay] Automated menu selection - experience=%s mode=%s"),
+				*AutomatedExperience,
+				*AutomatedMode);
+			Composer->RequestStartGame(AutomatedExperience, AutomatedMode);
+		}
 	}
 }
 

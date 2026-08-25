@@ -19,6 +19,11 @@ Describe 'Dev-loop exact filter recognition' {
         $shape.IsExact | Should -BeTrue
     }
 
+    It 'accepts an exact test id under a test module Private/Unit folder' {
+        $shape = Test-ExactFilter -Filter 'ProjectLoading.Unit.TravelURL.Provenance'
+        $shape.IsExact | Should -BeTrue
+    }
+
     It 'accepts an exact test id in the shared test plugin' {
         $shape = Test-ExactFilter -Filter 'ProjectIntegrationTests.UI.Framework.Inventory.CellDropTarget.BuilderWrapsEveryCell'
         $shape.IsExact | Should -BeTrue

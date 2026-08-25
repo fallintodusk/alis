@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_gameplay_placement.schema.json",
+  "schema_version": 1,
+  "placement_set_id": "synthetic_gameplay_v1",
+  "world_data_plugin": "ProjectWorldTestData",
+  "canonical_profile_id": "synthetic_landscape_water_twin",
+  "placements": [
+    {
+      "object_id": "synthetic_water_01",
+      "definition_id": "ObjectDefinition:WaterBottle",
+      "cell_x": 0,
+      "cell_y": 0,
+      "easting_m": 25.0,
+      "northing_m": 25.0,
+      "surface_offset_m": 0.05,
+      "yaw_degrees": 0.0
+    },
+    {
+      "object_id": "synthetic_water_02",
+      "definition_id": "ObjectDefinition:WaterBottleSmall",
+      "cell_x": 1,
+      "cell_y": 0,
+      "easting_m": 90.0,
+      "northing_m": 25.0,
+      "surface_offset_m": 0.05,
+      "yaw_degrees": 90.0
+    }
+  ]
+}

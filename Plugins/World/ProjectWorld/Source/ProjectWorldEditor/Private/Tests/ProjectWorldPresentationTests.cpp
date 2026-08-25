@@ -331,6 +331,9 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 	TestNotNull(TEXT("Generated post-process volume exists."), PostProcess);
 	if (PostProcess != nullptr)
 	{
+		TestFalse(
+			TEXT("The unbound exposure volume is always loaded by World Partition."),
+			PostProcess->GetIsSpatiallyLoaded());
 		TestTrue(
 			TEXT("Generated post-process volume has valid editor bounds."),
 			PostProcess->GetRootComponent() != nullptr &&
@@ -374,6 +377,17 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 			false,
 			GenericCleanupResult));
 	TestEqual(TEXT("Generic cleanup removes no current presentation actor."), GenericCleanupResult.RemovedActorCount, 0);
+	PostProcess->bUnbound = false;
+	PostProcess->SetIsSpatiallyLoaded(true);
+	PostProcess->bUnbound = true;
+	TestTrue(TEXT("The legacy fixture reproduces the streamed exposure state."), PostProcess->GetIsSpatiallyLoaded());
+	FProjectWorldRealizationResult MigrationResult;
+	TestTrue(
+		TEXT("Presentation realization migrates the legacy streamed exposure state."),
+		ProjectWorldPresentationRealization::Apply(World, Bundle, Profile, Resources, MigrationResult, Error));
+	TestFalse(
+		TEXT("The migrated unbound exposure volume is always loaded."),
+		PostProcess->GetIsSpatiallyLoaded());
 
 	FProjectWorldRealizationResult SecondResult;
 	TestTrue(

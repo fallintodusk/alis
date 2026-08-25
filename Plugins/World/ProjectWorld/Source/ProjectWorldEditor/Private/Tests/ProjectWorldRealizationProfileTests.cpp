@@ -52,11 +52,29 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 	TestEqual(TEXT("Profile identity is loaded."), Profile.ProfileId, FString(TEXT("synthetic_landscape_water_twin")));
 	TestEqual(TEXT("Profile owner is data-defined."), Profile.WorldDataPluginName, FString(TEXT("ProjectWorldTestData")));
 	TestEqual(TEXT("Epic partitioning remains one component per proxy."), Profile.ComponentsPerProxy, 1);
-	TestEqual(TEXT("The layer DAG has three nodes."), Profile.TopologicalLayerIds.Num(), 3);
+	TestEqual(TEXT("The layer DAG has five nodes."), Profile.TopologicalLayerIds.Num(), 5);
 	TestEqual(TEXT("Terrain executes before dependent layers."), Profile.TopologicalLayerIds[0], FString(TEXT("terrain")));
-	TestEqual(TEXT("Roads execute after their terrain dependency."), Profile.TopologicalLayerIds[1], FString(TEXT("roads")));
-	TestEqual(TEXT("Water executes after its terrain dependency."), Profile.TopologicalLayerIds[2], FString(TEXT("water")));
+	TestEqual(TEXT("Buildings execute after their terrain dependency."), Profile.TopologicalLayerIds[1], FString(TEXT("buildings")));
+	TestEqual(TEXT("Gameplay executes after its terrain dependency."), Profile.TopologicalLayerIds[2], FString(TEXT("gameplay")));
+	TestEqual(TEXT("Roads execute after their terrain dependency."), Profile.TopologicalLayerIds[3], FString(TEXT("roads")));
+	TestEqual(TEXT("Water executes after its terrain dependency."), Profile.TopologicalLayerIds[4], FString(TEXT("water")));
 	TestEqual(TEXT("Each layer has a normalized contract SHA-256."), Profile.Layers[0].ContractHash.Len(), 64);
+	FProjectWorldRealizationProfile RuntimeOnly = Profile;
+	RuntimeOnly.RuntimeProfileId = TEXT("synthetic_runtime_candidate_v2");
+	TestTrue(
+		TEXT("A runtime-only profile switch remains a valid realization."),
+		ProjectWorldRealizationProfile::ValidateAndFinalize(RuntimeOnly, Error));
+	TestNotEqual(
+		TEXT("The map execution identity owns the runtime-profile switch."),
+		RuntimeOnly.ExecutionHash,
+		Profile.ExecutionHash);
+	for (int32 Index = 0; Index < Profile.Layers.Num(); ++Index)
+	{
+		TestEqual(
+			TEXT("Runtime-profile identity is excluded from generated-layer contracts."),
+			RuntimeOnly.Layers[Index].ContractHash,
+			Profile.Layers[Index].ContractHash);
+	}
 	TestTrue(
 		TEXT("The exact landscape generator pair is registered."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
@@ -73,6 +91,12 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 		TEXT("The exact vegetation generator pair is registered."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
 			TEXT("project_vegetation_instances"),
+			1,
+			EProjectWorldLayerKind::GeneratedGeography));
+	TestTrue(
+		TEXT("The exact building massing generator pair is registered."),
+		ProjectWorldRealizationProfile::IsGeneratorRegistered(
+			TEXT("project_building_massing"),
 			1,
 			EProjectWorldLayerKind::GeneratedGeography));
 	TestFalse(
@@ -99,8 +123,8 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 	TestFalse(
 		TEXT("An unknown generator pair is rejected before mutation."),
 		ProjectWorldRealizationProfile::ValidateAndFinalize(UnknownGenerator, Error));
-	TestFalse(
-		TEXT("A future gameplay generator is not advertised before its typed unit domain exists."),
+	TestTrue(
+		TEXT("The gameplay generator advertises its typed object-ID domain."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
 			TEXT("project_gameplay_placement"),
 			1,
@@ -227,6 +251,12 @@ bool FProjectWorldRealizationDirtyClosureTest::RunTest(const FString& Parameters
 	Incremental.ValidUnits.FindOrAdd(TEXT("water")).Add(TEXT("gridtwin:x1:y0"));
 	Incremental.ValidUnits.FindOrAdd(TEXT("roads")).Add(TEXT("gridtwin:x0:y0"));
 	Incremental.ValidUnits.FindOrAdd(TEXT("roads")).Add(TEXT("gridtwin:x1:y0"));
+	Incremental.ValidUnits.FindOrAdd(TEXT("gameplay")).Add(TEXT("synthetic_water_01"));
+	Incremental.ValidUnits.FindOrAdd(TEXT("gameplay")).Add(TEXT("synthetic_water_02"));
+	Incremental.DependencyUnitMappings.FindOrAdd(TEXT("gameplay|terrain"))
+		.FindOrAdd(TEXT("gridtwin:x0:y0")).Add(TEXT("synthetic_water_01"));
+	Incremental.DependencyUnitMappings.FindOrAdd(TEXT("gameplay|terrain"))
+		.FindOrAdd(TEXT("gridtwin:x1:y0")).Add(TEXT("synthetic_water_02"));
 	Incremental.OperatorValidUnits = Incremental.ValidUnits;
 	Incremental.ComputedUnits.FindOrAdd(TEXT("terrain")).Add(ChangedCell);
 	Incremental.OperatorAdditions.FindOrAdd(TEXT("water")).Add(TEXT("gridtwin:x1:y0"));
@@ -236,16 +266,20 @@ bool FProjectWorldRealizationDirtyClosureTest::RunTest(const FString& Parameters
 	const FProjectWorldLayerDirtyPlan* Terrain = FindPlan(Plan, TEXT("terrain"));
 	const FProjectWorldLayerDirtyPlan* Water = FindPlan(Plan, TEXT("water"));
 	const FProjectWorldLayerDirtyPlan* Roads = FindPlan(Plan, TEXT("roads"));
+	const FProjectWorldLayerDirtyPlan* Gameplay = FindPlan(Plan, TEXT("gameplay"));
 	TestNotNull(TEXT("Terrain plan exists."), Terrain);
 	TestNotNull(TEXT("Water plan exists."), Water);
 	TestNotNull(TEXT("Road plan exists."), Roads);
-	if (Terrain != nullptr && Water != nullptr && Roads != nullptr)
+	TestNotNull(TEXT("Gameplay plan exists."), Gameplay);
+	if (Terrain != nullptr && Water != nullptr && Roads != nullptr && Gameplay != nullptr)
 	{
 		TestEqual(TEXT("The computed terrain unit is retained."), Terrain->DirtyUnits.Num(), 1);
 		TestTrue(TEXT("Terrain changes propagate to water."), Water->DirtyUnits.Contains(ChangedCell));
 		TestTrue(TEXT("Operator additions can expand water work."), Water->DirtyUnits.Contains(TEXT("gridtwin:x1:y0")));
 		TestEqual(TEXT("The dependent halo is clipped to the real two-cell domain."), Water->DirtyUnits.Num(), 2);
 		TestEqual(TEXT("The road dependency halo includes both adjacent cells."), Roads->DirtyUnits.Num(), 2);
+		TestEqual(TEXT("Terrain dirty maps to only the object in that cell."), Gameplay->DirtyUnits.Num(), 1);
+		TestTrue(TEXT("Object-local dependency selection is stable."), Gameplay->DirtyUnits.Contains(TEXT("synthetic_water_01")));
 	}
 
 	FProjectWorldDirtyInputs Invalid;
@@ -276,11 +310,22 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	}
 
 	FProjectWorldCanonicalBundle Bundle;
+	Bundle.GridId = TEXT("grid_24b9032e5f87005d");
+	Bundle.ProfileId = TEXT("synthetic_landscape_water_twin");
+	Bundle.WorldDataPluginName = TEXT("ProjectWorldTestData");
 	for (int32 CellIndex = 0; CellIndex < 2; ++CellIndex)
 	{
 		FProjectWorldCanonicalCell Cell;
 		Cell.CellId = FString::Printf(TEXT("gridtwin:x%d:y0"), CellIndex);
+		Cell.CellX = CellIndex;
+		Cell.CellY = 0;
+		Cell.Bounds = FVector4d(CellIndex * 63.0, 0.0, (CellIndex + 1) * 63.0, 63.0);
 		Cell.Terrain.ArtifactHash = FString::ChrN(64, CellIndex == 0 ? TEXT('a') : TEXT('b'));
+		Cell.Terrain.Bounds = Cell.Bounds;
+		Cell.Terrain.SampleSpacing = FVector2D(63.0, 63.0);
+		Cell.Terrain.SamplesX = 2;
+		Cell.Terrain.SamplesY = 2;
+		Cell.Terrain.HeightsMeters = {20.0, 21.0, 22.0, 23.0};
 		Cell.FeatureArtifactHash = FString::ChrN(64, CellIndex == 0 ? TEXT('c') : TEXT('d'));
 		Bundle.Cells.Add(MoveTemp(Cell));
 	}

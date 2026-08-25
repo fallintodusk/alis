@@ -36,6 +36,7 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	const FString* RuntimeProfile = Parameters.Find(TEXT("RuntimeProfile"));
 	const FString* AuthoredOverlayProfile = Parameters.Find(TEXT("AuthoredOverlayProfile"));
 	const FString* RealizationProfile = Parameters.Find(TEXT("RealizationProfile"));
+	const FString* TransientRealizationProfileRoot = Parameters.Find(TEXT("TransientRealizationProfileRoot"));
 	const FString* LayerDirtyInput = Parameters.Find(TEXT("LayerDirtyInput"));
 	const FString* ResultPath = Parameters.Find(TEXT("Result"));
 	const FString* MapPath = Parameters.Find(TEXT("Map"));
@@ -84,6 +85,9 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	Request.RealizationProfilePath = RealizationProfile == nullptr
 		? FString()
 		: FPaths::ConvertRelativePathToFull(*RealizationProfile);
+	Request.TransientRealizationProfileRoot = TransientRealizationProfileRoot == nullptr
+		? FString()
+		: FPaths::ConvertRelativePathToFull(*TransientRealizationProfileRoot);
 	Request.LayerDirtyInputPath = LayerDirtyInput == nullptr
 		? FString()
 		: FPaths::ConvertRelativePathToFull(*LayerDirtyInput);

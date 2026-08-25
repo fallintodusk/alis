@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/gameplay-placement-v1.json",
+  "title": "ProjectWorld Gameplay Placement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "placement_set_id",
+    "world_data_plugin",
+    "canonical_profile_id",
+    "placements"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "project_world_gameplay_placement\\.schema\\.json$"
+    },
+    "schema_version": {"const": 1},
+    "placement_set_id": {"$ref": "#/$defs/id"},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "canonical_profile_id": {"$ref": "#/$defs/id"},
+    "placements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/placement"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_id",
+        "definition_id",
+        "cell_x",
+        "cell_y",
+        "easting_m",
+        "northing_m",
+        "surface_offset_m",
+        "yaw_degrees"
+      ],
+      "properties": {
+        "object_id": {"$ref": "#/$defs/id"},
+        "definition_id": {"type": "string", "pattern": "^ObjectDefinition:[A-Za-z0-9_]+$"},
+        "cell_x": {"type": "integer"},
+        "cell_y": {"type": "integer"},
+        "easting_m": {"type": "number"},
+        "northing_m": {"type": "number"},
+        "surface_offset_m": {"type": "number", "minimum": -10.0, "maximum": 100.0},
+        "yaw_degrees": {"type": "number", "minimum": -360.0, "maximum": 360.0}
+      }
+    }
+  }
+}

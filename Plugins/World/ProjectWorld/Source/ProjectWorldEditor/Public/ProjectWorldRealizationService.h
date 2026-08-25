@@ -22,6 +22,7 @@ struct FProjectWorldRealizationRequest
 	FString RuntimeProfilePath;
 	FString AuthoredOverlayProfilePath;
 	FString RealizationProfilePath;
+	FString TransientRealizationProfileRoot;
 	FString LayerDirtyInputPath;
 	FString MapPackagePath;
 	FString ResultPath;
@@ -86,6 +87,8 @@ struct FProjectWorldRealizationResult
 	FString PresentationProfileHash;
 	FString RuntimeProfileId;
 	FString RuntimeProfileHash;
+	FString RuntimeProfileKind;
+	FString RuntimePartitionClass;
 	FString RuntimeRouteId;
 	FString RuntimeRouteFeatureId;
 	FString AuthoredOverlaySetId;
@@ -137,6 +140,19 @@ struct FProjectWorldRealizationResult
 	int32 VegetationWaterExcludedCount = 0;
 	int32 VegetationAuthoredMaskExcludedCount = 0;
 	int32 VegetationInstanceRewriteCount = 0;
+	int32 BuildingCellActorCount = 0;
+	int32 BuildingMeshAssetCount = 0;
+	int32 BuildingTriangleCount = 0;
+	int32 BuildingTriangleRewriteCount = 0;
+	int32 BuildingCandidateFragmentCount = 0;
+	int32 BuildingAcceptedFragmentCount = 0;
+	int32 BuildingDuplicateFragmentCount = 0;
+	int32 BuildingContainedFragmentCount = 0;
+	int32 BuildingConflictFragmentCount = 0;
+	int32 BuildingMalformedFragmentCount = 0;
+	int32 BuildingAuthoredMaskExcludedFragmentCount = 0;
+	int32 GameplayPlacementActorCount = 0;
+	int32 GameplayPlacementRewriteCount = 0;
 	int32 SelfSavedActorMutationCount = 0;
 	int32 BuildingSectionCount = 0;
 	int32 PresentationActorCount = 0;
@@ -155,6 +171,9 @@ struct FProjectWorldRealizationResult
 	int32 HlodEligibleGeneratedActorCount = 0;
 	int32 RuntimeCollisionProbeCount = 0;
 	int32 RuntimeCollisionOrientationProbeCount = 0;
+	int32 RuntimePartitionCount = 0;
+	int32 RuntimeCellSizeMeters = 0;
+	int32 RuntimeLoadingRangeMeters = 0;
 	int32 AuthoredAnchorResolvedCount = 0;
 	int32 AuthoredAnchorRefusedCount = 0;
 	int32 AuthoredAnchorPlacedCount = 0;
@@ -181,6 +200,8 @@ struct FProjectWorldRealizationResult
 	bool bRuntimeNanitePolicyProbed = false;
 	bool bRuntimeInstancingPolicyProbed = false;
 	bool bRuntimeHlodPolicyProbed = false;
+	bool bRuntimePartitionIs2D = false;
+	bool bRuntimeBlockOnSlowStreaming = false;
 	bool bRuntimeStructuralBudgetsPassed = false;
 	FString AuthoredCorrectionLayerGuid;
 	FString AuthoredCorrectionLayerHash;

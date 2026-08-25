@@ -9,6 +9,7 @@
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRuntimeNavigation.h"
 #include "ProjectWorldRuntimeProfile.h"
+#include "ProjectWorldTerritoryRuntimeAcceptance.h"
 
 #include "ActorFactories/ActorFactory.h"
 #include "Builders/CubeBuilder.h"
@@ -17,12 +18,14 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/TargetPoint.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerStart.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "NavigationData.h"
 #include "NavigationInvokerComponent.h"
 #include "NavigationSystem.h"
 #include "ProceduralMeshComponent.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 
@@ -228,13 +231,12 @@ namespace ProjectWorldRuntimeRealization
 				OutError = TEXT("Runtime route endpoints must remain inside accepted canonical cells.");
 				return false;
 			}
-			constexpr double RoadSurfaceOffsetMeters = 0.65;
 			OutStart = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
-				FVector(Start, ProjectWorldGeneratedGeometry::SampleTerrain(*StartCell, Start.X, Start.Y) + RoadSurfaceOffsetMeters));
+				FVector(Start, ProjectWorldGeneratedGeometry::SampleTerrain(*StartCell, Start.X, Start.Y) + Profile.RouteSurfaceOffsetMeters));
 			OutEnd = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
-				FVector(End, ProjectWorldGeneratedGeometry::SampleTerrain(*EndCell, End.X, End.Y) + RoadSurfaceOffsetMeters));
+				FVector(End, ProjectWorldGeneratedGeometry::SampleTerrain(*EndCell, End.X, End.Y) + Profile.RouteSurfaceOffsetMeters));
 			return true;
 		}
 
@@ -404,35 +406,78 @@ namespace ProjectWorldRuntimeRealization
 		{
 			const FGuid ExpectedGuid = ProjectWorldGeneratedGeometry::StableGuid(
 				Bundle.GridId + TEXT("|runtime|") + Role);
-			AActor* Existing = nullptr;
+			const FName ExpectedName(*FString::Printf(TEXT("ProjectWorld_%s"), *Role));
+			TSet<AActor*> IdentityActors;
 			for (TActorIterator<AActor> It(World); It; ++It)
 			{
-				if (RuntimeRole(**It) == Role)
+				if (RuntimeRole(**It) == Role || It->GetActorGuid() == ExpectedGuid ||
+					It->GetFName() == ExpectedName)
+				{
+					IdentityActors.Add(*It);
+				}
+			}
+			if (UObject* NamedObject = StaticFindObjectFast(nullptr, World->PersistentLevel, ExpectedName))
+			{
+				AActor* NamedActor = Cast<AActor>(NamedObject);
+				if (NamedActor == nullptr)
+				{
+					return nullptr;
+				}
+				IdentityActors.Add(NamedActor);
+			}
+			AActor* Existing = nullptr;
+			for (AActor* Candidate : IdentityActors)
+			{
+				if (Candidate->GetClass() == ActorClass && Candidate->GetActorGuid() == ExpectedGuid)
 				{
 					if (Existing != nullptr)
 					{
 						return nullptr;
 					}
-					Existing = *It;
+					Existing = Candidate;
 				}
 			}
-			if (Existing != nullptr && Existing->GetClass() == ActorClass &&
-				Existing->GetActorGuid() == ExpectedGuid)
+			if (Existing != nullptr && IdentityActors.Num() == 1)
 			{
-				++OutResult.UpdatedActorCount;
-				return Existing;
+				IdentityActors.Remove(Existing);
 			}
-			if (Existing != nullptr)
+			else
 			{
-				if (!World->EditorDestroyActor(Existing, true))
+				Existing = nullptr;
+			}
+			for (AActor* Retired : IdentityActors)
+			{
+				const FName RetiredName = MakeUniqueObjectName(
+					Retired->GetOuter(), Retired->GetClass(), TEXT("ProjectWorld_RetiredRuntime"));
+				if (!Retired->Rename(
+					*RetiredName.ToString(),
+					Retired->GetOuter(),
+					REN_DontCreateRedirectors | REN_NonTransactional) ||
+					!World->EditorDestroyActor(Retired, true))
 				{
 					return nullptr;
 				}
 				++OutResult.RemovedActorCount;
 			}
+			if (!IdentityActors.IsEmpty())
+			{
+				CollectGarbage(RF_NoFlags);
+			}
+			if (Existing != nullptr)
+			{
+				if (Existing->GetFName() != ExpectedName && !Existing->Rename(
+					*ExpectedName.ToString(),
+					Existing->GetOuter(),
+					REN_DontCreateRedirectors | REN_NonTransactional))
+				{
+					return nullptr;
+				}
+				++OutResult.UpdatedActorCount;
+				return Existing;
+			}
 
 			FActorSpawnParameters Parameters;
-			Parameters.Name = FName(*FString::Printf(TEXT("ProjectWorld_%s"), *Role));
+			Parameters.Name = ExpectedName;
 			Parameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
 			Parameters.OverrideActorGuid = ExpectedGuid;
 			AActor* Actor = World->SpawnActor<AActor>(ActorClass, FTransform::Identity, Parameters);
@@ -466,6 +511,19 @@ namespace ProjectWorldRuntimeRealization
 		}
 	}
 
+	bool IsRuntimeRoleActor(const AActor& Actor)
+	{
+		return !RuntimeRole(Actor).IsEmpty();
+	}
+
+	bool IsCurrentRuntimeActorForApply(
+		const AActor& Actor,
+		const FProjectWorldCanonicalBundle& Bundle,
+		bool bRuntimeRequested)
+	{
+		return bRuntimeRequested && Actor.Tags.Contains(FName(*(GridPrefix + Bundle.GridId)));
+	}
+
 	bool Validate(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRuntimeProfile& Profile,
@@ -490,6 +548,21 @@ namespace ProjectWorldRuntimeRealization
 		if (Feature == nullptr || !RouteLocations(Bundle, Profile, *Feature, Start, End, OutError))
 		{
 			return false;
+		}
+		if (Profile.ProfileKind == TEXT("territory_product"))
+		{
+			APlayerStart* PlayerStart = Cast<APlayerStart>(ReuseOrSpawn(
+				World, APlayerStart::StaticClass(), TEXT("PlayerStart"), Bundle, Profile, OutResult));
+			if (PlayerStart == nullptr)
+			{
+				OutError = TEXT("Cannot create the unique territory PlayerStart.");
+				return false;
+			}
+			const FVector Direction = (End - Start).GetSafeNormal2D();
+			PlayerStart->SetActorLocation(Start + FVector(0.0, 0.0, 100.0));
+			PlayerStart->SetActorRotation(Direction.Rotation());
+			SetIdentity(*PlayerStart, TEXT("PlayerStart"), Bundle, Profile, false);
+			return true;
 		}
 
 		ATargetPoint* StartActor = Cast<ATargetPoint>(ReuseOrSpawn(
@@ -675,6 +748,11 @@ namespace ProjectWorldRuntimeRealization
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError)
 	{
+		if (Profile.ProfileKind == TEXT("territory_product"))
+		{
+			return ProjectWorldTerritoryRuntimeAcceptance::CaptureAndCheck(
+				World, Profile, OutResult, OutError);
+		}
 		const FName FeatureTag(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Profile.RouteFeatureId));
 		int32 RouteFeatureActorCount = 0;
 		bool bRouteUsesOnlyProceduralGeometry = true;

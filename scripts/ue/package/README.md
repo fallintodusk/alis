@@ -53,20 +53,39 @@ observability, not a dependency-closure or without-world delta.
 Examples:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 -EngineRoot %UE_SOURCE_PATH%
+.\scripts\ue\package\package_release.ps1 `
+  -OutputDir Saved\PackageRelease\Candidate `
+  -RequiredCookMap /ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory
 ```
 
+```bat
+scripts\ue\package\package_release_source.bat -SignRelease -SplitSizeMB 1700
+```
+
+The default command resolves the installed launcher engine and is the fast
+candidate/package-iteration route. The source wrapper is the explicit public
+release route. A non-installed engine is rejected unless that wrapper supplies
+`-SourceRelease`, because source UAT also schedules editor and cook-tool targets
+and may require a large one-time toolchain rebuild.
+
+Do not alternate launcher and source roots for ordinary iteration. UBT stores
+absolute engine paths in project target metadata and response files under the
+shared project `Intermediate/` and `Binaries/` trees. Changing roots invalidates
+that metadata in both directions. Source Shipping also enables logging through
+a unique build environment, so a cold public-release gate can legitimately
+compile engine code; that cost does not belong in Kazan candidate iteration.
+
+Focused admission regression:
+
 ```powershell
-.\scripts\ue\package\package_release.ps1 `
-  -EngineRoot %UE_SOURCE_PATH% `
-  -CreateReleaseArchive `
-  -SignRelease `
-  -SplitSizeMB 1700
+.\scripts\ue\package\tests\test_engine_route_admission.ps1
 ```
 
 Key parameters:
 
-- `-EngineRoot` optional override for packaging with a source engine without changing `scripts/config/ue_path.conf`
+- `-EngineRoot` optional installed-engine override without changing `scripts/config/ue_path.conf`
+- `-SourceRelease` explicit admission for a non-installed source engine; the
+  public source wrapper supplies it
 - `-OutputDir` explicit archive directory
 - `-RequiredCookMap` extends the configured release map set for an exact
   profile-owned package proof; normal release packaging should omit it
@@ -95,7 +114,7 @@ python -m unittest scripts/ue/package/tests/test_verify_staged_archive.py
 Example:
 
 ```bat
-scripts\ue\package\package_release.bat -EngineRoot %UE_SOURCE_PATH% -CreateReleaseArchive
+scripts\ue\package\package_release.bat -OutputDir Saved\PackageRelease\Candidate
 ```
 
 ### `sign_release.ps1`
@@ -200,8 +219,11 @@ scripts\ue\package\verify_release.bat -ReleaseDir <build-dir>
 ## Notes
 
 - For the current ALIS target, source-engine packaging is the verified path.
-- `Source/Alis.Target.cs` forces modular Shipping, so the packaged build contains many DLLs.
-- Public release packaging defaults to `-skipencryption`; encrypted startup containers currently fail in modular Shipping with `Failed to find requested encryption key 00000000000000000000000000000000`.
+- source Shipping enables logging with a unique build environment and is a
+  deliberate cold public-release gate, not a daily iteration path
+- Public release packaging defaults to `-skipencryption`; encrypted startup
+  containers currently fail with `Failed to find requested encryption key
+  00000000000000000000000000000000`.
 - Current ALIS zip headroom under GitHub's 2 GiB limit is only about `256 MiB`, so split archives are the default safe GitHub transport path.
 - Each newly signed release is locally verifiable from its mirrored files. The site trust page remains the authoritative out-of-band fingerprint confirmation.
 - Normal users do not need to run `verify_release.ps1`; it exists for advanced authenticity checks.

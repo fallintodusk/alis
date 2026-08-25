@@ -13,6 +13,12 @@ open-world P0 blocker. Reproduce the evidence with
 `scripts/ue/package/inspect_iostore.ps1`; generated receipts are evidence, not
 a maintained source of truth.
 
+The Slice 4 static partition audit separately attributes 850 generated external
+actor packages at 11,755,861 source bytes. Conservative per-runtime-cell weight
+peaks at 223,816 bytes for the selected `512/1536` profile, and the final cook
+contains 361 Kazan streaming packages. This bounds the World-owned OFPA payload;
+it does not explain the multi-gigabyte project-wide dependency closure above.
+
 ## Root Cause: Unmodified GASP Sample ABP
 
 Hero.json uses `SandboxCharacter_CMC_ABP` as DriverBody animClass.

@@ -7,6 +7,7 @@
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldVegetationExclusions.h"
 
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
@@ -247,16 +248,39 @@ bool FProjectWorldVegetationExclusionContractTest::RunTest(const FString& Parame
 	WaterPolygon.Outer = {
 		FVector2D(25.0, 0.0), FVector2D(35.0, 0.0), FVector2D(35.0, 100.0),
 		FVector2D(25.0, 100.0), FVector2D(25.0, 0.0)};
-	Cell.OwnedFeatureIds.Append({Road.FeatureId, Water.FeatureId});
+	FProjectWorldCanonicalFeature Ribbon;
+	Ribbon.FeatureId = TEXT("test/water/ribbon");
+	Ribbon.FeatureClass = TEXT("water");
+	Ribbon.WidthMeters = 12.0;
+	Ribbon.WaterSurface.bValid = true;
+	Ribbon.WaterSurface.SurfaceGroupId = Ribbon.FeatureId;
+	Ribbon.WaterSurface.Geometry = TEXT("ribbon");
+	Ribbon.WaterSurface.Behavior = TEXT("flowing");
+	Ribbon.WaterSurface.FunctionId = TEXT("rolling_quantile_l1_isotonic");
+	Ribbon.WaterSurface.FunctionVersion = 1;
+	Ribbon.GeometryParts.Add({FVector2D(70.0, 0.0), FVector2D(70.0, 100.0)});
+	Cell.OwnedFeatureIds.Append({Road.FeatureId, Water.FeatureId, Ribbon.FeatureId});
 	Bundle.Features.Add(Road.FeatureId, MoveTemp(Road));
 	Bundle.Features.Add(Water.FeatureId, MoveTemp(Water));
+	Bundle.Features.Add(Ribbon.FeatureId, MoveTemp(Ribbon));
 	const FProjectWorldRealizationLayer Layer = MakeLayer();
 	const FProjectWorldRealizationProfile Profile = MakeProfile(Layer);
 	FProjectWorldAuthoredOverlaySet OverlaySet = MakeMaskSet();
+	FProjectWorldVegetationExclusionContext Exclusions;
 	TArray<FProjectWorldVegetationInstance> Instances;
 	FProjectWorldVegetationPlacementStats Stats;
 	FString Semantic;
 	FString Error;
+	if (!ProjectWorldVegetationExclusions::Build(
+		Bundle, Cell, Profile, Layer, OverlaySet, Exclusions, Error))
+	{
+		AddError(Error);
+		return false;
+	}
+	TestTrue(TEXT("A point 5.9 m from a 12 m ribbon axis is excluded."),
+		Exclusions.Classify(FVector2D(75.9, 50.0)) == EProjectWorldVegetationExclusion::Water);
+	TestTrue(TEXT("A point 6.1 m from a 12 m ribbon axis remains available."),
+		Exclusions.Classify(FVector2D(76.1, 50.0)) == EProjectWorldVegetationExclusion::None);
 	if (!ProjectWorldVegetationRealization::BuildCellInstances(
 		Bundle, Cell, Layer, Profile, OverlaySet, Instances, &Stats, Semantic, Error))
 	{
@@ -270,7 +294,8 @@ bool FProjectWorldVegetationExclusionContractTest::RunTest(const FString& Parame
 	{
 		const FVector Point = CanonicalLocation(Bundle, Cell, Instance);
 		TestTrue(TEXT("Every retained instance remains outside all protected footprints."),
-			Point.X > 14.0 && (Point.X < 25.0 || Point.X > 35.0) && (Point.X < 45.0 || Point.X > 55.0));
+			Point.X > 14.0 && (Point.X < 25.0 || Point.X > 35.0) &&
+			(Point.X < 45.0 || Point.X > 55.0) && (Point.X < 64.0 || Point.X > 76.0));
 	}
 	FString InitialHash;
 	FString UnrelatedMaskHash;

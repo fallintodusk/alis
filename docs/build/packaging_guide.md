@@ -44,7 +44,8 @@ Windows wrapper:
 Script behavior:
 
 - reads `UE_PATH` from `scripts/config/ue_path.conf`
-- supports `-EngineRoot` override for source-engine packaging
+- routes source-engine packaging through `package_release_source.bat`, which
+  supplies the explicit source-release admission flag
 - uses `-nodebuginfo` by default so staged `.pdb` files do not bloat the distributable payload
 - uses `-skipencryption` by default for public release packaging
 - writes `package_summary.txt` and, for signed releases, moves it under `debug/`
@@ -62,7 +63,7 @@ Script behavior:
 
 Important flags:
 
-- `-EngineRoot %UE_SOURCE_PATH%`
+- `package_release_source.bat` for the configured `%UE_SOURCE_PATH%`
 - `-OutputDir <path>`
 - `-CreateReleaseArchive`
 - `-SignRelease`
@@ -308,29 +309,23 @@ Verify release artifacts:
 Package into an explicit directory:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 `
-  -EngineRoot %UE_SOURCE_PATH% `
-  -OutputDir Saved\PackageRelease\MyBuild `
-  -CreateReleaseArchive
+.\scripts\ue\package\package_release_source.bat `
+  -OutputDir Saved\PackageRelease\MyBuild
 ```
 
 Package and sign in one flow:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 `
-  -EngineRoot %UE_SOURCE_PATH% `
+.\scripts\ue\package\package_release_source.bat `
   -OutputDir Saved\PackageRelease\MyBuild `
-  -CreateReleaseArchive `
   -SignRelease
 ```
 
 Package, sign, and verify in one flow:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 `
-  -EngineRoot %UE_SOURCE_PATH% `
+.\scripts\ue\package\package_release_source.bat `
   -OutputDir Saved\PackageRelease\MyBuild `
-  -CreateReleaseArchive `
   -SignRelease
 
 .\scripts\ue\package\verify_release.ps1 `
@@ -340,9 +335,7 @@ Package, sign, and verify in one flow:
 Force split archives:
 
 ```powershell
-.\scripts\ue\package\package_release.ps1 `
-  -EngineRoot %UE_SOURCE_PATH% `
-  -CreateReleaseArchive `
+.\scripts\ue\package\package_release_source.bat `
   -SplitSizeMB 1700
 ```
 
@@ -441,7 +434,7 @@ Generated release helper:
 | One content container exceeds 2 GiB | chunking rules collapsed too much content into one chunk | verify Asset Manager rules and Primary Asset Label ownership; GitHub transport limits are handled by split release archives, not `MaxChunkSize`. |
 | Release folder is huge because of debug files | staged `.pdb` files were included | keep `-nodebuginfo` enabled. |
 | Missing DLC chunks | incorrect Asset Manager chunk rules or Primary Asset Labels | verify `Config/DefaultGame.ini` chunk rules or project label assets assign expected chunk IDs. |
-| Packaged game crashes with `Failed to find requested encryption key 00000000000000000000000000000000` | encrypted containers were built for the modular Shipping target | use the release script default `-skipencryption`, or only enable `-EncryptContent` after implementing and validating a runtime key-loading path. |
+| Packaged game crashes with `Failed to find requested encryption key 00000000000000000000000000000000` | encrypted startup containers cannot resolve the current runtime key | use the release script default `-skipencryption`, or only enable `-EncryptContent` after implementing and validating a runtime key-loading path. |
 | User cannot extract split release parts | archive parts were downloaded into different folders or Windows Explorer was used directly | place all parts in one folder and extract the first part with 7-Zip. |
 | `verify_release.ps1` fails before signature check | `gpg.exe` is missing, the bundled key is absent, or an old release cannot reach its fallback key URL | install GnuPG or Git for Windows; for old releases pass `-PublicKeyPath` explicitly. |
 | `verify_release.ps1` reports fingerprint mismatch | wrong or tampered public key file was used | compare `ALIS_PUBLIC_KEY.asc` against the fingerprint on the site trust page. |

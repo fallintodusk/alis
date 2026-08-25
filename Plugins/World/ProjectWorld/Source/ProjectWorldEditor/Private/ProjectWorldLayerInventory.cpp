@@ -3,7 +3,10 @@
 
 #include "ProjectWorldLayerInventory.h"
 
+#include "ProjectWorldBuildingInventory.h"
+#include "ProjectWorldBuildingRealization.h"
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldGameplayPlacement.h"
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRealizationService.h"
@@ -211,6 +214,7 @@ namespace ProjectWorldLayerInventory
 		FString& OutError)
 	{
 		TMap<FString, TArray<FProjectWorldLayerInputInventory>> CurrentInputs;
+		TMap<FString, TMap<FString, TSet<FString>>> DependencyUnitMappings;
 		for (const FProjectWorldRealizationLayer& Layer : Profile.Layers)
 		{
 			if (!Layer.IsGenerated())
@@ -220,11 +224,30 @@ namespace ProjectWorldLayerInventory
 			TArray<FProjectWorldLayerInputInventory>& LayerInputs = CurrentInputs.Add(Layer.LayerId);
 			for (const FString& Selector : Layer.CanonicalSelectors)
 			{
-				if (Selector != TEXT("terrain") && Selector != TEXT("water") &&
-					Selector != TEXT("roads") && Selector != TEXT("vegetation"))
+				if (Selector != TEXT("terrain") && Selector != TEXT("water") && Selector != TEXT("roads") &&
+					Selector != TEXT("vegetation") && Selector != TEXT("buildings") &&
+					Selector != TEXT("gameplay_placements"))
 				{
 					OutError = FString::Printf(TEXT("Generator selector is unsupported: %s"), *Selector);
 					return false;
+				}
+				if (Selector == TEXT("gameplay_placements"))
+				{
+					FProjectWorldGameplayPlacementSet Set;
+					if (!ProjectWorldGameplayPlacement::Load(Profile, Layer, Set, OutError)) return false;
+					TMap<FString, TSet<FString>>& TerrainMapping =
+						DependencyUnitMappings.FindOrAdd(Layer.LayerId + TEXT("|terrain"));
+					for (const FProjectWorldGameplayPlacement& Placement : Set.Placements)
+					{
+						FString CellId;
+						FTransform Transform;
+						FString Hash;
+						if (!ProjectWorldGameplayPlacement::BuildInput(
+							Bundle, Layer, Placement, CellId, Transform, Hash, OutError)) return false;
+						LayerInputs.Add({Placement.ObjectId, Hash});
+						TerrainMapping.FindOrAdd(CellId).Add(Placement.ObjectId);
+					}
+					continue;
 				}
 				for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 				{
@@ -249,6 +272,12 @@ namespace ProjectWorldLayerInventory
 					{
 						return false;
 					}
+					else if (Selector == TEXT("buildings") &&
+						!ProjectWorldBuildingRealization::HashCellInput(
+							Bundle, Cell, Layer, AuthoredOverlaySet, Hash, OutError))
+					{
+						return false;
+					}
 					if (!Hash.IsEmpty())
 					{
 						LayerInputs.Add({Cell.CellId, Hash});
@@ -263,6 +292,7 @@ namespace ProjectWorldLayerInventory
 
 		FProjectWorldDirtyInputs DirtyInputs;
 		DirtyInputs.bFirstApply = bFirstApply;
+		DirtyInputs.DependencyUnitMappings = MoveTemp(DependencyUnitMappings);
 		for (const TPair<FString, TArray<FProjectWorldLayerInputInventory>>& LayerInputs : CurrentInputs)
 		{
 			for (const FProjectWorldLayerInputInventory& Input : LayerInputs.Value)
@@ -379,6 +409,8 @@ namespace ProjectWorldLayerInventory
 		FProjectWorldLayerInventory* Water = FindInventory(OutResult, TEXT("project_water_mesh"));
 		FProjectWorldLayerInventory* Roads = FindInventory(OutResult, TEXT("project_road_mesh"));
 		FProjectWorldLayerInventory* Vegetation = FindInventory(OutResult, TEXT("project_vegetation_instances"));
+		FProjectWorldLayerInventory* Buildings = FindInventory(OutResult, TEXT("project_building_massing"));
+		FProjectWorldLayerInventory* Gameplay = FindInventory(OutResult, TEXT("project_gameplay_placement"));
 		if (Terrain == nullptr || Water == nullptr)
 		{
 			OutError = TEXT("Executable terrain/water layer inventories are incomplete.");
@@ -393,6 +425,14 @@ namespace ProjectWorldLayerInventory
 		if (Vegetation != nullptr)
 		{
 			Vegetation->Artifacts.Reset();
+		}
+		if (Buildings != nullptr)
+		{
+			Buildings->Artifacts.Reset();
+		}
+		if (Gameplay != nullptr)
+		{
+			Gameplay->Artifacts.Reset();
 		}
 
 		TMap<FString, const FProjectWorldCanonicalCell*> CellsById;
@@ -650,6 +690,23 @@ namespace ProjectWorldLayerInventory
 				return false;
 			}
 			OutResult.VegetationCellActorCount = ActualCells.Num();
+		}
+		if (Buildings != nullptr)
+		{
+			const FProjectWorldRealizationLayer* BuildingLayer = Profile.Layers.FindByPredicate([](const auto& Layer)
+			{
+				return Layer.GeneratorId == TEXT("project_building_massing");
+			});
+			if (BuildingLayer == nullptr || !ProjectWorldBuildingInventory::Capture(
+				World, Bundle, *BuildingLayer, AuthoredOverlaySet, *Buildings, OutResult, OutError))
+			{
+				return false;
+			}
+		}
+		if (Gameplay != nullptr && !ProjectWorldGameplayPlacement::Capture(
+			World, Bundle, Profile, *Gameplay, OutResult, OutError))
+		{
+			return false;
 		}
 		for (FProjectWorldLayerInventory& Inventory : OutResult.LayerInventories)
 		{

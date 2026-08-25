@@ -130,6 +130,48 @@ Describe 'ProjectWorld exact layer manifests' {
         @($document.operator_additions[0].units) | Should -Contain '*'
     }
 
+    It 'keeps all six generated layers stable across a runtime-only profile switch' {
+        $runtimeA = [ordered]@{
+            compile_result_sha256 = ('a' * 64)
+            presentation_profile_sha256 = ('b' * 64)
+            runtime_profile_sha256 = ('1' * 64)
+            authored_overlay_profile_sha256 = ('c' * 64)
+            map_package = '/ProjectWorldTestData/Generated/Twin/L_Twin'
+        }
+        $runtimeB = [ordered]@{}
+        foreach ($entry in $runtimeA.GetEnumerator()) {
+            $runtimeB[[string]$entry.Key] = $entry.Value
+        }
+        $runtimeB.runtime_profile_sha256 = ('2' * 64)
+
+        foreach ($layerId in @('terrain', 'water', 'roads', 'vegetation', 'buildings', 'gameplay')) {
+            $layerIdentityA = New-ProjectWorldLayerInputIdentity -OperationIdentity $runtimeA
+            $layerIdentityB = New-ProjectWorldLayerInputIdentity -OperationIdentity $runtimeB
+            $inventory = InventoryFor $(if ($layerId -eq 'terrain') { $terrainRoot } else { $waterRoot })
+            $contract = LayerContract -LayerId $layerId `
+                -ArtifactRoot "/ProjectWorldTestData/Generated/Twin/$layerId/" -Inventory $inventory
+            $prior = New-ProjectWorldCandidateManifest `
+                -ProjectRoot $projectRoot -ScopeId "layer_$layerId" -Generation 1 `
+                -OwningLayer $layerId -OperationId ('1' * 32) `
+                -InputIdentity $layerIdentityA -ScopePaths @() -ArtifactRecords $inventory `
+                -LayerContract $contract -ConsumerReferences @('map_twin_l_twin') `
+                -GeneratorFingerprint $fingerprint
+            $candidate = New-ProjectWorldCandidateManifest `
+                -ProjectRoot $projectRoot -ScopeId "layer_$layerId" -Generation 2 `
+                -OwningLayer $layerId -OperationId ('2' * 32) `
+                -InputIdentity $layerIdentityB -ScopePaths @() -ArtifactRecords $inventory `
+                -LayerContract $contract -ConsumerReferences @('map_twin_l_twin') `
+                -GeneratorFingerprint $fingerprint
+
+            $candidate.input_identity.runtime_profile_sha256 | Should -Be 'none'
+            ($candidate.artifacts | ConvertTo-Json -Depth 6 -Compress) | Should -Be `
+                ($prior.artifacts | ConvertTo-Json -Depth 6 -Compress)
+            Test-ProjectWorldManifestSemanticallyUnchanged `
+                -PriorManifest $prior -CandidateManifest $candidate `
+                -GeneratorFingerprint $fingerprint -CompareLayerContract | Should -BeTrue
+        }
+    }
+
     It 'namespaces wrapper layer scopes by realization profile before mutation' {
         $roots = [pscustomobject]@{
             ContentRoot = $contentRoot
@@ -218,6 +260,62 @@ Describe 'ProjectWorld exact layer manifests' {
         { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
 
         $layer.settings.placement_policy = 'unregistered'
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
+            Should -Throw '*registered executable tuple*'
+    }
+
+    It 'admits only the exact registered building massing tuple' {
+        $layer = [pscustomobject]@{
+            layer_id = 'buildings'
+            layer_kind = 'generated_geography'
+            generator_id = 'project_building_massing'
+            generator_version = 1
+            depends_on = @('terrain')
+            canonical_selectors = @('buildings')
+            spatial_ownership = 'cell_local'
+            dirty_granularity = 'canonical_cell'
+            dependency_halo_cells = 0
+            runtime_mapping = 'world_partition_spatial'
+            settings = [pscustomobject]@{
+                maximum_height_m = 300.0
+                terrain_anchor_policy = 'owner_cell_clamped_bounds_center'
+                topology_policy = 'cell_local_classify_v1'
+                duplicate_policy = 'stable_feature_id'
+                contained_policy = 'associate_with_container'
+                conflict_policy = 'reject_affected_fragments'
+                nanite = $true
+                collision = 'complex_as_simple'
+                navigation = 'no_navigation'
+            }
+        }
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
+
+        $layer.settings.conflict_policy = 'keep_both'
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
+            Should -Throw '*registered executable tuple*'
+    }
+
+    It 'admits only the exact registered gameplay placement tuple' {
+        $layer = [pscustomobject]@{
+            layer_id = 'gameplay'
+            layer_kind = 'generated_gameplay_placement'
+            generator_id = 'project_gameplay_placement'
+            generator_version = 1
+            depends_on = @('terrain')
+            canonical_selectors = @('gameplay_placements')
+            spatial_ownership = 'object_local'
+            dirty_granularity = 'object_id'
+            dependency_halo_cells = 0
+            runtime_mapping = 'world_partition_spatial'
+            settings = [pscustomobject]@{
+                placement_source = 'GameplayPlacement/synthetic_twin.json'
+                surface_policy = 'canonical_terrain_snap'
+                runtime_state_policy = 'external_to_generation'
+            }
+        }
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
+
+        $layer.settings.runtime_state_policy = 'generated_state'
         { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
             Should -Throw '*registered executable tuple*'
     }

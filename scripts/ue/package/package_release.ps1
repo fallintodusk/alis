@@ -24,6 +24,7 @@ param(
     [string]$ClientConfig = "Shipping",
     [string]$Platform = "Win64",
     [string]$EngineRoot,
+    [switch]$SourceRelease,
     [string]$RequiredCookMap,
     [switch]$SkipBuild,
     [switch]$IncludeStagedDebugFiles,
@@ -73,6 +74,14 @@ Sync-UBTConfig -ProjectRoot $ProjectRoot
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
 if (-not (Test-Path $RunUAT)) {
     throw "RunUAT.bat not found under engine root: $EngineRoot"
+}
+
+$IsInstalledEngine = Test-Path (Join-Path $EngineRoot "Engine\Build\InstalledBuild.txt")
+if (-not $IsInstalledEngine -and -not $SourceRelease) {
+    throw (
+        "A non-installed source engine requires explicit -SourceRelease. " +
+        "Use the default launcher engine for candidate/package iteration, or " +
+        "run package_release_source.bat for the public release gate.")
 }
 
 if (-not (Test-Path $ProjectFile)) {
@@ -152,6 +161,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " ALIS Release Packaging" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "UE_PATH      = $EngineRoot"
+Write-Host "ENGINE_KIND  = $(if ($IsInstalledEngine) { 'installed' } else { 'source-release' })"
 Write-Host "PROJECT_FILE = $ProjectFile"
 Write-Host "PLATFORM     = $Platform"
 Write-Host "CONFIG       = $ClientConfig"
@@ -280,16 +290,16 @@ if (Test-Path $StagingCheckScript) {
     }
 }
 
-$AllFiles = Get-ChildItem $WindowsDir -Recurse -File
-$ReleaseFiles = if ($IncludeStagedDebugFiles) {
+$AllFiles = @(Get-ChildItem $WindowsDir -Recurse -File)
+$ReleaseFiles = @(if ($IncludeStagedDebugFiles) {
     $AllFiles
 } else {
     $AllFiles | Where-Object { $_.Extension -ne ".pdb" }
-}
+})
 
 $LargestFile = $ReleaseFiles | Sort-Object Length -Descending | Select-Object -First 1
 $TotalBytes = ($ReleaseFiles | Measure-Object Length -Sum).Sum
-$OverLimitFiles = $ReleaseFiles | Where-Object { $_.Length -ge 2GB }
+$OverLimitFiles = @($ReleaseFiles | Where-Object { $_.Length -ge 2GB })
 
 $SummaryLines = @(
     "ALIS Release Packaging Summary",

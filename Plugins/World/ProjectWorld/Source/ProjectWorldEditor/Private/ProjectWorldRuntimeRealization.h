@@ -8,10 +8,18 @@
 struct FProjectWorldCanonicalBundle;
 struct FProjectWorldRealizationResult;
 struct FProjectWorldRuntimeProfile;
+class AActor;
 class UWorld;
 
 namespace ProjectWorldRuntimeRealization
 {
+	bool IsRuntimeRoleActor(const AActor& Actor);
+
+	bool IsCurrentRuntimeActorForApply(
+		const AActor& Actor,
+		const FProjectWorldCanonicalBundle& Bundle,
+		bool bRuntimeRequested);
+
 	bool Validate(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRuntimeProfile& Profile,

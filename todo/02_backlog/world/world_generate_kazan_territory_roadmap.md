@@ -1,8 +1,8 @@
 # Generate Kazan Territory and First Playable Scenario
 
-Status: planning archive. Slice 0A and Slice 1 evidence plus the original
-Slice 2-7 outline are preserved here; current execution uses the lean todo at
-`todo/00_current/world_compile_kazan_territory_slice_2.md`. Build the accepted
+Status: planning archive. Slice 0A through Slice 3 evidence plus the original
+Slice 4-7 outline are preserved here; current execution uses the lean todo at
+`todo/00_current/world_validate_kazan_territory_slice_4_runtime.md`. Build the accepted
 `kazan_territory_v1` geography, then its first scenario and packaged prototype. The whole product territory is
 generated and player-traversable; the scenario profile selects content
 density, route, AI/navigation, and acceptance coverage only. Geographic
@@ -18,7 +18,7 @@ Profile authority split (one geographic SOT, no duplicates):
 - Scenario profile/data - ProjectSinglePlay or the owning Feature plugin,
   referencing spatial anchors in the territory.
 
-Sequencing: Slice 0A [DONE] -> reviewer iteration [DONE] -> Slice 1 [DONE] -> Slice 2 [NEXT].
+Sequencing: Slice 0A [DONE] -> Slice 1 [DONE] -> Slice 2 [DONE] -> Slice 3 [DONE] -> Slice 4 [NEXT].
 Discovery and bounded verification-cache downloads may run during Slice 1;
 promotion into the accepted source ledger requires Slice 1's own admission,
 license, provenance, coverage, and hash checks. No accepted canonical
@@ -355,7 +355,7 @@ Starts only after the Slice 0A reviewer iteration closes.
   `run-20260812T074705Z`. No L3 promotion or L4 packaging was selected.
 
 ## Slice 2 - Scale source ingestion and canonical compilation
-- [ ] Versioned raster manifest; verify each original tile independently;
+- [x] Versioned raster manifest; verify each original tile independently;
   deterministic mosaic/resample; reject gaps, unresolved nodata, inconsistent
   overlap, or mixed vertical datums. Give the accepted mosaic one composite
   identity derived from the ordered tile identities/hashes, common datum, and
@@ -363,17 +363,17 @@ Starts only after the Slice 0A reviewer iteration closes.
   contract; retain component lineage. Canonical cells reference that composite
   authority, not raw tile IDs, so a valid N55/E048-to-E049 boundary passes the
   seam rule.
-- [ ] Clip the pinned OSM snapshot to the exact envelope with relation
+- [x] Clip the pinned OSM snapshot to the exact envelope with relation
   completion, provider IDs, and per-source provenance preserved.
-- [ ] Compile terrain, water, land cover, vegetation areas, foliage points,
+- [x] Compile terrain, water, land cover, vegetation areas, foliage points,
   roads, and building footprints across the extent.
-- [ ] Freeze representative quality cells: dense urban, riverbank, suburban,
+- [x] Freeze representative quality cells: dense urban, riverbank, suburban,
   sparse edge, cross-cell boundary.
-- [ ] Prove water and road topology across cell boundaries; prove
+- [x] Prove water and road topology across cell boundaries; prove
   source-growth and one-cell incremental rebuild at the larger envelope.
-- [ ] No automatic building-provider conflation or alternate data sources in
+- [x] No automatic building-provider conflation or alternate data sources in
   this milestone.
-- [ ] Exit gate: two isolated full compiles with equal D0-D2 evidence;
+- [x] Exit gate: two isolated full compiles with equal D0-D2 evidence;
   bounded change rebuilds only its proven scope; provenance and rejection
   reports complete.
 
@@ -387,7 +387,7 @@ maps are already zero-HLOD; older manifest generations retain historical HLOD
 inventory only and are not a production precedent. See the
 [World Partition contract](../../../Plugins/World/ProjectWorld/docs/world_partition.md#geometry-representation-policy).
 
-- [ ] PRECONDITION: replace the current hand-ordered re-enrollment procedure
+- [x] PRECONDITION: replace the current hand-ordered re-enrollment procedure
   with one authenticated command that owns ordering and final audit. Implement
   it against Slice 2's accepted compile plus the territory E2E profile created
   below; do not invent that evidence contract earlier.
@@ -411,7 +411,7 @@ minimal synthetic implementation -> authored overlay and polish fixtures
 above it -> full/incremental/rejected/clean regeneration matrix ->
 layer accepted -> territory-scale realization allowed.
 
-- [ ] 3-PRE Implement only the extensible-layer core with terrain: JSON schema
+- [x] 3-PRE Implement only the extensible-layer core with terrain: JSON schema
   and loader; stable layer/generator/version IDs; ownership/exclusion kinds;
   dependency-DAG validation and topological planning; owned manifests;
   whole-layer and exact-cell/source-tile dirty selectors; input-hash discovery;
@@ -420,9 +420,9 @@ layer accepted -> territory-scale realization allowed.
   root overlap, cell precision, unchanged-scope equality, and rollback.
 - [x] 3B-EXT Add dependency halo propagation with the first roads/water
   consumer that requires neighboring cells; keep zero-halo layers exact.
-- [ ] 3E-EXT Add stable-object dirty selection with generated gameplay
+- [x] 3E-EXT Add stable-object dirty selection with generated gameplay
   placement, its first real consumer. Do not prebuild unused selector modes.
-- [ ] 3A Terrain + water: replace the representative always-loaded Landscape
+- [x] 3A Terrain + water: replace the representative always-loaded Landscape
   endpoint with the World Partition SOT's one-logical-Landscape baseline:
   210 canonical-cell components and baseline proxies under the single
   `kazan_main` terrain partition. Make `terrain_partitions` list-shaped but
@@ -444,7 +444,7 @@ layer accepted -> territory-scale realization allowed.
   road/water/overlay exclusion masks; no per-tree actors at territory
   scale; frozen density, instance, package, and runtime budgets;
   ISM/HISM/PCG chosen from measurements with a supported fallback.
-- [ ] 3D Building massing: passes per-layer admission; footprint holes and
+- [x] 3D Building massing: passes per-layer admission; footprint holes and
   multipolygons; height basis and fallback; simple bounded massing only;
   deterministic TOPOLOGY CLASSIFICATION instead of blanket overlap
   rejection - distinguish building, building part, duplicate, and
@@ -453,11 +453,11 @@ layer accepted -> territory-scale realization allowed.
   reported provider identities and reasons; no duplicate rendered or
   collision ownership; player collision across the product territory; AI
   navigation remains scenario-owned; no interiors, no final art.
-- [ ] 3E Generated gameplay placement: designer-authored JSON can create
+- [x] 3E Generated gameplay placement: designer-authored JSON can create
   dynamic-object definitions and initial placements in a generated layer.
   Runtime state is saved/replicated separately and never written into the
   generation source. Prove object-level dirty regeneration by stable ID.
-- [ ] Exit gate: the TERRITORY matrix per the contract's stage-scoped
+- [x] Exit gate: the TERRITORY matrix per the contract's stage-scoped
   definition - complete for every generated layer enabled in
   `kazan_territory_v1`, with modular assembly recorded as "not enabled"
   (pending, never N/A); anchor-class coverage and recorded N/A pairs per
@@ -470,35 +470,53 @@ layer accepted -> territory-scale realization allowed.
 Implement the machine-readable design gate defined in the World Partition
 SOT. Fixed cameras and manual walkthroughs are diagnostic, not authority.
 
-- [ ] Audit actor bounds/reference bundles, per-cell weight, Landscape proxy
+- [x] First qualify one cold-started packaged `256/768` baseline through the
+  real default-entry -> menu Kazan selection -> ProjectLoading -> SinglePlayer
+  GameMode path. Prove possessed grounded movement, terrain/road/building and
+  gameplay-object boundaries, then centre -> edge -> centre unload/reload.
+  Direct map opens and synthetic pawns do not satisfy this gate.
+- [x] Measure Frame/Game/Render/GPU p95, useful p99 hitch evidence, peak memory,
+  residency, streaming failures, and readiness on that passing baseline before
+  broad candidate comparison or optimization.
+- [x] Audit actor bounds/reference bundles, per-cell weight, Landscape proxy
   ownership, Data Layers, Nanite/instance policy, confirmed HLOD absence, and
-  source-speed loading coverage.
-- [ ] Apply and read back each accepted candidate runtime profile; build/cook
+  source-speed loading coverage. The read-only three-profile audit accepted
+  the selected profile with zero missing packages, reference bundles, Data
+  Layer memberships, Landscape ownership failures, or HLOD participation.
+- [x] Apply and read back each accepted candidate runtime profile; build/cook
   through supported commandlets and reject descriptor or package drift. The
   profile must explicitly disable HLOD; a missing/default policy fails closed.
-- [ ] Start from one 2D grid at `256 m` cells / `768 m` loading range; compare
+- [x] Start from one 2D grid at `256 m` cells / `768 m` loading range; compare
   the bounded `128/768`, `256/768`, and `512/1536` candidates plus declared
   Landscape proxy bundles, changing one concern at a time. HLOD is not a
   candidate.
-- [ ] Run deterministic dense-centre, diagonal, perimeter, backtrack, and
-  future-vehicle stress routes with cell, latency, hitch, memory, CPU/GPU,
-  package, and cook evidence.
-- [ ] Change ONE concern at a time (World Partition cells/loading, Landscape
+- [x] Run deterministic dense-centre, diagonal, perimeter, backtrack, and
+  higher-speed streaming-source stress routes with cell, latency, hitch,
+  memory, CPU/GPU, package, and cook evidence. Do not implement a vehicle or
+  another traversal system for this gate.
+- [x] Change ONE concern at a time (World Partition cells/loading, Landscape
   proxy bundling, Nanite settings, instancing, PCG, Data Layers); retain a change
   only when the same automated receipt proves a net benefit without
-  breaking regeneration, package size, or fallback behavior.
-- [ ] Coordinate package attribution with
+  breaking regeneration, package size, or fallback behavior. Slice 4 retained
+  only the runtime cell/loading profile; all generated geometry policies and
+  bytes remained frozen after the one-time contract migration.
+- [x] Coordinate World-owned package attribution with
   [package size investigation](../content/package_size_investigation.md).
-- [ ] Apply hard correctness/budget gates first; among passing candidates,
+- [x] Apply hard correctness/budget gates first; among passing candidates,
   select lowest p99 hitch, then peak memory, then activation churn. Persist
   the winner in the runtime profile and receipt and update the World Partition
   SOT without another operator round-trip. Stop for operator decision only if
   no candidate passes or the solution changes a frozen constraint.
-- [ ] Prove RTX 4070 High 1440p/60 and RTX 3060-class Medium 1080p/60 plus its
-  explicit 30 FPS fallback. Epic/Cinematic remain optional non-gating tiers.
+- [x] Prove the Slice 4 primary prototype gate on physical RTX 4070 hardware at
+  High 1440p/60. Keep RTX 3060-class Medium 1080p/60 plus its explicit 30 FPS
+  fallback UNQUALIFIED in the release plan until tested on a named physical
+  adapter; never extrapolate or emulate it. That secondary release gate does
+  not block Slice 4 archive or prototype promotion.
 - [ ] Exit gate: accepted packaged traversal receipt; every retained
   optimization has before/after evidence and the selected profile is the
-  stable documented default.
+  stable documented default. Automated acceptance is complete; the operator
+  product walkthrough and promotion checkpoint remain before scenario or
+  World-fidelity expansion.
 
 ## Slice 5 - Integrate the first scenario
 

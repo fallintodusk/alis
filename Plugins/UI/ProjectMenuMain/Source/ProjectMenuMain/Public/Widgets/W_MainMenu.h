@@ -56,6 +56,9 @@ protected:
 	void SelectMapCity17();
 
 	UFUNCTION()
+	void SelectMapKazanTerritory();
+
+	UFUNCTION()
 	void RequestQuit();
 
 	UFUNCTION()

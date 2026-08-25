@@ -1,9 +1,9 @@
 @echo off
 REM Direct Windows wrapper for Unreal Build Tool
-REM Usage: build.bat [target] [config] [extra_args...]
+REM Usage: build.bat [target] [platform] [config] [extra_args...]
 REM Examples:
-REM   build.bat AlisEditor Development
-REM   build.bat AlisEditor Development -Module=ProjectBoot
+REM   build.bat AlisEditor Win64 Development
+REM   build.bat AlisEditor Win64 Development -Module=ProjectBoot
 
 setlocal
 
@@ -19,14 +19,16 @@ set PROJECT_FILE=%PROJECT_ROOT%\Alis.uproject
 
 REM Parse arguments
 set TARGET=%1
-set CONFIG=%2
+set PLATFORM=%2
+set CONFIG=%3
 if "%TARGET%"=="" set TARGET=AlisEditor
+if "%PLATFORM%"=="" set PLATFORM=Win64
 if "%CONFIG%"=="" set CONFIG=Development
 
-REM Extra arguments (everything after first 2)
-set EXTRA_ARGS=%3 %4 %5 %6 %7 %8 %9
+REM Extra arguments (everything after first 3)
+set EXTRA_ARGS=%4 %5 %6 %7 %8 %9
 
-echo Building %TARGET% (%CONFIG%)...
+echo Building %TARGET% (%PLATFORM% %CONFIG%)...
 echo.
 
 REM Materialize project-local UBT config (Saved/ is gitignored and gets cleaned;
@@ -39,7 +41,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-"%UE_PATH%\Engine\Build\BatchFiles\Build.bat" %TARGET% Win64 %CONFIG% "%PROJECT_FILE%" %EXTRA_ARGS%
+"%UE_PATH%\Engine\Build\BatchFiles\Build.bat" %TARGET% %PLATFORM% %CONFIG% "%PROJECT_FILE%" %EXTRA_ARGS% -NoHotReloadFromIDE
 
 if %ERRORLEVEL% EQU 0 (
     echo.

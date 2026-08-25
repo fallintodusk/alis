@@ -18,4 +18,19 @@ public:
 		FPrimaryAssetId ObjectId,
 		const FTransform& Transform,
 		FText* OutError = nullptr) override;
+
+	#if WITH_EDITOR
+	virtual AActor* SpawnFromDefinitionWithIdentity(
+		UWorld* World,
+		FPrimaryAssetId ObjectId,
+		const FTransform& Transform,
+		FName ActorName,
+		const FGuid& ActorGuid,
+		FText* OutError = nullptr) override;
+	#endif
+
+	virtual bool GetDefinitionIdentity(
+		FPrimaryAssetId ObjectId,
+		FString& OutIdentity,
+		FText* OutError = nullptr) override;
 };

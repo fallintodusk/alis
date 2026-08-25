@@ -6,6 +6,7 @@
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldRuntimeRealization.h"
 
 #include "EngineUtils.h"
 #include "GeoReferencingSystem.h"
@@ -56,14 +57,10 @@ namespace ProjectWorldGeneratedGeometry
 			{
 				return HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId);
 			}
-			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
-				{
-					return Tag.ToString().StartsWith(TEXT("ProjectWorld.RuntimeRole="));
-				}))
+			if (ProjectWorldRuntimeRealization::IsRuntimeRoleActor(Actor))
 			{
-				return !RuntimeProfileId.IsEmpty() &&
-					HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId) &&
-					HasTagValue(Actor, TEXT("ProjectWorld.Runtime="), RuntimeProfileId);
+				return ProjectWorldRuntimeRealization::IsCurrentRuntimeActorForApply(
+					Actor, Bundle, !RuntimeProfileId.IsEmpty());
 			}
 			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
 				{

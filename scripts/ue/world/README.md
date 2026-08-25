@@ -23,7 +23,10 @@ Use `-RuntimeProfile <path>` only when that generated map must realize and
 prove the profile-pinned gameplay route. The runtime document owns route
 identity, collision/navigation extent, explicit optimization policies, and
 structural budgets; omitting it keeps synthetic and non-playable fixtures free
-of world-specific runtime behavior.
+of world-specific runtime behavior. Runtime partition identity belongs to the
+map manifest only. Generated layer manifests record `runtime_profile_sha256`
+as `none`, and a runtime-only change must leave every layer artifact and active
+manifest entry unchanged.
 Use `-RealizationProfile <path>` for the layered territory route. The profile
 selects typed generator ID/version pairs and owns the layer DAG, roots, and
 dirty granularity. Apply derives computed dirty units from the accepted layer
@@ -88,6 +91,14 @@ and HLOD policy results. The frozen frame-time value is a target, not a
 `-NullRHI` measurement. A result is rejected when any structural policy or
 budget fails.
 
+`audit_runtime_partition.ps1` is the read-only static gate for an existing
+generated map. Pass the bounded runtime-profile paths, selected profile ID, and
+an evidence path under `Saved/Validation/WorldRealization`. It measures actor
+bounds, runtime-cell assignments, actor reference bundles, external-package
+weight, canonical-cell identity, Landscape proxy ownership, Data Layers,
+loading-range coverage, and HLOD without calling realization Apply or saving
+the map.
+
 Every run removes its previous result before launching Unreal, requires a
 newly emitted accepted result, and propagates any nonzero Unreal process exit.
 Apply and Delete also snapshot only the target map, its World Partition
@@ -102,6 +113,23 @@ transaction regression lives under `test/`.
 
 For the complete source-to-cooked-package P0 gate, use the single command
 owned by [`tools/World/EndToEndValidation/`](../../../tools/World/EndToEndValidation/README.md).
+
+## Workspace cleanup
+
+World tools keep reusable source/cache material and one rollback snapshot, but
+completed comparisons and package copies must not accumulate indefinitely.
+Preview and apply the bounded owner cleanup with:
+
+```powershell
+.\scripts\ue\world\cleanup_workspace.ps1
+.\scripts\ue\world\cleanup_workspace.ps1 -Apply
+```
+
+The script fails closed while Unreal/build processes or a durable transaction
+journal exists. It retains `final_p0`, current canonical materialization,
+source runs/cache, the latest L3 run, and the pinned execution environment.
+Each applied cleanup writes a small receipt under
+`Saved/Validation/WorldCleanup/`.
 
 ## Operator mutation controls
 
@@ -221,6 +249,20 @@ also authenticates Landscape proxy count, water-cell actors, georeference
 error, protected Authored bytes, zero HLOD, and zero scopes after Delete. This
 is review evidence only; it does not enroll durable authority or replace the
 later Matrix and L3 gates.
+
+For the production-isolated runtime-profile locality proof, run:
+
+```powershell
+.\scripts\ue\world\test\integration\runtime_profile_locality.ps1 `
+  -CompileResult <accepted-kazan-territory-compile-result.json>
+```
+
+It copies current authority into a transient manifest root, migrates producer
+fingerprints only inside that isolated authority, switches the map from the
+baseline to one bounded candidate and back, and restores the outer generated
+tree. This permits testing current producer code before durable metadata is
+advanced. It accepts only when all six layer manifest entries and every layer
+artifact byte remain identical. Its owner scratch is removed in `finally`.
 
 ## Reconstruction and enrollment
 

@@ -1,12 +1,20 @@
 {
   "$schema": "../../../ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json",
-  "schema_version": 1,
+  "schema_version": 2,
   "profile_id": "synthetic_representative_playable_v1",
+  "profile_kind": "bounded_procedural_route",
   "grid_id": "grid_0daecb7b1297da7d",
+  "runtime_partition": {
+    "partition_class": "lhgrid_2d",
+    "cell_size_m": 256,
+    "loading_range_m": 768,
+    "block_on_slow_streaming": true
+  },
   "gameplay_route": {
     "route_id": "cross_cell_fixture_road",
     "feature_id": "alis:synthetic:way:100",
     "endpoint_inset_m": 3.0,
+    "surface_offset_m": 0.65,
     "navigation_padding_m": 20.0,
     "navigation_height_m": 100.0
   },

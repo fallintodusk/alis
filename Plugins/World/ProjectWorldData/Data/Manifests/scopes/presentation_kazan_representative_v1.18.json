@@ -1,0 +1,30 @@
+{
+    "$schema":  "../../../../ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "presentation_kazan_representative_v1",
+    "generation":  18,
+    "owning_layer":  "presentation",
+    "accepted_operation_id":  "50e57b1c1c044e2eacbd21c16b30cdad",
+    "accepted_at_utc":  "2026-08-25T10:13:42.1064128+00:00",
+    "generator_fingerprint":  "e2b49a1d3e39b903002451116d7e6f657c257a8832ebc477bc6191bf7d81e777",
+    "input_identity":  {
+                           "map_package":  "shared",
+                           "runtime_profile_sha256":  "none",
+                           "authored_overlay_profile_sha256":  "none",
+                           "compile_result_sha256":  "none",
+                           "presentation_profile_sha256":  "9a15a0b200f4c86081d831603da397a215ed086d4dd4574e803fd2ccab328cd2"
+                       },
+    "artifacts":  [
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/Generated/Presentation/MI_ProjectWorldTerrain_kazan_representative_v1.uasset",
+                          "kind":  "asset",
+                          "digest_kind":  "sha256",
+                          "digest":  "bc8257fa138d681ea0e415096304cd8c33e89183b81ca95b42dc9ba579a8a4ec"
+                      }
+                  ],
+    "consumer_references":  [
+                                "map_p0_l_projectworldkazan",
+                                "map_representative_l_projectworldkazan_representative",
+                                "map_territory_l_projectworldkazanterritory"
+                            ]
+}
