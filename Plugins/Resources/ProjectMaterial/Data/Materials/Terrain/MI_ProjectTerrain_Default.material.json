@@ -1,0 +1,18 @@
+{
+  "$schema": "../../Schemas/material-recipe.schema.json",
+  "schema_version": "1",
+  "material_id": "MI_ProjectTerrain_Default",
+  "artifact_kind": "instance",
+  "family": "surface_opaque",
+  "archetype": "landscape_basic_v1",
+  "compiler_version": "1",
+  "parent": "/ProjectMaterial/Generated/Terrain/M_ProjectTerrain.M_ProjectTerrain",
+  "scalars": {
+    "Roughness": 0.94,
+    "SlopeContrast": 1.35
+  },
+  "vectors": {
+    "LowSlopeColor": [0.055, 0.125, 0.035, 1.0],
+    "SteepSlopeColor": [0.14, 0.085, 0.035, 1.0]
+  }
+}

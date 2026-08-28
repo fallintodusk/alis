@@ -65,7 +65,10 @@ param(
 
     # CI and other automation must opt in explicitly. Interactive mutation
     # requires an operator confirmation after the exact scope preview.
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+
+    # TestData-only fault injection after the child has persisted an external actor.
+    [switch]$TestFailAfterSelfSavedActor
 )
 
 # Manifest-refusal exit codes:
@@ -147,6 +150,10 @@ if (-not [string]::IsNullOrWhiteSpace($WorldDataPlugin) -and $WorldDataPlugin -c
 }
 $WorldDataPlugin = $declaredWorldDataPlugin
 $worldDataRoots = Resolve-ProjectWorldDataRoots -ProjectRoot $projectRoot -PluginName $WorldDataPlugin
+if ($TestFailAfterSelfSavedActor -and
+    ($modeName -ne 'apply' -or -not $NonInteractive -or $WorldDataPlugin -cne 'ProjectWorldTestData')) {
+    throw 'TestFailAfterSelfSavedActor requires unattended ProjectWorldTestData Apply.'
+}
 if ([string]::IsNullOrWhiteSpace($Map)) {
     throw 'World realization requires an explicit generated map package.'
 }
@@ -329,6 +336,9 @@ $durableManifestRoot =
     [System.IO.Path]::GetFullPath($worldDataRoots.ManifestRoot).TrimEnd('\', '/')
 $enrollmentTargetsDurableAuthority =
     [System.IO.Path]::GetFullPath($resolvedManifestRoot).TrimEnd('\', '/') -ieq $durableManifestRoot
+if ($TestFailAfterSelfSavedActor -and $enrollmentTargetsDurableAuthority) {
+    throw 'TestFailAfterSelfSavedActor requires transient manifest authority.'
+}
 if ($EnrollManifests -and $NonInteractive -and -not $DurableEnrollmentAuthorized -and
     $WorldDataPlugin -ceq 'ProjectWorldData' -and $enrollmentTargetsDurableAuthority) {
     throw ('Refused: production enrollment (-EnrollManifests on ' +
@@ -637,6 +647,19 @@ if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
 elseif ($null -eq $invocationFailure) {
     $invocationFailure = [System.InvalidOperationException]::new(
         "World realization emitted no structured result. See $logPath")
+}
+
+if ($TestFailAfterSelfSavedActor -and $engineExitCode -eq 0 -and $childStatus -eq 'accepted') {
+    $selfSaved = [int]$result.changes.self_saved_actor_mutations
+    $result.status = 'rejected'
+    $result.errors = @([ordered]@{
+        code = if ($selfSaved -gt 0) { 'test-after-self-save' } else { 'test-self-save-missing' }
+        message = 'TestData fault injection rejected the owning operation after child realization.'
+        detail = "self_saved_actor_mutations=$selfSaved"
+    })
+    Write-ProjectWorldJson -Document $result -Path $resultPath
+    $childStatus = 'rejected'
+    $engineExitCode = 8
 }
 
 if ($transactionActive) {

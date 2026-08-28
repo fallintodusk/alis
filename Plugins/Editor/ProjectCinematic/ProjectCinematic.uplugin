@@ -10,7 +10,7 @@
 	"Modules": [
 		{
 			"Name": "ProjectCinematic",
-			"Type": "Runtime",
+			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},
 		{
@@ -22,7 +22,8 @@
 	"Plugins": [
 		{
 			"Name": "Takes",
-			"Enabled": true
+			"Enabled": true,
+			"TargetAllowList": ["Editor"]
 		},
 		{
 			"Name": "ProjectSinglePlay",

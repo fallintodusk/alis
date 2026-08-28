@@ -59,6 +59,8 @@ project.projectClient.projectWorld -> project.projectClient.projectCore "Registe
     tags "Implements"
 }
 
+project.projectClient.projectWorld -> project.projectClient.projectMaterial "Maps world semantics to universal material assets" "Soft object paths/content only"
+
 project.projectClient.projectPCG -> project.projectClient.projectCore "Registers IPCGRuntimeService" "C++ API" {
     tags "Implements"
 }

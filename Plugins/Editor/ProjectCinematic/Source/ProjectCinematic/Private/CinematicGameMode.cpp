@@ -11,6 +11,7 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "Components/WorldPartitionStreamingSourceComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"                                       // TActorIterator
 #include "TimerManager.h"
@@ -205,15 +206,34 @@ void ACinematicGameMode::BeginPlay()
 	// Record: cinematic flag OFF, input ALIVE. Take Recorder needs the player
 	//         to walk/look with mouse + keyboard; the cinematic flag would
 	//         affect gameplay code that gates on it during the take.
-	// HUD and pawn stay visible in both profiles - MoviePipelineWidgetRenderer
-	// composites the HUD into render frames; Take Recorder captures the pawn
-	// during recording.
+	// Render output is clean footage, while Record keeps the normal HUD visible
+	// for the operator driving the take.
 	PC->SetCinematicMode(
 		/*bInCinematicMode*/  bRenderMode,
 		/*bHidePlayer*/       false,
-		/*bAffectsHUD*/       false,
+		/*bAffectsHUD*/       bRenderMode,
 		/*bAffectsMovement*/  bRenderMode,
 		/*bAffectsTurning*/   bRenderMode);
+
+	// PlayerController cinematic mode hides AHUD but does not remove UMG
+	// widgets already attached by ProjectUI. MRQ render sessions require a
+	// clean viewport; Record sessions retain the gameplay UI for the operator.
+	if (bRenderMode)
+	{
+		UWorld* RenderWorld = GetWorld();
+		UGameViewportClient* ViewportClient = RenderWorld ? RenderWorld->GetGameViewport() : nullptr;
+		if (ViewportClient)
+		{
+			ViewportClient->RemoveAllViewportWidgets();
+			UE_LOG(LogProjectCinematic, Log,
+				TEXT("[CinematicGM][BeginPlay] Removed viewport widgets for Render session."));
+		}
+		else
+		{
+			UE_LOG(LogProjectCinematic, Warning,
+				TEXT("[CinematicGM][BeginPlay] Game viewport unavailable; UMG cleanup skipped."));
+		}
+	}
 
 	// Pawn time-dilation. Skip when 1.0 (no-op) to avoid touching pawn state
 	// unnecessarily. Per-actor scaling: this pawn's tick dt is multiplied by
@@ -377,6 +397,17 @@ void ACinematicGameMode::BeginPlay()
 			World ? 1 : 0, (World && World->IsGameWorld()) ? 1 : 0);
 	}
 
+	if (bRenderMode && CinematicStreamingHost)
+	{
+		UpdateCinematicStreamingSourceLocation();
+		GetWorldTimerManager().SetTimer(
+			CinematicStreamingFollowTimer,
+			this,
+			&ACinematicGameMode::UpdateCinematicStreamingSourceLocation,
+			0.1f,
+			true);
+	}
+
 	// Render-mode setup: ONE-SHOT cleanup of stale baked CustomDepth on every
 	// actor's primitive components. Reason: Take Recorder duplicates
 	// component state at the moment of AddSource, possibly including dirty
@@ -384,12 +415,9 @@ void ACinematicGameMode::BeginPlay()
 	// changes during the take. Without this scrub, those bake into the
 	// rendered frame as ghost outlines on uninvolved drawers.
 	//
-	// IMPORTANT: we do NOT call SuppressInteractionVisuals() here. The
-	// InteractionComponent's live focus/prompt broadcast is GAMEPLAY UX
-	// that we WANT in the cinematic render -- the "[E] Open" widget and
-	// the focus outline are part of the trailer's gameplay-readable
-	// narrative ("the player walked up and interacted"). Killing the
-	// broadcast removes the prompt from the render frame.
+	// Interaction focus remains active so authored custom-depth property
+	// tracks can render. Viewport widgets are removed earlier for clean MRQ
+	// output; Record mode keeps the normal gameplay prompts.
 	//
 	// What remains under cinematic control:
 	//   - Take's Spawnable mesh transforms (drawer motion) -- Take Recorder
@@ -399,18 +427,42 @@ void ACinematicGameMode::BeginPlay()
 	//
 	// What remains under gameplay control:
 	//   - Live focus driven by InteractionComponent traces
-	//   - "[E] Open" HUD widget broadcast through IInteractionService
 	if (bRenderMode && World)
 	{
 		ClearStaleCustomDepthAcrossWorld();
 
 		UE_LOG(LogProjectCinematic, Log,
-			TEXT("[CinematicGM][BeginPlay] Render-mode cleanup complete | stale stencils cleared (one-shot); live InteractionComponent kept enabled for [E] prompt + focus broadcasts"));
+			TEXT("[CinematicGM][BeginPlay] Render cleanup complete | stale stencils cleared; focus retained; viewport widgets removed"));
 	}
 
 	UE_LOG(LogProjectCinematic, Log,
 		TEXT("[CinematicGM][BeginPlay] END | session=%s"),
 		bRenderMode ? TEXT("Render") : TEXT("Record"));
+}
+
+void ACinematicGameMode::UpdateCinematicStreamingSourceLocation()
+{
+	if (!CinematicStreamingHost)
+	{
+		return;
+	}
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	AActor* ViewTarget = PC ? PC->GetViewTarget() : nullptr;
+	if (!ViewTarget)
+	{
+		return;
+	}
+
+	const FVector TargetLocation = ViewTarget->GetActorLocation();
+	if (!CinematicStreamingHost->GetActorLocation().Equals(TargetLocation, 100.0f))
+	{
+		CinematicStreamingHost->SetActorLocation(
+			TargetLocation,
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics);
+	}
 }
 
 // NOTE -- legacy SuppressCinematicInteractionVisuals() removed.
@@ -420,11 +472,9 @@ void ACinematicGameMode::BeginPlay()
 // on each (the InteractionComponent's implementation clears focus + disables
 // live highlight production for the render session).
 //
-// Removed because: the cinematic Render mode now KEEPS the live
-// InteractionComponent active. The [E] prompt and focus-driven outline are
-// gameplay-readable trailer UX that should appear in the rendered frame --
-// suppressing them produced sterile shots that didn't match the user's
-// vision for ALIS cinematics.
+// Removed because the cinematic Render mode keeps the live InteractionComponent
+// active for focus-driven or authored highlight state. Viewport-level UMG cleanup
+// is a separate concern and suppresses prompts in clean release shots.
 //
 // The interface (Plugins/Foundation/ProjectCore/.../IInteractionVisualSuppressor.h)
 // and InteractionComponent's implementation remain in place as an architectural
@@ -482,8 +532,7 @@ void ACinematicGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		SessionMode == ECinematicSessionMode::Render ? TEXT("Render") : TEXT("Record"),
 		CinematicStreamingHost ? *CinematicStreamingHost->GetName() : TEXT("<null>"));
 
-	// Render-mode suppression is now one-shot at BeginPlay; no timer/handler
-	// teardown needed.
+	GetWorldTimerManager().ClearTimer(CinematicStreamingFollowTimer);
 	if (CinematicStreamingHost)
 	{
 		const FString HostName = CinematicStreamingHost->GetName();

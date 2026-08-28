@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.project/schemas/material-manifest-v1.json",
+  "title": "ProjectMaterial Accepted Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "records"],
+  "properties": {
+    "$schema": { "const": "../../Schemas/material-manifest.schema.json" },
+    "schema_version": { "const": "1" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recipe_path",
+        "recipe_sha256",
+        "family",
+        "archetype",
+        "compiler_version",
+        "output_object_path",
+        "semantic_identity",
+        "package_sha256",
+        "compiler_fingerprint",
+        "engine_identity"
+      ],
+      "properties": {
+        "recipe_path": { "type": "string", "pattern": "^[A-Za-z0-9_/.-]+\\.material\\.json$" },
+        "recipe_sha256": { "$ref": "#/$defs/sha256" },
+        "family": { "const": "surface_opaque" },
+        "archetype": { "const": "landscape_basic_v1" },
+        "compiler_version": { "const": "1" },
+        "dependency_object_path": { "type": "string" },
+        "dependency_package_sha256": { "$ref": "#/$defs/sha256" },
+        "output_object_path": {
+          "type": "string",
+          "pattern": "^/ProjectMaterial/Generated/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "semantic_identity": { "$ref": "#/$defs/sha256" },
+        "package_sha256": { "$ref": "#/$defs/sha256" },
+        "compiler_fingerprint": { "$ref": "#/$defs/sha256" },
+        "engine_identity": { "type": "string", "minLength": 1 }
+      },
+      "dependentRequired": {
+        "dependency_object_path": ["dependency_package_sha256"],
+        "dependency_package_sha256": ["dependency_object_path"]
+      }
+    }
+  }
+}

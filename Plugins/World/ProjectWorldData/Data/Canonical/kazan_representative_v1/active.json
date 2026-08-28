@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/canonical-authority.schema.json",
+  "schema_version": 1,
+  "authority_id": "kazan_representative_v1:388d87d1cb2781571a551b77782a00026b3537a7c5c7ed8be97b4b29a41e95c4",
+  "world_data_plugin": "ProjectWorldData",
+  "profile_id": "kazan_representative_v1",
+  "inputs_hash": "625ce6061737b17d5f213b3dd53faececd1e774c09ca3245f318fd44a78f6f05",
+  "profile_sha256": "e39e7b8ca7e00a700adb63188d75ff00b4586c17fa688006f5463eac3a0bb62b",
+  "external_inputs": {
+    "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_representative_v1.source.json",
+    "source_profile_sha256": "9c0c5c549c9af4c74b74fed2de6b99cbf1bd144f9ed207780b628a0fe772f936",
+    "authored_overlay_path": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
+    "authored_overlay_sha256": "a1dceda2b459b6e9279dda4ca6c140b719795bc3e0310443e2ee790d9ecbeb59",
+    "fixture_features_path": null,
+    "fixture_features_sha256": null,
+    "budget_profile_path": null,
+    "budget_profile_sha256": null,
+    "control_profile_path": null,
+    "control_profile_sha256": null,
+    "source_run_inputs_hash": "04a6152d4d63d23710500e33dbb6517ec37797bfcd53aa09b9bcb4192c8fefca"
+  },
+  "admission_receipt_sha256": null,
+  "admission_artifacts": [],
+  "compile_result_sha256": "b75dc2f45c99749b9e6b4b78ceb0b86677b94c8a60c61b86a94e2bc6552fea69",
+  "output_count": 13,
+  "bundle": {
+    "format": "deterministic_zip_v1",
+    "path": "bundles/388d87d1cb2781571a551b77782a00026b3537a7c5c7ed8be97b4b29a41e95c4.zip",
+    "byte_size": 999489,
+    "sha256": "d033480cbfd2161c93c4c440274a0540cd92d26022ead0f02398222b720d1895"
+  }
+}

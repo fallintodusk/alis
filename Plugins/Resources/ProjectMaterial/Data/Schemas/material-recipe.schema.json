@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.project/schemas/material-recipe-v1.json",
+  "title": "ProjectMaterial Recipe v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "material_id",
+    "artifact_kind",
+    "family",
+    "archetype",
+    "compiler_version",
+    "scalars",
+    "vectors"
+  ],
+  "properties": {
+    "$schema": { "const": "../../Schemas/material-recipe.schema.json" },
+    "schema_version": { "const": "1" },
+    "material_id": { "type": "string", "pattern": "^M(I)?_[A-Za-z0-9_]+$" },
+    "artifact_kind": { "enum": ["parent", "instance"] },
+    "family": { "const": "surface_opaque" },
+    "archetype": { "const": "landscape_basic_v1" },
+    "compiler_version": { "const": "1" },
+    "parent": {
+      "type": "string",
+      "pattern": "^/ProjectMaterial/Generated/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+    },
+    "scalars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["Roughness", "SlopeContrast"],
+      "properties": {
+        "Roughness": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "SlopeContrast": { "type": "number", "minimum": 0.01, "maximum": 16.0 }
+      }
+    },
+    "vectors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["LowSlopeColor", "SteepSlopeColor"],
+      "properties": {
+        "LowSlopeColor": { "$ref": "#/$defs/color" },
+        "SteepSlopeColor": { "$ref": "#/$defs/color" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_kind": { "const": "parent" } } },
+      "then": {
+        "properties": { "material_id": { "pattern": "^M_(?!I_)[A-Za-z0-9_]+$" } },
+        "not": { "required": ["parent"] }
+      },
+      "else": {
+        "required": ["parent"],
+        "properties": { "material_id": { "pattern": "^MI_[A-Za-z0-9_]+$" } }
+      }
+    }
+  ],
+  "$defs": {
+    "color": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+    }
+  }
+}

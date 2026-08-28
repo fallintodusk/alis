@@ -4,6 +4,10 @@
 #include "Presentation/ProjectWorldProductPerformanceGate.h"
 
 #include "Presentation/ProjectWorldPerformanceMetrics.h"
+#include "Presentation/ProjectWorldPlayableTourDriver.h"
+#include "Presentation/ProjectWorldPlayableTourResidency.h"
+#include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
+#include "Presentation/ProjectWorldScreenshotValidation.h"
 
 #include "ChartCreation.h"
 #include "DynamicRHI.h"
@@ -45,6 +49,7 @@ namespace
 	constexpr double WarmupTimeoutSeconds = 60.0;
 	constexpr double SettlementTimeoutSeconds = 45.0;
 	constexpr double CsvWriteTimeoutSeconds = 60.0;
+	constexpr double PerformanceScreenshotTimeoutSeconds = 30.0;
 	constexpr double ResidencySampleIntervalSeconds = 0.5;
 	constexpr double MemorySampleIntervalSeconds = 1.0;
 	constexpr double FrameP95BudgetMilliseconds = 16.67;
@@ -141,15 +146,11 @@ FProjectWorldProductPerformanceGate::~FProjectWorldProductPerformanceGate()
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
-	if (Collector.IsValid() && GEngine != nullptr)
+	if (Collector.IsValid() && GEngine != nullptr && CollectorRegistration.Consume())
 	{
 		GEngine->RemovePerformanceDataConsumer(Collector);
-		Collector.Reset();
 	}
-	if (bQualityOverrideApplied)
-	{
-		Scalability::SetQualityLevels(PriorQualityLevels, true);
-	}
+	Collector.Reset();
 }
 
 void FProjectWorldProductPerformanceGate::StartIfRequested()
@@ -176,6 +177,7 @@ void FProjectWorldProductPerformanceGate::StartIfRequested()
 
 bool FProjectWorldProductPerformanceGate::ParseConfig(FString& OutError)
 {
+	bPlayableTourRequested = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldPlayableTour"));
 	if (!ParseRequiredPath(TEXT("ProjectWorldPerformanceResult="), ResultPath) ||
 		!ParseRequiredPath(TEXT("ProjectWorldPerformanceCorrectness="), CorrectnessResultPath) ||
 		!ParseRequiredPath(TEXT("ProjectWorldPerformanceCsv="), RequestedCsvPath))
@@ -186,6 +188,12 @@ bool FProjectWorldProductPerformanceGate::ParseConfig(FString& OutError)
 	if (ResultPath == CorrectnessResultPath || ResultPath == RequestedCsvPath)
 	{
 		OutError = TEXT("Performance result, correctness result, and CSV paths must be distinct.");
+		return false;
+	}
+	if (bPlayableTourRequested &&
+		!ParseRequiredPath(TEXT("ProjectWorldPerformanceScreenshot="), ScreenshotPath))
+	{
+		OutError = TEXT("Playable-tour acceptance requires an absolute screenshot path.");
 		return false;
 	}
 	return true;
@@ -256,6 +264,11 @@ bool FProjectWorldProductPerformanceGate::Tick(float DeltaSeconds)
 		}
 		return Phase != EPhase::Finished;
 	}
+	if (Phase == EPhase::WaitingForScreenshot)
+	{
+		TickScreenshot();
+		return Phase != EPhase::Finished;
+	}
 
 	if (!ProductWorld.IsValid() || !PlayerCharacter.IsValid())
 	{
@@ -320,6 +333,24 @@ bool FProjectWorldProductPerformanceGate::TryReadCorrectnessResult(FString& OutE
 		OutError = TEXT("The accepted product-route receipt lacks required identity fields.");
 		return false;
 	}
+	if (bPlayableTourRequested)
+	{
+		Root->TryGetStringField(TEXT("correctness_contract"), CorrectnessContract);
+		const bool bScenarioContract = CorrectnessContract == TEXT("single-play-scenario-v1");
+		const bool bCorrectnessComplete =
+			Root->TryGetBoolField(TEXT("gameplay_interaction"), bCorrectnessGameplayInteraction) &&
+			Root->TryGetBoolField(TEXT("terrain_collision"), bCorrectnessTerrainCollision) &&
+			Root->TryGetBoolField(TEXT("road_collision"), bCorrectnessRoadCollision) &&
+			Root->TryGetBoolField(TEXT("building_collision"), bCorrectnessBuildingCollision) &&
+			ReadString(Root, TEXT("screenshot"), CorrectnessScreenshotPath);
+		if (!bCorrectnessComplete || !bCorrectnessGameplayInteraction ||
+			(!bScenarioContract && (!bCorrectnessTerrainCollision || !bCorrectnessRoadCollision ||
+				!bCorrectnessBuildingCollision)))
+		{
+			OutError = TEXT("Playable tour requires accepted interaction and actor-scoped collision evidence.");
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -340,6 +371,17 @@ bool FProjectWorldProductPerformanceGate::TryAcquireProductWorld(FString& OutErr
 		OutError = TEXT("The live world no longer matches the accepted menu-to-ProjectLoading product route.");
 		return false;
 	}
+	if (bPlayableTourRequested)
+	{
+		const FString Traversal = World->URL.GetOption(TEXT("Traversal="), TEXT(""));
+		UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+		if (Traversal != TEXT("PreviewFlight") || Movement == nullptr || !Movement->IsFlying() ||
+			!Character->GetClass()->GetPathName().Contains(TEXT("DefinitionCharacter")))
+		{
+			OutError = TEXT("Playable tour did not acquire PreviewFlight on the possessed DefinitionCharacter.");
+			return false;
+		}
+	}
 	ProductWorld = World;
 	PlayerController = Controller;
 	PlayerCharacter = Character;
@@ -358,12 +400,13 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 		RequiredResolution.X,
 		RequiredResolution.Y,
 		EWindowMode::Windowed);
+	GEngine->Exec(ProductWorld.Get(), TEXT("r.VSync 0"));
+	GEngine->Exec(ProductWorld.Get(), TEXT("t.MaxFPS 0"));
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 	Scalability::FQualityLevels HighQuality;
 	HighQuality.SetFromSingleQualityLevel(RequiredHighQualityLevel);
-	PriorQualityLevels = Scalability::GetQualityLevels();
+	// This gate owns a one-shot process; late teardown must never reconfigure a shut-down renderer.
 	Scalability::SetQualityLevels(HighQuality, true);
-	bQualityOverrideApplied = true;
 	HighQualityLevel = Scalability::GetQualityLevels().GetSingleQualityLevel();
 	CapturedResolution = GEngine->GameViewport->Viewport->GetSizeXY();
 	if (HighQualityLevel != RequiredHighQualityLevel || CapturedResolution != RequiredResolution)
@@ -378,6 +421,18 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 	if (!BuildRoutes(OutError))
 	{
 		return false;
+	}
+	if (bPlayableTourRequested)
+	{
+		PlayableTourDriver = MakeUnique<FProjectWorldPlayableTourDriver>();
+		if (!PlayableTourDriver->Initialize(
+				*PlayerController.Get(),
+				*PlayerCharacter.Get(),
+				Routes[0].Points,
+				OutError))
+		{
+			return false;
+		}
 	}
 
 #if CSV_PROFILER
@@ -404,6 +459,7 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 
 	Collector = MakeShared<FProjectWorldPerformanceCollector>();
 	GEngine->AddPerformanceDataConsumer(Collector);
+	CollectorRegistration.MarkRegistered();
 	LastResidencySampleSeconds = FPlatformTime::Seconds();
 	LastMemorySampleSeconds = LastResidencySampleSeconds;
 	SetPhase(EPhase::Warmup);
@@ -451,6 +507,15 @@ bool FProjectWorldProductPerformanceGate::BuildRoutes(FString& OutError)
 	const FVector BottomRight(Maximum.X, Minimum.Y, Z);
 
 	Routes.Reset();
+	if (bPlayableTourRequested)
+	{
+		const FVector DensePoint = Center + FVector(DenseRadius, 0.0, 0.0);
+		Routes.Add({
+			TEXT("playable_tour"),
+			{Center, DensePoint, MinPoint, DensePoint, Center},
+			360.0});
+		return true;
+	}
 	Routes.Add({
 		TEXT("dense_centre"),
 		{Center, Center + FVector(DenseRadius, 0.0, 0.0),
@@ -472,6 +537,17 @@ bool FProjectWorldProductPerformanceGate::TickWarmup()
 		if (StableReadyFrames >= RequiredReadyFrames)
 		{
 			CaptureReadySeconds = FPlatformTime::Seconds() - GateStartedSeconds;
+			if (bPlayableTourRequested)
+			{
+				FString Error;
+				UWorldPartition* Partition = ProductWorld->GetWorldPartition();
+				if (Partition == nullptr ||
+					!PlayableTourResidency.FreezeCenterCells(*Partition, CenterLocation, Error))
+				{
+					Finish(TEXT("rejected"), TEXT("playable_tour_center_census_failed"), Error);
+					return false;
+				}
+			}
 			BeginRoute();
 			return true;
 		}
@@ -493,17 +569,18 @@ void FProjectWorldProductPerformanceGate::BeginRoute()
 	++CurrentRouteIndex;
 	if (!Routes.IsValidIndex(CurrentRouteIndex))
 	{
-		const FProjectWorldPerformanceStatistics Statistics =
-			ProjectWorldPerformanceMetrics::Calculate(Collector->AllFrames());
-		const bool bAccepted = ProjectWorldPerformanceMetrics::IsAccepted(
-			Statistics,
-			TotalStreamingFailures,
-			FrameP95BudgetMilliseconds,
-			AcceptanceReason);
-		Finish(
-			bAccepted ? TEXT("accepted") : TEXT("rejected"),
-			bAccepted ? FString() : TEXT("performance_hard_gate_failed"),
-			AcceptanceReason);
+		if (bPlayableTourRequested)
+		{
+			FString Error;
+			if (!RequestPlayableTourScreenshot(Error))
+			{
+				Finish(TEXT("rejected"), TEXT("playable_tour_screenshot_failed"), Error);
+			}
+		}
+		else
+		{
+			FinishFromMetrics();
+		}
 		return;
 	}
 
@@ -518,6 +595,23 @@ void FProjectWorldProductPerformanceGate::BeginRoute()
 void FProjectWorldProductPerformanceGate::TickRoute(float DeltaSeconds)
 {
 	FProjectWorldPerformanceRoute& Route = Routes[CurrentRouteIndex];
+	if (bPlayableTourRequested)
+	{
+		FString Error;
+		const EProjectWorldPlayableTourResult Result = PlayableTourDriver->Tick(DeltaSeconds, Error);
+		if (Result == EProjectWorldPlayableTourResult::Rejected)
+		{
+			Finish(TEXT("rejected"), TEXT("playable_tour_input_failed"), Error);
+		}
+		else if (Result == EProjectWorldPlayableTourResult::Accepted)
+		{
+			Route.DurationSeconds = PlayableTourDriver->GetEvidence().DurationSeconds;
+			SettlementStartedSeconds = FPlatformTime::Seconds();
+			StableReadyFrames = 0;
+			SetPhase(EPhase::Settling);
+		}
+		return;
+	}
 	const double Alpha = FMath::Clamp(
 		(FPlatformTime::Seconds() - RouteStartedSeconds) / Route.DurationSeconds,
 		0.0,
@@ -592,7 +686,15 @@ void FProjectWorldProductPerformanceGate::SampleResidency(float DeltaSeconds)
 				const uint8 State = static_cast<uint8>(Cell->GetCurrentState());
 				LoadedCells += State >= static_cast<uint8>(EWorldPartitionRuntimeCellState::Loaded) ? 1 : 0;
 				ActivatedCells += State == static_cast<uint8>(EWorldPartitionRuntimeCellState::Activated) ? 1 : 0;
-				if (const uint8* PriorState = PriorCellStates.Find(Cell->GetGuid()); PriorState != nullptr && *PriorState != State)
+				if (bPlayableTourRequested && PlayableTourDriver.IsValid())
+				{
+					PlayableTourResidency.ObserveCell(
+						*Cell,
+						PlayableTourDriver->HasReachedEdge(),
+						PlayableTourDriver->HasReturnedToCenter());
+				}
+				if (const uint8* PriorState = PriorCellStates.Find(Cell->GetGuid());
+					PriorState != nullptr && *PriorState != State)
 				{
 					if (Routes.IsValidIndex(CurrentRouteIndex))
 					{
@@ -626,6 +728,63 @@ void FProjectWorldProductPerformanceGate::SampleResidency(float DeltaSeconds)
 			PeakGpuLocalBytes = FMath::Max(PeakGpuLocalBytes, GpuMemory.UsedLocal);
 		}
 	}
+}
+
+bool FProjectWorldProductPerformanceGate::RequestPlayableTourScreenshot(FString& OutError)
+{
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(ScreenshotPath), true);
+	IFileManager::Get().Delete(*ScreenshotPath, false, true, true);
+	if (!ProjectWorldRuntimeScreenshotCapture::CapturePlayerContext(
+			*ProductWorld.Get(),
+			*PlayerController.Get(),
+			ScreenshotPath,
+			OutError))
+	{
+		return false;
+	}
+	SetPhase(EPhase::WaitingForScreenshot);
+	return true;
+}
+
+void FProjectWorldProductPerformanceGate::TickScreenshot()
+{
+	if (IFileManager::Get().FileSize(*ScreenshotPath) > 0)
+	{
+		FString Error;
+		if (!ProjectWorldScreenshotValidation::ValidateFile(ScreenshotPath, Error))
+		{
+			Finish(TEXT("rejected"), TEXT("playable_tour_screenshot_invalid"), Error);
+			return;
+		}
+		FinishFromMetrics();
+		return;
+	}
+	if (FPlatformTime::Seconds() - PhaseStartedSeconds > PerformanceScreenshotTimeoutSeconds)
+	{
+		Finish(TEXT("rejected"), TEXT("playable_tour_screenshot_timeout"),
+			TEXT("Playable-tour screenshot did not arrive within the bounded timeout."));
+	}
+}
+
+void FProjectWorldProductPerformanceGate::FinishFromMetrics()
+{
+	const FProjectWorldPerformanceStatistics Statistics =
+		ProjectWorldPerformanceMetrics::Calculate(Collector->AllFrames());
+	bool bAccepted = ProjectWorldPerformanceMetrics::IsAccepted(
+		Statistics,
+		TotalStreamingFailures,
+		FrameP95BudgetMilliseconds,
+		AcceptanceReason);
+	if (bAccepted && bPlayableTourRequested && !PlayableTourResidency.HasCompleteCycle())
+	{
+		bAccepted = false;
+		AcceptanceReason = TEXT(
+			"Playable tour did not prove the same initial center cell unloaded at the edge and reloaded after return.");
+	}
+	Finish(
+		bAccepted ? TEXT("accepted") : TEXT("rejected"),
+		bAccepted ? FString() : TEXT("performance_hard_gate_failed"),
+		AcceptanceReason);
 }
 
 FVector FProjectWorldProductPerformanceGate::RoutePosition(
@@ -673,7 +832,7 @@ bool FProjectWorldProductPerformanceGate::IsStreamingCompleted() const
 
 void FProjectWorldProductPerformanceGate::EndCapture()
 {
-	if (Collector.IsValid() && GEngine != nullptr)
+	if (Collector.IsValid() && GEngine != nullptr && CollectorRegistration.Consume())
 	{
 		Collector->EndRoute();
 		GEngine->RemovePerformanceDataConsumer(Collector);
@@ -742,6 +901,8 @@ void FProjectWorldProductPerformanceGate::WriteResult(
 	Root->SetNumberField(TEXT("time_to_ready_seconds"), CaptureReadySeconds);
 	Root->SetNumberField(TEXT("streaming_failures"), TotalStreamingFailures);
 	Root->SetNumberField(TEXT("activation_transitions"), TotalActivationTransitions);
+	Root->SetNumberField(TEXT("unloaded_cell_count"), PlayableTourResidency.GetUnloadedCount());
+	Root->SetNumberField(TEXT("reloaded_cell_count"), PlayableTourResidency.GetReloadedCount());
 	Root->SetNumberField(TEXT("peak_process_physical_bytes"), static_cast<double>(PeakProcessPhysicalBytes));
 	Root->SetNumberField(TEXT("peak_gpu_local_bytes"), static_cast<double>(PeakGpuLocalBytes));
 	Root->SetStringField(TEXT("csv_capture"), WrittenCsvPath);
@@ -753,6 +914,18 @@ void FProjectWorldProductPerformanceGate::WriteResult(
 	Root->SetNumberField(TEXT("render_p95_ms"), Overall.RenderP95Milliseconds);
 	Root->SetNumberField(TEXT("gpu_p95_ms"), Overall.GPUP95Milliseconds);
 	Root->SetStringField(TEXT("acceptance_reason"), AcceptanceReason);
+	Root->SetBoolField(TEXT("playable_tour"), bPlayableTourRequested);
+	Root->SetStringField(TEXT("playable_tour_screenshot"), ScreenshotPath);
+	Root->SetStringField(TEXT("correctness_screenshot"), CorrectnessScreenshotPath);
+	Root->SetBoolField(TEXT("gameplay_interaction"), bCorrectnessGameplayInteraction);
+	Root->SetBoolField(TEXT("terrain_collision"), bCorrectnessTerrainCollision);
+	Root->SetBoolField(TEXT("road_collision"), bCorrectnessRoadCollision);
+	Root->SetBoolField(TEXT("building_collision"), bCorrectnessBuildingCollision);
+	if (PlayableTourDriver.IsValid())
+	{
+		PlayableTourDriver->AppendReceiptFields(*Root);
+		PlayableTourResidency.AppendReceiptFields(*Root);
+	}
 
 	TArray<TSharedPtr<FJsonValue>> RouteValues;
 	for (const FProjectWorldPerformanceRoute& Route : Routes)

@@ -17,6 +17,7 @@ public class ProjectWorld : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"ImageCore",
+			"InputCore",
 			"Json",
 			"RenderCore",
 			"RHI"

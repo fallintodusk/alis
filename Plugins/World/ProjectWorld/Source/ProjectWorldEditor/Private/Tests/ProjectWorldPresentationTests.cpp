@@ -4,7 +4,6 @@
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldPresentationProfile.h"
-#include "ProjectWorldPresentationMaterialRealization.h"
 #include "ProjectWorldPresentationRealization.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldSemanticEvidence.h"
@@ -89,11 +88,19 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 
 	FProjectWorldPresentationResources Resources;
 	TestTrue(
-		TEXT("Every approved engine-provided material resolves."),
+		TEXT("Every approved presentation material resolves."),
 		ProjectWorldPresentationProfile::ResolveResources(Profile, Resources, Error));
+	TestEqual(
+		TEXT("Terrain resolves through the universal semantic binding."),
+		Resources.TerrainMaterial->GetPathName(),
+		FString(TEXT("/ProjectMaterial/Generated/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default")));
+	TestEqual(TEXT("Terrain package digest is authenticated."), Resources.TerrainMaterialPackageSha256.Len(), 64);
+	TestEqual(TEXT("Terrain semantic identity is authenticated."), Resources.TerrainMaterialSemanticIdentity.Len(), 64);
 
 	FString ShippedSource;
 	TestTrue(TEXT("Profile fixture is readable."), FFileHelper::LoadFileToString(ShippedSource, *ShippedProfilePath()));
+	TestFalse(TEXT("WorldData owns no terrain material identity."), ShippedSource.Contains(TEXT("\"terrain\"")));
+	TestFalse(TEXT("WorldData owns no terrain graph parameters."), ShippedSource.Contains(TEXT("terrain_parameters")));
 	const FString Root = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation/ProjectWorldPresentation"));
 	IFileManager::Get().MakeDirectory(*Root, true);
 	const FString InvalidMaterialPath = FPaths::Combine(Root, TEXT("invalid_material.json"));
@@ -201,57 +208,11 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		ProjectWorldPresentationProfile::Load(InvalidViewpointTokenPath, Profile, ErrorCode, Error));
 	TestEqual(TEXT("Viewpoint token rejection is structured."), ErrorCode, FString(TEXT("presentation-profile-viewpoints")));
 
-	const FString UnsupportedTerrainPath = FPaths::Combine(Root, TEXT("unsupported_terrain.json"));
-	const FString UnsupportedTerrain = Source.Replace(
-		TEXT("/Engine/OpenWorldTemplate/LandscapeMaterial/MI_ProcGrid.MI_ProcGrid"),
-		TEXT("/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial"));
-	TestTrue(TEXT("Unsupported terrain fixture is writable."), FFileHelper::SaveStringToFile(UnsupportedTerrain, *UnsupportedTerrainPath));
-	TestFalse(
-		TEXT("Presentation v1 accepts only the terrain parent whose parameter contract it owns."),
-		ProjectWorldPresentationProfile::Load(UnsupportedTerrainPath, Profile, ErrorCode, Error));
-	TestEqual(TEXT("Terrain parent rejection is structured."), ErrorCode, FString(TEXT("presentation-profile-material")));
-
-	TestTrue(
-		TEXT("The shipped profile reloads after negative contract fixtures."),
-		ProjectWorldPresentationProfile::Load(ShippedProfilePath(), Profile, ErrorCode, Error));
-	FProjectWorldPresentationResources FirstMaterialResources;
-	TestTrue(
-		TEXT("Terrain material resources resolve for first preparation."),
-		ProjectWorldPresentationProfile::ResolveResources(Profile, FirstMaterialResources, Error));
-	TestTrue(
-		TEXT("Generated terrain material is prepared."),
-		ProjectWorldPresentationMaterialRealization::Prepare(
-			Profile,
-			FirstMaterialResources,
-			TEXT("/ProjectWorldTestData/Generated/"),
-			Error));
-	const FString MaterialFilename = FPackageName::LongPackageNameToFilename(
-		TEXT("/ProjectWorldTestData/Generated/Presentation/MI_ProjectWorldTerrain_synthetic_representative_v1"),
-		FPackageName::GetAssetPackageExtension());
-	const FDateTime FirstTimestamp = IFileManager::Get().GetTimeStamp(*MaterialFilename);
-	FPlatformProcess::Sleep(1.1f);
-	FProjectWorldPresentationResources SecondMaterialResources;
-	TestTrue(
-		TEXT("Terrain material resources resolve for unchanged preparation."),
-		ProjectWorldPresentationProfile::ResolveResources(Profile, SecondMaterialResources, Error));
-	TestTrue(
-		TEXT("Unchanged terrain material is accepted without a rewrite."),
-		ProjectWorldPresentationMaterialRealization::Prepare(
-			Profile,
-			SecondMaterialResources,
-			TEXT("/ProjectWorldTestData/Generated/"),
-			Error));
-	TestEqual(
-		TEXT("Unchanged terrain material keeps its package timestamp."),
-		IFileManager::Get().GetTimeStamp(*MaterialFilename),
-		FirstTimestamp);
-
 	IFileManager::Get().Delete(*InvalidMaterialPath, false, true, true);
 	IFileManager::Get().Delete(*DuplicateViewpointPath, false, true, true);
 	IFileManager::Get().Delete(*InvalidProfileIdPath, false, true, true);
 	IFileManager::Get().Delete(*InvalidViewpointTokenPath, false, true, true);
 	IFileManager::Get().Delete(*ProductionPath, false, true, true);
-	IFileManager::Get().Delete(*UnsupportedTerrainPath, false, true, true);
 	return true;
 }
 
@@ -503,6 +464,49 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 		TEXT("Incremental profile transition matches a clean target-profile build."),
 		TransitionEvidence.SemanticFingerprint,
 		CleanTransitionEvidence.SemanticFingerprint);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldSemanticFingerprintProvenanceTest,
+	"Project.World.Realization.Presentation.SemanticFingerprintIgnoresInputProvenance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldSemanticFingerprintProvenanceTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = GEditor->NewMap(false);
+	AActor* Actor = World->SpawnActor<AActor>();
+	Actor->Tags.Add(ProjectWorldGeneratedGeometry::GeneratedTag);
+	Actor->Tags.Add(TEXT("ProjectWorld.Cell=grid:x0:y0"));
+	Actor->Tags.Add(TEXT("ProjectWorld.Input=compile_a"));
+
+	FString Error;
+	FProjectWorldRealizationResult Initial;
+	TestTrue(
+		TEXT("Initial generated actor semantics are captured."),
+		ProjectWorldSemanticEvidence::Capture(World, Initial, Error));
+
+	Actor->Tags.Remove(TEXT("ProjectWorld.Input=compile_a"));
+	Actor->Tags.Add(TEXT("ProjectWorld.Input=compile_b"));
+	FProjectWorldRealizationResult ProvenanceOnly;
+	TestTrue(
+		TEXT("Changed compile provenance is captured."),
+		ProjectWorldSemanticEvidence::Capture(World, ProvenanceOnly, Error));
+	TestEqual(
+		TEXT("Compile provenance does not change product semantics."),
+		ProvenanceOnly.SemanticFingerprint,
+		Initial.SemanticFingerprint);
+
+	Actor->Tags.Remove(TEXT("ProjectWorld.Cell=grid:x0:y0"));
+	Actor->Tags.Add(TEXT("ProjectWorld.Cell=grid:x1:y0"));
+	FProjectWorldRealizationResult SemanticChange;
+	TestTrue(
+		TEXT("Changed semantic ownership is captured."),
+		ProjectWorldSemanticEvidence::Capture(World, SemanticChange, Error));
+	TestNotEqual(
+		TEXT("Cell ownership remains part of product semantics."),
+		SemanticChange.SemanticFingerprint,
+		Initial.SemanticFingerprint);
 	return true;
 }
 

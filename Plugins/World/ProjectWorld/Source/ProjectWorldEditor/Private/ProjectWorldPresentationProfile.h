@@ -21,14 +21,9 @@ struct FProjectWorldPresentationProfile
 {
 	FString ProfileId;
 	FString ProfileHash;
-	FString TerrainMaterialPath;
 	FString RoadMaterialPath;
 	FString BuildingMaterialPath;
 	FString CloudMaterialPath;
-	FLinearColor TerrainPrimaryColor = FLinearColor::Black;
-	FLinearColor TerrainSecondaryColor = FLinearColor::Black;
-	FLinearColor TerrainLineColor = FLinearColor::Black;
-	float TerrainTileScale = 1.0f;
 	FRotator SunRotation = FRotator::ZeroRotator;
 	float SunIntensityLux = 0.0f;
 	float SkyLightIntensity = 0.0f;
@@ -41,6 +36,10 @@ struct FProjectWorldPresentationProfile
 struct FProjectWorldPresentationResources
 {
 	UMaterialInterface* TerrainMaterial = nullptr;
+	FString TerrainMaterialObjectPath;
+	FString TerrainMaterialPackageSha256;
+	FString TerrainMaterialSemanticIdentity;
+	FString TerrainMaterialManifestSha256;
 	UMaterialInterface* RoadMaterial = nullptr;
 	UMaterialInterface* BuildingMaterial = nullptr;
 	UMaterialInterface* CloudMaterial = nullptr;

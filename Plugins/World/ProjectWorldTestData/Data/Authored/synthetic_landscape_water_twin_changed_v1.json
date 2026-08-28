@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "synthetic_landscape_water_twin_changed_v1",
+  "world_data_plugin": "ProjectWorldTestData",
+  "grid_id": "grid_24b9032e5f87005d",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "synthetic_landscape_water_twin",
+      "horizontal_accuracy_m": 0.01
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "persistence_marker",
+      "authored_package": "/ProjectWorldTestData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "coordinate",
+        "placement_class": "precision",
+        "provenance_ref": "synthetic_landscape_water_twin",
+        "horizontal_tolerance_m": 0.1,
+        "canonical_crs": "ALIS:FIXTURE_METRE_V1",
+        "easting_m": 20.0,
+        "northing_m": 20.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 0.1,
+        "orientation": {"yaw_degrees": 20.0}
+      }
+    }
+  ]
+}

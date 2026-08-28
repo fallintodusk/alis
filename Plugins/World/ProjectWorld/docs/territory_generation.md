@@ -30,6 +30,7 @@ default session bootstrap.
 | Owner | Responsibility |
 |---|---|
 | `ProjectWorld` | Reusable world contracts, C++/script logic, and tests; no concrete UE content. |
+| `ProjectMaterial` | Universal material graphs, instances, recipe schemas, generated material assets, and Editor compiler. |
 | `ProjectWorldData` | Kazan profiles, authored data, persistent canonical bundles, generated UE packages, and manifests. |
 | `ProjectWorldTestData` | Editor-only synthetic inputs and authored fixtures; generated packages/manifests are ignored transient test output. |
 | `SourceIngestion` | Acquire, verify, normalize, and receipt provider data. |
@@ -38,3 +39,18 @@ default session bootstrap.
 
 Concrete data always follows its data owner. Reusable logic never defaults to
 a concrete production or fixture plugin.
+
+World material assignment is semantic and soft-reference based. ProjectWorld maps a
+meaning such as `terrain` or `road.default` to a stable ProjectMaterial identity and
+authenticates assignment in its presentation operation. It does not compile material
+graphs. ProjectWorldData may provide sourced facts such as land cover or road class,
+but never material paths, shader parameters, recipes, generated materials, or material
+manifests.
+
+`terrain.default` resolves to
+`/ProjectMaterial/Generated/Terrain/MI_ProjectTerrain_Default`. Before mutation,
+ProjectWorld authenticates the accepted ProjectMaterial manifest, instance package,
+semantic identity, parent dependency, and current parent bytes. A reference migration
+updates and dirties the root Landscape and every external streaming-proxy package in the
+same logical Landscape family. Later same-path material tuning changes ProjectMaterial
+authority only and does not dirty World packages or geography manifests.

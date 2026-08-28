@@ -14,7 +14,7 @@ What we change vs the Prod baseline:
     output_resolution           1920x1080 -> 960x540  (4x fewer pixels)
 
   AntiAliasing:
-    temporal_sample_count       15 -> 6              (less accumulation,
+    temporal_sample_count        7 -> 6              (less accumulation,
                                                       enough sub-frames for
                                                       smooth motion blur on
                                                       fast camera)
@@ -51,7 +51,9 @@ What we deliberately do NOT touch:
                                                             decal pipeline
                                                             (speed cost
                                                             negligible)
-  - WidgetRenderer compositing                           -> UI capture
+  - WidgetRenderer compositing                           -> authored UI only;
+                                                            Kazan aerial Render
+                                                            removes gameplay UMG
   - GameMode override                                    -> normal init
 
 Idempotent: re-running produces the same asset state. Run when:
@@ -121,7 +123,23 @@ WIDGET_RENDERER = {
 }
 
 GAME_OVERRIDE = {
-    "soft_game_mode_override": "/Script/ProjectSinglePlay.AlisCinematicGameMode",
+    "soft_game_mode_override": "/Script/ProjectCinematic.CinematicGameMode",
+    "cinematic_quality_settings": False,
+    "texture_streaming": "NONE",
+    "use_lod_zero": False,
+    "disable_hlods": False,
+    "use_high_quality_shadows": False,
+    "shadow_distance_scale": 1,
+    "shadow_radius_threshold": 0.03,
+    "override_view_distance_scale": False,
+    "view_distance_scale": 1,
+    "flush_grass_streaming": False,
+    "override_grass_cull_distance_scale": False,
+    "grass_cull_distance_scale": 1.0,
+    "override_grass_density_scale": False,
+    "grass_density_scale": 1.0,
+    "flush_streaming_managers": True,
+    "virtual_texture_feedback_factor": 1,
 }
 
 

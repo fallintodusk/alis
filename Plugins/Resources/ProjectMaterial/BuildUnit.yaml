@@ -1,0 +1,12 @@
+name: ProjectMaterial
+uuid: 17d25cda-0de7-40b6-8372-0f67d65ad437
+module: null
+rebuild_on_dependency_change: false
+custom_globs: []
+rollout:
+  channels: []
+  min_version: null
+hashes:
+  code: e7e4842108bb7b7920f106c183707236f798ed4d64eb5e10956937d737f7dd0a
+  content: 2cf91386b9350771f51a24c4853d55b43068cc3639e9f946ed7512b290381dbc
+  data: {}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/release-capture-request.schema.json",
+  "schema_version": 2,
+  "capture_id": "kazan_release_v1",
+  "map_package": "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+  "sequence": "/Game/Cinematics/Kazan/LS_KazanRelease_v1",
+  "preset": "/Game/Cinematics/MP_Config_Dev",
+  "camera_class": "CineCameraActor",
+  "playback_start": 0,
+  "playback_end": 240,
+  "scalability_quality": 2,
+  "timeout_seconds": 1800,
+  "release_acceptance": "Saved/Validation/WorldRealization/playable-tour/Candidate/operator-acceptance.json",
+  "package_root": "Saved/PackageRelease/KazanPlayableTour/Candidate"
+}

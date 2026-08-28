@@ -30,7 +30,7 @@ void FInventoryViewModelEquipSlotBuilder::Build(const TArray<FInventoryEntryView
 
     for (int32 Index = 0; Index < SlotCount; ++Index)
     {
-        OutResult.InstanceIds[Index] = 0;
+        OutResult.InstanceIds[Index] = INDEX_NONE;
     }
 
     for (int32 Index = 0; Index < SlotCount; ++Index)

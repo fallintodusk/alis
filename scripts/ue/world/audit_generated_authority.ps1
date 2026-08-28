@@ -82,7 +82,12 @@ function Format-AuditProblems {
 
 function Get-AuditObjectSha256 {
     param([Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Value)
-    $json = @($Value) | ConvertTo-Json -Depth 8 -Compress
+    $json = if (@($Value).Count -eq 0) {
+        '[]'
+    }
+    else {
+        @($Value) | ConvertTo-Json -Depth 8 -Compress
+    }
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {

@@ -365,6 +365,7 @@ bool BuildRuntimeEntryViews(
 		View.DisplayName = ResolvedEntry.ItemData.DisplayName;
 		View.Description = ResolvedEntry.ItemData.Description;
 		View.IconCode = ResolvedEntry.ItemData.IconCode;
+		View.EquipSlotTag = ResolvedEntry.ItemData.EquipSlotTag;
 		View.Quantity = Entry.Quantity;
 		View.Weight = ResolvedEntry.ItemData.Weight;
 		View.Volume = ResolvedEntry.ItemData.Volume;

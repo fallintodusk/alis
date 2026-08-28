@@ -14,3 +14,7 @@ accepted enrollment publishes its active set and immutable scopes.
   deterministic Azure Git LFS bundles plus small text indexes. The public
   GitHub mirror excludes the bundle payloads.
 - `Manifests/` owns accepted generated Unreal package inventory.
+
+Material implementation is excluded from this data root. Profiles may express sourced
+world semantics, but not material paths, shader graph choices, render parameters,
+material recipes, or generated-material authority.

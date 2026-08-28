@@ -1,59 +1,59 @@
 {
     "$schema":  "../../../ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json",
     "schema_version":  1,
-    "transaction_id":  "50e57b1c1c044e2eacbd21c16b30cdad",
-    "accepted_operation_id":  "50e57b1c1c044e2eacbd21c16b30cdad",
-    "prior_active_set_sha256":  "ed4c481b8ae5fc3994e6892d9bb52c0692f2462631152b0577c95a0183c333ae",
+    "transaction_id":  "25ab72c29c98409db2b7189ac4e43729",
+    "accepted_operation_id":  "25ab72c29c98409db2b7189ac4e43729",
+    "prior_active_set_sha256":  "0ec3be3e3472391776011911b36869efa9f26e717a5cb6da876eaf88809c4199",
     "scopes":  [
                    {
                        "scope_id":  "layer_kazan_territory_v1_buildings",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_buildings.7.json",
-                       "manifest_sha256":  "e31e1c92f5109d736990cb17ac7befcc19b36bbdbce25b4d8e6ec92da2bf6fab"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_buildings.10.json",
+                       "manifest_sha256":  "2f99ab244cab04fc037c9f2c905c6564d3dfd24ab603653e0b752f65ebf4ad83"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_gameplay",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_gameplay.7.json",
-                       "manifest_sha256":  "2c67d160125956a11a266dfc514bc512989247664abb74b2840c978215a51980"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_gameplay.12.json",
+                       "manifest_sha256":  "66101171b9eab959d1d898c3c0f781484adc9dc50e5ea7aff0b31868dbc9d671"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_roads",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.10.json",
-                       "manifest_sha256":  "f5e6c3b8a9e0ce3bb95e9381b3e2847b92050cc45b02d7f6983fa0e3e3e9634e"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.13.json",
+                       "manifest_sha256":  "197019458e570d6ef5d91e00f50fcf7f165ee4fb8de14ed4e734da818e94331b"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_terrain",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_terrain.11.json",
-                       "manifest_sha256":  "36c6bef8a9ef92ad8ee81eadc737b9a9f42427ed55b1984570e9815e2be3dc0d"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_terrain.15.json",
+                       "manifest_sha256":  "5db8c0761e9bbb86f5848c2b7e8210b38fe58b3c448d5330fc35876e8eb422f2"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_vegetation",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_vegetation.12.json",
-                       "manifest_sha256":  "aa35bee6fc78f118f4f7b737c78951f35ed5b0daeeadae109fc1601dde08e669"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_vegetation.17.json",
+                       "manifest_sha256":  "baf729397a2cbdf9cc8971d66f172a4d52cf05b03ca43e1ad4850d762802fb92"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_water",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.11.json",
-                       "manifest_sha256":  "2a661390f6b4139979c779bca248ee8e521912078eafb73695d78b7a7b3ebca4"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.16.json",
+                       "manifest_sha256":  "85404f46e34818b7774d93117d0408d2bbffffa894cc02bb4f5b8e1e34ba444c"
                    },
                    {
                        "scope_id":  "map_p0_l_projectworldkazan",
-                       "manifest_path":  "scopes/map_p0_l_projectworldkazan.15.json",
-                       "manifest_sha256":  "e057009e2c833f4508f2429b8ddbce11969e9ec23e06cbaee220b886ebbed4fb"
+                       "manifest_path":  "scopes/map_p0_l_projectworldkazan.20.json",
+                       "manifest_sha256":  "ebf160c6e28bfbabb5c2d2d2f98b9a305d210cf5b7aeed9f708c59c78ec29725"
                    },
                    {
                        "scope_id":  "map_representative_l_projectworldkazan_representative",
-                       "manifest_path":  "scopes/map_representative_l_projectworldkazan_representative.15.json",
-                       "manifest_sha256":  "8edf43019a1a12ac7afa08b6759dd3002449070fb996e5e79bb11298a9f34653"
+                       "manifest_path":  "scopes/map_representative_l_projectworldkazan_representative.19.json",
+                       "manifest_sha256":  "8d4903186268d4960696b89a2ef81b5717dd5216822e58b757ee75f5ba0307fa"
                    },
                    {
                        "scope_id":  "map_territory_l_projectworldkazanterritory",
-                       "manifest_path":  "scopes/map_territory_l_projectworldkazanterritory.12.json",
-                       "manifest_sha256":  "184a9b5d737846457f7e1dc0b05392052f8cd6d96eb8e82d39d28ef520cf0f2e"
+                       "manifest_path":  "scopes/map_territory_l_projectworldkazanterritory.20.json",
+                       "manifest_sha256":  "50302a81f807aee8b27f619c6f95b4da41830f95711156e8ad0f77cec1ecedd1"
                    },
                    {
                        "scope_id":  "presentation_kazan_representative_v1",
-                       "manifest_path":  "scopes/presentation_kazan_representative_v1.18.json",
-                       "manifest_sha256":  "c5417b733af18713b7842e0c49d2989d2b18d908b9518b20c50b07c1e316c8c4"
+                       "manifest_path":  "scopes/presentation_kazan_representative_v1.23.json",
+                       "manifest_sha256":  "426006530f50910845c0a983ce9696aa2c63a735452d993fb11b0ba1ebed8e40"
                    }
                ]
 }

@@ -1,12 +1,12 @@
 # Generate Kazan Territory and First Playable Scenario
 
-Status: planning archive. Slice 0A through Slice 3 evidence plus the original
-Slice 4-7 outline are preserved here; current execution uses the lean todo at
-`todo/00_current/world_validate_kazan_territory_slice_4_runtime.md`. Build the accepted
-`kazan_territory_v1` geography, then its first scenario and packaged prototype. The whole product territory is
-generated and player-traversable; the scenario profile selects content
-density, route, AI/navigation, and acceptance coverage only. Geographic
-extent and playability authority live in the territory SOT linked below.
+Status: planning archive. Slice 0A through Slice 4 are accepted, all seven
+presentation concerns are researched, and Slice 5 mechanics gates are accepted
+with grounded product walkthrough and combined-baseline stabilization pending.
+The whole product territory is generated and player-traversable;
+the scenario profile selects content density, route, AI/navigation, and
+acceptance coverage only. Geographic extent and playability authority live in
+the territory SOT linked below.
 
 Profile authority split (one geographic SOT, no duplicates):
 
@@ -18,7 +18,7 @@ Profile authority split (one geographic SOT, no duplicates):
 - Scenario profile/data - ProjectSinglePlay or the owning Feature plugin,
   referencing spatial anchors in the territory.
 
-Sequencing: Slice 0A [DONE] -> Slice 1 [DONE] -> Slice 2 [DONE] -> Slice 3 [DONE] -> Slice 4 [NEXT].
+Sequencing: Slice 0A [DONE] -> Slice 1 [DONE] -> Slice 2 [DONE] -> Slice 3 [DONE] -> Slice 4 [DONE] -> presentation research 7/7 [DONE] -> combined presentation candidates [STABILIZATION FLAGS OPEN] -> Slice 5 [MECHANICS ACCEPTED / GROUNDED WALKTHROUGH PENDING].
 Discovery and bounded verification-cache downloads may run during Slice 1;
 promotion into the accepted source ledger requires Slice 1's own admission,
 license, provenance, coverage, and hash checks. No accepted canonical
@@ -512,13 +512,24 @@ SOT. Fixed cameras and manual walkthroughs are diagnostic, not authority.
   fallback UNQUALIFIED in the release plan until tested on a named physical
   adapter; never extrapolate or emulate it. That secondary release gate does
   not block Slice 4 archive or prototype promotion.
-- [ ] Exit gate: accepted packaged traversal receipt; every retained
+- [x] Exit gate: accepted packaged traversal receipt; every retained
   optimization has before/after evidence and the selected profile is the
-  stable documented default. Automated acceptance is complete; the operator
-  product walkthrough and promotion checkpoint remain before scenario or
-  World-fidelity expansion.
+  stable documented default. The operator accepted the generated blockout for
+  prototype presentation on 2026-08-25. Presentation gaps are separate work.
+
+## Kazan presentation research checkpoint
+
+The [campaign router](world_plan_kazan_presentation_campaign.md) records concern
+sequencing. All seven concerns completed sequential research before any
+implementation was selected. Research-complete concern todos remain in backlog
+until one is selected, implemented, and verified. This checkpoint
+does not reopen canonical geography, generator architecture, generated-layer
+authority, or the accepted `512/1536` runtime profile.
 
 ## Slice 5 - Integrate the first scenario
+
+Status: technical mechanics accepted; grounded reachability, clarity, pacing,
+and feel walkthrough pending.
 
 Ownership rule: ProjectWorld owns spatial acceptance only (map identity,
 territory bounds, spawn/route anchors, collision, navigation roles, streaming
@@ -529,23 +540,22 @@ protected overlay owns spatial anchors and hero actors, never gameplay
 logic. Baked local content only - no launcher delivery, hot-mounted region
 packs, or new IoStore mounting path in this milestone.
 
-- [ ] Register the generated map through the existing experience route and
-  add one explicit second menu entry after its load/package gate passes. The
-  widget owns the logical experience ID, never the map package path.
-- [ ] Spawn inside the territory on generated ground; verify
-  collision, navigation, interaction, and streaming through the scenario.
-- [ ] Author the minimum [00_focus](../../00_current/00_focus.md) Track B loop with existing
+- [x] Reuse the Kazan experience/menu/cook route and generated-ground spawn
+  already accepted by Slice 4; Slice 5 must not register a second route.
+- [x] Re-verify collision, navigation, interaction, and streaming through the
+  scenario-specific path and anchors.
+- [x] Author the minimum [00_focus](../../00_current/00_focus.md) Track B loop with existing
   systems only (spawn -> inspect/interact -> obtain or choose ->
   vitals/inventory consequence -> clear success/failure -> clean restart);
   no dialogue content, combat, crafting, multiplayer, or Mind work.
-- [ ] Store spatial anchors in the protected overlay; store scenario logic
+- [x] Store spatial anchors in the protected overlay; store scenario logic
   in ProjectSinglePlay or existing feature data.
-- [ ] Verify any save/load contract the playable build already promises;
+- [x] Verify the restart contract this playable build promises;
   prove regeneration preserves all scenario anchors unchanged (byte AND
   anchor-resolution proofs per the layered regeneration contract).
-- [ ] Extend the Presentation Gate with scenario cameras and traversal
+- [x] Extend packaged acceptance with scenario screenshots and traversal
   identity without moving scenario logic into ProjectWorld.
-- [ ] Exit gate: scenario runs menu-to-terminal-outcome in Development and
+- [x] Exit gate: scenario runs menu-to-terminal-outcome in Development and
   packaged Shipping with no manual editor preparation.
 
 ## Slice 6 - Integrate and retire legacy content by class

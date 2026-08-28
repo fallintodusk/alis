@@ -4,6 +4,23 @@ How to capture a shot in UE so it survives Movie Render Queue intact. Covers Tak
 
 Router: [README.md](README.md).
 
+## Automated Kazan release route
+
+Run the stable wrapper from the repository root:
+
+```powershell
+.\scripts\ue\cinematic\run_release_capture.ps1
+```
+
+The request names the map, authored LevelSequence, CineCamera cut, preset, frame
+range, accepted packaged-release receipt, and package root. The wrapper cold-starts
+the launcher Editor, renders through MRQ, verifies frame count/duration, records peak
+memory and hashes, promotes `Current`, retains one `Previous`, and removes its tmp.
+
+Release footage uses `ACinematicGameMode` in Render mode. It blocks input, hides the
+gameplay pawn, removes viewport widgets, and keeps World Partition residency near the
+active Sequencer camera. Record mode keeps normal input and UI for Take Recorder.
+
 ## Take Recorder
 
 Use Take Recorder for gameplay-driven shots (player walking, NPC behaviour, physics). Use plain Sequencer for hand-keyed shots.
@@ -25,7 +42,9 @@ Open: Window -> Cinematics -> Movie Render Queue. Add the LevelSequence, then cl
 
 ### Production preset (current)
 
-The settings below are what the active trailer preset uses on disk - currently saved as **`Content/Cinematics/Pending_MoviePipelinePrimaryConfig_Final.uasset`** (the `_Final` suffix matters - the unsuffixed `Pending_MoviePipelinePrimaryConfig.uasset` is an older fallback kept on disk). Used to render BalconyStatueLocker, Helicopter, StreetTrash, and Kitchen (2026-05). Re-save under a stable name like `MRQ_Trailer_ProRes_1080p` when the values stop drifting.
+The source-controlled release presets are `Content/Cinematics/MP_Config_Dev.uasset`
+and `Content/Cinematics/MP_Config_Prod.uasset`. Their recipes live beside the capture
+scripts. Dev is the fast structural/visual gate; Prod is the final-quality target.
 
 **Output:**
 - Output Directory: `{project_dir}/Saved/MovieRenders/` (flat - one `.mov` per sequence, not a per-shot subfolder)
@@ -58,20 +77,14 @@ The values above are the **source-controlled baseline** (set by `scripts/ue/cine
 Earlier notes warned that high Temporal Sample Counts break DBuffer decals - that applies when `Override Anti Aliasing` is ON with a non-TSR method. With TSR (Override OFF), TSC = 7 is the right value for film-quality motion blur and does not break decals.
 
 **Game Overrides:**
-- Game Mode Override: `MoviePipelineGameMode` (engine default; do not change unless your gameplay HUD must render).
-- Cinematic Quality Settings: ON
-- Texture Streaming: **Disable Streaming** (forces full mip-0 for the whole shot - avoids streaming pop-in mid-take).
-- Use LODZero: ON
-- Disable HLODs: ON
-- Use High Quality Shadows: ON
-- Shadow Distance Scale: **5** (canonical cinematic recommendation; previous 10 was a defensive pick).
-- Shadow Radius Threshold: **0.001**
-- View Distance Scale: ON, value **25** (25x gameplay still exceeds every recorded shot's far plane; previous 50 was wasted draw-call cost).
-- Flush Grass Streaming: ON
-- Grass Cull Distance Scale: ON, value **25.0** (vastly exceeds hero camera frustum; previous 50 was wasted grass-VS work).
-- Grass Density Scale: OFF (leave at 1.0)
-- Flush Streaming Managers: ON
-- Virtual Texture Feedback Factor: ON, value **2** (resolve VT every other frame; with TSR accumulating 7 sub-frames the one-frame lag is invisible. Was 1; revisit per-shot if a future shot has fast abrupt camera pans with extreme close-up material detail).
+- Game Mode Override: `/Script/ProjectCinematic.CinematicGameMode`.
+- Cinematic Quality Settings: OFF.
+- Texture Streaming: project truth (`NONE`), not forced off.
+- LOD zero, HLOD disabling, shadow/view-distance inflation, grass cull inflation,
+  and grass-density overrides: OFF.
+
+The release render must show the same product-quality world accepted by the packaged
+game. MRQ is an offline renderer, not permission to hide streaming/LOD defects.
 
 **Deferred Rendering:**
 - Accumulator Includes Alpha: OFF
@@ -96,10 +109,12 @@ The earlier draft of this section also included `r.Decals`, `r.DBuffer.Decals`, 
 
 There is no global "enable decals" CVar in UE 5.7 - decals are gated by `r.DBuffer` (above) and by individual decal-actor properties.
 
-**UI Renderer pass (UMG into final image, added 2026-05-18):**
-The preset adds a `Widget Renderer` setting with `Composite Onto Final Image = ON`. This is the render-side enable for UMG capture - MRQ does not include widgets by default. The setting fires automatically and does not require a per-shot Widget track.
-
-Important caveat: this setting captures widgets that are **in the viewport at render time**. Under `MoviePipelineGameMode` no PlayerController exists, so nothing creates/adds the HUD widget. The render-side composite has nothing to composite unless gameplay-side code also runs. See [Highlight in trailers](#highlight-in-trailers) for the parallel issue and the proposed cinematic-mode subsystem that handles both.
+**UI Renderer pass:**
+The presets retain `Widget Renderer` so an explicitly authored UI capture can be
+composited. The automated Kazan release render intentionally removes normal gameplay
+UMG from the viewport in `ACinematicGameMode`; its aerial master must be clean. Record
+mode retains the normal UI for the operator. Do not infer visible HUD from the presence
+of the Widget Renderer setting alone.
 
 ### Saving the config as a preset
 
@@ -107,21 +122,22 @@ In the MRQ config window, **Presets -> Save As Preset**. Store under `Content/Ci
 
 ### Reapplying the patch from script
 
-The Console Variables + Widget Renderer settings are encoded in [`scripts/ue/cinematic/apply_mrq_preset.py`](../../scripts/ue/cinematic/apply_mrq_preset.py) (source of truth). The script is idempotent and verified - re-run it when the preset asset is deleted, reverted, or replaced.
+The complete recipes are encoded in
+[`apply_dev_preset.py`](../../scripts/ue/cinematic/apply_dev_preset.py) and
+[`apply_prod_preset.py`](../../scripts/ue/cinematic/apply_prod_preset.py). Shared
+idempotent asset mutation lives in
+[`mrq_config_updater.py`](../../scripts/ue/cinematic/mrq_config_updater.py).
 
 From an open editor with `ue-mcp` running, or via the editor's `py` console command:
 
 ```
-py <project-root>/scripts/ue/cinematic/apply_mrq_preset.py
+py <project-root>/scripts/ue/cinematic/apply_dev_preset.py
+py <project-root>/scripts/ue/cinematic/apply_prod_preset.py
 ```
 
-To retarget onto a different MRQ primary config asset (e.g. a future `MRQ_Trailer_ProRes_1080p`), pass the asset path:
-
-```
-py <project-root>/scripts/ue/cinematic/apply_mrq_preset.py /Game/Cinematics/MRQ_Trailer_ProRes_1080p
-```
-
-Result JSON is written to `Saved/cinematic_apply_result.json`. Script README: [scripts/ue/cinematic/README.md](../../scripts/ue/cinematic/README.md).
+Each recipe owns one source-controlled preset identity; do not retarget it ad hoc.
+Result JSON is written under `Saved/`. Script README:
+[scripts/ue/cinematic/README.md](../../scripts/ue/cinematic/README.md).
 
 ## Output format decision matrix
 
@@ -144,59 +160,20 @@ For everything else, ProRes 422 HQ is a single self-contained file that is trivi
 
 ## Highlight, HUD, and gameplay systems in trailers
 
-The current production preset still uses `AMoviePipelineGameMode` (engine default cinematic gamemode). That gamemode is 14 lines of code (`MoviePipelineGameMode.h`) that calls:
+The preset uses `/Script/ProjectCinematic.CinematicGameMode`. This Editor-only
+adapter inherits normal `ASinglePlayerGameMode` startup without introducing a
+ProjectSinglePlay dependency on cinematic tooling.
 
-```cpp
-PC->SetCinematicMode(
-    /*bInCinematicMode*/   true,
-    /*bHidePlayer*/        true,    // hides pawn
-    /*bAffectsHUD*/        true,    // hides HUD
-    /*bAffectsMovement*/   true,
-    /*bAffectsTurning*/    true);
-```
+- Record mode keeps input, pawn, UI, and gameplay interaction active for Take Recorder.
+- Render mode lets Sequencer own the camera, blocks player movement/turning, hides the
+  phantom gameplay pawn, and removes viewport UMG for a clean master.
+- Recorded custom-depth tracks remain the highlight authority during render; do not
+  add a second live highlight command or cinematic event bus.
+- A shot that intentionally needs UI must author that presentation explicitly and pass
+  its own visual gate; the Kazan aerial release request does not carry gameplay HUD.
 
-Those `bHidePlayer=true` / `bAffectsHUD=true` flags are why ALIS trailers under the current preset are missing HUD widgets, the player pawn, interaction focus traces, and the custom-depth highlight.
-
-### The minimal fix (recommended path)
-
-UE's `MoviePipelineGameOverrideSetting` exposes `SoftGameModeOverride` exactly for this case (Epic's own doc: *"useful if the game's normal mode displays UI elements... you don't want captured"* - inverted for our use: *we DO want them captured*). Swap it for an ALIS cinematic gamemode that mimics the real `ASinglePlayerGameMode` but does not hide pawn or HUD.
-
-Steps:
-
-1. Add a tiny subclass in `Plugins/Gameplay/ProjectSinglePlay`:
-   ```cpp
-   UCLASS(MinimalAPI)
-   class AAlisCinematicGameMode : public ASinglePlayerGameMode
-   {
-       GENERATED_BODY()
-       virtual void BeginPlay() override
-       {
-           Super::BeginPlay();   // normal HUD/pawn/feature init
-           if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
-           {
-               PC->SetCinematicMode(
-                   /*bInCinematicMode*/  true,
-                   /*bHidePlayer*/       false,   // keep pawn visible
-                   /*bAffectsHUD*/       false,   // keep HUD visible
-                   /*bAffectsMovement*/  true,    // sequencer drives camera
-                   /*bAffectsTurning*/   true);
-           }
-       }
-   };
-   ```
-2. In the MRQ preset, set the Game Override setting's `SoftGameModeOverride` to `AAlisCinematicGameMode`. Save.
-
-Result: under render, the project's real init flow runs - HUD widget spawns, player pawn ticks, interaction component fires focus traces from the recorded camera direction, custom-depth highlight applies as the gameplay path does it. UE's `bCinematicMode` flag is still ON for any code that gates on it (so input-driven systems stay silent, sequencer owns the camera).
-
-
-### Explicitly NOT used
-
-The following were considered and rejected after engine-source review:
-
-- A separate `UCinematicModeSubsystem` / `ICinematicModeService` event bus. Duplicates UE's existing `bCinematicMode` flag for no gain.
-- An `alis.cinematic.highlight_all` console command. The real interaction system already drives highlight when the pawn ticks - no parallel mechanism needed.
-- Per-shot Sequencer Property Tracks for `RenderCustomDepth`. Tedious; superseded by the gamemode swap.
-- Editing `ProjectInteraction`, `ProjectUI`, `ProjectVitals`, or any feature plugin. The only first-party C++ change is the one ~20-line gamemode subclass.
+The stable implementation and invocation contract lives in
+[ProjectCinematic](../../Plugins/Editor/ProjectCinematic/README.md).
 
 ## Dynamic spawns in trailers (Take Recorder side)
 

@@ -118,6 +118,10 @@ Add-CleanupTarget `
     -Owner "runtime-profile-tournament" `
     -Reason "Completed candidate packages and snapshots; tournament receipts live under Saved."
 Add-CleanupTarget `
+    -Path (Join-Path $WorldTmp "playable_tour\diagnostic") `
+    -Owner "playable-tour" `
+    -Reason "Completed non-publishing diagnostics; authenticated package receipts live under Saved."
+Add-CleanupTarget `
     -Path (Join-Path $WorldTmp "generated_recovery") `
     -Owner "generated-recovery" `
     -Reason "Completed bounded generated-state recovery; accepted bytes are restored in the owner tree."
@@ -129,6 +133,10 @@ Add-CleanupTarget `
     -Path (Join-Path $WorldTmp "visual_verification") `
     -Owner "visual-verification" `
     -Reason "Scratch descriptors and receipts promoted to Saved validation evidence."
+Add-CleanupTarget `
+    -Path (Join-Path $WorldTmp "presentation\landscape\fingerprint_migration") `
+    -Owner "landscape-presentation" `
+    -Reason "Completed material-binding fingerprint migration scratch."
 Add-CleanupTarget `
     -Path (Join-Path $WorldTmp "source_ingestion\tests") `
     -Owner "source-ingestion" `

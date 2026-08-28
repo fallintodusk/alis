@@ -53,5 +53,6 @@ Fast plugin or subsystem tests.
 ## Related Docs
 
 - Public testing router: [../../../docs/testing/README.md](../../../docs/testing/README.md)
+- Packaged gameplay acceptance: [../gameplay/test/README.md](../gameplay/test/README.md)
 - Character animation debug guide: [../../../docs/testing/character_parity.md](../../../docs/testing/character_parity.md)
 - Build router: [../../../docs/build/README.md](../../../docs/build/README.md)

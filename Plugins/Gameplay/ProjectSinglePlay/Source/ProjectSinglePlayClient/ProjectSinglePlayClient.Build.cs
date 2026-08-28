@@ -18,13 +18,18 @@ public class ProjectSinglePlayClient : ModuleRules
 			"EnhancedInput",
 			"GameplayAbilities",
 			"InputCore",
+			"Json",
 			"ProjectCore",
 			"ProjectObject",          // AInteractableActor cast for GetLastRespondingComponent
 			"ProjectSinglePlay",
 			"ProjectUI",
 			"ProjectVitalsUI",
 			"ProjectInventoryUI",
-			"ProjectMindUI"
+			"ProjectMindUI",
+			"RHI",
+			"Slate",
+			"SlateCore",
+			"UMG"
 		});
 
 		// Cinematic capture pipeline (recorder + stamper + Take Recorder +

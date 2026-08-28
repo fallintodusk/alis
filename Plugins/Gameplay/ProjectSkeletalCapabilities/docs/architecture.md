@@ -187,3 +187,4 @@ Output: `Saved/Validation/ClipMatrix/` (JSONL timeline + summary JSON + edge scr
 - [Assembly architecture](../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - one-registry model, lifecycle
 - [Layer contract](../../Resources/ProjectObject/docs/layer_contract.md) - Kind/Role/Visibility on meshes
 - [Character design](../ProjectCharacter/docs/design.md) - definition-driven character
+- [Verified pitfalls](pitfalls.md) - known skeletal capability failures and regression evidence

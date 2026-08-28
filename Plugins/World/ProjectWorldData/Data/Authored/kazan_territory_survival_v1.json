@@ -1,0 +1,95 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "kazan_territory_survival_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "grid_id": "grid_413718bc833994e5",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "slice0_kazan_control",
+      "horizontal_accuracy_m": 0.25
+    },
+    {
+      "provenance_id": "survival_design_v1",
+      "horizontal_accuracy_m": 0.25
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "coordinate_marker",
+      "authored_package": "/ProjectWorldData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "coordinate",
+        "placement_class": "precision",
+        "provenance_ref": "slice0_kazan_control",
+        "horizontal_tolerance_m": 0.5,
+        "canonical_crs": "EPSG:32639",
+        "easting_m": 380400.0,
+        "northing_m": 6184700.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 20.0,
+        "orientation": {"yaw_degrees": 15.0}
+      }
+    },
+    {
+      "overlay_id": "feature_marker",
+      "authored_package": "/ProjectWorldData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "feature",
+        "feature_id": "alis:osm:way:1056050835",
+        "expected_feature_class": "road",
+        "expected_geometry_type": "LineString",
+        "expected_easting_m": 380680.03,
+        "expected_northing_m": 6184943.81,
+        "placement_class": "standard",
+        "provenance_ref": "slice0_kazan_control",
+        "horizontal_tolerance_m": 1.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 20.0
+      }
+    },
+    {
+      "overlay_id": "protected_mask",
+      "authored_package": "/ProjectWorldData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "mask",
+        "canonical_crs": "EPSG:32639",
+        "bounds_m": [380300.0, 6184600.0, 380500.0, 6184800.0],
+        "excludes": ["vegetation"]
+      }
+    },
+    {
+      "overlay_id": "survival_cache",
+      "authored_package": "/ProjectWorldData/Authored/Survival/L_ProjectWorldKazanSurvivalCache",
+      "anchor": {
+        "kind": "coordinate",
+        "placement_class": "standard",
+        "provenance_ref": "survival_design_v1",
+        "horizontal_tolerance_m": 1.0,
+        "canonical_crs": "EPSG:32639",
+        "easting_m": 380500.0,
+        "northing_m": 6184800.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 20.0,
+        "orientation": {"yaw_degrees": 20.0}
+      }
+    },
+    {
+      "overlay_id": "survival_shelter",
+      "authored_package": "/ProjectWorldData/Authored/Survival/L_ProjectWorldKazanSurvivalShelter",
+      "anchor": {
+        "kind": "coordinate",
+        "placement_class": "standard",
+        "provenance_ref": "survival_design_v1",
+        "horizontal_tolerance_m": 1.0,
+        "canonical_crs": "EPSG:32639",
+        "easting_m": 380900.0,
+        "northing_m": 6185200.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 20.0,
+        "orientation": {"yaw_degrees": -35.0}
+      }
+    }
+  ]
+}

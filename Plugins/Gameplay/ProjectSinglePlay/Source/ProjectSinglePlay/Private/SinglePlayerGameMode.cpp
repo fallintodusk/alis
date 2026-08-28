@@ -16,6 +16,8 @@
 #include "Types/ProjectLoadRequest.h"
 #include "Interfaces/IVitalsEventsSource.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Scenario/SinglePlayScenarioPolicy.h"
+#include "Scenario/SinglePlayScenarioRunnerComponent.h"
 
 namespace SinglePlayCharacterRuntime
 {
@@ -48,6 +50,7 @@ ASinglePlayerGameMode::ASinglePlayerGameMode()
 	// Pawn spawning is definition-only; ModeConfig may override the controller.
 	PlayerControllerClass = APlayerController::StaticClass();
 	DefaultPawnClass = nullptr;
+	ScenarioRunner = CreateDefaultSubobject<USinglePlayScenarioRunnerComponent>(TEXT("ScenarioRunner"));
 }
 
 void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -57,12 +60,44 @@ void ASinglePlayerGameMode::InitGame(const FString& MapName, const FString& Opti
 	// Parse Mode parameter from URL (e.g., "?Mode=Single")
 	const FString ModeParam = UGameplayStatics::ParseOption(Options, TEXT("Mode"));
 	const FString CharacterDefinitionParam = UGameplayStatics::ParseOption(Options, SinglePlayCharacterRuntime::CharacterDefinitionOptionName);
+	const FString TraversalParam = UGameplayStatics::ParseOption(
+		Options,
+		ProjectSinglePlayTraversal::OptionName());
+	const FSinglePlayTraversalSelection TraversalSelection =
+		ProjectSinglePlayTraversal::Resolve(TraversalParam);
+	TraversalMode = TraversalSelection.Mode;
+	if (TraversalSelection.ParseResult == ESinglePlayTraversalParseResult::Unknown)
+	{
+		UE_LOG(LogProjectSinglePlay, Warning,
+			TEXT("[ASinglePlayerGameMode::InitGame] Unknown traversal - value=%s fallback=Default"),
+			*TraversalParam);
+	}
+
+	const FSinglePlayScenarioSelection ScenarioSelection =
+		FSinglePlayScenarioPolicy::Resolve(Options);
+	if (ScenarioSelection.Result == ESinglePlayScenarioParseResult::Unknown)
+	{
+		UE_LOG(LogProjectSinglePlay, Warning,
+			TEXT("[ASinglePlayerGameMode::InitGame] Unknown scenario - fallback=Disabled"));
+	}
+	else if (ScenarioSelection.IsEnabled())
+	{
+		FString ScenarioError;
+		if (!ScenarioRunner->Configure(ScenarioSelection.ScenarioId, ScenarioError))
+		{
+			ErrorMessage = ScenarioError;
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("[ASinglePlayerGameMode::InitGame] Scenario configuration failed - id=%s error=%s"),
+				*ScenarioSelection.ScenarioId.ToString(), *ScenarioError);
+		}
+	}
 
 	UE_LOG(LogProjectSinglePlay, Log,
-		TEXT("InitGame: Map=%s, ModeParam=%s, CharacterDefinition=%s"),
+		TEXT("InitGame: Map=%s, ModeParam=%s, CharacterDefinition=%s, Traversal=%s"),
 		*MapName,
 		ModeParam.IsEmpty() ? TEXT("(default)") : *ModeParam,
-		CharacterDefinitionParam.IsEmpty() ? TEXT("(default)") : *CharacterDefinitionParam);
+		CharacterDefinitionParam.IsEmpty() ? TEXT("(default)") : *CharacterDefinitionParam,
+		TraversalParam.IsEmpty() ? TEXT("Default") : *TraversalParam);
 
 	// Load mode configuration
 	ModeConfig = LoadModeConfig(ModeParam);
@@ -311,6 +346,15 @@ void ASinglePlayerGameMode::InitializePlayerPawn(AController* PlayerController)
 		{
 			BindVitalsResponse(PC);
 		}
+
+		if (!ProjectSinglePlayTraversal::Apply(Pawn, TraversalMode))
+		{
+			UE_LOG(LogProjectSinglePlay, Warning,
+				TEXT("[ASinglePlayerGameMode::InitializePlayerPawn] Traversal application failed - pawn=%s"),
+				*Pawn->GetClass()->GetPathName());
+		}
+
+		ScenarioRunner->Start(Pawn);
 	}
 	else if (!Pawn)
 	{
@@ -573,9 +617,39 @@ void ASinglePlayerGameMode::ReloadCurrentExperience()
 		return;
 	}
 
+	Request.LoadMode = ELoadMode::SinglePlayer;
+	Request.CustomOptions.Add(TEXT("game"), TEXT("/Script/ProjectSinglePlay.SinglePlayerGameMode"));
+	Request.CustomOptions.Add(TEXT("Mode"), ModeConfig.ModeName.ToString());
+	if (ActiveCharacterDefinitionId.IsValid())
+	{
+		// The option contract accepts the ObjectDefinition name shorthand. A full
+		// primary-asset ID contains ':' and is not a valid ServerTravel URL value.
+		Request.CustomOptions.Add(
+			TEXT("CharacterDefinition"), ActiveCharacterDefinitionId.PrimaryAssetName.ToString());
+	}
+	if (TraversalMode == ESinglePlayTraversalMode::PreviewFlight)
+	{
+		Request.CustomOptions.Add(
+			ProjectSinglePlayTraversal::OptionName(),
+			ProjectSinglePlayTraversal::PreviewFlightValue());
+	}
+	if (ScenarioRunner != nullptr && !ScenarioRunner->GetScenarioId().IsNone())
+	{
+		Request.CustomOptions.Add(
+			FSinglePlayScenarioPolicy::OptionName(),
+			ScenarioRunner->GetScenarioId().ToString());
+	}
+
 	UE_LOG(LogProjectSinglePlay, Log,
 		TEXT("[Death] Reloading experience '%s'"),
 		*ExperienceName.ToString());
 
 	LoadingService->StartLoad(Request);
+}
+
+void ASinglePlayerGameMode::RequestScenarioRestart()
+{
+	UE_LOG(LogProjectSinglePlay, Display,
+		TEXT("[ASinglePlayerGameMode::RequestScenarioRestart] Restarting current experience"));
+	ReloadCurrentExperience();
 }

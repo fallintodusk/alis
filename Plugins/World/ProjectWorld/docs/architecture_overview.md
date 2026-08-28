@@ -99,12 +99,18 @@ Unreal interpretation; each data plugin owns its concrete inputs and outputs.
 `EndToEndValidation` composes public commands and receipts without
 reimplementing a stage.
 
+Rendering interpretation follows a separate leaf-resource boundary. ProjectMaterial
+owns universal material graphs, instances, recipes, and Editor compilation.
+ProjectWorld owns semantic soft-path binding and assignment evidence. World data owns
+geography and sourced semantic facts only.
+
 | Boundary | Owner link |
 |---|---|
 | Reproducible Python and native tools | [Execution Environment](../../../../tools/World/ExecutionEnvironment/README.md) |
 | Provider rights, acquisition, coverage, and source receipts | [Source Ingestion](../../../../tools/World/SourceIngestion/README.md) |
 | Grid, cells, canonical identities, admission, and promotion | [Canonical Compilation](../../../../tools/World/CanonicalCompilation/README.md) |
 | Unreal realization and runtime interpretation | [ProjectWorld](../README.md) |
+| Universal material resources and Editor compilation | [ProjectMaterial](../../../Resources/ProjectMaterial/README.md) |
 | Kazan profiles and durable output | [ProjectWorldData](../../ProjectWorldData/README.md) |
 | Synthetic profiles and durable fixtures | [ProjectWorldTestData](../../ProjectWorldTestData/README.md) |
 | Cross-stage evidence and package acceptance | [End-to-End Validation](../../../../tools/World/EndToEndValidation/README.md) |

@@ -37,8 +37,8 @@ enum class ECinematicSessionMode : uint8
  *     Walk-slowdown (PawnTimeDilation=0.5) and look-smoothing
  *     (LookSensitivityScale=0.5) apply automatically.
  *
- *   - MRQ render: InitGame queries
- *     `UMoviePipelineQueueEngineSubsystem::GetActiveExecutor()`; if non-null,
+ *   - MRQ render: InitGame queries the Editor
+ *     `UMoviePipelineQueueSubsystem::GetActiveExecutor()`; if non-null,
  *     SessionMode is force-flipped to Render. The phantom-pawn-hide in
  *     BeginPlay then fires, removing the gameplay-spawned default pawn's
  *     visibility + shadow from the rendered frame.
@@ -47,9 +47,9 @@ enum class ECinematicSessionMode : uint8
  *     explicitly (parsed after MRQ auto-detection, so URL wins).
  *
  *  Render profile:
- *    SetCinematicMode(true, false, false, true, true)
+ *    SetCinematicMode(true, false, true, true, true)
  *      - cinematic flag ON
- *      - pawn + HUD visible (MoviePipelineWidgetRenderer composites UMG)
+ *      - gameplay pawn hidden and HUD suppressed for clean release footage
  *      - movement + turning input BLOCKED (Sequencer drives camera)
  *      - gameplay-spawned phantom pawn hidden (visibility only; collision
  *        intentionally kept on so PIE Render selection doesn't break walking).
@@ -71,13 +71,10 @@ enum class ECinematicSessionMode : uint8
  *     Preset's SoftGameModeOverride = ACinematicGameMode. MRQ
  *     auto-detection forces Render at InitGame.
  *
- * Module dep note: this class lives in the ProjectCinematic runtime module
- * (inside the Editor-type ProjectCinematic plugin). Plugin Type=Editor
- * guarantees this code never ships in cooked client/server builds, which
- * is correct because the gamemode is a developer/editor tool (PIE
- * recording + MRQ render in editor). ProjectSinglePlay no longer carries
- * any cinematic-related deps -- MovieRenderPipelineEditor + UnrealEd now
- * live in ProjectCinematic.Build.cs.
+ * Module dep note: this class lives in the Editor-only ProjectCinematic
+ * module. Project target allowlists keep this code and its capture
+ * dependencies out of cooked game/client/server builds. ProjectSinglePlay
+ * carries no cinematic dependency.
  *
  * Design rationale: docs/cinematics/render_setup.md
  */
@@ -171,6 +168,11 @@ private:
 	UPROPERTY()
 	TObjectPtr<AActor> CinematicStreamingHost;
 
+	FTimerHandle CinematicStreamingFollowTimer;
+
+	/** Keep the streaming source on the active Sequencer camera. */
+	void UpdateCinematicStreamingSourceLocation();
+
 	// --- Render-mode setup ---
 	//
 	// One ONE-SHOT cleanup at BeginPlay: stale baked CustomDepth from Take
@@ -185,12 +187,9 @@ private:
 	// finish-stamp pass. Those tracks mirror gameplay focus state exactly;
 	// a periodic scrub would fight them.
 	//
-	// We also intentionally do NOT call SuppressInteractionVisuals on the
-	// pawn's InteractionComponent. The live [E] prompt + focus broadcasts
-	// are gameplay-readable trailer UX -- they belong in the rendered
-	// frame. The ProjectCore IInteractionVisualSuppressor interface
-	// remains as an architectural seam (UInteractionComponent still
-	// implements it) so future "clean cinematic mode" toggles can call
-	// it; nothing calls it in the current cinematic pipeline.
+	// We intentionally leave interaction focus/highlight state alone so
+	// authored property tracks still render. Render mode removes viewport
+	// widgets separately, so gameplay prompts do not leak into clean shots.
+	// Record mode retains the ordinary interactive HUD.
 	void ClearStaleCustomDepthAcrossWorld();
 };

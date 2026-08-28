@@ -2,9 +2,6 @@
 // License terms: see repository root LICENSE.
 
 #include "DefinitionCharacter.h"
-#include "Interfaces/ILookInputModifier.h"
-#include "Kismet/GameplayStatics.h"
-#include "GameFramework/GameModeBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -93,6 +90,8 @@ ADefinitionCharacter::ADefinitionCharacter()
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
+	GetCharacterMovement()->MaxFlySpeed = 12000.0f;
+	GetCharacterMovement()->BrakingDecelerationFlying = 6000.0f;
 	GetCharacterMovement()->GroundFriction = 5.f;
 
 	// Physics interaction (door blocking)
@@ -501,86 +500,6 @@ void ADefinitionCharacter::PawnClientRestart()
 	{
 		Subsystem->RemoveMappingContext(DefaultMappingContext);
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
-	}
-}
-
-void ADefinitionCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	CreateInputAssets();
-
-	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-	if (!EIC)
-	{
-		UE_LOG(LogDefinitionCharacter, Error, TEXT("No EnhancedInputComponent"));
-		return;
-	}
-
-	if (JumpAction)
-	{
-		EIC->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EIC->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-	}
-	if (MoveAction)
-	{
-		EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADefinitionCharacter::Move);
-	}
-	if (LookAction)
-	{
-		EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &ADefinitionCharacter::Look);
-	}
-	if (SprintAction)
-	{
-		EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &ADefinitionCharacter::StartSprint);
-		EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &ADefinitionCharacter::StopSprint);
-	}
-	if (CrouchAction)
-	{
-		EIC->BindAction(CrouchAction, ETriggerEvent::Started, this, &ADefinitionCharacter::StartCrouch);
-	}
-	if (WalkAction)
-	{
-		EIC->BindAction(WalkAction, ETriggerEvent::Started, this, &ADefinitionCharacter::ToggleWalk);
-	}
-
-	UE_LOG(LogDefinitionCharacter, Log, TEXT("Input bindings configured"));
-}
-
-void ADefinitionCharacter::Move(const FInputActionValue& Value)
-{
-	const FVector2D MovementVector = Value.Get<FVector2D>();
-	if (Controller)
-	{
-		const FRotator YawRotation(0, Controller->GetControlRotation().Yaw, 0);
-		AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), MovementVector.Y);
-		AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), MovementVector.X);
-	}
-}
-
-void ADefinitionCharacter::Look(const FInputActionValue& Value)
-{
-	FVector2D LookAxis = Value.Get<FVector2D>();
-
-	// If some authority in the current world implements ILookInputModifier
-	// (e.g. a recording-aware game mode wanting smoother captured camera),
-	// give it a chance to transform the input before we accumulate it on
-	// the controller. The character has no opinion about who or why; it
-	// only knows the interface. Default-implemented to identity, so the
-	// no-op case is free.
-	if (AGameModeBase* GM = UGameplayStatics::GetGameMode(this))
-	{
-		if (GM->Implements<ULookInputModifier>())
-		{
-			if (const ILookInputModifier* Mod = Cast<ILookInputModifier>(GM))
-			{
-				LookAxis = Mod->ModifyLook(LookAxis);
-			}
-		}
-	}
-
-	if (Controller)
-	{
-		AddControllerYawInput(LookAxis.X);
-		AddControllerPitchInput(LookAxis.Y);
 	}
 }
 

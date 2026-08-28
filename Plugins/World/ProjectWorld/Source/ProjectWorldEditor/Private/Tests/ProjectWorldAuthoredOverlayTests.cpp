@@ -11,6 +11,7 @@
 #include "LevelInstance/LevelInstanceActor.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -186,6 +187,48 @@ bool FProjectWorldAuthoredOverlayCoordinateTest::RunTest(const FString& Paramete
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldAuthoredOverlayKazanSurvivalTest,
+	"ProjectIntegrationTests.ProjectWorld.AuthoredOverlay.KazanSurvival",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FProjectWorldAuthoredOverlayKazanSurvivalTest::RunTest(const FString& Parameters)
+{
+	const FString ProfilePath = FPaths::Combine(
+		FPaths::ProjectPluginsDir(),
+		TEXT("World/ProjectWorldData/Data/Authored/kazan_territory_survival_v1.json"));
+	FProjectWorldAuthoredOverlaySet Set;
+	FString ErrorCode;
+	FString Error;
+	TestTrue(TEXT("The Kazan survival overlay profile loads."),
+		ProjectWorldAuthoredOverlay::Load(ProfilePath, Set, ErrorCode, Error));
+	TestEqual(TEXT("The profile preserves three controls plus two scenario anchors."),
+		Set.Overlays.Num(), 5);
+
+	const TMap<FString, FString> ExpectedPackages = {
+		{TEXT("survival_cache"),
+			TEXT("/ProjectWorldData/Authored/Survival/L_ProjectWorldKazanSurvivalCache")},
+		{TEXT("survival_shelter"),
+			TEXT("/ProjectWorldData/Authored/Survival/L_ProjectWorldKazanSurvivalShelter")}
+	};
+	for (const TPair<FString, FString>& Expected : ExpectedPackages)
+	{
+		int32 MatchCount = 0;
+		for (const FProjectWorldAuthoredOverlay& Overlay : Set.Overlays)
+		{
+			if (Overlay.OverlayId == Expected.Key && Overlay.AuthoredPackage == Expected.Value)
+			{
+				++MatchCount;
+			}
+		}
+		TestEqual(*FString::Printf(TEXT("%s has one canonical anchor."), *Expected.Key),
+			MatchCount, 1);
+		TestTrue(*FString::Printf(TEXT("%s authored package exists."), *Expected.Key),
+			FPackageName::DoesPackageExist(Expected.Value));
+	}
+	return true;
+}
+
 /**
  * Feature anchors are the dangerous class: they depend on geography that
  * regeneration is allowed to move. They must resolve through the resolver,
@@ -328,6 +371,11 @@ bool FProjectWorldAuthoredOverlayActorNoOpTest::RunTest(const FString& Parameter
 		TEXT("The real authored-overlay path creates its stable Level Instance."),
 		ProjectWorldAuthoredOverlayRealization::Apply(World, Bundle, Set, FirstResult, Error));
 	TestEqual(TEXT("First realization creates one authored anchor actor."), FirstResult.CreatedActorCount, 1);
+	ALevelInstance* CreatedActor = Cast<ALevelInstance>(
+		FindObject<AActor>(World->PersistentLevel, TEXT("ProjectWorld_AuthoredOverlay_marker")));
+	TestNotNull(TEXT("The created authored anchor remains discoverable."), CreatedActor);
+	TestTrue(TEXT("The created authored anchor uses persistent OFPA ownership."),
+		CreatedActor != nullptr && CreatedActor->IsPackageExternal());
 
 	FProjectWorldRealizationResult UnchangedResult;
 	UnchangedResult.AuthoredAnchors.Add(Evidence);
@@ -581,6 +629,10 @@ REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	FProjectWorldAuthoredOverlayActorNoOpTest,
 	"Project.World.Authored.Anchor.ActorNoOp",
+	"[Fast][Integration][World]")
+REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
+	FProjectWorldAuthoredOverlayKazanSurvivalTest,
+	"Project.World.Authored.Anchor.KazanSurvival",
 	"[Fast][Integration][World]")
 
 #endif

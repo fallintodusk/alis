@@ -55,6 +55,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "ContextMenu")
     bool IsMenuVisible() const;
 
+    /** Live Use action target for input and accessibility integrations. */
+    UButton* GetUseActionButton() const { return UseAction.Get(); }
+
     // Action delegates - bind to handle item actions
     UPROPERTY(BlueprintAssignable, Category = "ContextMenu")
     FOnContextMenuAction OnUseAction;

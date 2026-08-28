@@ -262,10 +262,10 @@ Describe 'ProjectWorld generated-content transaction' {
     }
 
     Context 'invariant 19 - the snapshot covers every mutated generated root' {
-        # The shared presentation root belongs to no map scope: it is written by
-        # ProjectWorldPresentationMaterialRealization on every Apply and was
-        # missed once, forcing a manual restore. These regressions pin the whole
-        # presentation path/hash set, not one representative file.
+        # The legacy World presentation root belongs to no map scope and was once
+        # missed during rollback. These regressions pin the whole path/hash set,
+        # not one representative file. Universal materials use ProjectMaterial's
+        # independent transaction owner.
         BeforeEach {
             $nestedPresentation = Join-Path $presentationRoot 'Materials\Water'
             New-Item -ItemType Directory -Path $nestedPresentation -Force | Out-Null

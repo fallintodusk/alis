@@ -1,6 +1,6 @@
 # Cinematic Capture Pipeline (Take Recorder runtime AddSource)
 
-Status: implementation under review (latest log recheck 2026-05-21).
+Status: TRACK V TECHNICALLY ACCEPTED - OPERATOR VISUAL WALKTHROUGH PENDING.
 Architecture pivoted four times before landing on this one; each pivot
 was the user pushing toward simpler. Final design uses an
 engine-internal pattern (`UTakeRecorderSources::AddSource` mid-recording,
@@ -14,6 +14,41 @@ Goal: PIE-record a take with Take Recorder. Without opening Sequencer
 or doing any per-take manual work, MRQ render produces trailer footage
 where every recorded interaction visibly happens at the correct frame
 and every UI panel toggle visibly happens at the correct frame.
+
+## Track V release inheritance - 2026-08-27
+
+This existing ProjectCinematic task inherits every open Track V action from the
+[Kazan release-capture research](../02_backlog/world/world_enable_kazan_demo_capture.md).
+It must produce one stable authored Kazan sequence/MRQ invocation, authenticated
+receipt, bounded cleanup, World Partition shot preparation, and a staged/IoStore
+proof that capture-only payload is absent from Alis and AlisClient packages. The
+accepted packaged game remains visual truth; MRQ may not silently raise product
+quality or replace Track P real-time performance evidence.
+
+Do not create another cinematic plugin, camera planner, rail/spline generator,
+autonomous shot choreographer, or World capture dependency. Existing interaction-
+capture defects below remain in scope only where the selected Kazan release sequence
+actually consumes them.
+
+### Technical acceptance - 2026-08-27
+
+- Final packaged-product authority: operation
+  `kazan_playable_tour_422843d1f1c24a14aa530939d55771dc`, composite
+  `Saved/Validation/WorldRealization/playable-tour/
+  422843d1f1c24a14aa530939d55771dc/composite.json`.
+- Accepted capture: operation
+  `project_cinematic_release_capture_16ea9ff5224d4dafabbdcc416736b3c2`, receipt
+  `Saved/CinematicRelease/Kazan/Current/receipt.json`, 240 frames over 8 seconds.
+- The first technically complete capture was rejected by the agentic visual gate because
+  gameplay UMG leaked into every sampled frame. Render mode now removes viewport UMG;
+  Record mode remains unchanged. The one replacement capture has a clean contact sheet.
+- Shipping audit accepted with zero capture binaries/assets in loose or IoStore payload.
+  Two `Takes` manifest metadata records are allowed because the package contains neither
+  corresponding loose files nor IoStore entries.
+- `Invoke-Pester scripts/ue/cinematic/test/release_capture.Tests.ps1` passes `5/5`.
+- Owner cleanup removed 300,783,668 bytes and retained both `Current` and `Previous`.
+- The operator reviews `Saved/CinematicRelease/Kazan/Current/KazanRelease_v1.mov`
+  tomorrow. Until that passes, the task stays open and `Previous` remains rollback.
 
 ## 2026-05-21 latest log recheck
 

@@ -71,6 +71,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProjectSinglePlay",
+			"Enabled": true
+		},
+		{
 			"Name": "ProjectSkeletalCapabilities",
 			"Enabled": true
 		},

@@ -86,7 +86,7 @@ $projectPath = Join-Path $projectRoot "Alis.uproject"
 # loads the map, and stays alive. The project-side file watcher
 # (ProjectIntegrationTestsModule) picks up commands written to command.txt.
 $mapArg = if ($Map) { "`"$Map`"" } else { "" }
-$argsLine = "`"$projectPath`" $mapArg -unattended -nopause -nosplash -nosound -log -stdout -FullStdOutLogOutput"
+$argsLine = "`"$projectPath`" $mapArg -unattended -nopause -nosplash -nosound -NoMessaging -log -stdout -FullStdOutLogOutput"
 
 Write-Host "[1/2] Launching UnrealEditor-Cmd..." -ForegroundColor Yellow
 Write-Host "  $editorCmdPath $argsLine" -ForegroundColor Gray
@@ -111,6 +111,7 @@ $argList = @(
     "-nopause",
     "-nosplash",
     "-nosound",
+    "-NoMessaging",
     "-log",
     "-stdout",
     "-FullStdOutLogOutput"

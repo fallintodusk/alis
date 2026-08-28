@@ -3,6 +3,7 @@
 
 #include "ProjectWorldPresentationProfile.h"
 
+#include "ProjectWorldPresentationMaterialBinding.h"
 #include "ProjectWorldSchemaReference.h"
 
 #include "Dom/JsonObject.h"
@@ -18,9 +19,6 @@ namespace ProjectWorldPresentationProfile
 	{
 		const TCHAR* ExpectedSchemaFilename =
 			TEXT("project_world_presentation_profile.schema.json");
-		const TCHAR* ExpectedTerrainMaterial =
-			TEXT("/Engine/OpenWorldTemplate/LandscapeMaterial/MI_ProcGrid.MI_ProcGrid");
-
 		bool IsIdentifierToken(const FString& Value)
 		{
 			for (const TCHAR Character : Value)
@@ -144,7 +142,7 @@ namespace ProjectWorldPresentationProfile
 		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() ||
 			!HasOnlyFields(Root, {
 				TEXT("$schema"), TEXT("schema_version"), TEXT("profile_id"),
-				TEXT("materials"), TEXT("terrain_parameters"),
+				TEXT("materials"),
 				TEXT("outdoor_environment"), TEXT("capture_viewpoints")}, OutError))
 		{
 			OutErrorCode = TEXT("presentation-profile-json");
@@ -174,12 +172,10 @@ namespace ProjectWorldPresentationProfile
 
 		const TSharedPtr<FJsonObject>* Materials = nullptr;
 		if (!Root->TryGetObjectField(TEXT("materials"), Materials) || Materials == nullptr ||
-			!HasOnlyFields(*Materials, {TEXT("terrain"), TEXT("road"), TEXT("building"), TEXT("cloud")}, OutError) ||
-			!RequireString(*Materials, TEXT("terrain"), OutProfile.TerrainMaterialPath, OutError) ||
+			!HasOnlyFields(*Materials, {TEXT("road"), TEXT("building"), TEXT("cloud")}, OutError) ||
 			!RequireString(*Materials, TEXT("road"), OutProfile.RoadMaterialPath, OutError) ||
 			!RequireString(*Materials, TEXT("building"), OutProfile.BuildingMaterialPath, OutError) ||
 			!RequireString(*Materials, TEXT("cloud"), OutProfile.CloudMaterialPath, OutError) ||
-			OutProfile.TerrainMaterialPath != ExpectedTerrainMaterial ||
 			!IsEngineMaterialPath(OutProfile.RoadMaterialPath) ||
 			!IsEngineMaterialPath(OutProfile.BuildingMaterialPath) ||
 			!IsEngineMaterialPath(OutProfile.CloudMaterialPath))
@@ -187,31 +183,6 @@ namespace ProjectWorldPresentationProfile
 			OutErrorCode = TEXT("presentation-profile-material");
 			return false;
 		}
-
-		const TSharedPtr<FJsonObject>* TerrainParameters = nullptr;
-		TArray<double> PrimaryColor;
-		TArray<double> SecondaryColor;
-		TArray<double> LineColor;
-		double TileScale = 0.0;
-		if (!Root->TryGetObjectField(TEXT("terrain_parameters"), TerrainParameters) ||
-			TerrainParameters == nullptr ||
-			!HasOnlyFields(*TerrainParameters, {
-				TEXT("primary_color"), TEXT("secondary_color"), TEXT("line_color"), TEXT("tile_scale")}, OutError) ||
-			!RequireVector(*TerrainParameters, TEXT("primary_color"), 4, 0.0, 1.0, PrimaryColor, OutError) ||
-			!RequireVector(*TerrainParameters, TEXT("secondary_color"), 4, 0.0, 1.0, SecondaryColor, OutError) ||
-			!RequireVector(*TerrainParameters, TEXT("line_color"), 4, 0.0, 1.0, LineColor, OutError) ||
-			!RequireNumber(*TerrainParameters, TEXT("tile_scale"), 0.01, 10000.0, TileScale, OutError))
-		{
-			OutErrorCode = TEXT("presentation-profile-terrain");
-			return false;
-		}
-		OutProfile.TerrainPrimaryColor = FLinearColor(
-			PrimaryColor[0], PrimaryColor[1], PrimaryColor[2], PrimaryColor[3]);
-		OutProfile.TerrainSecondaryColor = FLinearColor(
-			SecondaryColor[0], SecondaryColor[1], SecondaryColor[2], SecondaryColor[3]);
-		OutProfile.TerrainLineColor = FLinearColor(
-			LineColor[0], LineColor[1], LineColor[2], LineColor[3]);
-		OutProfile.TerrainTileScale = TileScale;
 
 		const TSharedPtr<FJsonObject>* Environment = nullptr;
 		TArray<double> SunRotation;
@@ -298,14 +269,17 @@ namespace ProjectWorldPresentationProfile
 		FProjectWorldPresentationResources& OutResources,
 		FString& OutError)
 	{
-		OutResources.TerrainMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.TerrainMaterialPath);
+		if (!ProjectWorldPresentationMaterialBinding::ResolveTerrain(OutResources, OutError))
+		{
+			return false;
+		}
 		OutResources.RoadMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.RoadMaterialPath);
 		OutResources.BuildingMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.BuildingMaterialPath);
 		OutResources.CloudMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.CloudMaterialPath);
-		if (OutResources.TerrainMaterial == nullptr || OutResources.RoadMaterial == nullptr ||
-			OutResources.BuildingMaterial == nullptr || OutResources.CloudMaterial == nullptr)
+		if (OutResources.RoadMaterial == nullptr || OutResources.BuildingMaterial == nullptr ||
+			OutResources.CloudMaterial == nullptr)
 		{
-			OutError = TEXT("One or more engine-provided presentation materials could not be loaded.");
+			OutError = TEXT("One or more approved presentation materials could not be loaded.");
 			return false;
 		}
 		return true;

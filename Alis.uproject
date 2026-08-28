@@ -42,7 +42,10 @@
 		},
 		{
 			"Name": "ProjectCinematic",
-			"Enabled": true
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		},
 		{
 			"Name": "ProjectCombat",
@@ -415,15 +418,24 @@
 		},
 		{
 			"Name": "MovieRenderPipeline",
-			"Enabled": true
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		},
 		{
 			"Name": "MoviePipelineMaskRenderPass",
-			"Enabled": true
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		},
 		{
 			"Name": "AppleProResMedia",
 			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			],
 			"SupportedTargetPlatforms": [
 				"Win64"
 			]

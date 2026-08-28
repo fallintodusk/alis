@@ -11,6 +11,9 @@
 #include "EngineUtils.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "Misc/PackageName.h"
+#include "UObject/SavePackage.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldAuthoredOverlayRealization, Log, All);
 
 namespace ProjectWorldAuthoredOverlayRealization
 {
@@ -44,6 +47,7 @@ namespace ProjectWorldAuthoredOverlayRealization
 			const FTransform ExpectedTransform(Evidence.WorldRotation, Evidence.WorldLocation);
 			return Actor.GetActorGuid() == ProjectWorldGeneratedGeometry::StableGuid(
 				Bundle.GridId + TEXT("|authored-overlay|") + Evidence.OverlayId) &&
+				Actor.IsPackageExternal() &&
 				Actor.GetActorTransform().Equals(ExpectedTransform, 0.01) &&
 				Actor.GetWorldAssetPackage() == Evidence.AuthoredPackage &&
 				Actor.Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag) &&
@@ -54,6 +58,21 @@ namespace ProjectWorldAuthoredOverlayRealization
 				Actor.Tags.Contains(ValueTag(
 					TEXT("ProjectWorld.Resolver="), FString::FromInt(Set.ResolverVersion))) &&
 				Actor.GetIsSpatiallyLoaded() && !Actor.bEnableAutoLODGeneration;
+		}
+
+		bool SaveExternalActor(AActor* Actor)
+		{
+			UPackage* Package = Actor != nullptr ? Actor->GetExternalPackage() : nullptr;
+			if (Package == nullptr)
+			{
+				return false;
+			}
+			const FString Filename = FPackageName::LongPackageNameToFilename(
+				Package->GetName(), FPackageName::GetAssetPackageExtension());
+			IFileManager::Get().MakeDirectory(*FPaths::GetPath(Filename), true);
+			FSavePackageArgs Arguments;
+			Arguments.SaveFlags = SAVE_NoError;
+			return UPackage::SavePackage(Package, nullptr, *Filename, Arguments);
 		}
 	}
 
@@ -187,6 +206,7 @@ namespace ProjectWorldAuthoredOverlayRealization
 			const FString AssetName = FPackageName::GetLongPackageAssetName(Evidence.AuthoredPackage);
 			const TSoftObjectPtr<UWorld> WorldAsset(
 				FSoftObjectPath(Evidence.AuthoredPackage + TEXT(".") + AssetName));
+			Actor->SetPackageExternal(true);
 			Actor->Modify();
 			Actor->SetActorTransform(FTransform(Evidence.WorldRotation, Evidence.WorldLocation));
 			if (!Actor->SetWorldAsset(WorldAsset))
@@ -206,6 +226,27 @@ namespace ProjectWorldAuthoredOverlayRealization
 			Actor->SetActorLabel(FString::Printf(TEXT("Authored Overlay - %s"), *Evidence.OverlayId));
 			Actor->SetIsSpatiallyLoaded(true);
 			Actor->bEnableAutoLODGeneration = false;
+			Actor->MarkPackageDirty();
+			const bool bPersistentMap =
+				!World->PersistentLevel->GetPackage()->GetName().StartsWith(TEXT("/Temp/"));
+			if (bPersistentMap && !SaveExternalActor(Actor))
+			{
+				OutError = FString::Printf(
+					TEXT("Cannot save authored-overlay anchor actor: %s"), *Evidence.OverlayId);
+				return false;
+			}
+			if (bPersistentMap)
+			{
+				++OutResult.SelfSavedActorMutationCount;
+			}
+			UE_LOG(
+				LogProjectWorldAuthoredOverlayRealization,
+				Display,
+				TEXT("[ProjectWorldAuthoredOverlayRealization::Apply] Prepared anchor - overlay=%s external=%d package=%s persisted=%d"),
+				*Evidence.OverlayId,
+				Actor->IsPackageExternal() ? 1 : 0,
+				Actor->GetExternalPackage() ? *Actor->GetExternalPackage()->GetName() : TEXT("none"),
+				bPersistentMap ? 1 : 0);
 		}
 
 		for (const TPair<FString, ALevelInstance*>& Pair : Existing)

@@ -26,6 +26,26 @@ UProjectVitalsComponent::UProjectVitalsComponent()
 	SetIsReplicatedByDefault(false);
 }
 
+bool UProjectVitalsComponent::GetVitalsSnapshot(FVitalsReadOnlySnapshot& OutSnapshot) const
+{
+	UAbilitySystemComponent* ASC = GetASC();
+	if (ASC == nullptr)
+	{
+		return false;
+	}
+
+	OutSnapshot.Condition = ASC->GetNumericAttribute(UHealthAttributeSet::GetConditionAttribute());
+	OutSnapshot.MaxCondition = ASC->GetNumericAttribute(UHealthAttributeSet::GetMaxConditionAttribute());
+	OutSnapshot.Calories = ASC->GetNumericAttribute(USurvivalAttributeSet::GetCaloriesAttribute());
+	OutSnapshot.MaxCalories = ASC->GetNumericAttribute(USurvivalAttributeSet::GetMaxCaloriesAttribute());
+	OutSnapshot.Hydration = ASC->GetNumericAttribute(USurvivalAttributeSet::GetHydrationAttribute());
+	OutSnapshot.MaxHydration = ASC->GetNumericAttribute(USurvivalAttributeSet::GetMaxHydrationAttribute());
+	OutSnapshot.Fatigue = ASC->GetNumericAttribute(USurvivalAttributeSet::GetFatigueAttribute());
+	OutSnapshot.MaxFatigue = ASC->GetNumericAttribute(USurvivalAttributeSet::GetMaxFatigueAttribute());
+	ASC->GetOwnedGameplayTags(OutSnapshot.StateTags);
+	return true;
+}
+
 #if WITH_DEV_AUTOMATION_TESTS
 EVitalState UProjectVitalsComponent::TestComputeVitalStateWithHysteresis(float Percent, EVitalState PrevState) const
 {

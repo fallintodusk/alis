@@ -29,6 +29,16 @@ Plugins/
       -> Shared data-only types (structs/enums) used across plugins
       -> No AssetManager calls, no gameplay logic
 
+  Resources/
+    ProjectMaterial/
+      -> Universal material assets and Editor-only closed recipe compiler
+      -> No Runtime module or consumer Build.cs dependency
+      -> Consumers resolve stable soft identities and own semantic assignment
+
+    ProjectObject/
+      -> Concrete entity composition using universal resource libraries
+      -> Entity-specific visuals remain with the ObjectId until generalized
+
   Systems/
     ProjectLoading/
       -> 6-phase loading pipeline (implements ILoadingService from ProjectCore)
@@ -116,6 +126,12 @@ Plugins/
 ```
 
 Guardrails
+- Resources are leaf providers. Reusable assets and Editor compilation stay with the
+  resource owner; consumers use soft/content identity and never depend on an Editor
+  compiler module at runtime.
+- ProjectMaterial owns universal rendering interpretation. World owns semantic binding,
+  while WorldData owns geography and sourced facts only. ProjectObject owns concrete
+  entity composition and may own genuinely entity-specific visuals.
 - DIP: Features depend on their own interfaces, Gameplay orchestrates Features. Features never depend on Systems directly.
 - ProjectUI (framework): UI tech only; no flow decisions. UI plugins decide which screens to show.
 - Systems vs World: Infrastructure (save/load/settings) -> Systems. Geography/maps -> World.

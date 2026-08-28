@@ -178,7 +178,13 @@ namespace ProjectWorldSemanticEvidence
 			TArray<FString> Tags;
 			for (const FName& Tag : Actor->Tags)
 			{
-				Tags.Add(Tag.ToString());
+				const FString Value = Tag.ToString();
+				// Compile receipt identity is provenance, not realized product semantics.
+				// D3 must remain stable for a content-identical incremental compile.
+				if (!Value.StartsWith(TEXT("ProjectWorld.Input=")))
+				{
+					Tags.Add(Value);
+				}
 			}
 			Tags.Sort();
 			const FString ActorIdentity = SemanticActorIdentity(Actor);

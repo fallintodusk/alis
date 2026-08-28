@@ -97,6 +97,48 @@ void AMenuPlayPlayerController::StartGameLoad(const FString& MapId, const FStrin
 		// UClass name does NOT include 'A' prefix (that's C++ only, not in UE reflection)
 		Request.CustomOptions.Add(TEXT("game"), TEXT("/Script/ProjectSinglePlay.SinglePlayerGameMode"));
 		Request.CustomOptions.Add(TEXT("Mode"), TEXT("Medium"));
+
+		FString AutomatedExperience;
+		FString AutomatedScenario;
+		FString AutomatedTraversal;
+		const bool bAutomatedSelection = FParse::Value(
+			FCommandLine::Get(),
+			TEXT("ProjectMenuPlayAutoExperience="),
+			AutomatedExperience);
+		if (bAutomatedSelection && AutomatedExperience == MapId &&
+			FParse::Value(
+				FCommandLine::Get(),
+				TEXT("ProjectMenuPlayAutoScenario="),
+				AutomatedScenario))
+		{
+			if (AutomatedScenario == TEXT("UrbanSurvivalProofV1"))
+			{
+				Request.CustomOptions.Add(TEXT("Scenario"), AutomatedScenario);
+			}
+			else
+			{
+				UE_LOG(LogMenuPlayPC, Warning,
+					TEXT("[AMenuPlayPlayerController::StartGameLoad] Ignoring unsupported automated scenario - value=%s"),
+					*AutomatedScenario);
+			}
+		}
+		if (bAutomatedSelection && AutomatedExperience == MapId &&
+			FParse::Value(
+				FCommandLine::Get(),
+				TEXT("ProjectMenuPlayAutoTraversal="),
+				AutomatedTraversal))
+		{
+			if (AutomatedTraversal == TEXT("PreviewFlight"))
+			{
+				Request.CustomOptions.Add(TEXT("Traversal"), AutomatedTraversal);
+			}
+			else
+			{
+				UE_LOG(LogMenuPlayPC, Warning,
+					TEXT("[AMenuPlayPlayerController::StartGameLoad] Ignoring unsupported automated traversal - value=%s"),
+					*AutomatedTraversal);
+			}
+		}
 	}
 	else
 	{

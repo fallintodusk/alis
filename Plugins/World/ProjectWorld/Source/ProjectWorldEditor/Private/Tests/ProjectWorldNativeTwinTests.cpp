@@ -19,6 +19,7 @@
 #include "LandscapeEditLayer.h"
 #include "LandscapeInfo.h"
 #include "LandscapeStreamingProxy.h"
+#include "Materials/Material.h"
 #include "Misc/AutomationTest.h"
 #include "NaniteSceneProxy.h"
 #include "UObject/Package.h"
@@ -194,12 +195,31 @@ bool FProjectWorldNativeLandscapeTwinTest::RunTest(const FString& Parameters)
 	{
 		Entry.Value->GetPackage()->SetDirtyFlag(false);
 	}
+	UMaterialInterface* const UpdatedLandscapeMaterial = NewObject<UMaterial>();
+	FProjectWorldRealizationResult MaterialResult;
+	TestTrue(
+		TEXT("A universal material migration updates the existing Landscape family."),
+		ProjectWorldLandscapeRealization::CreateOrUpdate(
+			World, Bundle, Layout, TEXT("native_twin"), 1, MaterialResult, Error, UpdatedLandscapeMaterial));
+	TestEqual(TEXT("A material-only migration updates zero terrain components."),
+		MaterialResult.UpdatedLandscapeComponentCount, 0);
+	for (const TPair<FString, ALandscapeStreamingProxy*>& Entry : ProxiesByCell)
+	{
+		TestTrue(
+			TEXT("Every migrated Landscape proxy package becomes durable."),
+			Entry.Value->GetPackage()->IsDirty());
+		TestTrue(
+			TEXT("Every existing Landscape proxy adopts the updated logical material."),
+			Entry.Value->LandscapeMaterial == UpdatedLandscapeMaterial);
+		Entry.Value->GetPackage()->SetDirtyFlag(false);
+	}
+	LogicalPackage->SetDirtyFlag(false);
 	Bundle.Cells[0].Terrain.ArtifactHash = TEXT("terrain_0_0_changed");
 	Bundle.Cells[0].Terrain.HeightsMeters[65] += 0.1;
 	Bundle.InputsHash = TEXT("native_twin_input_terrain_changed");
 	FProjectWorldRealizationResult IncrementalResult;
 	const bool bUpdated = ProjectWorldLandscapeRealization::CreateOrUpdate(
-		World, Bundle, Layout, TEXT("native_twin"), 1, IncrementalResult, Error);
+		World, Bundle, Layout, TEXT("native_twin"), 1, IncrementalResult, Error, UpdatedLandscapeMaterial);
 	TestTrue(
 		TEXT("The real Landscape update path accepts an already-partitioned Landscape."),
 		bUpdated);
@@ -230,7 +250,7 @@ bool FProjectWorldNativeLandscapeTwinTest::RunTest(const FString& Parameters)
 	TestTrue(
 		TEXT("A water-only canonical identity change leaves terrain realization valid."),
 		ProjectWorldLandscapeRealization::CreateOrUpdate(
-			World, Bundle, Layout, TEXT("native_twin"), 1, WaterOnlyResult, Error));
+			World, Bundle, Layout, TEXT("native_twin"), 1, WaterOnlyResult, Error, UpdatedLandscapeMaterial));
 	TestEqual(TEXT("Water-only input changes update zero terrain components."), WaterOnlyResult.UpdatedLandscapeComponentCount, 0);
 	TestFalse(TEXT("Water-only input changes do not dirty the logical map package."), LogicalPackage->IsDirty());
 	for (const TPair<FString, ALandscapeStreamingProxy*>& Entry : ProxiesByCell)

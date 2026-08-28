@@ -10,6 +10,7 @@
 #include "GameplayEffectTypes.h"
 #include "VitalsEnums.h"
 #include "Interfaces/IVitalsEventsSource.h"
+#include "Interfaces/IVitalsReadOnly.h"
 #include "ProjectVitalsComponent.generated.h"
 
 class UAbilitySystemComponent;
@@ -59,7 +60,7 @@ class UGameplayEffect;
  * SOT: ProjectVitals/README.md, gas_ui_mechanics.md
  */
 UCLASS(ClassGroup=(Gameplay), meta=(BlueprintSpawnableComponent))
-class PROJECTVITALS_API UProjectVitalsComponent : public UActorComponent, public IVitalsEventsSource
+class PROJECTVITALS_API UProjectVitalsComponent : public UActorComponent, public IVitalsEventsSource, public IVitalsReadOnly
 {
 	GENERATED_BODY()
 
@@ -69,6 +70,7 @@ public:
 	// IVitalsEventsSource
 	virtual FOnVitalsDamageTaken& GetOnDamageTakenDelegate() override { return OnDamageTaken; }
 	virtual FOnVitalsConditionDepleted& GetOnConditionDepletedDelegate() override { return OnConditionDepleted; }
+	virtual bool GetVitalsSnapshot(FVitalsReadOnlySnapshot& OutSnapshot) const override;
 
 	// -------------------------------------------------------------------------
 	// Configuration

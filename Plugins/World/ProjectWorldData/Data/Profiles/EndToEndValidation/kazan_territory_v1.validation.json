@@ -25,7 +25,7 @@
       "require_landscape": true,
       "expected_features": 6,
       "expected_rejections": 3,
-      "expected_authored": {"resolved": 0, "placed": 0, "masks": 0, "minimum_package_files": 0},
+      "expected_authored": {"resolved": 1, "placed": 1, "masks": 0, "minimum_package_files": 1},
       "expected_topology": {
         "canonical_cells": 2,
         "sample_spacing_m": 1.0,

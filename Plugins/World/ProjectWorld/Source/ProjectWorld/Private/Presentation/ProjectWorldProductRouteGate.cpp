@@ -4,6 +4,7 @@
 #include "Presentation/ProjectWorldProductRouteGate.h"
 
 #include "Presentation/ProjectWorldPresentationSampling.h"
+#include "Presentation/ProjectWorldProductRouteCollision.h"
 #include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
 #include "Presentation/ProjectWorldScreenshotValidation.h"
 #include "Interfaces/IInteractionService.h"
@@ -52,22 +53,6 @@ namespace
 	const FName LandscapeTag(TEXT("ProjectWorld.Landscape.v1"));
 	const FName RoadTag(TEXT("ProjectWorld.Road.v1"));
 	const FName BuildingTag(TEXT("ProjectWorld.BuildingMassing.v1"));
-
-	int32 CountBlockingPrimitives(const AActor& Actor)
-	{
-		int32 Count = 0;
-		TInlineComponentArray<UPrimitiveComponent*> Components;
-		Actor.GetComponents(Components);
-		for (const UPrimitiveComponent* Primitive : Components)
-		{
-			if (Primitive != nullptr && Primitive->IsRegistered() && Primitive->IsCollisionEnabled() &&
-				Primitive->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block)
-			{
-				++Count;
-			}
-		}
-		return Count;
-	}
 
 	bool ParseProductRouteValue(const TCHAR* Name, FString& OutValue, bool bShouldStopOnSeparator = true)
 	{
@@ -155,6 +140,9 @@ void FProjectWorldProductRouteGate::StartIfRequested()
 
 bool FProjectWorldProductRouteGate::ParseConfig(FString& OutError)
 {
+	Config.bRestorePreviewFlight = FParse::Param(
+		FCommandLine::Get(),
+		TEXT("ProjectWorldProductRouteRestorePreviewFlight"));
 	FString EdgeText;
 	if (!ParseProductRouteValue(TEXT("ProjectWorldProductOperation="), Config.OperationId) ||
 		!ParseProductRouteValue(TEXT("ProjectWorldProductResult="), Config.ResultPath) ||
@@ -331,6 +319,17 @@ bool FProjectWorldProductRouteGate::TryAcquireProductWorld()
 		return false;
 	}
 	Progress.bPossessedPlayer = true;
+	if (Config.bRestorePreviewFlight)
+	{
+		if (World->URL.GetOption(TEXT("Traversal="), TEXT("")) != FString(TEXT("PreviewFlight")))
+		{
+			FinishRejected(TEXT("product_route_preview_flight_missing"),
+				TEXT("The product route did not receive the selected PreviewFlight experience option."));
+			return false;
+		}
+		Movement->Velocity = FVector::ZeroVector;
+		Movement->SetMovementMode(MOVE_Walking);
+	}
 	ProductWorld = World;
 	PlayerController = Controller;
 	PlayerCharacter = Character;
@@ -521,7 +520,9 @@ bool FProjectWorldProductRouteGate::TickCenterReturn()
 		MovePlayerTo(CenterLocation, true))
 	{
 		Progress.bCenterReloaded = true;
-		CharacterMovement->SetMovementMode(MOVE_Walking);
+		CharacterMovement->SetMovementMode(
+			Config.bRestorePreviewFlight ? MOVE_Flying : MOVE_Walking);
+		bPreviewFlightRestored = !Config.bRestorePreviewFlight || CharacterMovement->IsFlying();
 		SetPhase(EPhase::SettlingForScreenshot);
 		return true;
 	}
@@ -584,7 +585,7 @@ bool FProjectWorldProductRouteGate::ProbeTaggedCollision(
 			continue;
 		}
 		++OutCandidateCount;
-		OutBlockingPrimitiveCount += CountBlockingPrimitives(**It);
+		OutBlockingPrimitiveCount += ProjectWorldProductRouteCollision::CountBlockingPrimitives(**It);
 		if (ProbeActorCollision(**It))
 		{
 			OutActorName = It->GetPathName();
@@ -619,7 +620,7 @@ bool FProjectWorldProductRouteGate::ProbeTerrainCollision(
 			continue;
 		}
 		++OutCandidateCount;
-		OutBlockingPrimitiveCount += CountBlockingPrimitives(**It);
+		OutBlockingPrimitiveCount += ProjectWorldProductRouteCollision::CountBlockingPrimitives(**It);
 		FHitResult Hit;
 		if ((It->ActorLineTraceSingle(Hit, Start, End, ECC_Pawn, Params) && Hit.bBlockingHit) ||
 			ProbeActorCollision(**It))
@@ -935,6 +936,7 @@ void FProjectWorldProductRouteGate::WriteResult(
 	Root->SetBoolField(TEXT("center_unloaded_at_edge"), Progress.bCenterUnloadedAtEdge);
 	Root->SetBoolField(TEXT("edge_loaded"), Progress.bEdgeLoaded);
 	Root->SetBoolField(TEXT("center_reloaded"), Progress.bCenterReloaded);
+	Root->SetBoolField(TEXT("preview_flight_restored"), bPreviewFlightRestored);
 	Root->SetStringField(TEXT("screenshot"), ScreenshotPath);
 	TArray<TSharedPtr<FJsonValue>> Roles;
 	for (const FString& Role : ObservedRuntimeRoles)

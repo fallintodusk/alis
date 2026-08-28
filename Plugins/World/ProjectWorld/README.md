@@ -21,6 +21,9 @@ Implemented in `Source/ProjectWorld`:
   object-definition host helpers.
 - `ProjectWorldEditor` canonical receipt validation and deterministic Unreal
   realization for bounded generated maps.
+- Authenticated semantic presentation binding from `terrain.default` to the accepted
+  universal ProjectMaterial terrain instance, with durable assignment across every
+  Landscape streaming proxy in the logical family.
 - Exact procedural preview for non-Landscape fixtures and stock Landscape
   import for compatible canonical grids.
 

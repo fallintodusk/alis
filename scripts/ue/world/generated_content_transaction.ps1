@@ -22,11 +22,10 @@ function Assert-ProjectWorldOwnedPath {
 }
 
 function Get-ProjectWorldPresentationRoot {
-    # SINGLE authority for the shared generated presentation root.
-    # C++ owner: ProjectWorldPresentationMaterialRealization writes
-    # <GeneratedPackageRoot>Presentation/<asset>, so this root is mutated by
-    # every Apply while belonging to no map scope. It must never be re-derived
-    # by a second copy of the literal; invariant 19 depends on one authority.
+    # SINGLE authority for legacy World-owned generated presentation artifacts.
+    # Universal materials are now owned by ProjectMaterial, but remaining World
+    # presentation outputs still need one transaction-root authority. Invariant
+    # 19 pins this path so rollback cannot omit a shared World-owned artifact.
     param(
         [Parameter(Mandatory = $true)]
         [string]$ContentRoot

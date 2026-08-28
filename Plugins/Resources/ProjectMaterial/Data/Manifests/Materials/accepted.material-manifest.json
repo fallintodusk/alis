@@ -1,0 +1,32 @@
+{
+	"$schema": "../../Schemas/material-manifest.schema.json",
+	"schema_version": "1",
+	"records": [
+		{
+			"recipe_path": "Terrain/M_ProjectTerrain.material.json",
+			"recipe_sha256": "9f2d3af47e703d6576703539b064ce8051360982c4cbf62e8388e80524a94ffc",
+			"family": "surface_opaque",
+			"archetype": "landscape_basic_v1",
+			"compiler_version": "1",
+			"output_object_path": "/ProjectMaterial/Generated/Terrain/M_ProjectTerrain.M_ProjectTerrain",
+			"semantic_identity": "31b299d0c57bbc775e1eb3b52c5b2c0026f1a51b2f475996b953d5fb0c623e60",
+			"package_sha256": "bb3309a6d825d9de87865ce08c61491ad9526a0222abe4ea1fcb0ca37d89a533",
+			"compiler_fingerprint": "6ddb657ca77288a2e598eca8eb74b4ef58852ea12888874f7f63760f15e4151a",
+			"engine_identity": "5.8.1-56057345+++UE5+Release-5.8|changelist=56057345"
+		},
+		{
+			"recipe_path": "Terrain/MI_ProjectTerrain_Default.material.json",
+			"recipe_sha256": "0d13ea24da245410de5d02fbbe44288bfb10d3ecc016dda9dd35a12f557ef363",
+			"family": "surface_opaque",
+			"archetype": "landscape_basic_v1",
+			"compiler_version": "1",
+			"dependency_object_path": "/ProjectMaterial/Generated/Terrain/M_ProjectTerrain.M_ProjectTerrain",
+			"dependency_package_sha256": "bb3309a6d825d9de87865ce08c61491ad9526a0222abe4ea1fcb0ca37d89a533",
+			"output_object_path": "/ProjectMaterial/Generated/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+			"semantic_identity": "6d214be8dbdd3736d0a023a077c4c88b04a6b8a199e2efc62a3c228627739f8e",
+			"package_sha256": "cedada1d9470825db0464667c9cb5cac6a05944c1ae113a42504633a34f48218",
+			"compiler_fingerprint": "6ddb657ca77288a2e598eca8eb74b4ef58852ea12888874f7f63760f15e4151a",
+			"engine_identity": "5.8.1-56057345+++UE5+Release-5.8|changelist=56057345"
+		}
+	]
+}

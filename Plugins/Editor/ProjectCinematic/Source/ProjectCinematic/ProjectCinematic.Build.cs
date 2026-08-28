@@ -9,10 +9,9 @@ public class ProjectCinematic : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		// Runtime module of an Editor-type plugin. The plugin's "Type": "Editor"
-		// guarantees this module never ships in cooked client/server builds;
-		// ACinematicGameMode is purely a developer/editor tool used during PIE
-		// recording sessions and MRQ render in the editor.
+		// Editor module used during PIE recording and MRQ rendering only.
+		// The descriptor and project target allowlist keep this module and its
+		// capture dependencies out of cooked game/client/server targets.
 
 		PublicDependencyModuleNames.AddRange(new string[]
 		{

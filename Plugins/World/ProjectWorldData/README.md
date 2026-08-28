@@ -18,6 +18,12 @@ Data/content-only owner for the Kazan reconstruction.
   packages. They persist until an accepted regeneration replaces them.
 - `/ProjectWorldData/Authored/` contains protected authored overlays.
 
+ProjectWorldData does not own presentation implementation. Kazan may own sourced
+semantic facts such as land cover, water type, or road class, but it does not own
+material paths, graph parameters, recipes, generated material assets, or material
+manifests. Universal rendering resources belong to ProjectMaterial; ProjectWorld owns
+the semantic assignment contract.
+
 This plugin has no `Source` module. Contracts and logic stay with the component
 that interprets them: SourceIngestion owns provider admission,
 CanonicalCompilation owns canonical compilation, and ProjectWorld owns Unreal

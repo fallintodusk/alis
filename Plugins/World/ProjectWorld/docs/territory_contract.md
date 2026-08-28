@@ -329,7 +329,7 @@ Layer stack, bottom to top:
 | Building massing (territory blockouts) | Generated, profile-owned | Fully replaceable |
 | Gameplay placement | Generated, profile-owned | Fully replaceable; mutable runtime state is external |
 | Modular building assembly (selected features; later generator) | Generated, profile-owned | Fully replaceable; passes admission before first territory/playable use |
-| Presentation material | Generated, profile-owned | Fully replaceable |
+| Universal presentation material | ProjectMaterial-owned resource authority | Fully replaceable without geography regeneration |
 | Authored overlay (hero locations, spatial anchors) | Authored, protected | Byte-identical across any regeneration |
 | Manual polish layer (late art passes above everything) | Authored, protected | Byte-identical across any regeneration |
 
@@ -541,8 +541,8 @@ rejects, as "unowned or drifted generated content":
 Ownership is distinct from consumption. Scopes:
 
 - map-owned artifacts: the map, its external actors/objects, its map HLOD;
-- presentation-profile-owned artifacts: shared generated material consumed
-  by several generated maps;
+- ProjectMaterial-owned artifacts: universal generated materials consumed by
+  semantic soft identity from one or more maps;
 - generator-layer-owned artifacts: water, foliage, or assembly resources;
 - consumer references are recorded separately from the single owner.
 
@@ -567,10 +567,10 @@ manifest document is never one of its own generated artifacts. A manifest stored
 the scope it governs would delete its own authority on reconstruction and
 could be damaged together with the content it is meant to audit.
 
-A realization operation can mutate several ownership scopes at once
-(existing proof: applying a representative map touches both map-owned
-assets and the shared presentation-profile material). The lifecycle is
-therefore built around an explicit MUTATION SCOPE SET:
+A realization operation can mutate several World ownership scopes at once
+(for example, a reference cutover can touch a map plus its generated layer
+packages). Material generation is a separate ProjectMaterial transaction. The
+World lifecycle is built around an explicit MUTATION SCOPE SET:
 
 ```text
 operation declares every scope it may mutate

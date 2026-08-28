@@ -23,6 +23,7 @@
 #include "Interfaces/IMindRuntimeControl.h"
 #include "Interfaces/IWorldContainerSessionSource.h"
 #include "ProjectServiceLocator.h"
+#include "Scenario/SinglePlayScenarioPresentationComponent.h"
 #if !UE_SERVER
 #include "MVVM/InventoryViewModel.h"
 #include "MVVM/MindJournalViewModel.h"
@@ -73,6 +74,8 @@ ASinglePlayController::ASinglePlayController()
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
 	VitalsUIBindAttempts = 0;
+	ScenarioPresentation = CreateDefaultSubobject<USinglePlayScenarioPresentationComponent>(
+		TEXT("ScenarioPresentation"));
 }
 
 void ASinglePlayController::BeginPlay()

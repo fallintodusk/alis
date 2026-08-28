@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "single_play_scenario.schema.json",
+  "title": "ProjectSinglePlay Scenario Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "scenarioId",
+    "steps",
+    "cacheActorTag",
+    "shelterActorTag",
+    "requiredRationObjectId",
+    "requiredHydrationFraction",
+    "cacheInteractionRadius",
+    "shelterInteractionRadius",
+    "failureRestartDelaySeconds",
+    "startMessage",
+    "recoveryMessage",
+    "recoveredMessage",
+    "successMessage",
+    "failureMessage"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 2 },
+    "scenarioId": { "const": "UrbanSurvivalProofV1" },
+    "steps": {
+      "type": "array",
+      "items": [
+        { "const": "ReachCache" },
+        { "const": "RecoverHydrationAndCarryItem" },
+        { "const": "ReachShelter" }
+      ],
+      "additionalItems": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "cacheActorTag": { "const": "ProjectScenario.Anchor.Cache" },
+    "shelterActorTag": { "const": "ProjectScenario.Anchor.Shelter" },
+    "requiredRationObjectId": { "const": "EmergencyRation" },
+    "requiredHydrationFraction": { "type": "number", "minimum": 0.2, "maximum": 1.0 },
+    "cacheInteractionRadius": { "type": "number", "exclusiveMinimum": 0.0 },
+    "shelterInteractionRadius": { "type": "number", "exclusiveMinimum": 0.0 },
+    "failureRestartDelaySeconds": { "type": "number", "minimum": 2.0, "maximum": 3.0 },
+    "startMessage": { "type": "string", "minLength": 1 },
+    "recoveryMessage": { "type": "string", "minLength": 1 },
+    "recoveredMessage": { "type": "string", "minLength": 1 },
+    "successMessage": { "type": "string", "minLength": 1 },
+    "failureMessage": { "type": "string", "minLength": 1 }
+  }
+}

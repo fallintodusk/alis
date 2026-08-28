@@ -4,7 +4,10 @@
 #include "GameFramework/GameModeBase.h"
 #include "UObject/PrimaryAssetId.h"
 #include "SinglePlayModeConfig.h"
+#include "SinglePlayTraversalPolicy.h"
 #include "SinglePlayerGameMode.generated.h"
+
+class USinglePlayScenarioRunnerComponent;
 
 /**
  * GameMode for single-player gameplay in ALIS.
@@ -68,6 +71,9 @@ public:
 	const FSinglePlayModeConfig& GetModeConfig() const { return ModeConfig; }
 
 	const FPrimaryAssetId& GetActiveCharacterDefinitionId() const { return ActiveCharacterDefinitionId; }
+	ESinglePlayTraversalMode GetTraversalMode() const { return TraversalMode; }
+	USinglePlayScenarioRunnerComponent* GetScenarioRunner() const { return ScenarioRunner; }
+	void RequestScenarioRestart();
 
 protected:
 	// Load mode configuration based on URL parameter
@@ -104,6 +110,12 @@ protected:
 
 	// Character definition selection is independent from gameplay mode/difficulty.
 	FPrimaryAssetId ActiveCharacterDefinitionId;
+
+	// Experience-selected traversal is independent from gameplay difficulty.
+	ESinglePlayTraversalMode TraversalMode = ESinglePlayTraversalMode::Default;
+
+	UPROPERTY(VisibleAnywhere, Category = "Single Play|Scenario")
+	TObjectPtr<USinglePlayScenarioRunnerComponent> ScenarioRunner;
 
 private:
 	// Track whether we've already verified features (for idempotency)

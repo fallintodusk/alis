@@ -12,9 +12,10 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
         $map = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlayRealization.cpp'
         $runtimePartition = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.cpp'
         $evidenceHost = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEditorModule.cpp'
+        $semanticEvidence = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSemanticEvidence.cpp'
         $staticAuditHost = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldStaticPartitionAudit.cpp'
         $authoredOverlay = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp'
-        $presentation = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.cpp'
+        $presentation = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.cpp'
         $terrain = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp'
         $water = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterRealization.cpp'
         $roads = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRoadRealization.cpp'
@@ -36,7 +37,7 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
             'scripts/ue/world/realization_layer_operation.ps1'
         )
         foreach ($path in @(
-            $shared, $map, $runtimePartition, $evidenceHost, $staticAuditHost, $authoredOverlay, $presentation, $terrain, $water, $roads, $surface,
+            $shared, $map, $runtimePartition, $evidenceHost, $semanticEvidence, $staticAuditHost, $authoredOverlay, $presentation, $terrain, $water, $roads, $surface,
             $vegetation, $vegetationExclusions, $buildings, $gameplay) + $catalogPaths) {
             $full = Join-Path $projectRoot $path
             New-Item -ItemType Directory -Path (Split-Path -Parent $full) -Force | Out-Null
@@ -53,13 +54,12 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
             @{ Path = $map; Owners = @('map:v1') },
             @{ Path = $runtimePartition; Owners = @('map:v1') },
             @{ Path = $evidenceHost; Owners = @() },
+            @{ Path = $semanticEvidence; Owners = @() },
             @{ Path = $staticAuditHost; Owners = @() },
             @{ Path = $authoredOverlay; Owners = @(
                 'map:v1', 'project_vegetation_instances:v1', 'project_building_massing:v1') },
-            @{ Path = $presentation; Owners = @(
-                'presentation:v1', 'project_landscape:v1', 'project_road_mesh:v1',
-                'project_building_massing:v1') },
-            @{ Path = $terrain; Owners = @('project_landscape:v1') },
+            @{ Path = $presentation; Owners = @('presentation:v1') },
+            @{ Path = $terrain; Owners = @('map:v1', 'project_landscape:v1') },
             @{ Path = $water; Owners = @('project_water_mesh:v1') },
             @{ Path = $roads; Owners = @('project_road_mesh:v1') },
             @{ Path = $surface; Owners = @(

@@ -24,6 +24,7 @@ struct FProjectWorldProductRouteGateConfig
 	FString RuntimeProfileHash;
 	FString MachineProfileId;
 	FVector EdgeLocation = FVector::ZeroVector;
+	bool bRestorePreviewFlight = false;
 };
 
 class FProjectWorldProductRouteGate
@@ -117,4 +118,5 @@ private:
 	int32 BuildingCandidateCount = 0;
 	int32 BuildingBlockingPrimitiveCount = 0;
 	bool bInteractionDispatchAccepted = false;
+	bool bPreviewFlightRestored = false;
 };

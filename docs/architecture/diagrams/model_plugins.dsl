@@ -41,6 +41,10 @@ projectCore = component "ProjectCore" "DIP abstraction layer: ILoadingService in
     tags "Plugin,Tier:Foundation,Domain:Platform"
 }
 
+projectMaterial = component "ProjectMaterial" "Universal material assets plus an Editor-only closed JSON compiler; packaged consumers resolve stable soft identities without runtime compiler coupling" "Content/C++ Editor" {
+    tags "Plugin,Tier:Resources,Domain:Resources"
+}
+
 // System Plugins (depend on foundation)
 projectLoading = component "ProjectLoading" "6-phase loading pipeline (implements ILoadingService)" "C++" {
     tags "Plugin,Tier:Systems,Domain:Platform"

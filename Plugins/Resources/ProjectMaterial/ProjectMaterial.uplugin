@@ -15,8 +15,8 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "ProjectMaterial",
-			"Type": "Runtime",
+			"Name": "ProjectMaterialEditor",
+			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	]

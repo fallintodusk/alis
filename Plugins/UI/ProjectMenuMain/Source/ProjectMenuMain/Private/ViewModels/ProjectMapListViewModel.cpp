@@ -30,7 +30,7 @@ void UProjectMapListViewModel::RefreshMapList()
 	// Note: These are placeholder paths. Replace with actual map paths when maps exist.
 	{
 		FProjectMapEntry Entry;
-		Entry.DisplayName = TEXT("City17");
+		Entry.DisplayName = TEXT("Old City 17");
 		Entry.Description = TEXT("Post-apocalyptic urban environment in Kazan");
 		// Full asset path format: /Path/To/Asset.AssetName
 		Entry.MapSoftPath = FSoftObjectPath(TEXT("/Game/Maps/City17/City17_Persistent.City17_Persistent"));

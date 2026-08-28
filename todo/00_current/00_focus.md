@@ -20,8 +20,13 @@ The city gets attention. The survival loop earns belief.
 The only hook strong enough to stop strangers scrolling: a survival game set in a real city you can find on a map.
 
 - [x] Generate the Kazan territory layers needed for a believable capture
-- [ ] Make Kazan playable through the normal game route
-  ([current execution](world_validate_kazan_territory_slice_4_runtime.md))
+- [ ] Make Kazan playable through the normal game route (technical acceptance complete;
+  operator walkthrough pending;
+  [current execution](world_stabilize_kazan_combined_release_candidate.md))
+- [ ] Replace the dominant debug-grid terrain with the accepted universal K1 material
+  (technical acceptance complete; operator walkthrough pending)
+- [ ] Produce one repeatable clean in-game Kazan master (technical acceptance complete;
+  operator walkthrough pending)
 - [ ] Capture comparison footage: real place vs in-game (side-by-side)
 - [ ] Edit 60-90 second video - city first, survival glimpse second
 - [ ] Post to r/unrealengine, r/indiegaming, r/gamedev
@@ -37,9 +42,9 @@ When people arrive from the video, they need a second answer: "what is the game?
 
 That answer must be one micro-scenario with real tradeoffs, not raw wandering with a hunger bar.
 
-- [ ] Define one small objective in the city (reach shelter / secure supplies / cross a block)
-- [ ] Wire vitals pressure into the objective (time, thirst, fatigue create urgency)
-- [ ] Make inventory choices matter (weight/volume forces tradeoffs on what to carry)
+- [x] Define one small objective in the city (reach shelter / secure supplies / cross a block)
+- [x] Wire vitals pressure into the objective (time, thirst, fatigue create urgency)
+- [x] Make inventory choices matter (weight/volume forces tradeoffs on what to carry)
 - [ ] Ensure a new person understands the direction within minutes
 - [ ] First playable build available (GitHub Releases or itch.io)
 

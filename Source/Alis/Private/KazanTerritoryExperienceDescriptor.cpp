@@ -3,12 +3,19 @@
 #include "KazanTerritoryExperienceDescriptor.h"
 
 #include "Engine/World.h"
+#include "Types/ProjectLoadRequest.h"
 
 UKazanTerritoryExperienceDescriptor::UKazanTerritoryExperienceDescriptor()
 {
 	ExperienceName = TEXT("KazanTerritory");
 	LoadAssets.Map = TSoftObjectPtr<UWorld>(FSoftObjectPath(
 		TEXT("/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory.L_ProjectWorldKazanTerritory")));
+}
+
+void UKazanTerritoryExperienceDescriptor::BuildLoadRequest(FLoadRequest& OutRequest) const
+{
+	Super::BuildLoadRequest(OutRequest);
+	OutRequest.CustomOptions.Add(TEXT("Traversal"), TEXT("PreviewFlight"));
 }
 
 void UKazanTerritoryExperienceDescriptor::GetAssetScanSpecs(

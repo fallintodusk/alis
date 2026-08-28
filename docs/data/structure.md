@@ -16,6 +16,11 @@ Data files are NO LONGER centralized. They live within their owning plugin.
 **Note:**
 We prioritize plugin modularity. `Data/` (plugin root) contains the **Source of Truth** (JSON/Schemas). Files are generated/staged from here into `Content/` or packaged builds.
 
+ProjectMaterial uses this rule for universal material recipes. Its Editor-only compiler
+writes persistent assets under its own `Content/Generated/` mount and promotes the
+aggregate manifest last. Concrete WorldData owns geography and semantic facts, not
+material recipes or generated material assets.
+
 ## 2. Relative Paths in JSON
 
 When referencing other assets or files within JSON, use **standard UE soft paths** or relative paths resolved by helper functions.

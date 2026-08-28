@@ -88,6 +88,7 @@ public:
 
     const FGameplayTag& GetSurfaceTag() const { return SurfaceTag; }
     int32 GetCellIndex() const { return CellIndex; }
+    UProjectGridCell* GetHostedCell() const { return HostedCell; }
 
     // Drag-drop overrides are public to match UUserWidget's public virtual
     // signatures (the engine calls them through a pointer-to-base). The

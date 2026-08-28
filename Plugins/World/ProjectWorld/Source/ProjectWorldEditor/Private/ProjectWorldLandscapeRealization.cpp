@@ -737,6 +737,21 @@ namespace ProjectWorldLandscapeRealization
 		{
 			return false;
 		}
+		if (bMaterialChanged)
+		{
+			// Root refresh updates proxy state in memory but does not make external actor
+			// packages durable, so an editor restart would restore the old material.
+			for (TActorIterator<ALandscapeStreamingProxy> It(World); It; ++It)
+			{
+				if (It->GetLandscapeActor() != Landscape)
+				{
+					continue;
+				}
+				It->LandscapeMaterial = DesiredLandscapeMaterial;
+				It->UpdateAllComponentMaterialInstances(true);
+				It->MarkPackageDirty();
+			}
+		}
 		if (bLandscapeChanged || bTopologyChanged)
 		{
 			Landscape->MarkPackageDirty();

@@ -138,6 +138,11 @@ private:
 	// Input
 	void CreateInputAssets();
 	void RemoveDefaultInputMappingContext();
+	void HandleJumpStarted();
+	void HandleJumpTriggered();
+	void HandleJumpCompleted();
+	void HandleCrouchStarted();
+	void HandleCrouchTriggered();
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 	void StartSprint();

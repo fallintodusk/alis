@@ -97,6 +97,13 @@ relevant JSON files are staged.
 
 They **compose** these universal assets into complete characters/objects.
 
+Material ownership follows the same universal/concrete split. A reusable material
+family, graph, or compiler archetype belongs to ProjectMaterial. A genuinely
+ObjectId-specific material or texture may remain beside that concrete entity and be
+selected by its mesh override. If the resource becomes reused, generalize and promote
+it to ProjectMaterial instead of teaching ProjectMaterial about the concrete object.
+ProjectObject never owns material compiler or archetype logic.
+
 ## Dependency Flow
 
 ```

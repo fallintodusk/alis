@@ -145,7 +145,7 @@
                 "name": "Button_Map_City17",
                 "type": "Button",
                 "icon": "\uDB80\uDF4E",
-                "text": "CITY 17",
+                "text": "OLD CITY 17",
                 "action": "LoadCity17",
                 "position": {"x": 0, "y": -80},
                 "size": {"x": 360, "y": 56},

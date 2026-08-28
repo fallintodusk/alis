@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/cinematic/release-capture-request-v2.json",
+  "title": "Project cinematic release capture request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "capture_id",
+    "map_package",
+    "sequence",
+    "preset",
+    "camera_class",
+    "playback_start",
+    "playback_end",
+    "scalability_quality",
+    "timeout_seconds",
+    "release_acceptance",
+    "package_root"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 2 },
+    "capture_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]+$" },
+    "map_package": { "type": "string", "pattern": "^/[A-Za-z0-9_/-]+$" },
+    "sequence": { "type": "string", "pattern": "^/[A-Za-z0-9_/-]+$" },
+    "preset": { "type": "string", "pattern": "^/[A-Za-z0-9_/-]+$" },
+    "camera_class": { "const": "CineCameraActor" },
+    "playback_start": { "type": "integer", "minimum": 0 },
+    "playback_end": { "type": "integer", "minimum": 1 },
+    "scalability_quality": { "const": 2 },
+    "timeout_seconds": { "type": "integer", "minimum": 60, "maximum": 3600 },
+    "release_acceptance": { "type": "string", "pattern": "^Saved/Validation/.+\\.json$" },
+    "package_root": { "const": "Saved/PackageRelease/KazanPlayableTour/Candidate" }
+  }
+}

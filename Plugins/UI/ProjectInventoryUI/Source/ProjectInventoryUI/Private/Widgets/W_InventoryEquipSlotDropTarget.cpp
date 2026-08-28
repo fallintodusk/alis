@@ -252,8 +252,13 @@ bool UW_InventoryEquipSlotDropTarget::NativeOnDrop(const FGeometry& InGeometry, 
     const bool bDispatched = Subsystem->CompleteEquipDrop(SlotTag, DragOp->EquipSlotTag, Candidate);
 
     UE_LOG(LogInventoryEquipSlotDropTarget, Verbose,
-        TEXT("NativeOnDrop Slot=%s Dispatched=%d"),
-        *SlotTag.ToString(), bDispatched ? 1 : 0);
+        TEXT("NativeOnDrop Slot=%s Required=%s Source=%s Instance=%d Quantity=%d Dispatched=%d"),
+        *SlotTag.ToString(),
+        *DragOp->EquipSlotTag.ToString(),
+        *DragOp->FromContainer.ToString(),
+        DragOp->InstanceId,
+        DragOp->Quantity,
+        bDispatched ? 1 : 0);
 
     return bDispatched;
 }

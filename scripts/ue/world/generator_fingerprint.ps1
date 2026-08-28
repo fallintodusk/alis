@@ -43,8 +43,6 @@ function Get-ProjectWorldProducerSourcePaths {
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSavePolicy.h',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSchemaReference.cpp',
         'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSchemaReference.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSemanticEvidence.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSemanticEvidence.h',
         'Plugins/World/ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json',
         'Plugins/World/ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json',
         'Plugins/World/ProjectWorld/Data/Schemas/project_world_layer_dirty_input.schema.json',
@@ -69,6 +67,8 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp',
@@ -87,8 +87,8 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json'
         ) }
         'presentation:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
             'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
@@ -97,12 +97,7 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldTerrainVerification.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainVerification.cpp',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainVerification.cpp'
         ) }
         'project_water_mesh:v1' { @(
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterContractParsing.cpp',
@@ -113,8 +108,6 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterRealization.h'
         ) }
         'project_road_mesh:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRoadRealization.cpp',
@@ -151,8 +144,6 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialRealization.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
             'Plugins/World/ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json',

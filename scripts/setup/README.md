@@ -10,6 +10,9 @@ One-time setup scripts for new developers. Run these after cloning the repositor
 # After cloning, run from PowerShell:
 .\scripts\setup\setup_ue_env.ps1
 
+# Allow the Editor and stable package paths. Windows asks once for UAC consent.
+.\scripts\setup\configure_ue_firewall.ps1
+
 # Then from Git Bash:
 ./scripts/setup/install_hooks.sh
 ```
@@ -55,6 +58,50 @@ One-time setup scripts for new developers. Run these after cloning the repositor
 - Installed hooks and triggers
 - Why UBT doesn't handle Git natively
 - Nuclear option (`ALIS_HOOK_CLEAN_BINARIES=1`)
+
+---
+
+### configure_ue_firewall.ps1
+
+**Purpose:** Prevent repeated Windows Defender Firewall prompts from the UE
+Editor and stable packaged Kazan candidate runs.
+
+**What it does:**
+- Resolves the launcher engine from `scripts/config/ue_path.conf`
+- Adds inbound TCP/UDP Allow rules for the Editor and stable package paths
+- Applies Domain and Private profiles by default; Public requires `-IncludePublic`
+- Replaces or removes only rules in the `ALIS Unreal Engine` display group
+- Reports external Block rules and stops without deleting operator/system policy
+- Installs and verifies a replacement generation before removing prior ALIS rules
+- Is safe to rerun after an engine or package-path change
+- Verifies the installed rules and writes `Saved/Validation/Setup/ue_firewall.json`
+
+Windows Firewall does not support a safe executable-folder wildcard. The script
+therefore uses exact durable executable paths instead of granting every program
+under the UE or repository directories network access.
+
+**Usage:**
+```powershell
+# Run from a normal PowerShell. Approve the single UAC prompt.
+.\scripts\setup\configure_ue_firewall.ps1
+
+# Explicit opt-in for untrusted Public networks.
+.\scripts\setup\configure_ue_firewall.ps1 -IncludePublic
+
+# Remove only rules owned by this setup.
+.\scripts\setup\configure_ue_firewall.ps1 -Remove
+```
+
+The original terminal remains the reporting surface. A hidden elevated helper uses
+an encoded invocation after UAC consent, then the original process independently
+verifies the operation receipt and installed count. Child errors return to the
+original terminal, and owner scratch is removed. No empty administrator shell is
+left open.
+
+Automated packaged gates use `-NoMessaging`, so they never depend on firewall
+mutation or operator consent. The rules are for normal interactive Editor and
+stable Candidate launches. Windows Firewall has no safe folder wildcard, so a new
+stable package location requires rerunning this setup once.
 
 ---
 

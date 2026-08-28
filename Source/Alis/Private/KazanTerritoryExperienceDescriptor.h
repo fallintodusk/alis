@@ -14,5 +14,6 @@ class UKazanTerritoryExperienceDescriptor final : public UProjectExperienceDescr
 public:
 	UKazanTerritoryExperienceDescriptor();
 
+	virtual void BuildLoadRequest(FLoadRequest& OutRequest) const override;
 	virtual void GetAssetScanSpecs(TArray<FExperienceAssetScanSpec>& OutSpecs) const override;
 };

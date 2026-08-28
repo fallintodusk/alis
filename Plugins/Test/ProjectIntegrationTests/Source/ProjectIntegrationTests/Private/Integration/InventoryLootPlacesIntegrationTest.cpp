@@ -205,6 +205,10 @@ UWorld* ResolveInventoryLootPlacesTestWorld()
 	}
 
 	World = AutomationCommon::GetAnyGameWorld();
+	if (!World && GEditor)
+	{
+		World = GEditor->GetEditorWorldContext().World();
+	}
 	ResetInventoryLootPlacesTestWorldState(World);
 	return World;
 }
@@ -1048,7 +1052,6 @@ bool FInventoryLootPlaces_SpawnUsesStorageSeedEntriesTest::RunTest(const FString
 		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
 		return false;
 	}
-
 	ULootContainerCapabilityComponent* LootComponent = Spawned->FindComponentByClass<ULootContainerCapabilityComponent>();
 	TestNotNull(TEXT("Loot container capability should be added"), LootComponent);
 	if (!LootComponent)
@@ -1155,7 +1158,6 @@ bool FInventoryLootPlaces_SpawnUsesStorageLootProfileTest::RunTest(const FString
 		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
 		return false;
 	}
-
 	ULootContainerCapabilityComponent* LootComponent = Spawned->FindComponentByClass<ULootContainerCapabilityComponent>();
 	TestNotNull(TEXT("Loot container capability should be added"), LootComponent);
 	if (!LootComponent)
@@ -1936,9 +1938,9 @@ bool FInventoryLootPlaces_WorldContainerSnapshotTest::RunTest(const FString& Par
 {
 	(void)Parameters;
 
-	const FPrimaryAssetId WaterBottleId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:WaterBottle"));
-	TestTrue(TEXT("WaterBottle asset should load for snapshot test"), EnsureInventoryLootPlacesTestAssetLoaded(WaterBottleId));
-	if (!EnsureInventoryLootPlacesTestAssetLoaded(WaterBottleId))
+	const FPrimaryAssetId CrowbarId = FPrimaryAssetId::FromString(TEXT("ObjectDefinition:Crowbar"));
+	TestTrue(TEXT("Crowbar asset should load for snapshot test"), EnsureInventoryLootPlacesTestAssetLoaded(CrowbarId));
+	if (!EnsureInventoryLootPlacesTestAssetLoaded(CrowbarId))
 	{
 		return false;
 	}
@@ -1959,7 +1961,7 @@ bool FInventoryLootPlaces_WorldContainerSnapshotTest::RunTest(const FString& Par
 	FString ParseError;
 	const bool bParsed = FDefinitionJsonParser::ParseJsonToAsset(
 		TypeInfo,
-		MakeLootContainerJson(TEXT("SnapshotContract"), true, TEXT("ObjectDefinition:WaterBottle"), 2),
+		MakeLootContainerJson(TEXT("SnapshotContract"), true, TEXT("ObjectDefinition:Crowbar"), 1),
 		Def.Get(),
 		ParseError);
 
@@ -1985,7 +1987,6 @@ bool FInventoryLootPlaces_WorldContainerSnapshotTest::RunTest(const FString& Par
 		AddError(FString::Printf(TEXT("Spawn error: %s"), *SpawnError.ToString()));
 		return false;
 	}
-
 	ULootContainerCapabilityComponent* LootComponent = Spawned->FindComponentByClass<ULootContainerCapabilityComponent>();
 	TestNotNull(TEXT("Loot container capability should exist"), LootComponent);
 	if (!LootComponent)
@@ -1993,6 +1994,8 @@ bool FInventoryLootPlaces_WorldContainerSnapshotTest::RunTest(const FString& Par
 		Spawned->Destroy();
 		return false;
 	}
+	LootComponent->ClearLoot();
+	LootComponent->AddLootEntry(CrowbarId, 1);
 
 	const FInventoryContainerView ContainerView = IWorldContainerSessionSource::Execute_GetContainerView(LootComponent);
 	TestEqual(TEXT("Snapshot grid width should come from storage section"), ContainerView.GridSize.X, 4);
@@ -2005,10 +2008,11 @@ bool FInventoryLootPlaces_WorldContainerSnapshotTest::RunTest(const FString& Par
 	TestEqual(TEXT("Snapshot should expose one entry view"), EntryViews.Num(), 1);
 	if (EntryViews.Num() > 0)
 	{
-		TestEqual(TEXT("Snapshot item id should match seeded item"), EntryViews[0].ItemId, WaterBottleId);
-		TestEqual(TEXT("Snapshot quantity should match seeded quantity"), EntryViews[0].Quantity, 2);
+		TestEqual(TEXT("Snapshot item id should match seeded item"), EntryViews[0].ItemId, CrowbarId);
+		TestEqual(TEXT("Snapshot quantity should match seeded quantity"), EntryViews[0].Quantity, 1);
 		TestTrue(TEXT("Snapshot instance id should be stable and positive"), EntryViews[0].InstanceId > 0);
 		TestTrue(TEXT("Snapshot should use world storage container tag"), EntryViews[0].ContainerId == ProjectTags::Item_Container_WorldStorage);
+		TestTrue(TEXT("Snapshot should preserve the source item's equip-slot identity"), EntryViews[0].EquipSlotTag == ProjectTags::Item_EquipmentSlot_MainHand);
 	}
 
 	Spawned->Destroy();

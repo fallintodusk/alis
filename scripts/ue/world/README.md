@@ -131,6 +131,30 @@ source runs/cache, the latest L3 run, and the pinned execution environment.
 Each applied cleanup writes a small receipt under
 `Saved/Validation/WorldCleanup/`.
 
+## Packaged Kazan playable-tour acceptance
+
+The standing Track P gate packages and tests the real Kazan product route with
+the production character and collision-aware input-driven preview flight:
+
+```powershell
+.\scripts\ue\world\test\performance\run_kazan_playable_tour.ps1
+```
+
+One cold Development process owns menu selection through ProjectLoading,
+possession, real Space/WASD/Ctrl input, interaction, collision, World Partition
+unload/reload, screenshots, and RTX 4070 High 1440p performance. A separate
+Shipping package proves cook and product-route correctness. The operation-level
+composite under `Saved/Validation/WorldRealization/playable-tour/<run-id>/`
+authenticates the focused receipts and artifacts without replacing their owners.
+
+The operator-review package is replaced transactionally at
+`Saved/PackageRelease/KazanPlayableTour/Candidate/`; its immediate predecessor is
+`PreviousCandidate/`. Failed runs restore the prior Candidate. Runtime package copies
+and owner scratch are removed; accepted evidence remains under its run identity.
+Automation does not promote Candidate to a final product decision. After the operator
+accepts those exact bytes, an owner-local acceptance receipt binds Track V to that
+package, executable, source state, runtime profile, and release operation.
+
 ## Operator mutation controls
 
 Apply, Delete, reconstruction, and enrollment first print the exact operation,
@@ -222,6 +246,23 @@ and after. It requires exactly the changed cell's proxy to move, keeps the map
 and unrelated terrain bytes stable, and verifies the corresponding layer
 manifest advancement. This mode is TestData-only L1 evidence and is not part
 of common Check.
+
+For the generic authored-overlay external-package and rollback proof, run:
+
+```powershell
+.\scripts\ue\world\test\integration\authored_overlay_persistence.ps1 `
+  -CompileResult <accepted-synthetic-landscape-water-compile-result.json>
+```
+
+The runner is confined to `ProjectWorldTestData` and transient manifest
+authority. It cold-loads an accepted anchor as a byte-preserving no-op, then
+changes only that anchor, rejects the owning operation after the real external
+package self-save, and proves exact package/tree restoration, unchanged active
+authority, and a green read-only authority audit. The wrapper's
+`-TestFailAfterSelfSavedActor` switch is internal to this proof: it refuses
+production owners, interactive runs, non-Apply modes, and durable manifest
+authority. The runner restores its outer TestData snapshot in `finally`, removes
+owner scratch, and retains only the accepted evidence run under `Saved`.
 
 For the production 3A topology proof, pass the explicit ProjectWorldData
 compile, presentation, authored-overlay, and realization profiles plus:

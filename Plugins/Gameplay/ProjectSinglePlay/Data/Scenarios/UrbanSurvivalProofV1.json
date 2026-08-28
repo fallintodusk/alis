@@ -1,0 +1,22 @@
+{
+  "$schema": "../Schemas/single_play_scenario.schema.json",
+  "schemaVersion": 2,
+  "scenarioId": "UrbanSurvivalProofV1",
+  "steps": [
+    "ReachCache",
+    "RecoverHydrationAndCarryItem",
+    "ReachShelter"
+  ],
+  "cacheActorTag": "ProjectScenario.Anchor.Cache",
+  "shelterActorTag": "ProjectScenario.Anchor.Shelter",
+  "requiredRationObjectId": "EmergencyRation",
+  "requiredHydrationFraction": 0.2,
+  "cacheInteractionRadius": 500.0,
+  "shelterInteractionRadius": 700.0,
+  "failureRestartDelaySeconds": 2.5,
+  "startMessage": "SURVIVE - Follow the CACHE marker. At the emergency bag, hold E to search.",
+  "recoveryMessage": "CACHE FOUND - Press I for inventory. You start with two hand slots; drag the pouch to BACK to unlock storage.\nTake water and one ration. Right-click water, then choose USE.",
+  "recoveredMessage": "READY - Hydration restored and one ration carried.\nClose inventory and follow the SHELTER marker.",
+  "successMessage": "SHELTER SECURED - You arrived hydrated with one ration.",
+  "failureMessage": "SHELTER FAILED - Drink the emergency water and carry one ration before entering. Restarting..."
+}

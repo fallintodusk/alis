@@ -15,7 +15,6 @@
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldPresentationProfile.h"
-#include "ProjectWorldPresentationMaterialRealization.h"
 #include "ProjectWorldPresentationRealization.h"
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRuntimeProfile.h"
@@ -338,6 +337,10 @@ int32 FProjectWorldRealizationService::Run(
 	OutResult.CompileResultHash = Bundle.CompileResultHash;
 	OutResult.PresentationProfileId = PresentationProfile.ProfileId;
 	OutResult.PresentationProfileHash = PresentationProfile.ProfileHash;
+	OutResult.TerrainMaterialObjectPath = PresentationResources.TerrainMaterialObjectPath;
+	OutResult.TerrainMaterialPackageSha256 = PresentationResources.TerrainMaterialPackageSha256;
+	OutResult.TerrainMaterialSemanticIdentity = PresentationResources.TerrainMaterialSemanticIdentity;
+	OutResult.TerrainMaterialManifestSha256 = PresentationResources.TerrainMaterialManifestSha256;
 	OutResult.RuntimeProfileId = RuntimeProfile.ProfileId;
 	OutResult.RuntimeProfileHash = RuntimeProfile.ProfileHash;
 	OutResult.RuntimeProfileKind = RuntimeProfile.ProfileKind;
@@ -479,18 +482,6 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 	bPartitionPolicyChanged |= bRuntimePartitionChanged;
-	if (Request.Mode == EProjectWorldRealizationMode::Apply &&
-		!ProjectWorldPresentationMaterialRealization::Prepare(
-			PresentationProfile,
-			PresentationResources,
-			WorldDataRoots.GeneratedPackageRoot,
-			EditorError))
-	{
-		Reject(OutResult, TEXT("presentation-material"), TEXT("Cannot prepare generated presentation materials."), EditorError);
-		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-		return OutResult.ExitCode();
-	}
-
 	TArray<FWorldPartitionReference> LoadedActorReferences;
 	if (UWorldPartition* WorldPartition = World->GetWorldPartition();
 		WorldPartition != nullptr && WorldPartition->IsInitialized())
@@ -533,8 +524,7 @@ int32 FProjectWorldRealizationService::Run(
 		const FProjectWorldGeometryPresentation GeometryPresentation{
 			PresentationResources.TerrainMaterial,
 			PresentationResources.RoadMaterial,
-			PresentationResources.BuildingMaterial,
-			PresentationProfile.TerrainPrimaryColor};
+			PresentationResources.BuildingMaterial};
 		OutResult.CoordinateRoundTripErrorMeters =
 			ProjectWorldGeneratedGeometry::MeasureCoordinateRoundTrip(
 				World,
@@ -840,6 +830,10 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("input_sha256"), Result.CompileResultHash);
 	Root->SetStringField(TEXT("presentation_profile"), Result.PresentationProfileId);
 	Root->SetStringField(TEXT("presentation_profile_sha256"), Result.PresentationProfileHash);
+	Root->SetStringField(TEXT("terrain_material_object_path"), Result.TerrainMaterialObjectPath);
+	Root->SetStringField(TEXT("terrain_material_package_sha256"), Result.TerrainMaterialPackageSha256);
+	Root->SetStringField(TEXT("terrain_material_semantic_identity"), Result.TerrainMaterialSemanticIdentity);
+	Root->SetStringField(TEXT("terrain_material_manifest_sha256"), Result.TerrainMaterialManifestSha256);
 	Root->SetStringField(TEXT("runtime_profile"), Result.RuntimeProfileId);
 	Root->SetStringField(TEXT("runtime_profile_sha256"), Result.RuntimeProfileHash);
 	Root->SetStringField(TEXT("runtime_profile_kind"), Result.RuntimeProfileKind);

@@ -34,10 +34,14 @@ If a task does not fit any category -- create a new one in both
 
 ## Naming
 
-- Files: `topic_verb_noun.md` -- topic prefix groups related tasks together
-  - `inventory_refactor_ui.md`, `inventory_implement_vision.md`
-  - `mcp_inspect_cdo_followups.md`, `mcp_ue_blueprint_reader.md`
-  - `dialogue_fix_grandpa.md`, `vitals_implement_panel.md`
+- Every newly created task todo starts with its creation timestamp:
+  `YYYYMMDD-HHMM_<descriptive_name>.md`, for example
+  `20260827-1936_world_stabilize_kazan_release.md`. Preserve that timestamp
+  forever when moving the todo between `00_current`, `02_backlog`, and
+  `01_done`; edits do not change it. Do not rename existing todos merely to add
+  timestamps. Router/control files such as `00_focus.md` are exempt.
+- After the timestamp, use `topic_verb_noun` so the topic prefix groups related
+  tasks together.
 - `00_` prefix reserved for meta/dashboard files only (`00_focus.md`, `00_release_1.0.0.md`)
 - No generic `todo.md` names -- every file earns its own name
 

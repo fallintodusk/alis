@@ -8,12 +8,12 @@ Router: [README.md](README.md). UE side: [render_setup.md](render_setup.md). Pos
 
 **Symptom:** decal projects fine in viewport / PIE, but disappears or looks incomplete in the rendered frames.
 
-**Current ALIS production baseline** (`Content/Cinematics/Pending_MoviePipelinePrimaryConfig_Final.uasset`):
+**Current ALIS production baseline** (`Content/Cinematics/MP_Config_Prod.uasset`):
 
 - Override Anti-Aliasing: **OFF** (engine TSR drives AA)
-- Temporal Sample Count: 8 (safe with Override-AA OFF + TSR)
-- Engine Warm Up Count: 32
-- Render Warm Up Count: 32
+- Temporal Sample Count: 7
+- Engine Warm Up Count: 16
+- Render Warm Up Count: 16
 - Use Camera Cut For Warm Up: OFF
 - Verified MRQ CVars (locked under render only):
   - `r.DBuffer=1`
@@ -35,7 +35,7 @@ Router: [README.md](README.md). UE side: [render_setup.md](render_setup.md). Pos
 1. Verify decal actor direction/projection (red arrow points into the receiving surface).
 2. Verify the receiving static mesh has **Receives Decals** checked.
 3. Verify project setting **DBuffer Decals** is enabled (`Project Settings -> Rendering -> DBuffer Decals` ON).
-4. Verify the production MRQ preset still has `r.DBuffer=1` in its Console Variables setting. Re-run `scripts/ue/cinematic/apply_mrq_preset.py` if the preset was reverted.
+4. Verify the production MRQ preset still has `r.DBuffer=1` in its Console Variables setting. Re-run `scripts/ue/cinematic/apply_prod_preset.py` if the preset was reverted.
 5. If using Path Tracer for this shot, validate with `DumpCVars` for the exact name before adding any new override. Do not copy unverified decal CVars from older drafts of this doc.
 
 ## Render hangs, no progress on a frame

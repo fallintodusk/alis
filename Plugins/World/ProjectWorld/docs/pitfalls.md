@@ -763,3 +763,52 @@ Landscape/Data Layer/HLOD policy; do not invent a universal four-cell limit.
 proves the base-cell counting math. The read-only production audit verifies all
 three Kazan candidates against the same 850 generated actors without saving the
 map.
+
+---
+
+## 25. Landscape material migration must dirty every streaming proxy package
+
+**Symptom.** The root Landscape reports the new material in the live Editor, but a
+restart or packaged build still loads the old material on streamed territory cells.
+
+**Root cause.** Refreshing component material instances updates proxy state in memory,
+but does not make each World Partition external-actor package durable. Saving only the
+root Landscape therefore leaves serialized proxy references unchanged.
+
+**Fix.** When the semantic material reference changes, enumerate the complete logical
+Landscape family. Assign the authenticated material to the root and every streaming
+proxy, refresh component material instances, and mark each owning proxy package dirty.
+Same-path ProjectMaterial tuning does not use this migration path and must not dirty
+World packages.
+
+**File.** `Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp`.
+
+**Regression test.**
+`Project.World.Realization.NativeTwin.LandscapePartitionAndEditLayers` proves that a
+material-only migration updates and dirties every proxy package, then proves a later
+single-cell terrain edit still dirties only its owning proxy.
+
+---
+
+## 26. Compile provenance is not generated-world product semantics
+
+**Symptom.** A content-identical incremental compile rejects D3 even though geometry,
+semantic ownership, collision, and presentation are unchanged. Editing only the D3
+evidence serializer can also stale every active geography producer fingerprint.
+
+**Root cause.** `ProjectWorld.Input=<compile receipt hash>` was included in the product
+semantic fingerprint, and the evidence serializer was included in the shared generated-
+byte producer source set. Both are evidence/provenance surfaces, not generated content.
+
+**Fix.** Exclude only the compile-receipt provenance tag from D3 while retaining cell,
+grid, geometry, and other semantic tags. Keep the semantic-evidence serializer outside
+all generated-byte producer fingerprints. A content-identical incremental compile may
+advance provenance without claiming a different realized World.
+
+**File.** `ProjectWorldSemanticEvidence.cpp` and
+`scripts/ue/world/generator_fingerprint.ps1`.
+
+**Regression test.**
+`Project.World.Realization.Presentation.SemanticFingerprintIgnoresInputProvenance`
+proves provenance stability and semantic sensitivity;
+`generator_fingerprint.Tests.ps1` proves evidence-only source changes move no producer.

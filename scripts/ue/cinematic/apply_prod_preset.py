@@ -15,8 +15,7 @@ master. To roll back, revert the values in this file and re-run.
     1 spatial * 7 temporal samples, TSR
     16 + 16 warmup frames
     (Odd TSC lands a sample on frame-center; warmup 16 covers TSR
-    convergence + groom physics settle at 60 fps. Streaming pop-in is
-    not the limiter because Texture Streaming = Disable + LODZero ON.)
+    convergence + groom physics settle at 60 fps.)
 
   Console Variables (verified against UE 5.7 DumpCVars):
     r.DBuffer=1                         - deferred decal buffer baseline
@@ -25,19 +24,13 @@ master. To roll back, revert the values in this file and re-run.
     r.PathTracing.SamplesPerPixel=256   - inert when PT off, sane fallback
     r.PathTracing.MaxBounces=8          - inert when PT off, sane fallback
 
-  WidgetRenderer: composite UMG onto final image.
+  WidgetRenderer: available for explicitly authored UI capture. The Kazan
+    aerial request removes normal gameplay UMG in Render mode.
   GameOverride:
-    GameMode override = AAlisCinematicGameMode so HUD/pawn/interaction
-      tick at render time (the engine default GameMode hides everything).
-    view_distance_scale = 25           - was 50; 25x gameplay still
-                                          exceeds every shot's far plane.
-    shadow_distance_scale = 5          - was 10; canonical cinematic
-                                          recommendation.
-    grass_cull_distance_scale = 25     - was 50; vastly exceeds the
-                                          camera frustum on hero shots.
-    virtual_texture_feedback_factor = 2 - was 1; with TSR accumulating 7
-                                          sub-frames, one-frame VT lag
-                                          is invisible.
+    ACinematicGameMode retains normal game startup while Sequencer owns the
+    camera. Render mode removes gameplay UMG and the phantom player. Visibility,
+    LOD, shadow, grass, and texture streaming remain at product settings so
+    footage cannot present a materially different world from the package.
 
 Idempotent: re-running produces the same asset state. Run when:
   - The Prod preset was reverted or reset.
@@ -76,9 +69,8 @@ ANTI_ALIASING = {
     "override_anti_aliasing": False,
     "anti_aliasing_method": "TSR",
     # 16+16 covers TSR convergence (8-12 frames at 60 fps) + groom physics
-    # (8-10 frames) + a margin. Streaming pop-in is not the limiter because
-    # Texture Streaming = Disable + LODZero ON. If a future shot shows
-    # snap-in on frames 1-4, lift to 24+24.
+    # (8-10 frames) + a margin. If a future shot shows snap-in on frames 1-4,
+    # lift to 24+24.
     "render_warm_up_count": 16,
     "engine_warm_up_count": 16,
     # NOTE: Prod currently ships with this False on the asset. If a future
@@ -111,15 +103,23 @@ WIDGET_RENDERER = {
 }
 
 GAME_OVERRIDE = {
-    "soft_game_mode_override": "/Script/ProjectSinglePlay.AlisCinematicGameMode",
-    # Scalability trims: every multiplier here was previously set to a
-    # "be safe" value that exceeded what any recorded shot's camera
-    # frustum actually contained. The values below stay generous (still
-    # 5-25x gameplay defaults) but stop paying for headroom we never use.
-    "view_distance_scale": 25.0,
-    "shadow_distance_scale": 5.0,
-    "grass_cull_distance_scale": 25.0,
-    "virtual_texture_feedback_factor": 2,
+    "soft_game_mode_override": "/Script/ProjectCinematic.CinematicGameMode",
+    "cinematic_quality_settings": False,
+    "texture_streaming": "NONE",
+    "use_lod_zero": False,
+    "disable_hlods": False,
+    "use_high_quality_shadows": False,
+    "shadow_distance_scale": 1,
+    "shadow_radius_threshold": 0.03,
+    "override_view_distance_scale": False,
+    "view_distance_scale": 1,
+    "flush_grass_streaming": False,
+    "override_grass_cull_distance_scale": False,
+    "grass_cull_distance_scale": 1.0,
+    "override_grass_density_scale": False,
+    "grass_density_scale": 1.0,
+    "flush_streaming_managers": True,
+    "virtual_texture_feedback_factor": 1,
 }
 
 

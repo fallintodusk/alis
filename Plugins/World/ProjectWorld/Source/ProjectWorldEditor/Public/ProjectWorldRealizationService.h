@@ -85,6 +85,10 @@ struct FProjectWorldRealizationResult
 	FString CompileResultHash;
 	FString PresentationProfileId;
 	FString PresentationProfileHash;
+	FString TerrainMaterialObjectPath;
+	FString TerrainMaterialPackageSha256;
+	FString TerrainMaterialSemanticIdentity;
+	FString TerrainMaterialManifestSha256;
 	FString RuntimeProfileId;
 	FString RuntimeProfileHash;
 	FString RuntimeProfileKind;

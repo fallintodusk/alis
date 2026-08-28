@@ -10,6 +10,7 @@ class UInputAction;
 class UVitalsViewModel;
 class UMindJournalViewModel;
 class UAbilitySystemComponent;
+class USinglePlayScenarioPresentationComponent;
 struct FInputActionValue;
 
 // Lightweight observability signals. Gameplay code broadcasts these after the
@@ -34,6 +35,9 @@ class PROJECTSINGLEPLAYCLIENT_API ASinglePlayController : public APlayerControll
 
 public:
 	ASinglePlayController();
+
+	UPROPERTY(VisibleAnywhere, Category = "Single Play|Scenario")
+	TObjectPtr<USinglePlayScenarioPresentationComponent> ScenarioPresentation;
 
 protected:
 	virtual void BeginPlay() override;

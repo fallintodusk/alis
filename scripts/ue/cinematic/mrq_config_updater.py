@@ -70,6 +70,12 @@ _AA_METHOD_MAP = {
     "TSR":  unreal.AntiAliasingMethod.AAM_TSR,
 }
 
+_TEXTURE_STREAMING_MAP = {
+    "NONE": unreal.MoviePipelineTextureStreamingMethod.NONE,
+    "DISABLED": unreal.MoviePipelineTextureStreamingMethod.DISABLED,
+    "FULLY_LOAD": unreal.MoviePipelineTextureStreamingMethod.FULLY_LOAD,
+}
+
 
 def _to_aa_method(value: Any):
     if isinstance(value, unreal.AntiAliasingMethod):
@@ -81,6 +87,14 @@ def _to_aa_method(value: Any):
     raise TypeError(f"Cannot convert {value!r} to AntiAliasingMethod")
 
 
+def _to_texture_streaming(value: Any):
+    if isinstance(value, unreal.MoviePipelineTextureStreamingMethod):
+        return value
+    if isinstance(value, str) and value.upper() in _TEXTURE_STREAMING_MAP:
+        return _TEXTURE_STREAMING_MAP[value.upper()]
+    raise TypeError(f"Cannot convert {value!r} to MoviePipelineTextureStreamingMethod")
+
+
 # Properties that need value conversion before set_editor_property.
 _OUTPUT_CONVERTERS = {
     "output_resolution": _to_int_point,
@@ -89,6 +103,10 @@ _OUTPUT_CONVERTERS = {
 
 _AA_CONVERTERS = {
     "anti_aliasing_method": _to_aa_method,
+}
+
+_GAME_OVERRIDE_CONVERTERS = {
+    "texture_streaming": _to_texture_streaming,
 }
 
 
@@ -232,7 +250,7 @@ def apply_game_override(cfg, props: dict, result: dict) -> None:
         else:
             resolved[name] = value
 
-    diff = _apply_props(go, resolved)
+    diff = _apply_props(go, resolved, _GAME_OVERRIDE_CONVERTERS)
     go.set_is_enabled(True)
     result["ops"].append({"section": "game_override", **diff})
 

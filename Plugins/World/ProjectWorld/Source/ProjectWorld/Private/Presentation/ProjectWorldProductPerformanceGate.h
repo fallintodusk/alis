@@ -6,7 +6,9 @@
 #include "Async/Future.h"
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "Scalability.h"
+#include "Presentation/ProjectWorldPerformanceConsumerRegistration.h"
+#include "Presentation/ProjectWorldPlayableTourDriver.h"
+#include "Presentation/ProjectWorldPlayableTourResidency.h"
 
 class ACharacter;
 class APlayerController;
@@ -41,6 +43,7 @@ private:
 		Warmup,
 		Traversing,
 		Settling,
+		WaitingForScreenshot,
 		WaitingForCsv,
 		Finished
 	};
@@ -55,9 +58,12 @@ private:
 	void BeginRoute();
 	void TickRoute(float DeltaSeconds);
 	void TickSettlement();
+	void TickScreenshot();
 	void SampleResidency(float DeltaSeconds);
 	FVector RoutePosition(const FProjectWorldPerformanceRoute& Route, double Alpha) const;
 	bool IsStreamingCompleted() const;
+	bool RequestPlayableTourScreenshot(FString& OutError);
+	void FinishFromMetrics();
 	void EndCapture();
 	void Finish(const FString& Status, const FString& ErrorCode, const FString& ErrorMessage);
 	void WriteResult(const FString& Status, const FString& ErrorCode, const FString& ErrorMessage);
@@ -66,6 +72,8 @@ private:
 	FString ResultPath;
 	FString CorrectnessResultPath;
 	FString RequestedCsvPath;
+	FString ScreenshotPath;
+	FString CorrectnessScreenshotPath;
 	FString WrittenCsvPath;
 	FString OperationId;
 	FString RuntimeProfileId;
@@ -78,6 +86,7 @@ private:
 	FString CorrectnessGpuAdapter;
 	FString CorrectnessGpuDriver;
 	FString CorrectnessRhi;
+	FString CorrectnessContract;
 	FString AcceptanceReason;
 	FString PendingStatus;
 	FString PendingErrorCode;
@@ -86,13 +95,15 @@ private:
 	TWeakObjectPtr<APlayerController> PlayerController;
 	TWeakObjectPtr<ACharacter> PlayerCharacter;
 	TSharedPtr<FProjectWorldPerformanceCollector> Collector;
+	FProjectWorldPerformanceConsumerRegistration CollectorRegistration;
+	TUniquePtr<FProjectWorldPlayableTourDriver> PlayableTourDriver;
+	FProjectWorldPlayableTourResidency PlayableTourResidency;
 	TArray<FProjectWorldPerformanceRoute> Routes;
 	TMap<FGuid, uint8> PriorCellStates;
 	FTSTicker::FDelegateHandle TickerHandle;
 	TSharedFuture<FString> CsvWriteFuture;
 	FVector CenterLocation = FVector::ZeroVector;
 	FIntPoint CapturedResolution = FIntPoint::ZeroValue;
-	Scalability::FQualityLevels PriorQualityLevels;
 	EPhase Phase = EPhase::Finished;
 	double GateStartedSeconds = 0.0;
 	double PhaseStartedSeconds = 0.0;
@@ -109,5 +120,9 @@ private:
 	int32 HighQualityLevel = INDEX_NONE;
 	int32 StableReadyFrames = 0;
 	bool bCsvCaptureStarted = false;
-	bool bQualityOverrideApplied = false;
+	bool bPlayableTourRequested = false;
+	bool bCorrectnessGameplayInteraction = false;
+	bool bCorrectnessTerrainCollision = false;
+	bool bCorrectnessRoadCollision = false;
+	bool bCorrectnessBuildingCollision = false;
 };

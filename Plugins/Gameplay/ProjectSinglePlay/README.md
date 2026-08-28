@@ -12,6 +12,9 @@ Plugin modules:
 - `ProjectSinglePlayClient` - client-only input + UI bindings.
   - Module type: `ClientOnlyNoCommandlet` (excluded from server builds).
 
+Scenario selection, ownership, lifecycle, and packaged acceptance are defined
+in [docs/scenario_orchestration.md](docs/scenario_orchestration.md).
+
 
 ## 1. Purpose
 
@@ -327,7 +330,27 @@ Spawn is fail-closed: an invalid effective definition returns no pawn, and a
 definition that resolves to a non-pawn actor is logged, destroyed, and rejected.
 `DefaultPawnClass` is not a character fallback or a mode configuration field.
 
-### 8.6. JSON Override Support (Optional)
+### 8.6. Traversal selection
+
+Traversal is an optional, generic experience policy carried through the normal
+loading URL:
+
+```text
+?Traversal=PreviewFlight
+```
+
+- Missing `Traversal`, including a wrong-case key, resolves silently to `Default`.
+- The value `PreviewFlight` is case-sensitive and selects native Character Movement
+  flying for the session.
+- An unknown value logs one ProjectSinglePlay warning and fails closed to `Default`.
+- The policy is applied after normal pawn initialization and again after respawn.
+- Application uses Engine `ACharacter` and `UCharacterMovementComponent` only;
+  ProjectSinglePlay does not depend on ProjectCharacter.
+
+World or product descriptors may select the policy, but no world identity or
+world-specific branch belongs in this plugin.
+
+### 8.7. JSON Override Support (Optional)
 
 Modes can be extended or overridden via JSON without recompiling.
 

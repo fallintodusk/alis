@@ -24,6 +24,11 @@ This section documents the **External, Text-Based Data Architecture** (JSON, INI
     be required for cook, loading, serialization, replication, or runtime
     queries, but it never becomes a competing editable SOT.
 
+Editor-only generation contracts are intentionally not runtime-reloadable when their
+derived assets require cook or shader compilation. ProjectMaterial recipes are one
+such contract: the one-shot Editor compiler produces persistent material packages,
+and packaged gameplay consumes only their stable soft identities.
+
 Generated does not mean temporary. Accepted derived JSON and Unreal packages
 remain persistent, versioned build products when downstream cook or runtime
 systems depend on them. They are replaced only by an accepted regeneration;
@@ -103,6 +108,7 @@ ProjectPlacementEditor (owns PROPAGATION logic)
 | Plugin | Data Type | Schema Location | Purpose |
 |--------|-----------|-----------------|---------|
 | [ProjectObject](../../Plugins/Resources/ProjectObject/README.md) | Object definitions (JSON) | `ProjectObject/Data/Schemas/` | Composed actors (doors, furniture, interactive elements, inventory items) |
+| [ProjectMaterial](../../Plugins/Resources/ProjectMaterial/README.md) | Universal material recipes (JSON) | `ProjectMaterial/Data/Schemas/` | Editor-only closed compilation into persistent reusable material assets |
 | [ProjectWorldTestData](../../Plugins/World/ProjectWorldTestData/README.md) | Synthetic world profiles and authored/input fixtures | Contracts stay with interpreting logic; test data lives under `ProjectWorldTestData/Data/` | Generated packages/manifests are ignored transient test output |
 | [ProjectWorldData](../../Plugins/World/ProjectWorldData/README.md) | Kazan source, control, accepted canonical JSON, and manifests | Contracts stay with the interpreting logic; Kazan data lives under `ProjectWorldData/Data/` | Persistent world data plus generated and authored Unreal content under its own mount |
 

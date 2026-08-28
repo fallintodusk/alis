@@ -101,6 +101,25 @@ The PostProcess bridge feeds CMC data into the Motion Matching AnimBP.
 
 ---
 
+## Mode-Aware Traversal Input
+
+`ADefinitionCharacter` keeps one Enhanced Input mapping context and reuses its
+existing actions according to native Character Movement mode:
+
+| Input | Grounded/default | Flying |
+|-------|------------------|--------|
+| WASD | Yaw-relative planar movement | Yaw-relative horizontal movement |
+| Space | Jump | Held ascend |
+| Ctrl | Crouch | Held descend |
+
+Flying input never invokes jump or crouch at the same time. Collision remains
+owned by Character Movement; preview flight does not teleport or directly mutate
+the pawn transform. The first accepted tuning is `MaxFlySpeed=12000 cm/s` and
+`BrakingDecelerationFlying=6000 cm/s2`. Default movement, sprint/walk, GAS,
+rotation policy, camera, animation, and body ownership remain unchanged.
+
+---
+
 ## Cross-References
 
 - [Vitals Design Vision](../ProjectVitals/docs/design_vision.md) - Design rationale, timelines, physiology
