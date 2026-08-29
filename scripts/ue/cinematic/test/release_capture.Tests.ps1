@@ -107,6 +107,9 @@ Describe 'ProjectCinematic release capture contract' {
             'scripts\ue\cinematic\run_release_capture.ps1') -Raw
         $wrapper | Should -Match 'Test-ProjectCinematicReleaseBinding'
         $wrapper | Should -Match 'Get-CaptureSourceStateDigest'
+        $wrapper | Should -Match 'git -C \$projectRoot rev-parse HEAD'
+        $wrapper | Should -Match 'CurrentSourceRevision'
+        $wrapper | Should -Match 'source_revision = \$sourceRevision'
         $wrapper | Should -Match 'release_acceptance'
     }
 
@@ -128,6 +131,7 @@ Describe 'ProjectCinematic release capture contract' {
             $executableHash = (Get-FileHash -LiteralPath $executable `
                 -Algorithm SHA256).Hash.ToLowerInvariant()
             $sourceHash = '0123456789abcdef'
+            $sourceRevision = 'test-revision'
             $composite = [ordered]@{
                 status = 'accepted'
                 operation_id = 'playable_tour_test'
@@ -164,14 +168,23 @@ Describe 'ProjectCinematic release capture contract' {
 
             $binding = Test-ProjectCinematicReleaseBinding `
                 -ProjectRoot $projectRoot -ReleaseAcceptancePath $acceptancePath `
-                -ExpectedPackageRoot $packageRoot -CurrentSourceStateSha256 $sourceHash
+                -ExpectedPackageRoot $packageRoot -CurrentSourceStateSha256 $sourceHash `
+                -CurrentSourceRevision $sourceRevision
             $binding.package_tree_sha256 | Should -BeExactly $packageHash
+
+            { Test-ProjectCinematicReleaseBinding `
+                    -ProjectRoot $projectRoot -ReleaseAcceptancePath $acceptancePath `
+                    -ExpectedPackageRoot $packageRoot `
+                    -CurrentSourceStateSha256 $sourceHash `
+                    -CurrentSourceRevision 'different-clean-revision' } |
+                Should -Throw '*revision differs*'
 
             [IO.File]::AppendAllText($executable, 'tampered')
             { Test-ProjectCinematicReleaseBinding `
                     -ProjectRoot $projectRoot -ReleaseAcceptancePath $acceptancePath `
                     -ExpectedPackageRoot $packageRoot `
-                    -CurrentSourceStateSha256 $sourceHash } |
+                    -CurrentSourceStateSha256 $sourceHash `
+                    -CurrentSourceRevision $sourceRevision } |
                 Should -Throw '*Candidate tree no longer matches*'
         }
         finally {

@@ -36,6 +36,8 @@ struct FProjectWorldPlayableTourEvidence
 	int32 ObstacleClearanceCount = 0;
 	bool bCollisionBlockedDescent = false;
 	bool bCollisionSlide = false;
+	bool bPauseMenuOpened = false;
+	bool bPauseMenuClosed = false;
 };
 
 class FProjectWorldPlayableTourDriver
@@ -59,6 +61,8 @@ public:
 private:
 	enum class EPhase : uint8
 	{
+		OpeningMenu,
+		ClosingMenu,
 		Ascending,
 		Traversing,
 		Descending,
@@ -69,7 +73,10 @@ private:
 	void SetPhase(EPhase NewPhase, const TCHAR* CompletedPhase = nullptr);
 	void Hold(const FKey& Key);
 	void Release(const FKey& Key);
+	void Tap(const FKey& Key);
 	void SendLook(double YawErrorDegrees);
+	EProjectWorldPlayableTourResult TickOpeningMenu(FString& OutError);
+	EProjectWorldPlayableTourResult TickClosingMenu(FString& OutError);
 	EProjectWorldPlayableTourResult TickAscending(FString& OutError);
 	EProjectWorldPlayableTourResult TickTraversing(float DeltaSeconds, FString& OutError);
 	EProjectWorldPlayableTourResult TickDescending(FString& OutError);
@@ -95,6 +102,7 @@ private:
 	int32 WaypointIndex = 0;
 	int32 EdgeWaypointIndex = INDEX_NONE;
 	bool bClearingObstacle = false;
+	bool bMenuInputSent = false;
 	bool bReachedEdge = false;
 	bool bReturnedToCenter = false;
 	EPhase Phase = EPhase::Finished;

@@ -22,3 +22,12 @@ Framework consolidation rules (critical)
 
 See ProjectMenuMain for reference implementation pattern with ILoadingService.
 See TODO.md for implementation tasks.
+
+Current runtime contract
+- Escape is mapped by the active gameplay controller and resolves
+  `IGameMenuService`; gameplay code has no dependency on this UI plugin.
+- `ProjectMenuGame.PauseMenu` is hosted by the shared ProjectUI game-menu layer.
+- Resume and a second Escape unpause through the same service.
+- Main Menu builds a `MainMenuWorld` request through `ILoadingService`; direct map
+  travel is forbidden.
+- Quit uses the engine quit request after restoring the unpaused input state.

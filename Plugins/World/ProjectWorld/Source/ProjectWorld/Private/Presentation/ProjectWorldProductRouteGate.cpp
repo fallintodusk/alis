@@ -342,12 +342,23 @@ bool FProjectWorldProductRouteGate::TryAcquireProductWorld()
 bool FProjectWorldProductRouteGate::TickCenterSettlement()
 {
 	UCharacterMovementComponent* Movement = CharacterMovement.Get();
-	if (Movement != nullptr && Movement->IsMovingOnGround() && IsStreamingCompleted() && PhaseFrameCount >= 3)
+	const bool bStreamingComplete = IsStreamingCompleted();
+	if (Movement != nullptr && bStreamingComplete && PhaseFrameCount >= 3)
 	{
-		Progress.bGroundedPlayer = true;
-		MovementStart = PlayerCharacter->GetActorLocation();
-		SetPhase(EPhase::MovingNormally);
-		return true;
+		if (Movement->IsMovingOnGround())
+		{
+			Progress.bGroundedPlayer = true;
+			MovementStart = PlayerCharacter->GetActorLocation();
+			SetPhase(EPhase::MovingNormally);
+			return true;
+		}
+		if (Config.bRestorePreviewFlight && !bCenterGroundPlacementRequested &&
+			MovePlayerTo(CenterLocation, true))
+		{
+			bCenterGroundPlacementRequested = true;
+			Movement->SetMovementMode(MOVE_Walking);
+			return false;
+		}
 	}
 	if (FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
 	{

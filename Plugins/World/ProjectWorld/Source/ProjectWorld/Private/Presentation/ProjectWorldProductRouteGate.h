@@ -118,5 +118,6 @@ private:
 	int32 BuildingCandidateCount = 0;
 	int32 BuildingBlockingPrimitiveCount = 0;
 	bool bInteractionDispatchAccepted = false;
+	bool bCenterGroundPlacementRequested = false;
 	bool bPreviewFlightRestored = false;
 };

@@ -209,6 +209,7 @@ void ADefinitionCharacter::PostInitializeComponents()
 void ADefinitionCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
 {
 	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	ApplyFlightBoost(GetCharacterMovement()->IsFlying() && bIsSprinting);
 	UpdateRotationPolicy();
 }
 
@@ -240,6 +241,7 @@ void ADefinitionCharacter::PossessedBy(AController* NewController)
 
 void ADefinitionCharacter::UnPossessed()
 {
+	ApplyFlightBoost(false);
 	if (VitalsComponent)
 	{
 		VitalsComponent->Stop();
@@ -252,6 +254,7 @@ void ADefinitionCharacter::UnPossessed()
 
 void ADefinitionCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	ApplyFlightBoost(false);
 	// Unbind assembly state delegate
 	if (CachedAssemblyComponent.IsValid() && AssemblyStateHandle.IsValid())
 	{
@@ -509,11 +512,13 @@ void ADefinitionCharacter::PawnClientRestart()
 void ADefinitionCharacter::StartSprint()
 {
 	bIsSprinting = true;
+	ApplyFlightBoost(true);
 	RefreshMovementSpeed();
 }
 
 void ADefinitionCharacter::StopSprint()
 {
+	ApplyFlightBoost(false);
 	bIsSprinting = false;
 	RefreshMovementSpeed();
 }
@@ -543,6 +548,41 @@ void ADefinitionCharacter::RefreshMovementSpeed()
 
 	GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * Multiplier;
 	GetCharacterMovement()->MaxWalkSpeedCrouched = CrouchSpeed * Multiplier;
+}
+
+void ADefinitionCharacter::ApplyFlightBoost(bool bEnable)
+{
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (Movement == nullptr)
+	{
+		return;
+	}
+
+	if (bEnable && Movement->IsFlying())
+	{
+		if (bFlightBoostActive)
+		{
+			return;
+		}
+		constexpr float FlightBoostMultiplier = 5.0f;
+		FlightBoostRestoreMaxFlySpeed = Movement->MaxFlySpeed;
+		FlightBoostRestoreMaxAcceleration = Movement->MaxAcceleration;
+		FlightBoostRestoreBrakingDeceleration = Movement->BrakingDecelerationFlying;
+		Movement->MaxFlySpeed *= FlightBoostMultiplier;
+		Movement->MaxAcceleration *= FlightBoostMultiplier;
+		Movement->BrakingDecelerationFlying *= FlightBoostMultiplier;
+		bFlightBoostActive = true;
+		return;
+	}
+
+	if (!bFlightBoostActive)
+	{
+		return;
+	}
+	Movement->MaxFlySpeed = FlightBoostRestoreMaxFlySpeed;
+	Movement->MaxAcceleration = FlightBoostRestoreMaxAcceleration;
+	Movement->BrakingDecelerationFlying = FlightBoostRestoreBrakingDeceleration;
+	bFlightBoostActive = false;
 }
 
 float ADefinitionCharacter::GetMovementSpeedMultiplier() const

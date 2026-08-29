@@ -28,7 +28,7 @@ void USinglePlayScenarioPresentationComponent::BeginPlay()
 	if (bPreviewFlight)
 	{
 		ShowMessage(
-			TEXT("PREVIEW FLIGHT - Mouse look, WASD move, hold SPACE to rise, hold LEFT CTRL to descend."),
+			TEXT("PREVIEW FLIGHT - Mouse look, WASD move, hold SPACE to rise, hold LEFT CTRL to descend, hold LEFT SHIFT for fast overview."),
 			12.0f,
 			FName(TEXT("Info")));
 	}

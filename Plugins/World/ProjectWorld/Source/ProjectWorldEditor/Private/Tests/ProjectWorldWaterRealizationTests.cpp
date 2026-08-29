@@ -14,6 +14,8 @@
 #include "EngineUtils.h"
 #include "HAL/FileManager.h"
 #include "MaterialShared.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -137,6 +139,17 @@ bool FProjectWorldPersistentWaterLayerTest::RunTest(const FString& Parameters)
 				!Mesh->GetStaticMaterials().IsEmpty() &&
 				Mesh->GetStaticMaterials()[0].MaterialInterface != nullptr &&
 				Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_SingleLayerWater));
+			UMaterial* WaterMaterial = !Mesh->GetStaticMaterials().IsEmpty()
+				? Cast<UMaterial>(Mesh->GetStaticMaterials()[0].MaterialInterface)
+				: nullptr;
+			const UMaterialExpressionConstant3Vector* BaseColor = WaterMaterial != nullptr
+				? FindObject<UMaterialExpressionConstant3Vector>(WaterMaterial, TEXT("BaseColor"))
+				: nullptr;
+			TestTrue(
+				TEXT("The prototype water surface owns a clearly blue legibility color."),
+				BaseColor != nullptr && BaseColor->Constant.B >= 0.60f &&
+				BaseColor->Constant.B > BaseColor->Constant.G * 3.0f &&
+				BaseColor->Constant.G > BaseColor->Constant.R * 3.0f);
 		}
 	}
 

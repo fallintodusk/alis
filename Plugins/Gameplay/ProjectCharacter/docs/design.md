@@ -111,12 +111,16 @@ existing actions according to native Character Movement mode:
 | WASD | Yaw-relative planar movement | Yaw-relative horizontal movement |
 | Space | Jump | Held ascend |
 | Ctrl | Crouch | Held descend |
+| Shift | Sprint | Held five-times overview boost |
 
 Flying input never invokes jump or crouch at the same time. Collision remains
 owned by Character Movement; preview flight does not teleport or directly mutate
-the pawn transform. The first accepted tuning is `MaxFlySpeed=12000 cm/s` and
-`BrakingDecelerationFlying=6000 cm/s2`. Default movement, sprint/walk, GAS,
-rotation policy, camera, animation, and body ownership remain unchanged.
+the pawn transform. The normal performance route uses `MaxFlySpeed=12000 cm/s`
+and `BrakingDecelerationFlying=6000 cm/s2`. While flying, held Shift temporarily
+multiplies maximum speed, acceleration, and flight braking by five so manual
+whole-territory inspection reaches useful speed and stops in bounded time. Release
+or leaving flight restores the exact prior values. Default grounded sprint/walk,
+GAS, rotation policy, camera, animation, and body ownership remain unchanged.
 
 ---
 

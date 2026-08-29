@@ -1,7 +1,7 @@
 # Stabilize the combined Kazan release candidate
 
-**Status:** IMPLEMENTATION IN PROGRESS - R1 PASS
-**Active flag:** F6 - Kazan same-character PreviewFlight scale proof
+**Status:** PRE-OPERATOR TECHNICAL CLOSURE - RECEIPT-OWNED PACKAGE GATE; OPERATOR WALKTHROUGH REQUIRED
+**Active flag:** F6 - final source-bound Candidate and operator walkthrough
 **Baseline:** operator-selected integration commit `46a9459bd1`
 **Scope:** evidence isolation and bounded correctness closure after the combined
 Track P, Track V, ProjectMaterial, Landscape, generic World, survival, and
@@ -104,6 +104,15 @@ before production implementation resumes.
   `PreviewFlight` because its accepted real-input driver is flight-based. Ordinary
   experiences still select disabled flight by omitting `Traversal`; no policy is
   inferred from another policy.
+- **A7 [CLASSIFIED]:** Reviewer-raised visual scale uncertainty was not evidence of a
+  global coordinate or Building realization defect. Focused unit tests and live-product
+  metrology prove metre-to-centimetre conversion, unit actor/component transforms, and
+  ordinary character/body/camera dimensions. The two pinned landmark controls instead
+  expose a generic `building:part` admission/representation limitation: taller part-only
+  source ways are absent from current `nwr/building` canonical authority. F6 may proceed
+  to its final Candidate after the focused source changes pass; Track V still waits for
+  operator acceptance. No canonical/generated World mutation or territory regeneration
+  is authorized by this classification.
 
 ## Reviewer finding disposition
 
@@ -124,6 +133,14 @@ before production implementation resumes.
 | Survival p95 proves grounded performance | Rejected claim | The number is a PreviewFlight mechanics/streaming envelope. It supports D5 flight performance but does not prove grounded survival UX. |
 | Generic World authority fixes are hidden feature details | Accepted evidence concern | Keep the code, but re-accredit semantic fingerprint and authored-overlay persistence through their own owner gates. |
 | Firewall is release acceptance | Rejected | It is independent workstation setup, uninstalled unless an operator completes UAC, and never a package dependency. |
+| Treat the visual concern as proof of a global scale defect | Rejected as unverified | Measure the consumed coordinate, mesh, actor, character, and camera surfaces first. Preserve the current package as a visual control; do not rebuild World while classifying. |
+| Authenticate only dirty-tree state before Track V | Accepted defect | F5 must also compare the current `git rev-parse HEAD` exactly with the operator-accepted `source_revision`; two clean revisions can otherwise share the same empty-diff digest. |
+| Require per-feature generated actor bounds for landmarks | Narrowed to the actual representation | Buildings are realized as combined cell-local StaticMesh actors, not one actor per OSM feature. Prove synthetic per-feature dimensions through the real builder, unit scale on generated cell actors/components, and local source-to-canonical landmark semantics; do not invent feature actors for diagnostics. |
+| Reuse held Shift for fast manual PreviewFlight | Accepted, evidence-gated | Reuse the existing Sprint action. Grounded sprint stays unchanged; flying boost is owner-local Character Movement tuning and never drives the performance acceptance route. |
+
+The reviewer's claim that an operator observation had already established a hard scale
+defect is rejected as unsupported by the recorded operator evidence. The visual question
+was worth measuring, but it did not authorize treating a hypothesis as a result.
 
 ## Verified post-baseline facts
 
@@ -369,25 +386,30 @@ Owner-local receipt:
 
 ### F5 - Track V final release truth
 
-- [ ] Implement and test the F5 receipt/path/hash/source verification during F6.
+**Status:** IMPLEMENTATION PASS - EXECUTION WAITS ON OPERATOR F6 ACCEPTANCE
+
+- [x] Implement and test the F5 receipt/path/hash/source verification during F6.
   Do not execute the final Track V capture until F6 technical acceptance and the
   operator's acceptance of the exact final Shipping PreviewFlight Candidate. The
   historical grounded-survival Candidate and old playable-tour receipt are not Track
   V truth authority.
-- [ ] Reuse the existing Track P package owner:
+- [x] Reuse the existing Track P package owner:
   `Saved/PackageRelease/KazanPlayableTour/Candidate`. Do not introduce another
   Kazan package root merely because scripted movement was removed by D5.
 - [ ] Verify the owner-local F6 acceptance receipt binds the exact Candidate path,
   package-tree hash, Shipping executable path/hash, source state/revision,
   runtime-profile/World authority, F6 operation, and operator product decision.
-- [ ] Change the Track V request/schema/tests from stale `.../Current` input to the
+- [x] Change the Track V request/schema/tests from stale `.../Current` input to the
   accepted `.../Candidate` contract. Update `kazan_release_v1.json` away from the
   old playable-tour composite.
-- [ ] Canonicalize the supplied package path inside the expected package owner,
+- [x] Canonicalize the supplied package path inside the expected package owner,
   recompute its tree and Shipping executable hashes, and compare them with the F6
   acceptance receipt. Also compare source/release identity. Refuse before render
   if any identity differs; do not copy hashes from a receipt while accepting an
   independently supplied path.
+- [x] Preserve exact source identity in the eventual Track V receipt itself: record
+  both `source_revision` and the dirty/untracked source-state digest after checking
+  both before Editor launch and after capture.
 - [ ] Re-run staged/IoStore capture-only census on that accepted release package.
 - [ ] Rerender the authored capture and bind it to the same accepted Kazan PreviewFlight
   release transaction, recording both release and Editor/MRQ execution identities.
@@ -396,7 +418,135 @@ Owner-local receipt:
 
 ### F6 - Kazan same-character PreviewFlight scale proof
 
-**Status:** IMPLEMENTED - TECHNICAL ACCEPTANCE PENDING
+**Status:** CORRECTIONS IMPLEMENTED AND VERIFIED - REPLACEMENT CANDIDATE IS RECEIPT-OWNED; OPERATOR PASS REQUIRED
+
+#### 2026-08-29 operator walkthrough rejection
+
+The authenticated Candidate passed its machine gate but failed the real product
+walkthrough. It is rejected and must not be used as the F6 acceptance or Track V
+truth source. The operator observed four bounded defects:
+
+1. Escape does not open the in-game menu.
+2. PreviewFlight can enter generated Building massing and become trapped.
+3. The product spawn does not begin at the Spasskaya Tower/Kremlin control.
+4. Generated Water does not read clearly; the prototype needs an immediately
+   visible blue surface.
+
+The corrective ownership boundary supersedes the earlier F6 source freeze only for
+these defects:
+
+```text
+ProjectMenuGame
+-> pause overlay and game-menu service
+
+ProjectSinglePlayClient
+-> existing Escape Enhanced Input action
+-> resolves the game-menu service through ProjectCore DIP
+
+ProjectWorld territory runtime profile
+-> data-owned product overview spawn at the engine georeference origin
+-> that origin is the rounded projection of the pinned Spasskaya control
+
+ProjectWorld Building realization
+-> double-sided complex collision for closed generated massing
+-> owned semantic migration forces the generated collision bytes to update
+
+ProjectWorld Water realization/inventory
+-> brighter blue prototype material
+-> owned material semantic migration prevents a stale clean early-out
+```
+
+The exact Spasskaya coordinate is inside its admitted Building footprint. The
+PreviewFlight PlayerStart therefore keeps the landmark horizontal anchor but uses a
+profile-owned height above terrain so the pawn begins outside collision and the first
+view communicates territory scale. This is not a landmark geometry override.
+
+Expected changed components are ProjectMenuGame, the existing SinglePlay client input
+projection, ProjectWorld runtime/building/water owners, their focused tests, the three
+territory runtime candidates, and the generated runtime/building/water/map authority
+produced by the normal realization transaction. Vegetation artifacts may be rewritten
+only as the existing downstream consumer of changed Water exclusion authority; that is
+dependency propagation, not a vegetation-policy change. Old City 17, canonical Kazan
+bytes, terrain, roads, survival scenario behavior, flight tuning, and Track V remain
+untouched. Unexpected propagation outside this boundary aborts the realization
+transaction.
+
+- [x] Add one Escape-owned pause overlay with Resume, Main Menu, and Quit; Escape must
+  close it while paused and no direct map travel may bypass ProjectLoading.
+- [x] Prove the Escape mapping, visible pause state, ProjectUI definition, and second
+  Escape resume through the real packaged input driver. The Main Menu button is not
+  claimed as automated acceptance: its production callback is source-audited to build
+  `MainMenuWorld` through `ILoadingService` and call `StartLoad`, with no direct map
+  travel; the operator walkthrough remains its product-UI acceptance.
+- [x] Add a territory-product overview spawn contract anchored to the engine
+  georeference origin, with explicit height/yaw/pitch in each territory candidate.
+- [x] Prove the realized PlayerStart is horizontally at the Spasskaya-derived origin,
+  above terrain/building massing, always loaded, and leaves bounded-route profiles
+  unchanged.
+- [x] Make generated Building triangle collision double-sided and migrate its semantic
+  identity so unchanged geometry cannot preserve stale one-sided cooked collision.
+- [x] Prove the persistent production Building component is complex-as-simple and
+  double-sided, and blocks character-sized `ECC_Pawn` capsule sweeps plus ray queries
+  across the same known wall from outside-to-inside and inside-to-outside without
+  changing mesh dimensions. The regression control rebuilds that body setup with
+  double-sided geometry disabled and proves one ray-query direction is culled before
+  restoring and rebuilding the accepted double-sided state.
+- [x] Brighten the existing generated Water placeholder and migrate the material
+  semantic identity so the accepted asset is actually regenerated.
+- [x] Prove Water remains Single Layer Water, no-collision, and visibly blue. The normal
+  transaction leaves terrain, roads, and canonical authority exact; its existing Water
+  exclusion dependency may legitimately reaccredit Vegetation artifacts.
+- [x] Run exact tests, launcher incremental build, live Main Menu -> Kazan MCP input and
+  camera proof, then one coherent Development/Shipping replacement package gate.
+- **Receipt-owned final package gate:** retain the replacement Candidate plus one
+  PreviousCandidate, owner-clean disposable runtime scratch, and bind the exact final
+  source state. The authenticated composite, not a post-build edit to this todo, owns
+  PASS/FAIL for that gate.
+- [ ] Operator walkthrough of that exact Shipping Candidate. F5 remains blocked until
+  the Candidate receives operator PASS.
+
+#### Scale classification receipt
+
+No generated World package, canonical bundle, active manifest, or realization profile
+was changed during this audit.
+
+- `Project.World.Realization.CanonicalCoordinatesRoundTrip` proves independent `+1.000 m`
+  East/North/vertical deltas become `+100/-100/+100 cm`, in addition to inverse
+  round-trip coverage.
+- `Project.World.Realization.Buildings.Dimensions` sends real `10 m x 10 m` fixtures at
+  `2/9/27 m` through `ProjectWorldBuildingMeshBuilder`; measured bounds are
+  `1000 x 1000 x 200/900/2700 cm`. The persistent-layer regression separately proves
+  unit generated actor and StaticMeshComponent scale.
+- Live MCP inspection entered Kazan through MainMenu -> ProjectLoading, possessed the
+  real `ADefinitionCharacter`, and recorded actor/camera/skeletal-component unit scales,
+  capsule `23/88 cm`, camera FOV `90`, visible body bounds, and three loaded combined
+  Building cell actors with unit actor/component scale in
+  `Saved/Validation/WorldScale/current_kazan_mcp_20260829.json`. The same live MCP
+  receipt binds the FOV-90 game-viewport screenshot, real W-driven velocity, and the
+  held-Shift `5x` values plus exact release restoration; it remains diagnostic evidence
+  rather than a substitute for the packaged gate or operator walkthrough.
+- The pinned source/canonical audit is authenticated in
+  `Saved/Validation/WorldScale/kazan_landmark_source_chain.json`. The two admitted base
+  ways are `12 m` and `8 m`; the same pinned source contains related part-only volumes
+  up to `58 m`, but the active source selector is `nwr/building`. Canonical centroid
+  separation is `237.6768 m`, equivalent to `23,767.68 cm`, so horizontal scale is sane.
+- Per-feature runtime bounds are intentionally not claimed: one generated actor/mesh
+  combines many cell features. Adding diagnostic feature actors would change the
+  representation being tested. Builder fixtures plus live cell transform checks prove
+  the actual boundaries without creating a parallel World model.
+- `ProjectIntegrationTests.Character.Traversal.ModeAwareInput` drives the existing
+  Enhanced Input actions and measured approximately `4,800.915 cm/s` before Shift and
+  `25,765.477 cm/s` during the boost window, with configured flight maxima
+  `12,000 -> 60,000 cm/s`. It also proves grounded Shift remains Sprint and every tested
+  release, movement-mode-exit, and unpossession paths restore the exact prior flying
+  values. `EndPlay` invokes the same idempotent cleanup defensively before teardown;
+  no post-teardown consumer is claimed as a separate acceptance surface.
+
+Classification is case C from the reviewer packet: consumed coordinate and realization
+scale are correct; selected skyline controls are low because source semantics are omitted
+before canonical compilation. That limitation is routed to the existing Buildings packet
+and durable territory contract. It is not patched with landmark constants and does not
+block this honest prototype blockout Candidate.
 
 #### Corrected acceptance story
 
@@ -453,9 +603,14 @@ public contract:
   -> possessed ADefinitionCharacter
   -> existing PreviewFlight Character Movement
 
-expected components CHANGED after R1 PASS:
+expected components CHANGED after R1 PASS and the bounded operator-rejected Candidate correction:
   Source/Alis KazanTerritory experience projection
   ProjectMenuPlay narrow automated Scenario/Traversal projection
+  ProjectCharacter owner-local PreviewFlight boost through the existing Sprint action
+  ProjectSinglePlay existing PreviewFlight controls text
+  ProjectMenuGame pause overlay plus ProjectCore service contract and SinglePlay Escape projection
+  ProjectWorld runtime-profile spawn, Building collision, and Water material realization owners
+  generated Building/Water/map authority plus dependency-driven Vegetation exclusion reaccreditation
   focused descriptor/menu/loading tests and packaged candidate runner
   Track V request/schema/wrapper/tests under F5
   stable ProjectSinglePlay docs after behavior is proved
@@ -463,8 +618,8 @@ expected components CHANGED after R1 PASS:
 expected components UNTOUCHED:
   current accepted Old City 17 descriptor/content/onboarding/display/internal identity
   ProjectSinglePlay traversal resolver/application behavior
-  ProjectCharacter movement/animation/GAS architecture unless focused evidence finds a defect
-  canonical Kazan inputs, generated packages, manifests, World Partition profile, and materials
+  ProjectCharacter animation/GAS/rotation architecture and grounded movement tuning
+  canonical Kazan inputs, terrain/road authority, and World Partition streaming budgets
   UrbanSurvivalProofV1 state machine/profile semantics
   ProjectCinematic Editor-only and Shipping-exclusion boundary
   ProjectSinglePlay mode JSON/schema and menu UI
@@ -537,13 +692,22 @@ Materially viable alternatives for reviewer evaluation:
    enables flight; unknown values retain their existing fail-closed warning behavior.
 6. F6 makes zero further change to the current accepted Old City 17 descriptor,
    content, onboarding, display state, or internal City17 identity.
-7. Canonical/generated Kazan geography and active World authority remain exact;
-   this is experience selection only.
+7. Canonical Kazan geography plus terrain/road authority remain exact. The bounded
+   spawn/Building/Water correction and dependency-driven Vegetation exclusion rewrite
+   advance only through the normal immutable manifest transaction, immediate
+   idempotence, and read-only authority audit.
 8. Physical RTX 4070 Development acceptance remains High, 2560x1440, D3D12, selected
    `512/1536`, Frame p95 `<= 16.67 ms`, and zero streaming failures. Shipping proves
    cook, normal product route, manual flight controls, and release identity separately.
 9. Track V is rebound/rendered only after the operator accepts the exact final
    Shipping PreviewFlight Candidate and F5 independently verifies its bytes.
+10. Held Shift while flying selects the bounded `5x` overview candidate and scales only
+    active flying speed/acceleration/braking; release, unpossession, or leaving flight
+    restores the exact previous values. `EndPlay` defensively invokes the same cleanup
+    before teardown. Grounded Sprint remains unchanged.
+11. Core unit conversion, real Building builder dimensions, live character/body/camera
+    scale, and generated Building cell transforms remain covered without regenerating
+    World content.
 
 #### Test-first and verification plan
 
@@ -554,7 +718,9 @@ Materially viable alternatives for reviewer evaluation:
 | Technical survival remains explicit | Add exact ProjectMenuPlay automation-projection red: starting from the Kazan descriptor, selected Scenario and PreviewFlight are both explicit | Existing Development and Shipping success/failure receipts retain flight-specific real-input/collision evidence | Missing Scenario, inherited-only selection, or lost flight evidence blocks F6 |
 | Flight controls are clear | Characterize existing traversal presentation with no active scenario | Shipping normal route shows flight controls and accepts mouse/WASD/Space/Ctrl immediately | Missing/misleading hint or dead input blocks F6 |
 | Old City 17 gets no F6 delta | Existing label/descriptor assertions plus current-baseline pre/post path/hash census | Packaged menu shows `OLD CITY 17`; F6 City17 owner census is exact | Label regression or any F6 City17 change blocks F6 |
-| World authority stays frozen | Static changed-path classification and pre/post generated/manifests census | Candidate binds the same active World/profile identities and zero World writes | Any generated byte/manifest change returns to its owner |
+| World correction remains owner-local | Static changed-path classification plus transaction idempotence and pre/post generated/manifests census | Candidate binds the accepted active World/profile identities; post-package authority audit is read-only and exact | Unowned propagation, canonical/terrain/road drift, stale fingerprints, or package-time World writes block publication |
+| Coordinate/Building scale is real | Exact independent unit-delta and production-builder dimensional tests | Live product-route MCP receipt proves character/camera/cell actor transforms; local source-chain receipt classifies landmark semantics | Unit/builder transform failure blocks packaging; omitted source parts return to Buildings research, never ad hoc repair |
+| Fast overview is bounded | Extend exact real-input Character traversal test through grounded, flying boost, release, mode exit, and unpossession | Operator inspects the final Shipping Candidate; base-speed route remains performance authority | Stuck tuning, grounded regression, or demonstrable streaming holes rejects `5x` and permits one `4x` fallback |
 | 4070 performance/streaming | Existing real-input product instrumentation observes the normal PreviewFlight selection; it is never packaged as gameplay | Authenticated Development receipt at the frozen hardware/settings budget | Gate failure blocks Shipping Candidate |
 | Final footage tells the same truth | F5 request/census checks against the accepted Candidate | MRQ receipt and human clip comparison bound to exact package hashes | Stale package binding or misleading footage blocks release |
 
@@ -592,12 +758,32 @@ exit gate after R2; broad suites and repeated cooks are not the debug loop.
   Windows Firewall prompt without changing normal packaged gameplay behavior.
 - [x] Route completed playable-tour diagnostics through the existing World cleanup owner;
   no diagnostic package or CSV scratch survives under `tmp/` after evidence inspection.
-- [ ] Run one final Development plus Shipping package transaction, unattended
+- [x] Classify the scale question without World mutation: independent coordinate deltas,
+  real builder dimensions, live product-route character/camera/cell transforms, and two
+  pinned landmark source chains all pass their applicable boundaries. Route the omitted
+  `building:part` limitation to Buildings instead of hardcoding landmarks.
+- [x] Reuse held Shift for the owner-local `5x` PreviewFlight overview candidate, scale
+  active flight acceleration/braking with speed, prove release/mode-exit/unpossession
+  restoration, retain defensive teardown cleanup, preserve grounded sprint, and update
+  the existing controls notice.
+- [x] Close F5's clean-revision hole by comparing current `git rev-parse HEAD` with the
+  accepted Candidate `source_revision` before Editor launch and after capture; retain the
+  dirty-tree digest as the independent uncommitted-state check.
+- **Receipt-owned final package gate:** after the last tracked R2 correction, run one
+  final Development plus Shipping package transaction, unattended
   real-input acceptance, performance/streaming/collision evidence, visual screenshots,
   package census, and owner cleanup. Retain Candidate plus exactly one
-  PreviousCandidate.
+  PreviousCandidate inside that runner-owned pair. The latest authenticated composite
+  is the sole PASS/FAIL authority for this gate; do not edit this tracked file merely
+  to copy its post-build result.
 - [ ] Stop for the operator's packaged Kazan PreviewFlight walkthrough. On PASS, write the
   owner-local acceptance receipt and proceed to F5 against that exact package.
+
+The exact final operation id, package hashes, measurements, and screenshots remain in the
+owner-generated `Saved/Validation/WorldRealization/playable-tour/<run-id>/composite.json`.
+Do not copy post-build receipt values into tracked files before operator acceptance: that
+would change the source-state digest bound by the Candidate. A source edit or commit after
+this gate requires rebuilding/rebinding before F5.
 
 #### Historical grounded-survival Candidate
 
@@ -686,5 +872,15 @@ promotion.
 - 2026-08-28 - Verified scenario packaged-gate code rejected A4's grounded-survival
   premise. A6 preserves the accepted flight-based technical gate through explicit,
   independent Scenario and Traversal selection; the product D5 path is unchanged.
-- **Next review scope:** R2 implementation diff and focused evidence before the one
-  Development/Shipping acceptance transaction.
+- 2026-08-29 - R2 returned one bounded pre-operator PATCH: preserve exact HEAD in the
+  final Track V receipt, prove or narrow flight lifecycle restoration, reconcile stale
+  F5/F6 status, and freeze correct future `building:part` no-double-volume semantics.
+- 2026-08-29 - The four operator-rejected Candidate defects were closed through their
+  existing owners: pause menu, Spasskaya overview spawn, double-sided Building
+  collision, and visible blue Water. Focused automation, normal World realization,
+  immediate idempotence, live MCP/camera inspection, and read-only authority audit are
+  green. The final source-bound Development/Shipping composite is the remaining
+  machine authority and must be produced after this last tracked reconciliation.
+- **Next action:** operator walkthrough of the exact receipt-authenticated Shipping
+  Candidate. On PASS, create the owner-local F6 acceptance receipt and execute F5/Track V
+  against those exact bytes; do not edit tracked source between those gates.

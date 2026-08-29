@@ -136,11 +136,15 @@ Assert-Capture ([string]$request.package_root -ceq `
         'Saved/PackageRelease/KazanPlayableTour/Candidate') `
     'Release capture package root must be the accepted playable-tour Candidate.'
 $sourceStateHash = Get-CaptureSourceStateDigest
+$sourceRevision = (@(& git -C $projectRoot rev-parse HEAD) -join '').Trim()
+Assert-Capture ($LASTEXITCODE -eq 0 -and $sourceRevision -match '^[0-9a-fA-F]{40}$') `
+    'Unable to authenticate the current source revision.'
 $binding = Test-ProjectCinematicReleaseBinding `
     -ProjectRoot $projectRoot `
     -ReleaseAcceptancePath ([string]$request.release_acceptance) `
     -ExpectedPackageRoot $expectedPackageRoot `
-    -CurrentSourceStateSha256 $sourceStateHash
+    -CurrentSourceStateSha256 $sourceStateHash `
+    -CurrentSourceRevision $sourceRevision
 $releaseCompositePath = $binding.release_composite_path
 $packageRoot = $binding.package_root
 $releaseComposite = $binding.release_composite
@@ -240,6 +244,9 @@ try {
         "Release capture failed: $($status.reason) $($status.error_reason) $(@($status.output_errors) -join '; ')"
     Assert-Capture ((Get-CaptureSourceStateDigest) -ceq $sourceStateHash) `
         'Source state changed during the release capture.'
+    $completedSourceRevision = (@(& git -C $projectRoot rev-parse HEAD) -join '').Trim()
+    Assert-Capture ($LASTEXITCODE -eq 0 -and $completedSourceRevision -ceq $sourceRevision) `
+        'Source revision changed during the release capture.'
 
     $movFiles = @(Get-ChildItem -LiteralPath $renderRoot -Recurse -File -Filter '*.mov')
     Assert-Capture ($movFiles.Count -eq 1) `
@@ -278,6 +285,7 @@ try {
         status = 'technically_accepted'
         operation_id = $operationId
         capture_id = $request.capture_id
+        source_revision = $sourceRevision
         source_state_sha256 = $sourceStateHash
         request_sha256 = (Get-FileHash -LiteralPath $resolvedRequest -Algorithm SHA256).Hash.ToLowerInvariant()
         sequence_sha256 = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'Content\Cinematics\Kazan\LS_KazanRelease_v1.uasset') -Algorithm SHA256).Hash.ToLowerInvariant()

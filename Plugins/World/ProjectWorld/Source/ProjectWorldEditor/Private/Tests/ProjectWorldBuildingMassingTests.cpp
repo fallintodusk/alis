@@ -8,10 +8,13 @@
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRealizationService.h"
 
+#include "CollisionQueryParams.h"
+#include "CollisionShape.h"
 #include "Components/StaticMeshComponent.h"
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/FileManager.h"
 #include "Materials/MaterialInterface.h"
@@ -20,6 +23,7 @@
 #include "Misc/Paths.h"
 #include "PackageTools.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshAttributes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -85,6 +89,66 @@ namespace ProjectWorldBuildingMassingTests
 			"\"terrain_anchor_policy\":\"owner_cell_clamped_bounds_center\"," 
 			"\"topology_policy\":\"cell_local_classify_v1\"}");
 		return Result;
+	}
+
+	struct FWallQueryEvidence
+	{
+		bool bOutsideToInsideCapsuleBlocked = false;
+		bool bInsideToOutsideCapsuleBlocked = false;
+		bool bOutsideToInsideRayBlocked = false;
+		bool bInsideToOutsideRayBlocked = false;
+	};
+
+	FWallQueryEvidence QueryMinimumXWall(UWorld& World, UStaticMeshComponent& Component)
+	{
+		constexpr float CharacterCapsuleRadius = 23.0f;
+		constexpr float CharacterCapsuleHalfHeight = 88.0f;
+		Component.UpdateBounds();
+		const FBox Bounds = Component.Bounds.GetBox();
+		const FVector Inside = Bounds.GetCenter();
+		const FVector Outside(
+			Bounds.Min.X - CharacterCapsuleRadius - 100.0,
+			Inside.Y,
+			Inside.Z);
+		const FCollisionShape Capsule = FCollisionShape::MakeCapsule(
+			CharacterCapsuleRadius,
+			CharacterCapsuleHalfHeight);
+		const FCollisionQueryParams CapsuleQueryParams(
+			SCENE_QUERY_STAT(ProjectWorldBuildingPawnCapsuleCollision),
+			false);
+		const FCollisionQueryParams RayQueryParams(
+			SCENE_QUERY_STAT(ProjectWorldBuildingDoubleSidedRayCollision),
+			true);
+
+		auto SweepHitsComponent = [&](const FVector& Start, const FVector& End)
+		{
+			FHitResult Hit;
+			return World.SweepSingleByChannel(
+				Hit,
+				Start,
+				End,
+				FQuat::Identity,
+				ECC_Pawn,
+				Capsule,
+				CapsuleQueryParams) && Hit.GetComponent() == &Component;
+		};
+		auto RayHitsComponent = [&](const FVector& Start, const FVector& End)
+		{
+			FHitResult Hit;
+			return World.LineTraceSingleByChannel(
+				Hit,
+				Start,
+				End,
+				ECC_Pawn,
+				RayQueryParams) && Hit.GetComponent() == &Component;
+		};
+
+		FWallQueryEvidence Evidence;
+		Evidence.bOutsideToInsideCapsuleBlocked = SweepHitsComponent(Outside, Inside);
+		Evidence.bInsideToOutsideCapsuleBlocked = SweepHitsComponent(Inside, Outside);
+		Evidence.bOutsideToInsideRayBlocked = RayHitsComponent(Outside, Inside);
+		Evidence.bInsideToOutsideRayBlocked = RayHitsComponent(Inside, Outside);
+		return Evidence;
 	}
 }
 
@@ -163,6 +227,50 @@ bool FProjectWorldBuildingTopologyAdmissionTest::RunTest(const FString& Paramete
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldBuildingDimensionsTest,
+	"Project.World.Realization.Buildings.Dimensions",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldBuildingDimensionsTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldBuildingMassingTests;
+	for (const double HeightMeters : {2.0, 9.0, 27.0})
+	{
+		FProjectWorldCanonicalBundle Bundle;
+		Bundle.GridId = FString::Printf(TEXT("building_dimensions_%.0f"), HeightMeters);
+		Bundle.CoordinateQuantizationMeters = 0.01;
+		Bundle.HeightQuantizationMeters = 0.1;
+		Bundle.Cells.Add(Cell(Bundle.GridId + TEXT(":a"), 0.0, 100.0));
+		const FProjectWorldCanonicalFeature Feature = Building(
+			TEXT("building/dimensions"), Bundle.Cells[0].CellId,
+			Square(10.0, 10.0, 20.0, 20.0), HeightMeters);
+		Bundle.Cells[0].OwnedFeatureIds = {Feature.FeatureId};
+		Bundle.Features.Add(Feature.FeatureId, Feature);
+
+		FProjectWorldBuildingMeshBuildResult Build;
+		FString Error;
+		TestTrue(TEXT("The dimensional fixture builds through the production mesh builder."),
+			ProjectWorldBuildingMeshBuilder::BuildCell(
+				Bundle, Bundle.Cells[0], FProjectWorldAuthoredOverlaySet(),
+				FProjectWorldBuildingSettings(), Build, Error));
+		FStaticMeshAttributes Attributes(Build.MeshDescription);
+		TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
+		FBox Bounds(ForceInit);
+		for (const FVertexID Vertex : Build.MeshDescription.Vertices().GetElementIDs())
+		{
+			Bounds += FVector(Positions[Vertex]);
+		}
+		TestTrue(TEXT("A ten metre footprint is 1000 UE centimetres on X."),
+			FMath::IsNearlyEqual(Bounds.GetSize().X, 1000.0, 0.01));
+		TestTrue(TEXT("A ten metre footprint is 1000 UE centimetres on Y."),
+			FMath::IsNearlyEqual(Bounds.GetSize().Y, 1000.0, 0.01));
+		TestTrue(TEXT("Building Z extent equals canonical height in centimetres."),
+			FMath::IsNearlyEqual(Bounds.GetSize().Z, HeightMeters * 100.0, 0.01));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldPersistentBuildingLayerTest,
 	"Project.World.Realization.Buildings.PersistentLayer",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -218,15 +326,46 @@ bool FProjectWorldPersistentBuildingLayerTest::RunTest(const FString& Parameters
 		TestTrue(TEXT("Building massing is spatially loaded."), Actor->GetIsSpatiallyLoaded());
 		TestFalse(TEXT("Building massing does not participate in HLOD."),
 			Actor->bEnableAutoLODGeneration || Actor->GetHLODLayer() != nullptr);
+		TestTrue(TEXT("Generated building actor keeps unit scale."),
+			Actor->GetActorScale3D().Equals(FVector::OneVector));
 		if (Mesh != nullptr && Component != nullptr)
 		{
+			UBodySetup* BodySetup = Mesh->GetBodySetup();
+			TestTrue(TEXT("Generated building component keeps unit relative scale."),
+				Component->GetRelativeScale3D().Equals(FVector::OneVector));
 			TestTrue(TEXT("Building massing is Nanite enabled."), Mesh->GetNaniteSettings().bEnabled);
 			TestTrue(TEXT("Building collision uses complex-as-simple."),
-				Mesh->GetBodySetup() != nullptr &&
-				Mesh->GetBodySetup()->CollisionTraceFlag == CTF_UseComplexAsSimple);
+				BodySetup != nullptr && BodySetup->CollisionTraceFlag == CTF_UseComplexAsSimple);
+			TestTrue(TEXT("Building collision is configured as double-sided."),
+				BodySetup != nullptr && BodySetup->bDoubleSidedGeometry);
 			TestEqual(TEXT("Building collision blocks queries and physics."),
 				Component->GetCollisionEnabled(), ECollisionEnabled::QueryAndPhysics);
 			TestFalse(TEXT("Blockout buildings do not affect navigation."), Component->CanEverAffectNavigation());
+			if (BodySetup != nullptr)
+			{
+				BodySetup->bDoubleSidedGeometry = false;
+				BodySetup->InvalidatePhysicsData();
+				BodySetup->CreatePhysicsMeshes();
+				Component->RecreatePhysicsState();
+				const FWallQueryEvidence OneSided = QueryMinimumXWall(*World, *Component);
+				TestTrue(
+					TEXT("One-sided control culls exactly one wall-query direction."),
+					OneSided.bOutsideToInsideRayBlocked != OneSided.bInsideToOutsideRayBlocked);
+
+				BodySetup->bDoubleSidedGeometry = true;
+				BodySetup->InvalidatePhysicsData();
+				BodySetup->CreatePhysicsMeshes();
+				Component->RecreatePhysicsState();
+				const FWallQueryEvidence DoubleSided = QueryMinimumXWall(*World, *Component);
+				TestTrue(TEXT("Double-sided collision blocks outside-to-inside pawn capsule travel."),
+					DoubleSided.bOutsideToInsideCapsuleBlocked);
+				TestTrue(TEXT("Double-sided collision blocks inside-to-outside pawn capsule travel."),
+					DoubleSided.bInsideToOutsideCapsuleBlocked);
+				TestTrue(TEXT("Double-sided collision blocks outside-to-inside ray queries."),
+					DoubleSided.bOutsideToInsideRayBlocked);
+				TestTrue(TEXT("Double-sided collision blocks inside-to-outside ray queries."),
+					DoubleSided.bInsideToOutsideRayBlocked);
+			}
 		}
 	}
 
@@ -356,6 +495,11 @@ bool FProjectWorldBuildingInputLocalityTest::RunTest(const FString& Parameters)
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	FProjectWorldBuildingTopologyAdmissionTest,
 	"Project.World.Realization.Buildings.TopologyAdmission",
+	"[Unit][World]")
+
+REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
+	FProjectWorldBuildingDimensionsTest,
+	"Project.World.Realization.Buildings.Dimensions",
 	"[Unit][World]")
 
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(

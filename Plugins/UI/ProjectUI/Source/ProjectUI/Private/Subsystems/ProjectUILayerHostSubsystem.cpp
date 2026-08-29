@@ -232,6 +232,13 @@ void UProjectUILayerHostSubsystem::HideDefinition(FName DefinitionId)
 	UE_LOG(LogProjectUILayerHost, Log, TEXT("HideDefinition END"));
 }
 
+bool UProjectUILayerHostSubsystem::IsDefinitionVisible(FName DefinitionId) const
+{
+	const FActiveWidgetEntry* Entry = ActiveWidgets.Find(DefinitionId);
+	const UUserWidget* Widget = Entry != nullptr ? Entry->Widget.Get() : nullptr;
+	return Widget != nullptr && Widget->IsVisible();
+}
+
 UProjectViewModel* UProjectUILayerHostSubsystem::GetSharedViewModel(TSubclassOf<UProjectViewModel> ViewModelClass) const
 {
 	if (UProjectUIFactorySubsystem* Factory = GetGameInstance()->GetSubsystem<UProjectUIFactorySubsystem>())

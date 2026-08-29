@@ -171,7 +171,7 @@ namespace ProjectWorldRuntimeProfile
 		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() ||
 			!HasOnlyFields(Root, {
 				TEXT("$schema"), TEXT("schema_version"), TEXT("profile_id"), TEXT("profile_kind"),
-				TEXT("grid_id"), TEXT("runtime_partition"), TEXT("gameplay_route"),
+				TEXT("grid_id"), TEXT("runtime_partition"), TEXT("gameplay_route"), TEXT("product_spawn"),
 				TEXT("optimization_policy"), TEXT("budgets")}, OutError))
 		{
 			OutErrorCode = TEXT("runtime-profile-json");
@@ -186,7 +186,7 @@ namespace ProjectWorldRuntimeProfile
 				Schema,
 				ExpectedSchemaFilename,
 				OutError) ||
-			!RequireNumber(Root, TEXT("schema_version"), 2.0, 2.0, SchemaVersion, OutError) ||
+			!RequireNumber(Root, TEXT("schema_version"), 3.0, 3.0, SchemaVersion, OutError) ||
 			!RequireString(Root, TEXT("profile_id"), OutProfile.ProfileId, OutError) ||
 			!IsIdentifier(OutProfile.ProfileId) ||
 			!RequireString(Root, TEXT("profile_kind"), OutProfile.ProfileKind, OutError) ||
@@ -196,6 +196,33 @@ namespace ProjectWorldRuntimeProfile
 			!IsGridIdentifier(OutProfile.GridId))
 		{
 			OutErrorCode = TEXT("runtime-profile-contract");
+			return false;
+		}
+
+		const TSharedPtr<FJsonObject>* ProductSpawn = nullptr;
+		if (OutProfile.ProfileKind == TEXT("territory_product"))
+		{
+			if (!Root->TryGetObjectField(TEXT("product_spawn"), ProductSpawn) || ProductSpawn == nullptr ||
+				!HasOnlyFields(*ProductSpawn, {
+					TEXT("anchor"), TEXT("height_above_terrain_m"),
+					TEXT("yaw_degrees"), TEXT("pitch_degrees")}, OutError) ||
+				!RequireString(*ProductSpawn, TEXT("anchor"), OutProfile.ProductSpawnAnchor, OutError) ||
+				OutProfile.ProductSpawnAnchor != TEXT("engine_georeference_origin") ||
+				!RequireNumber(*ProductSpawn, TEXT("height_above_terrain_m"), 50.0, 1000.0,
+					OutProfile.ProductSpawnHeightAboveTerrainMeters, OutError) ||
+				!RequireNumber(*ProductSpawn, TEXT("yaw_degrees"), -180.0, 180.0,
+					OutProfile.ProductSpawnYawDegrees, OutError) ||
+				!RequireNumber(*ProductSpawn, TEXT("pitch_degrees"), -89.0, 0.0,
+					OutProfile.ProductSpawnPitchDegrees, OutError))
+			{
+				OutErrorCode = TEXT("runtime-profile-product-spawn");
+				return false;
+			}
+		}
+		else if (Root->HasField(TEXT("product_spawn")))
+		{
+			OutErrorCode = TEXT("runtime-profile-product-spawn");
+			OutError = TEXT("Bounded runtime profiles cannot own a product overview spawn.");
 			return false;
 		}
 

@@ -10,12 +10,15 @@
 #include "GameFramework/PlayerController.h"
 #include "InputKeyEventArgs.h"
 #include "InputCoreTypes.h"
+#include "Interfaces/IGameMenuService.h"
+#include "ProjectServiceLocator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldPlayableTour, Log, All);
 
 namespace
 {
 	constexpr double AscendHeightCentimeters = 7500.0;
+	constexpr double MenuTransitionTimeoutSeconds = 3.0;
 	constexpr double AscendTimeoutSeconds = 20.0;
 	constexpr double ArrivalRadiusCentimeters = 25000.0;
 	constexpr double MinimumTurnBeforeTravelDegrees = 12.0;
@@ -72,7 +75,7 @@ bool FProjectWorldPlayableTourDriver::Initialize(
 	PriorYawDegrees = InController.GetControlRotation().Yaw;
 	StartedSeconds = FPlatformTime::Seconds();
 	WaypointIndex = 1;
-	SetPhase(EPhase::Ascending);
+	SetPhase(EPhase::OpeningMenu);
 	return true;
 }
 
@@ -97,6 +100,10 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::Tick(
 
 	switch (Phase)
 	{
+	case EPhase::OpeningMenu:
+		return TickOpeningMenu(OutError);
+	case EPhase::ClosingMenu:
+		return TickClosingMenu(OutError);
 	case EPhase::Ascending:
 		return TickAscending(OutError);
 	case EPhase::Traversing:
@@ -147,6 +154,8 @@ void FProjectWorldPlayableTourDriver::AppendReceiptFields(FJsonObject& Receipt) 
 	Receipt.SetNumberField(TEXT("playable_tour_duration_seconds"), Evidence.DurationSeconds);
 	Receipt.SetBoolField(TEXT("collision_blocked_descent"), Evidence.bCollisionBlockedDescent);
 	Receipt.SetBoolField(TEXT("collision_slide"), Evidence.bCollisionSlide);
+	Receipt.SetBoolField(TEXT("pause_menu_opened"), Evidence.bPauseMenuOpened);
+	Receipt.SetBoolField(TEXT("pause_menu_closed"), Evidence.bPauseMenuClosed);
 	TArray<TSharedPtr<FJsonValue>> PhaseValues;
 	for (const FString& PhaseName : Evidence.CompletedPhases)
 	{
@@ -191,6 +200,71 @@ void FProjectWorldPlayableTourDriver::Release(const FKey& Key)
 		Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, IE_Released, 0.0f));
 		++Evidence.InputEventCount;
 	}
+}
+
+void FProjectWorldPlayableTourDriver::Tap(const FKey& Key)
+{
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, IE_Pressed, 1.0f));
+	Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, IE_Released, 0.0f));
+	Evidence.InputEventCount += 2;
+}
+
+EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickOpeningMenu(FString& OutError)
+{
+	const TSharedPtr<IGameMenuService> MenuService = FProjectServiceLocator::Resolve<IGameMenuService>();
+	if (!MenuService.IsValid())
+	{
+		return Reject(TEXT("The packaged route cannot resolve the game-menu service."), OutError);
+	}
+	if (!bMenuInputSent)
+	{
+		Tap(EKeys::Escape);
+		bMenuInputSent = true;
+		return EProjectWorldPlayableTourResult::Running;
+	}
+	if (MenuService->IsVisible(*Controller) && Controller->IsPaused())
+	{
+		Evidence.bPauseMenuOpened = true;
+		bMenuInputSent = false;
+		SetPhase(EPhase::ClosingMenu, TEXT("pause_menu_open"));
+		return EProjectWorldPlayableTourResult::Running;
+	}
+	if (FPlatformTime::Seconds() - PhaseStartedSeconds > MenuTransitionTimeoutSeconds)
+	{
+		return Reject(TEXT("Escape did not open and pause the packaged game menu."), OutError);
+	}
+	return EProjectWorldPlayableTourResult::Running;
+}
+
+EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickClosingMenu(FString& OutError)
+{
+	const TSharedPtr<IGameMenuService> MenuService = FProjectServiceLocator::Resolve<IGameMenuService>();
+	if (!MenuService.IsValid())
+	{
+		return Reject(TEXT("The packaged route lost the game-menu service."), OutError);
+	}
+	if (!bMenuInputSent)
+	{
+		Tap(EKeys::Escape);
+		bMenuInputSent = true;
+		return EProjectWorldPlayableTourResult::Running;
+	}
+	if (!MenuService->IsVisible(*Controller) && !Controller->IsPaused())
+	{
+		Evidence.bPauseMenuClosed = true;
+		bMenuInputSent = false;
+		SetPhase(EPhase::Ascending, TEXT("pause_menu_close"));
+		return EProjectWorldPlayableTourResult::Running;
+	}
+	if (FPlatformTime::Seconds() - PhaseStartedSeconds > MenuTransitionTimeoutSeconds)
+	{
+		return Reject(TEXT("Escape did not close and unpause the packaged game menu."), OutError);
+	}
+	return EProjectWorldPlayableTourResult::Running;
 }
 
 void FProjectWorldPlayableTourDriver::SendLook(double YawErrorDegrees)

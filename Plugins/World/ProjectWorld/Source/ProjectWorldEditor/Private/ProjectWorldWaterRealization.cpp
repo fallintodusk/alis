@@ -208,7 +208,7 @@ namespace ProjectWorldWaterRealization
 				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("BaseColor"));
 			UMaterialExpressionConstant* Roughness =
 				NewObject<UMaterialExpressionConstant>(OutMaterial, TEXT("Roughness"));
-			BaseColor->Constant = FLinearColor(0.012f, 0.075f, 0.150f);
+			BaseColor->Constant = FLinearColor(0.015f, 0.180f, 0.650f);
 			Roughness->R = 0.06f;
 			UMaterialExpressionSingleLayerWaterMaterialOutput* Output =
 				NewObject<UMaterialExpressionSingleLayerWaterMaterialOutput>(OutMaterial, TEXT("WaterOutput"));

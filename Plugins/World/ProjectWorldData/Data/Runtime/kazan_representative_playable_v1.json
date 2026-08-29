@@ -1,6 +1,6 @@
 {
   "$schema": "../../../ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json",
-  "schema_version": 2,
+  "schema_version": 3,
   "profile_id": "kazan_representative_playable_v1",
   "profile_kind": "bounded_procedural_route",
   "grid_id": "grid_413718bc833994e5",

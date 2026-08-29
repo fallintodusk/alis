@@ -174,6 +174,10 @@ bool FProjectWorldRuntimeStaleIdentityReplacementTest::RunTest(const FString& Pa
 		return false;
 	}
 	Profile.ProfileKind = TEXT("territory_product");
+	Profile.ProductSpawnAnchor = TEXT("engine_georeference_origin");
+	Profile.ProductSpawnHeightAboveTerrainMeters = 180.0;
+	Profile.ProductSpawnYawDegrees = 45.0;
+	Profile.ProductSpawnPitchDegrees = -20.0;
 	const FProjectWorldCanonicalBundle Bundle = MakeBundle(Profile);
 	UWorld* World = GEditor->NewMap(false);
 	FActorSpawnParameters SpawnParameters;
@@ -218,6 +222,12 @@ bool FProjectWorldRuntimeStaleIdentityReplacementTest::RunTest(const FString& Pa
 	TestTrue(
 		TEXT("The replacement is always loaded for product boot."),
 		Replacement != nullptr && !Replacement->GetIsSpatiallyLoaded());
+	TestTrue(
+		TEXT("The replacement starts above the Spasskaya-derived engine origin."),
+		Replacement != nullptr && Replacement->GetActorLocation().Equals(FVector(0.0, 0.0, 18000.0), 0.01));
+	TestTrue(
+		TEXT("The replacement starts with the data-owned overview orientation."),
+		Replacement != nullptr && Replacement->GetActorRotation().Equals(FRotator(-20.0, 45.0, 0.0), 0.01));
 	return true;
 }
 

@@ -80,8 +80,9 @@ and water use. Actionable messages remain visible long enough to read; terminal
 messages stay shorter. It adds no second HUD or scenario widget framework.
 
 Explicit `PreviewFlight` sessions suppress survival instructions and show the actual
-inspection controls instead: mouse look, WASD, Space to rise, and Left Ctrl to
-descend. Normal Kazan selects `PreviewFlight` to present territory scale and does not
+inspection controls instead: mouse look, WASD, Space to rise, Left Ctrl to descend,
+and Left Shift for the fast manual overview boost. Normal Kazan selects
+`PreviewFlight` to present territory scale and does not
 expose a runtime fly/walk toggle.
 
 ## World and data boundary

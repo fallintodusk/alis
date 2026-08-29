@@ -420,6 +420,20 @@ geometry and admitted height, the owning terrain artifact, intersecting authored
 building masks, quantization, and the normalized building-layer contract. A
 building that crosses a cell boundary participates in each affected cell; an
 unrelated road, water, vegetation, or authored overlay does not dirty it.
+
+The current Kazan v1 source selector admits `nwr/building`. A source object that
+has only `building:part` is therefore outside current canonical Building authority,
+even when it supplies a taller volume above an admitted base building. Realization
+cannot reconstruct omitted parts: it combines admitted features into one cell-local
+StaticMesh actor and extrudes each admitted `HeightMeters` value. Adding part-only
+volumes requires an explicit source-admission and canonical-representation revision,
+generic overlap/ownership rules, and regeneration through the existing Building
+owner. It must not be approximated by landmark-specific height overrides or by
+per-feature runtime actors. In a future revision, an admitted `building=*` outline
+with associated `building:part` volumes is the semantic container and 2D footprint,
+not an additional 3D extrusion over the same area. Parts own the differentiated 3D
+volumes when present; incomplete part coverage requires an explicit fallback rule
+rather than silently realizing both outline and parts as duplicate mass.
 Gameplay-object input identity covers its typed placement record, referenced
 ObjectDefinition identity, owning terrain-cell input, provider contract, and
 normalized gameplay-layer contract. ProjectWorld consumes the ProjectCore

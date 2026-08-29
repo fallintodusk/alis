@@ -1,4 +1,5 @@
 using UnrealBuildTool;
+using System.IO;
 
 public class ProjectMenuGame : ModuleRules
 {
@@ -18,7 +19,15 @@ public class ProjectMenuGame : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"ProjectSettingsUI"
+			"InputCore",
+			"ProjectSettingsUI",
+			"Slate",
+			"SlateCore"
 		});
+
+		if (Target.Type != TargetType.Editor)
+		{
+			RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Data", "..."), StagedFileType.UFS);
+		}
 	}
 }

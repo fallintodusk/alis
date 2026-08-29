@@ -1,14 +1,24 @@
 #include "ProjectMenuGameModule.h"
+#include "ProjectGameMenuService.h"
+#include "ProjectServiceLocator.h"
 
 #define LOCTEXT_NAMESPACE "FProjectMenuGameModule"
 
+namespace
+{
+	TSharedPtr<IGameMenuService> GameMenuService;
+}
+
 void FProjectMenuGameModule::StartupModule()
 {
-	// Stub: will contain in-game pause menu
+	GameMenuService = MakeShared<FProjectGameMenuService>();
+	FProjectServiceLocator::Register<IGameMenuService>(GameMenuService);
 }
 
 void FProjectMenuGameModule::ShutdownModule()
 {
+	FProjectServiceLocator::Unregister<IGameMenuService>();
+	GameMenuService.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

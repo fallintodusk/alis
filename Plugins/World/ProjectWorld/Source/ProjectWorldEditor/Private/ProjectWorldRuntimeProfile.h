@@ -31,6 +31,10 @@ struct FProjectWorldRuntimeProfile
 	double RouteSurfaceOffsetMeters = 0.0;
 	double NavigationPaddingMeters = 0.0;
 	double NavigationHeightMeters = 0.0;
+	FString ProductSpawnAnchor;
+	double ProductSpawnHeightAboveTerrainMeters = 0.0;
+	double ProductSpawnYawDegrees = 0.0;
+	double ProductSpawnPitchDegrees = 0.0;
 	FString NanitePolicy;
 	FString InstancingPolicy;
 	FString HlodPolicy;

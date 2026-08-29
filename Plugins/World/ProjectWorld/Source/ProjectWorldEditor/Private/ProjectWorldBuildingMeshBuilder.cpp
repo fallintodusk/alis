@@ -477,7 +477,7 @@ namespace ProjectWorldBuildingMeshBuilder
 			FStaticMeshAttributes Attributes(Result.MeshDescription);
 			TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
 			FString Identity = FString::Printf(
-				TEXT("project_building_cell_mesh_v1|origin=%.17g,%.17g,%.17g|triangles=%d|accepted=%d|"),
+				TEXT("project_building_cell_mesh_v2|origin=%.17g,%.17g,%.17g|triangles=%d|accepted=%d|"),
 				Result.ActorOrigin.X,
 				Result.ActorOrigin.Y,
 				Result.ActorOrigin.Z,

@@ -1,0 +1,62 @@
+{
+  "$schema": "../../ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "children": [
+      {
+        "type": "TextBlock",
+        "name": "Text_Title",
+        "text": "PAUSED",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "position": {"x": 0, "y": -150},
+        "font": "HeadingLarge",
+        "color": "Text"
+      },
+      {
+        "type": "Button",
+        "name": "Button_Resume",
+        "text": "RESUME",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "position": {"x": 0, "y": -45},
+        "size": {"x": 320, "y": 58},
+        "variant": "Primary",
+        "font": "Button"
+      },
+      {
+        "type": "Button",
+        "name": "Button_MainMenu",
+        "text": "MAIN MENU",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "position": {"x": 0, "y": 30},
+        "size": {"x": 320, "y": 58},
+        "variant": "Secondary",
+        "font": "Button"
+      },
+      {
+        "type": "Button",
+        "name": "Button_Quit",
+        "text": "QUIT",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "position": {"x": 0, "y": 105},
+        "size": {"x": 320, "y": 58},
+        "variant": "Text",
+        "font": "Button"
+      },
+      {
+        "type": "TextBlock",
+        "name": "Text_Hint",
+        "text": "ESC - RESUME",
+        "anchor": "Center",
+        "alignment": {"x": 0.5, "y": 0.5},
+        "position": {"x": 0, "y": 190},
+        "font": "BodySmall",
+        "color": "TextMuted"
+      }
+    ]
+  }
+}

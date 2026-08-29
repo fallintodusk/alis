@@ -41,6 +41,39 @@ facades, procedural roofs, modular assembly, PCG, or `project_building_massing:v
 This packet is research only. It authorizes no production code, recipe, generated material,
 map, mesh, manifest, profile, or package mutation.
 
+### Newly classified source-semantic limitation
+
+The F6 scale audit on 2026-08-28 disproved a global metre-to-centimetre or Building
+realization-scale defect, but found a separate skyline limitation that B1 cannot fix:
+
+```text
+pinned Kazan source
+  -> low admitted base way with building + height
+  -> taller related ways with building:part + height/min_height only
+current nwr/building source selector
+  -> admits the base
+  -> excludes part-only vertical volumes
+canonical / project_building_massing:v1
+  -> correctly realizes only the admitted low base
+```
+
+The verified controls were source ways `228963085` and `230132591`; both have taller
+nearby part-only volumes in the same pinned source snapshot. This classifies the defect
+as generic source admission/canonical representation, not landmark-specific bad scale.
+Do not hardcode landmark heights and do not create one runtime actor per source feature.
+
+B1 remains a valid material-only candidate for making the accepted blockout easier to
+read, but it cannot claim landmark or skyline fidelity. Before selecting Buildings for a
+release that requires that fidelity, reopen only the source-semantic branch and design a
+generic `building:part` admission/association/overlap contract with synthetic and real
+controls. Keep that contract independent from universal material assignment. Regenerate
+Building authority only after that separate contract passes review and focused tests.
+The future contract must follow Simple 3D Buildings ownership: associate parts with
+their containing `building=*` outline, use the outline as semantic/2D footprint
+authority, and do not blindly extrude both the outline and its overlapping parts as
+duplicate 3D mass. Incomplete part coverage needs an explicit tested fallback instead
+of implicit double rendering.
+
 ## Product outcome
 
 Make Kazan's accepted building massing read clearly as a city at player, oblique, and aerial
@@ -898,36 +931,40 @@ Only if Buildings is selected after all seven concern researches are complete:
 1. [ ] Implement, review, accept, and archive the shared material core first. If Buildings
        is the first material consumer, admit only the closed
        `surface_opaque/building_massing_basic_v1` archetype required here.
-2. [ ] Run B0 read-only structural/height/active-consumer census and fresh paired visual +
-       packaged performance baseline. Authenticate whether the problem is material rather
-       than geometry/source data.
-3. [ ] Add the exact red tests above, including both current material-assignment early-out
+2. [ ] Re-authenticate the release goal against the classified `building:part` limitation.
+       If skyline fidelity is required, stop B1 and complete the generic source-semantic
+       research first. If readable honest blockout massing is sufficient, record that B1
+       does not solve omitted vertical parts and continue.
+3. [ ] Run B0 read-only structural/height/active-consumer census and fresh paired visual +
+       packaged performance baseline. Authenticate the material defect independently from
+       known source/semantic limitations.
+4. [ ] Add the exact red tests above, including both current material-assignment early-out
        regressions and producer/presentation locality.
-4. [ ] Add/inherit the shared presentation schema/parser/fingerprint split so
+5. [ ] Add/inherit the shared presentation schema/parser/fingerprint split so
        `project_building_massing:v1` is geometry-only and `presentation:v1` owns
        `building.default` assignment.
-5. [ ] Generate and authenticate universal ProjectMaterial Building parent/default MIC.
-6. [ ] Add the closed ProjectWorld `building.default` binding, then pass the Development +
+6. [ ] Generate and authenticate universal ProjectMaterial Building parent/default MIC.
+7. [ ] Add the closed ProjectWorld `building.default` binding, then pass the Development +
        Shipping dependency/cook closure before mutation. Add the conditional
        `ProjectWorld.uplugin` content dependency only if that proof requires it; fail closed
        on invalid authority or staged content.
-7. [ ] Add the independent Building presentation-reference pass so it executes after
+8. [ ] Add the independent Building presentation-reference pass so it executes after
        geometry mutation or no-op and cannot be bypassed by either current early-out.
-8. [ ] Clean-cutover the legacy `materials.building` profile/schema/parser consumers and
+9. [ ] Clean-cutover the legacy `materials.building` profile/schema/parser consumers and
        normalize Building geometry manifest presentation identity without regenerating
        geometry.
-9. [ ] Under one exact transaction, rebind all preflight-discovered Building mesh material
+10. [ ] Under one exact transaction, rebind all preflight-discovered Building mesh material
        slots, prove full semantic parity and unchanged actor/map bytes, write one new
        immutable Building manifest, atomically promote the Building active-set entry, and
        pass the authority audit.
-10. [ ] Prove same-path ProjectMaterial update locality: zero World dirty units/writes and
+11. [ ] Prove same-path ProjectMaterial update locality: zero World dirty units/writes and
         zero Building manifest advancement.
-11. [ ] Run exact focused tests and request implementation/evidence review before expensive
+12. [ ] Run exact focused tests and request implementation/evidence review before expensive
         rendered gates.
-12. [ ] Run identical B0/B1 visual evidence plus paired physical RTX 4070 packaged
+13. [ ] Run identical B0/B1 visual evidence plus paired physical RTX 4070 packaged
         Development performance.
-13. [ ] Run affected Check/Matrix and Shipping product-route proof only for the survivor.
-14. [ ] Promote durable contracts into stable owners and clean every owner temporary file.
+14. [ ] Run affected Check/Matrix and Shipping product-route proof only for the survivor.
+15. [ ] Promote durable contracts into stable owners and clean every owner temporary file.
 
 ## Alternatives rejected in this concern
 

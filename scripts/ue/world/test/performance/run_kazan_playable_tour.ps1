@@ -131,7 +131,98 @@ function Remove-PlayableTourPackage {
         throw "Playable-tour package cleanup escaped its exact owner targets: $target"
     }
     if (Test-Path -LiteralPath $target) {
-        Remove-Item -LiteralPath $target -Recurse -Force
+        try {
+            Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction Stop
+        }
+        catch [System.IO.IOException] {
+            # A terminal may keep the stable package root as its current directory.
+            # Windows then refuses to rename/remove that directory even though its
+            # one owned payload remains movable. Clear the payload and retain only
+            # the empty stable root; publication below reuses it safely.
+            $children = @(Get-ChildItem -LiteralPath $target -Force)
+            foreach ($child in $children) {
+                Remove-Item -LiteralPath $child.FullName -Recurse -Force
+            }
+            Assert-PlayableTour (@(Get-ChildItem -LiteralPath $target -Force).Count -eq 0) `
+                "Playable-tour package root remained non-empty after bounded cleanup: $target"
+            try {
+                Remove-Item -LiteralPath $target -Force -ErrorAction Stop
+            }
+            catch [System.IO.IOException] {
+                # Keeping an empty stable root is harmless and avoids fighting an
+                # unrelated shell handle. Package payload authority is the Windows
+                # child moved by Move-PlayableTourPackage.
+            }
+        }
+    }
+}
+
+function Move-PlayableTourPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+
+    $sourcePath = [IO.Path]::GetFullPath($Source).TrimEnd('\', '/')
+    $destinationPath = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/')
+    $allowed = @($finalPackage, $previousFinalPackage, $developmentPackage, $shippingPackage) |
+        ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\', '/') }
+    foreach ($candidate in @($sourcePath, $destinationPath)) {
+        Assert-PlayableTour (@($allowed | Where-Object {
+                    $_.Equals($candidate, [StringComparison]::OrdinalIgnoreCase)
+                }).Count -eq 1) "Playable-tour package move escaped its exact owner roots: $candidate"
+    }
+    Assert-PlayableTour (Test-Path -LiteralPath $sourcePath -PathType Container) `
+        "Playable-tour package move source is missing: $sourcePath"
+
+    if (-not (Test-Path -LiteralPath $destinationPath)) {
+        try {
+            Move-Item -LiteralPath $sourcePath -Destination $destinationPath -ErrorAction Stop
+            return
+        }
+        catch [System.IO.IOException] {
+            # Fall through to payload rotation when Windows has the source root
+            # open as another process's current directory.
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $destinationPath)) {
+        New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
+    }
+    Assert-PlayableTour (@(Get-ChildItem -LiteralPath $destinationPath -Force).Count -eq 0) `
+        "Playable-tour package move destination is not empty: $destinationPath"
+    $payload = @(Get-ChildItem -LiteralPath $sourcePath -Force)
+    $windows = @($payload | Where-Object { $_.PSIsContainer -and $_.Name -ceq 'Windows' })
+    $unexpected = @($payload | Where-Object {
+            -not ($_.PSIsContainer -and $_.Name -ceq 'Windows') -and
+            -not (-not $_.PSIsContainer -and $_.Name -ceq 'package_summary.txt')
+        })
+    Assert-PlayableTour ($windows.Count -eq 1 -and $unexpected.Count -eq 0) `
+        "Playable-tour package root has an invalid payload shape: $sourcePath"
+    $moved = [Collections.Generic.List[string]]::new()
+    try {
+        foreach ($item in @($payload | Sort-Object @{ Expression = { $_.PSIsContainer } }, Name)) {
+            Move-Item -LiteralPath $item.FullName -Destination $destinationPath -ErrorAction Stop
+            $moved.Add($item.Name)
+        }
+    }
+    catch {
+        foreach ($name in @($moved | Select-Object -Last $moved.Count)) {
+            $movedPath = Join-Path $destinationPath $name
+            if (Test-Path -LiteralPath $movedPath) {
+                Move-Item -LiteralPath $movedPath -Destination $sourcePath -ErrorAction SilentlyContinue
+            }
+        }
+        throw
+    }
+    Assert-PlayableTour (@(Get-ChildItem -LiteralPath $sourcePath -Force).Count -eq 0) `
+        "Playable-tour source root retained payload after rotation: $sourcePath"
+    try {
+        Remove-Item -LiteralPath $sourcePath -Force -ErrorAction Stop
+    }
+    catch [System.IO.IOException] {
+        # Stable roots may remain empty while held by a shell. Transient roots
+        # are removed by the owner cleanup in the transaction finally block.
     }
 }
 
@@ -275,6 +366,8 @@ function Read-PlayableTourPerformance {
         [string]$receipt.input_method -ceq `
             'APlayerController::InputKey/FInputKeyEventArgs::CreateSimulated' -and
         [int]$receipt.input_event_count -gt 0 -and
+        [bool]$receipt.pause_menu_opened -and
+        [bool]$receipt.pause_menu_closed -and
         [int]$receipt.waypoints_reached -ge 3 -and
         [double]$receipt.ascent_cm -gt 4000.0 -and
         [double]$receipt.descent_cm -gt 3000.0 -and
@@ -295,13 +388,13 @@ if (Test-Path -LiteralPath $previousFinalPackage) {
         Remove-PlayableTourPackage -Path $previousFinalPackage
     }
     else {
-        Move-Item -LiteralPath $previousFinalPackage -Destination $finalPackage
+        Move-PlayableTourPackage -Source $previousFinalPackage -Destination $finalPackage
     }
 }
 Remove-PlayableTourWorkspace -Path $runtimeRoot
 New-Item -ItemType Directory -Path $workRoot, $runtimeRoot -Force | Out-Null
 if (Test-Path -LiteralPath $finalPackage) {
-    Move-Item -LiteralPath $finalPackage -Destination $previousFinalPackage
+    Move-PlayableTourPackage -Source $finalPackage -Destination $previousFinalPackage
 }
 $accepted = $false
 try {
@@ -352,7 +445,7 @@ try {
     Invoke-PlayableTourPackage -OutputRoot $developmentPackage -Configuration 'Development'
     Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'after Development packaging'
-    Move-Item -LiteralPath $developmentPackage -Destination $finalPackage
+    Move-PlayableTourPackage -Source $developmentPackage -Destination $finalPackage
     $developmentExecutable = Get-PlayableTourExecutable -PackageRoot $finalPackage
     $developmentExitCode = Invoke-PlayableTourGame `
         -Executable $developmentExecutable -Configuration 'Development' `
@@ -381,7 +474,7 @@ try {
     Invoke-PlayableTourPackage -OutputRoot $shippingPackage -Configuration 'Shipping'
     Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'after Shipping packaging'
-    Move-Item -LiteralPath $shippingPackage -Destination $finalPackage
+    Move-PlayableTourPackage -Source $shippingPackage -Destination $finalPackage
     $shippingExecutable = Get-PlayableTourExecutable -PackageRoot $finalPackage
     $shippingExitCode = Invoke-PlayableTourGame `
         -Executable $shippingExecutable -Configuration 'Shipping' `
@@ -480,7 +573,7 @@ finally {
     if (-not $accepted) {
         Remove-PlayableTourPackage -Path $finalPackage
         if (Test-Path -LiteralPath $previousFinalPackage) {
-            Move-Item -LiteralPath $previousFinalPackage -Destination $finalPackage
+            Move-PlayableTourPackage -Source $previousFinalPackage -Destination $finalPackage
         }
     }
     Remove-PlayableTourWorkspace -Path $workRoot

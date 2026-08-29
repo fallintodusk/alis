@@ -69,7 +69,8 @@ function Test-ProjectCinematicReleaseBinding {
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
         [Parameter(Mandatory = $true)][string]$ReleaseAcceptancePath,
         [Parameter(Mandatory = $true)][string]$ExpectedPackageRoot,
-        [Parameter(Mandatory = $true)][string]$CurrentSourceStateSha256
+        [Parameter(Mandatory = $true)][string]$CurrentSourceStateSha256,
+        [Parameter(Mandatory = $true)][string]$CurrentSourceRevision
     )
 
     $acceptancePath = Resolve-ProjectCinematicProjectPath `
@@ -126,6 +127,9 @@ function Test-ProjectCinematicReleaseBinding {
     Assert-ProjectCinematicReleaseBinding ($CurrentSourceStateSha256 -ceq `
             [string]$acceptance.source_state_sha256) `
         'Current source state differs from the operator-accepted Candidate source.'
+    Assert-ProjectCinematicReleaseBinding ($CurrentSourceRevision -ceq `
+            [string]$acceptance.source_revision) `
+        'Current source revision differs from the operator-accepted Candidate source.'
 
     $releaseCompositePath = Resolve-ProjectCinematicProjectPath `
         -ProjectRoot $ProjectRoot -Path ([string]$acceptance.release_composite) `

@@ -45,11 +45,11 @@ namespace
 
 			if (Stage == 0)
 			{
-				Movement->SetMovementMode(MOVE_Flying);
-				Controller->SetControlRotation(FRotator(0.0, 90.0, 0.0));
-				Start = Character->GetActorLocation();
-				Send(EKeys::SpaceBar, IE_Pressed);
-				Send(EKeys::W, IE_Pressed);
+				GroundMaxWalkSpeed = Movement->MaxWalkSpeed;
+				BaseMaxFlySpeed = Movement->MaxFlySpeed;
+				BaseMaxAcceleration = Movement->MaxAcceleration;
+				BaseBrakingDecelerationFlying = Movement->BrakingDecelerationFlying;
+				Send(EKeys::LeftShift, IE_Pressed);
 				Stage = 1;
 				StageFrame = 0;
 				return false;
@@ -58,25 +58,129 @@ namespace
 			++StageFrame;
 			if (Stage == 1)
 			{
-				Send(EKeys::SpaceBar, IE_Repeat);
-				Send(EKeys::W, IE_Repeat);
-				if (StageFrame < 45)
+				if (StageFrame < 10)
 				{
 					return false;
 				}
-				Send(EKeys::SpaceBar, IE_Released);
-				Send(EKeys::W, IE_Released);
-				const FVector Delta = Character->GetActorLocation() - Start;
-				Test.TestTrue(TEXT("Held Space ascends through mapped input."), Delta.Z > 10.0);
-				Test.TestTrue(TEXT("W remains controller-yaw relative while flying."), Delta.Y > FMath::Abs(Delta.X));
-				HighPoint = Character->GetActorLocation();
-				Send(EKeys::LeftControl, IE_Pressed);
+				Test.TestTrue(TEXT("Grounded Shift retains sprint behavior."),
+					Movement->MaxWalkSpeed > GroundMaxWalkSpeed);
+				Test.TestEqual(TEXT("Grounded Shift does not alter flight speed."),
+					Movement->MaxFlySpeed, BaseMaxFlySpeed);
+				Send(EKeys::LeftShift, IE_Released);
 				Stage = 2;
 				StageFrame = 0;
 				return false;
 			}
 
 			if (Stage == 2)
+			{
+				if (StageFrame < 10)
+				{
+					return false;
+				}
+				Test.TestTrue(TEXT("Grounded Shift release restores prior speed."),
+					FMath::IsNearlyEqual(Movement->MaxWalkSpeed, GroundMaxWalkSpeed));
+				Movement->SetMovementMode(MOVE_Flying);
+				Controller->SetControlRotation(FRotator(0.0, 90.0, 0.0));
+				Start = Character->GetActorLocation();
+				Send(EKeys::SpaceBar, IE_Pressed);
+				Send(EKeys::W, IE_Pressed);
+				Stage = 3;
+				StageFrame = 0;
+				return false;
+			}
+
+			if (Stage == 3)
+			{
+				Send(EKeys::SpaceBar, IE_Repeat);
+				Send(EKeys::W, IE_Repeat);
+				if (StageFrame < 120)
+				{
+					return false;
+				}
+				BaseMeasuredVelocity = Movement->Velocity.Size();
+				const FVector Delta = Character->GetActorLocation() - Start;
+				Test.TestTrue(TEXT("Held Space ascends through mapped input."), Delta.Z > 10.0);
+				Test.TestTrue(TEXT("W remains controller-yaw relative while flying."), Delta.Y > FMath::Abs(Delta.X));
+				Send(EKeys::LeftShift, IE_Pressed);
+				Stage = 4;
+				StageFrame = 0;
+				return false;
+			}
+
+			if (Stage == 4)
+			{
+				Send(EKeys::SpaceBar, IE_Repeat);
+				Send(EKeys::W, IE_Repeat);
+				if (StageFrame < 120)
+				{
+					return false;
+				}
+				Test.TestTrue(TEXT("Flying Shift selects the five-times speed candidate."),
+					FMath::IsNearlyEqual(Movement->MaxFlySpeed, BaseMaxFlySpeed * 5.0f));
+				Test.TestTrue(TEXT("Flying Shift scales only the active flight acceleration."),
+					FMath::IsNearlyEqual(Movement->MaxAcceleration, BaseMaxAcceleration * 5.0f));
+				Test.TestTrue(TEXT("Flying Shift scales flight braking for bounded stopping."),
+					FMath::IsNearlyEqual(Movement->BrakingDecelerationFlying,
+						BaseBrakingDecelerationFlying * 5.0f));
+				Test.TestTrue(TEXT("Flying Shift produces higher measured velocity."),
+					Movement->Velocity.Size() > BaseMeasuredVelocity + 100.0f);
+				Test.AddInfo(FString::Printf(
+					TEXT("PreviewFlight measured velocity: base=%.3f cm/s boost=%.3f cm/s ")
+					TEXT("base_max=%.3f cm/s boost_max=%.3f cm/s"),
+					BaseMeasuredVelocity, Movement->Velocity.Size(),
+					BaseMaxFlySpeed, Movement->MaxFlySpeed));
+				Send(EKeys::SpaceBar, IE_Released);
+				Send(EKeys::W, IE_Released);
+				Send(EKeys::LeftShift, IE_Released);
+				Stage = 5;
+				StageFrame = 0;
+				return false;
+			}
+
+			if (Stage == 5)
+			{
+				if (StageFrame < 10)
+				{
+					return false;
+				}
+				Test.TestTrue(TEXT("Shift release restores base flight speed."),
+					FMath::IsNearlyEqual(Movement->MaxFlySpeed, BaseMaxFlySpeed));
+				Test.TestTrue(TEXT("Shift release restores base acceleration."),
+					FMath::IsNearlyEqual(Movement->MaxAcceleration, BaseMaxAcceleration));
+				Test.TestTrue(TEXT("Shift release restores base flight braking."),
+					FMath::IsNearlyEqual(Movement->BrakingDecelerationFlying,
+						BaseBrakingDecelerationFlying));
+				Send(EKeys::LeftShift, IE_Pressed);
+				Stage = 6;
+				StageFrame = 0;
+				return false;
+			}
+
+			if (Stage == 6)
+			{
+				if (StageFrame < 10)
+				{
+					return false;
+				}
+				Movement->SetMovementMode(MOVE_Falling);
+				Test.TestTrue(TEXT("Leaving flight restores base speed even while Shift is held."),
+					FMath::IsNearlyEqual(Movement->MaxFlySpeed, BaseMaxFlySpeed));
+				Test.TestTrue(TEXT("Leaving flight restores base acceleration."),
+					FMath::IsNearlyEqual(Movement->MaxAcceleration, BaseMaxAcceleration));
+				Test.TestTrue(TEXT("Leaving flight restores base flight braking."),
+					FMath::IsNearlyEqual(Movement->BrakingDecelerationFlying,
+						BaseBrakingDecelerationFlying));
+				Send(EKeys::LeftShift, IE_Released);
+				Movement->SetMovementMode(MOVE_Flying);
+				HighPoint = Character->GetActorLocation();
+				Send(EKeys::LeftControl, IE_Pressed);
+				Stage = 7;
+				StageFrame = 0;
+				return false;
+			}
+
+			if (Stage == 7)
 			{
 				Send(EKeys::LeftControl, IE_Repeat);
 				if (StageFrame < 240)
@@ -92,12 +196,12 @@ namespace
 					Character->GetCapsuleComponent()->GetCollisionEnabled() != ECollisionEnabled::NoCollision);
 				LookStartYaw = Controller->GetControlRotation().Yaw;
 				SendLook(FVector2D(5.0, 0.0));
-				Stage = 3;
+				Stage = 8;
 				StageFrame = 0;
 				return false;
 			}
 
-			if (Stage == 3)
+			if (Stage == 8)
 			{
 				if (StageFrame < 10)
 				{
@@ -106,6 +210,30 @@ namespace
 				Test.TestTrue(TEXT("Simulated Mouse2D rotates through the mapped look action."),
 					FMath::Abs(FMath::FindDeltaAngleDegrees(
 						LookStartYaw, Controller->GetControlRotation().Yaw)) > 0.1);
+				Send(EKeys::LeftShift, IE_Pressed);
+				Stage = 9;
+				StageFrame = 0;
+				return false;
+			}
+
+			if (Stage == 9)
+			{
+				if (StageFrame < 10)
+				{
+					return false;
+				}
+				Test.TestTrue(TEXT("Flying Shift is active before unpossession."),
+					FMath::IsNearlyEqual(Movement->MaxFlySpeed, BaseMaxFlySpeed * 5.0f));
+				Controller->UnPossess();
+				Test.TestNull(TEXT("Controller releases the pawn during unpossession."),
+					Controller->GetPawn());
+				Test.TestTrue(TEXT("Unpossession restores base flight speed."),
+					FMath::IsNearlyEqual(Movement->MaxFlySpeed, BaseMaxFlySpeed));
+				Test.TestTrue(TEXT("Unpossession restores base acceleration."),
+					FMath::IsNearlyEqual(Movement->MaxAcceleration, BaseMaxAcceleration));
+				Test.TestTrue(TEXT("Unpossession restores base flight braking."),
+					FMath::IsNearlyEqual(Movement->BrakingDecelerationFlying,
+						BaseBrakingDecelerationFlying));
 				return true;
 			}
 
@@ -159,6 +287,11 @@ namespace
 		TWeakObjectPtr<UCharacterMovementComponent> Movement;
 		FVector Start = FVector::ZeroVector;
 		FVector HighPoint = FVector::ZeroVector;
+		float GroundMaxWalkSpeed = 0.0f;
+		float BaseMaxFlySpeed = 0.0f;
+		float BaseMaxAcceleration = 0.0f;
+		float BaseBrakingDecelerationFlying = 0.0f;
+		float BaseMeasuredVelocity = 0.0f;
 		double LookStartYaw = 0.0;
 		uint64 LastFrame = MAX_uint64;
 		int32 Frame = 0;

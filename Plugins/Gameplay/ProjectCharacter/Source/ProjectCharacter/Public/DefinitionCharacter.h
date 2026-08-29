@@ -108,6 +108,10 @@ class PROJECTCHARACTER_API ADefinitionCharacter : public ACharacter, public IAbi
 
 	bool bIsSprinting = false;
 	bool bIsWalking = false;
+	bool bFlightBoostActive = false;
+	float FlightBoostRestoreMaxFlySpeed = 0.0f;
+	float FlightBoostRestoreMaxAcceleration = 0.0f;
+	float FlightBoostRestoreBrakingDeceleration = 0.0f;
 	double LastWalkToggleTime = 0.0;
 	bool bMovementSpeedBound = false;
 
@@ -150,6 +154,7 @@ private:
 	void ToggleWalk();
 	void StartCrouch();
 	void RefreshMovementSpeed();
+	void ApplyFlightBoost(bool bEnable);
 	float GetMovementSpeedMultiplier() const;
 	void BindMovementSpeedAttribute();
 	void UnbindMovementSpeedAttribute();

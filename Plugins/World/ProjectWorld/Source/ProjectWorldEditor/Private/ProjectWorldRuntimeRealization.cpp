@@ -240,6 +240,32 @@ namespace ProjectWorldRuntimeRealization
 			return true;
 		}
 
+		bool ProductSpawnLocation(
+			const FProjectWorldCanonicalBundle& Bundle,
+			const FProjectWorldRuntimeProfile& Profile,
+			FVector& OutLocation,
+			FString& OutError)
+		{
+			if (Profile.ProductSpawnAnchor != TEXT("engine_georeference_origin"))
+			{
+				OutError = TEXT("The product spawn must use the engine georeference origin anchor.");
+				return false;
+			}
+			const FVector2D Anchor = Bundle.EngineGeoreferenceOriginMeters;
+			const FProjectWorldCanonicalCell* Cell = CellAt(Bundle, Anchor);
+			if (Cell == nullptr)
+			{
+				OutError = TEXT("The product spawn anchor must remain inside an accepted canonical cell.");
+				return false;
+			}
+
+			const double TerrainHeight = ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Anchor.X, Anchor.Y);
+			OutLocation = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+				Bundle,
+				FVector(Anchor, TerrainHeight + Profile.ProductSpawnHeightAboveTerrainMeters));
+			return true;
+		}
+
 		enum class ERouteSurfaceExpectation : uint8
 		{
 			OnRoad,
@@ -532,7 +558,12 @@ namespace ProjectWorldRuntimeRealization
 		const FProjectWorldCanonicalFeature* Feature = RouteFeature(Bundle, Profile, OutError);
 		FVector Start;
 		FVector End;
-		return Feature != nullptr && RouteLocations(Bundle, Profile, *Feature, Start, End, OutError);
+		if (Feature == nullptr || !RouteLocations(Bundle, Profile, *Feature, Start, End, OutError))
+		{
+			return false;
+		}
+		return Profile.ProfileKind != TEXT("territory_product") ||
+			ProductSpawnLocation(Bundle, Profile, Start, OutError);
 	}
 
 	bool Apply(
@@ -558,9 +589,16 @@ namespace ProjectWorldRuntimeRealization
 				OutError = TEXT("Cannot create the unique territory PlayerStart.");
 				return false;
 			}
-			const FVector Direction = (End - Start).GetSafeNormal2D();
-			PlayerStart->SetActorLocation(Start + FVector(0.0, 0.0, 100.0));
-			PlayerStart->SetActorRotation(Direction.Rotation());
+			FVector ProductLocation;
+			if (!ProductSpawnLocation(Bundle, Profile, ProductLocation, OutError))
+			{
+				return false;
+			}
+			PlayerStart->SetActorLocation(ProductLocation);
+			PlayerStart->SetActorRotation(FRotator(
+				Profile.ProductSpawnPitchDegrees,
+				Profile.ProductSpawnYawDegrees,
+				0.0));
 			SetIdentity(*PlayerStart, TEXT("PlayerStart"), Bundle, Profile, false);
 			return true;
 		}

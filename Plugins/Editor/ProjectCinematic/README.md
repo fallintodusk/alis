@@ -29,8 +29,10 @@ The schema-bound request is
 sequence, preset, frame range, operator acceptance receipt, and exact Shipping
 Candidate. The wrapper independently recomputes the package tree and staged
 executable hashes, then cross-checks source, runtime-profile, release-operation,
-and composite identity before launching the Editor. A missing or mismatched
-acceptance refuses before render.
+and composite identity before launching the Editor. Source identity includes both
+the dirty-tree digest and exact current `git rev-parse HEAD`; this prevents two
+different clean revisions from being treated as the same accepted source. A missing
+or mismatched acceptance refuses before render.
 
 Promoted output:
 
@@ -39,9 +41,11 @@ Saved/CinematicRelease/Kazan/Current/
 Saved/CinematicRelease/Kazan/Previous/
 ```
 
-`Current/receipt.json` authenticates the Editor/MRQ execution separately from the
-accepted Shipping executable and package hashes. MRQ may not claim to be the Shipping
-runtime or silently increase product scalability, LOD, or streaming quality.
+`Current/receipt.json` directly records the exact accepted `source_revision` and
+dirty/untracked source-state digest. It authenticates the Editor/MRQ execution
+separately from the accepted Shipping executable and package hashes. MRQ may not
+claim to be the Shipping runtime or silently increase product scalability, LOD, or
+streaming quality.
 
 ## Shipping boundary
 

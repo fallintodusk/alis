@@ -175,11 +175,22 @@ Write-Host ""
 $tryLiveCoding = $false
 switch ($CompileMode) {
     # Auto uses LC only when a warm editor is alive. If the editor is
-    # cold, there is nothing for LC to patch and the cold dispatch path
-    # through run_cpp_tests_safe.ps1 does a full build itself.
+    # cold, there is nothing for LC to patch, so this wrapper performs
+    # the normal launcher-engine incremental build before dispatch.
     "Auto"       { $tryLiveCoding = $warm }
     "LiveCoding" { $tryLiveCoding = $true }   # strict: try regardless; fail loud
     "None"       { $tryLiveCoding = $false }  # caller compiled already
+}
+
+if (-not $warm -and $CompileMode -eq "Auto") {
+    Write-Host "[compile] Cold incremental AlisEditor build..." -ForegroundColor Cyan
+    $buildScript = Join-Path $PSScriptRoot "..\..\standalone\build.ps1"
+    & $buildScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[compile] Cold build failed - refusing to dispatch stale binaries." -ForegroundColor Red
+        exit 5
+    }
+    Write-Host "[compile] Cold build OK -> proceeding to dispatch" -ForegroundColor Green
 }
 
 if ($tryLiveCoding) {

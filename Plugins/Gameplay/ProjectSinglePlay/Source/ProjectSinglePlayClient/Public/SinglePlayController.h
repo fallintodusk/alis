@@ -93,6 +93,9 @@ private:
 	// Toggle the mind journal panel.
 	void HandleToggleMindJournalAction(const FInputActionValue& Value);
 
+	// Toggle the ProjectMenuGame-owned pause overlay.
+	void HandleToggleGameMenuAction(const FInputActionValue& Value);
+
 public:
 	// -------------------------------------------------------------------------
 	// UI Panels - programmatic API
@@ -224,6 +227,10 @@ private:
 	/** Toggle action for mind journal panel. */
 	UPROPERTY()
 	TObjectPtr<UInputAction> ToggleMindJournalAction;
+
+	/** Toggle action for the in-game menu. */
+	UPROPERTY()
+	TObjectPtr<UInputAction> ToggleGameMenuAction;
 
 	/** Interact action (E key). */
 	UPROPERTY()

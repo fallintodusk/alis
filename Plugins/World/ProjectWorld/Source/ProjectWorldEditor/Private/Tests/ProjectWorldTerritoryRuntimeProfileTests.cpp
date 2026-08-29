@@ -42,6 +42,14 @@ bool FProjectWorldTerritoryRuntimeProfileContractTest::RunTest(const FString& Pa
 		TestEqual(TEXT("Candidate cell size is pinned."), Profile.RuntimeCellSizeMeters, Candidate.CellSizeMeters);
 		TestEqual(TEXT("Candidate loading range is pinned."), Profile.RuntimeLoadingRangeMeters, Candidate.LoadingRangeMeters);
 		TestTrue(TEXT("Candidate blocks readiness on slow streaming."), Profile.bBlockOnSlowStreaming);
+		TestEqual(TEXT("Candidate starts at the Spasskaya-derived engine origin."),
+			Profile.ProductSpawnAnchor, FString(TEXT("engine_georeference_origin")));
+		TestEqual(TEXT("Candidate starts above the landmark massing."),
+			Profile.ProductSpawnHeightAboveTerrainMeters, 180.0);
+		TestEqual(TEXT("Candidate starts with the selected city-facing yaw."),
+			Profile.ProductSpawnYawDegrees, 45.0);
+		TestEqual(TEXT("Candidate starts with a downward overview pitch."),
+			Profile.ProductSpawnPitchDegrees, -20.0);
 	}
 	return true;
 }

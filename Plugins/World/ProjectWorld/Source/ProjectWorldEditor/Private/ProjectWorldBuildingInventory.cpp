@@ -115,6 +115,8 @@ namespace ProjectWorldBuildingInventory
 			else if (!Mesh->GetNaniteSettings().bEnabled) OwnershipFailure = TEXT("building mesh has Nanite disabled");
 			else if (Mesh->GetBodySetup() == nullptr || Mesh->GetBodySetup()->CollisionTraceFlag != CTF_UseComplexAsSimple)
 				OwnershipFailure = TEXT("building collision is not complex-as-simple");
+			else if (!Mesh->GetBodySetup()->bDoubleSidedGeometry)
+				OwnershipFailure = TEXT("building collision is not double-sided");
 			else if (Component->GetCollisionEnabled() != ECollisionEnabled::QueryAndPhysics)
 				OwnershipFailure = TEXT("building collision is not query-and-physics");
 			else if (Component->CanEverAffectNavigation()) OwnershipFailure = TEXT("building affects navigation");

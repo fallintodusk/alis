@@ -91,6 +91,18 @@ bool FProjectWorldCanonicalCoordinatesRoundTripTest::RunTest(const FString& Para
 	const FVector Unreal = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, Canonical);
 	const FVector RoundTripped = FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle, Unreal);
 	TestTrue(TEXT("Projected coordinates survive the UE left-handed mapping."), Canonical.Equals(RoundTripped, 0.000001));
+	const FVector East = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+		Bundle, Canonical + FVector(1.0, 0.0, 0.0));
+	const FVector North = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+		Bundle, Canonical + FVector(0.0, 1.0, 0.0));
+	const FVector Up = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+		Bundle, Canonical + FVector(0.0, 0.0, 1.0));
+	TestTrue(TEXT("One canonical metre east is exactly +100 UE centimetres."),
+		(East - Unreal).Equals(FVector(100.0, 0.0, 0.0), 0.000001));
+	TestTrue(TEXT("One canonical metre north is exactly -100 UE centimetres."),
+		(North - Unreal).Equals(FVector(0.0, -100.0, 0.0), 0.000001));
+	TestTrue(TEXT("One canonical vertical metre is exactly +100 UE centimetres."),
+		(Up - Unreal).Equals(FVector(0.0, 0.0, 100.0), 0.000001));
 	Bundle.EngineGeoreferenceOriginMeters = FVector2D(381409.0, 6185051.0);
 	const FVector Rebased = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, Canonical);
 	TestFalse(TEXT("Changing only the engine origin rebases world space."), Rebased.Equals(Unreal));

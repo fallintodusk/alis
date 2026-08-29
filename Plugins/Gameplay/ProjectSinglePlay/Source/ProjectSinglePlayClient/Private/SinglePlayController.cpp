@@ -194,6 +194,15 @@ void ASinglePlayController::SetupInputComponent()
 		}
 
 #if !UE_SERVER
+		if (ToggleGameMenuAction)
+		{
+			EnhancedInputComponent->BindAction(
+				ToggleGameMenuAction,
+				ETriggerEvent::Started,
+				this,
+				&ASinglePlayController::HandleToggleGameMenuAction);
+		}
+
 		if (ToggleInventoryAction)
 		{
 			EnhancedInputComponent->BindAction(
@@ -565,6 +574,14 @@ void ASinglePlayController::CreateUIInputAssets()
 	}
 
 #if !UE_SERVER
+	if (!ToggleGameMenuAction)
+	{
+		ToggleGameMenuAction = NewObject<UInputAction>(this, TEXT("IA_ToggleGameMenu"));
+		ToggleGameMenuAction->ValueType = EInputActionValueType::Boolean;
+		ToggleGameMenuAction->bTriggerWhenPaused = true;
+		UIInputMappingContext->MapKey(ToggleGameMenuAction, EKeys::Escape);
+	}
+
 	if (!ToggleInventoryAction)
 	{
 		ToggleInventoryAction = NewObject<UInputAction>(this, TEXT("IA_ToggleInventoryPanel"));

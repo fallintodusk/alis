@@ -1,6 +1,6 @@
 {
   "$schema": "../../../ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json",
-  "schema_version": 2,
+  "schema_version": 3,
   "profile_id": "kazan_territory_512_1536_v1",
   "profile_kind": "territory_product",
   "grid_id": "grid_413718bc833994e5",
@@ -17,6 +17,12 @@
     "surface_offset_m": 0.15,
     "navigation_padding_m": 20.0,
     "navigation_height_m": 100.0
+  },
+  "product_spawn": {
+    "anchor": "engine_georeference_origin",
+    "height_above_terrain_m": 180.0,
+    "yaw_degrees": 45.0,
+    "pitch_degrees": -20.0
   },
   "optimization_policy": {
     "nanite": "enabled_for_supported_generated_static_meshes",

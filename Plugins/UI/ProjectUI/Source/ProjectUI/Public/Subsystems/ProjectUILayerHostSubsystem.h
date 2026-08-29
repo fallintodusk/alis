@@ -37,6 +37,9 @@ public:
 	/** Hide a definition by Id (collapses or destroys based on spawn policy). */
 	void HideDefinition(FName DefinitionId);
 
+	/** True when a definition currently owns a visible widget instance. */
+	bool IsDefinitionVisible(FName DefinitionId) const;
+
 	/** Access the active HUD layout widget. */
 	UUserWidget* GetHUDLayout() const { return HUDLayout.Get(); }
 

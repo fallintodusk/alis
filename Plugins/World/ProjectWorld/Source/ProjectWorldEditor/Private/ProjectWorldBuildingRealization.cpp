@@ -450,6 +450,7 @@ namespace ProjectWorldBuildingRealization
 			}
 			Mesh->CreateBodySetup();
 			Mesh->GetBodySetup()->CollisionTraceFlag = CTF_UseComplexAsSimple;
+			Mesh->GetBodySetup()->bDoubleSidedGeometry = true;
 			FAssetRegistryModule::AssetCreated(Mesh);
 			if (!SaveAsset(Package, Mesh))
 			{

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ProjectMenuGame.PauseMenu",
+    "layer": "UI.Layer.Menu",
+    "widget_class": "/Script/ProjectMenuGame.W_GameMenu",
+    "layout_json": "GameMenu.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 10
+  }
+]

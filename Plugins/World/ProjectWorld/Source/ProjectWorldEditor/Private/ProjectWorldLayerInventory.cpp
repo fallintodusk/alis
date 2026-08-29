@@ -477,7 +477,7 @@ namespace ProjectWorldLayerInventory
 		OutResult.LandscapeProxyCount = TerrainCells.Num();
 
 		FString MaterialSemantic;
-		if (!HashText(TEXT("project_water_material_v1|") + Water->NormalizedLayerContractHash, MaterialSemantic) ||
+		if (!HashText(TEXT("project_water_material_v2|") + Water->NormalizedLayerContractHash, MaterialSemantic) ||
 			!AddPackageArtifact(
 				Water->ArtifactRoot + TEXT("M_ProjectWorldWater"),
 				TEXT("asset"),
