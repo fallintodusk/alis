@@ -31,7 +31,7 @@ default session bootstrap.
 |---|---|
 | `ProjectWorld` | Reusable world contracts, C++/script logic, and tests; no concrete UE content. |
 | `ProjectMaterial` | Universal material graphs, instances, recipe schemas, generated material assets, and Editor compiler. |
-| `ProjectWorldData` | Kazan profiles, authored data, persistent canonical bundles, generated UE packages, and manifests. |
+| `ProjectWorldData` | Concrete territory profiles, authored data, persistent canonical bundles, generated UE packages, and manifests. |
 | `ProjectWorldTestData` | Editor-only synthetic inputs and authored fixtures; generated packages/manifests are ignored transient test output. |
 | `SourceIngestion` | Acquire, verify, normalize, and receipt provider data. |
 | `CanonicalCompilation` | Compile admitted inputs into deterministic canonical cells and persistent bundles. |
@@ -54,3 +54,28 @@ semantic identity, parent dependency, and current parent bytes. A reference migr
 updates and dirties the root Landscape and every external streaming-proxy package in the
 same logical Landscape family. Later same-path material tuning changes ProjectMaterial
 authority only and does not dirty World packages or geography manifests.
+
+Packaged Water appearance is authenticated by the existing ProjectWorld product
+acceptance owner. Its Shipping-only proof reuses the real-input playable-tour driver,
+stops the possessed production character within the accepted Water arrival radius, and
+keeps one transient `SceneCapture2D` plus render target alive for the complete repeated
+pair. The camera is anchored to the authenticated canonical Water XY and uses UE's
+built-in top-down orthographic `SCS_BaseColor` path. This preserves real mesh depth and
+Landscape occlusion while excluding sky, lighting, and post-process color from the
+Water classifier; it does not create a debug material or alternate renderer.
+After that diagnostic pair, the same Shipping process writes one target-centered
+perspective `SCS_FinalColorLDR` image with normal product show flags. The two outputs
+have distinct owners: BaseColor plus the temporal verifier proves stable geometry,
+occlusion, and material base color; direct inspection of FinalColor proves the lit,
+tone-mapped product presentation seen by the player.
+
+The Shipping travel requirement is target-relative: the configured target must start
+beyond its arrival radius, the pawn must end inside that radius, and accumulated real
+input travel must cover at least start-to-target distance minus the radius. Before
+packaging, the acceptance owner maps the viewpoint back to canonical coordinates and
+requires it to remain inside the expected Water feature under the compile result used by
+the active Water manifest. The external Water temporal verifier owns the unchanged pixel
+thresholds. The exact uncropped Shipping base-color PNG proves that classified pixels are
+the generated Water plane rather than Landscape; the separate final-color PNG owns the
+semantic product-appearance inspection. This route uses `RenderOffScreen`; desktop-wide
+Windows input is not an accepted automation path.

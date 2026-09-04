@@ -737,6 +737,46 @@ namespace ProjectWorldCanonical
 			Attributes->TryGetStringField(TEXT("leaf_type"), Feature.LeafType);
 			Attributes->TryGetStringField(TEXT("leaf_cycle"), Feature.LeafCycle);
 			Attributes->TryGetStringField(TEXT("species"), Feature.Species);
+			// PROJECTWORLD_PRODUCER_BEGIN project_building_massing
+			const TArray<TSharedPtr<FJsonValue>>* BuildingVolumes = nullptr;
+			if (Attributes->TryGetArrayField(TEXT("effective_volumes"), BuildingVolumes))
+			{
+				if (Feature.FeatureClass != TEXT("building") || BuildingVolumes == nullptr || BuildingVolumes->IsEmpty())
+				{
+					Reject(Validation, TEXT("building-volume"), TEXT("Effective volumes require a Building feature."), Feature.FeatureId);
+					return false;
+				}
+				for (const TSharedPtr<FJsonValue>& VolumeValue : *BuildingVolumes)
+				{
+					const TSharedPtr<FJsonObject>* VolumePtr = nullptr;
+					TSharedPtr<FJsonObject> VolumeGeometry;
+					FProjectWorldCanonicalBuildingVolume Volume;
+					TArray<FVector2D> IgnoredPoints;
+					TArray<TArray<FVector2D>> IgnoredParts;
+					if (!VolumeValue->TryGetObject(VolumePtr) || VolumePtr == nullptr || !VolumePtr->IsValid() ||
+						!RequireString(*VolumePtr, TEXT("volume_id"), Volume.VolumeId, Validation) ||
+						!RequireString(*VolumePtr, TEXT("source_feature_id"), Volume.SourceFeatureId, Validation) ||
+						!RequireDouble(*VolumePtr, TEXT("min_height_m"), Volume.MinHeightMeters, Validation) ||
+						!RequireDouble(*VolumePtr, TEXT("height_m"), Volume.HeightMeters, Validation) ||
+						!RequireObject(*VolumePtr, TEXT("geometry"), VolumeGeometry, Validation) ||
+						!ProjectWorldGeometryParsing::ReadGeometry(
+							VolumeGeometry,
+							Volume.GeometryType,
+							IgnoredPoints,
+							Validation,
+							&IgnoredParts,
+							&Volume.GeometryPolygons) ||
+						(Volume.GeometryType != TEXT("Polygon") && Volume.GeometryType != TEXT("MultiPolygon")) ||
+						Volume.GeometryPolygons.IsEmpty() ||
+						Volume.MinHeightMeters < 0.0 || Volume.MinHeightMeters >= Volume.HeightMeters)
+					{
+						Reject(Validation, TEXT("building-volume"), TEXT("Effective Building volume is invalid."), Feature.FeatureId);
+						return false;
+					}
+					Feature.BuildingVolumes.Add(MoveTemp(Volume));
+				}
+			}
+			// PROJECTWORLD_PRODUCER_END project_building_massing
 			if (!ProjectWorldWaterContractParsing::Read(Attributes, Feature, Validation))
 			{
 				return false;

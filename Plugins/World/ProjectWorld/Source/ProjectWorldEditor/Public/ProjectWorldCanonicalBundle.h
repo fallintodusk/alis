@@ -33,6 +33,17 @@ struct FProjectWorldCanonicalRepresentation
 	TArray<TArray<FVector2D>> Parts;
 	TArray<FProjectWorldCanonicalPolygon> Polygons;
 };
+// PROJECTWORLD_PRODUCER_BEGIN project_building_massing
+struct FProjectWorldCanonicalBuildingVolume
+{
+	FString VolumeId;
+	FString SourceFeatureId;
+	FString GeometryType;
+	TArray<FProjectWorldCanonicalPolygon> GeometryPolygons;
+	double MinHeightMeters = 0.0;
+	double HeightMeters = 0.0;
+};
+// PROJECTWORLD_PRODUCER_END project_building_massing
 
 struct FProjectWorldCanonicalFeature
 {
@@ -53,6 +64,9 @@ struct FProjectWorldCanonicalFeature
 	FString Species;
 	double WidthMeters = 0.0;
 	double HeightMeters = 0.0;
+	// PROJECTWORLD_PRODUCER_BEGIN project_building_massing
+	TArray<FProjectWorldCanonicalBuildingVolume> BuildingVolumes;
+	// PROJECTWORLD_PRODUCER_END project_building_massing
 };
 
 struct FProjectWorldCanonicalTerrain

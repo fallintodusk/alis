@@ -179,6 +179,42 @@ PROJECTLOADING_API FLoadRequest BuildResolvedLoadRequest_ForTests(const UProject
 
 	return Request;
 }
+
+/**
+ * Test helper: resolve an experience the way production does - by name, through the real
+ * FInitialExperienceLoader. This exercises the load-bearing seam that the descriptor-only
+ * helper above skips: registry lookup, configured-definition discovery on a miss, lookup
+ * retry, and descriptor-specific AssetManager scans.
+ */
+PROJECTLOADING_API bool BuildLoadRequestByName_ForTests(
+	FName ExperienceName,
+	FLoadRequest& OutRequest,
+	FText& OutError)
+{
+	FInitialExperienceLoader Loader(UProjectExperienceRegistry::Get());
+	return Loader.BuildLoadRequest(ExperienceName, OutRequest, OutError);
+}
+
+/**
+ * Test helper: same production path, but over a registry that is guaranteed empty.
+ *
+ * The global registry keeps descriptors for the life of the process, so once any earlier case
+ * has resolved an experience the shared-registry helper above would find it immediately and
+ * silently skip the discovery seam it is meant to cover. A fresh registry forces the initial
+ * lookup to miss, so configured-definition discovery and the retry are genuinely exercised.
+ */
+PROJECTLOADING_API bool BuildLoadRequestWithFreshRegistry_ForTests(
+	FName ExperienceName,
+	FLoadRequest& OutRequest,
+	FText& OutError,
+	bool& bOutInitialLookupMissed)
+{
+	UProjectExperienceRegistry* FreshRegistry = NewObject<UProjectExperienceRegistry>(GetTransientPackage());
+	bOutInitialLookupMissed = FreshRegistry->FindDescriptor(ExperienceName) == nullptr;
+
+	FInitialExperienceLoader Loader(FreshRegistry);
+	return Loader.BuildLoadRequest(ExperienceName, OutRequest, OutError);
+}
 #endif
 
 UProjectLoadingSubsystem::UProjectLoadingSubsystem()

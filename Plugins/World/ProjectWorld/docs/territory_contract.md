@@ -229,6 +229,17 @@ identity, and rejects missing or unknown ID/version pairs. A new compiler
 function version requires a matching realization implementation and proof
 before its canonical output can be consumed.
 
+Canonical Terrain and Water may legitimately disagree vertically because the
+current DEM is a sampled DSM while Water is a fitted flat or monotonic surface.
+Realization resolves that representation seam without changing either canonical
+authority: the Landscape projection consumes both `terrain` and `water`, and for
+each Landscape sample inside the exact canonical Water footprint applies
+`min(canonical_terrain_z, canonical_water_surface_z)`. Samples outside Water are
+unchanged. The Water mesh independently stays at canonical Water Z plus the
+profile-owned positive surface offset. This is a deterministic hydro-conditioned
+rendering projection, not a new elevation source, Water drape, material mask, or
+Kazan-specific override.
+
 Ribbon cell membership derives from the final quantized buffered surface
 footprint, not only its centerline. A footprint-only cell stores an explicit
 reference to the same feature-level centerline, width, and surface function;
@@ -261,9 +272,9 @@ Source basis:
 |---|---|---|
 | Source Ingestion | Provider payload admission, provenance, normalized shards | Unreal assets or visual style |
 | Canonical Compilation | Metric terrain and typed geographic features per cell | Engine actors or materials |
-| ProjectWorld realization | Generic Unreal generation, serialization, manifest, and runtime logic | Kazan data or place-specific assets |
+| ProjectWorld realization | Generic Unreal generation, serialization, manifest, and runtime logic | Territory data or place-specific assets |
 | ProjectWorldTestData | Synthetic profiles, inputs, and authored fixtures; ignored generated packages/manifests during test transactions | Reusable logic, shipping content, or durable generated authority |
-| ProjectWorldData | Kazan profiles, canonical JSON, authored assets, and realized Unreal packages | Reusable generator logic |
+| ProjectWorldData | Concrete territory profiles, canonical JSON, authored assets, and realized Unreal packages | Reusable generator logic |
 | Authored overlay | Protected hero locations and game-specific art | Base geographic truth |
 
 Terrain, river and water geometry, land cover, vegetation areas or points,
@@ -277,7 +288,7 @@ representation an editable upstream SOT.
 
 | Stage | Owner and home | Contract |
 |---|---|---|
-| Kazan intent | `ProjectWorldData/Data/` | Human-edited source, profiles, controls, overlays, and provenance |
+| Territory intent | `ProjectWorldData/Data/` | Human-edited source, profiles, controls, overlays, and provenance |
 | Accepted canonical world | `ProjectWorldData/Data/Canonical/` | Immutable generated JSON bundles and indexes; sole input to production realization |
 | Realized Unreal world | `/ProjectWorldData/Generated/` plus external actor/object mirrors | Saved, cooked, manifest-owned runtime representation |
 | Authored Unreal overlay | `/ProjectWorldData/Authored/` | Protected manual SOT; never generated or deleted by regeneration |
@@ -358,20 +369,26 @@ Concrete profiles live under the owning data plugin's
 `Data/Profiles/Realization/` directory. The loader verifies that the profile,
 map package, protected roots, runtime exclusions, and every layer artifact root
 belong to that same data plugin. Generator settings are typed by the registered
-ID/version pair. The v1 terrain contract requires one component per proxy; the
-v1 water contract requires non-Nanite Single Layer Water. Unknown pairs,
-versions, or settings fail before mutation.
+ID/version pair. The v1 terrain contract requires one component per proxy and
+ordered canonical selectors `terrain`, `water`. The
+current v1 Water blockout requires a non-Nanite, opaque solid-blue surface with
+a bounded positive realization offset above canonical Water Z. The offset is a
+replaceable presentation separation, never a change to canonical Water elevation.
+Universal Water appearance remains future ProjectMaterial resource authority;
+the generator-local solid color is only the current prototype legibility fallback.
+Unknown pairs, versions, or settings fail before mutation.
 
 The executable registry is deliberately smaller than the schema vocabulary.
 It currently admits only these complete tuples:
 
 | Generator | Kind | Selector | Spatial ownership | Dirty unit | Runtime mapping |
 |---|---|---|---|---|---|
-| `project_landscape:v1` | generated geography | terrain | logical Landscape with cell proxies | canonical cell | World Partition owner |
+| `project_landscape:v1` | generated geography | terrain + water | logical Landscape with cell proxies | canonical cell | World Partition owner |
 | `project_water_mesh:v1` | generated geography | water | cell local | canonical cell | World Partition spatial |
 | `project_road_mesh:v1` | generated geography | roads | cell local | canonical cell | World Partition spatial |
 | `project_vegetation_instances:v1` | generated geography | vegetation | cell-local HISM actors | canonical cell | World Partition spatial |
 | `project_building_massing:v1` | generated geography | buildings | cell-local StaticMesh actors | canonical cell | World Partition spatial |
+| `project_building_massing:v2` | generated geography | logical buildings with effective volumes | cell-local StaticMesh actors | canonical cell | World Partition spatial |
 | `project_gameplay_placement:v1` | generated gameplay placement | gameplay placements | object-local ObjectDefinition actors | stable object ID | World Partition spatial |
 
 A layer artifact root must be a strict descendant of the owner's `Generated/`
@@ -405,7 +422,12 @@ computed units or bypass transitive dependency expansion. Data Layers may group
 or toggle realized actors, but do not establish generation ownership by
 themselves.
 
-Terrain cell input identity is the authenticated canonical terrain artifact.
+Terrain cell input identity is the deterministic composite of the authenticated
+canonical terrain artifact and the Water cell semantic hash consumed by the
+hydro-conditioned Landscape projection. A Water geometry or surface-Z change
+therefore dirties only affected Landscape cells and their declared dependants.
+A same-path Water material change is not part of this identity and dirties no
+Landscape geography.
 Water cell input identity is a deterministic hash of only water semantics
 consumed by that cell: membership, geometry, width, surface function/version,
 surface Z, cell bounds, and relevant coordinate quantization. The enclosing
@@ -415,25 +437,21 @@ Road cell input identity likewise covers only the terrain dependency and road
 semantics consumed by that cell. Adding another profile layer cannot invalidate
 an accepted layer merely because the aggregate profile document hash changed;
 the normalized layer contract remains that layer's behavior authority.
-Building cell input identity covers only intersecting canonical building
-geometry and admitted height, the owning terrain artifact, intersecting authored
-building masks, quantization, and the normalized building-layer contract. A
-building that crosses a cell boundary participates in each affected cell; an
-unrelated road, water, vegetation, or authored overlay does not dirty it.
+Building cell input identity covers only intersecting logical Building geometry,
+its ordered effective-volume geometry and vertical ranges, the owning terrain
+artifact, intersecting authored building masks, quantization, and the normalized
+building-layer contract. A volume that crosses a cell boundary participates in
+each affected cell; an unrelated road, water, vegetation, or authored overlay
+does not dirty it.
 
-The current Kazan v1 source selector admits `nwr/building`. A source object that
-has only `building:part` is therefore outside current canonical Building authority,
-even when it supplies a taller volume above an admitted base building. Realization
-cannot reconstruct omitted parts: it combines admitted features into one cell-local
-StaticMesh actor and extrudes each admitted `HeightMeters` value. Adding part-only
-volumes requires an explicit source-admission and canonical-representation revision,
-generic overlap/ownership rules, and regeneration through the existing Building
-owner. It must not be approximated by landmark-specific height overrides or by
-per-feature runtime actors. In a future revision, an admitted `building=*` outline
-with associated `building:part` volumes is the semantic container and 2D footprint,
-not an additional 3D extrusion over the same area. Parts own the differentiated 3D
-volumes when present; incomplete part coverage requires an explicit fallback rule
-rather than silently realizing both outline and parts as duplicate mass.
+Canonical Compilation terminates provider building-part and relation semantics.
+ProjectWorld receives one provider-neutral logical Building whose outline owns
+identity and 2D topology and whose deterministic `effective_volumes` own 3D
+massing. Complete valid part coverage selects only the part volumes. Missing or
+incomplete parts use one qualified outline fallback; an unsafe fallback rejects
+the logical massing. Explicit relation ownership may admit an overhang outside
+the outline. ProjectWorld never parses provider roles and never creates one actor
+per part.
 Gameplay-object input identity covers its typed placement record, referenced
 ObjectDefinition identity, owning terrain-cell input, provider contract, and
 normalized gameplay-layer contract. ProjectWorld consumes the ProjectCore
@@ -1183,6 +1201,14 @@ lattice and coordinate authority, not a competing v1 option.
   territory blockouts only: no interiors, doors, gameplay placement, or modular
   assembly is implied. Later selected-feature assembly must replace only the
   selected massing through its own admitted generator tuple.
+- The building-massing v2 producer consumes the same logical Building topology
+  plus its canonical effective volumes. It classifies only independent logical
+  buildings against one another, anchors the logical Building once to owning
+  terrain, clips every volume to each intersected canonical cell, and extrudes
+  `base + min_height_m` through `base + height_m`. Same-building overlaps and
+  raised or stacked volumes are therefore massing input, not duplicate/conflict
+  candidates. It keeps the v1 one-StaticMesh/actor-per-occupied-cell, Nanite,
+  material, collision, seam, and manifest ownership path.
 - Do not generate HLOD layers, proxy meshes, merged meshes, simplified
   meshes, or HLOD companion packages for `kazan_territory_v1`. HLOD adds a
   separate distant-representation build, storage, cook, and regeneration

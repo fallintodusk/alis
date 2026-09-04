@@ -25,6 +25,7 @@ struct FProjectWorldProductRouteGateConfig
 	FString MachineProfileId;
 	FVector EdgeLocation = FVector::ZeroVector;
 	bool bRestorePreviewFlight = false;
+	bool bRequireGameplayInteraction = true;
 };
 
 class FProjectWorldProductRouteGate
@@ -64,7 +65,7 @@ private:
 	bool IsStreamingCompleted() const;
 	bool InspectRuntimeOwnership(FString& OutError);
 	bool ProbeTaggedCollision(
-		FName RequiredTag,
+		TConstArrayView<FName> AcceptedTags,
 		FString& OutActorName,
 		int32& OutCandidateCount,
 		int32& OutBlockingPrimitiveCount) const;

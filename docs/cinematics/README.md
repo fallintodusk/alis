@@ -27,6 +27,9 @@ launcher Editor, binds the receipt to the accepted packaged release, and promote
 
 ## Files
 
+- [visual_language.md](visual_language.md) - style: what the footage claims, how it is
+  composed and moved, and what we will not do. Read before framing anything.
+- [raw_capture.md](raw_capture.md) - collecting raw editable footage: shot plans, the raw-capture command, map authentication, and streaming for wide aerial shots.
 - [render_setup.md](render_setup.md) - UE side: Take Recorder workflow, MRQ config, decal-safe CVars, recommended output formats.
 - [ffmpeg.md](ffmpeg.md) - Post-process: encoding presets, image sequence to mp4, h264 vs h265, size reduction, trim/concat, ffprobe path on this machine.
 - [troubleshooting.md](troubleshooting.md) - Common capture-time issues (missing decals in render, hangs mid-render, oversized files).

@@ -1,0 +1,106 @@
+{
+    "$schema":  "../../../../ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "map_showcase_manhattan_l_projectworldmanhattanshowcase",
+    "generation":  1,
+    "owning_layer":  "map",
+    "accepted_operation_id":  "174441579ca54e26858ebd4c5532221c",
+    "accepted_at_utc":  "2026-09-02T22:22:02.7974702+00:00",
+    "generator_fingerprint":  "e8c77c2e6b25e0bdb63cfd9597ebad916e73100707a7e7b38d68052a7b0deecf",
+    "input_identity":  {
+                           "map_package":  "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase",
+                           "runtime_profile_sha256":  "6e1732b7060b663432350407f3ccd4a1d9524e8cdf072e857daa65b8cb139ca1",
+                           "authored_overlay_profile_sha256":  "f853b83c79533145d5396ffe48d98de25cc67714aefa366c9012775195a1b269",
+                           "compile_result_sha256":  "7418ccced1ac60f7ec3b8f5df4923a4a9b2895e43d5fa5ff890fc8aa4e86255f",
+                           "presentation_profile_sha256":  "de1a92306f3ce383b5ac04f82e5892d100460b286690b86d9cb93ac4da108a36"
+                       },
+    "artifacts":  [
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/8/F2/2W4Z930ZUXENWVDO5EV9YP.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "127dd37297bbb87c731c3bddac57f93e7f765efb9c935e5b78a9d3b134857ce9"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/8/48/G5DUMC71E5I9SIPHE6PU4W.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "e792bcbc678e02de53c68c2d18bf2f311ffdcce541dafc6263cc29bb06cc6dd4"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/3/S8/09R3HYDG8MA4JKS6OFYUJV.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "48f6889354b7abf876a34269c792cb018e7734da1e830676e1f35a058b8d654f"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/9/IC/4ISY7AVZNPXUZP0316RBED.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "713717ae1037024efbfdd9fb29f1cc3c6d09b96d950fcba560529510b3d3defa"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase.umap",
+                          "kind":  "map",
+                          "digest_kind":  "sha256",
+                          "digest":  "f87fa3a82e3a90ac60e122899a7bdd0dd6481506a83535a512c7268f338d4bb2"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/E/XX/7I2O87042RTCF7W6ISJUTR.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "aabf9467d54b0f9b4bc405ffe433063335e3a1b96891f2b033742c147bcd9020"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/A/8O/6DGJ1LUYUUZMLXY1XM1JUZ.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "1a984a088a60ff5f856acb0f2b87c5ad09c6e0af8b887d9cd542d3ebc0123f89"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/1/NT/B83ZTIPPIPMHUGX3S4Q5PX.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "dc15bf69fca25781ac749774b15db873293584853b6bbcd567d74e356031577d"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/0/W1/DLGTKY2K9QPJ57KHJMO2Y3.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "33dcab48a89646e9502cfc76e196ff463af3530330fd48117cd5336cd2e193bb"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/0/UT/CK1S5G9SS6838LTG4FFCVJ.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "62b9becf9ab7a38dc04eb35ab808d67f3871037a9d204156baf8a71cd1be7a80"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/2/1Y/I8UMAOLHBR8U5L258JFXBF.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "fe970f97439dd68be9e052a6e7a482c4071f550fba328b8cdda17233360e33b3"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/3/PV/29LISTY9A39LQQ0GOOWB9R.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "6f494e6af11c0ab97b318eec14060b55bb21244adb3b4fe97a82116e5afcdb25"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/3/46/QGDE4BIMHWDMFRTNS3NXFD.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "e7c6e59557d9403ed4c24b001e227749aa3c487f01bfc43a336de815d29be55d"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase/2/NN/NU3XYL8N5H9QMMLWMGBMLV.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "4ab051132adc30042ddeebe8b700f0aa8db1752964264a0ec697f031857e6474"
+                      }
+                  ],
+    "consumer_references":  [
+
+                            ]
+}

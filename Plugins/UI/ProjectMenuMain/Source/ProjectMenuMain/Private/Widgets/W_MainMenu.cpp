@@ -22,6 +22,7 @@
 #include "Theme/ProjectUIThemeData.h"
 #include "Dialogs/ProjectDialogWidget.h"
 #include "Subsystems/MenuMainComposerSubsystem.h"
+#include "Widgets/ProjectMenuExperienceLaunchBinding.h"
 
 // DEBUG: Set to 1 to bypass JSON and show simple red text (tests if UMG renders at all)
 // If red text appears: JSON/theme is the problem
@@ -129,6 +130,18 @@ void UW_MainMenu::BindCallbacks()
 		UE_LOG(LogW_MainMenu, Warning, TEXT("BindCallbacks: RootWidget is null"));
 		return;
 	}
+
+	// Rebuilt every pass. Each carrier must be unbound first: dropping the array entry alone
+	// leaves its delegate on the button, and AddUniqueDynamic cannot dedupe a new carrier, so
+	// a second BindCallbacks pass would make one click launch the experience twice.
+	for (UProjectMenuExperienceLaunchBinding* Binding : ExperienceLaunchBindings)
+	{
+		if (Binding != nullptr)
+		{
+			Binding->Unbind();
+		}
+	}
+	ExperienceLaunchBindings.Reset();
 
 	// Build ButtonName -> Action map from JSON to avoid hardcoded widget name checks
 	TMap<FString, FString> ButtonActions;
@@ -246,14 +259,8 @@ void UW_MainMenu::BindCallbacks()
 					Button->OnClicked.AddUniqueDynamic(this, &UW_MainMenu::RequestQuit);
 					BoundCount++;
 				}
-				else if (ActionKey == TEXT("loadcity17"))
+				else if (TryBindExperienceLaunch(*Button, *Action))
 				{
-					Button->OnClicked.AddUniqueDynamic(this, &UW_MainMenu::SelectMapCity17);
-					BoundCount++;
-				}
-				else if (ActionKey == TEXT("loadkazanterritory"))
-				{
-					Button->OnClicked.AddUniqueDynamic(this, &UW_MainMenu::SelectMapKazanTerritory);
 					BoundCount++;
 				}
 				else if (ActionKey == TEXT("confirmquit"))
@@ -302,32 +309,39 @@ void UW_MainMenu::BackToMain()
 	if (MenuViewModel) MenuViewModel->NavigateToMain();
 }
 
-void UW_MainMenu::SelectMapCity17()
+bool UW_MainMenu::TryBindExperienceLaunch(UButton& Button, const FString& AuthoredAction)
 {
-	UE_LOG(LogW_MainMenu, Display, TEXT("SelectMapCity17 - requesting via Composer"));
+	// Configured launch actions look like "loadexperience:<ExperienceId>". The id is data,
+	// so a new territory/showcase is a MainMenu.json change with no C++ edit here.
+	static const FString LaunchPrefix(TEXT("loadexperience:"));
+	if (!AuthoredAction.StartsWith(LaunchPrefix, ESearchCase::IgnoreCase))
+	{
+		return false;
+	}
 
-	if (UMenuMainComposerSubsystem* Composer = GetGameInstance()->GetSubsystem<UMenuMainComposerSubsystem>())
+	// Keep the authored casing: the id must match the configured experience record exactly.
+	const FString ExperienceId = AuthoredAction.RightChop(LaunchPrefix.Len()).TrimStartAndEnd();
+	if (ExperienceId.IsEmpty())
 	{
-		Composer->RequestStartGame(TEXT("City17"), TEXT("SinglePlayer"));
+		UE_LOG(LogW_MainMenu, Error, TEXT("BindCallbacks: '%s' has no experience id"), *AuthoredAction);
+		return false;
 	}
-	else
-	{
-		UE_LOG(LogW_MainMenu, Error, TEXT("SelectMapCity17: MenuMainComposerSubsystem not available"));
-	}
-}
 
-void UW_MainMenu::SelectMapKazanTerritory()
-{
-	UE_LOG(LogW_MainMenu, Display, TEXT("[W_MainMenu::SelectMapKazanTerritory] Requesting experience - KazanTerritory"));
+	UMenuMainComposerSubsystem* Composer =
+		GetGameInstance() ? GetGameInstance()->GetSubsystem<UMenuMainComposerSubsystem>() : nullptr;
+	if (Composer == nullptr)
+	{
+		UE_LOG(LogW_MainMenu, Error,
+			TEXT("BindCallbacks: MenuMainComposerSubsystem unavailable for experience '%s'"), *ExperienceId);
+		return false;
+	}
 
-	if (UMenuMainComposerSubsystem* Composer = GetGameInstance()->GetSubsystem<UMenuMainComposerSubsystem>())
-	{
-		Composer->RequestStartGame(TEXT("KazanTerritory"), TEXT("SinglePlayer"));
-	}
-	else
-	{
-		UE_LOG(LogW_MainMenu, Error, TEXT("[W_MainMenu::SelectMapKazanTerritory] Failed - MenuMainComposerSubsystem unavailable"));
-	}
+	UProjectMenuExperienceLaunchBinding* Binding = NewObject<UProjectMenuExperienceLaunchBinding>(this);
+	Binding->BindTo(Button, Composer, ExperienceId, TEXT("SinglePlayer"));
+	ExperienceLaunchBindings.Add(Binding);
+
+	UE_LOG(LogW_MainMenu, Display, TEXT("BindCallbacks: Bound experience launch '%s'"), *ExperienceId);
+	return true;
 }
 
 void UW_MainMenu::RequestQuit()

@@ -1,0 +1,181 @@
+{
+  "$schema": "../../../../../../tools/World/SourceIngestion/contracts/source-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "manhattan_showcase_v1",
+  "network_budget_bytes": 805306368,
+  "area": {
+    "area_id": "us_ny_manhattan_showcase_v1",
+    "label": "Manhattan showcase v1 source envelope",
+    "bbox": [-74.074, 40.685, -73.897, 40.812],
+    "axis_order": "longitude_latitude",
+    "crs": "EPSG:4326",
+    "demonstration_boundary": {
+      "area_id": "new_york_city",
+      "osm_filter": "r/wikidata=Q60"
+    }
+  },
+  "projected_coverage": {
+    "projected_crs": "EPSG:32618",
+    "technical_bounds": [578653.41, 4504812.45, 592603.41, 4517832.45],
+    "terrain_resampling_halo_m": 30,
+    "minimum_source_margin_m": 350,
+    "edge_sample_step_m": 30
+  },
+  "raster_mosaic": {
+    "contract_version": 1,
+    "component_order": ["coverage_west_south_east_north", "source_id", "snapshot_id"],
+    "resolution_policy": "same",
+    "overlap_policy": "require_equal_float32_samples",
+    "coverage_policy": "vrt_alpha_complete",
+    "normalization": "pixel_aligned_clip_no_resample",
+    "artifact_format": "COG",
+    "creation_options": {
+      "compression": "DEFLATE",
+      "predictor": "YES",
+      "block_size": 512,
+      "threads": 1
+    }
+  },
+  "sources": [
+    {
+      "source_id": "geofabrik_new_york_2026_08_31",
+      "adapter": "geofabrik_osm",
+      "provider": "OpenStreetMap via Geofabrik",
+      "dataset": "new-york-osm-pbf",
+      "release": "2026-08-31",
+      "url": "https://download.geofabrik.de/north-america/us/new-york-260831.osm.pbf",
+      "provider_checksum_url": "https://download.geofabrik.de/north-america/us/new-york-260831.osm.pbf.md5",
+      "file_name": "new-york-260831.osm.pbf",
+      "expected_bytes": 495841955,
+      "hashes": {
+        "md5": "08f0d982f6355a6956103522235e64c6",
+        "sha256": "eb09a7e4a8e98d362176748b2ede8f14da5425cc5e22314358a55a963e39e97f"
+      },
+      "coverage_bbox": [-80.0, 40.0, -71.0, 46.0],
+      "crs": {"horizontal": "EPSG:4326", "axis_order": "longitude_latitude"},
+      "accuracy": {"horizontal_accuracy_m": null, "vertical_accuracy_m": null, "confidence": "provider_unspecified"},
+      "decode": {
+        "feature_filters": [
+          "nwr/highway",
+          "nwr/building",
+          "nwr/building:part",
+          "nwr/natural=water",
+          "nwr/landuse=reservoir,basin",
+          "nwr/waterway",
+          "nwr/natural=wood",
+          "nwr/landuse=forest,orchard,vineyard",
+          "n/natural=tree",
+          "nwr/natural=grassland,scrub,heath,wetland,sand,bare_rock",
+          "nwr/landuse=grass,meadow,recreation_ground"
+        ],
+        "relation_completion_types": ["multipolygon"]
+      },
+      "license": {
+        "id": "ODbL-1.0",
+        "terms_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+        "attribution": "\u00a9 OpenStreetMap contributors",
+        "source_or_alteration_offer": "Pinned parent URL, hashes, AOI, tool lock, and deterministic extraction recipe"
+      },
+      "admission": {
+        "policy_result": "approved",
+        "commercial_transformation": true,
+        "generated_artifact_publication": "approved_with_attribution_and_odbl_offer",
+        "acquisition": "anonymous_public_download"
+      }
+    },
+    {
+      "source_id": "copernicus_glo30_2021_n40_w075",
+      "adapter": "copernicus_dem",
+      "provider": "Copernicus DEM via AWS Open Data",
+      "dataset": "COP-DEM_GLO-30-DGED_AWS_COG",
+      "release": "2021",
+      "url": "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com/Copernicus_DSM_COG_10_N40_00_W075_00_DEM/Copernicus_DSM_COG_10_N40_00_W075_00_DEM.tif",
+      "file_name": "Copernicus_DSM_COG_10_N40_00_W075_00_DEM.tif",
+      "expected_bytes": 48213610,
+      "hashes": {
+        "etag_md5": "daac3d54d256a967b9974327233de3ec",
+        "sha256": "1db5d9d32c1aac7a7362e0375b4640a2f80e54963e4cde2f602f1be981ab353f"
+      },
+      "coverage_bbox": [-75.0001389, 40.0001389, -74.0001389, 41.0001389],
+      "crs": {"horizontal": "EPSG:4326", "axis_order": "longitude_latitude", "vertical": "EPSG:3855", "vertical_unit": "metre"},
+      "accuracy": {"horizontal_accuracy_m": 6.0, "vertical_accuracy_m": 4.0, "confidence": "90_percent"},
+      "raster_class": "DSM",
+      "distribution_url": "https://registry.opendata.aws/copernicus-dem/",
+      "distribution_accessed_on": "2026-09-02",
+      "provider_last_modified": "2022-05-09T14:21:40Z",
+      "license": {
+        "id": "LicenseRef-COP-DEM-GLO-30",
+        "terms_url": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/DEM/resources/license/License-COPDEM-30.pdf",
+        "terms_version": "COP-DEM-GLO-30-F",
+        "terms_accessed_on": "2026-08-11",
+        "terms_sha256": "9cd37d37ea654bbcaf0a2e059e6a3a5b5f76072824d8dd860ccf274ada8951bd",
+        "original_notice": "\u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+        "modified_notice": "produced using Copernicus WorldDEM-30 \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+        "liability_notice": "The organisations in charge of the Copernicus programme by law or by delegation do not incur any liability for any use of the Copernicus WorldDEM-30.",
+        "citation_notice": "Copernicus Digital Elevation Model (DEM) was accessed on 2026-09-02 from https://registry.opendata.aws/copernicus-dem/",
+        "downstream_obligations": "Subsequent distributors must retain the source or modified-output notice, liability notice, and no-endorsement obligation",
+        "no_endorsement": true
+      },
+      "admission": {
+        "policy_result": "approved",
+        "commercial_transformation": true,
+        "generated_artifact_publication": "approved_with_required_modified_notice",
+        "acquisition": "anonymous_public_download",
+        "boundaries": {
+          "local_verification_cache": "approved",
+          "tracked_canonical_data": "approved_with_obligations",
+          "generated_unreal_assets": "approved_with_obligations",
+          "packaged_commercial_distribution": "approved_with_obligations",
+          "public_repository_raw_payload": "not_distributed"
+        }
+      }
+    },
+    {
+      "source_id": "copernicus_glo30_2021_n40_w074",
+      "adapter": "copernicus_dem",
+      "provider": "Copernicus DEM via AWS Open Data",
+      "dataset": "COP-DEM_GLO-30-DGED_AWS_COG",
+      "release": "2021",
+      "url": "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com/Copernicus_DSM_COG_10_N40_00_W074_00_DEM/Copernicus_DSM_COG_10_N40_00_W074_00_DEM.tif",
+      "file_name": "Copernicus_DSM_COG_10_N40_00_W074_00_DEM.tif",
+      "expected_bytes": 15806993,
+      "hashes": {
+        "etag_md5": "b376f35f17c3f045fb4cfebb3c55acfc",
+        "sha256": "6a0f4273de0bbc0709cc9db4793a89ac40c811388f59f23f644c0304b66ab94d"
+      },
+      "coverage_bbox": [-74.0001389, 40.0001389, -73.0001389, 41.0001389],
+      "crs": {"horizontal": "EPSG:4326", "axis_order": "longitude_latitude", "vertical": "EPSG:3855", "vertical_unit": "metre"},
+      "accuracy": {"horizontal_accuracy_m": 6.0, "vertical_accuracy_m": 4.0, "confidence": "90_percent"},
+      "raster_class": "DSM",
+      "distribution_url": "https://registry.opendata.aws/copernicus-dem/",
+      "distribution_accessed_on": "2026-09-02",
+      "provider_last_modified": "2022-05-09T14:21:40Z",
+      "license": {
+        "id": "LicenseRef-COP-DEM-GLO-30",
+        "terms_url": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/DEM/resources/license/License-COPDEM-30.pdf",
+        "terms_version": "COP-DEM-GLO-30-F",
+        "terms_accessed_on": "2026-08-11",
+        "terms_sha256": "9cd37d37ea654bbcaf0a2e059e6a3a5b5f76072824d8dd860ccf274ada8951bd",
+        "original_notice": "\u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+        "modified_notice": "produced using Copernicus WorldDEM-30 \u00a9 DLR e.V. 2010-2014 and \u00a9 Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
+        "liability_notice": "The organisations in charge of the Copernicus programme by law or by delegation do not incur any liability for any use of the Copernicus WorldDEM-30.",
+        "citation_notice": "Copernicus Digital Elevation Model (DEM) was accessed on 2026-09-02 from https://registry.opendata.aws/copernicus-dem/",
+        "downstream_obligations": "Subsequent distributors must retain the source or modified-output notice, liability notice, and no-endorsement obligation",
+        "no_endorsement": true
+      },
+      "admission": {
+        "policy_result": "approved",
+        "commercial_transformation": true,
+        "generated_artifact_publication": "approved_with_required_modified_notice",
+        "acquisition": "anonymous_public_download",
+        "boundaries": {
+          "local_verification_cache": "approved",
+          "tracked_canonical_data": "approved_with_obligations",
+          "generated_unreal_assets": "approved_with_obligations",
+          "packaged_commercial_distribution": "approved_with_obligations",
+          "public_repository_raw_payload": "not_distributed"
+        }
+      }
+    }
+  ]
+}

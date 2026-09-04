@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="4" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2026-08-31" time="21:47:25">
+  <environment clr-version="4.0.30319.42000" user-domain="6R0M" cwd="E:\Repos_Alis\Alis" platform="Microsoft Windows 10 Pro|C:\Windows|\Device\Harddisk2\Partition3" machine-name="6R0M" nunit-version="2.5.8.0" os-version="10.0.19045" user="vslvg" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Success" success="True" time="7.41" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="E:\Repos_Alis\Alis\scripts\ue\world\test\generator_fingerprint.Tests.ps1" executed="True" result="Success" success="True" time="7.41" asserts="0" description="E:\Repos_Alis\Alis\scripts\ue\world\test\generator_fingerprint.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="ProjectWorld producer-local generator fingerprints" executed="True" result="Success" success="True" time="6.8462" asserts="0" description="ProjectWorld producer-local generator fingerprints">
+            <results>
+              <test-case description="moves exactly the declared owners of each producer-local source" name="ProjectWorld producer-local generator fingerprints.moves exactly the declared owners of each producer-local source" time="4.1308" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="moves every producer when a true shared primitive changes" name="ProjectWorld producer-local generator fingerprints.moves every producer when a true shared primitive changes" time="0.2742" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps existing producers stable when a new tuple extends catalog and dispatch surfaces" name="ProjectWorld producer-local generator fingerprints.keeps existing producers stable when a new tuple extends catalog and dispatch surfaces" time="2.1573" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="derives the producer from manifest ownership and rejects unknown generators" name="ProjectWorld producer-local generator fingerprints.derives the producer from manifest ownership and rejects unknown generators" time="0.1112" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

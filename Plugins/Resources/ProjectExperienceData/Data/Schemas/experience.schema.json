@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "experience.schema.json",
+  "title": "Experience Definition",
+  "description": "Schema for concrete configured application experiences. JSON is the source of truth; ProjectDefinitionGenerator projects each record onto a cooked UProjectExperienceDefinition asset. Adding an experience is a data change only - no C++ class and no registration line.",
+
+  "x-alis-generator": {
+    "TypeName": "ExperienceDefinition",
+    "DefinitionClass": "/Script/ProjectCore.ProjectExperienceDefinition",
+    "SourceSubDir": "Experiences",
+    "GeneratedContentPath": "/ProjectExperienceData/Experiences",
+    "IdPropertyName": "ExperienceName",
+    "GeneratorVersion": 1
+  },
+
+  "type": "object",
+  "required": ["ExperienceName", "Map"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (ignored by generator)"
+    },
+    "ExperienceName": {
+      "type": "string",
+      "description": "Stable experience identity. RENAME WARNING: referenced by the main-menu loadexperience action and by EntryPointExperience config. Mismatch causes a descriptor-not-found failure.",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "Map": {
+      "type": "string",
+      "description": "Full object path of the world this experience travels to.",
+      "pattern": "^/[A-Za-z0-9_/]+[.][A-Za-z0-9_]+$"
+    },
+    "TraversalMode": {
+      "type": "string",
+      "description": "Generic traversal policy token forwarded as the 'Traversal' load-request option. ProjectSinglePlay owns what the token means. Omit for the mode default.",
+      "enum": ["PreviewFlight"]
+    },
+    "AssetScanDirectory": {
+      "type": "string",
+      "description": "Package directory scanned so cooked builds can resolve this experience's map. Omit when the map is already covered by project PrimaryAssetTypesToScan.",
+      "pattern": "^/[A-Za-z0-9_/]+$"
+    },
+    "CriticalAssets": {
+      "type": "array",
+      "description": "Assets that must resolve before the experience is loadable.",
+      "items": {"type": "string"}
+    },
+    "WarmupAssets": {
+      "type": "array",
+      "description": "Assets warmed up alongside the experience.",
+      "items": {"type": "string"}
+    }
+  }
+}

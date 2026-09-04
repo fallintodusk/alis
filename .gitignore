@@ -150,6 +150,10 @@ Plugins/**/Intermediate/
 /Plugins/World/ProjectWorldTestData/Content/__ExternalObjects__/Generated/
 /Plugins/World/ProjectWorldTestData/Data/Manifests/
 
+# Raw cinematic shot sequences are compiled output of the committed shot plans
+# under scripts/ue/cinematic/shots/. The plan is the recipe; the asset is not.
+/Content/Cinematics/Generated/
+
 ############################################
 # Notes
 # - Track large binary assets with Git LFS via .gitattributes (uasset/umap, audio, video).

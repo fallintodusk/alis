@@ -1,0 +1,7 @@
+{
+  "$schema": "../Schemas/experience.schema.json",
+  "ExperienceName": "KazanTerritory",
+  "Map": "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory.L_ProjectWorldKazanTerritory",
+  "TraversalMode": "PreviewFlight",
+  "AssetScanDirectory": "/ProjectWorldData/Generated/Territory"
+}

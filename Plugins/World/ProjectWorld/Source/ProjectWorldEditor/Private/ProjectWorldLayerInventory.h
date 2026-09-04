@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 
 struct FProjectWorldCanonicalBundle;
+struct FProjectWorldCanonicalCell;
 struct FProjectWorldAuthoredOverlaySet;
 struct FProjectWorldLayerDirtyInput;
 struct FProjectWorldRealizationProfile;
@@ -14,6 +15,11 @@ class UWorld;
 
 namespace ProjectWorldLayerInventory
 {
+	bool HashTerrainWaterCellInput(
+		const FProjectWorldCanonicalBundle& Bundle,
+		const FProjectWorldCanonicalCell& Cell,
+		FString& OutHash);
+
 	bool Build(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,

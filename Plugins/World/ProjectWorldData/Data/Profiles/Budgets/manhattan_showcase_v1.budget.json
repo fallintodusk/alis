@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../../tools/World/EndToEndValidation/contracts/territory-budget.schema.json",
+  "schema_version": 1,
+  "budget_id": "manhattan_showcase_v1",
+  "source_profile_id": "manhattan_showcase_v1",
+  "compiler_profile_id": "manhattan_showcase_v1",
+  "validation_profile_id": "manhattan_showcase_v1",
+  "ceilings": {
+    "source_bytes": {"max": 805306368, "unit": "bytes", "kind": "hard", "basis": "The pinned New York PBF plus two Copernicus GLO-30 tiles total 559861558 bytes; 768 MiB retains bounded transport headroom."},
+    "canonical_bytes": {"max": 4294967296, "unit": "bytes", "kind": "hard", "basis": "The footprint retains the accepted 210-cell Kazan physical extent while D0 proves substantially higher feature density; 4 GiB is a bounded first-showcase ceiling."},
+    "full_compile_seconds": {"max": 1800, "unit": "seconds", "kind": "hard", "basis": "Thirty minutes bounds the first high-density 210-cell compile without treating a slow run as acceptable indefinitely."},
+    "features": {"max": 500000, "unit": "canonical_features", "kind": "hard", "basis": "Exact D0 source census is below this ceiling across Buildings, roads, Water, vegetation, and land-cover inputs."},
+    "cells": {"max": 210, "unit": "canonical_cells", "kind": "hard", "basis": "The Kazan-equivalent inclusive selection x=-6..8 and y=-6..7 contains exactly 210 cells."},
+    "generated_packages": {"max": 8192, "unit": "packages", "kind": "provisional", "basis": "Allows the map, 210 terrain cells, spatial layer packages, and bounded World Partition external packages."},
+    "unreal_import_seconds": {"max": 1800, "unit": "seconds", "kind": "provisional", "basis": "The same bounded unattended realization ceiling used by the accepted territory pipeline."},
+    "cook_seconds": {"max": 3600, "unit": "seconds", "kind": "provisional", "basis": "One hour bounds the first Shipping cook and must be measured against the real product route."},
+    "installed_bytes": {"max": 8589934592, "unit": "bytes", "kind": "provisional", "basis": "The showcase shares runtime code/resources and must remain inside the accepted 8 GiB first-territory envelope."},
+    "generated_actor_count": {"max": 20000, "unit": "actors", "kind": "provisional", "basis": "Cell-local massing preserves one actor per occupied layer cell rather than one actor per source Building or part."},
+    "p95_frame_time_ms": {"max": 16.67, "unit": "milliseconds", "kind": "provisional", "basis": "Release 2.0 target is 60 FPS at High 1440p on the physical RTX 4070 reference adapter."},
+    "peak_memory_bytes": {"max": 12884901888, "unit": "bytes", "kind": "provisional", "basis": "Packaged process memory remains capped at 12 GiB on the reference route."},
+    "peak_gpu_memory_bytes": {"max": 10737418240, "unit": "bytes", "kind": "provisional", "basis": "Dedicated GPU memory remains capped at 10 GiB on the 12 GiB RTX 4070."},
+    "streaming_cell_load_seconds": {"max": 2, "unit": "seconds", "kind": "provisional", "basis": "Each requested World Partition cell must become usable within two seconds."},
+    "streaming_hitch_ms": {"max": 50, "unit": "milliseconds", "kind": "provisional", "basis": "Streaming must not create a measured hitch longer than 50 ms."},
+    "territory_traversal_seconds": {"max": 900, "unit": "seconds", "kind": "provisional", "basis": "The automated PreviewFlight route must exercise center, edge, unload, and reload inside fifteen minutes."}
+  }
+}

@@ -13,15 +13,15 @@ and unlock value. Track P is first because it is release-required, independent o
 material compiler, reversible, and establishes the real packaged-player truth surface
 without migrating generated geography.
 
-Track V remains a mandatory World-release gate, but it is not current. Landscape is the
-strongest likely visual follow-up, but no second implementation priority is frozen until
-Track P is accepted and the campaign is re-evaluated.
+At this research close-out, Track V remained a mandatory later World-release gate and
+was not current. Track P is now accepted, and Track V has been transferred to the
+current Release 2.0.0 cinematic concern without reopening this completed research.
 
 ## Routes
 
-- [Campaign router](../../02_backlog/world/world_plan_kazan_presentation_campaign.md)
-- [Track P current implementation](../../00_current/world_enable_kazan_playable_tour.md)
-- [Track P and Track V accepted research](../../02_backlog/world/world_enable_kazan_demo_capture.md)
+- [Completed campaign](world_plan_kazan_presentation_campaign.md)
+- [Completed Track P implementation](world_enable_kazan_playable_tour.md)
+- [Release 2.0.0 cinematic workflow](../../00_current/20260902-1218_cinematic_build_agent_release_workflow.md)
 - [Territory generation router](../../../Plugins/World/ProjectWorld/docs/territory_generation.md)
 - [Territory authority contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md)
 - [World Partition contract](../../../Plugins/World/ProjectWorld/docs/world_partition.md)
@@ -54,7 +54,8 @@ Track P is accepted and the campaign is re-evaluated.
 
 ## Reviewer corrections recorded
 
-- The current todo path is flat: `todo/00_current/world_enable_kazan_playable_tour.md`.
+- Track P used the required flat current path during implementation and now lives in
+  `todo/01_done/world/world_enable_kazan_playable_tour.md`.
   The proposed `todo/00_current/world/...` path contradicted the todo router.
 - The claimed stale unconditional "Landscape first" wording was already absent from
   the current material packet; no material todo edit was needed.
@@ -75,4 +76,3 @@ Track P is accepted and the campaign is re-evaluated.
 - [x] Cross-concern comparison completed.
 - [x] Track P selected and routed as the only current World implementation todo.
 - [x] Track V and all unselected concerns retained in backlog.
-

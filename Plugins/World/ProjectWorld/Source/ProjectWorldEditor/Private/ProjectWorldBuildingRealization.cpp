@@ -38,7 +38,8 @@ namespace ProjectWorldBuildingRealization
 	{
 		const FString CellTagPrefix(TEXT("ProjectWorld.BuildingCell="));
 		const FString SemanticTagPrefix(TEXT("ProjectWorld.BuildingSemantic="));
-		const FName BuildingTag(TEXT("ProjectWorld.BuildingMassing.v1"));
+		const FName BuildingTagV1(TEXT("ProjectWorld.BuildingMassing.v1"));
+		const FName BuildingTagV2(TEXT("ProjectWorld.BuildingMassing.v2"));
 
 		FString SanitizeToken(const FString& Value)
 		{
@@ -100,6 +101,7 @@ namespace ProjectWorldBuildingRealization
 			FProjectWorldBuildingSettings& OutSettings,
 			FString& OutError)
 		{
+			OutSettings.GeneratorVersion = Layer.GeneratorVersion;
 			TSharedPtr<FJsonObject> Settings;
 			FString AnchorPolicy;
 			FString TopologyPolicy;
@@ -115,7 +117,9 @@ namespace ProjectWorldBuildingRealization
 				!Settings->TryGetStringField(TEXT("terrain_anchor_policy"), AnchorPolicy) ||
 				AnchorPolicy != TEXT("owner_cell_clamped_bounds_center") ||
 				!Settings->TryGetStringField(TEXT("topology_policy"), TopologyPolicy) ||
-				TopologyPolicy != TEXT("cell_local_classify_v1") ||
+				TopologyPolicy != (Layer.GeneratorVersion == 2
+					? TEXT("logical_building_classify_v2")
+					: TEXT("cell_local_classify_v1")) ||
 				!Settings->TryGetStringField(TEXT("duplicate_policy"), DuplicatePolicy) ||
 				DuplicatePolicy != TEXT("stable_feature_id") ||
 				!Settings->TryGetStringField(TEXT("contained_policy"), ContainedPolicy) ||
@@ -130,7 +134,7 @@ namespace ProjectWorldBuildingRealization
 				!FMath::IsFinite(OutSettings.MaximumHeightMeters) ||
 				OutSettings.MaximumHeightMeters < 50.0 || OutSettings.MaximumHeightMeters > 1000.0)
 			{
-				OutError = TEXT("Building layer has no executable v1 settings contract.");
+				OutError = TEXT("Building layer has no executable settings contract.");
 				return false;
 			}
 			return true;
@@ -268,11 +272,11 @@ namespace ProjectWorldBuildingRealization
 		FString& OutError)
 	{
 		FProjectWorldBuildingSettings Settings;
-		if (!ResolveSettings(Layer, Settings, OutError))
+			if (!ResolveSettings(Layer, Settings, OutError))
 		{
 			return false;
 		}
-		FString Identity(TEXT("project_building_cell_input_v1"));
+		FString Identity = FString::Printf(TEXT("project_building_cell_input_v%d"), Layer.GeneratorVersion);
 		AppendToken(Identity, Cell.CellId);
 		AppendToken(Identity, Layer.ContractHash);
 		AppendNumber(Identity, Bundle.CoordinateQuantizationMeters);
@@ -281,6 +285,11 @@ namespace ProjectWorldBuildingRealization
 		for (const FString& FeatureId : ProjectWorldBuildingMeshBuilder::CellBuildingFeatureIds(Bundle, Cell))
 		{
 			const FProjectWorldCanonicalFeature& Feature = Bundle.Features.FindChecked(FeatureId);
+			if (Layer.GeneratorVersion == 2 && Feature.BuildingVolumes.IsEmpty())
+			{
+				OutError = FString::Printf(TEXT("Building v2 feature has no effective volumes: %s"), *FeatureId);
+				return false;
+			}
 			const FProjectWorldCanonicalCell* Owner = FindOwnerCell(Bundle, Feature.OwnerCellId);
 			if (Owner == nullptr)
 			{
@@ -292,6 +301,36 @@ namespace ProjectWorldBuildingRealization
 			AppendToken(Identity, Owner->Terrain.ArtifactHash);
 			AppendToken(Identity, Feature.GeometryType);
 			AppendNumber(Identity, Feature.HeightMeters);
+			if (Layer.GeneratorVersion == 2)
+			{
+				for (const FProjectWorldCanonicalBuildingVolume& Volume : Feature.BuildingVolumes)
+				{
+					AppendToken(Identity, Volume.VolumeId);
+					AppendToken(Identity, Volume.SourceFeatureId);
+					AppendToken(Identity, Volume.GeometryType);
+					AppendNumber(Identity, Volume.MinHeightMeters);
+					AppendNumber(Identity, Volume.HeightMeters);
+					for (const FProjectWorldCanonicalPolygon& Polygon : Volume.GeometryPolygons)
+					{
+						AppendToken(Identity, FString::FromInt(Polygon.Outer.Num()));
+						for (const FVector2D& Point : Polygon.Outer)
+						{
+							AppendNumber(Identity, Point.X);
+							AppendNumber(Identity, Point.Y);
+						}
+						AppendToken(Identity, FString::FromInt(Polygon.Holes.Num()));
+						for (const TArray<FVector2D>& Hole : Polygon.Holes)
+						{
+							AppendToken(Identity, FString::FromInt(Hole.Num()));
+							for (const FVector2D& Point : Hole)
+							{
+								AppendNumber(Identity, Point.X);
+								AppendNumber(Identity, Point.Y);
+							}
+						}
+					}
+				}
+			}
 			for (const FProjectWorldCanonicalPolygon& Polygon : Feature.GeometryPolygons)
 			{
 				AppendToken(Identity, FString::FromInt(Polygon.Outer.Num()));
@@ -339,7 +378,8 @@ namespace ProjectWorldBuildingRealization
 
 	bool ReadActorIdentity(const AActor* Actor, FString& OutCellId, FString& OutSemanticHash)
 	{
-		return Actor != nullptr && Actor->Tags.Contains(BuildingTag) &&
+		return Actor != nullptr &&
+			(Actor->Tags.Contains(BuildingTagV1) || Actor->Tags.Contains(BuildingTagV2)) &&
 			ReadTag(Actor, CellTagPrefix, OutCellId) &&
 			ReadTag(Actor, SemanticTagPrefix, OutSemanticHash);
 	}
@@ -355,7 +395,8 @@ namespace ProjectWorldBuildingRealization
 	{
 		const FProjectWorldRealizationLayer* Layer = Profile.Layers.FindByPredicate([](const auto& Candidate)
 		{
-			return Candidate.GeneratorId == TEXT("project_building_massing") && Candidate.GeneratorVersion == 1;
+			return Candidate.GeneratorId == TEXT("project_building_massing") &&
+				(Candidate.GeneratorVersion == 1 || Candidate.GeneratorVersion == 2);
 		});
 		if (Layer == nullptr)
 		{
@@ -481,7 +522,7 @@ namespace ProjectWorldBuildingRealization
 			Actor->Modify();
 			Actor->Tags.Reset();
 			Actor->Tags.Add(ProjectWorldGeneratedGeometry::GeneratedTag);
-			Actor->Tags.Add(BuildingTag);
+			Actor->Tags.Add(Layer->GeneratorVersion == 2 ? BuildingTagV2 : BuildingTagV1);
 			SetTag(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId);
 			SetTag(Actor, TEXT("ProjectWorld.Cell="), Cell.CellId);
 			SetTag(Actor, CellTagPrefix, Cell.CellId);

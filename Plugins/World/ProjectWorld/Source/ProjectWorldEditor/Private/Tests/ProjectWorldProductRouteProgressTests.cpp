@@ -25,9 +25,15 @@ bool FProjectWorldProductRouteProgressTest::RunTest(const FString& Parameters)
 	Progress.bTerrainCollision = true;
 	Progress.bRoadCollision = true;
 	Progress.bBuildingCollision = true;
-	Progress.bGameplayInteraction = true;
 	Progress.bCenterUnloadedAtEdge = true;
 	Progress.bEdgeLoaded = true;
+	Progress.bCenterReloaded = true;
+	TestFalse(TEXT("Interaction remains required by default."), Progress.IsAccepted());
+	TestTrue(TEXT("An explicit non-interactive world may omit gameplay interaction."), Progress.IsAccepted(false));
+	TestTrue(TEXT("The non-interactive policy has no missing gate."), Progress.FirstMissingGate(false).IsEmpty());
+
+	Progress.bGameplayInteraction = true;
+	Progress.bCenterReloaded = false;
 	TestEqual(TEXT("A missing reload cannot pass."), Progress.FirstMissingGate(), FString(TEXT("center_reloaded")));
 	TestFalse(TEXT("Partial product evidence is rejected."), Progress.IsAccepted());
 

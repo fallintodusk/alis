@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "Experience/ProjectExperienceDescriptorBase.h"
+#include "Experience/ProjectExperienceDefinitionRegistrar.h"
 #include "Experience/ProjectExperienceRegistry.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
@@ -19,9 +20,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectLoading_KazanProductRouteProjection,
 
 bool FProjectLoading_KazanProductRouteProjection::RunTest(const FString& Parameters)
 {
-	const UProjectExperienceDescriptorBase* Descriptor =
-		UProjectExperienceRegistry::Get()->FindDescriptor(TEXT("KazanTerritory"));
-	TestNotNull(TEXT("The game composition root registers the Kazan territory experience."), Descriptor);
+	UProjectExperienceRegistry* Registry = UProjectExperienceRegistry::Get();
+	ProjectExperienceDefinitions::EnsureRegistered(*Registry);
+	const UProjectExperienceDescriptorBase* Descriptor = Registry->FindDescriptor(TEXT("KazanTerritory"));
+	TestNotNull(TEXT("The configured Kazan territory experience is discovered from data."), Descriptor);
 	if (Descriptor == nullptr)
 	{
 		return false;
@@ -51,7 +53,7 @@ bool FProjectLoading_KazanProductRouteProjection::RunTest(const FString& Paramet
 		FPaths::ProjectPluginsDir(),
 		TEXT("UI/ProjectMenuMain/Data/MainMenu.json"));
 	TestTrue(TEXT("The product menu JSON is readable."), FFileHelper::LoadFileToString(MenuJson, *MenuPath));
-	TestTrue(TEXT("The product menu exposes the Kazan action."), MenuJson.Contains(TEXT("\"LoadKazanTerritory\"")));
+	TestTrue(TEXT("The product menu exposes the Kazan action."), MenuJson.Contains(TEXT("\"loadexperience:KazanTerritory\"")));
 	TestTrue(TEXT("The legacy experience keeps its player-facing Old City 17 name."),
 		MenuJson.Contains(TEXT("\"text\": \"OLD CITY 17\"")));
 	TestFalse(TEXT("The shortened City 17 label is not exposed."),
@@ -61,8 +63,10 @@ bool FProjectLoading_KazanProductRouteProjection::RunTest(const FString& Paramet
 		FPaths::ProjectPluginsDir(),
 		TEXT("UI/ProjectMenuMain/Source/ProjectMenuMain/Private/Widgets/W_MainMenu.cpp"));
 	TestTrue(TEXT("The product menu source is readable."), FFileHelper::LoadFileToString(MenuSource, *MenuSourcePath));
-	TestTrue(TEXT("The Kazan action binds through the existing menu composer."),
-		MenuSource.Contains(TEXT("RequestStartGame(TEXT(\"KazanTerritory\"), TEXT(\"SinglePlayer\"))")));
+	TestTrue(TEXT("Experience launch binds through one generic parameterized route."),
+		MenuSource.Contains(TEXT("TryBindExperienceLaunch")));
+	TestFalse(TEXT("The reusable menu holds no per-experience launch function."),
+		MenuSource.Contains(TEXT("SelectMapKazanTerritory")));
 
 	FString MenuPlaySource;
 	const FString MenuPlaySourcePath = FPaths::Combine(
@@ -90,6 +94,69 @@ bool FProjectLoading_KazanProductRouteProjection::RunTest(const FString& Paramet
 	TestTrue(TEXT("The production packaging config is readable."), FFileHelper::LoadFileToString(DefaultGame, *DefaultGamePath));
 	TestTrue(TEXT("The accepted territory map is explicitly cooked."), DefaultGame.Contains(
 		TEXT("+MapsToCook=(FilePath=\"/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory\")")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectLoading_ManhattanShowcaseProductRouteProjection,
+	"ProjectLoading.DescriptorResolution.ManhattanShowcase.ProductRouteProjection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectLoading_ManhattanShowcaseProductRouteProjection::RunTest(const FString& Parameters)
+{
+	UProjectExperienceRegistry* Registry = UProjectExperienceRegistry::Get();
+	ProjectExperienceDefinitions::EnsureRegistered(*Registry);
+	const UProjectExperienceDescriptorBase* Descriptor = Registry->FindDescriptor(TEXT("ManhattanShowcase"));
+	TestNotNull(TEXT("The configured Manhattan showcase experience is discovered from data."), Descriptor);
+	if (Descriptor == nullptr)
+	{
+		return false;
+	}
+
+	const FLoadRequest Request = BuildResolvedLoadRequest_ForTests(*Descriptor);
+	const FString MapPath(TEXT(
+		"/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase.L_ProjectWorldManhattanShowcase"));
+	TestEqual(TEXT("Manhattan resolves through the existing descriptor path."),
+		Request.ExperienceName, FName(TEXT("ManhattanShowcase")));
+	TestEqual(TEXT("Manhattan resolves its generated showcase map."), Request.MapSoftPath.ToString(), MapPath);
+	TestEqual(TEXT("Manhattan projects one canonical experience option."), Request.CustomOptions.Num(), 1);
+	TestEqual(TEXT("Manhattan selects the existing preview-flight traversal."),
+		Request.CustomOptions.FindRef(TEXT("Traversal")), FString(TEXT("PreviewFlight")));
+	TestFalse(TEXT("Manhattan does not select a survival scenario."),
+		Request.CustomOptions.Contains(TEXT("Scenario")));
+
+	TArray<FExperienceAssetScanSpec> ScanSpecs;
+	Descriptor->GetAssetScanSpecs(ScanSpecs);
+	TestTrue(TEXT("The experience scans only the Manhattan generated map directory."),
+		ScanSpecs.ContainsByPredicate([](const FExperienceAssetScanSpec& Spec)
+		{
+			return Spec.PrimaryAssetType == TEXT("Map") &&
+				Spec.Directories.Contains(TEXT("/ProjectWorldData/Generated/Showcase/Manhattan"));
+		}));
+
+	FString MenuJson;
+	const FString MenuPath = FPaths::Combine(
+		FPaths::ProjectPluginsDir(), TEXT("UI/ProjectMenuMain/Data/MainMenu.json"));
+	TestTrue(TEXT("The product menu JSON is readable."), FFileHelper::LoadFileToString(MenuJson, *MenuPath));
+	TestTrue(TEXT("The product menu exposes Manhattan as a separate choice."),
+		MenuJson.Contains(TEXT("\"loadexperience:ManhattanShowcase\"")) &&
+		MenuJson.Contains(TEXT("\"text\": \"MANHATTAN\"")));
+
+	FString MenuSource;
+	const FString MenuSourcePath = FPaths::Combine(
+		FPaths::ProjectPluginsDir(),
+		TEXT("UI/ProjectMenuMain/Source/ProjectMenuMain/Private/Widgets/W_MainMenu.cpp"));
+	TestTrue(TEXT("The product menu source is readable."), FFileHelper::LoadFileToString(MenuSource, *MenuSourcePath));
+	TestFalse(TEXT("The reusable menu holds no per-experience launch function."),
+		MenuSource.Contains(TEXT("SelectMapManhattanShowcase")));
+
+	FString DefaultGame;
+	const FString DefaultGamePath = FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("DefaultGame.ini"));
+	TestTrue(TEXT("The production packaging config is readable."),
+		FFileHelper::LoadFileToString(DefaultGame, *DefaultGamePath));
+	TestTrue(TEXT("The Manhattan showcase map is explicitly cooked."), DefaultGame.Contains(
+		TEXT("+MapsToCook=(FilePath=\"/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase\")")));
+	TestTrue(TEXT("The Manhattan showcase map has an explicit primary-asset cook rule."), DefaultGame.Contains(
+		TEXT("PrimaryAssetId=\"Map:/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase\"")));
 	return true;
 }
 

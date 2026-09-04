@@ -1,10 +1,10 @@
 # ProjectWorldData
 
-Data/content-only owner for the Kazan reconstruction.
+Data/content-only owner for concrete generated territories.
 
 ## Ownership
 
-- `Data/` contains Kazan source, profiles, controls, and accepted canonical
+- `Data/` contains territory source, profiles, controls, and accepted canonical
   generated JSON. Accepted generated data is persistent and never hand-edited.
 - `Data/Canonical/` is the production promotion root for immutable canonical
   bundles and their indexes. `active.json` selects the one current bundle,
@@ -18,7 +18,7 @@ Data/content-only owner for the Kazan reconstruction.
   packages. They persist until an accepted regeneration replaces them.
 - `/ProjectWorldData/Authored/` contains protected authored overlays.
 
-ProjectWorldData does not own presentation implementation. Kazan may own sourced
+ProjectWorldData does not own presentation implementation. A territory may own sourced
 semantic facts such as land cover, water type, or road class, but it does not own
 material paths, graph parameters, recipes, generated material assets, or material
 manifests. Universal rendering resources belong to ProjectMaterial; ProjectWorld owns

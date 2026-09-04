@@ -90,7 +90,6 @@ rules forbid because todos are transient:
 - `scripts/ue/editor/render/README.md`
 - `docs/cinematics/render_setup.md` (twice)
 
-Both point at `todo/00_current/cinematic_capture_pipeline.md`. Resolve by
-lifting the standing content into the stable doc before that todo is
-archived, otherwise the links rot. Owned by the cinematics work, not by
-the world milestone.
+This was resolved when the standing cinematic contract moved to the
+ProjectCinematic owner docs and the superseded execution todo was dissolved.
+Future release-capture tasks route to the stable owner instead of a historical todo.

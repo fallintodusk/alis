@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../../tools/World/CanonicalCompilation/contracts/control-network.schema.json",
+  "schema_version": 1,
+  "control_network_id": "manhattan_showcase_v1",
+  "source_profile_id": "manhattan_showcase_v1",
+  "compiler_profile_id": "manhattan_showcase_v1",
+  "horizontal_crs": "EPSG:4326",
+  "projected_crs": "EPSG:32618",
+  "vertical_datum": "EPSG:3855",
+  "transform_id": "wgs84_to_canonical_crs",
+  "product_center_control_id": "empire_state_source_reference",
+  "product_radius_m": 5580.0,
+  "coordinate_quantization_m": 0.01,
+  "gates": {
+    "numeric_forward_inverse_m": 0.01,
+    "control_residual_allowance_m": 0.1,
+    "pairwise_distance_error_m": 0.01,
+    "boundary_corner_error_m": 0.01,
+    "projection_scale_delta_m": 2.0
+  },
+  "controls": [
+    {
+      "control_id": "empire_state_source_reference",
+      "name": "Empire State Building source geometry reference",
+      "role": "landmark",
+      "wgs84": [-73.9857, 40.7484],
+      "expected_projected": [585628.4090877831, 4511322.447496134],
+      "horizontal_provenance": {
+        "source_id": "geofabrik_new_york_2026_08_31_way_137425145",
+        "method": "operator-selected point inside the pinned source footprint for building part way/137425145",
+        "accuracy_m": 10.0,
+        "confidence": "context reference inside provider geometry",
+        "evidence": "Pinned Geofabrik parent, exact source selection receipt, and D0 census"
+      },
+      "horizontal_class": "context",
+      "horizontal_tolerance_m": 10.1,
+      "vertical": {"mode": "unknown", "provenance_ref": null, "accuracy_m": null}
+    },
+    {
+      "control_id": "technical_northwest",
+      "name": "Manhattan showcase v1 technical northwest corner",
+      "role": "boundary",
+      "wgs84": [-74.0674908723498, 40.80773462873394],
+      "expected_projected": [578653.41, 4517832.45],
+      "horizontal_provenance": {
+        "source_id": "epsg_32618_inverse_reference_proj_9_7_1",
+        "method": "inverse EPSG:32618 reference transform",
+        "accuracy_m": 0.01,
+        "confidence": "pinned numeric reference",
+        "evidence": "tools/World/ExecutionEnvironment/toolchain.lock.json"
+      },
+      "horizontal_class": "precision",
+      "horizontal_tolerance_m": 0.03,
+      "vertical": {"mode": "unknown", "provenance_ref": null, "accuracy_m": null}
+    },
+    {
+      "control_id": "technical_southeast",
+      "name": "Manhattan showcase v1 technical southeast corner",
+      "role": "boundary",
+      "wgs84": [-73.90405457218557, 40.689008672161386],
+      "expected_projected": [592603.41, 4504812.45],
+      "horizontal_provenance": {
+        "source_id": "epsg_32618_inverse_reference_proj_9_7_1",
+        "method": "inverse EPSG:32618 reference transform",
+        "accuracy_m": 0.01,
+        "confidence": "pinned numeric reference",
+        "evidence": "tools/World/ExecutionEnvironment/toolchain.lock.json"
+      },
+      "horizontal_class": "precision",
+      "horizontal_tolerance_m": 0.03,
+      "vertical": {"mode": "unknown", "provenance_ref": null, "accuracy_m": null}
+    }
+  ]
+}

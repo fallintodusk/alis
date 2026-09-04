@@ -4,6 +4,7 @@
 #include "Presentation/ProjectWorldProductPerformanceGate.h"
 
 #include "Presentation/ProjectWorldPerformanceMetrics.h"
+#include "Presentation/ProjectWorldPerformanceSampleWriter.h"
 #include "Presentation/ProjectWorldPlayableTourDriver.h"
 #include "Presentation/ProjectWorldPlayableTourResidency.h"
 #include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
@@ -56,16 +57,6 @@ namespace
 	constexpr int32 RequiredReadyFrames = 5;
 	constexpr int32 RequiredHighQualityLevel = 2;
 	const FIntPoint RequiredResolution(2560, 1440);
-
-	bool ParseRequiredPath(const TCHAR* Name, FString& OutPath)
-	{
-		if (!FParse::Value(FCommandLine::Get(), Name, OutPath) || OutPath.IsEmpty() || FPaths::IsRelative(OutPath))
-		{
-			return false;
-		}
-		FPaths::NormalizeFilename(OutPath);
-		return true;
-	}
 
 	bool ReadString(const TSharedPtr<FJsonObject>& Object, const TCHAR* Name, FString& OutValue)
 	{
@@ -175,30 +166,6 @@ void FProjectWorldProductPerformanceGate::StartIfRequested()
 		*ResultPath);
 }
 
-bool FProjectWorldProductPerformanceGate::ParseConfig(FString& OutError)
-{
-	bPlayableTourRequested = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldPlayableTour"));
-	if (!ParseRequiredPath(TEXT("ProjectWorldPerformanceResult="), ResultPath) ||
-		!ParseRequiredPath(TEXT("ProjectWorldPerformanceCorrectness="), CorrectnessResultPath) ||
-		!ParseRequiredPath(TEXT("ProjectWorldPerformanceCsv="), RequestedCsvPath))
-	{
-		OutError = TEXT("Absolute result, correctness, and CSV paths are required.");
-		return false;
-	}
-	if (ResultPath == CorrectnessResultPath || ResultPath == RequestedCsvPath)
-	{
-		OutError = TEXT("Performance result, correctness result, and CSV paths must be distinct.");
-		return false;
-	}
-	if (bPlayableTourRequested &&
-		!ParseRequiredPath(TEXT("ProjectWorldPerformanceScreenshot="), ScreenshotPath))
-	{
-		OutError = TEXT("Playable-tour acceptance requires an absolute screenshot path.");
-		return false;
-	}
-	return true;
-}
-
 bool FProjectWorldProductPerformanceGate::Tick(float DeltaSeconds)
 {
 	if (Phase == EPhase::Finished)
@@ -245,6 +212,14 @@ bool FProjectWorldProductPerformanceGate::Tick(float DeltaSeconds)
 				PendingStatus = TEXT("rejected");
 				PendingErrorCode = TEXT("performance_csv_missing");
 				PendingErrorMessage = TEXT("Native UE CSV capture completed without a readable file.");
+			}
+			FString RawSampleError;
+			if (Collector.IsValid() && !ProjectWorldPerformanceSampleWriter::Write(
+					RawSamplePath, Collector->AllFrames(), RawSampleError))
+			{
+				PendingStatus = TEXT("rejected");
+				PendingErrorCode = TEXT("performance_raw_samples_missing");
+				PendingErrorMessage = MoveTemp(RawSampleError);
 			}
 			WriteResult(PendingStatus, PendingErrorCode, PendingErrorMessage);
 			SetPhase(EPhase::Finished);
@@ -343,11 +318,16 @@ bool FProjectWorldProductPerformanceGate::TryReadCorrectnessResult(FString& OutE
 			Root->TryGetBoolField(TEXT("road_collision"), bCorrectnessRoadCollision) &&
 			Root->TryGetBoolField(TEXT("building_collision"), bCorrectnessBuildingCollision) &&
 			ReadString(Root, TEXT("screenshot"), CorrectnessScreenshotPath);
-		if (!bCorrectnessComplete || !bCorrectnessGameplayInteraction ||
+		// Interaction stays mandatory unless the operation explicitly declared itself
+		// non-interactive; every other tour requirement is unchanged.
+		if (!bCorrectnessComplete ||
+			(bRequireGameplayInteraction && !bCorrectnessGameplayInteraction) ||
 			(!bScenarioContract && (!bCorrectnessTerrainCollision || !bCorrectnessRoadCollision ||
 				!bCorrectnessBuildingCollision)))
 		{
-			OutError = TEXT("Playable tour requires accepted interaction and actor-scoped collision evidence.");
+			OutError = bRequireGameplayInteraction
+				? TEXT("Playable tour requires accepted interaction and actor-scoped collision evidence.")
+				: TEXT("Playable tour requires actor-scoped collision evidence.");
 			return false;
 		}
 	}
@@ -400,9 +380,10 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 		RequiredResolution.X,
 		RequiredResolution.Y,
 		EWindowMode::Windowed);
-	GEngine->Exec(ProductWorld.Get(), TEXT("r.VSync 0"));
-	GEngine->Exec(ProductWorld.Get(), TEXT("t.MaxFPS 0"));
-	IConsoleManager::Get().CallAllConsoleVariableSinks();
+	if (!PerformanceEnvelope.EstablishAndValidate(*ProductWorld.Get(), OutError))
+	{
+		return false;
+	}
 	Scalability::FQualityLevels HighQuality;
 	HighQuality.SetFromSingleQualityLevel(RequiredHighQualityLevel);
 	// This gate owns a one-shot process; late teardown must never reconfigure a shut-down renderer.
@@ -444,6 +425,8 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 	}
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(RequestedCsvPath), true);
 	IFileManager::Get().Delete(*RequestedCsvPath, false, true, true);
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(RawSamplePath), true);
+	IFileManager::Get().Delete(*RawSamplePath, false, true, true);
 	FCsvProfiler::SetNonPersistentMetadata(TEXT("ProjectWorldProfile"), *RuntimeProfileId);
 	FCsvProfiler::SetNonPersistentMetadata(TEXT("ProjectWorldProfileSha256"), *RuntimeProfileHash);
 	FCsvProfiler::SetNonPersistentMetadata(TEXT("ProjectWorldMachine"), *MachineProfileId);
@@ -897,6 +880,7 @@ void FProjectWorldProductPerformanceGate::WriteResult(
 	Root->SetNumberField(TEXT("quality_level"), HighQualityLevel);
 	Root->SetNumberField(TEXT("resolution_x"), CapturedResolution.X);
 	Root->SetNumberField(TEXT("resolution_y"), CapturedResolution.Y);
+	PerformanceEnvelope.AppendReceiptFields(*Root);
 	Root->SetNumberField(TEXT("frame_p95_budget_ms"), FrameP95BudgetMilliseconds);
 	Root->SetNumberField(TEXT("time_to_ready_seconds"), CaptureReadySeconds);
 	Root->SetNumberField(TEXT("streaming_failures"), TotalStreamingFailures);
@@ -906,6 +890,7 @@ void FProjectWorldProductPerformanceGate::WriteResult(
 	Root->SetNumberField(TEXT("peak_process_physical_bytes"), static_cast<double>(PeakProcessPhysicalBytes));
 	Root->SetNumberField(TEXT("peak_gpu_local_bytes"), static_cast<double>(PeakGpuLocalBytes));
 	Root->SetStringField(TEXT("csv_capture"), WrittenCsvPath);
+	Root->SetStringField(TEXT("raw_sample_capture"), RawSamplePath);
 	Root->SetNumberField(TEXT("sample_count"), Overall.SampleCount);
 	Root->SetNumberField(TEXT("frame_p95_ms"), Overall.FrameP95Milliseconds);
 	Root->SetNumberField(TEXT("frame_p99_ms"), Overall.FrameP99Milliseconds);
@@ -918,6 +903,9 @@ void FProjectWorldProductPerformanceGate::WriteResult(
 	Root->SetStringField(TEXT("playable_tour_screenshot"), ScreenshotPath);
 	Root->SetStringField(TEXT("correctness_screenshot"), CorrectnessScreenshotPath);
 	Root->SetBoolField(TEXT("gameplay_interaction"), bCorrectnessGameplayInteraction);
+	// Authenticate the policy, so an omitted interaction is a recorded decision rather than
+	// something a reader has to infer from a false value.
+	Root->SetBoolField(TEXT("gameplay_interaction_required"), bRequireGameplayInteraction);
 	Root->SetBoolField(TEXT("terrain_collision"), bCorrectnessTerrainCollision);
 	Root->SetBoolField(TEXT("road_collision"), bCorrectnessRoadCollision);
 	Root->SetBoolField(TEXT("building_collision"), bCorrectnessBuildingCollision);

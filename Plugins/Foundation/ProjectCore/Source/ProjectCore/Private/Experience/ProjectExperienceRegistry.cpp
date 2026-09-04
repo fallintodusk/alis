@@ -23,6 +23,12 @@ void UProjectExperienceRegistry::RegisterDescriptor(UProjectExperienceDescriptor
 		return;
 	}
 
+	// Root the descriptor rather than relying on reflection: see the Descriptors comment for
+	// why this registry cannot hold reflected references to ordinary objects.
+	if (!Descriptor->IsRooted())
+	{
+		Descriptor->AddToRoot();
+	}
 	Descriptors.Add(Descriptor->ExperienceName, Descriptor);
 }
 

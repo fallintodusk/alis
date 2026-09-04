@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/canonical-authority.schema.json",
+  "schema_version": 1,
+  "authority_id": "manhattan_showcase_v1:e41f580397da39d94f0977fb5eefa0e72d137573b24fe0adf3485351775be31e",
+  "world_data_plugin": "ProjectWorldData",
+  "profile_id": "manhattan_showcase_v1",
+  "inputs_hash": "2eec710dc6b3b03d436009489d4db1ead733d84867fa3411892f9205c223e86a",
+  "profile_sha256": "28dc0c8d767ef70582bf9a6b8535d17a73ad3d5fa1a891f1bd2869d4270e528d",
+  "external_inputs": {
+    "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/manhattan_showcase_v1.source.json",
+    "source_profile_sha256": "b3aac9dc4f01ee0252b68b49ba796ce39e7e932aeacf02619917c6491a04e828",
+    "authored_overlay_path": "Plugins/World/ProjectWorldData/Data/Controls/manhattan_showcase_empty_overlay_v1.json",
+    "authored_overlay_sha256": "a490f5d84da7a4603df675221b58259d331d189ee27a856e4e1f83364400aaeb",
+    "fixture_features_path": null,
+    "fixture_features_sha256": null,
+    "budget_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/Budgets/manhattan_showcase_v1.budget.json",
+    "budget_profile_sha256": "1d4f32ca8bb77d0d24ce119dbf1c8e031b56771a37bffe05bf1b48e665f9edd6",
+    "control_profile_path": "Plugins/World/ProjectWorldData/Data/Controls/manhattan_showcase_v1.control.json",
+    "control_profile_sha256": "9343c6abe4527c55d05403b0bf3a9611a02614ab0a2f0ec2e49cef82ccf05944",
+    "source_run_inputs_hash": "6f1883ac505a68a48aa1798feb1c9156d0e8e3d370861ad45071c191a9b75ac4"
+  },
+  "admission_receipt_sha256": "a319f1a87fb10221e7a2f8ce9facfbe99e955fd2141de068d8905cb223c6688d",
+  "admission_artifacts": [
+    {
+      "path": "admission/territory_admission_receipt.json",
+      "sha256": "a319f1a87fb10221e7a2f8ce9facfbe99e955fd2141de068d8905cb223c6688d",
+      "byte_size": 2319
+    },
+    {
+      "path": "admission/source_plan.json",
+      "sha256": "67e4833b5562661c1200edb43662523398badef63bcfea0acc8c3c389cb18486",
+      "byte_size": 7104
+    },
+    {
+      "path": "admission/control_network_receipt.json",
+      "sha256": "6992354f27ab2a31b7112bbc635931f3dd4586e8078f232a312e307b19b073c0",
+      "byte_size": 2467
+    }
+  ],
+  "compile_result_sha256": "10a79a6fb2a0229e8a0fb6440929c2d9850f80d6f68d5bcc7c377534d14434e8",
+  "output_count": 637,
+  "bundle": {
+    "format": "deterministic_zip_v1",
+    "path": "bundles/e41f580397da39d94f0977fb5eefa0e72d137573b24fe0adf3485351775be31e.zip",
+    "byte_size": 32061170,
+    "sha256": "fb5c6dc9b2724873585c5c1f2189aade594e7bb6bd353bc628d99f6ee9ebf171"
+  }
+}

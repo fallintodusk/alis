@@ -9,7 +9,9 @@
 #include "Overlay/ProjectUIPopupPresenter.h"
 #include "W_MainMenu.generated.h"
 
+class UButton;
 class UCanvasPanel;
+class UProjectMenuExperienceLaunchBinding;
 class UUserWidget;
 
 /**
@@ -53,12 +55,6 @@ protected:
 	void BackToMain();
 
 	UFUNCTION()
-	void SelectMapCity17();
-
-	UFUNCTION()
-	void SelectMapKazanTerritory();
-
-	UFUNCTION()
 	void RequestQuit();
 
 	UFUNCTION()
@@ -82,9 +78,22 @@ protected:
 	void UpdateMenuButtonHighlight(EMenuScreen CurrentScreen);
 
 protected:
+	/**
+	 * Bind a button whose configured action is "loadexperience:<ExperienceId>".
+	 * Returns true when the action was an experience launch and was bound.
+	 */
+	bool TryBindExperienceLaunch(UButton& Button, const FString& AuthoredAction);
+
 	/** ViewModel for menu state and navigation */
 	UPROPERTY(Transient)
 	TObjectPtr<UProjectMenuViewModel> MenuViewModel;
+
+	/**
+	 * Launch bindings owned by this widget, one per configured experience button.
+	 * Rebuilt on every BindCallbacks pass so a layout reload cannot leave stale entries.
+	 */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UProjectMenuExperienceLaunchBinding>> ExperienceLaunchBindings;
 
 private:
 	/** Ensure ProjectSettingsUI widget is created and hosted via shared ProjectUI presenter. */

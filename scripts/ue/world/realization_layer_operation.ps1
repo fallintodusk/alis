@@ -25,7 +25,8 @@ function Assert-ProjectWorldExecutableLayerTuple {
         [string]$Layer.dirty_granularity -ceq 'canonical_cell'
     $landscape = $common -and
         [string]$Layer.generator_id -ceq 'project_landscape' -and
-        $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'terrain' -and
+        $selectors.Count -eq 2 -and [string]$selectors[0] -ceq 'terrain' -and
+        [string]$selectors[1] -ceq 'water' -and
         [string]$Layer.spatial_ownership -ceq 'logical_landscape_with_cell_proxies' -and
         [string]$Layer.runtime_mapping -ceq 'world_partition_owner' -and
         [int]$Layer.settings.components_per_proxy -eq 1
@@ -34,12 +35,10 @@ function Assert-ProjectWorldExecutableLayerTuple {
         $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'water' -and
         [string]$Layer.spatial_ownership -ceq 'cell_local' -and
         [string]$Layer.runtime_mapping -ceq 'world_partition_spatial' -and
-        [string]$Layer.settings.material_shading_model -ceq 'single_layer_water' -and
+        [string]$Layer.settings.material_shading_model -ceq 'solid_opaque' -and
+        [double]$Layer.settings.surface_offset_m -eq 0.25 -and
         [bool]$Layer.settings.nanite -eq $false -and
-        @($Layer.settings.scattering_coefficients).Count -eq 3 -and
-        @($Layer.settings.absorption_coefficients).Count -eq 3 -and
-        @($Layer.settings.scattering_coefficients | Where-Object { [double]$_ -lt 0 }).Count -eq 0 -and
-        @($Layer.settings.absorption_coefficients | Where-Object { [double]$_ -lt 0 }).Count -eq 0
+        @($Layer.settings.PSObject.Properties).Count -eq 3
     $roadClasses = if ($Layer.settings.PSObject.Properties.Name -contains 'selected_classes') {
         @($Layer.settings.selected_classes)
     } else {
@@ -104,7 +103,15 @@ function Assert-ProjectWorldExecutableLayerTuple {
     if ($Layer.PSObject.Properties.Name -contains 'depends_on') {
         $buildingDependencies = @($Layer.depends_on)
     }
-    $buildings = $common -and
+    $buildingVersion = [int]$Layer.generator_version
+    $buildingTopology = if ($buildingVersion -eq 2) {
+        'logical_building_classify_v2'
+    } else {
+        'cell_local_classify_v1'
+    }
+    $buildings = [string]$Layer.layer_kind -ceq 'generated_geography' -and
+        $buildingVersion -in @(1, 2) -and
+        [string]$Layer.dirty_granularity -ceq 'canonical_cell' -and
         [string]$Layer.generator_id -ceq 'project_building_massing' -and
         $selectors.Count -eq 1 -and [string]$selectors[0] -ceq 'buildings' -and
         $buildingDependencies.Count -eq 1 -and
@@ -115,7 +122,7 @@ function Assert-ProjectWorldExecutableLayerTuple {
         [double]$Layer.settings.maximum_height_m -ge 50.0 -and
         [double]$Layer.settings.maximum_height_m -le 1000.0 -and
         [string]$Layer.settings.terrain_anchor_policy -ceq 'owner_cell_clamped_bounds_center' -and
-        [string]$Layer.settings.topology_policy -ceq 'cell_local_classify_v1' -and
+        [string]$Layer.settings.topology_policy -ceq $buildingTopology -and
         [string]$Layer.settings.duplicate_policy -ceq 'stable_feature_id' -and
         [string]$Layer.settings.contained_policy -ceq 'associate_with_container' -and
         [string]$Layer.settings.conflict_policy -ceq 'reject_affected_fragments' -and

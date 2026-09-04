@@ -67,7 +67,7 @@ Completed correction sweep before external review:
 - [Plugin rules + feature orchestration](../../../docs/architecture/plugin_rules.md)
 - [Single-player game mode](../../../Plugins/Gameplay/ProjectSinglePlay/README.md)
 - [Procedural building assembly decision record](../../../Plugins/World/ProjectBuildingAssembly/docs/decision_record.md)
-- [Focus scope](../../00_current/00_focus.md)
+- [Current release focus](../../00_current/00_release_2.0.0.md)
 
 ## Slice 0A - CRITICAL: generic authored-layer isolation
 
@@ -519,51 +519,32 @@ SOT. Fixed cameras and manual walkthroughs are diagnostic, not authority.
 
 ## Kazan presentation research checkpoint
 
-The [campaign router](world_plan_kazan_presentation_campaign.md) records concern
+The [completed campaign](../../01_done/world/world_plan_kazan_presentation_campaign.md) records concern
 sequencing. All seven concerns completed sequential research before any
 implementation was selected. Research-complete concern todos remain in backlog
 until one is selected, implemented, and verified. This checkpoint
 does not reopen canonical geography, generator architecture, generated-layer
 authority, or the accepted `512/1536` runtime profile.
 
-## Slice 5 - Integrate the first scenario
+## Slice 5 - Closed as superseded
 
-Status: technical mechanics accepted; grounded reachability, clarity, pacing,
-and feel walkthrough pending.
+**Status:** SUPERSEDED BY PRODUCT DECISION - 2026-09-02
 
-Ownership rule: ProjectWorld owns spatial acceptance only (map identity,
-territory bounds, spawn/route anchors, collision, navigation roles, streaming
-roles, capture/traversal paths, budgets). The scenario's objective graph,
-state transitions, item requirements, success/failure, and feature
-activation live in ProjectSinglePlay or existing feature data. The
-protected overlay owns spatial anchors and hero actors, never gameplay
-logic. Baked local content only - no launcher delivery, hot-mounted region
-packs, or new IoStore mounting path in this milestone.
+Kazan and future reconstructed cities are demo/scale experiences using the real
+character in `PreviewFlight`. They do not own survival onboarding or require a
+cache/shelter micro-scenario. Old City 17 remains the product owner for survival,
+inventory, vitals, Mind, and related introductions.
 
-- [x] Reuse the Kazan experience/menu/cook route and generated-ground spawn
-  already accepted by Slice 4; Slice 5 must not register a second route.
-- [x] Re-verify collision, navigation, interaction, and streaming through the
-  scenario-specific path and anchors.
-- [x] Author the minimum [00_focus](../../00_current/00_focus.md) Track B loop with existing
-  systems only (spawn -> inspect/interact -> obtain or choose ->
-  vitals/inventory consequence -> clear success/failure -> clean restart);
-  no dialogue content, combat, crafting, multiplayer, or Mind work.
-- [x] Store spatial anchors in the protected overlay; store scenario logic
-  in ProjectSinglePlay or existing feature data.
-- [x] Verify the restart contract this playable build promises;
-  prove regeneration preserves all scenario anchors unchanged (byte AND
-  anchor-resolution proofs per the layered regeneration contract).
-- [x] Extend packaged acceptance with scenario screenshots and traversal
-  identity without moving scenario logic into ProjectWorld.
-- [x] Exit gate: scenario runs menu-to-terminal-outcome in Development and
-  packaged Shipping with no manual editor preparation.
+The generic scenario mechanics and their focused tests may remain reusable technical
+capability. They are not a Kazan release gate, and no new city may duplicate the Old
+City 17 scenario surface merely to prove World reconstruction.
 
-## Slice 6 - Integrate and retire legacy content by class
+## Slice 6 - Migrate reusable legacy content by class
 
 Execute the accepted
 [legacy transition decision](../../../Plugins/World/ProjectWorld/docs/legacy_world_transition.md)
-against the Slice 1 inventory. City17 remains a supported bug-fix-only menu
-experience until every retirement condition in that SOT passes.
+against the Slice 1 inventory. Old City 17 remains the supported survival/onboarding
+experience. Its retirement is not part of Kazan or showcase-city work.
 
 - [ ] Geography-bound roads, trees, buildings: regenerate or retire.
 - [ ] Hero locations and gameplay landmarks: migrate as coordinate-owned
@@ -579,10 +560,9 @@ experience until every retirement condition in that SOT passes.
   matrix with its layer and fixtures; each assembled feature explicitly
   replaces or suppresses its blockout - no competing building geometry.
 - [ ] Conflicts, unknown licensing, hidden map dependencies: exclude.
-- [ ] Retire City17 only after: the playable scenario is accepted, every
-  retained reference has moved, repository-wide reference checks find no
-  required old-map dependency, and build, tests, and package pass without
-  it. One pass, no compatibility map, alias, or dual authority.
+- [ ] Do not retire Old City 17 merely because a reconstructed showcase map ships;
+  preserve its distinct survival/onboarding product role unless a future operator
+  decision explicitly replaces that role.
 
 ## Slice 7 - Final playable and promotion release gate
 
@@ -590,8 +570,9 @@ experience until every retirement condition in that SOT passes.
   final revision; a clean bootstrap/build route reproduces the generated
   maps; the FINAL coverage matrix is complete for every generated layer
   present in the released package.
-- [ ] Packaged game boots through the normal menu; the micro-scenario can
-  be started, completed, failed, and restarted.
+- [ ] Packaged game boots through the normal menu; Old City 17 remains the survival
+  experience, while Kazan and selected showcase maps open through their real
+  `PreviewFlight` product routes without a city-specific scenario gate.
 - [ ] Runtime and rendering budgets pass; IoStore contains required maps
   and no provider payloads.
 - [ ] Package size and archive split stay under current transport

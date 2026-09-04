@@ -47,6 +47,15 @@ namespace ProjectWorldBuildingMeshBuilder
 			FAxisAlignedBox2d Bounds;
 			double AreaSquareMeters = 0.0;
 			EAdmissionState State = EAdmissionState::Accepted;
+			struct FVolume
+			{
+				FString VolumeId;
+				TArray<FGeneralPolygon2d> FullPolygons;
+				TArray<FGeneralPolygon2d> CellPolygons;
+				double MinHeightMeters = 0.0;
+				double HeightMeters = 0.0;
+			};
+			TArray<FVolume> Volumes;
 		};
 
 		struct FBuildingPair
@@ -230,14 +239,15 @@ namespace ProjectWorldBuildingMeshBuilder
 		bool PrepareBuilding(
 			const FProjectWorldCanonicalFeature& Feature,
 			const FProjectWorldCanonicalCell& Cell,
-			double MaximumHeightMeters,
+			const FProjectWorldBuildingSettings& Settings,
 			FPreparedBuilding& OutBuilding)
 		{
 			OutBuilding.Feature = &Feature;
 			if ((Feature.GeometryType != TEXT("Polygon") && Feature.GeometryType != TEXT("MultiPolygon")) ||
 				Feature.GeometryPolygons.IsEmpty() ||
 				!FMath::IsFinite(Feature.HeightMeters) || Feature.HeightMeters <= 0.0 ||
-				Feature.HeightMeters > MaximumHeightMeters)
+				Feature.HeightMeters > Settings.MaximumHeightMeters ||
+				(Settings.GeneratorVersion == 2 && Feature.BuildingVolumes.IsEmpty()))
 			{
 				OutBuilding.State = EAdmissionState::Malformed;
 				return true;
@@ -270,6 +280,51 @@ namespace ProjectWorldBuildingMeshBuilder
 			{
 				OutBuilding.State = EAdmissionState::Malformed;
 				return true;
+			}
+			if (Settings.GeneratorVersion == 1)
+			{
+				FPreparedBuilding::FVolume& Volume = OutBuilding.Volumes.AddDefaulted_GetRef();
+				Volume.VolumeId = Feature.FeatureId;
+				Volume.FullPolygons = OutBuilding.FullPolygons;
+				Volume.CellPolygons = OutBuilding.CellPolygons;
+				Volume.HeightMeters = Feature.HeightMeters;
+			}
+			else
+			{
+				for (const FProjectWorldCanonicalBuildingVolume& SourceVolume : Feature.BuildingVolumes)
+				{
+					if (!FMath::IsFinite(SourceVolume.MinHeightMeters) ||
+						!FMath::IsFinite(SourceVolume.HeightMeters) ||
+						SourceVolume.MinHeightMeters < 0.0 ||
+						SourceVolume.MinHeightMeters >= SourceVolume.HeightMeters ||
+						SourceVolume.HeightMeters > Settings.MaximumHeightMeters)
+					{
+						OutBuilding.State = EAdmissionState::Malformed;
+						return true;
+					}
+					FPreparedBuilding::FVolume& Volume = OutBuilding.Volumes.AddDefaulted_GetRef();
+					Volume.VolumeId = SourceVolume.VolumeId;
+					Volume.MinHeightMeters = SourceVolume.MinHeightMeters;
+					Volume.HeightMeters = SourceVolume.HeightMeters;
+					for (const FProjectWorldCanonicalPolygon& SourcePolygon : SourceVolume.GeometryPolygons)
+					{
+						FGeneralPolygon2d Polygon;
+						if (!BuildPolygon(SourcePolygon, Polygon))
+						{
+							OutBuilding.State = EAdmissionState::Malformed;
+							return true;
+						}
+						Volume.FullPolygons.Add(MoveTemp(Polygon));
+					}
+					TArray<FGeneralPolygon2d> UnifiedVolume;
+					if (!PolygonsUnion(Volume.FullPolygons, UnifiedVolume, false) || UnifiedVolume.IsEmpty() ||
+						!PolygonsIntersection(UnifiedVolume, CellBounds, Volume.CellPolygons))
+					{
+						OutBuilding.State = EAdmissionState::Malformed;
+						return true;
+					}
+					Volume.FullPolygons = MoveTemp(UnifiedVolume);
+				}
 			}
 			return true;
 		}
@@ -404,7 +459,7 @@ namespace ProjectWorldBuildingMeshBuilder
 			const FPolygonGroupID Group,
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldCanonicalCell& Cell,
-			const FPreparedBuilding& Building,
+			const TArray<FGeneralPolygon2d>& FullPolygons,
 			const FVector& Origin,
 			const FPolygon2d& Ring,
 			double Bottom,
@@ -434,7 +489,7 @@ namespace ProjectWorldBuildingMeshBuilder
 					OutsideOffset.Y = Tolerance;
 				}
 				const FVector2d OutsidePoint = (A + B) * 0.5 + OutsideOffset;
-				if (OutsideOffset.SquaredLength() > 0.0 && Building.FullPolygons.ContainsByPredicate(
+				if (OutsideOffset.SquaredLength() > 0.0 && FullPolygons.ContainsByPredicate(
 					[&OutsidePoint](const FGeneralPolygon2d& Polygon) { return Polygon.Contains(OutsidePoint); }))
 				{
 					continue;
@@ -458,20 +513,30 @@ namespace ProjectWorldBuildingMeshBuilder
 			const FProjectWorldCanonicalCell& Cell,
 			const FPreparedBuilding& Building)
 		{
-			const double Bottom = BaseHeight(Bundle, Building);
-			const double Top = Bottom + Building.Feature->HeightMeters;
-			for (const FGeneralPolygon2d& Polygon : Building.CellPolygons)
+			const double Base = BaseHeight(Bundle, Building);
+			for (const FPreparedBuilding::FVolume& Volume : Building.Volumes)
 			{
-				AddCap(Result.MeshDescription, Group, Bundle, Result.ActorOrigin, Polygon, Bottom, false, Result.TriangleCount);
-				AddCap(Result.MeshDescription, Group, Bundle, Result.ActorOrigin, Polygon, Top, true, Result.TriangleCount);
-				AddRingWalls(Result.MeshDescription, Group, Bundle, Cell, Building, Result.ActorOrigin, Polygon.GetOuter(), Bottom, Top, Result.TriangleCount);
-				for (const FPolygon2d& Hole : Polygon.GetHoles())
+				const double Bottom = Base + Volume.MinHeightMeters;
+				const double Top = Base + Volume.HeightMeters;
+				for (const FGeneralPolygon2d& Polygon : Volume.CellPolygons)
 				{
-					AddRingWalls(Result.MeshDescription, Group, Bundle, Cell, Building, Result.ActorOrigin, Hole, Bottom, Top, Result.TriangleCount);
+					AddCap(Result.MeshDescription, Group, Bundle, Result.ActorOrigin, Polygon, Bottom, false, Result.TriangleCount);
+					AddCap(Result.MeshDescription, Group, Bundle, Result.ActorOrigin, Polygon, Top, true, Result.TriangleCount);
+					AddRingWalls(Result.MeshDescription, Group, Bundle, Cell, Volume.FullPolygons, Result.ActorOrigin, Polygon.GetOuter(), Bottom, Top, Result.TriangleCount);
+					for (const FPolygon2d& Hole : Polygon.GetHoles())
+					{
+						AddRingWalls(Result.MeshDescription, Group, Bundle, Cell, Volume.FullPolygons, Result.ActorOrigin, Hole, Bottom, Top, Result.TriangleCount);
+					}
 				}
 			}
 		}
 
+		// The mesh semantic domain versions the emitted cell-mesh identity format, which is a
+		// separate axis from the massing generator version: the digest already covers every vertex
+		// position, so differing generator output changes the hash on its own. The domain is bumped
+		// deliberately when the identity format changes (v1 -> v2 when the wall/cap emission changed);
+		// deriving it from the generator version instead would re-emit the retired v1 domain for a
+		// different mesh format and rewrite the accepted identity of existing generated layers.
 		bool BuildSemanticDigest(FProjectWorldBuildingMeshBuildResult& Result)
 		{
 			FStaticMeshAttributes Attributes(Result.MeshDescription);
@@ -543,7 +608,7 @@ namespace ProjectWorldBuildingMeshBuilder
 		for (const FString& FeatureId : CellBuildingFeatureIds(Bundle, Cell))
 		{
 			FPreparedBuilding Building;
-			if (!PrepareBuilding(Bundle.Features.FindChecked(FeatureId), Cell, Settings.MaximumHeightMeters, Building))
+			if (!PrepareBuilding(Bundle.Features.FindChecked(FeatureId), Cell, Settings, Building))
 			{
 				OutError = FString::Printf(TEXT("Cannot prepare building feature: %s"), *FeatureId);
 				return false;

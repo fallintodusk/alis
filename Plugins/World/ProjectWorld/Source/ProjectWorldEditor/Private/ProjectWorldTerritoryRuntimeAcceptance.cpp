@@ -25,6 +25,7 @@ namespace ProjectWorldTerritoryRuntimeAcceptance
 	{
 		const FName RoadTag(TEXT("ProjectWorld.Road.v1"));
 		const FName BuildingTag(TEXT("ProjectWorld.BuildingMassing.v1"));
+		const FName BuildingTagV2(TEXT("ProjectWorld.BuildingMassing.v2"));
 		const FName VegetationTag(TEXT("ProjectWorld.Vegetation=v1"));
 		bool bFoundRoad = false;
 		bool bFoundBuilding = false;
@@ -56,9 +57,10 @@ namespace ProjectWorldTerritoryRuntimeAcceptance
 			});
 			AlwaysLoadedPlayerStarts += bPlayerStart && !It->GetIsSpatiallyLoaded() ? 1 : 0;
 
-			const bool bNaniteLayer = It->Tags.Contains(RoadTag) || It->Tags.Contains(BuildingTag);
+			const bool bBuilding = It->Tags.Contains(BuildingTag) || It->Tags.Contains(BuildingTagV2);
+			const bool bNaniteLayer = It->Tags.Contains(RoadTag) || bBuilding;
 			bFoundRoad |= It->Tags.Contains(RoadTag);
-			bFoundBuilding |= It->Tags.Contains(BuildingTag);
+			bFoundBuilding |= bBuilding;
 			bFoundVegetation |= It->Tags.Contains(VegetationTag);
 			TInlineComponentArray<UStaticMeshComponent*> Meshes;
 			It->GetComponents(Meshes);

@@ -1,0 +1,14 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectExperienceData",
+  "Description": "Data/content-only owner for concrete configured application experiences.",
+  "Category": "Project.Resources",
+  "EnabledByDefault": true,
+  "CanContainContent": true,
+  "Modules": [],
+  "Plugins": [
+    {"Name": "ProjectCore", "Enabled": true}
+  ]
+}

@@ -4,6 +4,7 @@
 #include "ProjectWorldTerrainVerification.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldTerrainWaterConformance.h"
 #include "Utilities/ProjectSha256.h"
 
 #include "Landscape.h"
@@ -89,9 +90,21 @@ bool FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
 		FMath::Max(Bundle.HeightQuantizationMeters, 1.0 / 128.0);
 	double MinimumRealized = 1.0e18;
 	double MaximumRealized = -1.0e18;
+	FProjectWorldTerrainWaterConformanceContext WaterContext;
+	if (!ProjectWorldTerrainWaterConformance::Prepare(Bundle, WaterContext, OutError))
+	{
+		return false;
+	}
 
 	for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 	{
+		TArray<double> ExpectedHeights;
+		FProjectWorldTerrainWaterConformanceStats WaterStats;
+		if (!ProjectWorldTerrainWaterConformance::BuildCellHeights(
+			Bundle, WaterContext, Cell, ExpectedHeights, WaterStats, OutError))
+		{
+			return false;
+		}
 		const int32 OffsetX = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
 		const int32 OffsetY = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
 		for (int32 Row = 0; Row < Cell.Terrain.SamplesY; ++Row)
@@ -110,7 +123,7 @@ bool FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
 					return false;
 				}
 				const double Expected =
-					Cell.Terrain.HeightsMeters[Row * Cell.Terrain.SamplesX + Column];
+					ExpectedHeights[Row * Cell.Terrain.SamplesX + Column];
 				const double Realized =
 					LandscapeDataAccess::GetLocalHeight(LayerHeights[LayerIndex]) +
 					Bundle.HeightOriginMeters;
@@ -126,7 +139,7 @@ bool FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
 					if (OutComparison.FirstMismatch.IsEmpty())
 					{
 						OutComparison.FirstMismatch = FString::Printf(
-							TEXT("%s sample (%d,%d): canonical %.3f m, realized %.3f m"),
+							TEXT("%s sample (%d,%d): expected projection %.3f m, realized %.3f m"),
 							*Cell.CellId,
 							Column,
 							Row,
@@ -177,11 +190,23 @@ bool FProjectWorldTerrainVerification::CompareFinalHeightmapToCanonical(
 	double MinimumRealized = 1.0e18;
 	double MaximumRealized = -1.0e18;
 	TArray<uint8> IdentityBytes;
+	FProjectWorldTerrainWaterConformanceContext WaterContext;
+	if (!ProjectWorldTerrainWaterConformance::Prepare(Bundle, WaterContext, OutError))
+	{
+		return false;
+	}
 
 	// Cache one data interface per component; constructing it locks the heightmap mip.
 	TMap<ULandscapeComponent*, TSharedPtr<FLandscapeComponentDataInterface>> Interfaces;
 	for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 	{
+		TArray<double> ExpectedHeights;
+		FProjectWorldTerrainWaterConformanceStats WaterStats;
+		if (!ProjectWorldTerrainWaterConformance::BuildCellHeights(
+			Bundle, WaterContext, Cell, ExpectedHeights, WaterStats, OutError))
+		{
+			return false;
+		}
 		const int32 OffsetX = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
 		const int32 OffsetY = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
 		for (int32 Row = 0; Row < Cell.Terrain.SamplesY; ++Row)
@@ -225,7 +250,7 @@ bool FProjectWorldTerrainVerification::CompareFinalHeightmapToCanonical(
 				IdentityBytes.Append(
 					reinterpret_cast<const uint8*>(&Encoded), sizeof(uint16));
 				const double Expected =
-					Cell.Terrain.HeightsMeters[Row * Cell.Terrain.SamplesX + Column];
+					ExpectedHeights[Row * Cell.Terrain.SamplesX + Column];
 				const double Realized =
 					LandscapeDataAccess::GetLocalHeight(Encoded) + Bundle.HeightOriginMeters;
 				++OutComparison.SampleCount;
@@ -240,7 +265,7 @@ bool FProjectWorldTerrainVerification::CompareFinalHeightmapToCanonical(
 					if (OutComparison.FirstMismatch.IsEmpty())
 					{
 						OutComparison.FirstMismatch = FString::Printf(
-							TEXT("%s sample (%d,%d): canonical %.3f m, final %.3f m"),
+							TEXT("%s sample (%d,%d): expected projection %.3f m, final %.3f m"),
 							*Cell.CellId, Column, Row, Expected, Realized);
 					}
 				}

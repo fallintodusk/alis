@@ -61,6 +61,77 @@ namespace ProjectWorldRuntimeRealization
 			return FString();
 		}
 
+		bool HasSingleTagValue(
+			const AActor& Actor,
+			const FString& Prefix,
+			const FString& Value)
+		{
+			int32 MatchCount = 0;
+			for (const FName& Tag : Actor.Tags)
+			{
+				const FString TagValue = Tag.ToString();
+				if (TagValue.StartsWith(Prefix))
+				{
+					++MatchCount;
+					if (TagValue != Prefix + Value)
+					{
+						return false;
+					}
+				}
+			}
+			return MatchCount == 1;
+		}
+
+		APlayerStart* FindCurrentProductPlayerStart(
+			UWorld* World,
+			const FProjectWorldCanonicalBundle& Bundle,
+			const FProjectWorldRuntimeProfile& Profile,
+			const FVector& ProductLocation)
+		{
+			const FString Role(TEXT("PlayerStart"));
+			const FGuid ExpectedGuid = ProjectWorldGeneratedGeometry::StableGuid(
+				Bundle.GridId + TEXT("|runtime|") + Role);
+			const FName ExpectedName(TEXT("ProjectWorld_PlayerStart"));
+			TSet<AActor*> IdentityActors;
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (RuntimeRole(**It) == Role || It->GetActorGuid() == ExpectedGuid ||
+					It->GetFName() == ExpectedName)
+				{
+					IdentityActors.Add(*It);
+				}
+			}
+			if (UObject* NamedObject = StaticFindObjectFast(nullptr, World->PersistentLevel, ExpectedName))
+			{
+				if (AActor* NamedActor = Cast<AActor>(NamedObject))
+				{
+					IdentityActors.Add(NamedActor);
+				}
+			}
+			if (IdentityActors.Num() != 1)
+			{
+				return nullptr;
+			}
+			APlayerStart* PlayerStart = Cast<APlayerStart>(*IdentityActors.CreateConstIterator());
+			const FRotator ExpectedRotation(
+				Profile.ProductSpawnPitchDegrees,
+				Profile.ProductSpawnYawDegrees,
+				0.0);
+			return PlayerStart != nullptr && PlayerStart->GetClass() == APlayerStart::StaticClass() &&
+				PlayerStart->GetActorGuid() == ExpectedGuid && PlayerStart->GetFName() == ExpectedName &&
+				PlayerStart->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag) &&
+				HasSingleTagValue(*PlayerStart, RuntimeRolePrefix, Role) &&
+				HasSingleTagValue(*PlayerStart, RuntimeProfilePrefix, Profile.ProfileId) &&
+				HasSingleTagValue(*PlayerStart, RuntimeProfileHashPrefix, Profile.ProfileHash) &&
+				HasSingleTagValue(*PlayerStart, GridPrefix, Bundle.GridId) &&
+				HasSingleTagValue(*PlayerStart, RoutePrefix, Profile.RouteId) &&
+				PlayerStart->GetActorLocation().Equals(ProductLocation, 0.01) &&
+				PlayerStart->GetActorRotation().Equals(ExpectedRotation, 0.01) &&
+				!PlayerStart->GetIsSpatiallyLoaded() && !PlayerStart->bEnableAutoLODGeneration
+				? PlayerStart
+				: nullptr;
+		}
+
 		const FProjectWorldCanonicalFeature* RouteFeature(
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldRuntimeProfile& Profile,
@@ -582,16 +653,21 @@ namespace ProjectWorldRuntimeRealization
 		}
 		if (Profile.ProfileKind == TEXT("territory_product"))
 		{
+			FVector ProductLocation;
+			if (!ProductSpawnLocation(Bundle, Profile, ProductLocation, OutError))
+			{
+				return false;
+			}
+			if (FindCurrentProductPlayerStart(World, Bundle, Profile, ProductLocation) != nullptr)
+			{
+				++OutResult.PreservedActorCount;
+				return true;
+			}
 			APlayerStart* PlayerStart = Cast<APlayerStart>(ReuseOrSpawn(
 				World, APlayerStart::StaticClass(), TEXT("PlayerStart"), Bundle, Profile, OutResult));
 			if (PlayerStart == nullptr)
 			{
 				OutError = TEXT("Cannot create the unique territory PlayerStart.");
-				return false;
-			}
-			FVector ProductLocation;
-			if (!ProductSpawnLocation(Bundle, Profile, ProductLocation, OutError))
-			{
 				return false;
 			}
 			PlayerStart->SetActorLocation(ProductLocation);

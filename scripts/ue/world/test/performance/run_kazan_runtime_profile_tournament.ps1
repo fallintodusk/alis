@@ -20,6 +20,7 @@ $compilerBootstrap = Join-Path $projectRoot 'tools\World\CanonicalCompilation\bo
 . (Join-Path $worldRoot 'realization_layer_operation.ps1')
 . (Join-Path $worldRoot 'runtime_profile_tournament.ps1')
 . (Join-Path $PSScriptRoot '..\runtime_profile_test_helpers.ps1')
+. (Join-Path $PSScriptRoot 'project_world_performance_evidence.ps1')
 
 function Resolve-TournamentPath {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -154,7 +155,8 @@ function Invoke-TournamentGame {
         [Parameter(Mandatory = $true)][string]$ProfileHash,
         [Parameter(Mandatory = $true)][string]$CorrectnessPath,
         [Parameter(Mandatory = $true)][string]$PerformancePath,
-        [Parameter(Mandatory = $true)][string]$CsvPath
+        [Parameter(Mandatory = $true)][string]$CsvPath,
+        [Parameter(Mandatory = $true)][string]$SamplePath
     )
     $arguments = @(
         '-ProjectMenuPlayAutoExperience=KazanTerritory',
@@ -171,8 +173,9 @@ function Invoke-TournamentGame {
         "-ProjectWorldPerformanceResult=$PerformancePath",
         "-ProjectWorldPerformanceCorrectness=$CorrectnessPath",
         "-ProjectWorldPerformanceCsv=$CsvPath",
+        "-ProjectWorldPerformanceSamples=$SamplePath",
         '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
-        '-RenderOffScreen', '-VSync=0', '-unattended', '-nosplash'
+        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash'
     )
     $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
         -WorkingDirectory (Split-Path -Parent $Executable) -PassThru
@@ -191,6 +194,7 @@ function Read-TournamentCandidate {
         [Parameter(Mandatory = $true)][string]$CorrectnessPath,
         [Parameter(Mandatory = $true)][string]$PerformancePath,
         [Parameter(Mandatory = $true)][string]$CsvPath,
+        [Parameter(Mandatory = $true)][string]$SamplePath,
         [Parameter(Mandatory = $true)][Int64]$PackageBytes,
         [Parameter(Mandatory = $true)][Int64]$CookedPayloadBytes,
         [Parameter(Mandatory = $true)][int]$ExitCode
@@ -207,6 +211,10 @@ function Read-TournamentCandidate {
     }
     Assert-Tournament (Test-Path -LiteralPath $CsvPath -PathType Leaf) `
         "Native CSV capture is missing: $($Profile.profile_id)"
+    Assert-Tournament (Test-Path -LiteralPath $SamplePath -PathType Leaf) `
+        "Exact sample capture is missing: $($Profile.profile_id)"
+    $null = @(Import-ProjectWorldPerformanceSamples -Path $SamplePath `
+            -ExpectedCount ([int]$performance.sample_count))
     $requiredRoutes = @('dense_centre', 'long_diagonal', 'perimeter', 'backtrack', 'higher_speed_stress')
     $actualRoutes = @($performance.routes | ForEach-Object { [string]$_.route } | Sort-Object)
     $identityAccepted = (
@@ -225,6 +233,10 @@ function Read-TournamentCandidate {
         [int]$performance.quality_level -eq 2 -and
         [int]$performance.resolution_x -eq 2560 -and
         [int]$performance.resolution_y -eq 1440 -and
+        (Test-ProjectWorldPerformanceEnvelopeReceipt -Receipt $performance) -and
+        $null -ne $performance.PSObject.Properties['raw_sample_capture'] -and
+        ([IO.Path]::GetFullPath([string]$performance.raw_sample_capture)).Equals(
+            [IO.Path]::GetFullPath($SamplePath), [StringComparison]::OrdinalIgnoreCase) -and
         [int]$performance.sample_count -ge 300 -and
         ($actualRoutes -join '|') -ceq (($requiredRoutes | Sort-Object) -join '|'))
     return [pscustomobject][ordered]@{
@@ -264,6 +276,7 @@ function Read-TournamentCandidate {
         correctness_receipt = $CorrectnessPath
         performance_receipt = $PerformancePath
         csv_capture = $CsvPath
+        raw_sample_capture = $SamplePath
         routes = @($performance.routes)
         package_deleted = $true
     }
@@ -354,6 +367,7 @@ try {
         $correctnessReceipt = Join-Path $candidateRoot 'product-route.json'
         $performanceReceipt = Join-Path $candidateRoot 'performance.json'
         $csvPath = Join-Path $candidateRoot 'performance.csv'
+        $samplePath = Join-Path $candidateRoot 'performance.samples.csv'
         $packageRoot = Join-Path $workRoot "packages\$($profile.profile_id)"
         $candidateRealizationPath = New-TournamentRealizationProfile `
             -RuntimeProfile $profile `
@@ -376,11 +390,12 @@ try {
             $exitCode = Invoke-TournamentGame `
                 -Executable $executable -OperationId $operationId -Profile $profile `
                 -ProfileHash $profileHash -CorrectnessPath $correctnessReceipt `
-                -PerformancePath $performanceReceipt -CsvPath $csvPath
+                -PerformancePath $performanceReceipt -CsvPath $csvPath `
+                -SamplePath $samplePath
             $candidate = Read-TournamentCandidate `
                 -Profile $profile -ProfileHash $profileHash -Executable $executable `
                 -CorrectnessPath $correctnessReceipt -PerformancePath $performanceReceipt `
-                -CsvPath $csvPath -PackageBytes $packageBytes `
+                -CsvPath $csvPath -SamplePath $samplePath -PackageBytes $packageBytes `
                 -CookedPayloadBytes $payloadBytes -ExitCode $exitCode
             $candidates.Add($candidate)
         }

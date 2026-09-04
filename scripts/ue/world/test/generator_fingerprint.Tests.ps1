@@ -9,6 +9,7 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
     BeforeEach {
         $projectRoot = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
         $shared = 'scripts/ue/world/generated_manifest.ps1'
+        $canonicalBundle = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldCanonicalBundle.cpp'
         $map = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlayRealization.cpp'
         $runtimePartition = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.cpp'
         $evidenceHost = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEditorModule.cpp'
@@ -17,7 +18,9 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
         $authoredOverlay = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp'
         $presentation = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.cpp'
         $terrain = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp'
+        $terrainWaterConformance = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.cpp'
         $water = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterRealization.cpp'
+        $waterMeshBuilder = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.cpp'
         $roads = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRoadRealization.cpp'
         $surface = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp'
         $vegetation = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationPlacement.cpp'
@@ -37,8 +40,8 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
             'scripts/ue/world/realization_layer_operation.ps1'
         )
         foreach ($path in @(
-            $shared, $map, $runtimePartition, $evidenceHost, $semanticEvidence, $staticAuditHost, $authoredOverlay, $presentation, $terrain, $water, $roads, $surface,
-            $vegetation, $vegetationExclusions, $buildings, $gameplay) + $catalogPaths) {
+            $shared, $canonicalBundle, $map, $runtimePartition, $evidenceHost, $semanticEvidence, $staticAuditHost, $authoredOverlay, $presentation, $terrain, $water, $roads, $surface,
+            $terrainWaterConformance, $waterMeshBuilder, $vegetation, $vegetationExclusions, $buildings, $gameplay) + $catalogPaths) {
             $full = Join-Path $projectRoot $path
             New-Item -ItemType Directory -Path (Split-Path -Parent $full) -Force | Out-Null
             Set-Content -LiteralPath $full -Value "baseline:$path" -NoNewline
@@ -49,7 +52,7 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
         $producers = @(
             'map:v1', 'presentation:v1', 'project_landscape:v1',
             'project_water_mesh:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_gameplay_placement:v1')
+            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
         $cases = @(
             @{ Path = $map; Owners = @('map:v1') },
             @{ Path = $runtimePartition; Owners = @('map:v1') },
@@ -57,17 +60,20 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
             @{ Path = $semanticEvidence; Owners = @() },
             @{ Path = $staticAuditHost; Owners = @() },
             @{ Path = $authoredOverlay; Owners = @(
-                'map:v1', 'project_vegetation_instances:v1', 'project_building_massing:v1') },
+                'map:v1', 'project_vegetation_instances:v1', 'project_building_massing:v1',
+                'project_building_massing:v2') },
             @{ Path = $presentation; Owners = @('presentation:v1') },
             @{ Path = $terrain; Owners = @('map:v1', 'project_landscape:v1') },
+            @{ Path = $terrainWaterConformance; Owners = @('project_landscape:v1') },
             @{ Path = $water; Owners = @('project_water_mesh:v1') },
+            @{ Path = $waterMeshBuilder; Owners = @('project_landscape:v1', 'project_water_mesh:v1') },
             @{ Path = $roads; Owners = @('project_road_mesh:v1') },
             @{ Path = $surface; Owners = @(
                 'map:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-                'project_building_massing:v1', 'project_gameplay_placement:v1') },
+                'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1') },
             @{ Path = $vegetation; Owners = @('project_vegetation_instances:v1') },
             @{ Path = $vegetationExclusions; Owners = @('project_vegetation_instances:v1') },
-            @{ Path = $buildings; Owners = @('project_building_massing:v1') },
+            @{ Path = $buildings; Owners = @('project_building_massing:v1', 'project_building_massing:v2') },
             @{ Path = $gameplay; Owners = @('project_gameplay_placement:v1') })
         foreach ($case in $cases) {
             $before = @{}
@@ -90,7 +96,7 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
         foreach ($producer in @(
             'map:v1', 'presentation:v1', 'project_landscape:v1', 'project_water_mesh:v1',
             'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_gameplay_placement:v1')) {
+            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')) {
             $before[$producer] = Get-ProjectWorldGeneratorFingerprint `
                 -ProjectRoot $projectRoot -ProducerId $producer
         }
@@ -103,11 +109,35 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
         }
     }
 
+    It 'moves only Building producers for an explicitly scoped shared parser region' {
+        $producerIds = @(
+            'map:v1', 'presentation:v1', 'project_landscape:v1', 'project_water_mesh:v1',
+            'project_road_mesh:v1', 'project_vegetation_instances:v1',
+            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
+        Set-Content -LiteralPath (Join-Path $projectRoot $canonicalBundle) -NoNewline -Value @'
+shared-before
+// PROJECTWORLD_PRODUCER_BEGIN project_building_massing
+building-v1
+// PROJECTWORLD_PRODUCER_END project_building_massing
+shared-after
+'@
+        $before = @{}
+        foreach ($producer in $producerIds) {
+            $before[$producer] = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId $producer
+        }
+        (Get-Content -Raw -LiteralPath (Join-Path $projectRoot $canonicalBundle)).Replace('building-v1', 'building-v2') |
+            Set-Content -NoNewline -LiteralPath (Join-Path $projectRoot $canonicalBundle)
+        foreach ($producer in $producerIds) {
+            $changed = (Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId $producer) -cne $before[$producer]
+            $changed | Should -Be $producer.StartsWith('project_building_massing:', [System.StringComparison]::Ordinal)
+        }
+    }
+
     It 'keeps existing producers stable when a new tuple extends catalog and dispatch surfaces' {
         $producers = @(
             'map:v1', 'presentation:v1', 'project_landscape:v1',
             'project_water_mesh:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_gameplay_placement:v1')
+            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
         foreach ($path in $catalogPaths) {
             $before = @{}
             foreach ($producer in $producers) {
@@ -149,6 +179,13 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
                 generator_version = 1
             }
         }) | Should -Be 'project_building_massing:v1'
+        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
+            owning_layer = 'buildings'
+            layer_contract = [pscustomobject]@{
+                generator_id = 'project_building_massing'
+                generator_version = 2
+            }
+        }) | Should -Be 'project_building_massing:v2'
         Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
             owning_layer = 'gameplay'
             layer_contract = [pscustomobject]@{

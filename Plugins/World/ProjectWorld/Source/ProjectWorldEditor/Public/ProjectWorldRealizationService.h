@@ -132,6 +132,9 @@ struct FProjectWorldRealizationResult
 	int32 WaterCellActorCount = 0;
 	int32 WaterMeshAssetCount = 0;
 	int32 WaterTriangleCount = 0;
+	int32 WaterTerrainFootprintSampleCount = 0;
+	int32 WaterTerrainConditionedSampleCount = 0;
+	double MaximumWaterTerrainCorrectionMeters = 0.0;
 	int32 RoadCellActorCount = 0;
 	int32 RoadMeshAssetCount = 0;
 	int32 RoadTriangleCount = 0;

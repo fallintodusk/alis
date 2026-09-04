@@ -21,6 +21,7 @@ namespace
 	constexpr double MenuTransitionTimeoutSeconds = 3.0;
 	constexpr double AscendTimeoutSeconds = 20.0;
 	constexpr double ArrivalRadiusCentimeters = 25000.0;
+	constexpr double FinalCenterArrivalRadiusCentimeters = 2500.0;
 	constexpr double MinimumTurnBeforeTravelDegrees = 12.0;
 	constexpr double DescentTimeoutSeconds = 45.0;
 	constexpr double MinimumDescentBeforeCollisionCentimeters = 3000.0;
@@ -331,7 +332,10 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 			TEXT("[FProjectWorldPlayableTourDriver::TickTraversing] Leg started - index=%d distance_cm=%.1f timeout_s=%.1f"),
 			WaypointIndex, Distance, CurrentLegTimeoutSeconds);
 	}
-	if (Distance <= ArrivalRadiusCentimeters)
+	const double ArrivalRadius = WaypointIndex == Waypoints.Num() - 1
+		? FinalCenterArrivalRadiusCentimeters
+		: ArrivalRadiusCentimeters;
+	if (Distance <= ArrivalRadius)
 	{
 		Release(EKeys::W);
 		Release(EKeys::A);

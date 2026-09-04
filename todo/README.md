@@ -35,21 +35,25 @@ If a task does not fit any category -- create a new one in both
 ## Naming
 
 - Every newly created task todo starts with its creation timestamp:
-  `YYYYMMDD-HHMM_<descriptive_name>.md`, for example
-  `20260827-1936_world_stabilize_kazan_release.md`. Preserve that timestamp
-  forever when moving the todo between `00_current`, `02_backlog`, and
-  `01_done`; edits do not change it. Do not rename existing todos merely to add
-  timestamps. Router/control files such as `00_focus.md` are exempt.
+  `YYYYMMDD-HHMM_<descriptive_name>.md`. Preserve that timestamp forever when
+  moving the todo between `00_current`, `02_backlog`, and `01_done`; edits do
+  not change it. Do not rename existing todos merely to add timestamps.
+  Router/control files using the `00_<purpose>.md` pattern are exempt.
 - After the timestamp, use `topic_verb_noun` so the topic prefix groups related
   tasks together.
-- `00_` prefix reserved for meta/dashboard files only (`00_focus.md`, `00_release_1.0.0.md`)
+- `00_` prefix is reserved for meta/dashboard/router files, never ordinary tasks.
 - No generic `todo.md` names -- every file earns its own name
 
 ## Workflow
 
 - Start task: move from `02_backlog/<category>/` to `00_current/`
-- Finish task: move from `00_current/` to `01_done/<category>/`
-- Cancel task: move from anywhere to `03_cancelled/`
+- Finish task: move from `00_current/` to `01_done/<category>/` when the file
+  retains unique, useful execution provenance.
+- Cancel task: move a still-useful standalone record from anywhere to
+  `03_cancelled/`.
+- Dissolve a fully superseded duplicate only after durable contracts have moved
+  to their stable owner and current routing has retained every still-live
+  decision. Delete the duplicate task file; Git history remains its audit trail.
 - No index to maintain -- file names are the index
 - Multi-slice initiatives keep exactly one clearly numbered slice file active.
   On acceptance, move that file to its done category before creating the next.
@@ -57,5 +61,8 @@ If a task does not fit any category -- create a new one in both
 ## Rules
 
 - Only todo files link to docs, never docs to todo (one-way dependency)
+- `01_done/` is execution provenance, not a second documentation tree. Do not
+  archive a large stale packet when stable owner docs, accepted evidence, and
+  current routing already preserve everything still authoritative.
 - Plugin-scoped work stays in `Plugins/*/TODO.md`
 - Cross-plugin or unowned work lives here

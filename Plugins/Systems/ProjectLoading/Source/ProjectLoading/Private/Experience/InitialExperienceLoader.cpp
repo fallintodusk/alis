@@ -5,6 +5,7 @@
 #include "ProjectLoadingLog.h"
 #include "Data/ObjectCatalog.h"
 #include "Experience/ProjectExperienceDescriptorBase.h"
+#include "Experience/ProjectExperienceDefinitionRegistrar.h"
 #include "Experience/ProjectExperienceRegistry.h"
 #include "Experience/GlobalAssetScanRegistry.h"
 #include "Engine/AssetManager.h"
@@ -170,6 +171,18 @@ bool FInitialExperienceLoader::BuildLoadRequest(FName ExperienceName, FLoadReque
 
 	// Find descriptor
 	UProjectExperienceDescriptorBase* Descriptor = Registry->FindDescriptor(ExperienceName);
+	if (!Descriptor)
+	{
+		// The miss may simply mean configured definitions have not been discovered yet.
+		// Discovery must happen here, not at module startup: StartupModule() runs before
+		// engine init, where the AssetManager is never initialized. Doing it on the first
+		// miss keeps it after AssetManager init and still before EnsureAssetScans below.
+		if (ProjectExperienceDefinitions::EnsureRegistered(*Registry) > 0)
+		{
+			Descriptor = Registry->FindDescriptor(ExperienceName);
+		}
+	}
+
 	if (!Descriptor)
 	{
 		LastError = FString::Printf(TEXT("Descriptor not found for experience '%s'"), *ExperienceName.ToString());

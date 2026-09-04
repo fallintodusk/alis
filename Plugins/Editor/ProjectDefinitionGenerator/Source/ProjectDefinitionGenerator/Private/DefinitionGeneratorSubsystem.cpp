@@ -181,12 +181,71 @@ TArray<FDefinitionGenerationResult> UDefinitionGeneratorSubsystem::GenerateAllFo
 
 	UE_LOG(LogDefinitionGenerator, Log, TEXT("[%s] Found %d source JSON files"), *TypeName, JsonFiles.Num());
 
+	// Reject duplicate ids before writing anything.
+	//
+	// The generated asset is named from the id, and the id becomes the FPrimaryAssetId, so two
+	// source records sharing one id either overwrite each other or produce two assets with the
+	// same primary id. Both outcomes are load-order dependent and silent. Detecting it here
+	// keeps one universal rule for every definition type rather than a per-type uniqueness
+	// system, at the cost of resolving ids in a cheap pre-pass.
+	//
+	// Keyed by FName, the identity the engine actually ends up using. FName is case-insensitive,
+	// so "Foo" and "foo" are one asset name and one primary asset id; comparing raw strings
+	// would let a case-only collision through to exactly the silent overwrite this prevents.
+	TMap<FName, FString> IdToSourcePath;
+	TSet<FString> DuplicateSourcePaths;
+	for (const FString& FullPath : JsonFiles)
+	{
+		FString JsonString;
+		if (!FFileHelper::LoadFileToString(JsonString, *FullPath))
+		{
+			continue;
+		}
+		TSharedPtr<FJsonObject> JsonObject;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+		{
+			continue;
+		}
+		FString AssetId;
+		FString IdError;
+		if (!ResolveAssetIdFromJson(*TypeInfo, JsonObject, AssetId, IdError))
+		{
+			continue;
+		}
+		const FName AssetIdentity(*AssetId);
+		if (const FString* ExistingPath = IdToSourcePath.Find(AssetIdentity))
+		{
+			// Both records are rejected: picking a winner here would be the same arbitrary
+			// load-order choice this check exists to prevent.
+			DuplicateSourcePaths.Add(*ExistingPath);
+			DuplicateSourcePaths.Add(FullPath);
+			UE_LOG(LogDefinitionGenerator, Error,
+				TEXT("[%s] Duplicate id '%s' in '%s' and '%s'; both rejected."),
+				*TypeName, *AssetId, **ExistingPath, *FullPath);
+		}
+		else
+		{
+			IdToSourcePath.Add(AssetIdentity, FullPath);
+		}
+	}
+
 	// Build asset lookup map once (O(N) instead of O(N²))
 	CachedAssetMap = FDefinitionAssetManager::BuildAssetLookupMap(*TypeInfo);
 	bUsingCachedAssetMap = true;
 
 	for (const FString& FullPath : JsonFiles)
 	{
+		if (DuplicateSourcePaths.Contains(FullPath))
+		{
+			FDefinitionGenerationResult Duplicate;
+			Duplicate.TypeName = TypeName;
+			Duplicate.SourcePath = FullPath;
+			Duplicate.ErrorMessage = FString::Printf(
+				TEXT("Duplicate definition id shared with another source record: %s"), *FullPath);
+			Results.Add(Duplicate);
+			continue;
+		}
 		FDefinitionGenerationResult Result = GenerateFromJson(TypeName, FullPath, bForceRegenerate);
 		Results.Add(Result);
 	}

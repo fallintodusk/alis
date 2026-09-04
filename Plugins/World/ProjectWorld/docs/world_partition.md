@@ -333,7 +333,11 @@ Supported generated static meshes use Nanite when their material path is
 compatible, instead of authored LOD chains or HLOD replacement geometry.
 UE 5.8 explicitly excludes Single Layer Water from Nanite's supported shading
 models, so cell-local water is a persistent non-Nanite StaticMesh with no
-authored LOD chain and no HLOD fallback. Landscape keeps its native component
+authored LOD chain and no HLOD fallback. Each Water cell actor is spatially loaded;
+World Partition therefore owns its residency with the other spatial cell actors.
+Residency is not presentation proof by itself: the Shipping Water gate separately
+proves that the loaded mesh survives real Landscape depth/occlusion in BaseColor and
+remains visibly distinct in the normal FinalColor product rendering. Landscape keeps its native component
 and World Partition proxy streaming and builds its Nanite representation; UE-required
 non-Nanite Landscape data remains an engine implementation dependency, not a
 second project LOD policy. Vegetation uses instance ownership (ISM/HISM or the
@@ -444,6 +448,36 @@ identity. A human walkthrough cannot accept or reject a configuration.
 World Streaming Insights remains experimental diagnostic evidence. Failure to
 capture its trace cannot fail a run whose stable packaged telemetry proves the
 same invariant.
+
+The packaged performance envelope is normal, uncapped runtime rather than a
+fixed-timestep benchmark. Launchers use UE's documented `-novsync` boolean flag;
+the in-process gate also establishes and reads back `r.VSync=0`, `t.MaxFPS=0`,
+disabled frame smoothing, no fixed engine frame rate or fixed time step, no
+benchmark mode, and disabled dynamic resolution. The receipt records those
+actual runtime values and consumers fail closed on any contradiction. Viewport
+resolution, High scalability, D3D12, and the physical adapter remain separately
+authenticated. A near-budget result is not attributed to content until this
+measurement envelope is green and a concrete Render/RHI workload is localized.
+
+Playable-tour release acceptance builds one Development package and executes
+those exact bytes exactly three predetermined times. Every child must pass the
+same product route, input, collision, interaction, streaming, identity, and
+minimum-sample contracts; only an individual Frame p95 miss may proceed to the
+aggregate decision. The producer writes a small exact CSV projection of the
+C++ collector frames in addition to UE's rich diagnostic CSV. The runner pools
+all exact child frames and applies the unchanged nearest-rank
+`Frame p95 <= 16.67 ms` gate once to that complete population. It never averages
+child percentiles, chooses a best run, retries on failure, or omits slow frames.
+The aggregate receipt hashes every child receipt, exact sample projection, and
+diagnostic CSV. Missing properties or evidence fail before numeric conversion.
+An individual Frame-p95-only rejection remains aggregatable when the normally
+exited packaged Windows process reports either the requested status 10 or status
+0; the receipt preserves the rejection and its frames. Abnormal exits and every
+non-performance rejection still fail before aggregation.
+Package identity hashes immutable payload while excluding only Orchestrator-owned
+`Windows/Alis/LocalAppData` and UE-owned `Windows/Alis/Saved` and
+`Windows/Engine/Saved` runtime state. Executable, pak, packaged config, or content
+mutation still fails package identity.
 
 The static audit is read-only and runs against the launcher Editor. It must not
 call realization Apply or save the map. Canonical-cell ownership and runtime

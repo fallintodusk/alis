@@ -22,12 +22,12 @@ struct FProjectWorldProductRouteProgress
 	bool bEdgeLoaded = false;
 	bool bCenterReloaded = false;
 
-	bool IsAccepted() const
+	bool IsAccepted(bool bGameplayInteractionRequired = true) const
 	{
-		return FirstMissingGate().IsEmpty();
+		return FirstMissingGate(bGameplayInteractionRequired).IsEmpty();
 	}
 
-	FString FirstMissingGate() const
+	FString FirstMissingGate(bool bGameplayInteractionRequired = true) const
 	{
 		if (!bMapIdentity) return TEXT("map_identity");
 		if (!bGameModeIdentity) return TEXT("game_mode_identity");
@@ -37,7 +37,7 @@ struct FProjectWorldProductRouteProgress
 		if (!bTerrainCollision) return TEXT("terrain_collision");
 		if (!bRoadCollision) return TEXT("road_collision");
 		if (!bBuildingCollision) return TEXT("building_collision");
-		if (!bGameplayInteraction) return TEXT("gameplay_interaction");
+		if (bGameplayInteractionRequired && !bGameplayInteraction) return TEXT("gameplay_interaction");
 		if (!bCenterUnloadedAtEdge) return TEXT("center_unloaded_at_edge");
 		if (!bEdgeLoaded) return TEXT("edge_loaded");
 		if (!bCenterReloaded) return TEXT("center_reloaded");

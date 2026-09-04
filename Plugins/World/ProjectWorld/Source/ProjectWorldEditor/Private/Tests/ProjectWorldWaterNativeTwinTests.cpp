@@ -350,18 +350,36 @@ bool FProjectWorldNativeWaterCanonicalContractTwinTest::RunTest(const FString& P
 	FString Error;
 	TestTrue(
 		TEXT("The native MeshDescription adapter triangulates the canonical lake."),
-		ProjectWorldWaterMeshBuilder::BuildCellSurface(Bundle, CellA, Lake, LakeMesh, Error));
+		ProjectWorldWaterMeshBuilder::BuildCellSurface(Bundle, CellA, Lake, 0.25, LakeMesh, Error));
 	TestTrue(TEXT("The lake-with-hole emits persistent mesh triangles."), LakeMesh.TriangleCount > 0);
 	TestTrue(
 		TEXT("The realized lake area excludes its polygon hole."),
 		FMath::IsNearlyEqual(LakeMesh.CanonicalAreaSquareMeters, 540.0, 0.000001));
 	FStaticMeshAttributes LakeAttributes(LakeMesh.MeshDescription);
+	for (const FPolygonID Polygon : LakeMesh.MeshDescription.Polygons().GetElementIDs())
+	{
+		const TArray<FVertexInstanceID> Corners =
+			LakeMesh.MeshDescription.GetPolygonVertexInstances(Polygon);
+		TestEqual(TEXT("Every realized water polygon is a triangle."), Corners.Num(), 3);
+		if (Corners.Num() == 3)
+		{
+			const FVector3f A = LakeAttributes.GetVertexPositions()[
+				LakeMesh.MeshDescription.GetVertexInstanceVertex(Corners[0])];
+			const FVector3f B = LakeAttributes.GetVertexPositions()[
+				LakeMesh.MeshDescription.GetVertexInstanceVertex(Corners[1])];
+			const FVector3f C = LakeAttributes.GetVertexPositions()[
+				LakeMesh.MeshDescription.GetVertexInstanceVertex(Corners[2])];
+			TestTrue(
+				TEXT("UE clockwise front-face winding keeps generated water visible from above."),
+				FVector3f::CrossProduct(B - A, C - A).Z < 0.0f);
+		}
+	}
 	for (const FVertexID Vertex : LakeMesh.MeshDescription.Vertices().GetElementIDs())
 	{
 		TestEqual(
-			TEXT("Every realized lake vertex remains on one standing-water level."),
+			TEXT("The profile-owned 0.25 m clearance is applied above canonical Water Z."),
 			LakeAttributes.GetVertexPositions()[Vertex].Z,
-			2750.0f);
+			2775.0f);
 	}
 
 	FProjectWorldCanonicalPolygon RiverPolygon;
@@ -380,11 +398,11 @@ bool FProjectWorldNativeWaterCanonicalContractTwinTest::RunTest(const FString& P
 	TestTrue(
 		TEXT("The prepared flowing polygon realizes in cell A."),
 		ProjectWorldWaterMeshBuilder::BuildCellSurface(
-			Bundle, CellA, River, PreparedRiver, RiverA, Error));
+			Bundle, CellA, River, PreparedRiver, 0.0, RiverA, Error));
 	TestTrue(
 		TEXT("The same prepared flowing polygon realizes in cell B."),
 		ProjectWorldWaterMeshBuilder::BuildCellSurface(
-			Bundle, CellB, River, PreparedRiver, RiverB, Error));
+			Bundle, CellB, River, PreparedRiver, 0.0, RiverB, Error));
 	TestTrue(
 		TEXT("Cell-local flowing meshes neither duplicate nor omit polygon area."),
 		FMath::IsNearlyEqual(
@@ -434,7 +452,7 @@ bool FProjectWorldNativeWaterCanonicalContractTwinTest::RunTest(const FString& P
 	FProjectWorldWaterMeshBuildResult RibbonMesh;
 	TestTrue(
 		TEXT("The production builder realizes the exact-width ribbon."),
-		ProjectWorldWaterMeshBuilder::BuildCellSurface(Bundle, CellA, Ribbon, RibbonMesh, Error));
+		ProjectWorldWaterMeshBuilder::BuildCellSurface(Bundle, CellA, Ribbon, 0.0, RibbonMesh, Error));
 	double MinimumY = TNumericLimits<double>::Max();
 	double MaximumY = TNumericLimits<double>::Lowest();
 	FStaticMeshAttributes RibbonAttributes(RibbonMesh.MeshDescription);
@@ -573,12 +591,12 @@ bool FProjectWorldNativeWaterAssetPersistenceTwinTest::RunTest(const FString& Pa
 	FString WaterError;
 	TestTrue(
 		TEXT("The persisted asset is built from the canonical lake-with-hole surface."),
-		ProjectWorldWaterMeshBuilder::BuildCellSurface(Bundle, Cell, Lake, WaterSurface, WaterError));
+		ProjectWorldWaterMeshBuilder::BuildCellSurface(Bundle, Cell, Lake, 0.0, WaterSurface, WaterError));
 	FProjectWorldWaterMeshBuildResult RepeatedWaterSurface;
 	TestTrue(
 		TEXT("An unchanged canonical lake rebuild succeeds for no-op selection."),
 		ProjectWorldWaterMeshBuilder::BuildCellSurface(
-			Bundle, Cell, Lake, RepeatedWaterSurface, WaterError));
+			Bundle, Cell, Lake, 0.0, RepeatedWaterSurface, WaterError));
 	TestTrue(TEXT("The water mesh carries semantic no-op identity."), !WaterSurface.SemanticDigest.IsEmpty());
 	TestEqual(
 		TEXT("Unchanged canonical water produces the same semantic no-op identity."),

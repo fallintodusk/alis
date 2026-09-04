@@ -24,6 +24,18 @@ public:
 	UProjectExperienceDescriptorBase* FindDescriptor(FName ExperienceName) const;
 
 private:
-	UPROPERTY()
+	/**
+	 * Deliberately NOT a UPROPERTY, and every entry is explicitly rooted instead.
+	 *
+	 * This singleton is created during module startup, before the engine closes the
+	 * disregard-for-GC window, so the registry object itself lives in that set. A
+	 * disregard-for-GC object may not hold reflected references to ordinary objects: doing so
+	 * trips VerifyGCAssumptions and fatally crashes the packaged game at the first GC.
+	 *
+	 * CDO descriptors are permanent objects and were always safe, but descriptors created from
+	 * configured data are ordinary objects. Rooting each entry keeps lifetime guaranteed while
+	 * leaving this object with no reflected outgoing references. Registration is
+	 * process-lifetime by design; there is no unregister path.
+	 */
 	TMap<FName, UProjectExperienceDescriptorBase*> Descriptors;
 };

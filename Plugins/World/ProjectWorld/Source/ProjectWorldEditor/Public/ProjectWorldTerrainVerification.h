@@ -11,8 +11,8 @@ struct FProjectWorldCanonicalBundle;
 // Terrain correctness evidence. Structural counts, proxy identity, georeference XY error, and
 // semantic hashes all answer only "did Unreal produce the same terrain again"; a completely flat
 // Landscape satisfies every one of them. This answers the different question: "did Unreal produce
-// the terrain the canonical authority specified", by reading the realized Generated Base edit
-// layer back and comparing it against the canonical samples that produced it.
+// the deterministic Terrain-plus-Water Landscape projection", by reading the realized Generated
+// Base edit layer back and comparing it against the canonical inputs that produced it.
 struct PROJECTWORLDEDITOR_API FProjectWorldTerrainHeightComparison
 {
 	int32 SampleCount = 0;
@@ -24,7 +24,7 @@ struct PROJECTWORLDEDITOR_API FProjectWorldTerrainHeightComparison
 	double ReliefMeters = 0.0;
 	double ToleranceMeters = 0.0;
 	// Deterministic identity of the realized Generated Base heights in Landscape coordinate
-	// order. Reconstruction/no-op identity only; the canonical comparison above is the
+	// order. Reconstruction/no-op identity only; the canonical-derived comparison above is the
 	// correctness authority.
 	FString RealizedHeightHash;
 	FString FirstMismatch;

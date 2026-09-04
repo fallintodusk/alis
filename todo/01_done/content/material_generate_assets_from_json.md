@@ -12,12 +12,11 @@ and Shipping IoStore census pass. The active stabilization queue retains the com
 receipt and routes the next owner flag.
 **Change type:** Editor tooling and generated resource authority
 **Owning black box:** Existing `ProjectMaterial` resource plugin
-**Operator sequencing prerequisite before implementation of:** [Landscape](../../02_backlog/world/world_present_kazan_landscape.md),
-[Water](../../02_backlog/world/world_present_kazan_water.md),
-[Roads](../../02_backlog/world/world_present_kazan_roads.md),
-[Vegetation](../../02_backlog/world/world_present_kazan_vegetation.md), and
-[Buildings](../../02_backlog/world/world_present_kazan_buildings.md)
-**Campaign:** [Kazan presentation research](../../02_backlog/world/world_plan_kazan_presentation_campaign.md)
+**Operator sequencing prerequisite before implementation of:** [Landscape](../../02_backlog/world/world_present_landscape.md),
+[Water](../../02_backlog/world/world_present_water.md),
+[Roads](../../02_backlog/world/world_present_roads.md),
+[Vegetation](../../02_backlog/world/world_present_vegetation.md), and
+[Buildings](../../02_backlog/world/world_present_buildings.md)
 
 ## Goal
 
@@ -88,16 +87,16 @@ order requires an explicit operator decision.
 
 ## Stable routes
 
-- [Data architecture](../../docs/data/README.md)
-- [Data structure](../../docs/data/structure.md)
-- [Plugin dependency rules](../../docs/architecture/plugin_rules.md)
-- [Existing ProjectMaterial owner](../../Plugins/Resources/ProjectMaterial/README.md)
-- [ProjectObject definitions](../../Plugins/Resources/ProjectObject/README.md)
-- [ProjectWorld architecture](../../Plugins/World/ProjectWorld/docs/architecture_overview.md)
-- [ProjectWorldData owner](../../Plugins/World/ProjectWorldData/README.md)
-- [Definition generator boundary](../../Plugins/Editor/ProjectDefinitionGenerator/README.md)
-- [World generation pitfalls](../../Plugins/World/ProjectWorld/docs/pitfalls.md)
-- [Landscape research](../02_backlog/world/world_present_kazan_landscape.md)
+- [Data architecture](../../../docs/data/README.md)
+- [Data structure](../../../docs/data/structure.md)
+- [Plugin dependency rules](../../../docs/architecture/plugin_rules.md)
+- [Existing ProjectMaterial owner](../../../Plugins/Resources/ProjectMaterial/README.md)
+- [ProjectObject definitions](../../../Plugins/Resources/ProjectObject/README.md)
+- [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture_overview.md)
+- [ProjectWorldData owner](../../../Plugins/World/ProjectWorldData/README.md)
+- [Definition generator boundary](../../../Plugins/Editor/ProjectDefinitionGenerator/README.md)
+- [World generation pitfalls](../../../Plugins/World/ProjectWorld/docs/pitfalls.md)
+- [Landscape research](../../02_backlog/world/world_present_landscape.md)
 
 ## Verified current state
 

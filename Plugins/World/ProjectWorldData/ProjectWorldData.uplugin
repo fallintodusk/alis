@@ -3,7 +3,7 @@
   "Version": 1,
   "VersionName": "0.1.0",
   "FriendlyName": "ProjectWorldData",
-  "Description": "Authoritative Kazan world data and its derived Unreal content.",
+  "Description": "Authoritative concrete territory data and its derived Unreal content.",
   "Category": "Project.World.Data",
   "EnabledByDefault": true,
   "CanContainContent": true,

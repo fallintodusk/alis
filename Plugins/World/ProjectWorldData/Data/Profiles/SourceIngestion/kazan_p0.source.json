@@ -33,7 +33,7 @@
       "crs": {"horizontal": "EPSG:4326", "axis_order": "longitude_latitude"},
       "accuracy": {"horizontal_accuracy_m": null, "vertical_accuracy_m": null, "confidence": "provider_unspecified"},
       "decode": {
-        "feature_filters": ["nwr/highway", "nwr/building"],
+        "feature_filters": ["nwr/highway", "nwr/building", "nwr/building:part"],
         "relation_completion_types": ["multipolygon"]
       },
       "license": {

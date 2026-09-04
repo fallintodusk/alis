@@ -97,7 +97,11 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldTerrainVerification.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainVerification.cpp'
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainVerification.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.h'
         ) }
         'project_water_mesh:v1' { @(
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterContractParsing.cpp',
@@ -132,7 +136,7 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.uasset',
             'Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset'
         ) }
-        'project_building_massing:v1' { @(
+        { $_ -in @('project_building_massing:v1', 'project_building_massing:v2') } { @(
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingInventory.cpp',
@@ -169,6 +173,45 @@ function Get-ProjectWorldProducerSourcePaths {
     return @($shared + $producer | Sort-Object -Unique)
 }
 
+function Get-ProjectWorldProducerSourceDigest {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ProducerId
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return 'missing'
+    }
+
+    $text = [System.IO.File]::ReadAllText($Path)
+    if ($text -notmatch 'PROJECTWORLD_PRODUCER_BEGIN') {
+        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+
+    $pattern = '(?ms)^[ \t]*// PROJECTWORLD_PRODUCER_BEGIN (?<owner>[A-Za-z0-9_.-]+)\r?\n(?<body>.*?)^[ \t]*// PROJECTWORLD_PRODUCER_END \k<owner>\r?\n'
+    $scoped = [System.Text.RegularExpressions.Regex]::Replace(
+        $text,
+        $pattern,
+        [System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            $owner = $match.Groups['owner'].Value
+            if ($ProducerId.StartsWith("${owner}:", [System.StringComparison]::Ordinal)) {
+                return $match.Groups['body'].Value
+            }
+            return ''
+        })
+    if ($scoped -match 'PROJECTWORLD_PRODUCER_(BEGIN|END)') {
+        throw "Malformed or unmatched producer-scoped source region: $Path"
+    }
+
+    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($scoped)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    }
+    finally { $sha.Dispose() }
+}
+
 function Get-ProjectWorldGeneratorFingerprint {
     param(
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
@@ -179,10 +222,7 @@ function Get-ProjectWorldGeneratorFingerprint {
     $lines.Add("project_world_producer_fingerprint_v2`0$ProducerId")
     foreach ($relative in Get-ProjectWorldProducerSourcePaths -ProducerId $ProducerId) {
         $full = Join-Path $ProjectRoot $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
-        $digest = if (Test-Path -LiteralPath $full -PathType Leaf) {
-            (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant()
-        }
-        else { 'missing' }
+        $digest = Get-ProjectWorldProducerSourceDigest -Path $full -ProducerId $ProducerId
         $lines.Add("$relative`0$digest")
     }
     $bytes = [System.Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))

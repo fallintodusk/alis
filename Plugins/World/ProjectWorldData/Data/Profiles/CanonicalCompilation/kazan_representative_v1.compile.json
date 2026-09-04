@@ -124,5 +124,13 @@
   "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
   "authored_overlay": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
   "fixture_features": null,
-  "algorithm_version": "alis-world-compiler-1"
+  "building_semantics": {
+    "policy_id": "provider_neutral_building_volumes",
+    "policy_version": 2,
+    "maximum_height_m": 300.0,
+    "coverage_tolerance_square_m": 0.01,
+    "association_policy": "building_relation_then_unique_containing_outline",
+    "incomplete_parts_policy": "outline_fallback_or_reject"
+  },
+  "algorithm_version": "alis-world-compiler-2"
 }

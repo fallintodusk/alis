@@ -12,23 +12,32 @@ $ErrorActionPreference = 'Stop'
 $worldRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $worldRoot))
 $packageScript = Join-Path $projectRoot 'scripts\ue\package\package_release.ps1'
+$waterVerifier = Join-Path $projectRoot 'scripts\ue\world\test\water_temporal_stability.ps1'
+$waterViewpointVerifier = Join-Path $projectRoot `
+    'scripts\ue\world\test\verify_canonical_feature_viewpoint.ps1'
 $compilerBootstrap = Join-Path $projectRoot 'tools\World\CanonicalCompilation\bootstrap.py'
 $compilerProfile = Join-Path $projectRoot `
     'Plugins\World\ProjectWorldData\Data\Profiles\CanonicalCompilation\kazan_territory_v1.compile.json'
 $runtimeProfile = Join-Path $projectRoot `
     'Plugins\World\ProjectWorldData\Data\Runtime\kazan_territory_512_1536_v1.json'
+$activeManifestSet = Join-Path $projectRoot `
+    'Plugins\World\ProjectWorldData\Data\Manifests\active_set.json'
 $mapPackage = '/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory'
+$shippingWaterTargetXCentimeters = 0.0
+$shippingWaterTargetYCentimeters = -80000.0
 $runId = [Guid]::NewGuid().ToString('N')
 $operationId = "kazan_playable_tour_$runId"
 $evidenceRoot = Join-Path $projectRoot "Saved\Validation\WorldRealization\playable-tour\$runId"
 $ownerRoot = Join-Path $projectRoot 'tmp\world\playable_tour'
 $workRoot = Join-Path $ownerRoot $runId
 $runtimeRoot = Join-Path $ownerRoot 'runtime'
+$focusedProbeRoot = Join-Path $ownerRoot 'focused_slide'
 $developmentPackage = Join-Path $runtimeRoot 'development'
 $shippingPackage = Join-Path $runtimeRoot 'shipping'
 $packageRoot = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour'
 $finalPackage = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour\Candidate'
 $previousFinalPackage = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour\PreviousCandidate'
+. (Join-Path $PSScriptRoot 'project_world_performance_evidence.ps1')
 
 function Assert-PlayableTour {
     param(
@@ -51,32 +60,12 @@ function Get-PlayableTourExecutable {
     return $candidates[0].FullName
 }
 
-function Get-PlayableTourTreeDigest {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $root = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
-    $lines = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force |
-        Sort-Object FullName |
-        ForEach-Object {
-            $relative = $_.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
-            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            '{0}|{1}|{2}' -f $relative, $_.Length, $hash
-        })
-    $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
-    $sha = [Security.Cryptography.SHA256]::Create()
-    try {
-        return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    }
-    finally {
-        $sha.Dispose()
-    }
-}
-
 function Get-PlayableTourSourceStateDigest {
     $parts = [Collections.Generic.List[string]]::new()
     $parts.Add((@(& git -C $projectRoot diff --binary --no-ext-diff HEAD) -join "`n"))
-    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Unable to read the tracked source state.'
+    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Unable to read tracked source state.'
     $untracked = @(& git -C $projectRoot ls-files --others --exclude-standard | Sort-Object)
-    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Unable to read the untracked source state.'
+    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Unable to read untracked source state.'
     foreach ($relative in $untracked) {
         $path = Join-Path $projectRoot $relative
         $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -241,10 +230,12 @@ function Invoke-PlayableTourGame {
     param(
         [Parameter(Mandatory = $true)][string]$Executable,
         [Parameter(Mandatory = $true)][string]$Configuration,
+        [Parameter(Mandatory = $true)][string]$RunOperationId,
         [Parameter(Mandatory = $true)][string]$CorrectnessPath,
         [Parameter(Mandatory = $true)][string]$LogPath,
         [string]$PerformancePath,
         [string]$CsvPath,
+        [string]$SamplePath,
         [string]$ScreenshotPath
     )
     $arguments = @(
@@ -252,7 +243,7 @@ function Invoke-PlayableTourGame {
         '-ProjectMenuPlayAutoMode=SinglePlayer',
         '-ProjectWorldProductRouteGate',
         '-ProjectWorldProductRouteRestorePreviewFlight',
-        "-ProjectWorldProductOperation=$operationId",
+        "-ProjectWorldProductOperation=$RunOperationId",
         "-ProjectWorldProductResult=$CorrectnessPath",
         "-ProjectWorldProductMap=$mapPackage",
         '-ProjectWorldProductRuntime=kazan_territory_512_1536_v1',
@@ -260,7 +251,7 @@ function Invoke-PlayableTourGame {
         '-ProjectWorldProductMachine=rtx4070_primary',
         "-ProjectWorldProductEdge=$script:edgeArgument",
         '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
-        '-RenderOffScreen', '-VSync=0', '-unattended', '-nosplash', '-NoMessaging',
+        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash', '-NoMessaging',
         "-abslog=$LogPath"
     )
     if ($Configuration -ceq 'Development') {
@@ -270,6 +261,7 @@ function Invoke-PlayableTourGame {
             "-ProjectWorldPerformanceResult=$PerformancePath",
             "-ProjectWorldPerformanceCorrectness=$CorrectnessPath",
             "-ProjectWorldPerformanceCsv=$CsvPath",
+            "-ProjectWorldPerformanceSamples=$SamplePath",
             "-ProjectWorldPerformanceScreenshot=$ScreenshotPath"
         )
     }
@@ -280,6 +272,105 @@ function Invoke-PlayableTourGame {
         throw "$Configuration playable-tour process exceeded the bounded timeout."
     }
     return $process.ExitCode
+}
+
+function Invoke-ShippingWaterProof {
+    param(
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter(Mandatory = $true)][string]$ResultPath,
+        [Parameter(Mandatory = $true)][string]$ReferencePath,
+        [Parameter(Mandatory = $true)][string]$RepeatPath,
+        [Parameter(Mandatory = $true)][string]$ProductPath
+    )
+    $arguments = @(
+        '-ProjectMenuPlayAutoExperience=KazanTerritory',
+        '-ProjectMenuPlayAutoMode=SinglePlayer',
+        '-ProjectWorldShippingWaterProof',
+        "-ProjectWorldShippingWaterOperation=$operationId",
+        "-ProjectWorldShippingWaterResult=$ResultPath",
+        "-ProjectWorldShippingWaterReference=$ReferencePath",
+        "-ProjectWorldShippingWaterRepeat=$RepeatPath",
+        "-ProjectWorldShippingWaterProduct=$ProductPath",
+        "-ProjectWorldShippingWaterMap=$mapPackage",
+        '-ProjectWorldShippingWaterRuntime=kazan_territory_512_1536_v1',
+        "-ProjectWorldShippingWaterRuntimeHash=$script:runtimeProfileHash",
+        '-ProjectWorldShippingWaterMachine=rtx4070_primary',
+        ('-ProjectWorldShippingWaterTarget={0},{1},0' -f `
+            $shippingWaterTargetXCentimeters.ToString('0.###', [Globalization.CultureInfo]::InvariantCulture), `
+            $shippingWaterTargetYCentimeters.ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)),
+        '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
+        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash', '-NoMessaging'
+    )
+    $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
+        -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
+    if (-not $process.WaitForExit($GameTimeoutSeconds * 1000)) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        throw 'Shipping Water proof process exceeded the bounded timeout.'
+    }
+    return $process.ExitCode
+}
+
+function Read-ShippingWaterProof {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    Assert-PlayableTour (Test-Path -LiteralPath $Path -PathType Leaf) `
+        'Shipping Water proof receipt is missing.'
+    $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $start = @($receipt.start_player_location_cm)
+    $target = @($receipt.requested_water_target_cm)
+    $allowedTargetError = [double]$receipt.allowed_target_xy_error_cm
+    $requestedTargetDistance = [double]$receipt.requested_target_distance_cm
+    $minimumRequiredTravel = $requestedTargetDistance - $allowedTargetError
+    $computedTargetDistance = if ($start.Count -eq 3 -and $target.Count -eq 3) {
+        [Math]::Sqrt(
+            [Math]::Pow([double]$target[0] - [double]$start[0], 2) +
+            [Math]::Pow([double]$target[1] - [double]$start[1], 2))
+    }
+    else { [double]::NaN }
+    Assert-PlayableTour (
+        [string]$receipt.status -ceq 'accepted' -and
+        [string]$receipt.operation_id -ceq $operationId -and
+        [string]$receipt.map_package -ceq $mapPackage -and
+        [string]$receipt.runtime_profile_sha256 -ceq $script:runtimeProfileHash -and
+        [string]$receipt.build_configuration -ceq 'Shipping' -and
+        [string]$receipt.gpu_adapter -ceq 'NVIDIA GeForce RTX 4070' -and
+        [string]$receipt.rhi -ceq 'D3D12' -and
+        [bool]$receipt.project_loading_provenance -and
+        [bool]$receipt.preview_flight -and
+        [string]$receipt.pawn_class -ceq '/Script/ProjectCharacter.DefinitionCharacter' -and
+        [string]$receipt.input_method -ceq `
+            'APlayerController::InputKey/FInputKeyEventArgs::CreateSimulated' -and
+        [int]$receipt.input_event_count -gt 0 -and
+        [int]$receipt.waypoints_reached -ge 1 -and
+        [double]$receipt.ascent_cm -gt 4000.0 -and
+        $requestedTargetDistance -gt $allowedTargetError -and
+        [Math]::Abs($requestedTargetDistance - $computedTargetDistance) -le 1.0 -and
+        [double]$receipt.horizontal_displacement_cm + 1.0 -ge $minimumRequiredTravel -and
+        $null -ne $receipt.PSObject.Properties['target_xy_error_cm'] -and
+        [double]$receipt.target_xy_error_cm -le $allowedTargetError -and
+        [string]$receipt.capture_source -ceq 'SCS_BaseColor' -and
+        [string]$receipt.capture_projection -ceq 'orthographic' -and
+        [double]$receipt.capture_ortho_width_cm -eq 20000.0 -and
+        [bool]$receipt.same_capture_session -and
+        -not [string]::IsNullOrWhiteSpace([string]$receipt.capture_session_id) -and
+        [string]$receipt.reference_capture_session_id -ceq [string]$receipt.capture_session_id -and
+        [string]$receipt.repeat_capture_session_id -ceq [string]$receipt.capture_session_id -and
+        [int]$receipt.capture_session_written_image_count -eq 2 -and
+        [bool]$receipt.reference_captured -and
+        [bool]$receipt.repeat_captured -and
+        [string]$receipt.final_color_capture_source -ceq 'SCS_FinalColorLDR' -and
+        [string]$receipt.final_color_capture_projection -ceq 'perspective' -and
+        [double]$receipt.final_color_field_of_view_degrees -eq 70.0 -and
+        -not [string]::IsNullOrWhiteSpace([string]$receipt.final_color_capture_session_id) -and
+        [int]$receipt.final_color_capture_session_written_image_count -eq 1 -and
+        [bool]$receipt.final_color_captured) `
+        'Shipping Water proof receipt failed its product/input/capture contract.'
+    Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.reference_screenshot) -PathType Leaf) `
+        'Shipping Water reference screenshot is missing.'
+    Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.repeat_screenshot) -PathType Leaf) `
+        'Shipping Water repeat screenshot is missing.'
+    Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.final_color_screenshot) -PathType Leaf) `
+        'Shipping Water final-color screenshot is missing.'
+    return $receipt
 }
 
 function Assert-PlayableTourNormalExit {
@@ -301,14 +392,15 @@ function Assert-PlayableTourNormalExit {
 function Read-PlayableTourCorrectness {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$Configuration
+        [Parameter(Mandatory = $true)][string]$Configuration,
+        [Parameter(Mandatory = $true)][string]$ExpectedOperationId
     )
     Assert-PlayableTour (Test-Path -LiteralPath $Path -PathType Leaf) `
         "$Configuration product-route receipt is missing."
     $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
     Assert-PlayableTour (
         [string]$receipt.status -ceq 'accepted' -and
-        [string]$receipt.operation_id -ceq $operationId -and
+        [string]$receipt.operation_id -ceq $ExpectedOperationId -and
         [string]$receipt.map_package -ceq $mapPackage -and
         [string]$receipt.runtime_profile -ceq 'kazan_territory_512_1536_v1' -and
         [string]$receipt.runtime_profile_sha256 -ceq $runtimeProfileHash -and
@@ -336,7 +428,12 @@ function Read-PlayableTourCorrectness {
 }
 
 function Read-PlayableTourPerformance {
-    param([Parameter(Mandatory = $true)][string]$Path)
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedOperationId,
+        [Parameter(Mandatory = $true)][string]$ExpectedSamplePath,
+        [Parameter(Mandatory = $true)][int]$ProcessExitCode
+    )
     Assert-PlayableTour (Test-Path -LiteralPath $Path -PathType Leaf) `
         'Development performance receipt is missing.'
     $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
@@ -346,16 +443,19 @@ function Read-PlayableTourPerformance {
     $completedCenterCycles = @($unloadedCenterCells | Where-Object {
             $reloadedCenterCells -contains $_ -and $initialCenterCells -contains $_
         })
+    $outcome = Get-ProjectWorldPerformanceChildOutcome -Receipt $receipt `
+        -ProcessExitCode $ProcessExitCode
+    Assert-PlayableTour $outcome.valid `
+        'Development child failed outside the aggregatable Frame p95 decision.'
     Assert-PlayableTour (
-        [string]$receipt.status -ceq 'accepted' -and
-        [string]$receipt.operation_id -ceq $operationId -and
+        [string]$receipt.operation_id -ceq $ExpectedOperationId -and
         [string]$receipt.build_configuration -ceq 'Development' -and
         [string]$receipt.gpu_adapter -ceq 'NVIDIA GeForce RTX 4070' -and
         [string]$receipt.rhi -ceq 'D3D12' -and
         [string]$receipt.quality_preset -ceq 'High' -and
         [int]$receipt.resolution_x -eq 2560 -and
         [int]$receipt.resolution_y -eq 1440 -and
-        [double]$receipt.frame_p95_ms -le 16.67 -and
+        (Test-ProjectWorldPerformanceEnvelopeReceipt -Receipt $receipt) -and
         [int]$receipt.streaming_failures -eq 0 -and
         [bool]$receipt.center_cell_streaming_cycle -and
         $initialCenterCells.Count -eq [int]$receipt.initial_center_cell_count -and
@@ -377,6 +477,13 @@ function Read-PlayableTourPerformance {
         'Development playable-tour performance/input contract was rejected.'
     Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.csv_capture) -PathType Leaf) `
         'Development CSV capture is missing.'
+    Assert-PlayableTour (
+        $null -ne $receipt.PSObject.Properties['raw_sample_capture'] -and
+        ([IO.Path]::GetFullPath([string]$receipt.raw_sample_capture)).Equals(
+            [IO.Path]::GetFullPath($ExpectedSamplePath),
+            [StringComparison]::OrdinalIgnoreCase) -and
+        (Test-Path -LiteralPath $ExpectedSamplePath -PathType Leaf)) `
+        'Development exact collector-sample capture is missing or unauthenticated.'
     Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.playable_tour_screenshot) -PathType Leaf) `
         'Development playable-tour screenshot is missing.'
     return $receipt
@@ -392,6 +499,7 @@ if (Test-Path -LiteralPath $previousFinalPackage) {
     }
 }
 Remove-PlayableTourWorkspace -Path $runtimeRoot
+Remove-PlayableTourWorkspace -Path $focusedProbeRoot
 New-Item -ItemType Directory -Path $workRoot, $runtimeRoot -Force | Out-Null
 if (Test-Path -LiteralPath $finalPackage) {
     Move-PlayableTourPackage -Source $finalPackage -Destination $previousFinalPackage
@@ -418,6 +526,21 @@ try {
     else {
         [IO.Path]::GetFullPath((Join-Path $projectRoot $compileResultValue))
     }
+    $waterAuthorityPath = Join-Path $evidenceRoot 'water-viewpoint-authority.json'
+    & $waterViewpointVerifier -CompileResult $compileResult `
+        -ActiveManifestSet $activeManifestSet `
+        -UnrealXCentimeters $shippingWaterTargetXCentimeters `
+        -UnrealYCentimeters $shippingWaterTargetYCentimeters `
+        -FeatureId 'alis:osm:relation:7493502' -FeatureClass 'water' `
+        -ReceiptPath $waterAuthorityPath | Out-Null
+    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Shipping Water viewpoint authority verification failed.'
+    $waterAuthority = Get-Content -LiteralPath $waterAuthorityPath -Raw | ConvertFrom-Json
+    Assert-PlayableTour (
+        [string]$waterAuthority.status -ceq 'accepted' -and
+        [string]$waterAuthority.target_cell_id -ceq 'grid_413718bc833994e5:x1:y1' -and
+        [string]$waterAuthority.feature_id -ceq 'alis:osm:relation:7493502' -and
+        [string]$waterAuthority.feature_class -ceq 'water') `
+        'Shipping Water viewpoint authority receipt is invalid.'
     $edgeCell = Get-Content -LiteralPath `
         (Join-Path (Split-Path -Parent $compileResult) 'canonical\cells\cell_x8_y-2.json') `
         -Raw | ConvertFrom-Json
@@ -434,12 +557,6 @@ try {
 
     $developmentRoot = Join-Path $evidenceRoot 'development'
     New-Item -ItemType Directory -Path $developmentRoot -Force | Out-Null
-    $developmentCorrectnessPath = Join-Path $developmentRoot 'product-route.json'
-    $developmentPerformancePath = Join-Path $developmentRoot 'performance.json'
-    $developmentCsvPath = Join-Path $developmentRoot 'performance.csv'
-    $developmentScreenshotPath = Join-Path $developmentRoot 'playable-tour.png'
-    $developmentLogPath = Join-Path $developmentRoot 'game.log'
-
     Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'before Development packaging'
     Invoke-PlayableTourPackage -OutputRoot $developmentPackage -Configuration 'Development'
@@ -447,22 +564,71 @@ try {
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'after Development packaging'
     Move-PlayableTourPackage -Source $developmentPackage -Destination $finalPackage
     $developmentExecutable = Get-PlayableTourExecutable -PackageRoot $finalPackage
-    $developmentExitCode = Invoke-PlayableTourGame `
-        -Executable $developmentExecutable -Configuration 'Development' `
-        -CorrectnessPath $developmentCorrectnessPath -LogPath $developmentLogPath `
-        -PerformancePath $developmentPerformancePath -CsvPath $developmentCsvPath `
-        -ScreenshotPath $developmentScreenshotPath
-    Assert-PlayableTour ($developmentExitCode -eq 0) `
-        "Development playable-tour process exited abnormally with code $developmentExitCode."
-    Assert-PlayableTourNormalExit -LogPath $developmentLogPath -Configuration 'Development'
-    Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
-        -ExpectedRuntimeHash $runtimeProfileHash -Stage 'after Development execution'
-    $developmentCorrectness = Read-PlayableTourCorrectness `
-        -Path $developmentCorrectnessPath -Configuration 'Development'
-    $developmentPerformance = Read-PlayableTourPerformance -Path $developmentPerformancePath
-    $developmentPackageHash = Get-PlayableTourTreeDigest -Path $finalPackage
+    $developmentPackageHash = Get-ProjectWorldPackagePayloadDigest -Path $finalPackage
     $developmentExecutableHash = (Get-FileHash -LiteralPath $developmentExecutable `
         -Algorithm SHA256).Hash.ToLowerInvariant()
+    $developmentChildren = [Collections.Generic.List[object]]::new()
+    $developmentExitCodes = [Collections.Generic.List[int]]::new()
+    for ($developmentIndex = 1; $developmentIndex -le 3; ++$developmentIndex) {
+        $childName = "run-{0:D2}" -f $developmentIndex
+        $childRoot = Join-Path $developmentRoot $childName
+        New-Item -ItemType Directory -Path $childRoot -Force | Out-Null
+        $childOperationId = "$operationId-development-$childName"
+        $childCorrectnessPath = Join-Path $childRoot 'product-route.json'
+        $childPerformancePath = Join-Path $childRoot 'performance.json'
+        $childCsvPath = Join-Path $childRoot 'performance.csv'
+        $childSamplePath = Join-Path $childRoot 'performance.samples.csv'
+        $childScreenshotPath = Join-Path $childRoot 'playable-tour.png'
+        $childLogPath = Join-Path $childRoot 'game.log'
+        $childExitCode = Invoke-PlayableTourGame `
+            -Executable $developmentExecutable -Configuration 'Development' `
+            -RunOperationId $childOperationId `
+            -CorrectnessPath $childCorrectnessPath -LogPath $childLogPath `
+            -PerformancePath $childPerformancePath -CsvPath $childCsvPath `
+            -SamplePath $childSamplePath -ScreenshotPath $childScreenshotPath
+        Assert-PlayableTour ($childExitCode -eq 0 -or $childExitCode -eq 10) `
+            "Development child $childName exited abnormally with code $childExitCode."
+        Assert-PlayableTourNormalExit -LogPath $childLogPath -Configuration 'Development'
+        Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
+            -ExpectedRuntimeHash $runtimeProfileHash `
+            -Stage "after Development execution $childName"
+        $childCorrectness = Read-PlayableTourCorrectness `
+            -Path $childCorrectnessPath -Configuration 'Development' `
+            -ExpectedOperationId $childOperationId
+        $childPerformance = Read-PlayableTourPerformance `
+            -Path $childPerformancePath -ExpectedOperationId $childOperationId `
+            -ExpectedSamplePath $childSamplePath -ProcessExitCode $childExitCode
+        Assert-PlayableTour ((Get-ProjectWorldPackagePayloadDigest -Path $finalPackage) -ceq `
+                $developmentPackageHash) `
+            "Development package payload bytes changed during $childName."
+        $developmentExitCodes.Add($childExitCode)
+        $developmentChildren.Add([pscustomobject][ordered]@{
+                ExpectedOperationId = $childOperationId
+                ExpectedProcessExitCode = $childExitCode
+                ReceiptPath = $childPerformancePath
+                SamplePath = $childSamplePath
+                RichCsvPath = $childCsvPath
+                CorrectnessPath = $childCorrectnessPath
+                LogPath = $childLogPath
+                ProductScreenshotPath = [string]$childCorrectness.screenshot
+                PlayableScreenshotPath = [string]$childPerformance.playable_tour_screenshot
+            })
+    }
+    $developmentPerformance = New-ProjectWorldPerformanceAggregate `
+        -Children @($developmentChildren) -OperationId $operationId `
+        -SourceRevision $sourceRevision -SourceStateSha256 $sourceStateHash `
+        -RuntimeProfileSha256 $runtimeProfileHash `
+        -ExpectedExecutable $developmentExecutable `
+        -ExpectedExecutableSha256 $developmentExecutableHash `
+        -ExpectedPackage $finalPackage -ExpectedPackageSha256 $developmentPackageHash
+    $developmentAggregatePath = Join-Path $developmentRoot 'performance-aggregate.json'
+    [IO.File]::WriteAllText(
+        $developmentAggregatePath,
+        ($developmentPerformance | ConvertTo-Json -Depth 12) + "`n",
+        [Text.UTF8Encoding]::new($false))
+    Assert-PlayableTour ([string]$developmentPerformance.status -ceq 'accepted') `
+        ("Development pooled performance rejected: {0}" -f `
+            [string]$developmentPerformance.acceptance_reason)
     Remove-PlayableTourPackage -Path $finalPackage
 
     $shippingRoot = Join-Path $evidenceRoot 'shipping'
@@ -478,6 +644,7 @@ try {
     $shippingExecutable = Get-PlayableTourExecutable -PackageRoot $finalPackage
     $shippingExitCode = Invoke-PlayableTourGame `
         -Executable $shippingExecutable -Configuration 'Shipping' `
+        -RunOperationId $operationId `
         -CorrectnessPath $shippingCorrectnessPath -LogPath $shippingLogPath
     Assert-PlayableTour ($shippingExitCode -eq 0) `
         "Shipping playable-tour process exited abnormally with code $shippingExitCode."
@@ -489,20 +656,53 @@ try {
     Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'after Shipping execution'
     $shippingCorrectness = Read-PlayableTourCorrectness `
-        -Path $shippingCorrectnessPath -Configuration 'Shipping'
-    $shippingPackageHash = Get-PlayableTourTreeDigest -Path $finalPackage
+        -Path $shippingCorrectnessPath -Configuration 'Shipping' `
+        -ExpectedOperationId $operationId
+    $shippingWaterResultPath = Join-Path $shippingRoot 'water-proof.json'
+    $shippingWaterReferencePath = Join-Path $shippingRoot 'water.png'
+    $shippingWaterRepeatPath = Join-Path $shippingRoot 'water.control.png'
+    $shippingWaterProductPath = Join-Path $shippingRoot 'water-product.png'
+    $shippingWaterTemporalPath = Join-Path $shippingRoot 'water-temporal.json'
+    $shippingWaterExitCode = Invoke-ShippingWaterProof `
+        -Executable $shippingExecutable -ResultPath $shippingWaterResultPath `
+        -ReferencePath $shippingWaterReferencePath -RepeatPath $shippingWaterRepeatPath `
+        -ProductPath $shippingWaterProductPath
+    Assert-PlayableTour ($shippingWaterExitCode -eq 0) `
+        "Shipping Water proof exited abnormally with code $shippingWaterExitCode."
+    $shippingWater = Read-ShippingWaterProof -Path $shippingWaterResultPath
+    & $waterVerifier -ReferencePath $shippingWaterReferencePath `
+        -RepeatPath $shippingWaterRepeatPath -ReceiptPath $shippingWaterTemporalPath
+    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Shipping Water temporal verification failed.'
+    $shippingWaterTemporal = Get-Content -LiteralPath $shippingWaterTemporalPath -Raw | ConvertFrom-Json
+    Assert-PlayableTour ([string]$shippingWaterTemporal.status -ceq 'accepted') `
+        'Shipping Water temporal receipt was not accepted.'
+    Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
+        -ExpectedRuntimeHash $runtimeProfileHash -Stage 'after Shipping Water proof'
+    $shippingPackageHash = Get-ProjectWorldPackagePayloadDigest -Path $finalPackage
     $shippingExecutableHash = (Get-FileHash -LiteralPath $shippingExecutable `
         -Algorithm SHA256).Hash.ToLowerInvariant()
 
     $artifactPaths = [ordered]@{
-        development_correctness = $developmentCorrectnessPath
-        development_performance = $developmentPerformancePath
-        development_csv = $developmentCsvPath
-        development_log = $developmentLogPath
-        development_product_screenshot = [string]$developmentCorrectness.screenshot
-        development_playable_screenshot = [string]$developmentPerformance.playable_tour_screenshot
+        development_performance_aggregate = $developmentAggregatePath
         shipping_correctness = $shippingCorrectnessPath
         shipping_product_screenshot = [string]$shippingCorrectness.screenshot
+        shipping_water_proof = $shippingWaterResultPath
+        shipping_water_viewpoint_authority = $waterAuthorityPath
+        shipping_water_reference = [string]$shippingWater.reference_screenshot
+        shipping_water_repeat = [string]$shippingWater.repeat_screenshot
+        shipping_water_product = [string]$shippingWater.final_color_screenshot
+        shipping_water_temporal = $shippingWaterTemporalPath
+    }
+    for ($developmentIndex = 0; $developmentIndex -lt $developmentChildren.Count; ++$developmentIndex) {
+        $child = $developmentChildren[$developmentIndex]
+        $prefix = "development_run_{0:D2}" -f ($developmentIndex + 1)
+        $artifactPaths["${prefix}_correctness"] = [string]$child.CorrectnessPath
+        $artifactPaths["${prefix}_performance"] = [string]$child.ReceiptPath
+        $artifactPaths["${prefix}_samples"] = [string]$child.SamplePath
+        $artifactPaths["${prefix}_csv"] = [string]$child.RichCsvPath
+        $artifactPaths["${prefix}_log"] = [string]$child.LogPath
+        $artifactPaths["${prefix}_product_screenshot"] = [string]$child.ProductScreenshotPath
+        $artifactPaths["${prefix}_playable_screenshot"] = [string]$child.PlayableScreenshotPath
     }
     if (Test-Path -LiteralPath $shippingLogPath -PathType Leaf) {
         $artifactPaths['shipping_log'] = $shippingLogPath
@@ -528,12 +728,33 @@ try {
         runtime_profile_sha256 = $runtimeProfileHash
         engine_route = 'launcher_installed'
         machine_profile_id = 'rtx4070_primary'
-        development_exit_code = $developmentExitCode
+        development_exit_codes = @($developmentExitCodes)
         development_executable_sha256 = $developmentExecutableHash
         development_package_sha256 = $developmentPackageHash
+        development_package_digest_scope = 'payload_excluding_runtime_state'
         shipping_exit_code = $shippingExitCode
+        shipping_water_exit_code = $shippingWaterExitCode
         shipping_executable_sha256 = $shippingExecutableHash
         shipping_package_sha256 = $shippingPackageHash
+        shipping_package_digest_scope = 'payload_excluding_runtime_state'
+        package_digest_excluded_runtime_state = @(
+            'Windows/Alis/LocalAppData',
+            'Windows/Alis/Saved',
+            'Windows/Engine/Saved'
+        )
+        shipping_water_target_xy_error_cm = [double]$shippingWater.target_xy_error_cm
+        shipping_water_target_cell_id = [string]$waterAuthority.target_cell_id
+        shipping_water_feature_id = [string]$waterAuthority.feature_id
+        shipping_water_final_color_capture_source = [string]$shippingWater.final_color_capture_source
+        shipping_water_final_color_camera_location_cm = @($shippingWater.final_color_camera_location_cm)
+        shipping_water_final_color_camera_rotation_deg = @($shippingWater.final_color_camera_rotation_deg)
+        shipping_water_final_color_field_of_view_degrees = `
+            [double]$shippingWater.final_color_field_of_view_degrees
+        shipping_water_blue_pixel_union = [Int64]$shippingWaterTemporal.metrics.blue_pixel_union
+        shipping_water_blue_classification_flip_ratio = `
+            [double]$shippingWaterTemporal.metrics.blue_classification_flip_ratio
+        shipping_water_mean_blue_channel_delta = `
+            [double]$shippingWaterTemporal.metrics.mean_blue_channel_delta
         artifacts = $artifactPaths
         artifact_sha256 = $artifactHashes
         frame_p95_ms = [double]$developmentPerformance.frame_p95_ms

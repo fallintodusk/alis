@@ -39,22 +39,11 @@ namespace ProjectWorldRealizationGeneratorRegistry
 			return Layer.CanonicalSelectors.Num() == 1 && Layer.CanonicalSelectors[0] == Selector;
 		}
 
-		bool HasNonnegativeRgb(const TSharedPtr<FJsonObject>& Settings, const TCHAR* Field)
+		bool HasTerrainAndWaterSelectors(const FProjectWorldRealizationLayer& Layer)
 		{
-			const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
-			if (!Settings->TryGetArrayField(Field, Values) || Values == nullptr || Values->Num() != 3)
-			{
-				return false;
-			}
-			for (const TSharedPtr<FJsonValue>& Value : *Values)
-			{
-				double Number = 0.0;
-				if (!Value.IsValid() || !Value->TryGetNumber(Number) || !FMath::IsFinite(Number) || Number < 0.0)
-				{
-					return false;
-				}
-			}
-			return true;
+			return Layer.CanonicalSelectors.Num() == 2 &&
+				Layer.CanonicalSelectors[0] == TEXT("terrain") &&
+				Layer.CanonicalSelectors[1] == TEXT("water");
 		}
 
 		bool HasUniqueStringArray(const TSharedPtr<FJsonObject>& Settings, const TCHAR* Field)
@@ -107,7 +96,7 @@ namespace ProjectWorldRealizationGeneratorRegistry
 		{
 			double ComponentsPerProxy = 0.0;
 			return Layer.LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
-				HasSingleSelector(Layer, TEXT("terrain")) &&
+				HasTerrainAndWaterSelectors(Layer) &&
 				Layer.SpatialOwnership == TEXT("logical_landscape_with_cell_proxies") &&
 				Layer.DirtyGranularity == EProjectWorldDirtyGranularity::CanonicalCell &&
 				Layer.RuntimeMapping == TEXT("world_partition_owner") &&
@@ -119,18 +108,19 @@ namespace ProjectWorldRealizationGeneratorRegistry
 		bool ValidateWater(const FProjectWorldRealizationLayer& Layer, const TSharedPtr<FJsonObject>& Settings, FString& OutError)
 		{
 			FString ShadingModel;
+			double SurfaceOffset = 0.0;
 			bool bNanite = true;
 			return Layer.LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
 				HasSingleSelector(Layer, TEXT("water")) && Layer.SpatialOwnership == TEXT("cell_local") &&
 				Layer.DirtyGranularity == EProjectWorldDirtyGranularity::CanonicalCell &&
 				Layer.RuntimeMapping == TEXT("world_partition_spatial") &&
-				HasOnlyFields(Settings, {TEXT("material_shading_model"), TEXT("nanite"),
-					TEXT("scattering_coefficients"), TEXT("absorption_coefficients")}, OutError) &&
+				HasOnlyFields(Settings, {TEXT("material_shading_model"), TEXT("surface_offset_m"),
+					TEXT("nanite")}, OutError) &&
 				Settings->TryGetStringField(TEXT("material_shading_model"), ShadingModel) &&
-				ShadingModel == TEXT("single_layer_water") &&
+				ShadingModel == TEXT("solid_opaque") &&
 				Settings->TryGetBoolField(TEXT("nanite"), bNanite) && !bNanite &&
-				HasNonnegativeRgb(Settings, TEXT("scattering_coefficients")) &&
-				HasNonnegativeRgb(Settings, TEXT("absorption_coefficients"));
+				Settings->TryGetNumberField(TEXT("surface_offset_m"), SurfaceOffset) &&
+				FMath::IsFinite(SurfaceOffset) && SurfaceOffset > 0.0 && SurfaceOffset <= 1.0;
 		}
 
 		bool ValidateRoads(const FProjectWorldRealizationLayer& Layer, const TSharedPtr<FJsonObject>& Settings, FString& OutError)
@@ -219,7 +209,9 @@ namespace ProjectWorldRealizationGeneratorRegistry
 				Settings->TryGetStringField(TEXT("terrain_anchor_policy"), AnchorPolicy) &&
 				AnchorPolicy == TEXT("owner_cell_clamped_bounds_center") &&
 				Settings->TryGetStringField(TEXT("topology_policy"), TopologyPolicy) &&
-				TopologyPolicy == TEXT("cell_local_classify_v1") &&
+				TopologyPolicy == (Layer.GeneratorVersion == 2
+					? TEXT("logical_building_classify_v2")
+					: TEXT("cell_local_classify_v1")) &&
 				Settings->TryGetStringField(TEXT("duplicate_policy"), DuplicatePolicy) &&
 				DuplicatePolicy == TEXT("stable_feature_id") &&
 				Settings->TryGetStringField(TEXT("contained_policy"), ContainedPolicy) &&
@@ -258,12 +250,14 @@ namespace ProjectWorldRealizationGeneratorRegistry
 
 	bool IsRegistered(const FString& GeneratorId, int32 GeneratorVersion, EProjectWorldLayerKind LayerKind)
 	{
-		return GeneratorVersion == 1 && ((LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
+		const bool bRegisteredBuildingV2 = GeneratorId == TEXT("project_building_massing") &&
+			GeneratorVersion == 2 && LayerKind == EProjectWorldLayerKind::GeneratedGeography;
+		return bRegisteredBuildingV2 || (GeneratorVersion == 1 && ((LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
 			(GeneratorId == TEXT("project_landscape") || GeneratorId == TEXT("project_water_mesh") ||
 			 GeneratorId == TEXT("project_road_mesh") || GeneratorId == TEXT("project_vegetation_instances") ||
 			 GeneratorId == TEXT("project_building_massing"))) ||
 			(LayerKind == EProjectWorldLayerKind::GeneratedGameplayPlacement &&
-				GeneratorId == TEXT("project_gameplay_placement")));
+				GeneratorId == TEXT("project_gameplay_placement"))));
 	}
 
 	bool ValidateSettings(const FProjectWorldRealizationLayer& Layer, FString& OutError)

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/cinematic/shot-plan-v1.json",
+  "title": "Raw cinematic shot plan",
+  "description": "Everything needed to reproduce one camera move, and nothing else. Why the shot exists belongs in the shot board, not here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "id",
+    "map",
+    "duration",
+    "fps",
+    "fov",
+    "camera"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_]+$"
+    },
+    "map": {
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9_/-]+$"
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 5
+    },
+    "fps": {
+      "type": "integer",
+      "minimum": 24,
+      "maximum": 60
+    },
+    "fov": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "exclusiveMaximum": 170,
+      "description": "Horizontal field of view in degrees. The focal length is solved from the camera's real sensor width so the render matches the scouting still, which is captured by FOV."
+    },
+    "camera": {
+      "type": "array",
+      "minItems": 2,
+      "description": "Pose keys in seconds from shot start. Unreal world units and degrees.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "x",
+          "y",
+          "z",
+          "pitch",
+          "yaw"
+        ],
+        "properties": {
+          "t": {
+            "type": "number",
+            "minimum": 0
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "pitch": {
+            "type": "number"
+          },
+          "yaw": {
+            "type": "number"
+          },
+          "roll": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "interpolation": {
+      "enum": [
+        "cubic",
+        "linear"
+      ],
+      "default": "cubic"
+    },
+    "resolution": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 64
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "preset": {
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9_/-]+$"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 21600
+    }
+  }
+}

@@ -12,6 +12,7 @@ struct FProjectWorldCanonicalCell;
 
 struct FProjectWorldBuildingSettings
 {
+	int32 GeneratorVersion = 1;
 	double MaximumHeightMeters = 300.0;
 };
 

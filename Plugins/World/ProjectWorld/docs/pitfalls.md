@@ -254,9 +254,8 @@ bytes that were written, not whether a new write is required.
 
 ## 10. Global identity on the logical Landscape breaks cell-local regeneration
 
-**Symptom.** One changed terrain cell, or even a water-only canonical-input
-change, dirties the logical map package instead of only the affected spatial
-package.
+**Symptom.** One changed Terrain or Water cell input dirties the logical map
+package instead of only the affected spatial Landscape package.
 
 **Root cause.** The logical Landscape stored the whole bundle input hash and
 per-cell terrain hashes, and treated any updated component as a reason to dirty
@@ -265,11 +264,11 @@ Even after correcting those flags, the outer service unconditionally called
 `SaveLevel()` for cell-local changes and rewrote clean logical-map bytes.
 
 **Fix.** Keep only stable topology, grid, material, edit-layer, and logical
-identity on the root Landscape. Store each terrain-input identity on its
-Landscape component and the cell ID on its streaming proxy. Validate the
-component's actual `SectionBase` and canonical bounds before accepting that
-ownership. Save the persistent level only for a new map or a genuinely dirty
-root package; otherwise save only dirty external packages.
+identity on the root Landscape. Store each cell's composite Terrain-plus-Water
+projection identity on its Landscape component and the cell ID on its streaming
+proxy. Validate the component's actual `SectionBase` and canonical bounds before
+accepting that ownership. Save the persistent level only for a new map or a
+genuinely dirty root package; otherwise save only dirty external packages.
 
 **Files.** `ProjectWorldLandscapeRealization.cpp`,
 `ProjectWorldRealizationService.cpp`, `Tests/ProjectWorldNativeTwinTests.cpp`,
@@ -279,8 +278,10 @@ and `scripts/ue/world/test/integration/realization_layer_lifecycle.ps1`.
 `Project.World.Realization.NativeTwin.LandscapePartitionAndEditLayers` proves
 ownership and dirty flags. The isolated L1 runner's `-ProvePackageLocality`
 mode proves that a genuine one-cell terrain change rewrites exactly its proxy,
-that a water-only change rewrites no terrain package, and that both leave the
-logical `.umap` byte-identical through the real wrapper/commandlet save path.
+that a Water semantic change rewrites exactly its hydrologically affected
+Landscape proxies, and that both leave the logical `.umap` byte-identical through
+the real wrapper/commandlet save path. Same-path material tuning remains outside
+the geography identity and writes no Landscape package.
 
 ---
 
@@ -812,3 +813,204 @@ advance provenance without claiming a different realized World.
 `Project.World.Realization.Presentation.SemanticFingerprintIgnoresInputProvenance`
 proves provenance stability and semantic sensitivity;
 `generator_fingerprint.Tests.ps1` proves evidence-only source changes move no producer.
+
+---
+
+## 27. Water material correctness does not prove a visible surface
+
+**Symptom.** Generated Water actors are loaded, visible, no-collision, and reference a
+compiled blue Single Layer Water material, but Landscape completely covers the surface
+from every normal above-water camera. An opaque diagnostic material is also invisible
+from above and becomes a solid plane when viewed from below.
+
+**Root cause.** The mesh builder normalized XY triangles to counter-clockwise winding.
+Unreal renders clockwise triangles as front-facing, so the generated water faces down.
+Material, cook, streaming, and elevation checks cannot detect this geometry error.
+
+**Fix.** Preserve the authored +Z vertex normals while reversing every positive-Z
+cross-product triangle to clockwise winding before adding it to the MeshDescription.
+Do not hide the defect with a two-sided material.
+
+**File.**
+`Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.cpp`.
+
+**Regression test.**
+`Project.World.Realization.NativeTwin.WaterCanonicalContract` requires every generated
+water polygon to be a clockwise triangle in Unreal space. Live Editor and packaged
+visual evidence must still frame a known water surface from above.
+
+---
+
+## 28. A visible Water surface can still z-fight with Landscape
+
+**Symptom.** Water is blue and front-facing, but broad reservoirs alternate between
+blue and Landscape green in triangular patches. A repeated fixed-camera capture changes
+which pixels classify as Water even though neither camera nor canonical data moved.
+
+**Root cause.** A Water estimator may legitimately produce the same or a lower Z than
+the sampled DSM beneath it. Coplanar triangles z-fight; positive DEM intrusions can
+hide Water completely. A reflective Single Layer Water placeholder adds presentation
+noise without solving either vertical-order failure. A constant Water offset only fixes
+the coplanar case and cannot safely cover multi-metre DEM disagreement.
+
+**Fix.** Keep canonical Terrain and Water bytes exact. The generated Landscape
+projection consumes both inputs and lowers only samples inside the exact Water footprint
+to `min(terrain_z, water_z)`. The replaceable Water mesh independently applies the
+profile-owned positive `surface_offset_m`. Use the current time-invariant opaque blue
+placeholder until the universal ProjectMaterial Water family is selected and proven.
+Do not raise Water by the worst DEM error, bend Water to Terrain, paint Water into the
+Landscape material, or enable a second Water authority.
+
+**Files.**
+`Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.*`,
+`ProjectWorldLandscapeRealization.*`, `ProjectWorldLayerInventory.cpp`,
+`ProjectWorldWaterMeshBuilder.*`, and the owning realization profile.
+
+**Regression tests.**
+`Project.World.Realization.NativeTwin.TerrainWaterLayerOrder` pins the vertical order
+and dry-Terrain locality;
+`Project.World.Realization.NativeTwin.WaterCanonicalContract` pins the metric offset;
+`Project.World.Realization.Layers.PersistentWater` pins the static opaque material;
+`scripts/ue/world/test/water_temporal_stability.ps1` rejects repeated-pose Water pixel
+classification flips and color drift.
+
+---
+
+## 29. A broad final-arrival radius makes collision-slide evidence nondeterministic
+
+**Symptom.** The packaged playable-tour route reaches the edge and returns successfully,
+but some runs descend in a dense collision pocket and record zero forward slide. Repeating
+the same source can land near a usable facade and pass, so an ordinary package GREEN does
+not explain the variance.
+
+**Root cause.** The broad traversal arrival radius is appropriate for streamed territory
+waypoints, but using the same 250 m radius for the final center return allows descent far
+from the intended collision-proof area. Trying unrelated lateral keys only measures
+arbitrary horizontal escape and weakens the meaning of "forward input slid along a
+blocking surface."
+
+**Fix.** Keep the broad radius for territory traversal and use the focused 25 m radius
+only for the final center return. Preserve one forward `W` slide after blocked descent;
+do not add direction retries as a substitute for deterministic arrival.
+
+**File.**
+`Source/ProjectWorld/Private/Presentation/ProjectWorldPlayableTourDriver.cpp`.
+
+**Regression test.**
+The exact packaged Development product gate must record a forward collision slide of at
+least 1 m after center return, while preserving the real-input, collision, streaming, and
+performance receipts in the same process.
+
+---
+
+## 30. Full-frame repeated captures can measure sky instead of Water
+
+**Symptom.** A Shipping Water pair looks visually stable, but the temporal verifier
+reports many blue classification flips. A valid Water target can also be rejected because
+an older route required an unrelated absolute travel distance.
+
+**Root cause.** A player-context camera includes blue sky, and recreating its transient
+`SceneCapture2D` for each PNG discards the rendering state that
+`bAlwaysPersistRenderingState` is meant to preserve. Full-frame blue classification then
+cannot attribute changes to Water. UE base-color capture PNGs can also store meaningful
+RGB with alpha zero; alpha-compositing those images through GDI+ turns the classified
+pixels black. Absolute path length is also not evidence that the configured target was
+reached.
+
+**Fix.** Keep one capture actor, component, render target, transform, and projection alive
+for both images. Anchor a top-down orthographic `SCS_BaseColor` capture to the authenticated
+Water coordinate. This is the same built-in capture source used by UE's World Partition
+minimap and preserves geometry/depth while removing sky and lighting noise. Accept travel
+from the actual start-to-target distance, arrival radius, final error, and accumulated
+real-input path; do not replace the stale distance with another magic constant.
+
+Read the capture's BGRA bytes without alpha composition. The alpha channel is not Water
+identity; the blue classifier owns RGB geometry/material evidence. Do not promote that
+diagnostic pass into product-appearance evidence: capture one additional target-centered
+`SCS_FinalColorLDR` frame with normal show flags and inspect those exact Shipping pixels.
+
+**Files.**
+`Source/ProjectWorld/Private/Presentation/ProjectWorldRuntimeScreenshotCapture.*`,
+`ProjectWorldShippingWaterProofGate.*`, and
+`scripts/ue/world/test/performance/run_kazan_playable_tour.ps1`.
+
+**Regression tests.**
+`ProjectWorld.PlayableTour.ShippingWater.TargetRelativeTravel` pins the derived travel
+contract. `water_temporal_stability.Tests.ps1` pins UE zero-alpha base-color blue,
+Water-to-ground flips, and color drift. The exact packaged Shipping Water process proves
+the persistent capture session and real rendered Water/Landscape boundary, while its
+separate final-color image proves the normal product presentation.
+
+---
+
+## 31. Requested performance flags are not runtime pacing evidence
+
+**Symptom.** A packaged run clusters near the 60 Hz boundary and is classified as a
+content regression from Frame/Render p95 alone. Its launcher uses `-VSync=0`, which
+looks like a request to disable VSync but is not UE boolean-flag syntax.
+
+**Root cause.** UE parses VSync as the boolean `-vsync` or `-novsync` flag. Requested
+command-line text does not prove the state used during sampling, and other pacing
+owners such as `t.MaxFPS`, frame smoothing, fixed frame rate/time step, benchmark mode,
+or dynamic resolution can independently change the measurement envelope. In the
+2026-09-01 rejected run, the in-process gate log already showed `r.VSync=0` and
+`t.MaxFPS=0`, so the ambiguous flag was real harness debt but did not prove the measured
+miss was caused by VSync.
+
+**Fix.** Launch with `-novsync`. In the one-shot acceptance process, establish and read
+back the uncapped native-resolution envelope before sampling, record every value in the
+performance receipt, and fail closed on a contradiction. Do not weaken the frame budget,
+select the best rerun, enable fixed-timestep benchmark behavior, or optimize World content
+without a localized runtime workload.
+
+When identical package bytes show material host/render scheduling variance, use one fixed
+three-execution sample rather than retrying until green. Preserve every child. Pool the
+exact C++ collector frames and apply the unchanged nearest-rank p95 once. UE's rich CSV is
+diagnostic evidence, not that exact sample authority: retained 2026-09-01 runs contained
+six additional numeric rows and recomputed to slightly different p95 values. The producer
+therefore emits a separate exact sample projection. PowerShell consumers must also test
+that every envelope property exists before casts, because a missing property can otherwise
+become zero or false and appear valid.
+
+UE can log `RequestExitWithStatus(..., 10)` for an individual performance-only miss while
+the packaged Windows process object reports normal exit 0. Classify the child from its
+authenticated receipt plus normal-exit log and retain its frames for pooling when that is
+the only rejection. Record the observed process code; do not manufacture 10. Any abnormal
+process exit or non-performance error still fails immediately.
+
+**Files.**
+`Source/ProjectWorld/Private/Presentation/ProjectWorldPerformanceEnvelope.*` and the
+packaged performance runners.
+
+**Regression tests.**
+`ProjectWorld.PlayableTour.PerformanceEnvelope.Uncapped` pins UE flag parsing and rejects
+every capped/synthetic envelope state. `performance_envelope.Tests.ps1` pins documented
+launcher syntax and strict property authentication.
+`ProjectWorld.PlayableTour.PerformanceSamples.ExactProjection` pins one exact row per
+collector frame. `performance_aggregate.Tests.ps1` pins three children, nearest-rank
+pooling, slow-frame preservation, observed 0/10 performance-only exits, abnormal-exit
+refusal, order invariance, and structural refusal.
+
+## 32. Packaged runtime state is not immutable release payload
+
+**Symptom.** A normal packaged product run exits cleanly but the runner reports that the
+package tree changed.
+
+**Root cause.** Orchestrator writes install-local state below
+`Windows/Alis/LocalAppData`, while UE writes normal runtime state such as
+`GameUserSettings.ini` below `Windows/Alis/Saved` and its runtime manifest below
+`Windows/Engine/Saved`. Hashing those owned runtime projections together with the
+shipped executable, pak, packaged config, and content makes every first boot look like
+payload corruption.
+
+**Fix.** Hash immutable package payload and exclude only the exact Orchestrator and UE
+runtime-state roots. Continue to fail on every mutation outside them. Record the digest
+scope and excluded paths in aggregate/composite evidence.
+
+**Files.**
+`scripts/ue/world/test/performance/project_world_performance_evidence.ps1` and
+`scripts/ue/world/test/performance/run_kazan_playable_tour.ps1`.
+
+**Regression test.**
+`performance_aggregate.Tests.ps1` proves that runtime-state writes preserve the payload
+digest while an executable-byte change moves it.

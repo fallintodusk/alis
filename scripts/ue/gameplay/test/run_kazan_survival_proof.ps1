@@ -25,6 +25,8 @@ $packageRoot = Join-Path $projectRoot 'Saved\PackageRelease\KazanSurvival'
 $candidatePackage = Join-Path $packageRoot 'Candidate'
 $previousCandidatePackage = Join-Path $packageRoot 'PreviousCandidate'
 $previewFlightLauncher = Join-Path $PSScriptRoot 'launch_kazan_preview_flight.cmd'
+. (Join-Path $projectRoot `
+    'scripts\ue\world\test\performance\project_world_performance_evidence.ps1')
 
 function Assert-SurvivalProof {
     param(
@@ -161,6 +163,7 @@ function Invoke-SurvivalRoute {
         [Parameter(Mandatory = $true)][string]$LogPath,
         [string]$PerformancePath,
         [string]$CsvPath,
+        [string]$SamplePath,
         [string]$PerformanceScreenshotPath
     )
     $arguments = @(
@@ -177,7 +180,7 @@ function Invoke-SurvivalRoute {
         "-ProjectWorldRuntimeProfileSha256=$script:runtimeProfileHash",
         '-ProjectWorldMachineProfile=rtx4070_primary',
         '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
-        '-RenderOffScreen', '-VSync=0', '-unattended', '-nosplash',
+        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash',
         '-NoMessaging', "-abslog=$LogPath"
     )
     if ($Configuration -ceq 'Development' -and $Route -ceq 'success') {
@@ -187,6 +190,7 @@ function Invoke-SurvivalRoute {
             "-ProjectWorldPerformanceResult=$PerformancePath",
             "-ProjectWorldPerformanceCorrectness=$ResultPath",
             "-ProjectWorldPerformanceCsv=$CsvPath",
+            "-ProjectWorldPerformanceSamples=$SamplePath",
             "-ProjectWorldPerformanceScreenshot=$PerformanceScreenshotPath"
         )
     }
@@ -248,6 +252,7 @@ function Read-SurvivalPerformance {
     Assert-SurvivalProof (
         [string]$receipt.status -ceq 'accepted' -and
         [bool]$receipt.playable_tour -and
+        (Test-ProjectWorldPerformanceEnvelopeReceipt -Receipt $receipt) -and
         [double]$receipt.frame_p95_ms -le 16.67 -and
         [int]$receipt.streaming_failures -eq 0 -and
         [bool]$receipt.center_cell_streaming_cycle -and
@@ -260,6 +265,13 @@ function Read-SurvivalPerformance {
         'Development scenario performance/streaming contract was rejected.'
     Assert-SurvivalProof (Test-Path -LiteralPath ([string]$receipt.csv_capture) -PathType Leaf) `
         'Development performance CSV capture is missing.'
+    Assert-SurvivalProof (
+        $null -ne $receipt.PSObject.Properties['raw_sample_capture'] -and
+        (Test-Path -LiteralPath ([string]$receipt.raw_sample_capture) -PathType Leaf)) `
+        'Development exact performance sample capture is missing.'
+    $null = @(Import-ProjectWorldPerformanceSamples `
+            -Path ([string]$receipt.raw_sample_capture) `
+            -ExpectedCount ([int]$receipt.sample_count))
     Assert-SurvivalProof (
         Test-Path -LiteralPath ([string]$receipt.playable_tour_screenshot) -PathType Leaf) `
         'Development playable-tour screenshot is missing.'
@@ -289,10 +301,12 @@ try {
     $devSuccessScreenshot = Join-Path $developmentRoot 'success.png'
     $devPerformance = Join-Path $developmentRoot 'performance.json'
     $devCsv = Join-Path $developmentRoot 'performance.csv'
+    $devSamples = Join-Path $developmentRoot 'performance.samples.csv'
     $devTourScreenshot = Join-Path $developmentRoot 'performance-tour.png'
     $devSuccessLog = Join-Path $developmentRoot 'success.log'
     $exitCode = Invoke-SurvivalRoute $developmentExecutable 'Development' 'success' `
-        $devSuccess $devSuccessScreenshot $devSuccessLog $devPerformance $devCsv $devTourScreenshot
+        $devSuccess $devSuccessScreenshot $devSuccessLog $devPerformance $devCsv `
+        $devSamples $devTourScreenshot
     Assert-SurvivalProof ($exitCode -eq 0) "Development success exited with $exitCode."
     $devSuccessReceipt = Read-SurvivalReceipt $devSuccess 'Development' 'success'
     $devPerformanceReceipt = Read-SurvivalPerformance $devPerformance

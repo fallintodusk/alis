@@ -39,6 +39,14 @@ Plugins/
       -> Concrete entity composition using universal resource libraries
       -> Entity-specific visuals remain with the ObjectId until generalized
 
+    ProjectExperienceData/
+      -> Concrete configured application experiences (JSON source of truth plus the
+         DataAssets ProjectDefinitionGenerator produces from it)
+      -> No Source module: ProjectCore owns the definition contract, ProjectLoading owns
+         discovery/registration, ProjectSinglePlay owns traversal meaning
+      -> Not a revived ProjectExperience subsystem (see the deleted entry below): it adds
+         no runtime experience system, only configuration for the existing registry
+
   Systems/
     ProjectLoading/
       -> 6-phase loading pipeline (implements ILoadingService from ProjectCore)
@@ -192,7 +200,8 @@ Current State Snapshot
   - Gameplay: ProjectGameplay, ProjectMenuPlay, ProjectSinglePlay, ProjectOnlinePlay (Plugins/Gameplay/)
   - Features: ProjectFeature (contracts), ProjectCombat, ProjectDialogue, ProjectInventory (Plugins/Features/)
 - Deprecated/Removed:
-  - (done) ProjectExperience - Deleted (redundant with ProjectLoading + GameMode/MatchState)
+  - (done) ProjectExperience - Deleted (redundant with ProjectLoading + GameMode/MatchState);
+    the later Resources/ProjectExperienceData is data/content only and does not reinstate it
   - (done) ProjectData - Deleted (manifests moved to domain plugins)
   - (done) Systems/ProjectUI (framework code) -> UI/ProjectUI
   - (done) Systems/ProjectWorld -> World/ProjectWorld

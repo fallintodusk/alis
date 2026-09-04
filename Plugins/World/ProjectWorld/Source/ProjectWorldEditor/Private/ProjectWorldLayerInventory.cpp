@@ -169,6 +169,24 @@ namespace ProjectWorldLayerInventory
 			return FProjectSha256::HashBuffer(Bytes, OutHash);
 		}
 
+		bool HashCompositeCanonicalInput(
+			const FString& UnitId,
+			const TMap<FString, FString>& Inputs,
+			FString& OutHash)
+		{
+			TArray<FString> Selectors;
+			Inputs.GetKeys(Selectors);
+			Selectors.Sort();
+			FString Identity(TEXT("project_world_composite_canonical_input_v1"));
+			AppendToken(Identity, UnitId);
+			for (const FString& Selector : Selectors)
+			{
+				AppendToken(Identity, Selector);
+				AppendToken(Identity, Inputs.FindChecked(Selector));
+			}
+			return HashText(Identity, OutHash);
+		}
+
 		bool AddPackageArtifact(
 			const FString& PackageName,
 			const FString& Kind,
@@ -204,6 +222,22 @@ namespace ProjectWorldLayerInventory
 		}
 	}
 
+	bool HashTerrainWaterCellInput(
+		const FProjectWorldCanonicalBundle& Bundle,
+		const FProjectWorldCanonicalCell& Cell,
+		FString& OutHash)
+	{
+		FString WaterHash;
+		if (!HashWaterCell(Bundle, Cell, WaterHash))
+		{
+			return false;
+		}
+		TMap<FString, FString> Inputs;
+		Inputs.Add(TEXT("terrain"), Cell.Terrain.ArtifactHash);
+		Inputs.Add(TEXT("water"), MoveTemp(WaterHash));
+		return HashCompositeCanonicalInput(Cell.CellId, Inputs, OutHash);
+	}
+
 	bool Build(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
@@ -222,6 +256,7 @@ namespace ProjectWorldLayerInventory
 				continue;
 			}
 			TArray<FProjectWorldLayerInputInventory>& LayerInputs = CurrentInputs.Add(Layer.LayerId);
+			TMap<FString, TMap<FString, FString>> InputsByUnit;
 			for (const FString& Selector : Layer.CanonicalSelectors)
 			{
 				if (Selector != TEXT("terrain") && Selector != TEXT("water") && Selector != TEXT("roads") &&
@@ -244,7 +279,7 @@ namespace ProjectWorldLayerInventory
 						FString Hash;
 						if (!ProjectWorldGameplayPlacement::BuildInput(
 							Bundle, Layer, Placement, CellId, Transform, Hash, OutError)) return false;
-						LayerInputs.Add({Placement.ObjectId, Hash});
+						InputsByUnit.FindOrAdd(Placement.ObjectId).Add(Selector, Hash);
 						TerrainMapping.FindOrAdd(CellId).Add(Placement.ObjectId);
 					}
 					continue;
@@ -280,9 +315,27 @@ namespace ProjectWorldLayerInventory
 					}
 					if (!Hash.IsEmpty())
 					{
-						LayerInputs.Add({Cell.CellId, Hash});
+						InputsByUnit.FindOrAdd(Cell.CellId).Add(Selector, Hash);
 					}
 				}
+			}
+			for (const TPair<FString, TMap<FString, FString>>& Unit : InputsByUnit)
+			{
+				if (Unit.Value.Num() == 1)
+				{
+					for (const TPair<FString, FString>& Input : Unit.Value)
+					{
+						LayerInputs.Add({Unit.Key, Input.Value});
+					}
+					continue;
+				}
+				FString Hash;
+				if (!HashCompositeCanonicalInput(Unit.Key, Unit.Value, Hash))
+				{
+					OutError = FString::Printf(TEXT("Cannot hash composite canonical input: %s"), *Unit.Key);
+					return false;
+				}
+				LayerInputs.Add({Unit.Key, Hash});
 			}
 			LayerInputs.Sort([](const auto& Left, const auto& Right)
 			{
@@ -456,12 +509,22 @@ namespace ProjectWorldLayerInventory
 				return false;
 			}
 			TerrainCells.Add(CellId);
+			const FProjectWorldLayerInputInventory* Input = Terrain->CanonicalInputs.FindByPredicate(
+				[&CellId](const FProjectWorldLayerInputInventory& Candidate)
+				{
+					return Candidate.UnitId == CellId;
+				});
+			if (Input == nullptr)
+			{
+				OutError = FString::Printf(TEXT("Landscape proxy has no canonical input: %s"), *CellId);
+				return false;
+			}
 			FString Semantic;
 			if (!HashText(FString::Printf(
-				TEXT("project_landscape_proxy_v1|%s|%s|%s|%d,%d"),
+				TEXT("project_landscape_proxy_v2|%s|%s|%s|%d,%d"),
 				*Profile.LogicalLandscapeId,
 				*CellId,
-				*(*Cell)->Terrain.ArtifactHash,
+				*Input->Hash,
 				It->GetSectionBase().X,
 				It->GetSectionBase().Y), Semantic) ||
 				!AddPackageArtifact(It->GetPackage()->GetName(), TEXT("external_actor"), Semantic, *Terrain, OutError))
@@ -477,7 +540,7 @@ namespace ProjectWorldLayerInventory
 		OutResult.LandscapeProxyCount = TerrainCells.Num();
 
 		FString MaterialSemantic;
-		if (!HashText(TEXT("project_water_material_v2|") + Water->NormalizedLayerContractHash, MaterialSemantic) ||
+		if (!HashText(TEXT("project_water_material_v3|") + Water->NormalizedLayerContractHash, MaterialSemantic) ||
 			!AddPackageArtifact(
 				Water->ArtifactRoot + TEXT("M_ProjectWorldWater"),
 				TEXT("asset"),
@@ -511,8 +574,9 @@ namespace ProjectWorldLayerInventory
 			else if (Mesh->GetStaticMaterials().IsEmpty()) OwnershipFailure = TEXT("water material slot is missing");
 			else if (Mesh->GetStaticMaterials()[0].MaterialInterface == nullptr)
 				OwnershipFailure = TEXT("water material is missing");
-			else if (!Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
-				OwnershipFailure = TEXT("material is not Single Layer Water");
+			else if (!Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_DefaultLit) ||
+				Mesh->GetStaticMaterials()[0].MaterialInterface->GetBlendMode() != BLEND_Opaque)
+				OwnershipFailure = TEXT("material is not solid opaque Default Lit");
 			if (!OwnershipFailure.IsEmpty())
 			{
 				OutError = FString::Printf(

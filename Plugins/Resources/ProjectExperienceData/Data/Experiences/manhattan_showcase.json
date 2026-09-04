@@ -1,0 +1,7 @@
+{
+  "$schema": "../Schemas/experience.schema.json",
+  "ExperienceName": "ManhattanShowcase",
+  "Map": "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase.L_ProjectWorldManhattanShowcase",
+  "TraversalMode": "PreviewFlight",
+  "AssetScanDirectory": "/ProjectWorldData/Generated/Showcase/Manhattan"
+}

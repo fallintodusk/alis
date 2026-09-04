@@ -4,7 +4,9 @@
 #include "ProjectWorldLandscapeRealization.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldLayerInventory.h"
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldTerrainWaterConformance.h"
 
 #include "EngineUtils.h"
 #include "Landscape.h"
@@ -18,6 +20,7 @@
 #include "LandscapeStreamingProxy.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/SecureHash.h"
+#include "UObject/Package.h"
 
 namespace ProjectWorldLandscapeRealization
 {
@@ -112,6 +115,7 @@ namespace ProjectWorldLandscapeRealization
 		ALandscape* Landscape,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldLandscapeLayout& Layout,
+		const FProjectWorldLayerInventory* TerrainInventory,
 		int32 ComponentsPerProxy,
 		bool& bOutChanged,
 		FString& OutError)
@@ -137,6 +141,31 @@ namespace ProjectWorldLandscapeRealization
 			MinimumCellX = FMath::Min(MinimumCellX, Cell.CellX);
 			MaximumCellY = FMath::Max(MaximumCellY, Cell.CellY);
 		}
+		auto ResolveTerrainInputHash = [TerrainInventory, &Bundle, &OutError](
+			const FProjectWorldCanonicalCell& Cell,
+			FString& OutHash)
+		{
+			if (TerrainInventory == nullptr)
+			{
+				return ProjectWorldLayerInventory::HashTerrainWaterCellInput(
+					Bundle, Cell, OutHash);
+			}
+			const FProjectWorldLayerInputInventory* Input =
+				TerrainInventory->CanonicalInputs.FindByPredicate(
+					[&Cell](const FProjectWorldLayerInputInventory& Candidate)
+					{
+						return Candidate.UnitId == Cell.CellId;
+					});
+			if (Input == nullptr)
+			{
+				OutError = FString::Printf(
+					TEXT("Landscape topology has no composite canonical input: %s"),
+					*Cell.CellId);
+				return false;
+			}
+			OutHash = Input->Hash;
+			return true;
+		};
 		if (!World->IsPartitionedWorld())
 		{
 			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
@@ -152,7 +181,12 @@ namespace ProjectWorldLandscapeRealization
 						*Cell.CellId);
 					return false;
 				}
-				if (SetComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
+				FString TerrainInputHash;
+				if (!ResolveTerrainInputHash(Cell, TerrainInputHash))
+				{
+					return false;
+				}
+				if (SetComponentIdentityTag(*Component, TerrainInputTagPrefix, TerrainInputHash))
 				{
 					(*Component)->MarkPackageDirty();
 				}
@@ -248,7 +282,12 @@ namespace ProjectWorldLandscapeRealization
 				Proxy->Tags.Add(LandscapeTag);
 				bProxyChanged = true;
 			}
-			if (SetComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
+			FString TerrainInputHash;
+			if (!ResolveTerrainInputHash(Cell, TerrainInputHash))
+			{
+				return false;
+			}
+			if (SetComponentIdentityTag(*Component, TerrainInputTagPrefix, TerrainInputHash))
 			{
 				(*Component)->MarkPackageDirty();
 			}
@@ -342,6 +381,12 @@ namespace ProjectWorldLandscapeRealization
 
 		const int32 ComponentQuads = Layout.SectionsPerComponent * Layout.QuadsPerSection;
 		const bool bTerrainRowOrderChanged = !Landscape->Tags.Contains(TerrainRowOrderTag);
+		UPackage* const LandscapePackage = Landscape->GetPackage();
+		const bool bRestoreCleanLogicalPackage =
+			!bTerrainRowOrderChanged &&
+			Landscape->LandscapeComponents.IsEmpty() &&
+			LandscapePackage != nullptr &&
+			!LandscapePackage->IsDirty();
 		// Invariant 18. The dirty planner decides WHAT is rebuilt; the per-component
 		// ProjectWorld.TerrainInput tag is a cache identity over the INPUT, so it can be
 		// truthful while the realized output is wrong - which is what a flat territory looked
@@ -356,66 +401,98 @@ namespace ProjectWorldLandscapeRealization
 				});
 		const bool bWholeDirty =
 			TerrainInventory != nullptr && TerrainInventory->FinalDirtyUnits.Contains(TEXT("*"));
-		FScopedSetLandscapeEditingLayer LayerScope(
-			Landscape,
-			BaseLayer->GetGuid(),
-			[Landscape]()
-			{
-				Landscape->RequestLayersContentUpdateForceAll();
-			});
-		FLandscapeEditDataInterface EditData(LandscapeInfo, BaseLayer->GetGuid());
-		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+		bool bUpdatedHeights = false;
 		{
-			const int32 CanonicalOffsetX = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
-			const int32 CanonicalOffsetY = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
-			const int32 RegionX1 = CanonicalOffsetX;
-			const int32 RegionX2 = RegionX1 + Bundle.CellQuads.X;
-			const int32 RegionY1 = CanonicalOffsetY;
-			const int32 RegionY2 = RegionY1 + Bundle.CellQuads.Y;
-			if (RegionX1 % ComponentQuads != 0 || RegionY1 % ComponentQuads != 0 ||
-				Bundle.CellQuads.X % ComponentQuads != 0 || Bundle.CellQuads.Y % ComponentQuads != 0)
+			FScopedSetLandscapeEditingLayer LayerScope(
+				Landscape,
+				BaseLayer->GetGuid(),
+				[Landscape, &bUpdatedHeights]()
+				{
+					if (bUpdatedHeights)
+					{
+						Landscape->RequestLayersContentUpdateForceAll();
+					}
+				});
+			FLandscapeEditDataInterface EditData(LandscapeInfo, BaseLayer->GetGuid());
+			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 			{
-				OutError = FString::Printf(
-					TEXT("Changed terrain cell %s is not component-aligned for partial Landscape update."),
-					*Cell.CellId);
-				return false;
-			}
-			const FIntPoint ComponentIndex(
-				CanonicalOffsetX / ComponentQuads,
-				CanonicalOffsetY / ComponentQuads);
-			ULandscapeComponent* const* Component = LandscapeInfo->XYtoComponentMap.Find(ComponentIndex);
-			ALandscapeProxy* Proxy = Component != nullptr
-				? (*Component)->GetTypedOuter<ALandscapeProxy>()
-				: nullptr;
-			if (Proxy == nullptr)
-			{
-				OutError = FString::Printf(
-					TEXT("Changed terrain cell has no Landscape proxy: %s"),
-					*Cell.CellId);
-				return false;
-			}
-			const bool bPlannerSelected =
-				TerrainInventory != nullptr &&
-				(bWholeDirty || TerrainInventory->FinalDirtyUnits.Contains(Cell.CellId));
-			if (!bTerrainRowOrderChanged && !bPlannerSelected &&
-				HasComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash))
-			{
-				continue;
-			}
+				const FProjectWorldLayerInputInventory* TerrainInput = TerrainInventory != nullptr
+					? TerrainInventory->CanonicalInputs.FindByPredicate(
+						[&Cell](const FProjectWorldLayerInputInventory& Candidate)
+						{
+							return Candidate.UnitId == Cell.CellId;
+						})
+					: nullptr;
+				if (TerrainInventory != nullptr && TerrainInput == nullptr)
+				{
+					OutError = FString::Printf(
+						TEXT("Landscape cell has no composite canonical input: %s"), *Cell.CellId);
+					return false;
+				}
+				FString TerrainInputHash;
+				if (TerrainInput != nullptr)
+				{
+					TerrainInputHash = TerrainInput->Hash;
+				}
+				else if (!ProjectWorldLayerInventory::HashTerrainWaterCellInput(
+					Bundle, Cell, TerrainInputHash))
+				{
+					OutError = FString::Printf(
+						TEXT("Cannot hash Terrain plus Water input for cell: %s"), *Cell.CellId);
+					return false;
+				}
+				const int32 CanonicalOffsetX = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
+				const int32 CanonicalOffsetY = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
+				const int32 RegionX1 = CanonicalOffsetX;
+				const int32 RegionX2 = RegionX1 + Bundle.CellQuads.X;
+				const int32 RegionY1 = CanonicalOffsetY;
+				const int32 RegionY2 = RegionY1 + Bundle.CellQuads.Y;
+				if (RegionX1 % ComponentQuads != 0 || RegionY1 % ComponentQuads != 0 ||
+					Bundle.CellQuads.X % ComponentQuads != 0 || Bundle.CellQuads.Y % ComponentQuads != 0)
+				{
+					OutError = FString::Printf(
+						TEXT("Changed terrain cell %s is not component-aligned for partial Landscape update."),
+						*Cell.CellId);
+					return false;
+				}
+				const FIntPoint ComponentIndex(
+					CanonicalOffsetX / ComponentQuads,
+					CanonicalOffsetY / ComponentQuads);
+				ULandscapeComponent* const* Component = LandscapeInfo->XYtoComponentMap.Find(ComponentIndex);
+				ALandscapeProxy* Proxy = Component != nullptr
+					? (*Component)->GetTypedOuter<ALandscapeProxy>()
+					: nullptr;
+				if (Proxy == nullptr)
+				{
+					OutError = FString::Printf(
+						TEXT("Changed terrain cell has no Landscape proxy: %s"),
+						*Cell.CellId);
+					return false;
+				}
+				const bool bPlannerSelected =
+					TerrainInventory != nullptr &&
+					(bWholeDirty || TerrainInventory->FinalDirtyUnits.Contains(Cell.CellId));
+				if (!bTerrainRowOrderChanged && !bPlannerSelected &&
+					HasComponentIdentityTag(*Component, TerrainInputTagPrefix, TerrainInputHash))
+				{
+					continue;
+				}
 
-			EditData.SetHeightData(
-				RegionX1,
-				RegionY1,
-				RegionX2,
-				RegionY2,
-				Heightfield.EncodedHeights.GetData() +
-					RegionY1 * Heightfield.VertexCount.X + RegionX1,
-				Heightfield.VertexCount.X,
-				true);
-			SetComponentIdentityTag(*Component, TerrainInputTagPrefix, Cell.Terrain.ArtifactHash);
-			(*Component)->MarkPackageDirty();
-			OutResult.UpdatedLandscapeComponentCount +=
-				(Bundle.CellQuads.X / ComponentQuads) * (Bundle.CellQuads.Y / ComponentQuads);
+				EditData.SetHeightData(
+					RegionX1,
+					RegionY1,
+					RegionX2,
+					RegionY2,
+					Heightfield.EncodedHeights.GetData() +
+						RegionY1 * Heightfield.VertexCount.X + RegionX1,
+					Heightfield.VertexCount.X,
+					true);
+				bUpdatedHeights = true;
+				SetComponentIdentityTag(*Component, TerrainInputTagPrefix, TerrainInputHash);
+				(*Component)->MarkPackageDirty();
+				OutResult.UpdatedLandscapeComponentCount +=
+					(Bundle.CellQuads.X / ComponentQuads) * (Bundle.CellQuads.Y / ComponentQuads);
+			}
 		}
 
 		AuthoredLayer = Landscape->GetEditLayer(AuthoredCorrectionsLayerName);
@@ -429,7 +506,8 @@ namespace ProjectWorldLandscapeRealization
 			AuthoredGuidBefore.ToString(EGuidFormats::DigitsWithHyphensLower);
 		Landscape->Tags.AddUnique(TerrainRowOrderTag);
 
-		// Composition barrier. RequestLayersContentUpdateForceAll only MARKS the edit-layer
+		// Composition barrier. The editing scope above must close first: its destructor
+		// requests the edit-layer update. RequestLayersContentUpdateForceAll only MARKS the edit-layer
 		// stack dirty; the merge itself is driven by ALandscape::TickLayers, which requires an
 		// editor tick loop that a commandlet never runs. Without this synchronous force the
 		// Generated Base source layer is correct while the final/base heightmap keeps its
@@ -438,7 +516,17 @@ namespace ProjectWorldLandscapeRealization
 		// surface is composed before anything is verified or saved. It needs a render-capable
 		// envelope: UE skips PrepareTextureResources when FApp::CanEverRender() is false, so
 		// the realize wrapper declares Rendering=Required (scripts/ue/world/execution_envelope.ps1).
-		Landscape->ForceUpdateLayersContent();
+		if (bUpdatedHeights)
+		{
+			Landscape->ForceUpdateLayersContent();
+			// UE's derived edit-layer composition dirties the persistent actor even when
+			// every written component lives in an external proxy. Preserve a dirty input
+			// package and logical contract changes; only restore the clean cell-local case.
+			if (bRestoreCleanLogicalPackage)
+			{
+				LandscapePackage->SetDirtyFlag(false);
+			}
+		}
 		return true;
 	}
 
@@ -454,6 +542,7 @@ namespace ProjectWorldLandscapeRealization
 		FProjectWorldLandscapeHeightfield& OutHeightfield,
 		FString& OutError)
 	{
+		OutHeightfield = FProjectWorldLandscapeHeightfield();
 		if (!Layout.bCompatible || Bundle.Cells.IsEmpty())
 		{
 			OutError = TEXT("Canonical grid is not compatible with a stock Landscape layout.");
@@ -475,6 +564,11 @@ namespace ProjectWorldLandscapeRealization
 		TBitArray<> Written(false, SampleCount);
 		OutHeightfield.MinimumHeightMeters = TNumericLimits<double>::Max();
 		OutHeightfield.MaximumHeightMeters = TNumericLimits<double>::Lowest();
+		FProjectWorldTerrainWaterConformanceContext WaterContext;
+		if (!ProjectWorldTerrainWaterConformance::Prepare(Bundle, WaterContext, OutError))
+		{
+			return false;
+		}
 
 		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 		{
@@ -486,6 +580,19 @@ namespace ProjectWorldLandscapeRealization
 				return false;
 			}
 
+			TArray<double> CellHeights;
+			FProjectWorldTerrainWaterConformanceStats WaterStats;
+			if (!ProjectWorldTerrainWaterConformance::BuildCellHeights(
+				Bundle, WaterContext, Cell, CellHeights, WaterStats, OutError))
+			{
+				return false;
+			}
+			OutHeightfield.WaterFootprintSampleCount += WaterStats.WaterFootprintSampleCount;
+			OutHeightfield.WaterConditionedSampleCount += WaterStats.ConditionedSampleCount;
+			OutHeightfield.MaximumWaterTerrainCorrectionMeters = FMath::Max(
+				OutHeightfield.MaximumWaterTerrainCorrectionMeters,
+				WaterStats.MaximumCorrectionMeters);
+
 			const int32 OffsetX = (Cell.CellX - MinimumCellX) * Bundle.CellQuads.X;
 			const int32 OffsetY = (MaximumCellY - Cell.CellY) * Bundle.CellQuads.Y;
 			for (int32 Row = 0; Row < Cell.Terrain.SamplesY; ++Row)
@@ -495,7 +602,7 @@ namespace ProjectWorldLandscapeRealization
 					const int32 GlobalX = OffsetX + Column;
 					const int32 GlobalY = OffsetY + Row;
 					const int32 GlobalIndex = GlobalY * OutHeightfield.VertexCount.X + GlobalX;
-					const double Height = Cell.Terrain.HeightsMeters[
+					const double Height = CellHeights[
 						Row * Cell.Terrain.SamplesX + Column];
 					if (Written[GlobalIndex] &&
 						!FMath::IsNearlyEqual(CanonicalHeights[GlobalIndex], Height, Bundle.HeightQuantizationMeters))
@@ -725,18 +832,29 @@ namespace ProjectWorldLandscapeRealization
 		{
 			Landscape->UpdateAllComponentMaterialInstances(true);
 		}
+		const FProjectWorldLayerInventory* TerrainInventory =
+			OutResult.LayerInventories.FindByPredicate(
+				[](const FProjectWorldLayerInventory& Candidate)
+				{
+					return Candidate.GeneratorId == TEXT("project_landscape");
+				});
 		bool bTopologyChanged = false;
 		if (!EnsureCellProxyTopology(
 			World,
 			Landscape,
 			Bundle,
 			Layout,
+			TerrainInventory,
 			ComponentsPerProxy,
 			bTopologyChanged,
 			OutError))
 		{
 			return false;
 		}
+		OutResult.WaterTerrainFootprintSampleCount = Heightfield.WaterFootprintSampleCount;
+		OutResult.WaterTerrainConditionedSampleCount = Heightfield.WaterConditionedSampleCount;
+		OutResult.MaximumWaterTerrainCorrectionMeters =
+			Heightfield.MaximumWaterTerrainCorrectionMeters;
 		if (bMaterialChanged)
 		{
 			// Root refresh updates proxy state in memory but does not make external actor

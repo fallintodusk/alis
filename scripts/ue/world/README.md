@@ -34,10 +34,13 @@ manifests. `-DirtyUnit <layer_id>=<unit_id>` may add operator work but cannot
 remove computed work or dependency closure. The commandlet emits exact
 per-layer inventories; the wrapper rejects missing, extra, overlapping, or
 out-of-owner artifacts before publishing anything.
-The four executable v1 pairs are complete contracts, not ID-only dispatch:
-Landscape owns terrain canonical cells, water owns water-only canonical cell
-semantics, roads own terrain-dependent road fragments, and vegetation owns
-terrain-draped instances outside its road, water, and authored-mask dependencies.
+The six executable v1 pairs and the Building v2 pair are complete contracts,
+not ID-only dispatch:
+Landscape owns the Terrain-plus-Water canonical cell projection, Water owns
+water-only canonical cell semantics, Roads own terrain-dependent road fragments,
+Vegetation owns terrain-draped instances outside its road, water, and authored-mask
+dependencies, Buildings v1 own outline massing, Buildings v2 own canonical
+effective-volume massing, and Gameplay owns typed object placements.
 Operator cell IDs are checked against the current domain,
 computed removals may reference accepted-prior cells, and dependency halos are
 clipped to real cells. Future gameplay/source-tile/object-ID generators remain
@@ -58,7 +61,7 @@ invocation identity algorithm without weakening evidence containment.
 ```
 
 Use `-Mode Apply` only for the generated root owned by the compile coverage.
-ProjectWorldTestData owns fixtures; ProjectWorldData owns production Kazan. Add
+ProjectWorldTestData owns fixtures; ProjectWorldData owns concrete production territories. Add
 `-RequireLandscape` when validating a real Landscape envelope; incompatible
 canonical dimensions fail rather than resample.
 
@@ -77,7 +80,8 @@ mesh fragments. P0 defaults to one road and four buildings so a real provider
 snapshot cannot accidentally expand the prototype content budget.
 
 Each result records verified inputs, the grid-owned vertical origin, coordinate
-error, actor/section/component counts, changed Landscape components, protected
+error, actor/section/component counts, changed Landscape components, Water-footprint
+and hydro-conditioned Landscape sample counts plus maximum correction, protected
 authored-layer identity, authored-overlay hash, per-anchor resolutions,
 resolved/refused/placed/mask counts, maximum drift, presentation profile
 identity, generated source bytes, and an actual-world semantic fingerprint. Repeating an unchanged Apply must
@@ -140,12 +144,52 @@ the production character and collision-aware input-driven preview flight:
 .\scripts\ue\world\test\performance\run_kazan_playable_tour.ps1
 ```
 
-One cold Development process owns menu selection through ProjectLoading,
-possession, real Space/WASD/Ctrl input, interaction, collision, World Partition
-unload/reload, screenshots, and RTX 4070 High 1440p performance. A separate
+One Development package is executed exactly three predetermined times. Every
+process owns menu selection through ProjectLoading, possession, real
+Space/WASD/Ctrl input, interaction, collision, World Partition unload/reload,
+screenshots, and RTX 4070 High 1440p performance. A separate
 Shipping package proves cook and product-route correctness. The operation-level
 composite under `Saved/Validation/WorldRealization/playable-tour/<run-id>/`
 authenticates the focused receipts and artifacts without replacing their owners.
+The Development process uses UE's documented `-novsync` flag and the World gate
+fails before sampling unless read-back proves VSync and `t.MaxFPS` are zero,
+frame smoothing/fixed-rate/fixed-step/benchmark modes are disabled, and dynamic
+resolution is disabled. These are process-local acceptance settings; they are
+not saved to normal player settings. Fixed-timestep or best-of-run evidence
+cannot satisfy the release gate.
+Each Development child writes both UE's rich diagnostic CSV and an exact CSV
+projection of the C++ performance collector frames. The runner requires every
+child's functional, streaming, envelope, package, executable, source, and
+minimum-sample evidence, then concatenates all exact frame samples and applies
+the unchanged nearest-rank `Frame p95 <= 16.67 ms` threshold. Child p95 values
+are reported, never averaged or selected. A fixed count of three is release
+evidence, not the separate runtime-profile tournament.
+An individual child whose only rejection is the Frame p95 gate remains part of
+the aggregate. UE requests process status 10 for that case, but packaged Windows
+may report normal exit 0; the authenticated rejection receipt and normal-exit
+log own the performance decision, while every abnormal process exit still fails.
+
+The same Shipping transaction also runs the focused Water proof in the background.
+It reuses the packaged playable-tour driver's simulated `APlayerController::InputKey`
+events and accepts travel relative to the actual start-to-target distance and declared
+arrival radius. After the character reaches the accepted Water viewpoint, one persistent
+runtime `SceneCapture2D` and render target write both images from an unchanged top-down
+orthographic pose anchored to the canonical Water XY. UE's built-in `SCS_BaseColor`
+capture preserves real Water/Landscape depth while excluding sky and lighting from the
+blue classifier. No debug material, Water-only actor list, or alternate geometry path is
+used. The existing `water_temporal_stability.ps1` verifier reads base-color BGRA without
+alpha composition and gates that pair with unchanged thresholds. The same Shipping
+process then writes one target-centered perspective `SCS_FinalColorLDR` image using
+normal product show flags; it has no second numerical verifier and is inspected directly
+for player-visible Water presentation. This route uses `RenderOffScreen` and never sends
+input to the operator's Windows desktop. Before the cook,
+`verify_canonical_feature_viewpoint.ps1` proves that
+the configured Unreal XY maps inside the expected Water feature in the exact compile
+result authenticated by the active Water manifest. The Shipping receipt binds the
+target-relative travel calculation, actual pawn error, persistent capture-session
+identity, BaseColor pair, and FinalColor camera contract. The composite hashes all three
+images. BaseColor owns automated geometry/occlusion stability; inspection of the exact
+FinalColor PNG owns the normal product-appearance claim.
 
 The operator-review package is replaced transactionally at
 `Saved/PackageRelease/KazanPlayableTour/Candidate/`; its immediate predecessor is
@@ -154,6 +198,20 @@ and owner scratch are removed; accepted evidence remains under its run identity.
 Automation does not promote Candidate to a final product decision. After the operator
 accepts those exact bytes, an owner-local acceptance receipt binds Track V to that
 package, executable, source state, runtime profile, and release operation.
+
+Package digests authenticate immutable shipped payload. They exclude only
+`Windows/Alis/LocalAppData`, which Orchestrator owns, plus `Windows/Alis/Saved` and
+`Windows/Engine/Saved`, which UE owns for runtime-written state beneath a packaged
+install. The runner proves that executable, pak, packaged config, and other payload
+changes still move the digest; runtime state creation or updates do not masquerade as a
+package mutation.
+
+Release provenance keeps committed and uncommitted identity separate. `source_revision`
+is the exact `git rev-parse HEAD`. `source_state_sha256` is the SHA-256 of the binary
+tracked diff relative to that HEAD plus sorted untracked path/content-hash entries. The
+World Candidate and ProjectCinematic release binding must emit that dirty-state digest
+byte-for-byte identically; a clean revision change is rejected through `source_revision`,
+not folded into `source_state_sha256`.
 
 ## Operator mutation controls
 

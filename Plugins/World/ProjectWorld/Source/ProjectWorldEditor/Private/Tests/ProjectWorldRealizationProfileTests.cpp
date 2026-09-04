@@ -99,6 +99,18 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 			TEXT("project_building_massing"),
 			1,
 			EProjectWorldLayerKind::GeneratedGeography));
+	TestTrue(
+		TEXT("The part-aware building massing generator pair is registered."),
+		ProjectWorldRealizationProfile::IsGeneratorRegistered(
+			TEXT("project_building_massing"),
+			2,
+			EProjectWorldLayerKind::GeneratedGeography));
+	TestFalse(
+		TEXT("Unknown Building generator versions fail closed."),
+		ProjectWorldRealizationProfile::IsGeneratorRegistered(
+			TEXT("project_building_massing"),
+			3,
+			EProjectWorldLayerKind::GeneratedGeography));
 	TestFalse(
 		TEXT("Unknown generator versions fail closed."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
@@ -180,7 +192,7 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 		ProjectWorldRealizationProfile::ValidateAndFinalize(InvalidTuple, Error));
 
 	FProjectWorldRealizationProfile InvalidSettings = Profile;
-	InvalidSettings.Layers[1].NormalizedSettings = TEXT("{\"material_shading_model\":\"single_layer_water\",\"nanite\":true}");
+	InvalidSettings.Layers[1].NormalizedSettings = TEXT("{\"material_shading_model\":\"solid_opaque\",\"nanite\":true,\"surface_offset_m\":0.25}");
 	TestFalse(
 		TEXT("Registered generators reject settings outside their typed contract."),
 		ProjectWorldRealizationProfile::ValidateAndFinalize(InvalidSettings, Error));
@@ -370,6 +382,65 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 		AddError(TEXT("Baseline layer inventories are incomplete."));
 		return false;
 	}
+	auto FindCanonicalInput = [](const FProjectWorldLayerInventory& Inventory, const FString& UnitId)
+	{
+		return Inventory.CanonicalInputs.FindByPredicate([&UnitId](const FProjectWorldLayerInputInventory& Input)
+		{
+			return Input.UnitId == UnitId;
+		});
+	};
+	for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+	{
+		FString DirectHash;
+		TestTrue(
+			TEXT("The direct Terrain+Water identity accepts the representative cell."),
+			ProjectWorldLayerInventory::HashTerrainWaterCellInput(Bundle, Cell, DirectHash));
+		const FProjectWorldLayerInputInventory* InventoryInput =
+			FindCanonicalInput(*BaselineTerrain, Cell.CellId);
+		TestNotNull(TEXT("The real Terrain inventory contains the representative cell."), InventoryInput);
+		if (InventoryInput != nullptr)
+		{
+			TestEqual(
+				Cell.ReferencedFeatureIds.IsEmpty()
+					? TEXT("A dry cell has one Terrain+Water identity owner.")
+					: TEXT("A referenced Water cell has one Terrain+Water identity owner."),
+				InventoryInput->Hash,
+				DirectHash);
+		}
+	}
+
+	FProjectWorldCanonicalBundle OwnedWaterBundle = Bundle;
+	OwnedWaterBundle.Cells[0].ReferencedFeatureIds.Remove(TEXT("water/1"));
+	OwnedWaterBundle.Cells[0].OwnedFeatureIds.Add(TEXT("water/1"));
+	FProjectWorldRealizationResult OwnedWaterResult;
+	TestTrue(
+		TEXT("The real Terrain inventory accepts an owned polygon-Water cell."),
+		ProjectWorldLayerInventory::Build(
+			OwnedWaterBundle, Profile, AuthoredOverlaySet, true, nullptr, OwnedWaterResult, Error));
+	const FProjectWorldLayerInventory* OwnedWaterTerrain =
+		OwnedWaterResult.LayerInventories.FindByPredicate([](const auto& Inventory)
+		{
+			return Inventory.LayerId == TEXT("terrain");
+		});
+	TestNotNull(TEXT("The owned polygon-Water Terrain inventory exists."), OwnedWaterTerrain);
+	if (OwnedWaterTerrain != nullptr)
+	{
+		FString DirectHash;
+		TestTrue(
+			TEXT("The direct Terrain+Water identity accepts owned polygon Water."),
+			ProjectWorldLayerInventory::HashTerrainWaterCellInput(
+				OwnedWaterBundle, OwnedWaterBundle.Cells[0], DirectHash));
+		const FProjectWorldLayerInputInventory* InventoryInput =
+			FindCanonicalInput(*OwnedWaterTerrain, OwnedWaterBundle.Cells[0].CellId);
+		TestNotNull(TEXT("The owned polygon-Water inventory contains its cell."), InventoryInput);
+		if (InventoryInput != nullptr)
+		{
+			TestEqual(
+				TEXT("An owned polygon-Water cell has one Terrain+Water identity owner."),
+				InventoryInput->Hash,
+				DirectHash);
+		}
+	}
 
 	FProjectWorldLayerDirtyInput DirtyInput;
 	DirtyInput.RealizationProfileId = Profile.ProfileId;
@@ -501,13 +572,25 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	{
 		return Inventory.LayerId == TEXT("water");
 	});
+	const FProjectWorldLayerInventory* WaterConditionedTerrain = Result.LayerInventories.FindByPredicate([](const auto& Inventory)
+	{
+		return Inventory.LayerId == TEXT("terrain");
+	});
 	TestNotNull(TEXT("Water inventory exists after a water change."), ChangedWater);
-	if (ChangedWater != nullptr)
+	TestNotNull(TEXT("Terrain inventory exists after a water change."), WaterConditionedTerrain);
+	if (ChangedWater != nullptr && WaterConditionedTerrain != nullptr)
 	{
 		TestEqual(TEXT("Only the water-owned cell is dirty."), ChangedWater->FinalDirtyUnits.Num(), 1);
 		TestTrue(
 			TEXT("The water-owned cell carries the changed water lineage."),
 			ChangedWater->FinalDirtyUnits.Contains(TEXT("gridtwin:x0:y0")));
+		TestEqual(
+			TEXT("Water semantics dirty only the Landscape cell whose hydrologic projection can change."),
+			WaterConditionedTerrain->FinalDirtyUnits.Num(),
+			1);
+		TestTrue(
+			TEXT("The affected Landscape cell carries the same Water lineage."),
+			WaterConditionedTerrain->FinalDirtyUnits.Contains(TEXT("gridtwin:x0:y0")));
 	}
 	IFileManager::Get().Delete(*DirtyInputPath, false, true, true);
 	return true;

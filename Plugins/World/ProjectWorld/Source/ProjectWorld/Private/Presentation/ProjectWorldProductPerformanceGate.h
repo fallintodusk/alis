@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "Presentation/ProjectWorldPerformanceConsumerRegistration.h"
+#include "Presentation/ProjectWorldPerformanceEnvelope.h"
 #include "Presentation/ProjectWorldPlayableTourDriver.h"
 #include "Presentation/ProjectWorldPlayableTourResidency.h"
 
@@ -72,6 +73,7 @@ private:
 	FString ResultPath;
 	FString CorrectnessResultPath;
 	FString RequestedCsvPath;
+	FString RawSamplePath;
 	FString ScreenshotPath;
 	FString CorrectnessScreenshotPath;
 	FString WrittenCsvPath;
@@ -98,6 +100,7 @@ private:
 	FProjectWorldPerformanceConsumerRegistration CollectorRegistration;
 	TUniquePtr<FProjectWorldPlayableTourDriver> PlayableTourDriver;
 	FProjectWorldPlayableTourResidency PlayableTourResidency;
+	FProjectWorldPerformanceEnvelope PerformanceEnvelope;
 	TArray<FProjectWorldPerformanceRoute> Routes;
 	TMap<FGuid, uint8> PriorCellStates;
 	FTSTicker::FDelegateHandle TickerHandle;
@@ -121,6 +124,16 @@ private:
 	int32 StableReadyFrames = 0;
 	bool bCsvCaptureStarted = false;
 	bool bPlayableTourRequested = false;
+
+	/**
+	 * Whether the measured operation requires gameplay interaction evidence.
+	 *
+	 * Mirrors the product-route gate's policy: required by default, omitted only when the
+	 * operation explicitly declares itself non-interactive. A showcase territory with no
+	 * gameplay-placement layer is otherwise unmeasurable by its own performance owner. The
+	 * policy comes from the operation, never from the map or city.
+	 */
+	bool bRequireGameplayInteraction = true;
 	bool bCorrectnessGameplayInteraction = false;
 	bool bCorrectnessTerrainCollision = false;
 	bool bCorrectnessRoadCollision = false;

@@ -101,12 +101,12 @@
         "p95_frame_time_ms"
       ],
       "properties": {
-        "generated_source_bytes": { "type": "integer", "minimum": 1 },
-        "procedural_mesh_buffer_bytes": { "type": "integer", "minimum": 1 },
-        "generated_actor_count": { "type": "integer", "minimum": 1 },
-        "mesh_section_draw_call_upper_bound": { "type": "integer", "minimum": 1 },
-        "regeneration_seconds": { "type": "number", "exclusiveMinimum": 0 },
-        "p95_frame_time_ms": { "type": "number", "exclusiveMinimum": 0 }
+        "generated_source_bytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "procedural_mesh_buffer_bytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "generated_actor_count": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "mesh_section_draw_call_upper_bound": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "regeneration_seconds": { "type": "number", "minimum": 0.001, "maximum": 3600.0 },
+        "p95_frame_time_ms": { "type": "number", "minimum": 0.1, "maximum": 1000.0 }
       }
     }
   },

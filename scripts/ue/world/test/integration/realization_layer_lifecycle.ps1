@@ -276,7 +276,6 @@ function Invoke-ProjectWorldPackageLocalityProof {
     $mapRelative = $mapPackage.Substring($roots.MountRoot.Length).Replace(
         '/', [System.IO.Path]::DirectorySeparatorChar)
     $mapPath = Join-Path $roots.ContentRoot ($mapRelative + '.umap')
-    $baseMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $baseTerrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $baseTerrain.artifacts
 
     $terrainRun = Invoke-ProjectWorldIntegrationRun `
@@ -291,9 +290,6 @@ function Invoke-ProjectWorldPackageLocalityProof {
         [string]$terrainInventory.final_dirty_units[0] -ceq [string]$Variants.terrain_changed_cell_id) `
         -Message 'Genuine terrain change did not select exactly its canonical cell.'
 
-    $terrainMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    Assert-ProjectWorldIntegration -Condition ($terrainMapHash -ceq $baseMapHash) `
-        -Message 'A genuine cell-local terrain change rewrote logical map bytes.'
     $terrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $terrainInventory.artifacts
     $changedTerrainPaths = @(Get-ProjectWorldChangedHashPaths `
         -Before $baseTerrainHashes -After $terrainHashes)
@@ -320,7 +316,7 @@ function Invoke-ProjectWorldPackageLocalityProof {
         -Message 'Changed terrain cell has no canonical input identity.'
     $sectionX = ($cellX - $minimumX) * $componentQuads
     $sectionY = ($maximumY - $cellY) * $componentQuads
-    $semanticText = "project_landscape_proxy_v1|$([string]$realization.landscape.logical_landscape_id)|" +
+    $semanticText = "project_landscape_proxy_v2|$([string]$realization.landscape.logical_landscape_id)|" +
         "$cellId|$([string]$canonicalInput[0].sha256)|$sectionX,$sectionY"
     $expectedSemantic = Get-ProjectWorldIntegrationTextSha256 -Value $semanticText
     $expectedArtifacts = @($terrainInventory.artifacts | Where-Object {
@@ -343,8 +339,9 @@ function Invoke-ProjectWorldPackageLocalityProof {
         [string]$terrainScope.manifest_sha256 -cne [string]$baseTerrainScope.manifest_sha256) `
         -Message 'Actual terrain semantics did not advance terrain authority.'
     Assert-ProjectWorldIntegration -Condition (
-        [string]$terrainMapScope.manifest_sha256 -ceq [string]$baseMapScope.manifest_sha256) `
-        -Message 'Cell-local terrain change advanced logical map authority.'
+        [int]$terrainMapScope.generation -gt [int]$baseMapScope.generation -and
+        [string]$terrainMapScope.manifest_sha256 -cne [string]$baseMapScope.manifest_sha256) `
+        -Message 'Changed compile-result identity did not advance map-scope authority.'
 
     $waterRun = Invoke-ProjectWorldIntegrationRun `
         -Name '03b-genuine-water-only-change' -Mode Apply `
@@ -354,17 +351,20 @@ function Invoke-ProjectWorldPackageLocalityProof {
         -Message 'Genuine water-only Apply did not commit.'
     $waterTerrain = Get-ProjectWorldIntegrationLayer -Result $waterRun.Result -LayerId 'terrain'
     $waterInventory = Get-ProjectWorldIntegrationLayer -Result $waterRun.Result -LayerId 'water'
+    $sourceChangedWaterCells = @($Variants.water_changed_cell_ids | Sort-Object -Unique)
+    $expectedWaterCells = @($waterInventory.final_dirty_units | Sort-Object -Unique)
+    $actualWaterTerrainCells = @($waterTerrain.final_dirty_units | Sort-Object -Unique)
     Assert-ProjectWorldIntegration -Condition (
-        @($waterTerrain.final_dirty_units).Count -eq 0 -and
-        @($waterInventory.final_dirty_units).Count -gt 0) `
-        -Message 'Water-only change crossed the terrain dirty boundary or changed no water.'
+        ($actualWaterTerrainCells -join '|') -ceq ($expectedWaterCells -join '|') -and
+        $expectedWaterCells.Count -gt 0 -and
+        @($sourceChangedWaterCells | Where-Object { $_ -notin $expectedWaterCells }).Count -eq 0) `
+        -Message 'Water-only change did not select the same hydrologic Landscape cells.'
     $waterMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    Assert-ProjectWorldIntegration -Condition ($waterMapHash -ceq $terrainMapHash) `
-        -Message 'A genuine water-only change rewrote logical map bytes.'
     $waterTerrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $waterTerrain.artifacts
     Assert-ProjectWorldIntegration -Condition (
-        @(Get-ProjectWorldChangedHashPaths -Before $terrainHashes -After $waterTerrainHashes).Count -eq 0) `
-        -Message 'A genuine water-only change rewrote a terrain proxy package.'
+        @(Get-ProjectWorldChangedHashPaths -Before $terrainHashes -After $waterTerrainHashes).Count -eq
+            $expectedWaterCells.Count) `
+        -Message 'A genuine water-only change did not rewrite exactly its hydrologic Landscape proxies.'
 
     $waterActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
     $waterTerrainScope = Get-ProjectWorldIntegrationScopeEntry `
@@ -375,15 +375,17 @@ function Invoke-ProjectWorldPackageLocalityProof {
         -ActiveSet $waterActive -ScopeId ([string]$waterInventory.scope_id)
     $waterMapScope = Get-ProjectWorldIntegrationScopeEntry -ActiveSet $waterActive -ScopeId $mapScopeId
     Assert-ProjectWorldIntegration -Condition (
-        [string]$waterTerrainScope.manifest_sha256 -ceq [string]$terrainScope.manifest_sha256) `
-        -Message 'Water-only change advanced terrain authority.'
+        [int]$waterTerrainScope.generation -gt [int]$terrainScope.generation -and
+        [string]$waterTerrainScope.manifest_sha256 -cne [string]$terrainScope.manifest_sha256) `
+        -Message 'Water-only change did not advance hydrologic Landscape authority.'
     Assert-ProjectWorldIntegration -Condition (
         [int]$waterScope.generation -gt [int]$terrainWaterScope.generation -and
         [string]$waterScope.manifest_sha256 -cne [string]$terrainWaterScope.manifest_sha256) `
         -Message 'Actual water semantics did not advance water authority.'
     Assert-ProjectWorldIntegration -Condition (
-        [string]$waterMapScope.manifest_sha256 -ceq [string]$terrainMapScope.manifest_sha256) `
-        -Message 'Water-only change advanced logical map authority.'
+        [int]$waterMapScope.generation -gt [int]$terrainMapScope.generation -and
+        [string]$waterMapScope.manifest_sha256 -cne [string]$terrainMapScope.manifest_sha256) `
+        -Message 'Water compile-result identity did not advance map-scope authority.'
 
     return [pscustomobject]@{
         TerrainCellId = $cellId
@@ -506,11 +508,21 @@ try {
     }
     $incrementalActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
     foreach ($scopeId in $firstLayerHashes.Keys) {
+        $incrementalInventory = @($incremental.Result.layer_inventories | Where-Object {
+            [string]$_.scope_id -ceq $scopeId
+        })
+        Assert-ProjectWorldIntegration -Condition ($incrementalInventory.Count -eq 1) `
+            -Message "Incremental Apply has no inventory for layer scope: $scopeId"
+        if (@($incrementalInventory[0].final_dirty_units).Count -gt 0) {
+            # Explicit/downstream dirtiness authorizes regeneration. Immutable authority must
+            # follow the actual bytes; only a zero-dirty layer is required to retain its manifest.
+            continue
+        }
         $entry = @($incrementalActive.Record.scopes | Where-Object { $_.scope_id -ceq $scopeId })
         Assert-ProjectWorldIntegration `
             -Condition ($entry.Count -eq 1 -and
                 [string]$entry[0].manifest_sha256 -ceq $firstLayerHashes[$scopeId]) `
-            -Message "Semantically unchanged layer authority advanced: $scopeId"
+            -Message "Zero-dirty layer authority advanced: $scopeId"
     }
     Assert-ProjectWorldIntegration -Condition (
         (Get-ProjectWorldIntegrationDigest -Paths @((Join-Path $roots.ContentRoot 'Authored'))) -ceq

@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "manhattan_showcase_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "grid_id": "grid_36784852dea14f43",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "manhattan_showcase_control",
+      "horizontal_accuracy_m": 10.1
+    }
+  ],
+  "overlays": []
+}

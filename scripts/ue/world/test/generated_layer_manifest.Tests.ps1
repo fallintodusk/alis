@@ -185,7 +185,7 @@ Describe 'ProjectWorld exact layer manifests' {
                 layer_kind = 'generated_geography'
                 generator_id = 'project_landscape'
                 generator_version = 1
-                canonical_selectors = @('terrain')
+                canonical_selectors = @('terrain', 'water')
                 artifact_root = '/ProjectWorldTestData/Generated/Twin/Terrain/'
                 spatial_ownership = 'logical_landscape_with_cell_proxies'
                 dirty_granularity = 'canonical_cell'
@@ -210,7 +210,7 @@ Describe 'ProjectWorld exact layer manifests' {
             layer_kind = 'generated_geography'
             generator_id = 'project_landscape'
             generator_version = 1
-            canonical_selectors = @('terrain')
+            canonical_selectors = @('terrain', 'water')
             artifact_root = '/ProjectWorldTestData/Generated/'
             spatial_ownership = 'logical_landscape_with_cell_proxies'
             dirty_granularity = 'canonical_cell'
@@ -229,6 +229,29 @@ Describe 'ProjectWorld exact layer manifests' {
             Resolve-ProjectWorldRealizationLayers `
                 -RealizationDocument $document -WorldDataRoots $roots
         } | Should -Throw '*registered executable tuple*'
+    }
+
+    It 'admits only the exact registered solid Water tuple' {
+        $layer = [pscustomobject]@{
+            layer_id = 'water'
+            layer_kind = 'generated_geography'
+            generator_id = 'project_water_mesh'
+            generator_version = 1
+            canonical_selectors = @('water')
+            spatial_ownership = 'cell_local'
+            dirty_granularity = 'canonical_cell'
+            runtime_mapping = 'world_partition_spatial'
+            settings = [pscustomobject]@{
+                material_shading_model = 'solid_opaque'
+                surface_offset_m = 0.25
+                nanite = $false
+            }
+        }
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
+
+        $layer.settings | Add-Member -NotePropertyName unexpected -NotePropertyValue $true
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
+            Should -Throw '*registered executable tuple*'
     }
 
     It 'admits only the exact registered vegetation tuple' {
@@ -289,6 +312,15 @@ Describe 'ProjectWorld exact layer manifests' {
             }
         }
         { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
+
+        $layer.generator_version = 2
+        $layer.settings.topology_policy = 'logical_building_classify_v2'
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
+
+        $layer.settings.topology_policy = 'cell_local_classify_v1'
+        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
+            Should -Throw '*registered executable tuple*'
+        $layer.settings.topology_policy = 'logical_building_classify_v2'
 
         $layer.settings.conflict_policy = 'keep_both'
         { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |

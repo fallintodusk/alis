@@ -1057,6 +1057,12 @@ bool FProjectWorldRealizationService::WriteResult(
 	Changes->SetNumberField(TEXT("water_cell_actors"), Result.WaterCellActorCount);
 	Changes->SetNumberField(TEXT("water_mesh_assets"), Result.WaterMeshAssetCount);
 	Changes->SetNumberField(TEXT("water_triangles"), Result.WaterTriangleCount);
+	Changes->SetNumberField(
+		TEXT("water_terrain_footprint_samples"), Result.WaterTerrainFootprintSampleCount);
+	Changes->SetNumberField(
+		TEXT("water_terrain_conditioned_samples"), Result.WaterTerrainConditionedSampleCount);
+	Changes->SetNumberField(
+		TEXT("water_terrain_maximum_correction_m"), Result.MaximumWaterTerrainCorrectionMeters);
 	Changes->SetNumberField(TEXT("road_cell_actors"), Result.RoadCellActorCount);
 	Changes->SetNumberField(TEXT("road_mesh_assets"), Result.RoadMeshAssetCount);
 	Changes->SetNumberField(TEXT("road_triangles"), Result.RoadTriangleCount);

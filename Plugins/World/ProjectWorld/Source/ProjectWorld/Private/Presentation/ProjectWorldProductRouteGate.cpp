@@ -52,7 +52,10 @@ namespace
 	const FName GeneratedTag(TEXT("ProjectWorld.Generated.v1"));
 	const FName LandscapeTag(TEXT("ProjectWorld.Landscape.v1"));
 	const FName RoadTag(TEXT("ProjectWorld.Road.v1"));
-	const FName BuildingTag(TEXT("ProjectWorld.BuildingMassing.v1"));
+	// The generic product route serves every /ProjectWorldData/Generated/ map, so it accepts both
+	// massing generations. Realization, the partition audit, and territory acceptance do the same.
+	const FName BuildingTagV1(TEXT("ProjectWorld.BuildingMassing.v1"));
+	const FName BuildingTagV2(TEXT("ProjectWorld.BuildingMassing.v2"));
 
 	bool ParseProductRouteValue(const TCHAR* Name, FString& OutValue, bool bShouldStopOnSeparator = true)
 	{
@@ -143,6 +146,9 @@ bool FProjectWorldProductRouteGate::ParseConfig(FString& OutError)
 	Config.bRestorePreviewFlight = FParse::Param(
 		FCommandLine::Get(),
 		TEXT("ProjectWorldProductRouteRestorePreviewFlight"));
+	Config.bRequireGameplayInteraction = !FParse::Param(
+		FCommandLine::Get(),
+		TEXT("ProjectWorldProductRouteSkipInteraction"));
 	FString EdgeText;
 	if (!ParseProductRouteValue(TEXT("ProjectWorldProductOperation="), Config.OperationId) ||
 		!ParseProductRouteValue(TEXT("ProjectWorldProductResult="), Config.ResultPath) ||
@@ -172,7 +178,7 @@ bool FProjectWorldProductRouteGate::ParseConfig(FString& OutError)
 	const bool bEdgeValid = !Config.EdgeLocation.ContainsNaN() &&
 		!FVector2D(Config.EdgeLocation.X, Config.EdgeLocation.Y).IsNearlyZero();
 	if (!bIdentityValid || !bEdgeValid || FPaths::IsRelative(Config.ResultPath) ||
-		!Config.MapPackage.StartsWith(TEXT("/ProjectWorldData/Generated/Territory/")))
+		!Config.MapPackage.StartsWith(TEXT("/ProjectWorldData/Generated/")))
 	{
 		OutError = TEXT("The product-route identity, result path, map, or edge is outside the supported contract.");
 		return false;
@@ -299,14 +305,14 @@ bool FProjectWorldProductRouteGate::TryAcquireProductWorld()
 	if (FCString::Strcmp(World->URL.GetOption(TEXT("ProjectLoadingRoute="), TEXT("")), TEXT("1")) != 0)
 	{
 		FinishRejected(TEXT("product_route_loading_provenance_missing"),
-			TEXT("Kazan was not entered through the authoritative ProjectLoading travel executor."));
+			TEXT("The generated world was not entered through the authoritative ProjectLoading travel executor."));
 		return false;
 	}
 	AGameModeBase* GameMode = World->GetAuthGameMode();
 	if (GameMode == nullptr ||
 		GameMode->GetClass()->GetPathName() != TEXT("/Script/ProjectSinglePlay.SinglePlayerGameMode"))
 	{
-		FinishRejected(TEXT("product_route_game_mode_invalid"), TEXT("Kazan did not start with SinglePlayerGameMode."));
+		FinishRejected(TEXT("product_route_game_mode_invalid"), TEXT("The generated world did not start with SinglePlayerGameMode."));
 		return false;
 	}
 	Progress.bGameModeIdentity = true;
@@ -397,9 +403,12 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 	Progress.bTerrainCollision = ProbeTerrainCollision(
 		TerrainCollisionActor, TerrainCandidateCount, TerrainBlockingPrimitiveCount);
 	Progress.bRoadCollision = ProbeTaggedCollision(
-		RoadTag, RoadCollisionActor, RoadCandidateCount, RoadBlockingPrimitiveCount);
+		{RoadTag}, RoadCollisionActor, RoadCandidateCount, RoadBlockingPrimitiveCount);
 	Progress.bBuildingCollision = ProbeTaggedCollision(
-		BuildingTag, BuildingCollisionActor, BuildingCandidateCount, BuildingBlockingPrimitiveCount);
+		{BuildingTagV1, BuildingTagV2},
+		BuildingCollisionActor,
+		BuildingCandidateCount,
+		BuildingBlockingPrimitiveCount);
 	if (!Progress.bTerrainCollision || !Progress.bRoadCollision || !Progress.bBuildingCollision)
 	{
 		LastReadinessError = FString::Printf(
@@ -430,6 +439,11 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 			FinishRejected(TEXT("product_route_center_marker_missing"), LastReadinessError);
 		}
 		return false;
+	}
+	if (!Config.bRequireGameplayInteraction)
+	{
+		BeginEdgeTraversal();
+		return true;
 	}
 	if (!BeginGameplayInteraction() && FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
 	{
@@ -577,7 +591,7 @@ bool FProjectWorldProductRouteGate::InspectRuntimeOwnership(FString& OutError)
 }
 
 bool FProjectWorldProductRouteGate::ProbeTaggedCollision(
-	FName RequiredTag,
+	TConstArrayView<FName> AcceptedTags,
 	FString& OutActorName,
 	int32& OutCandidateCount,
 	int32& OutBlockingPrimitiveCount) const
@@ -591,7 +605,9 @@ bool FProjectWorldProductRouteGate::ProbeTaggedCollision(
 	}
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		if (!It->Tags.Contains(RequiredTag))
+		const bool bTagged = AcceptedTags.ContainsByPredicate(
+			[&It](const FName& Tag) { return It->Tags.Contains(Tag); });
+		if (!bTagged)
 		{
 			continue;
 		}
@@ -869,10 +885,11 @@ void FProjectWorldProductRouteGate::RequestScreenshot()
 
 void FProjectWorldProductRouteGate::FinishAccepted()
 {
-	if (!Progress.IsAccepted())
+	if (!Progress.IsAccepted(Config.bRequireGameplayInteraction))
 	{
 		FinishRejected(TEXT("product_route_evidence_incomplete"),
-			FString::Printf(TEXT("The first missing product gate is '%s'."), *Progress.FirstMissingGate()));
+			FString::Printf(TEXT("The first missing product gate is '%s'."),
+				*Progress.FirstMissingGate(Config.bRequireGameplayInteraction)));
 		return;
 	}
 	WriteResult(TEXT("accepted"), FString(), FString());
@@ -940,6 +957,7 @@ void FProjectWorldProductRouteGate::WriteResult(
 	Root->SetNumberField(TEXT("building_candidate_actors"), BuildingCandidateCount);
 	Root->SetNumberField(TEXT("building_blocking_primitives"), BuildingBlockingPrimitiveCount);
 	Root->SetBoolField(TEXT("gameplay_interaction"), Progress.bGameplayInteraction);
+	Root->SetBoolField(TEXT("gameplay_interaction_required"), Config.bRequireGameplayInteraction);
 	Root->SetStringField(TEXT("gameplay_object_id"), InteractionObjectId);
 	Root->SetBoolField(TEXT("interaction_dispatch_accepted"), bInteractionDispatchAccepted);
 	Root->SetStringField(TEXT("center_cell_marker"), CenterCellMarker);

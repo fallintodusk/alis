@@ -21,7 +21,6 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
-#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "MeshDescription.h"
 #include "Misc/PackageName.h"
 #include "Serialization/JsonReader.h"
@@ -44,8 +43,7 @@ namespace ProjectWorldWaterRealization
 
 		struct FWaterSettings
 		{
-			FLinearColor Scattering = FLinearColor::Black;
-			FLinearColor Absorption = FLinearColor::Black;
+			double SurfaceOffsetMeters = 0.0;
 		};
 
 		FString SanitizeToken(const FString& Value)
@@ -92,29 +90,6 @@ namespace ProjectWorldWaterRealization
 			return FProjectSha256::HashBuffer(Bytes, OutHash);
 		}
 
-		bool ReadRgb(
-			const TSharedPtr<FJsonObject>& Settings,
-			const TCHAR* Field,
-			FLinearColor& OutColor)
-		{
-			const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
-			if (!Settings->TryGetArrayField(Field, Values) || Values == nullptr || Values->Num() != 3)
-			{
-				return false;
-			}
-			double Channels[3] = {};
-			for (int32 Index = 0; Index < 3; ++Index)
-			{
-				if (!(*Values)[Index]->TryGetNumber(Channels[Index]) ||
-					!FMath::IsFinite(Channels[Index]) || Channels[Index] < 0.0)
-				{
-					return false;
-				}
-			}
-			OutColor = FLinearColor(Channels[0], Channels[1], Channels[2]);
-			return true;
-		}
-
 		bool ResolveContract(
 			const FProjectWorldRealizationProfile& Profile,
 			const FProjectWorldRealizationLayer*& OutLayer,
@@ -126,14 +101,20 @@ namespace ProjectWorldWaterRealization
 				return Layer.GeneratorId == TEXT("project_water_mesh") && Layer.GeneratorVersion == 1;
 			});
 			TSharedPtr<FJsonObject> Settings;
+			FString ShadingModel;
+			bool bNanite = true;
 			if (OutLayer == nullptr ||
 				!FJsonSerializer::Deserialize(
 					TJsonReaderFactory<>::Create(OutLayer->NormalizedSettings), Settings) ||
 				!Settings.IsValid() ||
-				!ReadRgb(Settings, TEXT("scattering_coefficients"), OutSettings.Scattering) ||
-				!ReadRgb(Settings, TEXT("absorption_coefficients"), OutSettings.Absorption))
+				!Settings->TryGetStringField(TEXT("material_shading_model"), ShadingModel) ||
+				ShadingModel != TEXT("solid_opaque") ||
+				!Settings->TryGetBoolField(TEXT("nanite"), bNanite) || bNanite ||
+				!Settings->TryGetNumberField(TEXT("surface_offset_m"), OutSettings.SurfaceOffsetMeters) ||
+				!FMath::IsFinite(OutSettings.SurfaceOffsetMeters) ||
+				OutSettings.SurfaceOffsetMeters <= 0.0 || OutSettings.SurfaceOffsetMeters > 1.0)
 			{
-				OutError = TEXT("Water layer has no executable material contract.");
+				OutError = TEXT("Water layer has no executable solid-surface contract.");
 				return false;
 			}
 			return true;
@@ -158,7 +139,6 @@ namespace ProjectWorldWaterRealization
 
 		bool BuildMaterial(
 			const FProjectWorldRealizationLayer& Layer,
-			const FWaterSettings& Settings,
 			bool bRebuild,
 			UMaterial*& OutMaterial,
 			FString& OutError)
@@ -167,9 +147,10 @@ namespace ProjectWorldWaterRealization
 			OutMaterial = LoadObject<UMaterial>(nullptr, *ObjectPath(PackageName));
 			if (OutMaterial != nullptr && !bRebuild)
 			{
-				if (!OutMaterial->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
+				if (!OutMaterial->GetShadingModels().HasShadingModel(MSM_DefaultLit) ||
+					OutMaterial->BlendMode != BLEND_Opaque)
 				{
-					OutError = TEXT("Existing generated water material has the wrong shading model.");
+					OutError = TEXT("Existing generated water material is not solid opaque blue.");
 					return false;
 				}
 				return true;
@@ -193,44 +174,34 @@ namespace ProjectWorldWaterRealization
 				}
 			}
 			OutMaterial->GetExpressionCollection().Empty();
-			UMaterialExpressionConstant3Vector* Scattering =
-				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("Scattering"));
-			UMaterialExpressionConstant3Vector* Absorption =
-				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("Absorption"));
-			// LEGIBILITY PLACEHOLDER, not art. Scattering and absorption alone describe the
-			// water VOLUME; with a metre of depth over a valley floor there is almost no light
-			// path to tint, so the surface reads as invisible and an operator cannot see where
-			// water was placed. A flat blue base colour and low roughness make the blockout
-			// visible without touching geometry or elevation. Real water appearance - surface
-			// normals, waves, foam, flow - belongs to the presentation slice, which is where
-			// these constants should become profile-driven settings.
+			// LEGIBILITY PLACEHOLDER, not final water art. The current prototype needs a
+			// temporally stable solid-blue geographic surface. Universal water presentation
+			// remains ProjectMaterial-owned future work; this generator-local material exists
+			// only to keep the replaceable blockout readable without another runtime system.
 			UMaterialExpressionConstant3Vector* BaseColor =
 				NewObject<UMaterialExpressionConstant3Vector>(OutMaterial, TEXT("BaseColor"));
 			UMaterialExpressionConstant* Roughness =
 				NewObject<UMaterialExpressionConstant>(OutMaterial, TEXT("Roughness"));
+			UMaterialExpressionConstant* Specular =
+				NewObject<UMaterialExpressionConstant>(OutMaterial, TEXT("Specular"));
 			BaseColor->Constant = FLinearColor(0.015f, 0.180f, 0.650f);
-			Roughness->R = 0.06f;
-			UMaterialExpressionSingleLayerWaterMaterialOutput* Output =
-				NewObject<UMaterialExpressionSingleLayerWaterMaterialOutput>(OutMaterial, TEXT("WaterOutput"));
-			Scattering->Constant = Settings.Scattering;
-			Absorption->Constant = Settings.Absorption;
-			Output->ScatteringCoefficients.Connect(0, Scattering);
-			Output->AbsorptionCoefficients.Connect(0, Absorption);
-			OutMaterial->GetExpressionCollection().AddExpression(Scattering);
-			OutMaterial->GetExpressionCollection().AddExpression(Absorption);
+			Roughness->R = 1.0f;
+			Specular->R = 0.0f;
 			OutMaterial->GetExpressionCollection().AddExpression(BaseColor);
 			OutMaterial->GetExpressionCollection().AddExpression(Roughness);
-			OutMaterial->GetExpressionCollection().AddExpression(Output);
+			OutMaterial->GetExpressionCollection().AddExpression(Specular);
 			UMaterialEditorOnlyData* EditorOnly = OutMaterial->GetEditorOnlyData();
 			EditorOnly->BaseColor.Connect(0, BaseColor);
 			EditorOnly->Roughness.Connect(0, Roughness);
-			OutMaterial->SetShadingModel(MSM_SingleLayerWater);
+			EditorOnly->Specular.Connect(0, Specular);
+			OutMaterial->BlendMode = BLEND_Opaque;
+			OutMaterial->SetShadingModel(MSM_DefaultLit);
 			OutMaterial->PostEditChange();
 			FAssetCompilingManager::Get().FinishAllCompilation();
 			FAssetRegistryModule::AssetCreated(OutMaterial);
 			if (!SaveAsset(Package, OutMaterial))
 			{
-				OutError = TEXT("Cannot save the generated Single Layer Water material.");
+				OutError = TEXT("Cannot save the generated solid-blue water material.");
 				return false;
 			}
 			return true;
@@ -281,6 +252,7 @@ namespace ProjectWorldWaterRealization
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldCanonicalCell& Cell,
 			const TMap<FString, FProjectWorldPreparedWaterSurface>& PreparedSurfaces,
+			double SurfaceOffsetMeters,
 			FMeshDescription& OutDescription,
 			FVector& OutOrigin,
 			FString& OutSemantic,
@@ -303,6 +275,7 @@ namespace ProjectWorldWaterRealization
 					Cell,
 					Bundle.Features.FindChecked(FeatureId),
 					*PreparedSurface,
+					SurfaceOffsetMeters,
 					Surface,
 					OutError))
 				{
@@ -383,7 +356,7 @@ namespace ProjectWorldWaterRealization
 		}
 		const bool bWholeDirty = Inventory->FinalDirtyUnits.Contains(TEXT("*"));
 		UMaterial* WaterMaterial = nullptr;
-		if (!BuildMaterial(*Layer, Settings, bWholeDirty, WaterMaterial, OutError))
+		if (!BuildMaterial(*Layer, bWholeDirty, WaterMaterial, OutError))
 		{
 			return false;
 		}
@@ -471,7 +444,15 @@ namespace ProjectWorldWaterRealization
 			FString Semantic;
 			int32 TriangleCount = 0;
 			if (!BuildCellMesh(
-				Bundle, Cell, PreparedSurfaces, Description, ActorOrigin, Semantic, TriangleCount, OutError))
+				Bundle,
+				Cell,
+				PreparedSurfaces,
+				Settings.SurfaceOffsetMeters,
+				Description,
+				ActorOrigin,
+				Semantic,
+				TriangleCount,
+				OutError))
 			{
 				return false;
 			}

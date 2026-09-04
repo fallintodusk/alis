@@ -15,6 +15,7 @@
 #include "HAL/FileManager.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/PackageName.h"
@@ -121,7 +122,7 @@ bool FProjectWorldPersistentWaterLayerTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Water is spatially loaded."), WaterActor->GetIsSpatiallyLoaded());
 		if (Mesh != nullptr)
 		{
-			TestFalse(TEXT("Single Layer Water remains non-Nanite."), Mesh->GetNaniteSettings().bEnabled);
+			TestFalse(TEXT("Prototype Water remains non-Nanite."), Mesh->GetNaniteSettings().bEnabled);
 			TestTrue(TEXT("The persistent water mesh has one source model."), Mesh->GetNumSourceModels() == 1);
 			if (Mesh->GetNumSourceModels() == 1)
 			{
@@ -134,22 +135,41 @@ bool FProjectWorldPersistentWaterLayerTest::RunTest(const FString& Parameters)
 				FPackageName::LongPackageNameToFilename(
 					Mesh->GetOutermost()->GetName(),
 					FPackageName::GetAssetPackageExtension())));
-			TestTrue(
-				TEXT("The generated material uses Single Layer Water."),
-				!Mesh->GetStaticMaterials().IsEmpty() &&
-				Mesh->GetStaticMaterials()[0].MaterialInterface != nullptr &&
-				Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_SingleLayerWater));
 			UMaterial* WaterMaterial = !Mesh->GetStaticMaterials().IsEmpty()
 				? Cast<UMaterial>(Mesh->GetStaticMaterials()[0].MaterialInterface)
 				: nullptr;
+			TestTrue(
+				TEXT("The generated prototype Water material is opaque Default Lit."),
+				WaterMaterial != nullptr &&
+				WaterMaterial->GetShadingModels().HasShadingModel(MSM_DefaultLit) &&
+				WaterMaterial->BlendMode == BLEND_Opaque);
+			TestTrue(
+				TEXT("The profile-owned clearance separates Water 0.25 m above its canonical level."),
+				FMath::IsNearlyEqual(Mesh->GetBounds().Origin.Z, 225.0, 0.1));
 			const UMaterialExpressionConstant3Vector* BaseColor = WaterMaterial != nullptr
 				? FindObject<UMaterialExpressionConstant3Vector>(WaterMaterial, TEXT("BaseColor"))
+				: nullptr;
+			const UMaterialExpressionConstant* Roughness = WaterMaterial != nullptr
+				? FindObject<UMaterialExpressionConstant>(WaterMaterial, TEXT("Roughness"))
+				: nullptr;
+			const UMaterialExpressionConstant* Specular = WaterMaterial != nullptr
+				? FindObject<UMaterialExpressionConstant>(WaterMaterial, TEXT("Specular"))
 				: nullptr;
 			TestTrue(
 				TEXT("The prototype water surface owns a clearly blue legibility color."),
 				BaseColor != nullptr && BaseColor->Constant.B >= 0.60f &&
 				BaseColor->Constant.B > BaseColor->Constant.G * 3.0f &&
 				BaseColor->Constant.G > BaseColor->Constant.R * 3.0f);
+			TestTrue(
+				TEXT("The solid-blue placeholder has no reflective material response."),
+				Roughness != nullptr && Roughness->R == 1.0f &&
+				Specular != nullptr && Specular->R == 0.0f);
+			TestEqual(
+				TEXT("The Water graph contains only three time-invariant constants."),
+				WaterMaterial != nullptr
+					? WaterMaterial->GetExpressionCollection().Expressions.Num()
+					: 0,
+				3);
 		}
 	}
 

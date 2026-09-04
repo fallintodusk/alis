@@ -62,12 +62,6 @@
   },
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-    "nonnegative_rgb": {
-      "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
-      "items": {"type": "number", "minimum": 0.0}
-    },
     "layer": {
       "type": "object",
       "additionalProperties": false,
@@ -78,9 +72,9 @@
             "properties": {
               "layer_kind": {"const": "generated_geography"},
               "canonical_selectors": {
-                "prefixItems": [{"const": "terrain"}],
-                "minItems": 1,
-                "maxItems": 1
+                "prefixItems": [{"const": "terrain"}, {"const": "water"}],
+                "minItems": 2,
+                "maxItems": 2
               },
               "spatial_ownership": {"const": "logical_landscape_with_cell_proxies"},
               "dirty_granularity": {"const": "canonical_cell"},
@@ -112,15 +106,17 @@
                 "additionalProperties": false,
                 "required": [
                   "material_shading_model",
-                  "nanite",
-                  "scattering_coefficients",
-                  "absorption_coefficients"
+                  "surface_offset_m",
+                  "nanite"
                 ],
                 "properties": {
-                  "material_shading_model": {"const": "single_layer_water"},
-                  "nanite": {"const": false},
-                  "scattering_coefficients": {"$ref": "#/$defs/nonnegative_rgb"},
-                  "absorption_coefficients": {"$ref": "#/$defs/nonnegative_rgb"}
+                  "material_shading_model": {"const": "solid_opaque"},
+                  "surface_offset_m": {
+                    "type": "number",
+                    "exclusiveMinimum": 0.0,
+                    "maximum": 1.0
+                  },
+                  "nanite": {"const": false}
                 }
               }
             }
@@ -239,6 +235,7 @@
           "then": {
             "properties": {
               "layer_kind": {"const": "generated_geography"},
+              "generator_version": {"enum": [1, 2]},
               "depends_on": {
                 "prefixItems": [{"const": "terrain"}],
                 "minItems": 1,
@@ -270,7 +267,12 @@
                 "properties": {
                   "maximum_height_m": {"type": "number", "minimum": 50.0, "maximum": 1000.0},
                   "terrain_anchor_policy": {"const": "owner_cell_clamped_bounds_center"},
-                  "topology_policy": {"const": "cell_local_classify_v1"},
+                  "topology_policy": {
+                    "oneOf": [
+                      {"const": "cell_local_classify_v1"},
+                      {"const": "logical_building_classify_v2"}
+                    ]
+                  },
                   "duplicate_policy": {"const": "stable_feature_id"},
                   "contained_policy": {"const": "associate_with_container"},
                   "conflict_policy": {"const": "reject_affected_fragments"},
@@ -278,6 +280,38 @@
                   "collision": {"const": "complex_as_simple"},
                   "navigation": {"const": "no_navigation"}
                 }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["generator_id", "generator_version"],
+            "properties": {
+              "generator_id": {"const": "project_building_massing"},
+              "generator_version": {"const": 1}
+            }
+          },
+          "then": {
+            "properties": {
+              "settings": {
+                "properties": {"topology_policy": {"const": "cell_local_classify_v1"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["generator_id", "generator_version"],
+            "properties": {
+              "generator_id": {"const": "project_building_massing"},
+              "generator_version": {"const": 2}
+            }
+          },
+          "then": {
+            "properties": {
+              "settings": {
+                "properties": {"topology_policy": {"const": "logical_building_classify_v2"}}
               }
             }
           }

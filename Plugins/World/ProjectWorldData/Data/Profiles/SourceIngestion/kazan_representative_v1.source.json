@@ -36,6 +36,7 @@
         "feature_filters": [
           "nwr/highway",
           "nwr/building",
+          "nwr/building:part",
           "nwr/natural=water",
           "nwr/landuse=reservoir,basin",
           "nwr/waterway",

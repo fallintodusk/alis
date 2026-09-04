@@ -30,6 +30,7 @@ namespace ProjectWorldStaticPartitionAudit
 			TEXT("ProjectWorld.Road.v1"),
 			TEXT("ProjectWorld.Vegetation=v1"),
 			TEXT("ProjectWorld.BuildingMassing.v1"),
+			TEXT("ProjectWorld.BuildingMassing.v2"),
 			TEXT("ProjectWorld.GameplayPlacement.v1")};
 
 		struct FCellRange

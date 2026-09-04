@@ -1,0 +1,130 @@
+{
+  "$schema": "../../../../ProjectWorld/Data/Schemas/project_world_realization_profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "manhattan_showcase_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "canonical_profile_id": "manhattan_showcase_v1",
+  "map_package": "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase",
+  "runtime_profile_id": "manhattan_showcase_512_1536_v1",
+  "landscape": {
+    "logical_landscape_id": "manhattan_showcase_main",
+    "components_per_proxy": 1
+  },
+  "protected_authored_roots": [
+    "/ProjectWorldData/Authored/"
+  ],
+  "excluded_runtime_state_roots": [
+    "/ProjectWorldData/Runtime/"
+  ],
+  "layers": [
+    {
+      "layer_id": "terrain",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_landscape",
+      "generator_version": 1,
+      "depends_on": [],
+      "canonical_selectors": ["terrain", "water"],
+      "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Terrain/",
+      "spatial_ownership": "logical_landscape_with_cell_proxies",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_owner",
+      "settings": {
+        "components_per_proxy": 1
+      }
+    },
+    {
+      "layer_id": "water",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_water_mesh",
+      "generator_version": 1,
+      "depends_on": ["terrain"],
+      "canonical_selectors": ["water"],
+      "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Water/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "material_shading_model": "solid_opaque",
+        "surface_offset_m": 0.25,
+        "nanite": false
+      }
+    },
+    {
+      "layer_id": "roads",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_road_mesh",
+      "generator_version": 1,
+      "depends_on": ["terrain"],
+      "canonical_selectors": ["roads"],
+      "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Roads/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 1,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "selected_classes": ["primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "residential", "unclassified", "living_street"],
+        "surface_offset_m": 0.15,
+        "maximum_segment_length_m": 7.5,
+        "nanite": true,
+        "collision": "complex_as_simple",
+        "structure_fallback": "terrain_drape",
+        "intersection_policy": "overlap_same_owner"
+      }
+    },
+    {
+      "layer_id": "vegetation",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_vegetation_instances",
+      "generator_version": 1,
+      "depends_on": ["terrain", "water", "roads"],
+      "canonical_selectors": ["vegetation"],
+      "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Vegetation/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "mesh_assets": [
+          "/ProjectObject/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.SM_Tree_Hornbeam_Medium",
+          "/ProjectObject/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.SM_Tree_AmurCork_Big"
+        ],
+        "area_spacing_m": 45.0,
+        "area_jitter_fraction": 0.35,
+        "minimum_scale": 0.85,
+        "maximum_scale": 1.15,
+        "maximum_instances_per_cell": 1024,
+        "deterministic_seed": 3092026,
+        "surface_offset_m": 0.0,
+        "nanite": true,
+        "collision": "no_collision",
+        "placement_policy": "canonical_points_and_lattice_areas"
+      }
+    },
+    {
+      "layer_id": "buildings",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_building_massing",
+      "generator_version": 2,
+      "depends_on": ["terrain"],
+      "canonical_selectors": ["buildings"],
+      "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Buildings/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "maximum_height_m": 600.0,
+        "terrain_anchor_policy": "owner_cell_clamped_bounds_center",
+        "topology_policy": "logical_building_classify_v2",
+        "duplicate_policy": "stable_feature_id",
+        "contained_policy": "associate_with_container",
+        "conflict_policy": "reject_affected_fragments",
+        "nanite": true,
+        "collision": "complex_as_simple",
+        "navigation": "no_navigation"
+      }
+    }
+  ]
+}

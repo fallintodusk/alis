@@ -55,6 +55,23 @@ namespace ProjectWorldBuildingMassingTests
 		return Feature;
 	}
 
+	FProjectWorldCanonicalBuildingVolume Volume(
+		const FString& Id,
+		const FString& SourceId,
+		const FProjectWorldCanonicalPolygon& Polygon,
+		double MinimumHeight,
+		double Height)
+	{
+		FProjectWorldCanonicalBuildingVolume Result;
+		Result.VolumeId = Id;
+		Result.SourceFeatureId = SourceId;
+		Result.GeometryType = TEXT("Polygon");
+		Result.GeometryPolygons.Add(Polygon);
+		Result.MinHeightMeters = MinimumHeight;
+		Result.HeightMeters = Height;
+		return Result;
+	}
+
 	FProjectWorldCanonicalCell Cell(const FString& Id, double MinimumX, double MaximumX)
 	{
 		FProjectWorldCanonicalCell Result;
@@ -69,25 +86,27 @@ namespace ProjectWorldBuildingMassingTests
 		return Result;
 	}
 
-	FProjectWorldRealizationLayer Layer()
+	FProjectWorldRealizationLayer Layer(int32 GeneratorVersion = 1)
 	{
 		FProjectWorldRealizationLayer Result;
 		Result.LayerId = TEXT("buildings");
 		Result.LayerKind = EProjectWorldLayerKind::GeneratedGeography;
 		Result.GeneratorId = TEXT("project_building_massing");
-		Result.GeneratorVersion = 1;
+		Result.GeneratorVersion = GeneratorVersion;
 	Result.CanonicalSelectors = {TEXT("buildings")};
 	Result.ArtifactRoot = TEXT("/ProjectWorldTestData/Generated/BuildingMassingTest/");
 	Result.SpatialOwnership = TEXT("cell_local");
 	Result.DirtyGranularity = EProjectWorldDirtyGranularity::CanonicalCell;
 	Result.RuntimeMapping = TEXT("world_partition_spatial");
 		Result.ContractHash = FString::ChrN(64, TEXT('c'));
-		Result.NormalizedSettings = TEXT(
+		Result.NormalizedSettings = FString::Printf(TEXT(
 			"{\"collision\":\"complex_as_simple\",\"conflict_policy\":\"reject_affected_fragments\"," 
 			"\"contained_policy\":\"associate_with_container\",\"duplicate_policy\":\"stable_feature_id\"," 
 			"\"maximum_height_m\":300,\"nanite\":true,\"navigation\":\"no_navigation\"," 
 			"\"terrain_anchor_policy\":\"owner_cell_clamped_bounds_center\"," 
-			"\"topology_policy\":\"cell_local_classify_v1\"}");
+			"\"topology_policy\":\"%s\"}"), GeneratorVersion == 2
+				? TEXT("logical_building_classify_v2")
+				: TEXT("cell_local_classify_v1"));
 		return Result;
 	}
 
@@ -267,6 +286,65 @@ bool FProjectWorldBuildingDimensionsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Building Z extent equals canonical height in centimetres."),
 			FMath::IsNearlyEqual(Bounds.GetSize().Z, HeightMeters * 100.0, 0.01));
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldBuildingEffectiveVolumesTest,
+	"Project.World.Realization.Buildings.EffectiveVolumes",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldBuildingEffectiveVolumesTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldBuildingMassingTests;
+	FProjectWorldCanonicalBundle Bundle;
+	Bundle.GridId = TEXT("building_volumes_test");
+	Bundle.CoordinateQuantizationMeters = 0.01;
+	Bundle.HeightQuantizationMeters = 0.1;
+	Bundle.Cells.Add(Cell(TEXT("building_volumes_test:a"), 0.0, 100.0));
+	FProjectWorldCanonicalFeature Feature = Building(
+		TEXT("building/logical"), Bundle.Cells[0].CellId, Square(0.0, 0.0, 20.0, 20.0), 20.0);
+	Feature.BuildingVolumes = {
+		Volume(TEXT("volume/lower"), TEXT("way/2"), Square(0.0, 0.0, 10.0, 20.0), 0.0, 10.0),
+		Volume(TEXT("volume/raised"), TEXT("way/3"), Square(5.0, 0.0, 20.0, 20.0), 10.0, 20.0)};
+	Bundle.Cells[0].OwnedFeatureIds = {Feature.FeatureId};
+	Bundle.Features.Add(Feature.FeatureId, Feature);
+
+	FProjectWorldBuildingSettings V2Settings;
+	V2Settings.GeneratorVersion = 2;
+	FProjectWorldBuildingMeshBuildResult V2Build;
+	FString Error;
+	TestTrue(TEXT("One logical v2 Building accepts internally overlapping effective volumes."),
+		ProjectWorldBuildingMeshBuilder::BuildCell(
+			Bundle, Bundle.Cells[0], FProjectWorldAuthoredOverlaySet(), V2Settings, V2Build, Error));
+	TestEqual(TEXT("Effective volumes remain one admitted logical building."), V2Build.Stats.AcceptedFragmentCount, 1);
+	TestTrue(TEXT("Raised and grounded volumes both produce massing."), V2Build.TriangleCount > 0);
+
+	const FProjectWorldRealizationLayer V2Layer = Layer(2);
+	FString Before;
+	TestTrue(TEXT("The v2 effective-volume input hashes."), ProjectWorldBuildingRealization::HashCellInput(
+		Bundle, Bundle.Cells[0], V2Layer, FProjectWorldAuthoredOverlaySet(), Before, Error));
+	Bundle.Features.FindChecked(Feature.FeatureId).BuildingVolumes[1].MinHeightMeters = 11.0;
+	FString After;
+	TestTrue(TEXT("The changed v2 effective-volume input hashes."), ProjectWorldBuildingRealization::HashCellInput(
+		Bundle, Bundle.Cells[0], V2Layer, FProjectWorldAuthoredOverlaySet(), After, Error));
+	TestNotEqual(TEXT("A volume vertical-range change dirties its owning cell."), After, Before);
+
+	FProjectWorldCanonicalBundle MissingVolumes = Bundle;
+	MissingVolumes.Features.FindChecked(Feature.FeatureId).BuildingVolumes.Reset();
+	FString MissingHash;
+	TestFalse(TEXT("Building v2 fails closed when canonical effective volumes are absent."),
+		ProjectWorldBuildingRealization::HashCellInput(
+			MissingVolumes, MissingVolumes.Cells[0], V2Layer,
+			FProjectWorldAuthoredOverlaySet(), MissingHash, Error));
+
+	FProjectWorldBuildingMeshBuildResult V1Build;
+	TestTrue(TEXT("Historical Building v1 remains loadable against the outline contract."),
+		ProjectWorldBuildingMeshBuilder::BuildCell(
+			Bundle, Bundle.Cells[0], FProjectWorldAuthoredOverlaySet(),
+			FProjectWorldBuildingSettings(), V1Build, Error));
+	TestNotEqual(TEXT("V1 and v2 massing semantics remain separately versioned."),
+		V1Build.SemanticDigest, V2Build.SemanticDigest);
 	return true;
 }
 
@@ -500,6 +578,11 @@ REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	FProjectWorldBuildingDimensionsTest,
 	"Project.World.Realization.Buildings.Dimensions",
+	"[Unit][World]")
+
+REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
+	FProjectWorldBuildingEffectiveVolumesTest,
+	"Project.World.Realization.Buildings.EffectiveVolumes",
 	"[Unit][World]")
 
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(

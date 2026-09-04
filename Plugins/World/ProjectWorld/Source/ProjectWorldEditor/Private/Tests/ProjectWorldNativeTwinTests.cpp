@@ -245,17 +245,17 @@ bool FProjectWorldNativeLandscapeTwinTest::RunTest(const FString& Parameters)
 	{
 		Entry.Value->GetPackage()->SetDirtyFlag(false);
 	}
-	Bundle.InputsHash = TEXT("native_twin_input_water_only_changed");
+	Bundle.InputsHash = TEXT("native_twin_unconsumed_aggregate_changed");
 	FProjectWorldRealizationResult WaterOnlyResult;
 	TestTrue(
-		TEXT("A water-only canonical identity change leaves terrain realization valid."),
+		TEXT("An unconsumed aggregate identity change leaves terrain realization valid."),
 		ProjectWorldLandscapeRealization::CreateOrUpdate(
 			World, Bundle, Layout, TEXT("native_twin"), 1, WaterOnlyResult, Error, UpdatedLandscapeMaterial));
-	TestEqual(TEXT("Water-only input changes update zero terrain components."), WaterOnlyResult.UpdatedLandscapeComponentCount, 0);
-	TestFalse(TEXT("Water-only input changes do not dirty the logical map package."), LogicalPackage->IsDirty());
+	TestEqual(TEXT("Unconsumed aggregate identity updates zero terrain components."), WaterOnlyResult.UpdatedLandscapeComponentCount, 0);
+	TestFalse(TEXT("Unconsumed aggregate identity does not dirty the logical map package."), LogicalPackage->IsDirty());
 	for (const TPair<FString, ALandscapeStreamingProxy*>& Entry : ProxiesByCell)
 	{
-		TestFalse(TEXT("Water-only input changes do not dirty terrain proxy packages."), Entry.Value->GetPackage()->IsDirty());
+		TestFalse(TEXT("Unconsumed aggregate identity does not dirty terrain proxy packages."), Entry.Value->GetPackage()->IsDirty());
 	}
 	int32 IncrementalProxyCount = 0;
 	for (TActorIterator<ALandscapeStreamingProxy> It(World); It; ++It)

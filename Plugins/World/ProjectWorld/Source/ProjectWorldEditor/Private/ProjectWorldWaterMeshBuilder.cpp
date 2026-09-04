@@ -222,6 +222,17 @@ namespace ProjectWorldWaterMeshBuilder
 		}
 	}
 
+	double EvaluateSurfaceZ(
+		const FProjectWorldCanonicalFeature& Feature,
+		const FVector2D& CanonicalPoint,
+		double HeightQuantizationMeters)
+	{
+		return SurfaceZ(
+			Feature.WaterSurface,
+			FVector2d(CanonicalPoint),
+			HeightQuantizationMeters);
+	}
+
 	bool PrepareSurface(
 		const FProjectWorldCanonicalFeature& Feature,
 		const FVector4d& TargetBounds,
@@ -259,9 +270,15 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldCanonicalCell& Cell,
 		const FProjectWorldCanonicalFeature& Feature,
 		const FProjectWorldPreparedWaterSurface& PreparedSurface,
+		double SurfaceOffsetMeters,
 		FProjectWorldWaterMeshBuildResult& OutResult,
 		FString& OutError)
 	{
+		if (!FMath::IsFinite(SurfaceOffsetMeters) || SurfaceOffsetMeters < 0.0)
+		{
+			OutError = TEXT("Water surface offset must be finite and non-negative.");
+			return false;
+		}
 		OutResult = FProjectWorldWaterMeshBuildResult();
 
 		FStaticMeshAttributes Attributes(OutResult.MeshDescription);
@@ -300,11 +317,17 @@ namespace ProjectWorldWaterMeshBuilder
 					const FVector2d CanonicalXY(
 						Quantize(CanonicalPoints[Corner].X, Bundle.CoordinateQuantizationMeters),
 						Quantize(CanonicalPoints[Corner].Y, Bundle.CoordinateQuantizationMeters));
-					const double Z = SurfaceZ(Feature.WaterSurface, CanonicalXY, Bundle.HeightQuantizationMeters);
+					const double Z = SurfaceZ(
+						Feature.WaterSurface,
+						CanonicalXY,
+						Bundle.HeightQuantizationMeters) + SurfaceOffsetMeters;
 					Local[Corner] = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 						Bundle, FVector(CanonicalXY.X, CanonicalXY.Y, Z)) - OutResult.ActorOrigin;
 				}
-				if (FVector::CrossProduct(Local[1] - Local[0], Local[2] - Local[0]).Z < 0.0)
+				// Unreal treats clockwise triangles as front-facing. Keep the authored +Z
+				// vertex normals, but reverse counter-clockwise XY triangles so the
+				// generated surface renders when viewed from above rather than below.
+				if (FVector::CrossProduct(Local[1] - Local[0], Local[2] - Local[0]).Z > 0.0)
 				{
 					Swap(Local[1], Local[2]);
 				}
@@ -324,11 +347,19 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldCanonicalCell& Cell,
 		const FProjectWorldCanonicalFeature& Feature,
+		double SurfaceOffsetMeters,
 		FProjectWorldWaterMeshBuildResult& OutResult,
 		FString& OutError)
 	{
 		FProjectWorldPreparedWaterSurface PreparedSurface;
 		return PrepareSurface(Feature, Cell.Bounds, PreparedSurface, OutError) &&
-			BuildCellSurface(Bundle, Cell, Feature, PreparedSurface, OutResult, OutError);
+			BuildCellSurface(
+				Bundle,
+				Cell,
+				Feature,
+				PreparedSurface,
+				SurfaceOffsetMeters,
+				OutResult,
+				OutError);
 	}
 }

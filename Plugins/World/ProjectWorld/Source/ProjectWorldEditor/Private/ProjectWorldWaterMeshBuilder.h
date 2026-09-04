@@ -26,6 +26,11 @@ struct FProjectWorldPreparedWaterSurface
 
 namespace ProjectWorldWaterMeshBuilder
 {
+	double EvaluateSurfaceZ(
+		const FProjectWorldCanonicalFeature& Feature,
+		const FVector2D& CanonicalPoint,
+		double HeightQuantizationMeters);
+
 	bool PrepareSurface(
 		const FProjectWorldCanonicalFeature& Feature,
 		const FVector4d& TargetBounds,
@@ -37,6 +42,7 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldCanonicalCell& Cell,
 		const FProjectWorldCanonicalFeature& Feature,
 		const FProjectWorldPreparedWaterSurface& PreparedSurface,
+		double SurfaceOffsetMeters,
 		FProjectWorldWaterMeshBuildResult& OutResult,
 		FString& OutError);
 
@@ -44,6 +50,7 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldCanonicalCell& Cell,
 		const FProjectWorldCanonicalFeature& Feature,
+		double SurfaceOffsetMeters,
 		FProjectWorldWaterMeshBuildResult& OutResult,
 		FString& OutError);
 }

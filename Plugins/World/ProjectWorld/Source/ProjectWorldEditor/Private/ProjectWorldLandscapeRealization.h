@@ -18,6 +18,9 @@ struct FProjectWorldLandscapeHeightfield
 	TArray<uint16> EncodedHeights;
 	double MinimumHeightMeters = 0.0;
 	double MaximumHeightMeters = 0.0;
+	int32 WaterFootprintSampleCount = 0;
+	int32 WaterConditionedSampleCount = 0;
+	double MaximumWaterTerrainCorrectionMeters = 0.0;
 };
 
 namespace ProjectWorldLandscapeRealization

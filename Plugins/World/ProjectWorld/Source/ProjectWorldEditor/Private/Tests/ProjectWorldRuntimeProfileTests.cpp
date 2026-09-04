@@ -228,6 +228,21 @@ bool FProjectWorldRuntimeStaleIdentityReplacementTest::RunTest(const FString& Pa
 	TestTrue(
 		TEXT("The replacement starts with the data-owned overview orientation."),
 		Replacement != nullptr && Replacement->GetActorRotation().Equals(FRotator(-20.0, 45.0, 0.0), 0.01));
+	if (Replacement != nullptr)
+	{
+		Replacement->GetPackage()->SetDirtyFlag(false);
+	}
+	FProjectWorldRealizationResult NoOpResult;
+	TestTrue(
+		TEXT("An unchanged product runtime applies as a semantic no-op."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, NoOpResult, Error));
+	TestEqual(TEXT("The no-op creates no actor."), NoOpResult.CreatedActorCount, 0);
+	TestEqual(TEXT("The no-op updates no actor."), NoOpResult.UpdatedActorCount, 0);
+	TestEqual(TEXT("The no-op removes no actor."), NoOpResult.RemovedActorCount, 0);
+	TestEqual(TEXT("The no-op preserves the stable PlayerStart."), NoOpResult.PreservedActorCount, 1);
+	TestFalse(
+		TEXT("The no-op leaves the PlayerStart package clean."),
+		Replacement != nullptr && Replacement->GetPackage()->IsDirty());
 	return true;
 }
 
