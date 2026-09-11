@@ -5,8 +5,9 @@ Priority: Release 2.0.0 critical
 Created: 2026-08-13 15:11 Europe/Moscow
 Active gate: P7 - final source freeze and replacement Candidate
 
-Freeze rule: this R7 correction is the planned last tracked edit inside
-`v2.0.0`. After freeze, exact hashes, receipts, and PASS results live only in
+Freeze rule: complete the one-command release entrypoint and release-router
+cleanup before the final source freeze. After freeze, exact hashes, receipts,
+and PASS results live only in
 ignored/generated owner evidence and `release_manifest.json`. A concrete defect
 may reopen tracked source, but then the affected final identity gates restart;
 bookkeeping alone may not do so.
@@ -101,10 +102,11 @@ regenerate-everything-on-first-open workflow.
   Do not create a KYC, contributor-identity, or personal evidence ledger. Emit
   one non-personal exact-release result that binds the existing owner reports
   and their unresolved counts.
-- **D23:** the operator performs the one final signature only after the release
-  suite reports the exact directory ready. Public developers never sign ALIS
-  artifacts; they verify the published fingerprint, signature, hashes, tag,
-  and payload identity through the existing installer/verifier.
+- **D23:** the final release flow invokes the existing signing stage once, only
+  after the release suite reports the exact directory ready. The operator
+  enters the passphrase directly into the GPG prompt; the agent never reads or
+  stores it. Public developers only verify the published fingerprint,
+  signature, hashes, tag, and payload identity.
 - **D24:** prepare one short, human-reviewable `PRODUCT_TERMS.txt` candidate for
   the packaged game because it contains private game content governed by the
   root license's Product-terms boundary. It grants install/play permission for
@@ -120,20 +122,24 @@ regenerate-everything-on-first-open workflow.
   replay only when the final merged Git tree and installed payload entry hashes
   are exactly identical; any byte difference requires the affected real route
   to run again.
+- **D27:** `make release X.Y.Z RELEASE_SIGN=0` has no human checkpoint. It binds
+  the machine-accepted Shipping Candidate and prepares the complete unsigned
+  review directory. One later `APPROVE X.Y.Z` accepts the exact packaged
+  Product, Product terms, and rights before signing those unchanged bytes.
 - **F1 [verified]:** `prepare_release.py source-state` and its focused World /
   ProjectCinematic parity regression prove that tracked working-tree byte
   changes move the release source-state digest while Git revision remains a
   separate identity. Therefore this todo edit requires a final source-bound
   replacement transaction; the old accepted package cannot be relabeled.
-- **Q1 [OPEN - BLOCKING at final composition]:** operator approval of the exact
-  `PRODUCT_TERMS.txt` bytes. The earlier Shipping walkthrough PASS did not
-  answer this legal/product-terms gate.
+- **Q1 [OPEN - BLOCKING at signing]:** operator approval of the exact unsigned
+  Product directory, including its packaged game and `PRODUCT_TERMS.txt`.
 - **Q2 [OPEN - BLOCKING at remote boundary]:** explicit authorization for the
   named GitHub ruleset, branch, PR/merge, tag, release, and asset writes after
   the local release suite is ready.
-- **Q3 [OPEN - BLOCKING at signing boundary]:** the operator's one production
-  signing action after the actual merged source identity and exact ready
-  release directory are known. No agent or public developer signs for ALIS.
+- **Q3 [OPEN - INLINE INPUT at signing boundary]:** after the actual merged
+  source identity and exact ready directory are known, the operator enters the
+  passphrase into the one production signing prompt. This is part of the final
+  release flow, not a separate release-approval phase.
 
 ## Stable owners
 
@@ -311,7 +317,7 @@ proven before this tracked todo update.
 #### Why one final refresh is mandatory
 
 - The release source-state contract deliberately includes tracked working-tree
-  bytes. This requested todo correction changes those bytes, so the accepted
+  bytes. The final release-routing edits change those bytes, so the accepted
   `a346...` state and everything bound to it remain prior product evidence but
   cannot be promoted as the final 2.0.0 identity.
 - Do not write the replacement source-state digest into this tracked todo: that
@@ -322,23 +328,24 @@ proven before this tracked todo update.
 
 1. [x] R7 confirms this evidence summary, the final-refresh rule, and
    the closeout sequence. No architecture expansion is requested.
-2. [ ] Freeze the reviewed tracked source. Re-run focused release checks, build
-   the replacement Development/Shipping Candidate, run the complete machine
-   gate, and stop for the one exact Shipping operator walkthrough.
-3. [ ] On operator PASS, write the replacement owner-local acceptance receipt.
-   Do not copy final identities into tracked files or relabel the old receipt.
-4. [ ] Recreate the public source candidate and developer payload from that
-   frozen state; repeat the exact-tag install/no-op and the smallest real
-   build/boot/map/dependency envelope required by D13.
-5. [ ] Operator approves the exact short `PRODUCT_TERMS.txt`. Current candidate
+2. [ ] Freeze the reviewed tracked source, then run the unsigned one-command
+   transaction. It rebuilds a stale Development/Shipping Candidate, completes
+   the machine gate, recreates the public source candidate and developer
+   payload, and emits one complete review directory without prompting.
+3. [ ] Review that exact directory: launch its packaged Product and inspect the
+   payload, reports, and `PRODUCT_TERMS.txt`.
+4. [ ] Confirm its exact-tag install/no-op and smallest real
+   build/boot/map/dependency envelope required by D13 are green.
+5. [ ] Operator approves the exact Product and short `PRODUCT_TERMS.txt`. Current candidate
    hash `33e46c4a8f0f1135c15f4bf18351a832ddad56c98c3cfbb9fa7682a443697a60`
    is evidence for review, not approval.
 6. [ ] After explicit remote-write authorization, configure the single-owner
    ruleset per D20, publish the validated source branch through a protected PR,
    and bind the final tag/payload to the actual merged `main` commit.
-7. [ ] Recompose and verify the exact ready directory, then stop for the
-   operator's single production signature. Run consumer-side signature,
-   fingerprint, tag, hash, installer, and payload verification afterward.
+7. [ ] Recompose and verify the exact ready directory, invoke the existing
+   signing stage once, and let the operator enter the passphrase directly into
+   the GPG prompt. Continue with consumer-side signature, fingerprint, tag,
+   hash, installer, and payload verification afterward.
    Apply D26: do not rebuild byte-identical inputs solely because they gained a
    signature.
 8. [ ] Create the GitHub draft release, upload and read back every asset, verify
@@ -547,10 +554,26 @@ GitHub publication/read-back.
   Candidate, developer payload manifest, effective component manifest,
   dependency report, privacy result, generated attribution notice, and approved
   Product terms.
+- [ ] Expose the approved local transaction as
+  `make release 2.0.0`. Parse exactly one version goal, validate it, derive
+  `v2.0.0` and the exact release directory from it, and reject missing, extra,
+  ambiguous, or conflicting input. Do not add a broad Make catch-all rule that
+  could hide mistyped targets. Orchestrate existing owners rather than merging
+  them: automatically build and machine-verify a stale Candidate, bind its
+  machine composite, project the public source, compose and install the developer
+  payload in an isolated checkout, build it, load both promised maps, audit
+  dependencies, and prepare the exact review directory without a prompt. No agent
+  or maintainer manually stages release inputs. Require one exact Product/terms/rights approval, invoke
+  `sign_release.ps1` once with the operator typing directly into GPG, and run
+  consumer verification. `RELEASE_SIGN=0` exercises preparation and verification
+  without approval, GPG, or signing outputs; the signed invocation resumes those
+  exact bytes. Success means one complete signed folder ready for GitHub upload;
+  the command performs no remote write. Keep `make package` archive-only and
+  correct its stale help text.
 - [x] Emit one non-personal `release_manifest.json` binding exact source
   revision/tag, every artifact/report hash, unresolved count, and readiness
   state. Fail closed on a missing input, identity mismatch, nonzero unresolved
-  count, privacy failure, stale player acceptance, or unsigned-ready directory
+  count, privacy failure, stale player evidence, or unsigned-ready directory
   mutation.
 - [x] Prepare a concise `PRODUCT_TERMS.txt` candidate for operator/legal review.
   Include the approved bytes beside the immutable player archive in the signed
@@ -559,9 +582,11 @@ GitHub publication/read-back.
 - [x] Compose and verify the pre-review local 19-artifact bundle under
   `tmp/release/v2.0.0-final-20260911`; retain its
   `pending_owner_approval` state as evidence, not final authority.
-- [ ] Freeze tracked source and create the replacement accepted game Candidate,
-  operator receipt, and player archive. Track V is not a distribution input.
-- [ ] Obtain explicit operator approval of the exact `PRODUCT_TERMS.txt` bytes.
+- [ ] Freeze tracked source and create the replacement machine-accepted game
+  Candidate, composite evidence, and player archive. Track V is not a
+  distribution input.
+- [ ] Obtain explicit operator approval of the exact packaged Product and
+  `PRODUCT_TERMS.txt` bytes in the combined review directory.
 - [ ] Recreate the public candidate, developer payload, privacy/dependency
   reports, and exact-tag clean checkout from the frozen state. Repeat the
   install/no-op and required pre-sign build/boot/map validation.
@@ -575,9 +600,10 @@ GitHub publication/read-back.
 - [ ] Bind the final local source tag, developer payload, notices, reports, and
   ready release directory to the actual merged `main` commit. Re-run release
   verification and require zero unresolved items.
-- [ ] After the suite reports ready, stop for the operator's one production
-  signature. Then run the existing verifier and prove the public fingerprint,
-  signature, hashes, tag, and payload identity from consumer-side commands.
+- [ ] After the suite reports ready, invoke the existing signing stage once.
+  The operator enters the passphrase directly into the GPG prompt; then run the
+  existing verifier and prove the public fingerprint, signature, hashes, tag,
+  and payload identity from consumer-side commands.
 - [ ] Create a draft release, upload exact assets, and read back every name,
   size, and hash.
 - [ ] Publish only after local and remote validation; preserve the prior release
@@ -609,11 +635,11 @@ GitHub publication/read-back.
 - [ ] After successful remote read-back, remove superseded local final inputs
   only through the same bounded cleanup owner; retain the release evidence
   required by stable package/cinematic policy.
-- [ ] After successful publication, record the published state in
-  `00_release_2.0.0.md` and archive this todo as post-v2.0 housekeeping. Those
-  tracked edits occur after the immutable `v2.0.0` tag and do not trigger a
-  refresh of that released tag; no second execution todo or duplicate release
-  summary.
+- [ ] After successful publication, record the published state and archive
+  `00_release_2.0.0.md` together with this todo as post-v2.0 housekeeping.
+  Those tracked edits occur after the immutable `v2.0.0` tag and do not
+  trigger a refresh of that released tag; no second execution todo or
+  duplicate release summary.
 
 ## Verification contract
 
@@ -664,8 +690,8 @@ GitHub publication/read-back.
 - [x] Local game archive matches the machine-accepted Candidate package tree;
   the exact pre-review Candidate launched through Development and Shipping
   product routes and received operator PASS.
-- [ ] The replacement source-bound Candidate repeats the complete machine gate,
-  receives exact Shipping operator PASS, and emits its owner-local receipt.
+- [ ] The replacement source-bound Candidate repeats the complete machine gate
+  and its composite evidence is bound into the unsigned review directory.
 - [ ] The final signed exact-tag checkout repeats the trusted install/no-op and
   signature/fingerprint verification without private inputs. It reuses the
   pre-sign build/boot/map evidence only under D26's exact identity proof.
@@ -690,7 +716,7 @@ GitHub publication/read-back.
   restricted source bytes.
 - [x] Real clean-clone Kazan/Manhattan acceptance passes before final signing.
 - [ ] Exact Product terms are operator-approved and hash-bound.
-- [ ] Final player acceptance binds the reviewed frozen source state.
+- [ ] Final owner approval binds the reviewed Product and frozen source state.
 - [x] Public front door and stable owners reflect final behavior without todo
   dependencies or duplicate truth.
 - [ ] Operator authorizes remote mutation; remote read-back and downloads pass.
@@ -720,6 +746,8 @@ GitHub publication/read-back.
   operator-only final signing and a concise Product-terms candidate remain the
   two bounded human gates.
 - **R7 - PASS - 2026-09-11:** Track V removed from distribution per D18; it
-  remains optional historical evidence. This is the planned final in-tag
-  tracked correction. Post-publication router/archive edits are explicitly
+  remains optional historical evidence. It established the final refresh
+  requirement; the one-command release entrypoint and release-queue cleanup are
+  the last planned pre-freeze tracked edits. Post-publication router/archive
+  edits are explicitly
   post-v2.0 housekeeping outside the immutable release tag.

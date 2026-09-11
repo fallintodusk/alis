@@ -4,9 +4,56 @@ Canonical release packaging entry points for ALIS.
 
 ## Release Transaction
 
+The maintainer-facing KISS entry point is:
+
+```powershell
+make release 2.0.0
+```
+
+It owns the complete local release state machine. From the repository alone it
+builds and machine-verifies a stale/missing player Candidate, prepares the
+matching filtered public source and developer payload, verifies an isolated
+payload install/build and both public maps, composes the combined release, and
+resumes the same bytes for signing. It performs no GitHub write.
+
+The unsigned command has no human checkpoint: it runs the machine-owned gates
+and prepares one complete review directory. The maintainer reviews the packaged
+Product, developer payload, reports, and Product terms there. A later signed
+invocation resumes those exact bytes, asks once for `APPROVE X.Y.Z`, and passes
+the private-key prompt directly to GPG.
+
+Use the same transaction without any private-key access while preparing and
+reviewing a release:
+
+```powershell
+make release 2.0.0 RELEASE_SIGN=0
+```
+
+The unsigned mode stops at a hash-verified `pending_owner_approval` directory.
+It never approves terms, invokes GPG, or creates signing outputs. A later
+`make release 2.0.0` resumes that exact directory instead of rebuilding it.
+
+Release automation stages the version-scoped inputs under
+`tmp/release/inputs/v2.0.0/`:
+
+```text
+public-source/
+developer/
+reports/effective-component-manifest.json
+reports/developer-dependency-report.json
+reports/public-source-privacy.json
+```
+
+The machine-accepted player Candidate and its composite evidence remain in their
+World-owned locations. Human Product approval belongs to the exact combined
+release directory, not an intermediate package. No agent or maintainer manually
+populates the input tree. `release.ps1` discovers exactly one developer payload
+manifest and one matching notices manifest, rejects missing or ambiguous inputs,
+and emits `tmp/release/v2.0.0/`.
+
 `prepare_release.ps1` is the one cross-owner preparation entry point for a
 combined player and developer release. It consumes, but does not replace, the
-accepted player Candidate, public source/payload manifests, dependency and
+machine-accepted player Candidate, public source/payload manifests, dependency and
 privacy reports, component manifest, attribution, and Product terms. It emits
 one hash-bound `release_manifest.json` under project `tmp/`.
 
@@ -20,7 +67,7 @@ cross-owner regression is `scripts/ue/world/test/package_identity.Tests.ps1`.
   -ReleaseDir tmp\release\v2.0.0 `
   -PublicSourceRoot <exact-public-tag-checkout> `
   -PlayerPackageRoot <accepted-shipping-candidate> `
-  -PlayerAcceptance <operator-acceptance.json> `
+  -PlayerEvidence <machine-acceptance-composite.json> `
   -DeveloperReleaseDir <developer-payload-directory> `
   -DeveloperPayloadManifest <developer-payload.json> `
   -ComponentManifest <effective-component-manifest.json> `
@@ -36,8 +83,8 @@ developer archive part, the joined logical archive, and the complete allowed
 developer-directory inventory before copying anything.
 
 The prepared state is intentionally not signable. The release owner first
-reviews the exact Product terms and rights inputs, then records the bounded
-non-personal approval:
+reviews the exact Product build, Product terms, and rights inputs, then records
+the bounded non-personal approval:
 
 ```powershell
 python scripts/ue/package/prepare_release.py approve `
@@ -68,6 +115,22 @@ Focused signing proof:
 ```
 
 ## Scripts
+
+### `release.ps1`
+
+Coordinates the complete local release state machine over existing owners. It
+validates one `X.Y.Z` identity, creates missing owner outputs, prepares or
+resumes the exact release directory, keeps unsigned rehearsal private-key-free,
+gates approval, invokes the existing signer once, and runs the existing
+consumer verifier. It never writes to a remote.
+
+### `prepare_release_inputs.ps1`
+
+Internal release step. It selects an authenticated public World projection,
+runs the existing mirror/developer-payload owner, installs the payload into an
+isolated exact-tag checkout, builds the Editor, loads Kazan and Manhattan, runs
+the dependency audit, and promotes the complete input tree only after every
+check passes. Maintainers call `make release X.Y.Z`, not this script.
 
 ### `package_release.ps1`
 

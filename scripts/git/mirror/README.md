@@ -148,6 +148,13 @@ Windows wrapper:
 
 ## Developer Project Release
 
+The final release command internally uses
+`stage_public_world_manifests.py` to authenticate the exact 11-scope public
+World projection and every admitted artifact before mirroring. It then uses
+`verify_public_world_maps.py` inside the isolated installed checkout to load the
+Kazan and Manhattan maps. These are internal gates; the maintainer entry point
+remains `make release X.Y.Z`.
+
 After changing generated definitions, refresh the reviewed binary authority:
 
 ```powershell

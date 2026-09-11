@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 
@@ -172,7 +173,7 @@ class PrepareReleaseTests(unittest.TestCase):
             private_source_root=self.private,
             public_source_root=self.public,
             player_package_root=self.candidate,
-            player_acceptance=self.acceptance,
+            player_evidence=self.acceptance,
             developer_release_dir=self.developer,
             developer_payload_manifest=self.developer_manifest,
             component_manifest=self.component,
@@ -195,10 +196,41 @@ class PrepareReleaseTests(unittest.TestCase):
         MODULE.approve_release(output, approve=True)
         approved = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.assertEqual("ready_for_signature", approved["status"])
+        self.assertEqual("accepted", approved["product_review"]["status"])
         self.assertEqual("accepted", approved["rights_review"]["status"])
         self.assertNotIn("identity", json.dumps(approved).lower())
 
         MODULE.verify_release_manifest(output, require_ready=True)
+
+    def test_machine_accepted_candidate_prepares_reviewable_unsigned_release(self) -> None:
+        evidence = self.root / "machine-acceptance.json"
+        write_json(
+            evidence,
+            {
+                "schema_version": 1,
+                "status": "accepted",
+                "operation_id": "fixture-operation",
+                "revision": self.private_revision,
+                "source_state_sha256": MODULE.source_state_digest(self.private),
+                "final_package": self.candidate.as_posix(),
+                "shipping_package_sha256": MODULE.package_tree_digest(self.candidate),
+                "shipping_executable_sha256": MODULE.sha256_file(
+                    self.candidate / "Windows/Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
+                ),
+            },
+        )
+        inputs = replace(self.inputs(), player_evidence=evidence)
+        output = self.root / "release"
+
+        manifest_path = MODULE.prepare_release(
+            inputs, output, [self.player_archive], self.archive_report
+        )
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual("pending_owner_approval", manifest["status"])
+        self.assertEqual("pending_owner_approval", manifest["product_review"]["status"])
+        self.assertTrue((output / "player-machine-acceptance.json").is_file())
+        self.assertFalse((output / "player-acceptance.json").exists())
 
     def test_prepare_accepts_player_archive_already_in_output(self) -> None:
         output = self.root / "release"

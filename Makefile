@@ -34,7 +34,25 @@ ifneq ($(FORCE_WSL),)
   IS_WSL := $(FORCE_WSL)
 endif
 
-.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package structurizr-start structurizr-stop structurizr-open cinematics cinematics-convert
+.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package release structurizr-start structurizr-stop structurizr-open cinematics cinematics-convert
+
+# Exact positional UX: `make release 2.0.0`. Only the one version goal is
+# synthesized; there is no catch-all target that could hide a misspelling.
+ifeq (release,$(firstword $(MAKECMDGOALS)))
+  RELEASE_VERSION_GOALS := $(filter-out release,$(MAKECMDGOALS))
+  ifneq ($(words $(RELEASE_VERSION_GOALS)),1)
+    $(error Usage: make release X.Y.Z [RELEASE_SIGN=0])
+  endif
+  RELEASE_VERSION := $(firstword $(RELEASE_VERSION_GOALS))
+  $(eval $(RELEASE_VERSION):;@:)
+endif
+
+RELEASE_SIGN ?= 1
+ifneq ($(RELEASE_SIGN),0)
+  ifneq ($(RELEASE_SIGN),1)
+    $(error RELEASE_SIGN must be 0 or 1)
+  endif
+endif
 
 # Subcommand dispatch for `make cinematics <subcmd>`.
 # When `cinematics` is the first goal, every following word becomes a no-op
@@ -78,7 +96,9 @@ help:
 	@echo "    make build-module MODULE=<name> - Build specific module (fast iteration)"
 	@echo "    make build-game        - Build game (standalone)"
 	@echo "    make build-server      - Build dedicated server"
-	@echo "    make package           - Package Shipping build (source engine, release archive, signed)"
+	@echo "    make package           - Package Shipping build and archive (no signing)"
+	@echo "    make release 2.0.0     - Prepare/approve/sign/verify the exact accepted release"
+	@echo "    make release 2.0.0 RELEASE_SIGN=0 - Prepare and verify without private-key access"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make open              - Open project in Unreal Editor"
@@ -427,6 +447,13 @@ package:
 		-File "scripts/ue/package/package_release.ps1" \
 		-EngineRoot "$(UE_SOURCE_PATH)" \
 		-CreateReleaseArchive
+
+# Prepare, checkpoint, and finalize all local release inputs for one version.
+# This target never writes to GitHub; it resumes safely at human-only gates.
+release:
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+		-File "scripts/ue/package/release.ps1" \
+		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,)
 
 # Documentation: Structurizr Lite (C4 Architecture Diagrams)
 structurizr-start:

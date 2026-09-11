@@ -141,6 +141,7 @@ try {
         release_version = "fixture"
         release_tag = "fixture"
         unresolved_count = 0
+        product_review = @{ status = "pending_owner_approval" }
         rights_review = @{ status = "pending_owner_approval" }
         artifacts = $Artifacts
     }
@@ -166,6 +167,7 @@ try {
     }
 
     $ReleaseManifest.status = "ready_for_signature"
+    $ReleaseManifest.product_review = @{ status = "accepted" }
     $ReleaseManifest.rights_review = @{ status = "accepted" }
     $ReleaseManifest | ConvertTo-Json -Depth 8 |
         Set-Content -LiteralPath $ReleaseManifestPath -Encoding Ascii

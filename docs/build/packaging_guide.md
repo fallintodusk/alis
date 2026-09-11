@@ -19,19 +19,25 @@ packaged Product, satisfy the
 [Packaged Product Legal Compliance](../legal/release_compliance.md) gate.
 
 1. Run `make prepare-tests` followed by `make test-unit-smart BASE=origin/main`.
-2. Package through the project Make target:
+2. Start or resume the automated local release without signing:
    ```powershell
-   make package
+   make release 2.0.0 RELEASE_SIGN=0
    ```
-3. Review `package_summary.txt` in the output folder.
-4. Feed the accepted package and developer evidence into the
-   [combined release transaction](../../scripts/ue/package/README.md#release-transaction).
-5. Sign only its explicitly approved `ready_for_signature` output.
+   The command runs all machine-owned gates without a prompt and creates the
+   complete unsigned review directory.
+3. Review the packaged Product, developer files, reports, and bundled
+   `PRODUCT_TERMS.txt` in that directory.
+4. Finalize the same bytes with `make release 2.0.0`; type the requested owner
+   approval phrase, then enter the signing passphrase directly into GPG.
+
+`make package` remains the lower-level Shipping package/archive command. It
+does not approve or sign a release.
 
 ## Canonical Script
 
 Primary script:
 
+- `scripts/ue/package/release.ps1`
 - `scripts/ue/package/package_release.ps1`
 - `scripts/ue/package/sign_release.ps1`
 - `scripts/ue/package/verify_release.ps1`
@@ -130,11 +136,12 @@ Important implementation note:
 
 ## Recommended Public Release Flow
 
-1. Package with `make package`.
-2. Review `package_summary.txt`.
-3. Prepare and approve the combined release transaction.
-4. Sign and verify that exact release directory.
-5. Publish only the signed files after explicit remote authorization.
+1. Run `make release 2.0.0 RELEASE_SIGN=0`; it creates all machine-owned inputs.
+2. Review the exact unsigned folder, including its packaged Product, developer
+   payload, reports, and Product terms.
+3. Run `make release 2.0.0` to approve, sign once, and consumer-verify the same
+   folder.
+4. Publish only the signed files after explicit remote authorization.
 
 ## User Experience
 
@@ -283,10 +290,22 @@ Release notes should include:
 
 ## Commands
 
-Package release:
+Lower-level package/archive:
 
 ```powershell
 make package
+```
+
+Prepare and verify the complete release without private-key access:
+
+```powershell
+make release 2.0.0 RELEASE_SIGN=0
+```
+
+Approve, sign, and consumer-verify that exact prepared folder:
+
+```powershell
+make release 2.0.0
 ```
 
 Sign release artifacts:

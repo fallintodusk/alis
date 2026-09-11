@@ -1,6 +1,12 @@
 # ALIS
 
-Learn. Survive. Connect.
+World Reborn
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM">
+    <img src="https://img.youtube.com/vi/eIJHYsPgNnM/maxresdefault.jpg" alt="ALIS world preview - watch on YouTube" width="640">
+  </a>
+</p>
 
 ALIS is an open-source Unreal Engine 5 survival-game prototype. Its current
 world-generation showcase rebuilds real geography as playable, streamed

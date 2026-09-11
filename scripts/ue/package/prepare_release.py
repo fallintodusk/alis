@@ -25,7 +25,7 @@ class ReleaseInputs:
     private_source_root: Path
     public_source_root: Path
     player_package_root: Path
-    player_acceptance: Path
+    player_evidence: Path
     developer_release_dir: Path
     developer_payload_manifest: Path
     component_manifest: Path
@@ -246,26 +246,51 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
     tagged_revision = git_value(public_root, "rev-parse", f"{inputs.release_tag}^{{commit}}")
     require_equal(tagged_revision, public_revision, "public release tag")
 
-    acceptance = read_json(inputs.player_acceptance)
-    require_equal(acceptance.get("schema_version"), 1, "player acceptance schema")
-    require_equal(acceptance.get("status"), "operator_accepted", "player acceptance status")
-    require_equal(acceptance.get("product_decision"), "accepted", "player product decision")
-    require_equal(acceptance.get("source_revision"), private_revision, "player source revision")
-    require_equal(acceptance.get("source_state_sha256"), private_state, "player source state")
-    recorded_package = resolve_recorded_path(str(acceptance.get("package_root", "")), private_root)
+    evidence = read_json(inputs.player_evidence)
+    require_equal(evidence.get("schema_version"), 1, "player evidence schema")
+    evidence_files: list[tuple[Path, str]]
+    if evidence.get("status") == "operator_accepted":
+        require_equal(evidence.get("product_decision"), "accepted", "player product decision")
+        require_equal(evidence.get("source_revision"), private_revision, "player source revision")
+        require_equal(evidence.get("source_state_sha256"), private_state, "player source state")
+        recorded_package = resolve_recorded_path(str(evidence.get("package_root", "")), private_root)
+        package_sha256 = evidence.get("package_tree_sha256")
+        executable = resolve_recorded_path(str(evidence.get("shipping_executable", "")), private_root)
+        composite = resolve_recorded_path(str(evidence.get("release_composite", "")), private_root)
+        require_equal(evidence.get("release_composite_sha256"), sha256_file(composite), "player composite")
+        machine = read_json(composite)
+        operation_id = evidence.get("release_operation_id")
+        shipping_executable_sha256 = evidence.get("shipping_executable_sha256")
+        product_review = "accepted"
+        evidence_files = [
+            (inputs.player_evidence, "player-acceptance.json"),
+            (composite, "player-machine-acceptance.json"),
+        ]
+    elif evidence.get("status") == "accepted":
+        machine = evidence
+        composite = inputs.player_evidence.resolve()
+        require_equal(machine.get("revision"), private_revision, "player source revision")
+        require_equal(machine.get("source_state_sha256"), private_state, "player source state")
+        recorded_package = resolve_recorded_path(str(machine.get("final_package", "")), private_root)
+        package_sha256 = machine.get("shipping_package_sha256")
+        executable = package_root / "Windows/Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
+        operation_id = machine.get("operation_id")
+        shipping_executable_sha256 = machine.get("shipping_executable_sha256")
+        product_review = "pending_owner_approval"
+        evidence_files = [(composite, "player-machine-acceptance.json")]
+    else:
+        raise ReleaseError(f"Unsupported player evidence status: {evidence.get('status')!r}")
+
+    require_equal(machine.get("status"), "accepted", "player machine acceptance")
     require_equal(recorded_package, package_root, "player package root")
-    require_equal(acceptance.get("package_tree_sha256"), package_tree_digest(package_root), "player package tree")
-    executable = resolve_recorded_path(str(acceptance.get("shipping_executable", "")), private_root)
+    require_equal(package_sha256, package_tree_digest(package_root), "player package tree")
     if not executable.is_file() or not executable.is_relative_to(package_root):
-        raise ReleaseError("Player acceptance Shipping executable is missing or outside the package root")
+        raise ReleaseError("Player Shipping executable is missing or outside the package root")
     require_equal(
-        acceptance.get("shipping_executable_sha256"),
+        shipping_executable_sha256,
         sha256_file(executable),
         "player Shipping executable",
     )
-    composite = resolve_recorded_path(str(acceptance.get("release_composite", "")), private_root)
-    require_equal(acceptance.get("release_composite_sha256"), sha256_file(composite), "player composite")
-    require_equal(read_json(composite).get("status"), "accepted", "player machine acceptance")
 
     developer = read_json(inputs.developer_payload_manifest)
     require_equal(developer.get("schema_version"), 2, "developer payload schema")
@@ -300,7 +325,7 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
     archive_report = read_json(archive_report_path)
     require_equal(archive_report.get("schema"), "alis-player-archive-v1", "player archive schema")
     require_equal(archive_report.get("status"), "accepted", "player archive status")
-    require_equal(archive_report.get("package_tree_sha256"), acceptance.get("package_tree_sha256"), "player archive package tree")
+    require_equal(archive_report.get("package_tree_sha256"), package_sha256, "player archive package tree")
     archive_parts = archive_report.get("parts")
     if not isinstance(archive_parts, list) or not archive_parts:
         raise ReleaseError("Player archive report contains no parts")
@@ -321,7 +346,13 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
         "private_state": private_state,
         "public_revision": public_revision,
         "public_tree": public_tree,
-        "acceptance": acceptance,
+        "player": {
+            "operation_id": operation_id,
+            "package_tree_sha256": package_sha256,
+            "shipping_executable_sha256": shipping_executable_sha256,
+            "product_review": product_review,
+        },
+        "evidence_files": evidence_files,
         "composite": composite,
         "archive_report": archive_report,
         "developer_files": developer_files,
@@ -364,10 +395,9 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
         sources.append((archive, archive.name))
     for source in sorted(validated["developer_files"], key=lambda item: item.name.lower()):
         sources.append((source, source.name))
+    sources.extend(validated["evidence_files"])
     sources.extend(
         [
-            (inputs.player_acceptance, "player-acceptance.json"),
-            (validated["composite"], "player-machine-acceptance.json"),
             (archive_report_path, "player-archive.json"),
             (inputs.component_manifest, "effective-component-manifest.json"),
             (inputs.dependency_report, "developer-dependency-report.json"),
@@ -407,11 +437,12 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
             "player_source": {
                 "revision": validated["private_revision"],
                 "source_state_sha256": validated["private_state"],
-                "operation_id": validated["acceptance"]["release_operation_id"],
-                "package_tree_sha256": validated["acceptance"]["package_tree_sha256"],
-                "shipping_executable_sha256": validated["acceptance"]["shipping_executable_sha256"],
+                "operation_id": validated["player"]["operation_id"],
+                "package_tree_sha256": validated["player"]["package_tree_sha256"],
+                "shipping_executable_sha256": validated["player"]["shipping_executable_sha256"],
             },
             "unresolved_count": 0,
+            "product_review": {"status": validated["player"]["product_review"]},
             "rights_review": {"status": "pending_owner_approval"},
             "artifacts": artifacts,
         }
@@ -457,6 +488,9 @@ def verify_release_manifest(root: Path, require_ready: bool = False) -> dict[str
         raise ReleaseError(f"Unsupported release manifest status: {expected!r}")
     if require_ready:
         require_equal(manifest.get("status"), "ready_for_signature", "release readiness")
+        product = manifest.get("product_review")
+        if not isinstance(product, dict) or product.get("status") != "accepted":
+            raise ReleaseError("Release Product review is not accepted")
         rights = manifest.get("rights_review")
         if not isinstance(rights, dict) or rights.get("status") != "accepted":
             raise ReleaseError("Release rights review is not accepted")
@@ -500,6 +534,10 @@ def approve_release(root: Path, approve: bool) -> Path:
         "status": "accepted",
         "artifact": rights_path.name,
         "sha256": sha256_file(rights_path),
+    }
+    manifest["product_review"] = {
+        "status": "accepted",
+        "evidence": "owner approval of the exact prepared release directory",
     }
     manifest["status"] = "ready_for_signature"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -573,7 +611,7 @@ def main() -> int:
     prepare.add_argument("--private-source-root", type=Path, required=True)
     prepare.add_argument("--public-source-root", type=Path, required=True)
     prepare.add_argument("--player-package-root", type=Path, required=True)
-    prepare.add_argument("--player-acceptance", type=Path, required=True)
+    prepare.add_argument("--player-evidence", type=Path, required=True)
     prepare.add_argument("--player-archive-report", type=Path, required=True)
     prepare.add_argument("--developer-release-dir", type=Path, required=True)
     prepare.add_argument("--developer-payload-manifest", type=Path, required=True)
@@ -610,7 +648,7 @@ def main() -> int:
                 args.private_source_root,
                 args.public_source_root,
                 args.player_package_root,
-                args.player_acceptance,
+                args.player_evidence,
                 args.developer_release_dir,
                 args.developer_payload_manifest,
                 args.component_manifest,
