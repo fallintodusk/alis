@@ -4,7 +4,8 @@
     Build AlisEditor target for standalone game testing
 
 .DESCRIPTION
-    Builds the AlisEditor target using configuration from scripts/config/ue_path.conf.
+    Builds the AlisEditor target using the shared config plus the machine-local
+    scripts/config/ue_path.local.conf override.
     Produces UnrealEditor-Alis.dll for fast iterative testing with UnrealEditor.exe -game.
     Supports incremental builds by default (fast!).
 
@@ -27,7 +28,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ============================================================
-# Configuration (Single Source of Truth: scripts/config/ue_path.conf)
+# Configuration (tracked defaults plus machine-local override)
 # ============================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -64,7 +65,7 @@ if (-not (Test-Path $UEBuildBat)) {
     Write-Host "[ERROR] UE_PATH invalid or not found: $UEPath" -ForegroundColor Red
     Write-Host ""
     Write-Host "Create scripts\\config\\ue_path.local.conf with:" -ForegroundColor Yellow
-    Write-Host "  UE_PATH=<path to source-built engine>"
+    Write-Host "  UE_PATH=<path to launcher-installed Unreal Engine 5.8>"
     Write-Host "  BUILD_TARGET=AlisEditor"
     Write-Host "  BUILD_CONFIG=Development"
     Write-Host "  BUILD_PLATFORM=Win64"

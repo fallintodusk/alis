@@ -1,0 +1,53 @@
+{
+    "id": "BathRoom_Table",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/Table/Toilet/BathRoom_Table/SM_BathRoom_Table",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door_l",
+            "asset": "/ProjectObject/HumanMade/Furniture/Table/Toilet/BathRoom_Table/SM_BathRoom_Table_Door_L_1",
+            "transform": {
+                "location": "(X=-17.801522 Y=34.176537 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door_r",
+            "asset": "/ProjectObject/HumanMade/Furniture/Table/Toilet/BathRoom_Table/SM_BathRoom_Table_Door_R_1",
+            "transform": {
+                "location": "(X=38.50581 Y=-1.013015 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_l"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_r"
+            ],
+            "properties": {
+                "OpenAngle": "-90"
+            }
+        }
+    ]
+}
+

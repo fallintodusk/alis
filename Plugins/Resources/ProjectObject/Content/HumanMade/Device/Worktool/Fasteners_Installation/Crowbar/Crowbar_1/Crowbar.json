@@ -1,0 +1,37 @@
+{
+  "id": "Crowbar",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Device/Worktool/Fasteners_Installation/Crowbar/Crowbar_1/SM_Crowbar"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0.5"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Crowbar",
+      "description": "Large iron crowbar. Can break down weak doors.",
+      "iconCode": "\uF412",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 1,
+      "tags": ["Item.Type.Equipment"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "equipSlotTag": "Item.EquipmentSlot.MainHand"
+    }
+  }
+}
+

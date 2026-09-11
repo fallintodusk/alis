@@ -37,8 +37,12 @@ If a task does not fit any category -- create a new one in both
 - Every newly created task todo starts with its creation timestamp:
   `YYYYMMDD-HHMM_<descriptive_name>.md`. Preserve that timestamp forever when
   moving the todo between `00_current`, `02_backlog`, and `01_done`; edits do
-  not change it. Do not rename existing todos merely to add timestamps.
-  Router/control files using the `00_<purpose>.md` pattern are exempt.
+  not change it. Do not bulk-rename existing todos merely to add timestamps.
+  When an untimestamped legacy task is materially reopened or rewritten into
+  current work, assign its original creation timestamp once, using its earliest
+  Git addition time (or filesystem creation time only when it was never
+  committed), and update todo-to-todo links in the same change. Router/control
+  files using the `00_<purpose>.md` pattern are exempt.
 - After the timestamp, use `topic_verb_noun` so the topic prefix groups related
   tasks together.
 - `00_` prefix is reserved for meta/dashboard/router files, never ordinary tasks.

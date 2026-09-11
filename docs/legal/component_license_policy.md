@@ -88,13 +88,14 @@ revision fix the file's assignment for that revision. The decision tree below
 is used when creating, moving, or splitting a file; hypothetical later use
 does not change an existing grant.
 
-Do not maintain an exhaustive repository path map. Classification inherits
-from existing ownership boundaries:
+Do not maintain an exhaustive per-file or per-subtree path map. Classification
+inherits from existing ownership boundaries. The release resolver recognizes
+the stable top-level first-party tool and automation roots; only genuine
+exceptions need local declarations:
 
-1. An explicit component-local declaration controls genuine exceptions,
-   upstream material, and first-party tool roots that have no native package
-   manifest. A `LICENSE` or `NOTICE` participates in ALIS classification only
-   when it contains `ALIS-Component-Class`.
+1. An explicit component-local declaration controls genuine exceptions and
+   upstream material. A `LICENSE` or `NOTICE` participates in ALIS
+   classification only when it contains `ALIS-Component-Class`.
 2. Native package boundaries classify normal components: Unreal project and
    `.uplugin` modules, Cargo packages, separate services, and deliberately
    marked interoperability packages.
@@ -102,8 +103,8 @@ from existing ownership boundaries:
    remain provenance-controlled until their manifests grant specific terms.
 4. Unknown or conflicting evidence blocks distribution.
 
-Only an exception or a component without a native package manifest needs local
-machine-readable fields:
+Only an exception outside the recognized native or top-level tooling boundaries
+needs local machine-readable fields:
 
 ```text
 ALIS-Component-Class: original-terms
@@ -125,10 +126,16 @@ relative to the discovered `.uproject` or `.uplugin` root:
 | Component-relative path | Result |
 |---|---|
 | Descriptor, native build metadata, `Source/**`, `Config/**`, or functional `Data/**` | `ue-in-process` |
+| `Tools/**` standalone tooling | `separate-process`; importing Unreal requires an explicit exception |
 | `Content/**` or `Resources/**` | `provenance-required` |
 | Component documentation | `documentation` |
 | Standalone first-party tooling or configuration at the repository root | `separate-process` |
 | Anything else | Unknown; require an explicit local declaration |
+
+Functional JSON under `Content/**` uses the existing generated-definition owner
+manifest to establish its source identity and hash before receiving the
+UE-facing assignment. This does not classify neighboring assets or grant
+rights to their dependencies.
 
 Therefore `Plugins/Resources/ProjectAudio/Source/**` is UE source: the
 repository category named `Resources` is outside the `ProjectAudio` plugin

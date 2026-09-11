@@ -129,13 +129,22 @@ for ($Index = 0; $Index -lt $MirrorArgs.Count; $Index++) {
     $Arg = $MirrorArgs[$Index]
     if ($Arg -eq "--exclude-file" -or
         $Arg -eq "--forbidden-patterns-file" -or
-        $Arg -eq "--developer-release-dir") {
+        $Arg -eq "--developer-release-dir" -or
+        $Arg -eq "--candidate-dir" -or
+        $Arg -eq "--report" -or
+        $Arg -eq "--public-world-manifest-root" -or
+        $Arg -eq "--developer-asset-root") {
         $ForwardArgs.Add($Arg) | Out-Null
         if ($Index + 1 -ge $MirrorArgs.Count) {
             throw "Missing value for $Arg"
         }
         $Value = $MirrorArgs[$Index + 1]
-        if ($Arg -eq "--developer-release-dir" -and -not [System.IO.Path]::IsPathRooted($Value)) {
+        if (($Arg -eq "--developer-release-dir" -or
+             $Arg -eq "--candidate-dir" -or
+             $Arg -eq "--report" -or
+             $Arg -eq "--public-world-manifest-root" -or
+             $Arg -eq "--developer-asset-root") -and
+            -not [System.IO.Path]::IsPathRooted($Value)) {
             $Value = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Value))
         }
         if ([System.IO.Path]::IsPathRooted($Value)) {
@@ -149,17 +158,16 @@ for ($Index = 0; $Index -lt $MirrorArgs.Count; $Index++) {
     $ForwardArgs.Add($Arg) | Out-Null
 }
 
-if (-not $BypassDirtyCheck) {
-    # Native Windows git status is much faster and avoids WSL/LFS dirty-check hangs.
-    $ForwardArgs.Add("--force") | Out-Null
-}
-
 $RepoRootWslQuoted = Convert-ToBashSingleQuoted -Value $RepoRootWsl
 $ScriptPathWslQuoted = Convert-ToBashSingleQuoted -Value $ScriptPathWsl
 $ArgString = ($ForwardArgs | ForEach-Object { Convert-ToBashSingleQuoted -Value $_ }) -join " "
 $Prefix = ""
+if (-not $BypassDirtyCheck) {
+    # Native Windows git status is much faster and avoids WSL/LFS dirty-check hangs.
+    $Prefix += "export MIRROR_CLEAN_PREVALIDATED=1; "
+}
 if ($env:MIRROR_GIT_SSH_COMMAND) {
-    $Prefix = "export MIRROR_GIT_SSH_COMMAND=" + (Convert-ToBashSingleQuoted -Value $env:MIRROR_GIT_SSH_COMMAND) + "; "
+    $Prefix += "export MIRROR_GIT_SSH_COMMAND=" + (Convert-ToBashSingleQuoted -Value $env:MIRROR_GIT_SSH_COMMAND) + "; "
 }
 
 $BashCommand = "$Prefix" + "cd $RepoRootWslQuoted && exec bash $ScriptPathWslQuoted"

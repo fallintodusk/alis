@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/cell-manifest-v1.json",
+  "title": "Canonical Cell Manifest",
+  "type": "object",
+  "$defs": {
+    "lineage": {
+      "type": "object",
+      "required": ["grid_id", "algorithm_version", "identity_namespace", "implementation_sha256", "execution_environment_identity", "compiler_contract_sha256", "source_ingestion_contract_sha256", "source_semantic_contract_sha256", "source_snapshots", "source_result_sha256", "source_area", "raster_source_sha256", "overlay_id", "overlay_sha256"],
+      "properties": {
+        "grid_id": {"type": "string"},
+        "algorithm_version": {"type": "string"},
+        "identity_namespace": {"type": "string"},
+        "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "execution_environment_identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "compiler_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "profile_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_ingestion_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_semantic_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_snapshots": {"type": "array", "items": {"type": "object"}, "minItems": 1},
+        "source_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_area": {"type": "object", "required": ["area_fingerprint", "bbox", "axis_order", "crs"]},
+        "raster_source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "overlay_id": {"type": "string"},
+        "overlay_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema", "schema_version", "grid_id", "cell_id", "cell_x", "cell_y", "bounds", "neighbors", "owned_feature_ids", "referenced_feature_ids", "terrain_artifact", "feature_artifact", "terrain_component_dependencies", "terrain_lineage", "feature_lineage", "provenance_result"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "grid_id": {"type": "string"},
+    "cell_id": {"type": "string"},
+    "cell_x": {"type": "integer"},
+    "cell_y": {"type": "integer"},
+    "bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "neighbors": {"type": "object"},
+    "owned_feature_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "referenced_feature_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "terrain_artifact": {"type": "object"},
+    "feature_artifact": {"type": "object"},
+    "terrain_component_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "sample_semantic_sha256"],
+        "properties": {
+          "component_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "sample_semantic_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": false
+      },
+      "uniqueItems": true
+    },
+    "terrain_lineage": {"$ref": "#/$defs/lineage"},
+    "feature_lineage": {"$ref": "#/$defs/lineage"},
+    "provenance_result": {"const": "accepted"}
+  },
+  "additionalProperties": false
+}

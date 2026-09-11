@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inventory Dev"
+  short_description: "Implement and test ALIS inventory behavior and UI"
+  default_prompt: "Use $inventory-dev to implement and validate an inventory gameplay or UI change end to end."

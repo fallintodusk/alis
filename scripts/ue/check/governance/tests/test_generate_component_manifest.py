@@ -1,4 +1,6 @@
 import subprocess
+import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -45,19 +47,15 @@ class ComponentManifestTests(unittest.TestCase):
         self._write("docs/README.md", "# Docs")
         self._write("docs/legal/policy.md", "# Policy")
         self._write(
-            ".github/NOTICE",
-            "ALIS-Component-Class: separate-process\n",
-        )
-        self._write(
-            "scripts/NOTICE",
-            "ALIS-Component-Class: separate-process\n",
-        )
-        self._write(
             "scripts/ue/editor/NOTICE",
             "ALIS-Component-Class: ue-in-process\n",
         )
         self._write("scripts/README.md", "# Scripts")
         self._write("scripts/tool.py", "print('tool')")
+        self._write("tools/helper.py", "print('tool')")
+        self._write(".claude/settings.json", "{}")
+        self._write(".codex/config.toml", "")
+        self._write(".githooks/pre-commit", "#!/bin/sh\n")
         self._write("scripts/ue/editor/editor.py", "import unreal\n")
         self._write("scripts/git/mirror/mirror.exclude", "")
         self._write(".github/workflows/check.yml", "name: check")
@@ -116,10 +114,18 @@ class ComponentManifestTests(unittest.TestCase):
             "separate-process",
             entries["scripts/tool.py"]["component_class"],
         )
-        self.assertEqual(
-            "scripts/NOTICE",
-            entries["scripts/tool.py"]["evidence"],
-        )
+        self.assertNotIn("evidence", entries["scripts/tool.py"])
+        for path in (
+            ".claude/settings.json",
+            ".codex/config.toml",
+            ".githooks/pre-commit",
+            ".github/workflows/check.yml",
+            "tools/helper.py",
+        ):
+            self.assertEqual(
+                "separate-process",
+                entries[path]["component_class"],
+            )
         self.assertEqual(
             "ue-in-process",
             entries["scripts/ue/editor/editor.py"]["component_class"],
@@ -135,6 +141,71 @@ class ComponentManifestTests(unittest.TestCase):
 
     def test_output_is_reproducible(self) -> None:
         self.assertEqual(self._generate(), self._generate())
+
+    def test_plugin_tools_inherit_separate_process_without_notice(self) -> None:
+        self._write("Plugins/UI/Test/Tools/check.py", "print('check')")
+        self._commit("plugin tool")
+        self._retag()
+        entry = next(item for item in self._generate()["entries"]
+                     if item["path"] == "Plugins/UI/Test/Tools/check.py")
+        self.assertEqual("separate-process", entry["component_class"])
+
+    def test_definition_source_requires_authenticated_owner_manifest(self) -> None:
+        source = "Plugins/UI/Test/Content/definition.json"
+        manifest_path = "Plugins/UI/Test/Data/manifest.json"
+        contract_path = "scripts/git/mirror/developer_asset_release.json"
+        contract = json.dumps({"asset_authorities": [{
+            "authority_kind": "generated_definition_manifest",
+            "owner": "Test", "license_id": "MPL-2.0",
+            "manifest_id": "test_definitions",
+            "collections": [{"asset_class": "ObjectDefinition",
+                             "source_root": "Plugins/UI/Test/Content",
+                             "schema_path": "Plugins/UI/Test/Data/object.schema.json"}],
+            "manifest_path": manifest_path,
+        }]})
+        self._write(source, "{}")
+        self._write(contract_path, contract)
+        self._write(manifest_path, json.dumps({
+            "owner": "Test",
+            "manifest_id": "test_definitions",
+            "release_contract_sha256": hashlib.sha256(contract.encode()).hexdigest(),
+            "assets": [{"source_path": source,
+                        "asset_class": "ObjectDefinition",
+                        "schema_path": "Plugins/UI/Test/Data/object.schema.json",
+                        "source_sha256": hashlib.sha256(b"{}").hexdigest()}],
+        }))
+        self._commit("authenticated definition source")
+        self._retag()
+        entry = next(item for item in self._generate()["entries"] if item["path"] == source)
+        self.assertEqual("ue-in-process", entry["component_class"])
+        self.assertEqual(manifest_path, entry["evidence"])
+        accepted = (self.repo_root / manifest_path).read_text()
+        for mutation in ("root", "class", "schema", "duplicate", "identity"):
+            invalid = json.loads(accepted)
+            if mutation == "root":
+                invalid["assets"][0]["source_path"] = "scripts/unrelated.json"
+            elif mutation == "class":
+                invalid["assets"][0]["asset_class"] = "Unknown"
+            elif mutation == "schema":
+                invalid["assets"][0]["schema_path"] = "unknown.schema.json"
+            elif mutation == "duplicate":
+                invalid["assets"].append(invalid["assets"][0].copy())
+            else:
+                invalid["manifest_id"] = "wrong"
+            self._write(manifest_path, json.dumps(invalid))
+            self._commit(mutation)
+            self._retag()
+            with self.subTest(mutation=mutation), self.assertRaises(
+                generate_component_manifest.ManifestError
+            ):
+                self._generate()
+        self._write(manifest_path, accepted)
+        self._write(source, '{"changed": true}')
+        self._commit("stale source")
+        self._retag()
+        with self.assertRaisesRegex(generate_component_manifest.ManifestError,
+                                    "Stale definition source authority"):
+            self._generate()
 
     def test_dirty_repository_fails(self) -> None:
         self._write("dirty.txt", "dirty")

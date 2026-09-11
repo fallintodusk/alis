@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dialogue Dev"
+  short_description: "Implement and validate ALIS dialogue data and UI"
+  default_prompt: "Use $dialogue-dev to implement and validate a dialogue gameplay, data, or UI change end to end."

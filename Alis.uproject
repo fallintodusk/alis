@@ -1,463 +1,467 @@
 {
-	"FileVersion": 3,
-	"EngineAssociation": "5.8",
-	"Category": "",
-	"Description": "",
-	"Modules": [
-		{
-			"Name": "Alis",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"Engine",
-				"CoreUObject"
-			]
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "GearVR",
-			"Enabled": false
-		},
-		{
-			"Name": "SteamVR",
-			"Enabled": false
-		},
-		{
-			"Name": "InstanceArrayTool",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/1ea69e97d8ce4b55be795dc5614fa669"
-		},
-		{
-			"Name": "SunPosition",
-			"Enabled": true
-		},
-		{
-			"Name": "Orchestrator",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectCore",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectCinematic",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "ProjectCombat",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectDialogue",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectInventory",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSave",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectUI",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectHUD",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMind",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMindUI",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectVitalsUI",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectLoading",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectWorld",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectGameplay",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectPCG",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSettings",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMenuPlay",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectOnlinePlay",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSinglePlay",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMenuMain",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMenuGame",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectIntegrationTests",
-			"TargetAllowList": [
-				"Editor"
-			],
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSettingsUI",
-			"Enabled": true
-		},
-		{
-			"Name": "MainMenuWorld",
-			"Enabled": true
-		},
-		{
-			"Name": "City17",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectInteraction",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMaterial",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectMotionSystem",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectOpenableTemplates",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSkeletalAssembly",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSkeletalCapabilities",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectAnimation",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectAudio",
-			"Enabled": true
-		},
-		{
-			"Name": "ProjectSoundSystem",
-			"Enabled": true
-		},
-		{
-			"Name": "EditorPerformance",
-			"Enabled": false
-		},
-		{
-			"Name": "StaticMeshEditorModeling",
-			"Enabled": true
-		},
-		{
-			"Name": "NNEDenoiser",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Linux",
-				"Mac"
-			]
-		},
-		{
-			"Name": "AndroidDeviceProfileSelector",
-			"Enabled": false
-		},
-		{
-			"Name": "AndroidFileServer",
-			"Enabled": false
-		},
-		{
-			"Name": "AndroidMedia",
-			"Enabled": false
-		},
-		{
-			"Name": "AndroidMoviePlayer",
-			"Enabled": false
-		},
-		{
-			"Name": "OnlineSubsystemGooglePlay",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Android"
-			]
-		},
-		{
-			"Name": "AndroidPermission",
-			"Enabled": false
-		},
-		{
-			"Name": "AppleImageUtils",
-			"Enabled": false
-		},
-		{
-			"Name": "AppleMoviePlayer",
-			"Enabled": false
-		},
-		{
-			"Name": "AvfMedia",
-			"Enabled": false
-		},
-		{
-			"Name": "GoogleCloudMessaging",
-			"Enabled": false
-		},
-		{
-			"Name": "GooglePAD",
-			"Enabled": false
-		},
-		{
-			"Name": "ExampleDeviceProfileSelector",
-			"Enabled": false
-		},
-		{
-			"Name": "IOSDeviceProfileSelector",
-			"Enabled": false
-		},
-		{
-			"Name": "NullSourceCodeAccess",
-			"Enabled": false
-		},
-		{
-			"Name": "LinuxDeviceProfileSelector",
-			"Enabled": false
-		},
-		{
-			"Name": "MacGraphicsSwitching",
-			"Enabled": false
-		},
-		{
-			"Name": "LocationServicesBPLibrary",
-			"Enabled": false
-		},
-		{
-			"Name": "MobilePatchingUtils",
-			"Enabled": false
-		},
-		{
-			"Name": "MobileLauncherProfileWizard",
-			"Enabled": false
-		},
-		{
-			"Name": "XCodeSourceCodeAccess",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Mac"
-			]
-		},
-		{
-			"Name": "MetaHumanCharacter",
-			"Enabled": true
-		},
-		{
-			"Name": "MetaHumanCoreTech",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Linux"
-			]
-		},
-		{
-			"Name": "UMGWidgetPreview",
-			"Enabled": false
-		},
-		{
-			"Name": "SpeedTreeImporter",
-			"Enabled": false
-		},
-		{
-			"Name": "RiderSourceCodeAccess",
-			"Enabled": false
-		},
-		{
-			"Name": "PixWinPlugin",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "PlasticSourceControl",
-			"Enabled": false
-		},
-		{
-			"Name": "PerforceSourceControl",
-			"Enabled": false
-		},
-		{
-			"Name": "InterchangeTests",
-			"Enabled": false
-		},
-		{
-			"Name": "KDevelopSourceCodeAccess",
-			"Enabled": false
-		},
-		{
-			"Name": "InputDebugging",
-			"Enabled": false
-		},
-		{
-			"Name": "GPUReshape",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "WorldMetrics",
-			"Enabled": false
-		},
-		{
-			"Name": "CLionSourceCodeAccess",
-			"Enabled": false
-		},
-		{
-			"Name": "CodeLiteSourceCodeAccess",
-			"Enabled": false
-		},
-		{
-			"Name": "N10XSourceCodeAccess",
-			"Enabled": false
-		},
-		{
-			"Name": "AutomationUtils",
-			"Enabled": false
-		},
-		{
-			"Name": "EditorDebugTools",
-			"Enabled": false
-		},
-		{
-			"Name": "EditorTelemetry",
-			"Enabled": false
-		},
-		{
-			"Name": "RuntimeTelemetry",
-			"Enabled": false
-		},
-		{
-			"Name": "UbaController",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
-		},
-		{
-			"Name": "UObjectPlugin",
-			"Enabled": false
-		},
-		{
-			"Name": "WmfMedia",
-			"Enabled": false
-		},
-		{
-			"Name": "MassInsights",
-			"Enabled": false
-		},
-		{
-			"Name": "LevelSequenceNavigatorBridge",
-			"Enabled": false
-		},
-		{
-			"Name": "GlobalConfigurationData",
-			"Enabled": false
-		},
-		{
-			"Name": "FacialAnimation",
-			"Enabled": false
-		},
-		{
-			"Name": "DumpGPUServices",
-			"Enabled": false
-		},
-		{
-			"Name": "ChaosVD",
-			"Enabled": false
-		},
-		{
-			"Name": "MetaHumanLiveLink",
-			"Enabled": true
-		},
-		{
-			"Name": "MovieRenderPipeline",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "MoviePipelineMaskRenderPass",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "AppleProResMedia",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			],
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
-			"Name": "ModelContextProtocol",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "AllToolsets",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		}
-	],
-	"TargetPlatforms": [
-		"WindowsNoEditor",
-		"LinuxNoEditor",
-		"Windows"
-	]
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "",
+  "Description": "",
+  "Modules": [
+    {
+      "Name": "Alis",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "AdditionalDependencies": [
+        "Engine",
+        "CoreUObject"
+      ]
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "GearVR",
+      "Enabled": false
+    },
+    {
+      "Name": "SteamVR",
+      "Enabled": false
+    },
+    {
+      "Name": "InstanceArrayTool",
+      "Enabled": false,
+      "MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/1ea69e97d8ce4b55be795dc5614fa669"
+    },
+    {
+      "Name": "SunPosition",
+      "Enabled": true
+    },
+    {
+      "Name": "Orchestrator",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectCore",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectCinematic",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "ProjectCombat",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectDialogue",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectInventory",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectSave",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectUI",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectHUD",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMind",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMindUI",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectVitalsUI",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectLoading",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectWorld",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectGameplay",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectPCG",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectSettings",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMenuPlay",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectOnlinePlay",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectSinglePlay",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMenuMain",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMenuGame",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectIntegrationTests",
+      "TargetAllowList": [
+        "Editor"
+      ],
+      "Enabled": false
+    },
+    {
+      "Name": "ProjectSettingsUI",
+      "Enabled": true
+    },
+    {
+      "Name": "MainMenuWorld",
+      "Enabled": true
+    },
+    {
+      "Name": "City17",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectInteraction",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMaterial",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectMotionSystem",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectOpenableTemplates",
+      "Enabled": false
+    },
+    {
+      "Name": "ProjectSkeletalAssembly",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectSkeletalCapabilities",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectAnimation",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectAudio",
+      "Enabled": true
+    },
+    {
+      "Name": "ProjectSoundSystem",
+      "Enabled": true
+    },
+    {
+      "Name": "EditorPerformance",
+      "Enabled": false
+    },
+    {
+      "Name": "StaticMeshEditorModeling",
+      "Enabled": true
+    },
+    {
+      "Name": "NNEDenoiser",
+      "Enabled": false,
+      "SupportedTargetPlatforms": [
+        "Win64",
+        "Linux",
+        "Mac"
+      ]
+    },
+    {
+      "Name": "AndroidDeviceProfileSelector",
+      "Enabled": false
+    },
+    {
+      "Name": "AndroidFileServer",
+      "Enabled": false
+    },
+    {
+      "Name": "AndroidMedia",
+      "Enabled": false
+    },
+    {
+      "Name": "AndroidMoviePlayer",
+      "Enabled": false
+    },
+    {
+      "Name": "OnlineSubsystemGooglePlay",
+      "Enabled": false,
+      "SupportedTargetPlatforms": [
+        "Android"
+      ]
+    },
+    {
+      "Name": "AndroidPermission",
+      "Enabled": false
+    },
+    {
+      "Name": "AppleImageUtils",
+      "Enabled": false
+    },
+    {
+      "Name": "AppleMoviePlayer",
+      "Enabled": false
+    },
+    {
+      "Name": "AvfMedia",
+      "Enabled": false
+    },
+    {
+      "Name": "GoogleCloudMessaging",
+      "Enabled": false
+    },
+    {
+      "Name": "GooglePAD",
+      "Enabled": false
+    },
+    {
+      "Name": "ExampleDeviceProfileSelector",
+      "Enabled": false
+    },
+    {
+      "Name": "IOSDeviceProfileSelector",
+      "Enabled": false
+    },
+    {
+      "Name": "NullSourceCodeAccess",
+      "Enabled": false
+    },
+    {
+      "Name": "LinuxDeviceProfileSelector",
+      "Enabled": false
+    },
+    {
+      "Name": "MacGraphicsSwitching",
+      "Enabled": false
+    },
+    {
+      "Name": "LocationServicesBPLibrary",
+      "Enabled": false
+    },
+    {
+      "Name": "MobilePatchingUtils",
+      "Enabled": false
+    },
+    {
+      "Name": "MobileLauncherProfileWizard",
+      "Enabled": false
+    },
+    {
+      "Name": "XCodeSourceCodeAccess",
+      "Enabled": false,
+      "SupportedTargetPlatforms": [
+        "Mac"
+      ]
+    },
+    {
+      "Name": "MetaHumanCharacter",
+      "Enabled": true
+    },
+    {
+      "Name": "MetaHumanCoreTech",
+      "Enabled": true,
+      "SupportedTargetPlatforms": [
+        "Win64",
+        "Linux"
+      ]
+    },
+    {
+      "Name": "UMGWidgetPreview",
+      "Enabled": false
+    },
+    {
+      "Name": "SpeedTreeImporter",
+      "Enabled": false
+    },
+    {
+      "Name": "RiderSourceCodeAccess",
+      "Enabled": false
+    },
+    {
+      "Name": "PixWinPlugin",
+      "Enabled": false,
+      "SupportedTargetPlatforms": [
+        "Win64"
+      ]
+    },
+    {
+      "Name": "PlasticSourceControl",
+      "Enabled": false
+    },
+    {
+      "Name": "PerforceSourceControl",
+      "Enabled": false
+    },
+    {
+      "Name": "InterchangeTests",
+      "Enabled": false
+    },
+    {
+      "Name": "KDevelopSourceCodeAccess",
+      "Enabled": false
+    },
+    {
+      "Name": "InputDebugging",
+      "Enabled": false
+    },
+    {
+      "Name": "GPUReshape",
+      "Enabled": false,
+      "SupportedTargetPlatforms": [
+        "Win64"
+      ]
+    },
+    {
+      "Name": "WorldMetrics",
+      "Enabled": false
+    },
+    {
+      "Name": "CLionSourceCodeAccess",
+      "Enabled": false
+    },
+    {
+      "Name": "CodeLiteSourceCodeAccess",
+      "Enabled": false
+    },
+    {
+      "Name": "N10XSourceCodeAccess",
+      "Enabled": false
+    },
+    {
+      "Name": "AutomationUtils",
+      "Enabled": false
+    },
+    {
+      "Name": "EditorDebugTools",
+      "Enabled": false
+    },
+    {
+      "Name": "EditorTelemetry",
+      "Enabled": false
+    },
+    {
+      "Name": "RuntimeTelemetry",
+      "Enabled": false
+    },
+    {
+      "Name": "UbaController",
+      "Enabled": false,
+      "SupportedTargetPlatforms": [
+        "Win64",
+        "Mac",
+        "Linux"
+      ]
+    },
+    {
+      "Name": "UObjectPlugin",
+      "Enabled": false
+    },
+    {
+      "Name": "WmfMedia",
+      "Enabled": false
+    },
+    {
+      "Name": "MassInsights",
+      "Enabled": false
+    },
+    {
+      "Name": "LevelSequenceNavigatorBridge",
+      "Enabled": false
+    },
+    {
+      "Name": "GlobalConfigurationData",
+      "Enabled": false
+    },
+    {
+      "Name": "FacialAnimation",
+      "Enabled": false
+    },
+    {
+      "Name": "DumpGPUServices",
+      "Enabled": false
+    },
+    {
+      "Name": "ChaosVD",
+      "Enabled": false
+    },
+    {
+      "Name": "MetaHumanLiveLink",
+      "Enabled": true
+    },
+    {
+      "Name": "MovieRenderPipeline",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "MoviePipelineMaskRenderPass",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "AppleProResMedia",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ],
+      "SupportedTargetPlatforms": [
+        "Win64"
+      ]
+    },
+    {
+      "Name": "ModelContextProtocol",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "AllToolsets",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "ProjectPlacementEditor",
+      "Enabled": false
+    }
+  ],
+  "TargetPlatforms": [
+    "WindowsNoEditor",
+    "LinuxNoEditor",
+    "Windows"
+  ]
 }

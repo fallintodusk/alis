@@ -1,0 +1,4 @@
+interface:
+  display_name: "World Engineering"
+  short_description: "Route non-trivial ALIS World work: boundary, SOTs, proof, review"
+  default_prompt: "Use $world-engineering to investigate, design, implement, debug, or review an ALIS World change."

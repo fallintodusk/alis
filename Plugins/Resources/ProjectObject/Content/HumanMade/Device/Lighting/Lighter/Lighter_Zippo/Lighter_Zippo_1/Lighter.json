@@ -1,0 +1,37 @@
+{
+  "id": "Lighter",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Device/Lighting/Lighter/Lighter_Zippo/Lighter_Zippo_1/SM_Lighter_Zippo_1_1"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Lighter",
+      "description": "Metal Zippo lighter.",
+      "iconCode": "\uF88D",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 1,
+      "tags": ["Item.Type.Equipment"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "equipSlotTag": "Item.EquipmentSlot.MainHand"
+    }
+  }
+}
+

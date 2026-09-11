@@ -2,6 +2,53 @@
 
 Canonical release packaging entry points for ALIS.
 
+## Release Transaction
+
+`prepare_release.ps1` is the one cross-owner preparation entry point for a
+combined player and developer release. It consumes, but does not replace, the
+accepted player Candidate, public source/payload manifests, dependency and
+privacy reports, component manifest, attribution, and Product terms. It emits
+one hash-bound `release_manifest.json` under project `tmp/`.
+
+Player package identity excludes only declared runtime-written state and orders
+relative paths by ordinal UTF-8 bytes. The World gate, ProjectCinematic binding,
+player archive, and release coordinator must agree byte-for-byte. The focused
+cross-owner regression is `scripts/ue/world/test/package_identity.Tests.ps1`.
+
+```powershell
+.\scripts\ue\package\prepare_release.ps1 `
+  -ReleaseDir tmp\release\v2.0.0 `
+  -PublicSourceRoot <exact-public-tag-checkout> `
+  -PlayerPackageRoot <accepted-shipping-candidate> `
+  -PlayerAcceptance <operator-acceptance.json> `
+  -DeveloperReleaseDir <developer-payload-directory> `
+  -DeveloperPayloadManifest <developer-payload.json> `
+  -ComponentManifest <effective-component-manifest.json> `
+  -DependencyReport <developer-dependency-report.json> `
+  -PrivacyReport <public-source-privacy.json> `
+  -AttributionNotice <developer-payload-directory>\<payload>.notices.json `
+  -ProductTerms PRODUCT_TERMS.txt
+```
+
+The attribution input is the exact composer-produced notices manifest whose
+`payload_id` matches the developer payload. Preparation authenticates every
+developer archive part, the joined logical archive, and the complete allowed
+developer-directory inventory before copying anything.
+
+The prepared state is intentionally not signable. The release owner first
+reviews the exact Product terms and rights inputs, then records the bounded
+non-personal approval:
+
+```powershell
+python scripts/ue/package/prepare_release.py approve `
+  --release-dir tmp/release/v2.0.0 `
+  --approve-product-terms-and-rights
+```
+
+Only `ready_for_signature` passes `sign_release.ps1`. Signing remains the
+release owner's private action. Developers and players only run the bundled
+public verifier; they never need the private key.
+
 For a tagged public source release, generate
 `effective-component-manifest.json` from the clean public tag before signing:
 
@@ -47,8 +94,6 @@ receipt with the largest listed entries. It does not infer payload presence
 from Asset Registry text or a cook configuration mention. It rejects any
 `ProjectWorldTestData` entry. Listed ProjectWorld production bytes are
 observability, not a dependency-closure or without-world delta.
-- can sign the exact output directory after archive creation with `-SignRelease`
-- with `-SignRelease`, moves `Windows/` and summary files under `debug/` so the release root is upload-ready
 
 Examples:
 
@@ -59,7 +104,7 @@ Examples:
 ```
 
 ```bat
-scripts\ue\package\package_release_source.bat -SignRelease -SplitSizeMB 1700
+scripts\ue\package\package_release_source.bat -CreateReleaseArchive -SplitSizeMB 1700
 ```
 
 The default command resolves the installed launcher engine and is the fast
@@ -95,8 +140,6 @@ Key parameters:
 - `-CreateReleaseArchive` creates a zip, optionally split into parts
 - when a created zip already fits under the requested split threshold, the script keeps a normal `.zip`
 - `-SplitSizeMB` archive split size in MiB, default `1700`
-- `-SignRelease` runs `sign_release.ps1` against the exact output directory after archive creation
-- `-GpgPath`, `-GpgHome`, `-SigningKeyFingerprint`, and `-SkipSignVerify` are forwarded to `sign_release.ps1` when `-SignRelease` is set
 
 ### `package_release.bat`
 
@@ -124,6 +167,8 @@ Generates `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` for a packaged release direc
 Defaults:
 
 - discovers `gpg.exe` from PATH or common Windows install locations
+- rejects the directory before key access unless `release_manifest.json` is
+  hash-clean and `ready_for_signature`
 - reuses the ALIS site trust fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
 - signs the root-level release assets in a packaged output directory
 - exports the public half of the selected signing key as `ALIS_PUBLIC_KEY.asc`
@@ -131,20 +176,16 @@ Defaults:
 - excludes `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` from the manifest; the signature signs the manifest, and the manifest never hashes itself
 - writes `INSTALL.txt` into the release directory before hashing so the helper file is covered by the signed manifest
 - copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release directory before hashing so advanced users have a self-contained verifier next to the archives
+- writes separate Player and Developer install routes when one release contains both the game archive and developer payload
+- links the bundled `PRODUCT_TERMS.txt` from `INSTALL.txt`
 - verifies the detached signature after signing
 - writes `sign_release_summary.txt` into the release directory
 
-Examples:
+Example after `prepare_release.py approve` reports the same directory ready:
 
 ```powershell
 .\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir <temp-dir>\ALIS_release_20260310_154307
-```
-
-```powershell
-.\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir <build-dir> `
-  -GpgPath "gpg"
+  -ReleaseDir tmp\release\v2.0.0
 ```
 
 Key parameters:
@@ -193,7 +234,7 @@ Examples:
 .\scripts\ue\package\verify_release.ps1 `
   -ReleaseDir <build-dir> `
   -PublicKeyPath <site-root>\assets\security\public-key.asc `
-  -GpgPath "gpg"
+  -GpgPath "C:\Program Files\Git\usr\bin\gpg.exe"
 ```
 
 Key parameters:

@@ -1,0 +1,34 @@
+{
+    "id": "Locker_Steel",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Container/Locker/SM_Locker_Frame",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Container/Locker/SM_Locker_Door",
+            "transform": {
+                "location": "(X=-25.1388 Y=-3.2593 Z=29.2758)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "-90"
+            }
+        }
+    ]
+}

@@ -52,8 +52,8 @@ function Resolve-GpgPath {
     $Candidates = @(
         "C:\Program Files\GnuPG\bin\gpg.exe",
         "C:\Program Files (x86)\GnuPG\bin\gpg.exe",
-        "gpg",
-        "gpg"
+        "C:\Program Files\Git\usr\bin\gpg.exe",
+        "C:\Program Files\Git\mingw64\bin\gpg.exe"
     )
 
     foreach ($Candidate in $Candidates) {
@@ -348,8 +348,31 @@ function Write-ReleaseReadme {
     $ReadmePath = Join-Path $Directory "INSTALL.txt"
     $ArchiveAssets = @($Assets | Where-Object { $_.Name -like "*.zip*" -or $_.Name -like "*.7z*" })
     $IsDeveloperRelease = @($Assets | Where-Object { $_.Name -like "*.developer-payload.json" }).Count -gt 0
+    $IsGameRelease = @($Assets | Where-Object { $_.Name -like "ALIS_Win64_*.zip*" }).Count -gt 0
 
-    if ($IsDeveloperRelease) {
+    if ($IsDeveloperRelease -and $IsGameRelease) {
+        $Lines = @(
+            "ALIS Release Install Guide",
+            "",
+            "Player:",
+            "1. Download every ALIS_Win64 archive part into one folder.",
+            "2. Extract the first numbered part with 7-Zip.",
+            "3. Run Alis.exe.",
+            "",
+            "Developer:",
+            "1. Clone the public ALIS source repository.",
+            "2. Download the developer payload files into one separate folder.",
+            "3. Check out the exact public source tag named by the payload manifest.",
+            "4. From that clean checkout, run scripts/git/mirror/install_developer_payload.ps1 -ProjectRoot <alis-path> -ReleaseDir <payload-folder> -RequireReleaseSignature.",
+            "5. Open Alis.uproject with the supported Unreal Engine version.",
+            "",
+            "The developer installer verifies and joins its numbered parts automatically.",
+            "Do not manually extract or rename developer payload parts.",
+            "",
+            "Archive parts in this release:"
+        )
+    }
+    elseif ($IsDeveloperRelease) {
         $Lines = @(
             "ALIS Developer Project Install Guide",
             "",
@@ -384,6 +407,9 @@ function Write-ReleaseReadme {
     }
 
     $Lines += @(
+        "",
+        "Product terms:",
+        ".\PRODUCT_TERMS.txt",
         "",
         "Trust source of truth:",
         "Fingerprint authority: $TrustPageUrl",
@@ -460,9 +486,32 @@ function Assert-SecretKeyAvailable {
     }
 }
 
+function Assert-ReleaseReadyForSignature {
+    param(
+        [string]$Directory,
+        [string]$ProjectRoot
+    )
+
+    $Verifier = Join-Path $ProjectRoot "scripts\ue\package\prepare_release.py"
+    if (-not (Test-Path -LiteralPath $Verifier -PathType Leaf)) {
+        throw "Release readiness verifier is missing: $Verifier"
+    }
+
+    $Python = Get-Command "python" -ErrorAction SilentlyContinue
+    if (-not $Python) {
+        throw "Python is required to verify release readiness before signing."
+    }
+
+    & $Python.Source $Verifier verify --release-dir $Directory --require-ready
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release directory is not ready for signature. Complete prepare_release.py approval first."
+    }
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $ResolvedReleaseDir = Resolve-ReleaseDir -RequestedPath $ReleaseDir -ProjectRoot $ProjectRoot
+Assert-ReleaseReadyForSignature -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot
 $ResolvedGpgPath = Resolve-GpgPath -RequestedPath $GpgPath
 $ResolvedGpgHome = Resolve-GpgHome -RequestedPath $GpgHome
 Assert-IsolatedGpgHome -ResolvedGpgPath $ResolvedGpgPath -ResolvedGpgHome $ResolvedGpgHome

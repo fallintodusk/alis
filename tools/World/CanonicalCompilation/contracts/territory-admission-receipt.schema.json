@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/territory-admission-receipt-v1.json",
+  "title": "Territory contract admission receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "operation", "status", "profile_id", "contract_hash", "source_profile_sha256", "compiler_profile_sha256", "control_profile_sha256", "budget_profile_sha256", "control_receipt_sha256", "source_run_inputs_hash", "source_plan_sha256", "cell_count", "planned_source_bytes", "technical_bounds", "coverage", "evidence", "errors"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "operation": {"const": "admit_territory"},
+    "status": {"const": "accepted"},
+    "profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "contract_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "compiler_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "control_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "budget_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "control_receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_run_inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cell_count": {"type": "integer", "minimum": 1},
+    "planned_source_bytes": {"type": "integer", "minimum": 0},
+    "technical_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+    "coverage": {"type": "object"},
+    "evidence": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "byte_size"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "byte_size": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "errors": {"type": "array", "maxItems": 0}
+  }
+}

@@ -101,8 +101,10 @@ Default behavior is strict:
 - fails if unstaged tracked changes exist;
 - fails if untracked files exist.
 
-Use `--force` to bypass this check intentionally.
-`--allow-dirty` is a backward-compatible alias.
+Use `--force` to intentionally publish the current tracked and non-ignored
+untracked worktree instead of `HEAD`. This mode requires
+`--source-revision HEAD`; it must not be used to label a dirty projection as
+another revision. `--allow-dirty` is a backward-compatible alias.
 
 ## Usage
 
@@ -121,6 +123,22 @@ Real push:
 bash ./scripts/git/mirror/mirror_to_github.sh --remote-url git@github.com:org/repo.git --push
 ```
 
+Official ALIS release source uses a protected release branch. The additional
+mode rejects any repository except `fallintodusk/alis`, rejects `main` as the
+push target, requires the explicit public World manifest projection, and bases
+a new release branch on the current remote `main` tip:
+
+```bash
+bash ./scripts/git/mirror/mirror_to_github.sh \
+  --remote-url git@github.com:fallintodusk/alis.git \
+  --branch release/v2.0.0-source \
+  --public-world-manifest-root tmp/release/public-world/Manifests \
+  --official-release --push
+```
+
+Remote execution still requires explicit operator authorization. The flag
+validates the destination; it does not grant publication authority.
+
 Windows wrapper:
 ```powershell
 .\scripts\git\mirror\mirror_to_github.ps1 --remote-url git@github.com:org/repo.git --dry-run
@@ -138,7 +156,9 @@ After changing generated definitions, refresh the reviewed binary authority:
 
 This reads the live Unreal Asset Registry, requires every declared source JSON
 to have a generated asset with the same normalized source hash, and rewrites
-the plugin-owned authority manifest. Review and commit source, `.uasset`, and
+the plugin-owned authority manifest. JSON source authentication normalizes line
+endings so the same Git bytes remain valid in Windows and Unix checkouts.
+Review and commit source, `.uasset`, and
 manifest changes together. Release composition then requires a clean tree.
 
 Compose the text-only mirror preview and its matching binary developer payload:
@@ -147,21 +167,21 @@ Compose the text-only mirror preview and its matching binary developer payload:
 .\scripts\git\mirror\mirror_to_github.ps1 `
   --dry-run --ephemeral-preview `
   --developer-release-dir ..\alis-developer-v1 `
-  --developer-version v1
+  --developer-version 1.0.0
 ```
 
 The output is one logical archive with a human-readable name. It is either one
 file:
 
 ```text
-ALIS_DeveloperProject_v1_<identity>.zip
+ALIS_DeveloperProject_1.0.0_<identity>.zip
 ```
 
 or, when large, numbered parts:
 
 ```text
-ALIS_DeveloperProject_v1_<identity>.zip.001
-ALIS_DeveloperProject_v1_<identity>.zip.002
+ALIS_DeveloperProject_1.0.0_<identity>.zip.001
+ALIS_DeveloperProject_1.0.0_<identity>.zip.002
 ```
 
 An archive below the threshold remains a single `.zip`. Larger archives are
@@ -174,11 +194,13 @@ beside the release so they remain visible before installation.
 The composer includes only:
 
 - active manifest-owned production `.uasset` and `.umap` files;
-- selected immutable canonical ZIP bundles and their active indexes;
-- the active manifest set and selected scope manifests needed to authenticate
-  the generated tree;
-- every source JSON and persistent generated `.uasset` selected by
-  `developer_asset_release.json` and its plugin-owned authority manifest.
+- selected immutable canonical ZIP bundles;
+- persistent generated `.uasset` files selected by
+  `developer_asset_release.json` and each plugin-owned authority manifest.
+
+Public source JSON, schemas, release contracts, active indexes, and owner
+manifests remain in the exact Git tag. The composer reads and authenticates
+those owners but does not duplicate their text inside the binary payload.
 
 It rejects TestData, stale generations, HLOD artifacts, incomplete source
 collections, untracked files, wrong hashes, and paths outside declared owners.
@@ -188,17 +210,18 @@ separately obtained dependency; the referenced dependency bytes are not copied.
 
 The payload is composed only after the filtered public candidate commit exists.
 Its manifest records the exact full public commit, branch, and intended source
-tag. The internal repository `HEAD` is not used as public source identity.
+tag. World assets are selected through that candidate's projected public
+manifest set, while exact binary bytes come from the clean internal owner tree.
+The internal repository `HEAD` is not used as public source identity.
 An ordinary public source-branch advance does not redefine an earlier release:
 that payload remains installable from its recorded immutable tag. Only a new
 tagged developer release creates a new source/payload pair.
 
-For publication, sign the finished developer release directory with the same
-release signer used for game archives:
-
-```powershell
-.\scripts\ue\package\sign_release.ps1 -ReleaseDir ..\alis-developer-v1
-```
+For publication, pass this exact developer directory to the combined release
+transaction in `scripts/ue/package/prepare_release.ps1`. The coordinator
+re-authenticates the archive parts and rejects extra files before the release
+owner approves and signs the complete player/developer release once. Do not
+separately sign or add files to the developer payload directory.
 
 Developer install from the exact public source tag recorded by the release:
 
@@ -210,11 +233,13 @@ Developer install from the exact public source tag recorded by the release:
   -RequireReleaseSignature
 ```
 
-The installer requires clean Git state and exact commit/tag identity, then uses
+The installer requires clean Git source state and exact commit/tag identity, then uses
 the trusted source checkout's `verify_release.ps1` to authenticate the download.
 It never executes the downloaded installer or verifier. It next verifies every
 part, archive, safe path, inventory entry, and existing target before copying.
-A conflict aborts the whole install. The receipt is ignored under
+A conflicting existing payload target aborts the whole install. Public-source
+ignore rules keep installed payload files out of Git status, so reinstalling
+the same authenticated payload is a verified no-op. The receipt is ignored under
 `Saved/DeveloperPayload`.
 
 Release copies of the installer are convenience material only and are not a
@@ -300,7 +325,7 @@ Compose the matching developer release:
 ```bash
 make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1 \
   MIRROR_DEVELOPER_RELEASE_DIR=../alis-developer-v1 \
-  MIRROR_DEVELOPER_VERSION=v1
+  MIRROR_DEVELOPER_VERSION=1.0.0
 ```
 
 Override branch or exclude file:

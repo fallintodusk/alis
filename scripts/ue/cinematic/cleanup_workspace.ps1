@@ -6,6 +6,7 @@
 [CmdletBinding()]
 param(
     [switch]$Apply,
+    [switch]$RawShotWorkingData,
     [string[]]$EditorDiagnosticFile = @()
 )
 
@@ -16,7 +17,9 @@ $auditRoot = Join-Path $projectRoot 'Saved\Validation\CinematicRelease\PackageAu
 $movieRenderRoot = Join-Path $projectRoot 'Saved\MovieRenders'
 $screenshotRoot = Join-Path $projectRoot 'Saved\Screenshots'
 $autosaveRoot = Join-Path $projectRoot 'Saved\Autosaves\ProjectWorldData\Generated\Territory'
-$ownerRoots = @($cinematicTmp, $auditRoot, $movieRenderRoot, $screenshotRoot, $autosaveRoot)
+$rawShotRoot = Join-Path $projectRoot 'Saved\CinematicRaw'
+$ownerRoots = @($cinematicTmp, $auditRoot, $movieRenderRoot, $screenshotRoot,
+    $autosaveRoot, $rawShotRoot)
 
 function Assert-OwnerPath {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -45,6 +48,59 @@ function Get-Bytes {
     return [Int64]$(if ($null -eq $sum) { 0 } else { $sum })
 }
 
+function Assert-RawShotFinalManifest {
+    param(
+        [Parameter(Mandatory = $true)][string]$FinalRoot,
+        [Parameter(Mandatory = $true)][string]$ManifestPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
+        throw '[ProjectCinematic] Raw-shot cleanup requires Final/manifest.json.'
+    }
+    $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+    $shots = @($manifest.shots)
+    if ($manifest.schema_version -ne 1 -or $manifest.status -ne 'accepted' -or
+        $shots.Count -lt 1 -or $manifest.total_shots -ne $shots.Count) {
+        throw '[ProjectCinematic] Raw-shot cleanup requires an accepted final manifest.'
+    }
+
+    $names = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::OrdinalIgnoreCase)
+    [Int64]$totalBytes = 0
+    [Int64]$totalFrames = 0
+    [Int64]$totalSeconds = 0
+    foreach ($shot in $shots) {
+        $name = [string]$shot.file
+        if ([string]::IsNullOrWhiteSpace($name) -or
+            [IO.Path]::GetFileName($name) -ne $name -or
+            [IO.Path]::GetExtension($name) -ne '.mp4' -or
+            -not $names.Add($name)) {
+            throw '[ProjectCinematic] Final manifest contains an invalid or duplicate file.'
+        }
+        $path = Join-Path $FinalRoot $name
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "[ProjectCinematic] Final manifest file is missing: $name"
+        }
+        $item = Get-Item -LiteralPath $path
+        $sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($item.Length -ne [Int64]$shot.bytes -or
+            $sha256 -ne ([string]$shot.sha256).ToLowerInvariant()) {
+            throw "[ProjectCinematic] Final manifest binding failed: $name"
+        }
+        $totalBytes += $item.Length
+        $totalFrames += [Int64]$shot.frames
+        $totalSeconds += [Int64]$shot.seconds
+    }
+
+    $actualVideos = @(Get-ChildItem -LiteralPath $FinalRoot -Filter '*.mp4' -File)
+    if ($actualVideos.Count -ne $shots.Count -or
+        $totalBytes -ne [Int64]$manifest.total_bytes -or
+        $totalFrames -ne [Int64]$manifest.total_frames -or
+        $totalSeconds -ne [Int64]$manifest.total_seconds) {
+        throw '[ProjectCinematic] Final manifest aggregate binding failed.'
+    }
+}
+
 $targets = [Collections.Generic.List[object]]::new()
 function Add-Target {
     param(
@@ -63,9 +119,24 @@ function Add-Target {
         })
 }
 
-foreach ($name in @('inspection', 'monitor', 'release_capture')) {
-    Add-Target -Path (Join-Path $cinematicTmp $name) `
-        -Reason 'Disposable ProjectCinematic working data.'
+if ($RawShotWorkingData) {
+    $finalRoot = Join-Path $rawShotRoot 'Final'
+    $manifestPath = Join-Path $finalRoot 'manifest.json'
+    Assert-RawShotFinalManifest -FinalRoot $finalRoot -ManifestPath $manifestPath
+    Add-Target -Path $cinematicTmp `
+        -Reason 'Disposable directed-shot plans, probes, reviews, and verification data.'
+    Get-ChildItem -LiteralPath $rawShotRoot -Force |
+        Where-Object { $_.FullName -ne $finalRoot } |
+        ForEach-Object {
+            Add-Target -Path $_.FullName `
+                -Reason 'Superseded directed-shot master or preview bundle.'
+        }
+}
+else {
+    foreach ($name in @('inspection', 'monitor', 'release_capture')) {
+        Add-Target -Path (Join-Path $cinematicTmp $name) `
+            -Reason 'Disposable ProjectCinematic working data.'
+    }
 }
 
 Get-ChildItem -LiteralPath $auditRoot -File -ErrorAction SilentlyContinue |
@@ -122,14 +193,18 @@ foreach ($target in $targets) {
 $evidenceRoot = Join-Path $projectRoot 'Saved\Validation\CinematicRelease\Cleanup'
 New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
 $evidencePath = Join-Path $evidenceRoot ((Get-Date -Format 'yyyyMMdd_HHmmss') + '.json')
+$preserved = @(
+    'Saved/CinematicRelease/Kazan/Current',
+    'Saved/CinematicRelease/Kazan/Previous'
+)
+if ($RawShotWorkingData) {
+    $preserved += 'Saved/CinematicRaw/Final'
+}
 $cleanupReceipt = [ordered]@{
     schema_version = 1
     status = 'accepted'
     removed_bytes = $total
-    preserved = @(
-        'Saved/CinematicRelease/Kazan/Current',
-        'Saved/CinematicRelease/Kazan/Previous'
-    )
+    preserved = $preserved
     removed = @($targets | ForEach-Object {
             [ordered]@{
                 path = $_.path.Substring($projectRoot.Length).TrimStart('\').Replace('\', '/')

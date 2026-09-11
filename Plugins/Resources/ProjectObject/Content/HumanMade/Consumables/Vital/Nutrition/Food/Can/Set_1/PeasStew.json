@@ -1,0 +1,41 @@
+{
+  "id": "PeasStew",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/SM_Can_2"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Peas Stew",
+      "description": "Canned pea stew.",
+      "iconCode": "\uFA07",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 8,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Calories": 275.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

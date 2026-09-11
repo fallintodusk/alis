@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import shutil
@@ -51,6 +52,11 @@ def sha256_file(path: Path) -> str:
 def normalized_json_md5(path: Path) -> str:
     text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
     return hashlib.md5(text.encode("utf-8"), usedforsecurity=False).hexdigest()
+
+
+def normalized_json_sha256(path: Path) -> str:
+    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -100,12 +106,19 @@ def add_entry(entries: dict[str, Entry], repo_root: Path, raw: str, kind: str, o
     return entry
 
 
-def collect_manifest_authority(repo_root: Path, owner: str, entries: dict[str, Entry]) -> list[dict[str, Any]]:
+def collect_manifest_authority(
+    repo_root: Path,
+    owner: str,
+    entries: dict[str, Entry],
+    manifest_root: Path | None = None,
+) -> list[dict[str, Any]]:
     root = plugin_root(repo_root, owner)
-    manifests = root / "Data" / "Manifests"
+    owned_manifest_root = root / "Data" / "Manifests"
+    manifests = manifest_root.resolve() if manifest_root else owned_manifest_root
+    if not manifests.is_dir():
+        raise PayloadError(f"Public World manifest root is missing: {manifests}")
     active_path = manifests / "active_set.json"
     active = read_json(active_path)
-    add_entry(entries, repo_root, active_path.relative_to(repo_root).as_posix(), "active_manifest_set", owner)
 
     selected: list[dict[str, Any]] = []
     for scope in active.get("scopes", []):
@@ -114,9 +127,9 @@ def collect_manifest_authority(repo_root: Path, owner: str, entries: dict[str, E
         expected_manifest_hash = str(scope.get("manifest_sha256", "")).lower()
         if sha256_file(manifest_path) != expected_manifest_hash:
             raise PayloadError(f"Active manifest hash mismatch: {manifest_path}")
-        add_entry(entries, repo_root, manifest_path.relative_to(repo_root).as_posix(), "scope_manifest", owner)
         manifest = read_json(manifest_path)
-        selected.append({"scope_id": scope.get("scope_id"), "manifest": manifest_path.relative_to(repo_root).as_posix()})
+        manifest_relative = (owned_manifest_root.relative_to(repo_root) / Path(*PurePosixPath(relative_manifest).parts)).as_posix()
+        selected.append({"scope_id": scope.get("scope_id"), "manifest": manifest_relative})
 
         plugin_prefix = root.relative_to(repo_root).as_posix() + "/"
         for artifact in manifest.get("artifacts", []):
@@ -136,15 +149,24 @@ def collect_manifest_authority(repo_root: Path, owner: str, entries: dict[str, E
     return selected
 
 
-def collect_canonical_authority(repo_root: Path, owner: str, entries: dict[str, Entry]) -> list[dict[str, Any]]:
+def collect_canonical_authority(
+    repo_root: Path,
+    owner: str,
+    entries: dict[str, Entry],
+    profile_ids: list[str],
+) -> list[dict[str, Any]]:
     root = plugin_root(repo_root, owner)
     canonical_root = root / "Data" / "Canonical"
     selected: list[dict[str, Any]] = []
-    if not canonical_root.is_dir():
-        return selected
-    for active_path in sorted(canonical_root.glob("*/active.json")):
+    if len(profile_ids) != len(set(profile_ids)) or not profile_ids:
+        raise PayloadError(f"Public canonical profile selection is empty or duplicated: {owner}")
+    for profile_id in sorted(profile_ids):
+        if not re.fullmatch(r"[a-z0-9_]+", profile_id):
+            raise PayloadError(f"Invalid public canonical profile id: {profile_id}")
+        active_path = canonical_root / profile_id / "active.json"
         active = read_json(active_path)
-        active_entry = add_entry(entries, repo_root, active_path.relative_to(repo_root).as_posix(), "canonical_active", owner)
+        if active.get("profile_id") != profile_id:
+            raise PayloadError(f"Canonical profile identity mismatch: {active_path}")
         bundle = active.get("bundle")
         if not isinstance(bundle, dict):
             raise PayloadError(f"Canonical authority has no bundle: {active_path}")
@@ -157,33 +179,21 @@ def collect_canonical_authority(repo_root: Path, owner: str, entries: dict[str, 
             {
                 "profile_id": active.get("profile_id"),
                 "authority_id": active.get("authority_id"),
-                "active_path": active_entry.path,
+                "active_path": active_path.relative_to(repo_root).as_posix(),
                 "bundle_path": bundle_entry.path,
             }
         )
     return selected
 
 
-def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -> list[dict[str, Any]]:
-    contract_relative, contract_path = resolve_repo_file(repo_root, ASSET_RELEASE_CONTRACT)
-    contract = read_json(contract_path)
-    contract_hash = sha256_file(contract_path)
-    add_entry(entries, repo_root, contract_relative, "asset_release_contract", "ALIS")
-    selected: list[dict[str, Any]] = []
-    for authority in contract.get("asset_authorities", []):
-        owner = str(authority.get("owner", ""))
-        if not owner or "test" in owner.lower():
-            raise PayloadError(f"Invalid public asset authority owner: {owner}")
-        if authority.get("dependency_payload_policy") != "references_only":
-            raise PayloadError(f"Public authority must not copy dependency payloads: {owner}")
-        if authority.get("license_id") not in {"MPL-2.0", "CC-BY-4.0", "CC0-1.0"}:
-            raise PayloadError(f"Unsupported public asset license: {owner}")
-        manifest_relative, manifest_path = resolve_repo_file(repo_root, str(authority.get("manifest_path", "")))
-        manifest = read_json(manifest_path)
-        add_entry(entries, repo_root, manifest_relative, "public_asset_manifest", owner)
-        if manifest.get("owner") != owner or manifest.get("release_contract_sha256") != contract_hash:
-            raise PayloadError(f"Public asset authority is stale or has the wrong owner: {manifest_relative}")
-
+def collect_generated_definition_authority(
+    repo_root: Path,
+    entries: dict[str, Entry],
+    authority: dict[str, Any],
+    manifest: dict[str, Any],
+    manifest_relative: str,
+) -> int:
+        owner = str(authority["owner"])
         collection_list = authority.get("collections", [])
         collections = {item.get("asset_class"): item for item in collection_list}
         if not collections or None in collections or len(collections) != len(collection_list):
@@ -221,7 +231,7 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
                 raise PayloadError(f"Generated package/path mismatch: {package_name}")
             if asset.get("schema_path") != collection.get("schema_path"):
                 raise PayloadError(f"Generated source schema classification drift: {source_relative}")
-            if sha256_file(source_path) != asset.get("source_sha256"):
+            if normalized_json_sha256(source_path) != asset.get("source_sha256"):
                 raise PayloadError(f"Generated source hash mismatch: {source_relative}")
             if normalized_json_md5(source_path) != asset.get("source_json_hash_md5"):
                 raise PayloadError(f"Generated source metadata mismatch: {source_relative}")
@@ -230,7 +240,6 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
             lowered = artifact_relative.lower()
             if "thirdparty" in lowered or "projectworldtestdata" in lowered or "hlod" in lowered:
                 raise PayloadError(f"Forbidden public asset payload: {artifact_relative}")
-            add_entry(entries, repo_root, source_relative, "generated_definition_source", owner)
             add_entry(entries, repo_root, artifact_relative, "generated_definition_asset", owner)
             recorded_sources.setdefault(source_root, set()).add(source_relative)
             asset_count += 1
@@ -242,9 +251,107 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
             actual = {path.relative_to(repo_root).as_posix() for path in root.rglob("*.json")}
             if actual != recorded:
                 raise PayloadError(f"Public source authority is incomplete under {source_root}")
+        return asset_count
+
+
+def collect_material_authority(
+    repo_root: Path,
+    entries: dict[str, Entry],
+    authority: dict[str, Any],
+    manifest: dict[str, Any],
+) -> int:
+    owner = str(authority["owner"])
+    recipe_root = safe_relative(str(authority.get("recipe_root", ""))).rstrip("/")
+    artifact_root = safe_relative(str(authority.get("artifact_root", ""))).rstrip("/")
+    package_root = str(authority.get("package_root", "")).rstrip("/")
+    records = manifest.get("records", [])
+    if not records:
+        raise PayloadError(f"Public material authority is empty: {owner}")
+
+    verifier_path = repo_root / "Plugins/Resources/ProjectMaterial/Tools/verify_material_authority.py"
+    spec = importlib.util.spec_from_file_location("project_material_authority_verifier", verifier_path)
+    if spec is None or spec.loader is None:
+        raise PayloadError("ProjectMaterial authority verifier could not be loaded")
+    verifier = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(verifier)
+        verified_recipes = verifier.verify_material_authority(
+            repo_root / Path(*PurePosixPath(recipe_root).parts),
+            repo_root / Path(*PurePosixPath(str(authority["manifest_path"])).parts),
+        )
+    except Exception as error:
+        raise PayloadError(f"ProjectMaterial semantic authority rejected: {error}") from error
+
+    recorded_recipes: set[str] = set()
+    recorded_packages: dict[str, str] = {}
+    for record in records:
+        recipe_relative = f"{recipe_root}/{safe_relative(str(record.get('recipe_path', '')))}"
+        resolve_repo_file(repo_root, recipe_relative)
+        recipe_path = safe_relative(str(record.get("recipe_path", "")))
+        if verified_recipes.get(recipe_path) != str(record.get("recipe_sha256", "")):
+            raise PayloadError(f"Material semantic recipe identity is invalid: {recipe_relative}")
+
+        object_path = str(record.get("output_object_path", ""))
+        package_name, separator, object_name = object_path.partition(".")
+        if not separator or not object_name or not package_name.startswith(package_root + "/"):
+            raise PayloadError(f"Material output is outside its declared package root: {object_path}")
+        artifact_relative = f"{artifact_root}/{package_name[len(package_root) + 1:]}.uasset"
+        entry = add_entry(entries, repo_root, artifact_relative, "generated_material_asset", owner)
+        if entry.sha256 != str(record.get("package_sha256", "")).lower():
+            raise PayloadError(f"Generated material hash mismatch: {artifact_relative}")
+        if package_name in recorded_packages:
+            raise PayloadError(f"Duplicate generated material package: {package_name}")
+        recorded_packages[package_name] = entry.sha256
+        recorded_recipes.add(recipe_relative)
+
+    for record in records:
+        dependency = record.get("dependency_object_path")
+        if dependency:
+            dependency_package = str(dependency).partition(".")[0]
+            if recorded_packages.get(dependency_package) != str(record.get("dependency_package_sha256", "")).lower():
+                raise PayloadError(f"Generated material dependency is outside accepted authority: {dependency}")
+
+    actual_recipes = {
+        path.relative_to(repo_root).as_posix()
+        for path in (repo_root / Path(*PurePosixPath(recipe_root).parts)).rglob("*.material.json")
+    }
+    if actual_recipes != recorded_recipes:
+        raise PayloadError(f"Public material recipe authority is incomplete under {recipe_root}")
+    return len(records)
+
+
+def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -> list[dict[str, Any]]:
+    contract_relative, contract_path = resolve_repo_file(repo_root, ASSET_RELEASE_CONTRACT)
+    contract = read_json(contract_path)
+    contract_hash = sha256_file(contract_path)
+    selected: list[dict[str, Any]] = []
+    for authority in contract.get("asset_authorities", []):
+        owner = str(authority.get("owner", ""))
+        if not owner or "test" in owner.lower():
+            raise PayloadError(f"Invalid public asset authority owner: {owner}")
+        if authority.get("dependency_payload_policy") != "references_only":
+            raise PayloadError(f"Public authority must not copy dependency payloads: {owner}")
+        if authority.get("license_id") not in {"MPL-2.0", "CC-BY-4.0", "CC0-1.0"}:
+            raise PayloadError(f"Unsupported public asset license: {owner}")
+        manifest_relative, manifest_path = resolve_repo_file(repo_root, str(authority.get("manifest_path", "")))
+        manifest = read_json(manifest_path)
+
+        kind = authority.get("authority_kind")
+        if kind == "generated_definition_manifest":
+            if manifest.get("owner") != owner or manifest.get("release_contract_sha256") != contract_hash:
+                raise PayloadError(f"Public asset authority is stale or has the wrong owner: {manifest_relative}")
+            asset_count = collect_generated_definition_authority(
+                repo_root, entries, authority, manifest, manifest_relative
+            )
+        elif kind == "material_manifest":
+            asset_count = collect_material_authority(repo_root, entries, authority, manifest)
+        else:
+            raise PayloadError(f"Unsupported public asset authority kind for {owner}: {kind}")
+
         selected.append(
             {
                 "owner": owner,
+                "authority_kind": kind,
                 "manifest_path": manifest_relative,
                 "license_id": authority.get("license_id"),
                 "distribution_class": authority.get("distribution_class"),
@@ -363,18 +470,20 @@ def write_notices(
 def compose(
     repo_root: Path,
     output_dir: Path,
-    version: str,
+    release_version: str,
+    public_source_tag: str,
     owners: list[str],
     part_size_mib: int,
     allow_dirty: bool,
     public_source_revision: str,
     public_source_branch: str,
+    world_manifest_root: Path | None = None,
 ) -> Path:
     repo_root = repo_root.resolve()
     if not re.fullmatch(r"[0-9a-f]{40}", public_source_revision):
         raise PayloadError("Public source revision must be one full lowercase Git commit SHA")
     require_git_ref(repo_root, f"refs/heads/{public_source_branch}", "branch")
-    require_git_ref(repo_root, f"refs/tags/{version}", "tag")
+    require_git_ref(repo_root, f"refs/tags/{public_source_tag}", "tag")
     if not allow_dirty:
         require_clean(repo_root)
     if output_dir.exists() and any(output_dir.iterdir()):
@@ -384,26 +493,46 @@ def compose(
     entries: dict[str, Entry] = {}
     manifest_authority: dict[str, Any] = {}
     canonical_authority: dict[str, Any] = {}
+    release_contract = read_json(repo_root / ASSET_RELEASE_CONTRACT)
+    world_authorities = {
+        str(item.get("owner", "")): item
+        for item in release_contract.get("world_authorities", [])
+        if isinstance(item, dict)
+    }
     for owner in owners:
-        manifest_authority[owner] = collect_manifest_authority(repo_root, owner, entries)
-        canonical_authority[owner] = collect_canonical_authority(repo_root, owner, entries)
+        authority = world_authorities.get(owner)
+        if not authority:
+            raise PayloadError(f"No public World authority selection exists for owner: {owner}")
+        manifest_authority[owner] = collect_manifest_authority(
+            repo_root, owner, entries, world_manifest_root if owner == "ProjectWorldData" else None
+        )
+        canonical_authority[owner] = collect_canonical_authority(
+            repo_root, owner, entries, list(authority.get("canonical_profiles", []))
+        )
     public_asset_authority = collect_public_asset_authority(repo_root, entries)
     ordered = sorted(entries.values(), key=lambda item: item.path)
+    non_binary_entries = [
+        entry.path
+        for entry in ordered
+        if PurePosixPath(entry.path).suffix.lower() not in {".uasset", ".umap", ".zip"}
+    ]
+    if non_binary_entries:
+        raise PayloadError(f"Developer payload contains public-source text: {non_binary_entries}")
     if not allow_dirty:
         ensure_tracked(repo_root, ordered)
 
     identity = {
-        "release_version": version,
+        "release_version": release_version,
         "public_source": {
             "revision": public_source_revision,
             "branch": public_source_branch,
-            "tag": version,
+            "tag": public_source_tag,
         },
         "owners": owners,
         "entries": [entry.__dict__ for entry in ordered],
     }
     payload_id = hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-    stem = f"ALIS_DeveloperProject_{sanitize_version(version)}_{payload_id[:12]}"
+    stem = f"ALIS_DeveloperProject_{sanitize_version(release_version)}_{payload_id[:12]}"
     archive = output_dir / f"{stem}.zip"
     write_bundle(repo_root, archive, ordered)
     archive_size = archive.stat().st_size
@@ -421,7 +550,7 @@ def compose(
     manifest = {
         "schema_version": 2,
         "payload_id": payload_id,
-        "release_version": version,
+        "release_version": release_version,
         "public_source": identity["public_source"],
         "project_markers": project_markers,
         "manifest_authority": manifest_authority,
@@ -460,9 +589,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--version", required=True)
+    parser.add_argument("--release-version", required=True)
+    parser.add_argument("--public-source-tag", required=True)
     parser.add_argument("--public-source-revision", required=True)
     parser.add_argument("--public-source-branch", required=True)
+    parser.add_argument("--world-manifest-root", type=Path)
     parser.add_argument("--owner", action="append", default=[])
     parser.add_argument("--part-size-mib", type=int, default=PART_LIMIT_MIB)
     parser.add_argument("--allow-dirty", action="store_true", help=argparse.SUPPRESS)
@@ -473,12 +604,14 @@ def main() -> int:
         result = compose(
             args.repo_root,
             args.output_dir,
-            args.version,
+            args.release_version,
+            args.public_source_tag,
             args.owner or ["ProjectWorldData"],
             args.part_size_mib,
             args.allow_dirty,
             args.public_source_revision,
             args.public_source_branch,
+            args.world_manifest_root,
         )
     except (PayloadError, OSError, subprocess.CalledProcessError, ValueError) as error:
         print(f"[FAIL] {error}", file=sys.stderr)

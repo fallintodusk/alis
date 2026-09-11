@@ -62,6 +62,12 @@ its own recipe or exact parent package changes.
 Manifest paths are owner-relative. Machine paths and personal host identities are not
 stored in repository authority.
 
+The owner-local `Tools/verify_material_authority.py` projects the closed V1 recipe
+normalization into release tooling. Binary transport must call this verifier before
+admitting generated material packages; a well-formed but stale manifest hash is not
+authority. Its parity with the compiler is covered by the accepted production recipes
+and the release known-bad semantic-drift control.
+
 ## Mutation lifecycle
 
 Production mutation has two owners:

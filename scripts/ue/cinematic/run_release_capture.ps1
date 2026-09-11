@@ -10,6 +10,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+$sourceStateTool = Join-Path $projectRoot 'scripts\ue\package\prepare_release.py'
 $driver = Join-Path $PSScriptRoot 'release_capture_editor.py'
 $releaseBinding = Join-Path $PSScriptRoot 'release_binding.ps1'
 $runId = [Guid]::NewGuid().ToString('N')
@@ -36,24 +37,11 @@ function Assert-Capture {
 }
 
 function Get-CaptureSourceStateDigest {
-    $parts = [Collections.Generic.List[string]]::new()
-    $parts.Add((@(& git -C $projectRoot diff --binary --no-ext-diff HEAD) -join "`n"))
-    Assert-Capture ($LASTEXITCODE -eq 0) 'Unable to read tracked source state.'
-    $untracked = @(& git -C $projectRoot ls-files --others --exclude-standard | Sort-Object)
-    Assert-Capture ($LASTEXITCODE -eq 0) 'Unable to read untracked source state.'
-    foreach ($relative in $untracked) {
-        $path = Join-Path $projectRoot $relative
-        $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-        $parts.Add("$relative|$hash")
-    }
-    $bytes = [Text.Encoding]::UTF8.GetBytes(($parts -join "`n"))
-    $sha = [Security.Cryptography.SHA256]::Create()
-    try {
-        return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    }
-    finally {
-        $sha.Dispose()
-    }
+    $output = @(& python $sourceStateTool source-state --source-root $projectRoot)
+    Assert-Capture ($LASTEXITCODE -eq 0) 'Unable to compute release source state.'
+    Assert-Capture ($output.Count -eq 1 -and $output[0] -match '^[a-f0-9]{64}$') `
+        'Release source-state tool returned an invalid digest.'
+    return $output[0]
 }
 
 function Resolve-CaptureOwnedPath {

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/operation-result-v1.json",
+  "title": "World Source Operation Result",
+  "type": "object",
+  "required": ["schema_version", "operation_id", "operation", "status", "profile_id", "inputs_hash", "path_base", "outputs", "errors"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string", "minLength": 1},
+    "operation": {"enum": ["plan", "fetch", "verify", "decode", "run", "bootstrap-tools"]},
+    "status": {"enum": ["accepted", "rejected", "failed"]},
+    "profile_id": {"type": ["string", "null"]},
+    "inputs_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "path_base": {"const": "output_root"},
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": {"type": "string"}, "path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "count": {"type": "integer", "minimum": 0}, "byte_size": {"type": "integer", "minimum": 0},
+          "lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "receipt": {"type": "object"}
+        },
+        "allOf": [{"if": {"required": ["path"]}, "then": {"required": ["sha256", "byte_size"]}}],
+        "additionalProperties": false
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["code", "message", "details"],
+        "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "details": {"type": "object"}},
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

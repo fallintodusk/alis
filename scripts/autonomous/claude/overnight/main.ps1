@@ -10,7 +10,7 @@
   powershell scripts/autonomous/claude/overnight/main.ps1
 
 .NOTES
-  - Creates branch: ai/autonomous-dev-YYYYMMDD (push blocked by pre-push hook)
+  - Can create branch: ai/autonomous-dev-YYYYMMDD (commit and push remain operator-controlled)
   - Logs to: artifacts/overnight/run-YYYYMMDD-HHMMSS.log
   - Helper: scripts/autonomous/common/discover_todos.ps1
 #>

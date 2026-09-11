@@ -20,14 +20,22 @@ package, and `cleanup_workspace.ps1 -Apply` for completed owner diagnostics.
 ## Directed raw shot capture
 
 ```powershell
-.\scripts\ue\cinematic\run_shot_capture.ps1 -PlanPath scripts\ue\cinematic\shots\<world>\<shot_id>.json
+.\scripts\ue\cinematic\run_shot_capture.ps1 -PlanPath tmp\cinematic\shots\<world>\<shot_id>.json
 ```
 
 Renders one directed camera move into a raw editable master under
-`Saved/CinematicRaw/<world>/<shot_id>/`. The committed shot plan is the source of
-truth and the LevelSequence it builds is compiled output. This route performs no
-release binding and never touches the release outputs above. Contract:
+`Saved/CinematicRaw/<shot_id>/`. The transient shot plan is the source of truth for
+that take and the LevelSequence it builds is compiled output. This route performs
+no release binding and never touches the release outputs above. Contract:
 [docs/cinematics/raw_capture.md](../../../docs/cinematics/raw_capture.md).
+
+After an accepted compact library and `Final/manifest.json` exist, remove superseded
+raw masters, preview bundles and directed-shot scratch while preserving `Final/`:
+
+```powershell
+.\scripts\ue\cinematic\cleanup_workspace.ps1 -RawShotWorkingData
+.\scripts\ue\cinematic\cleanup_workspace.ps1 -RawShotWorkingData -Apply
+```
 
 ## What lives here
 

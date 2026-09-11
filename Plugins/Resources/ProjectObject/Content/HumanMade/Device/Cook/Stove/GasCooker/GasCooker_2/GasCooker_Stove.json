@@ -1,0 +1,44 @@
+{
+    "id": "GasCooker_Stove",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Device/Cook/Stove/GasCooker/GasCooker_2/SM_GasCooker_2",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Device/Cook/Stove/GasCooker/GasCooker_2/SM_GasCooker_Door_2",
+            "transform": {
+                "location": "(X=-2 Y=0 Z=23)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "glass",
+            "asset": "/ProjectObject/HumanMade/Device/Cook/Stove/GasCooker/GasCooker_2/SM_GasCooker_2_Door_Glass",
+            "parent": "door",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "-90"
+            }
+        }
+    ]
+}

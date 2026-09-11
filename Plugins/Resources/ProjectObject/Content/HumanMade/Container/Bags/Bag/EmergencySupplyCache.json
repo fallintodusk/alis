@@ -1,0 +1,40 @@
+{
+  "id": "EmergencySupplyCache",
+  "sections": {
+    "storage": {
+      "gridSize": {
+        "x": 6,
+        "y": 4
+      },
+      "maxWeight": 30.0,
+      "maxVolume": 40.0,
+      "maxCells": 24,
+      "allowRotation": true,
+      "persistent": true,
+      "containerSlotId": "Primary",
+      "seedEntries": [
+        { "objectId": "ObjectDefinition:EmergencyPouch", "quantity": 1 },
+        { "objectId": "ObjectDefinition:EmergencyWater", "quantity": 1 },
+        { "objectId": "ObjectDefinition:EmergencyRation", "quantity": 1 },
+        { "objectId": "ObjectDefinition:EmergencyMedkit", "quantity": 1 },
+        { "objectId": "ObjectDefinition:CompactPryBar", "quantity": 1 }
+      ],
+      "lootProfileId": ""
+    }
+  },
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Container/Bags/Bag/SM_DuffleBag_1"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "LootContainer",
+      "scope": ["actor"],
+      "properties": {
+        "bOneTimeUse": "false"
+      }
+    }
+  ]
+}

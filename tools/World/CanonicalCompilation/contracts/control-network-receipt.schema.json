@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/control-network-receipt-v1.json",
+  "title": "World geodetic control-network receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "operation", "status", "control_network_id", "profile_sha256", "implementation_sha256", "inputs_hash", "execution_identity", "controls", "metrics", "errors"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "operation": {"const": "qualify_control_network"},
+    "status": {"enum": ["accepted", "failed"]},
+    "control_network_id": {"type": "string"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "execution_identity": {"type": "object"},
+    "controls": {"type": "array"},
+    "metrics": {"type": "object"},
+    "errors": {"type": "array"}
+  }
+}

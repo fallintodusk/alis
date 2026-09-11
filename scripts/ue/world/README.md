@@ -204,11 +204,14 @@ Package digests authenticate immutable shipped payload. They exclude only
 `Windows/Engine/Saved`, which UE owns for runtime-written state beneath a packaged
 install. The runner proves that executable, pak, packaged config, and other payload
 changes still move the digest; runtime state creation or updates do not masquerade as a
-package mutation.
+package mutation. Relative package paths are ordered by ordinal UTF-8 bytes before
+hashing. World, ProjectCinematic, and release composition use the same contract; run
+`scripts/ue/world/test/package_identity.Tests.ps1` after changing any implementation.
 
 Release provenance keeps committed and uncommitted identity separate. `source_revision`
-is the exact `git rev-parse HEAD`. `source_state_sha256` is the SHA-256 of the binary
-tracked diff relative to that HEAD plus sorted untracked path/content-hash entries. The
+is the exact `git rev-parse HEAD`. `source_state_sha256` is the SHA-256 of the raw binary
+tracked-diff stdout relative to that HEAD plus UTF-8 byte-sorted untracked
+path/content-hash entries. The shared release identity tool owns those exact bytes. The
 World Candidate and ProjectCinematic release binding must emit that dirty-state digest
 byte-for-byte identically; a clean revision change is rejected through `source_revision`,
 not folded into `source_state_sha256`.

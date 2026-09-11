@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/provider-metadata-v1.json",
+  "title": "Provider Source Metadata",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "provider", "release", "payload"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string"},
+    "provider": {"type": "string"},
+    "release": {"type": "string"},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}
+

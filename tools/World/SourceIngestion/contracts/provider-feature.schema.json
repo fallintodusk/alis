@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/provider-feature-v1.json",
+  "title": "Provider Feature Shard",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "provider", "release", "area", "shard_id", "features", "license"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string"},
+    "provider": {"type": "string"},
+    "release": {"type": "string"},
+    "area": {
+      "type": "object",
+      "required": ["area_id", "area_fingerprint"],
+      "properties": {"area_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+    },
+    "shard_id": {"type": "string", "pattern": "^[0-9]{4}$"},
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider_feature_id", "provider_class", "geometry", "properties", "precision", "confidence"],
+        "properties": {
+          "provider_feature_id": {"type": "string", "minLength": 1}, "provider_class": {"type": "string", "minLength": 1},
+          "geometry": {"type": "object"}, "properties": {"type": "object"}, "precision": {"type": "object"},
+          "confidence": {"type": ["object", "number", "null"]},
+          "relation_memberships": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "required": ["provider_relation_id", "relation_type", "role"],
+              "properties": {
+                "provider_relation_id": {"type": "string", "pattern": "^relation/[0-9]+$"},
+                "relation_type": {"const": "building"},
+                "role": {"enum": ["outline", "part"]}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "license": {"type": "object"}
+  },
+  "additionalProperties": false
+}

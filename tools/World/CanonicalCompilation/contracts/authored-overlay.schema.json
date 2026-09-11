@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/authored-overlay-v1.json",
+  "title": "Authored World Overlay",
+  "type": "object",
+  "required": ["$schema", "schema_version", "overlay_id", "terrain_patches", "feature_overrides", "missing_target_policy"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "overlay_id": {"type": "string", "minLength": 1},
+    "terrain_patches": {
+      "type": "array",
+      "items": {"type": "object", "required": ["patch_id", "center", "radius_m", "delta_m"], "properties": {"patch_id": {"type": "string"}, "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}, "radius_m": {"type": "number", "minimum": 0}, "delta_m": {"type": "number"}}, "additionalProperties": false}
+    },
+    "feature_overrides": {
+      "type": "array",
+      "items": {"type": "object", "required": ["feature_id", "set"], "properties": {"feature_id": {"type": "string"}, "set": {"type": "object", "minProperties": 1}}, "additionalProperties": false}
+    },
+    "missing_target_policy": {"const": "reject_and_require_rebase"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,35 @@
+{
+    "id": "KitchenCabinet_Base_Sink_Set_1",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_1/SM_KitchenSet_1",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_1/SM_KitchenSet_1_Door",
+            "transform": {
+                "location": "(X=5 Y=90 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "-85"
+            }
+        }
+    ]
+}
+

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/territory-budget-v1.json",
+  "title": "ALIS territory budget",
+  "description": "Ceilings frozen BEFORE a territory is implemented, so the first realization cannot redefine success once its cost is known. Source and canonical ceilings are hard. Unreal-side ceilings are provisional: they may be re-frozen from Slice 3/4 measurements, but a breach before that is a stop-and-decide, never a silent new baseline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "budget_id", "source_profile_id", "compiler_profile_id", "validation_profile_id", "ceilings"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "budget_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "source_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "compiler_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "validation_profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Identity the Slice 3 validation profile MUST take. It does not exist yet because its required per-leg expectations (expected_features, incremental_bounds, map_package, and a synthetic twin) are only knowable after the first territory compile; inventing them would assert untested facts."
+    },
+    "ceilings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_bytes", "canonical_bytes", "full_compile_seconds", "features", "cells", "generated_packages", "unreal_import_seconds", "cook_seconds", "installed_bytes", "generated_actor_count", "p95_frame_time_ms", "peak_memory_bytes", "peak_gpu_memory_bytes", "streaming_cell_load_seconds", "streaming_hitch_ms", "territory_traversal_seconds"],
+      "patternProperties": {
+        "^[a-z0-9_]+$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max", "unit", "kind", "basis"],
+          "properties": {
+            "max": {"type": "number", "exclusiveMinimum": 0},
+            "unit": {"type": "string"},
+            "kind": {
+              "enum": ["hard", "provisional"],
+              "description": "hard = frozen for the milestone; provisional = re-freezable from Slice 3/4 measurements, breach is a stop-and-decide."
+            },
+            "basis": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  }
+}

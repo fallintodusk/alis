@@ -1,0 +1,36 @@
+{
+  "id": "Cigarette",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Relax/Cigarette/SM_Cigarette_Single_1"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Cigarette",
+      "description": "Filtered cigarette.",
+      "iconCode": "\uF35F",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 100,
+      "tags": ["Item.Type.Currency"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false
+    }
+  }
+}
+

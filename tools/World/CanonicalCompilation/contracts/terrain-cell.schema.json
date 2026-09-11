@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/terrain-cell-v1.json",
+  "title": "Canonical Terrain Cell",
+  "type": "object",
+  "required": ["$schema", "schema_version", "grid_id", "cell_id", "bounds", "sample_spacing", "height_quantization", "vertical_provenance", "raster_alignment", "raster_component_dependencies", "core_samples", "halo_window", "height_edges", "height_border_bands", "weight_mask", "authored_patch_ids"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "grid_id": {"type": "string"},
+    "cell_id": {"type": "string"},
+    "bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "sample_spacing": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+    "height_quantization": {"type": "number"},
+    "vertical_provenance": {
+      "type": "object",
+      "required": ["source_ref", "vertical_datum", "source_accuracy_m", "confidence", "sampling_quantization_residual_m"],
+      "properties": {
+        "source_ref": {"type": "string", "minLength": 1},
+        "vertical_datum": {"type": "string", "minLength": 1},
+        "source_accuracy_m": {"type": "number", "minimum": 0},
+        "confidence": {"type": "string", "minLength": 1},
+        "sampling_quantization_residual_m": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "raster_alignment": {
+      "type": "object",
+      "required": ["authority", "source_crs", "canonical_crs", "resampling_method"],
+      "properties": {
+        "authority": {"enum": ["synthetic_fixture_affine", "pinned_gdalwarp_vrt"]},
+        "source_crs": {"type": "string"},
+        "canonical_crs": {"type": "string"},
+        "resampling_method": {"const": "bilinear"},
+        "resampling_scale": {"type": "array", "items": {"const": 1.0}, "minItems": 2, "maxItems": 2}
+      },
+      "additionalProperties": false
+    },
+    "raster_component_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["component_id", "sample_semantic_sha256"],
+        "properties": {
+          "component_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "sample_semantic_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": false
+      },
+      "uniqueItems": true
+    },
+    "core_samples": {"type": "array"},
+    "halo_window": {"type": "object"},
+    "height_edges": {"type": "object"},
+    "height_border_bands": {"type": "object"},
+    "weight_mask": {"type": "object"},
+    "authored_patch_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}

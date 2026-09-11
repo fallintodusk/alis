@@ -306,7 +306,7 @@ bGenerateNavigationOnlyAroundNavigationInvokers=True
 [/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings]
 bEnablePlugin=True
 bAllowNetworkConnection=True
-SecurityToken=9E5A82C341B561FEB76D2D9145419BC9
+SecurityToken=<redacted>
 bIncludeInShipping=False
 bAllowExternalStartInShipping=False
 bCompileAFSProject=False

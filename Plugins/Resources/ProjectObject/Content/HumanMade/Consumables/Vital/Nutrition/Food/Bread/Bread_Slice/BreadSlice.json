@@ -1,0 +1,41 @@
+{
+  "id": "BreadSlice",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Bread/Bread_Slice/SM_Bread_Slice_1"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Bread Slice",
+      "description": "Slice of white bread.",
+      "iconCode": "\uF231",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 14,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Calories": 125.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

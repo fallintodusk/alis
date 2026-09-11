@@ -1,0 +1,39 @@
+{
+	"sections": {
+		"storage": {
+			"gridSize": {
+				"x": 5,
+				"y": 5
+			},
+			"maxWeight": 24.0,
+			"maxVolume": 36.0,
+			"maxCells": 25,
+			"allowRotation": true,
+			"persistent": true,
+			"containerSlotId": "Primary",
+			"seedEntries": [
+				{ "objectId": "ObjectDefinition:Cigarette", "quantity": 3 }
+			],
+			"lootProfileId": ""
+		}
+	},
+	"capabilities": [
+		{
+			"properties":
+			{
+				"OneTimeUse": "false"
+			},
+			"scope": [
+				"actor"
+			],
+			"type": "LootContainer"
+		}
+	],
+	"id": "Loot_DeadJunky",
+	"meshes": [
+		{
+			"asset": "/ProjectObject/Human/DeadJunky/SM_DeadJunky",
+			"id": "body"
+		}
+	]
+}

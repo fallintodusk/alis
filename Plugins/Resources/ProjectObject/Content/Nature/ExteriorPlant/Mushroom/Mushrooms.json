@@ -1,0 +1,41 @@
+{
+  "id": "Mushrooms",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/Nature/ExteriorPlant/Mushroom/SM_Mushroom_1"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Mushrooms",
+      "description": "Fresh mushrooms.",
+      "icon": "/Game/Project/Resources/InventorySystem/Items/Icons/T_ICON_Mushrooms",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 4,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Calories": 90.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

@@ -1,0 +1,3 @@
+UE_PATH=C:/TestEngine/UE_A
+UE_SOURCE_PATH=G:/TestEngine-Source
+BUILD_TARGET=AlisEditor

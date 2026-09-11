@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/provenance-report-v1.json",
+  "title": "Canonical Provenance Report",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "policy_result", "sources", "feature_sources", "raster_authority", "cell_lineage", "overlay"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "policy_result": {"const": "accepted"},
+    "sources": {"type": "array", "minItems": 1},
+    "feature_sources": {"type": "array"},
+    "raster_authority": {"type": ["object", "null"]},
+    "cell_lineage": {"type": "array", "minItems": 2},
+    "overlay": {"type": "object"}
+  },
+  "additionalProperties": false
+}

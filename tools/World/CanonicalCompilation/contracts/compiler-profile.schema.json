@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/compiler-profile-v1.json",
+  "title": "World Compiler Profile",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "source_profile_id", "source_profile", "world_data_plugin", "engine_georeference_origin", "identity_namespace", "grid", "authored_overlay"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "source_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "source_profile": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+    "budget_profile": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+    "control_profile": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "engine_georeference_origin": {
+      "type": "array",
+      "items": {"type": "integer"},
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "Integer projected UE level origin. It is realization metadata and is deliberately outside the grid hash."
+    },
+    "identity_namespace": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "grid": {
+      "type": "object",
+      "required": ["terrain_grid_version", "canonical_crs", "vertical_datum", "vertical_origin_m", "coordinate_transform", "origin", "sample_spacing", "coordinate_quantization", "height_quantization", "nodata_policy", "resampling_method", "cell_quads", "alignment_cell_bounds", "halo_samples", "operation_halos"],
+      "properties": {
+        "terrain_grid_version": {"type": "integer", "minimum": 1},
+        "canonical_crs": {"type": "string", "minLength": 1},
+        "vertical_datum": {"type": "string", "minLength": 1},
+        "vertical_origin_m": {"type": "number"},
+        "coordinate_transform": {"enum": ["fixture_affine", "wgs84_utm_zone_39n", "wgs84_to_canonical_crs"]},
+        "fixture_scale_m": {"type": "number", "exclusiveMinimum": 0},
+        "origin": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+        "sample_spacing": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}, "minItems": 2, "maxItems": 2},
+        "coordinate_quantization": {"type": "number", "exclusiveMinimum": 0},
+        "height_quantization": {"type": "number", "exclusiveMinimum": 0},
+        "nodata_policy": {"const": "reject"},
+        "resampling_method": {"const": "bilinear"},
+        "cell_quads": {"type": "array", "items": {"type": "integer", "minimum": 1}, "minItems": 2, "maxItems": 2},
+        "alignment_cell_bounds": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4},
+        "halo_samples": {"type": "integer", "minimum": 1},
+        "operation_halos": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+      },
+      "additionalProperties": false
+    },
+    "raster_sampling": {
+      "type": "object",
+      "required": ["bilinear_warp_scale"],
+      "properties": {
+        "bilinear_warp_scale": {"type": "array", "items": {"const": 1.0}, "minItems": 2, "maxItems": 2}
+      },
+      "additionalProperties": false
+    },
+    "target_cells": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"type": "object", "required": ["x", "y"], "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}, "additionalProperties": false}
+    },
+    "target_cell_range": {
+      "type": "object",
+      "required": ["min_x", "max_x", "min_y", "max_y"],
+      "properties": {
+        "min_x": {"type": "integer"}, "max_x": {"type": "integer"},
+        "min_y": {"type": "integer"}, "max_y": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "quality_cells": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["role", "cells"],
+        "properties": {
+          "role": {"enum": ["dense_urban", "riverbank", "suburban", "sparse_edge", "cross_cell_boundary"]},
+          "cells": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "object", "required": ["x", "y"], "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}, "additionalProperties": false}
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "authored_overlay": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+    "fixture_features": {"type": ["string", "null"], "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+    "building_semantics": {
+      "type": "object",
+      "required": ["policy_id", "policy_version", "maximum_height_m", "coverage_tolerance_square_m", "association_policy", "incomplete_parts_policy"],
+      "properties": {
+        "policy_id": {"const": "provider_neutral_building_volumes"},
+        "policy_version": {"const": 2},
+        "maximum_height_m": {"type": "number", "exclusiveMinimum": 0},
+        "coverage_tolerance_square_m": {"type": "number", "minimum": 0},
+        "association_policy": {"const": "building_relation_then_unique_containing_outline"},
+        "incomplete_parts_policy": {"const": "outline_fallback_or_reject"}
+      },
+      "additionalProperties": false
+    },
+    "water_semantics": {
+      "type": "object",
+      "required": ["policy_id", "policy_version", "coordinate_match_tolerance_m", "class_rules", "modifier_rules", "feature_rules", "surface_groups", "width", "elevation"],
+      "properties": {
+        "policy_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "policy_version": {"type": "integer", "minimum": 1},
+        "coordinate_match_tolerance_m": {"type": "number", "exclusiveMinimum": 0},
+        "class_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["water_class", "geometry", "result"],
+            "properties": {
+              "water_class": {"type": "string", "minLength": 1},
+              "geometry": {"enum": ["point", "line", "polygon"]},
+              "result": {"enum": ["surface", "non_surface", "deferred"]},
+              "behavior": {"enum": ["standing", "flowing"]}
+            },
+            "if": {"properties": {"result": {"const": "surface"}}},
+            "then": {"required": ["behavior"]},
+            "additionalProperties": false
+          }
+        },
+        "modifier_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["tag", "value", "result"],
+            "properties": {
+              "tag": {"enum": ["tunnel", "covered", "location", "intermittent", "seasonal"]},
+              "value": {"type": "string", "minLength": 1},
+              "result": {"enum": ["visible", "hidden", "temporal"]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "feature_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_ids", "result"],
+            "properties": {
+              "source_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^(node|way|relation)/[0-9]+$"}},
+              "result": {"enum": ["surface", "non_surface", "deferred"]},
+              "behavior": {"enum": ["standing", "flowing"]}
+            },
+            "if": {"properties": {"result": {"const": "surface"}}},
+            "then": {"required": ["behavior"]},
+            "additionalProperties": false
+          }
+        },
+        "surface_groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["surface_group_id", "polygon_source_id", "flow_axis_source_ids"],
+            "properties": {
+              "surface_group_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+              "polygon_source_id": {"type": "string", "pattern": "^(way|relation)/[0-9]+$"},
+              "flow_axis_source_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^way/[0-9]+$"}}
+            },
+            "additionalProperties": false
+          }
+        },
+        "width": {
+          "type": "object",
+          "required": ["fallback_accuracy", "fallback_m", "ribbon_buffer"],
+          "properties": {
+            "fallback_accuracy": {"const": "heuristic_visual_not_surveyed"},
+            "fallback_m": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {"pattern": "^[a-z0-9_]+$"},
+              "additionalProperties": {"type": "number", "exclusiveMinimum": 0}
+            },
+            "ribbon_buffer": {
+              "type": "object",
+              "required": ["cap_style", "join_style", "quadrant_segments", "suppression_clearance_m"],
+              "properties": {
+                "cap_style": {"const": "round"},
+                "join_style": {"const": "round"},
+                "quadrant_segments": {"type": "integer", "minimum": 1},
+                "suppression_clearance_m": {"type": "number", "exclusiveMinimum": 0}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "elevation": {
+          "type": "object",
+          "required": ["quantile_interpolation", "rolling_endpoint_policy", "standing", "flowing"],
+          "properties": {
+            "quantile_interpolation": {"const": "linear_r7"},
+            "rolling_endpoint_policy": {"const": "shrink_to_available_samples"},
+            "standing": {
+              "type": "object",
+              "required": ["function_id", "function_version", "quantile", "empty_sample_fallback"],
+              "properties": {
+                "function_id": {"const": "standing_polygon_quantile"},
+                "function_version": {"type": "integer", "minimum": 1},
+                "quantile": {"type": "number", "minimum": 0, "maximum": 1},
+                "empty_sample_fallback": {"const": "ogr_point_on_surface_bilinear"}
+              },
+              "additionalProperties": false
+            },
+            "flowing": {
+              "type": "object",
+              "required": ["function_id", "function_version", "sample_spacing_m", "quantile", "rolling_radius", "direction", "loss", "tie_break"],
+              "properties": {
+                "function_id": {"const": "rolling_quantile_l1_isotonic"},
+                "function_version": {"type": "integer", "minimum": 1},
+                "sample_spacing_m": {"type": "number", "exclusiveMinimum": 0},
+                "quantile": {"type": "number", "minimum": 0, "maximum": 1},
+                "rolling_radius": {"type": "integer", "minimum": 0},
+                "direction": {"const": "non_increasing_by_source_direction"},
+                "loss": {"const": "l1"},
+                "tie_break": {"const": "lower_elevation"}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "algorithm_version": {"type": "string", "minLength": 1}
+  },
+  "oneOf": [
+    {"required": ["target_cells"], "not": {"required": ["target_cell_range"]}},
+    {"required": ["target_cell_range"], "not": {"required": ["target_cells"]}}
+  ],
+  "allOf": [
+    {"if": {"required": ["budget_profile"]}, "then": {"required": ["water_semantics"]}}
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,45 @@
+{
+  "id": "Medkit",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Health/Medical/Medkit/SM_MedKit",
+      "transform": {
+        "scale": "(X=0.5 Y=0.5 Z=0.5)"
+      }
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Medkit",
+      "description": "Stops bleeding. Contains bandages, tourniquets, plasters and medications.",
+      "iconCode": "\uF5CE",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 1,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Bleeding": -1.0,
+        "SetByCaller.Condition": 15.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/provider-feature-manifest-v1.json",
+  "title": "Provider Feature Manifest",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "provider", "release", "area", "shard_strategy", "total_features", "shards", "license"],
+  "properties": {
+    "$schema": {"type": "string"}, "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string"}, "provider": {"type": "string"}, "release": {"type": "string"},
+    "area": {"type": "object", "required": ["area_id", "area_fingerprint"]},
+    "shard_strategy": {
+      "type": "object", "required": ["kind", "version"],
+      "properties": {"kind": {"const": "provider_feature_id_range"}, "version": {"const": 1}},
+      "additionalProperties": false
+    },
+    "total_features": {"type": "integer", "minimum": 0},
+    "shards": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["shard_id", "path", "sha256", "count", "first_provider_feature_id", "last_provider_feature_id"],
+        "properties": {
+          "shard_id": {"type": "string", "pattern": "^[0-9]{4}$"}, "path": {"type": "string", "pattern": "^[^/\\\\]+$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "count": {"type": "integer", "minimum": 0},
+          "first_provider_feature_id": {"type": ["string", "null"]}, "last_provider_feature_id": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "license": {"type": "object"}
+  },
+  "additionalProperties": false
+}

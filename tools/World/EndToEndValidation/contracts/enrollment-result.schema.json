@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/enrollment-result-v1.json",
+  "title": "World authority enrollment result",
+  "type": "object",
+  "required": ["$schema", "schema_version", "operation_id", "operation", "status", "profile_id", "run_id", "world_data_plugin", "map_package", "evidence", "errors"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-validation/enrollment-result-v1.json"},
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string", "pattern": "^enroll-[0-9]{8}T[0-9]{6}Z$"},
+    "operation": {"const": "world_authority_enrollment"},
+    "status": {"enum": ["accepted", "rejected"]},
+    "profile_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "map_package": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/"},
+    "evidence": {"type": "object"},
+    "errors": {"type": "array"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "accepted"}}},
+      "then": {
+        "properties": {
+          "errors": {"maxItems": 0},
+          "evidence": {
+            "required": ["matrix", "canonical_authority", "realization_profile", "wrapper", "pre_audit", "post_audit", "enrolled_scopes"]
+          }
+        }
+      },
+      "else": {"properties": {"errors": {"minItems": 1}}}
+    }
+  ],
+  "additionalProperties": false
+}

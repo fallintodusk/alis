@@ -5,10 +5,6 @@ BEGIN OPENSSH PRIVATE KEY
 BEGIN RSA PRIVATE KEY
 BEGIN EC PRIVATE KEY
 
-# Internal infrastructure markers
-92\.255\.198\.217
-192\.168\.0\.11
-
 # Personal machine path markers and personal contact domains
 C:\\Users\\
 C:/Users/
@@ -21,8 +17,10 @@ C:/Users/
 %TEMP%
 %WSL_HOME%
 [A-Za-z]:\\Repos_Alis\\Alis
+[A-Za-z]:[\\]+Repos_Alis[\\]+Alis
 [A-Za-z]:/Repos_Alis/Alis
 [A-Za-z]:\\Repos_Alis\\site
+[A-Za-z]:[\\]+Repos_Alis[\\]+site
 [A-Za-z]:/Repos_Alis/site
 /mnt/[A-Za-z]/Repos_Alis/Alis
 /mnt/[A-Za-z]/Repos_Alis/site
@@ -34,7 +32,8 @@ C:/Users/
 <home>[\\/]+repos_alis[\\/]+cdn
 
 # Credential-shaped environment assignments
-(^|[[:space:]])[A-Z0-9_]*(PASSWORD|PASS|SECRET|SECRET_KEY|ACCESS_KEY|API_KEY|TOKEN)([A-Z0-9_]*)[[:space:]]*=[[:space:]]*[^<"'[:space:]#][^[:space:]#]{7,}
+^[[:space:]]*(export[[:space:]]+)?(\$env:)?[A-Z0-9_]*(PASSWORD|PASS|SECRET|SECRET_KEY|ACCESS_KEY|API_KEY|TOKEN)[[:space:]]*=[[:space:]]*["']?[A-Za-z0-9._@+=:/-]{8,}["']?[[:space:]]*(#.*)?$
+^[[:space:]]*(\$env:)?[A-Za-z0-9_]*(Password|Passphrase|Secret|SecretKey|AccessKey|ApiKey|APIKey|Token|password|passphrase|secret|secret_key|access_key|api_key|token)[[:space:]]*=[[:space:]]*["']?[A-Za-z0-9._@+=:/-]{8,}["']?[[:space:]]*(#.*)?$
 (^|[[:space:]])[A-Z0-9_]*DATABASE_URL[[:space:]]*=[[:space:]]*[A-Za-z][A-Za-z0-9+.-]*://[^<:@[:space:]#]+:[^<@[:space:]#]+@[^[:space:]#]+
 (^|[[:space:]])[A-Z0-9_]*URL[[:space:]]*=[[:space:]]*[A-Za-z][A-Za-z0-9+.-]*://[^<:@[:space:]#]+:[^<@[:space:]#]+@[^[:space:]#]+
 

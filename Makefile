@@ -418,15 +418,15 @@ endif
 # (UE_SOURCE_PATH key). No default here - SOT only. The guard below fails
 # ONLY this target, never unrelated make commands.
 
-# Package Shipping build with source engine + release archive + signed trust files
+# Package Shipping build with source engine + release archive.
+# Cross-owner release approval and signing are separate fail-closed steps.
 package:
 	@$(if $(strip $(UE_SOURCE_PATH)),,$(error UE_SOURCE_PATH not set - declare it in scripts/config/ue_path.conf (source-release packaging requires an explicit source engine root)))
-	@echo "Packaging Shipping build (source engine, signed release archive)..."
+	@echo "Packaging Shipping build (source engine release archive)..."
 	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
 		-File "scripts/ue/package/package_release.ps1" \
 		-EngineRoot "$(UE_SOURCE_PATH)" \
-		-CreateReleaseArchive \
-		-SignRelease
+		-CreateReleaseArchive
 
 # Documentation: Structurizr Lite (C4 Architecture Diagrams)
 structurizr-start:

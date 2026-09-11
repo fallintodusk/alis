@@ -84,7 +84,7 @@ def _authenticate_editor_world(expected_map: str) -> str:
     return actual
 
 
-def _build_sequence(plan: dict[str, object]) -> tuple[str, int]:
+def _build_sequence(plan: dict[str, object]) -> tuple[str, int, str]:
     shot_id = str(plan["id"])
     fps = int(plan["fps"])
     total_frames = int(round(float(plan["duration"]) * fps))
@@ -154,7 +154,7 @@ def _build_sequence(plan: dict[str, object]) -> tuple[str, int]:
     cut.set_camera_binding_id(binding_id)
 
     unreal.EditorAssetLibrary.save_asset(asset_path)
-    return asset_path, total_frames
+    return asset_path, total_frames, binding.get_id().to_string()
 
 
 def main() -> None:
@@ -164,11 +164,12 @@ def main() -> None:
     _write_status("starting", id=plan["id"])
 
     loaded_map = _authenticate_editor_world(str(plan["map"]))
-    preset = unreal.load_asset(str(plan.get("preset", DEFAULT_PRESET)))
+    preset_path = str(plan.get("preset", DEFAULT_PRESET))
+    preset = unreal.load_asset(preset_path)
     if preset is None:
-        raise ValueError(f"Preset could not be loaded: {plan.get('preset', DEFAULT_PRESET)}")
+        raise ValueError(f"Preset could not be loaded: {preset_path}")
 
-    sequence_path, total_frames = _build_sequence(plan)
+    sequence_path, total_frames, camera_binding = _build_sequence(plan)
 
     world = unreal.EditorLevelLibrary.get_editor_world()
     for name in (
@@ -230,6 +231,8 @@ def main() -> None:
         "queued",
         map=loaded_map,
         sequence=sequence_path,
+        camera_binding=camera_binding,
+        preset=preset_path,
         frames=total_frames,
         scalability=CAPTURE_SCALABILITY,
         engine_version=unreal.SystemLibrary.get_engine_version(),

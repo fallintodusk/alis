@@ -21,9 +21,19 @@ third of the time and a twentieth of the disk of a real take, with editor start-
 now the floor rather than the render. Use it for every framing change.
 
 The wrapper cold-starts an isolated editor on the plan's map, renders through the
-existing MRQ production preset, checks the master with `ffprobe`, and promotes to
-`Saved/CinematicRaw/<id>/` with the clip, the plan, a small receipt, the editor log,
-and first/middle/last frames. `Saved/` is untracked.
+selected MRQ preset, checks the master with `ffprobe`, and promotes to
+`Saved/CinematicRaw/<id>/` with the clip, plan, authenticated receipt, editor log,
+and first/middle/last frames. The receipt binds the map, sequence, camera binding,
+preset, engine/scalability state, plan, master and verification-frame hashes.
+Promotion happens only after that bundle is complete. On failure, the owner stops
+its editor and deletes large render scratch while retaining small diagnostics under
+`tmp/cinematic/shot_capture/<run-id>/`. `Saved/` is untracked.
+
+Once approved compact files have been copied to `Saved/CinematicRaw/Final/` and an
+accepted manifest binds every file, `cleanup_workspace.ps1 -RawShotWorkingData`
+removes the superseded per-shot masters, previews and `tmp/cinematic/` data. Run it
+without `-Apply` first. The command refuses cleanup when the accepted manifest is
+missing and never targets `Final/`.
 
 Why a shot looks the way it does is owned by
 [visual_language.md](visual_language.md). How it is framed and moved in numbers -
@@ -59,21 +69,23 @@ somewhere else - it has produced one of `/City17/Maps/City17_Persistent_WP` here
 driver compares the loaded world to the request before authoring, and the wrapper
 compares the receipt to the plan. Keep both.
 
-**The render only has a small part of the world loaded.** The render's one World
-Partition streaming source is a sphere pinned at world origin, sized for interior
-scenes and not following the camera:
+**The render only has a small part of the world loaded around the camera.** The
+cinematic GameMode updates its one World Partition streaming source from the active
+view target every 0.1 seconds. During Sequencer playback that source follows the
+CineCamera with a 3 km offline-capture radius:
 
 ```text
-WP streaming source OK | center=X=0.000 Y=0.000 Z=0.000 radius=100000cm
+WP streaming source OK | radius=300000cm
 ```
 
-Everything outside it renders as a flat void wall - the ocean plane showing under the
-missing cells. Two routes out of this do **not** work, both tried and disproved, so do
-not spend time on them again:
+The registration log records the initial source center; it does not prove that the
+source stays there. A wide aerial camera can still see beyond the moving 3 km sphere,
+where unloaded ground renders as a hard edge or exposes the plane beneath it. Two
+routes out of this do **not** enlarge this explicit source shape, so do not spend time
+on them again:
 
 - Editing the cinematic GameMode's class default from the driver. The spawned
-  instance keeps the default radius; the log above is from a run where the default
-  had been set ten times larger.
+  instance keeps the configured radius.
 - A `streaming_radius_m` plan field expanding into World Partition console commands.
   The commands demonstrably executed - all nine appeared in the log - but they widen
   the *grid* loading range, and this source sets `bUseGridLoadingRange = false`, so it
@@ -81,15 +93,11 @@ not spend time on them again:
   and its commands have been **removed**; do not reintroduce them. Warm-up ticks are
   now applied unconditionally, which is the part that did matter.
 
-The loaded footprint is measured by rendering a nadir preview and reading the cell
-blob off the frame - not from config, and not from a scouting still. It came out
-cross-shaped, roughly 5.0 x 4.7 km around origin. Anything outside is void.
-
-Until the source itself is addressed, the rule is simply: the camera and every part
-of the visible ground stay inside the measured footprint, and the `-Preview` pixels
-are the authority. Do not carry a fixed standoff distance around - four kilometres
-from origin can already be outside the loaded region, so the envelope decides the
-distance, not a number in a document. The pitch floor per lens is in the shot board.
+The rule is therefore local to every pose: frame the visible ground inside the
+camera-following envelope. The 3 km radius supports city-scale skyline shots without
+changing gameplay streaming. The `-Preview` pixels are the authority because frustum, terrain
+relief and grid granularity make a document-only distance rule insufficient. The
+pitch guidance is in the shot board.
 
 **Scouting stills over-promise.** `capture_visual_evidence.ps1` loads the full
 partition, so it shows a complete world at poses the renderer cannot fill. A framing

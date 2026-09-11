@@ -1,0 +1,41 @@
+{
+	"capabilities": [
+		{
+			"properties":
+			{
+				"InitialQuantity": "1",
+				"PickupTime": "0"
+			},
+			"scope": [
+				"actor"
+			],
+			"type": "Pickup"
+		}
+	],
+	"id": "Cap",
+	"meshes": [
+		{
+			"asset": "/ProjectObject/HumanMade/Clothes/Head/SM_cap",
+			"id": "body"
+		}
+	],
+	"sections":
+	{
+		"item":
+		{
+			"canBeDropped": true,
+			"canBeTraded": true,
+			"description": "Yellow baseball cap.",
+			"displayName": "Cap",
+			"equipSlotTag": "Item.EquipmentSlot.Head",
+			"iconCode": "",
+			"isQuestItem": false,
+			"maxStack": 1,
+			"tags": [
+				"Item.Type.Equipment"
+			],
+			"volume": 0.050000000000000003,
+			"weight": 0.10000000000000001
+		}
+	}
+}

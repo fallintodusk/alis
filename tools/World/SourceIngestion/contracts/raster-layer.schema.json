@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/raster-layer-v1.json",
+  "title": "Provider Raster Layer",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "provider", "release", "area", "raster_class", "crs", "vertical_datum", "vertical_provenance", "pixel_type", "size", "transform", "sample_storage", "source_hashes", "license"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string"},
+    "provider": {"type": "string"},
+    "release": {"type": "string"},
+    "area": {
+      "type": "object",
+      "required": ["area_id", "label", "bbox", "axis_order", "crs", "area_fingerprint"],
+      "properties": {"area_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+    },
+    "raster_class": {"type": "string"},
+    "crs": {"type": "object"},
+    "vertical_datum": {"type": ["object", "null"]},
+    "vertical_provenance": {
+      "type": "object",
+      "required": ["source_ref", "source_accuracy_m", "confidence"],
+      "properties": {
+        "source_ref": {"type": "string", "minLength": 1},
+        "source_accuracy_m": {"type": "number", "minimum": 0},
+        "confidence": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "pixel_type": {"type": "string"},
+    "size": {"type": "array", "minItems": 2, "maxItems": 2},
+    "transform": {"type": "array", "minItems": 6, "maxItems": 6},
+    "nodata": {},
+    "sample_storage": {"enum": ["artifact", "embedded"]},
+    "data_artifact": {
+      "type": "object",
+      "required": ["path_base", "path", "format", "sha256", "byte_size"],
+      "properties": {
+        "path_base": {"const": "document_parent"},
+        "path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "format": {"const": "COG"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byte_size": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "source_hashes": {"type": "object"},
+    "license": {"type": "object"},
+    "provider_payload": {"type": "object"}
+  },
+  "allOf": [
+    {"if": {"properties": {"sample_storage": {"const": "artifact"}}}, "then": {"required": ["data_artifact"]}}
+  ],
+  "additionalProperties": false
+}

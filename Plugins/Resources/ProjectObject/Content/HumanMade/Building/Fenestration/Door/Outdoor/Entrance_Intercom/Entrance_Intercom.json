@@ -1,0 +1,32 @@
+{
+    "id": "Entrance_Intercom",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_Intercom/SM_Frame_OutDoor_Intercom",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)"
+            }
+        },
+        {
+            "id": "sash",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_Intercom/SM_OutDoor",
+            "parent": "frame",
+            "transform": {
+                "location": "(X=5 Y=1 Z=3)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash"
+            ],
+            "properties": {
+                "OpenAngle": "-130"
+            }
+        }
+    ]
+}
+

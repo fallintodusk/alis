@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/validation-report-v1.json",
+  "title": "Canonical Validation Report",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "status", "checks", "determinism_scope"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "status": {"const": "accepted"},
+    "checks": {"type": "array", "minItems": 6, "items": {"type": "object", "required": ["check", "status", "details"], "properties": {"check": {"type": "string"}, "status": {"const": "passed"}, "details": {"type": "object"}}, "additionalProperties": false}},
+    "determinism_scope": {"type": "object"}
+  },
+  "additionalProperties": false
+}

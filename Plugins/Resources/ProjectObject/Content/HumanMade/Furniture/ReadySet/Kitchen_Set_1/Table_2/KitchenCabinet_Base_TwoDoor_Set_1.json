@@ -1,0 +1,53 @@
+{
+    "id": "KitchenCabinet_Base_TwoDoor_Set_1",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_2/SM_KitchenSet_2",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door_l",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_2/SM_KitchenSet_2_Door_L",
+            "transform": {
+                "location": "(X=24 Y=37 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door_r",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_2/SM_KitchenSet_2_Door_R",
+            "transform": {
+                "location": "(X=62.633942 Y=12.881779 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_l"
+            ],
+            "properties": {
+                "OpenAngle": "85"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_r"
+            ],
+            "properties": {
+                "OpenAngle": "-80"
+            }
+        }
+    ]
+}
+

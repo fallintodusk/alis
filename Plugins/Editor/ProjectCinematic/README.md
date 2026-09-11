@@ -9,7 +9,10 @@ Queue execution. Packaged gameplay has no dependency on this plugin.
 - `ACinematicGameMode` adapts normal single-player startup for Record and Render.
 - Record keeps input and gameplay UI active for Take Recorder.
 - Render blocks input, hides the phantom gameplay pawn, removes viewport widgets,
-  and follows the active camera with a World Partition streaming source.
+  and follows the active camera with a 3 km World Partition streaming source.
+  The radius is deliberately larger than gameplay loading range because MRQ is an
+  offline city-scale capture path; complete foreground, skyline, and background
+  take precedence over realtime residency.
 - Scripts own request validation, MRQ execution, evidence, `Current`/`Previous`
   promotion, and owner-scoped cleanup.
 

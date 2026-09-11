@@ -1,0 +1,34 @@
+{
+    "id": "KitchenCabinet_Base_OneDoor_Set_1",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_4/SM_KitchenSetD",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_4/SM_KitchenSetD_Door",
+            "transform": {
+                "location": "(X=40.668274 Y=1.881794 Z=0.000000)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        }
+    ]
+}

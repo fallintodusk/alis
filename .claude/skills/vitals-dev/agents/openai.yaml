@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vitals Dev"
+  short_description: "Implement and test ALIS vitals gameplay and UI"
+  default_prompt: "Use $vitals-dev to implement and validate a vitals gameplay or UI change end to end."

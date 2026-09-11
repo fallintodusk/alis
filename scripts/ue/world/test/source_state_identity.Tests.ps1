@@ -11,6 +11,8 @@ Describe 'World and ProjectCinematic release source identity' {
             'scripts\ue\world\test\performance\run_kazan_playable_tour.ps1'
         $script:captureRunner = Join-Path $script:repoRoot `
             'scripts\ue\cinematic\run_release_capture.ps1'
+        $script:sourceStateTool = Join-Path $script:repoRoot `
+            'scripts\ue\package\prepare_release.py'
 
         function Assert-PlayableTour {
             param([bool]$Condition, [string]$Message)

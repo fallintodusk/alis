@@ -150,7 +150,8 @@ If you work from WSL, the Makefile includes wrappers to invoke Windows UE tools 
   - `make check-blueprints` and `make check-assets` print exact `UnrealEditor-Cmd.exe` commands; run them in Windows PowerShell for reliability. Logs are written under `Saved/Validation/Reports/`.
 
 - UE path configuration
-  - Set once in `scripts/config/ue_path.conf` (single source of truth)
+  - Copy `scripts/config/ue_path.conf.example` to the ignored
+    `scripts/config/ue_path.local.conf`, then set the local launcher UE 5.8 path
   - Verify from PowerShell: `Test-Path "$env:UE_PATH/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe"`
 
 - Quick example (from WSL)
@@ -243,9 +244,9 @@ Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL;
  **Cause:** the configured Unreal Engine is not detected
  
  **Fix:**
- ```bash
+ ```powershell
  # Create config
- cp scripts/config/ue_path.conf.example scripts/config/ue_path.conf
+ Copy-Item scripts/config/ue_path.conf.example scripts/config/ue_path.local.conf
  
  # Edit: UE_PATH="%UE_PATH%"
  ```
@@ -292,7 +293,7 @@ scripts/ue/package/package_release_source.bat
 ## Quick Reference
 
 **Scripts location:** `scripts/ue/build/`
-**Config:** `scripts/config/ue_path.conf`
+**Machine-local config:** `scripts/config/ue_path.local.conf`
 **Module rebuild:** `scripts/ue/build/rebuild_module_safe.ps1`
 **Validation:** `scripts/ue/check/validate_*.bat`
 

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/raster-mosaic-layer-v1.json",
+  "title": "Accepted composite raster layer",
+  "type": "object",
+  "required": ["$schema", "schema_version", "snapshot_id", "provider", "release", "area", "realized_bounds", "raster_class", "crs", "vertical_datum", "vertical_provenance", "pixel_type", "size", "transform", "nodata", "sample_storage", "data_artifact", "source_hashes", "license", "mosaic_contract_id", "mosaic_authority_id", "sample_semantic_sha256", "components"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "provider": {"const": "Composite admitted raster"},
+    "release": {"type": "string", "minLength": 1},
+    "area": {"type": "object", "required": ["area_id", "label", "bbox", "axis_order", "crs", "area_fingerprint"]},
+    "realized_bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "raster_class": {"type": "string", "minLength": 1},
+    "crs": {"type": "object"},
+    "vertical_datum": {"type": "object"},
+    "vertical_provenance": {
+      "type": "object",
+      "required": ["source_ref", "source_accuracy_m", "confidence"],
+      "properties": {
+        "source_ref": {"type": "string", "minLength": 1},
+        "source_accuracy_m": {"type": "number", "minimum": 0},
+        "confidence": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "pixel_type": {"const": "Float32"},
+    "size": {"type": "array", "items": {"type": "integer", "minimum": 1}, "minItems": 2, "maxItems": 2},
+    "transform": {"type": "array", "items": {"type": "number"}, "minItems": 6, "maxItems": 6},
+    "nodata": {},
+    "sample_storage": {"const": "artifact"},
+    "data_artifact": {"type": "object", "required": ["path_base", "path", "format", "sha256", "byte_size"]},
+    "source_hashes": {"type": "object"},
+    "license": {"type": "object"},
+    "mosaic_contract_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mosaic_authority_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sample_semantic_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "components": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["component_id", "source_id", "snapshot_id", "realized_bounds", "size", "transform", "sample_semantic_sha256", "artifact_sha256"],
+        "properties": {
+          "component_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_id": {"type": "string"},
+          "snapshot_id": {"type": "string"},
+          "realized_bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+          "size": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+          "transform": {"type": "array", "items": {"type": "number"}, "minItems": 6, "maxItems": 6},
+          "sample_semantic_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

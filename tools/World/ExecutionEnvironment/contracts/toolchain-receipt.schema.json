@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/toolchain-receipt-v1.json",
+  "title": "World Toolchain Receipt",
+  "type": "object",
+  "required": ["schema_version", "lock_sha256", "install_id", "components"],
+  "properties": {
+    "$schema": {"type": "string"}, "schema_version": {"const": 1},
+    "lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "install_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "components": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object", "required": ["component_id", "version", "binary_hashes", "runtime_dependencies", "capabilities"],
+        "properties": {
+          "component_id": {"type": "string"}, "version": {"type": "string"},
+          "binary_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+          "runtime_dependencies": {"type": "array", "items": {"type": "object"}},
+          "capabilities": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

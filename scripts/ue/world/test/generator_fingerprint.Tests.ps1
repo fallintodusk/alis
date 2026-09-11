@@ -109,6 +109,22 @@ Describe 'ProjectWorld producer-local generator fingerprints' {
         }
     }
 
+    It 'is stable across text line endings but moves for a semantic edit' {
+        $path = Join-Path $projectRoot $shared
+        [System.IO.File]::WriteAllText($path, "line-one`r`nline-two`r`n")
+        $crlf = Get-ProjectWorldGeneratorFingerprint `
+            -ProjectRoot $projectRoot -ProducerId 'map:v1'
+
+        [System.IO.File]::WriteAllText($path, "line-one`nline-two`n")
+        $lf = Get-ProjectWorldGeneratorFingerprint `
+            -ProjectRoot $projectRoot -ProducerId 'map:v1'
+        $lf | Should -Be $crlf
+
+        [System.IO.File]::WriteAllText($path, "line-one`nline-three`n")
+        Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot `
+            -ProducerId 'map:v1' | Should -Not -Be $lf
+    }
+
     It 'moves only Building producers for an explicitly scoped shared parser region' {
         $producerIds = @(
             'map:v1', 'presentation:v1', 'project_landscape:v1', 'project_water_mesh:v1',

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/diff-report-v1.json",
+  "title": "Canonical Compilation Diff Report",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "mode", "rebuilt_cells", "reused_cells", "terrain_rebuilt_cells", "feature_rebuilt_cells", "manifest_updated_cells", "added_features", "changed_features", "removed_features"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "mode": {"enum": ["full", "incremental"]},
+    "rebuilt_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "reused_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "terrain_rebuilt_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "feature_rebuilt_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "manifest_updated_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "added_features": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "changed_features": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "removed_features": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}

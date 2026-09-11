@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/raster-component-v1.json",
+  "title": "Verified normalized raster component",
+  "type": "object",
+  "required": ["$schema", "schema_version", "component_id", "source_id", "snapshot_id", "requested_clip", "realized_bounds", "raster_class", "crs", "vertical_datum", "accuracy", "pixel_type", "size", "transform", "nodata", "sample_semantic_sha256", "data_artifact", "source_hashes"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "component_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_id": {"type": "string", "minLength": 1},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "requested_clip": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "realized_bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "raster_class": {"type": "string", "minLength": 1},
+    "crs": {"type": "object"},
+    "vertical_datum": {"type": "object"},
+    "accuracy": {"type": "object"},
+    "pixel_type": {"const": "Float32"},
+    "size": {"type": "array", "items": {"type": "integer", "minimum": 1}, "minItems": 2, "maxItems": 2},
+    "transform": {"type": "array", "items": {"type": "number"}, "minItems": 6, "maxItems": 6},
+    "nodata": {},
+    "sample_semantic_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "data_artifact": {"$ref": "#/$defs/artifact"},
+    "source_hashes": {"type": "object"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["path_base", "path", "format", "sha256", "byte_size"],
+      "properties": {
+        "path_base": {"const": "document_parent"},
+        "path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "format": {"const": "COG"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byte_size": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

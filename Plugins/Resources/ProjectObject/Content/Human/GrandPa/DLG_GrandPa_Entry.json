@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_GrandPa_Entry",
+  "startNode": "greeting",
+  "nodes": {
+    "greeting": {
+      "speaker": "Grandpa",
+      "text": "Wait. Wait. You alone out there? You got water?",
+      "options": [
+        {
+          "text": "Just me. I've got water.",
+          "next": "give_water",
+          "condition": {
+            "type": "inventory",
+            "id": "WaterBottle",
+            "exact": false
+          }
+        },
+        {
+          "text": "I... I... I can't... Why is this?...",
+          "next": "backstory"
+        },
+        {
+          "text": "[Walk away in silence.]",
+          "next": "$end"
+        }
+      ]
+    },
+    "backstory": {
+      "speaker": "Grandpa",
+      "text": "Why is this happening, son? I don't know either. Water - please. Just water.",
+      "options": [
+        {
+          "text": "Here, take this water.",
+          "next": "give_water",
+          "condition": {
+            "type": "inventory",
+            "id": "WaterBottle",
+            "exact": false
+          }
+        },
+        {
+          "text": "Hold on. I'll be back.",
+          "next": "come_back"
+        },
+        {
+          "text": "[Walking away from a dying man.]",
+          "next": "$end"
+        }
+      ]
+    },
+    "come_back": {
+      "speaker": "Grandpa",
+      "text": "Hurry, son. I'm... I'm so tired.",
+      "next": "$end"
+    },
+    "give_water": {
+      "speaker": "Grandpa",
+      "text": "Water? Let me see it. Hold it up to the peephole.",
+      "actions": ["inventory.consume:WaterBottle*"],
+      "next": "peephole_see"
+    },
+    "peephole_see": {
+      "speaker": "Grandpa",
+      "text": "Thank... thank you. Wait... my hands... wait...",
+      "actions": ["lock.unlock"],
+      "next": "open_door"
+    },
+    "open_door": {
+      "speaker": "Grandpa",
+      "text": "Come in, son.",
+      "actions": ["motion.open", "dialogue.set_tree:/ProjectObject/Human/GrandPa/DLG_GrandPa_Inside.DLG_GrandPa_Inside"],
+      "next": "$end"
+    }
+  }
+}

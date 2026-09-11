@@ -1,0 +1,38 @@
+{
+  "id": "EmergencyWater",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleBig/SM_WaterBottleBig"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+  "sections": {
+    "item": {
+      "displayName": "Emergency Water",
+      "description": "A sealed field bottle holding enough clean water to stabilize dehydration.",
+      "iconCode": "\uFF83",
+      "weight": 0.8,
+      "volume": 0.75,
+      "maxStack": 1,
+      "gridSize": "2,2",
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "magnitudes": {
+        "SetByCaller.Hydration": 0.75
+      },
+      "consumeOnUse": true
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-presentation/presentation-result-v1.json",
+  "title": "World Presentation Gate Result",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "operation_id",
+    "status",
+    "map_package",
+    "presentation_profile",
+    "presentation_profile_sha256",
+    "runtime_profile",
+    "runtime_profile_sha256",
+    "executable",
+    "build_configuration",
+    "engine_version",
+    "machine_profile_id",
+    "gpu_adapter",
+    "gpu_driver",
+    "rhi",
+    "resolution_x",
+    "resolution_y",
+    "scalability_level",
+    "warmup_frames",
+    "sample_frames_per_camera",
+    "p95_frame_time_budget_ms",
+    "worst_p95_frame_time_ms",
+    "requested_camera_roles",
+    "viewpoints",
+    "errors"
+  ],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-presentation/presentation-result-v1.json"},
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "status": {"enum": ["accepted", "rejected"]},
+    "map_package": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/Representative/"},
+    "presentation_profile": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "presentation_profile_sha256": {"$ref": "#/$defs/sha256"},
+    "runtime_profile": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "runtime_profile_sha256": {"$ref": "#/$defs/sha256"},
+    "executable": {"type": "string", "minLength": 1},
+    "build_configuration": {"type": "string", "minLength": 1},
+    "engine_version": {"type": "string", "minLength": 1},
+    "machine_profile_id": {"type": "string", "pattern": "^[a-z0-9_-]+$"},
+    "gpu_adapter": {"type": "string", "minLength": 1},
+    "gpu_driver": {"type": "string", "minLength": 1},
+    "rhi": {"type": "string", "minLength": 1},
+    "resolution_x": {"type": "integer", "minimum": 0},
+    "resolution_y": {"type": "integer", "minimum": 0},
+    "scalability_level": {"type": "integer", "minimum": 0, "maximum": 4},
+    "warmup_frames": {"type": "integer", "minimum": 0},
+    "sample_frames_per_camera": {"type": "integer", "minimum": 0},
+    "p95_frame_time_budget_ms": {"type": "number", "minimum": 0},
+    "worst_p95_frame_time_ms": {"type": "number", "minimum": 0},
+    "requested_camera_roles": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+      "uniqueItems": true
+    },
+    "viewpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["camera_role", "screenshot", "sample_count", "p95_frame_time_ms"],
+        "properties": {
+          "camera_role": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "screenshot": {"type": "string", "minLength": 1},
+          "sample_count": {"type": "integer", "minimum": 0},
+          "p95_frame_time_ms": {"type": "number", "minimum": 0}
+        },
+        "additionalProperties": false
+      }
+    },
+    "errors": {"type": "array"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

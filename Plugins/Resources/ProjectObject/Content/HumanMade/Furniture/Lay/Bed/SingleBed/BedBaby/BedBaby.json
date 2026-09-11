@@ -1,0 +1,36 @@
+{
+    "id": "BedBaby",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/Lay/Bed/SingleBed/BedBaby/SM_BedBaby",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer",
+            "asset": "/ProjectObject/HumanMade/Furniture/Lay/Bed/SingleBed/BedBaby/SM_BedBaby_Drawer",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=0 Y=0 Z=0)",
+                "OpenPosition": "(X=-16 Y=-26 Z=0)"
+            }
+        }
+    ]
+}
+

@@ -1,0 +1,48 @@
+{
+  "$schema": "../../Data/Schemas/object.schema.json",
+  "id": "GasCloud",
+
+  "triggers": [
+    {
+      "id": "Trigger",
+      "kind": "Box",
+      "extent": "(X=500 Y=500 Z=300)",
+      "postProcess": {
+        "priority": 1.0,
+        "blendRadius": 100.0,
+        "blendWeight": 0.4,
+        "material": "/ProjectMaterial/Effect/PP_Fog_Mat_Inst.PP_Fog_Mat_Inst",
+        "materialWeight": 1.0,
+        "settings": {
+          "bOverride_SceneColorTint": true,
+          "SceneColorTint": "(R=1.0 G=0.15 B=0.15 A=1.0)",
+          "bOverride_ColorGamma": true,
+          "ColorGamma": "(X=1.93 Y=1.0 Z=1.0 W=1.0)",
+          "bOverride_ColorGain": true,
+          "ColorGain": "(X=2.0 Y=1.0 Z=1.0 W=1.0)",
+          "bOverride_ColorSaturationHighlights": true,
+          "ColorSaturationHighlights": "(X=1.0 Y=0.04 Z=1.0 W=1.0)",
+          "bOverride_VignetteIntensity": true,
+          "VignetteIntensity": 0.4,
+          "bOverride_BlueCorrection": true,
+          "BlueCorrection": 0.6
+        }
+      }
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "EnvironmentEffect",
+      "scope": ["actor"],
+      "properties": {
+        "TriggerComponentName": "Trigger",
+        "EntryMagnitudes": "SetByCaller.Poisoned=0.7;SetByCaller.MovementSpeedMultiplier=-0.75",
+        "ExitMagnitudes": "SetByCaller.MovementSpeedMultiplier=0.75",
+        "PeriodicMagnitudes": "SetByCaller.Condition=-5.0",
+        "TickInterval": "1.0",
+        "bAffectPawnsOnly": "true"
+      }
+    }
+  ]
+}

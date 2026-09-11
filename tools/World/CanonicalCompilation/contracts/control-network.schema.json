@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/control-network-v1.json",
+  "title": "World geodetic control network",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "control_network_id", "source_profile_id", "compiler_profile_id", "horizontal_crs", "projected_crs", "vertical_datum", "transform_id", "product_center_control_id", "product_radius_m", "coordinate_quantization_m", "gates", "controls"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "control_network_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "source_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "compiler_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "horizontal_crs": {"const": "EPSG:4326"},
+    "projected_crs": {"type": "string", "minLength": 1},
+    "vertical_datum": {"type": "string", "minLength": 1},
+    "transform_id": {"type": "string", "minLength": 1},
+    "product_center_control_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "product_radius_m": {"type": "number", "exclusiveMinimum": 0},
+    "coordinate_quantization_m": {"type": "number", "minimum": 0},
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numeric_forward_inverse_m", "control_residual_allowance_m", "pairwise_distance_error_m", "boundary_corner_error_m", "projection_scale_delta_m"],
+      "properties": {
+        "numeric_forward_inverse_m": {"type": "number", "exclusiveMinimum": 0},
+        "control_residual_allowance_m": {"type": "number", "minimum": 0},
+        "pairwise_distance_error_m": {"type": "number", "exclusiveMinimum": 0},
+        "boundary_corner_error_m": {"type": "number", "exclusiveMinimum": 0},
+        "projection_scale_delta_m": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["control_id", "name", "role", "wgs84", "expected_projected", "horizontal_provenance", "horizontal_class", "horizontal_tolerance_m", "vertical"],
+        "properties": {
+          "control_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "name": {"type": "string", "minLength": 1},
+          "role": {"enum": ["landmark", "boundary"]},
+          "wgs84": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+          "expected_projected": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+          "horizontal_provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "method", "accuracy_m", "confidence", "evidence"],
+            "properties": {
+              "source_id": {"type": "string", "minLength": 1},
+              "method": {"type": "string", "minLength": 1},
+              "accuracy_m": {"type": ["number", "null"], "minimum": 0},
+              "confidence": {"type": "string", "minLength": 1},
+              "evidence": {"type": "string", "minLength": 1}
+            }
+          },
+          "horizontal_class": {"enum": ["precision", "standard", "context"]},
+          "horizontal_tolerance_m": {"type": "number", "exclusiveMinimum": 0},
+          "vertical": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mode", "provenance_ref", "accuracy_m"],
+            "properties": {
+              "mode": {"enum": ["unknown", "surface_snap", "absolute"]},
+              "provenance_ref": {"type": ["string", "null"]},
+              "accuracy_m": {"type": ["number", "null"], "minimum": 0}
+            }
+          }
+        }
+      }
+    }
+  }
+}

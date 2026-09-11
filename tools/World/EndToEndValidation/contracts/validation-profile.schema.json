@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/validation-profile-v1.json",
+  "title": "World Pipeline Validation Profile",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "thresholds", "profiles", "package"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "thresholds": {
+      "type": "object",
+      "required": ["full_compile_seconds", "incremental_compile_seconds", "canonical_bytes", "unreal_import_seconds", "generated_packages", "provider_payload_bytes"],
+      "properties": {
+        "full_compile_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "incremental_compile_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "canonical_bytes": {"type": "integer", "minimum": 1},
+        "unreal_import_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "generated_packages": {"type": "integer", "minimum": 1},
+        "provider_payload_bytes": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "profiles": {
+      "type": "object",
+      "required": ["synthetic", "kazan"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["world_data_plugin", "source_profile", "compiler_profile", "presentation_profile", "authored_overlay_profile", "authored_overlay_sabotage_profile", "map_package", "require_landscape", "expected_features", "incremental_bounds"],
+        "properties": {
+          "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+          "source_profile": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "source_profile_path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+          "compiler_profile": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "compiler_profile_path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"},
+          "presentation_profile": {"type": "string", "pattern": "^Plugins/.+/Project[A-Za-z0-9]+/Data/.+\\.json$"},
+          "runtime_profile": {"type": "string", "pattern": "^Plugins/.+/Project[A-Za-z0-9]+/Data/.+\\.json$"},
+          "realization_profile": {"type": "string", "pattern": "^Plugins/.+/Project[A-Za-z0-9]+/Data/Profiles/Realization/.+\\.json$"},
+          "canonical_authority": {"type": "boolean"},
+          "authored_overlay_profile": {"type": "string", "pattern": "^Plugins/.+/Project[A-Za-z0-9]+/Data/Authored/.+\\.json$"},
+          "authored_overlay_sabotage_profile": {"type": "string", "pattern": "^Plugins/.+/Project[A-Za-z0-9]+/Data/Authored/.+\\.json$"},
+          "map_package": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/"},
+          "require_landscape": {"type": "boolean"},
+          "expected_features": {"type": "integer", "minimum": 1},
+          "expected_rejections": {"type": "integer", "minimum": 0},
+          "expected_realized_features": {"type": "integer", "minimum": 1},
+          "expected_road_fragments": {"type": "integer", "minimum": 1},
+          "expected_buildings": {"type": "integer", "minimum": 1},
+          "expected_authored": {
+            "type": "object",
+            "required": ["resolved", "placed", "masks", "minimum_package_files"],
+            "properties": {
+              "resolved": {"type": "integer", "minimum": 0},
+              "placed": {"type": "integer", "minimum": 0},
+              "masks": {"type": "integer", "minimum": 0},
+              "minimum_package_files": {"type": "integer", "minimum": 0}
+            },
+            "additionalProperties": false
+          },
+          "expected_topology": {
+            "type": "object",
+            "required": ["canonical_cells", "sample_spacing_m", "landscape_components", "landscape_proxies", "water_cell_actors", "water_mesh_assets", "water_triangles", "road_cell_actors", "road_mesh_assets", "road_triangles", "vegetation_cell_actors", "vegetation_components", "vegetation_instances", "vegetation_candidates", "vegetation_road_exclusions", "vegetation_water_exclusions", "vegetation_authored_mask_exclusions", "building_cell_actors", "building_mesh_assets", "building_triangles", "building_candidate_fragments", "building_accepted_fragments", "building_duplicate_fragments", "building_contained_fragments", "building_conflict_fragments", "building_malformed_fragments", "building_authored_mask_exclusions", "gameplay_placement_actors", "maximum_georeferencing_error_m"],
+            "properties": {
+              "canonical_cells": {"type": "integer", "minimum": 1},
+              "sample_spacing_m": {"type": "number", "exclusiveMinimum": 0},
+              "landscape_components": {"type": "integer", "minimum": 1},
+              "landscape_proxies": {"type": "integer", "minimum": 1},
+              "water_cell_actors": {"type": "integer", "minimum": 0},
+              "water_mesh_assets": {"type": "integer", "minimum": 0},
+              "water_triangles": {"type": "integer", "minimum": 0},
+              "road_cell_actors": {"type": "integer", "minimum": 0},
+              "road_mesh_assets": {"type": "integer", "minimum": 0},
+              "road_triangles": {"type": "integer", "minimum": 0},
+              "vegetation_cell_actors": {"type": "integer", "minimum": 0},
+              "vegetation_components": {"type": "integer", "minimum": 0},
+              "vegetation_instances": {"type": "integer", "minimum": 0},
+              "vegetation_candidates": {"type": "integer", "minimum": 0},
+              "vegetation_road_exclusions": {"type": "integer", "minimum": 0},
+              "vegetation_water_exclusions": {"type": "integer", "minimum": 0},
+              "vegetation_authored_mask_exclusions": {"type": "integer", "minimum": 0},
+              "building_cell_actors": {"type": "integer", "minimum": 0},
+              "building_mesh_assets": {"type": "integer", "minimum": 0},
+              "building_triangles": {"type": "integer", "minimum": 0},
+              "building_candidate_fragments": {"type": "integer", "minimum": 0},
+              "building_accepted_fragments": {"type": "integer", "minimum": 0},
+              "building_duplicate_fragments": {"type": "integer", "minimum": 0},
+              "building_contained_fragments": {"type": "integer", "minimum": 0},
+              "building_conflict_fragments": {"type": "integer", "minimum": 0},
+              "building_malformed_fragments": {"type": "integer", "minimum": 0},
+              "building_authored_mask_exclusions": {"type": "integer", "minimum": 0},
+              "gameplay_placement_actors": {"type": "integer", "minimum": 1},
+              "maximum_georeferencing_error_m": {"type": "number", "minimum": 0}
+            },
+            "additionalProperties": false
+          },
+          "expected_layers": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["layer_id", "generator_id", "generator_version", "artifact_root", "canonical_input_count", "artifact_count", "incremental_dirty_count"],
+              "properties": {
+                "layer_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+                "generator_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+                "generator_version": {"type": "integer", "minimum": 1},
+                "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/.+/$"},
+                "canonical_input_count": {"type": "integer", "minimum": 1},
+                "artifact_count": {"type": "integer", "minimum": 1},
+                "incremental_dirty_count": {"type": "integer", "minimum": 0}
+              },
+              "additionalProperties": false
+            }
+          },
+          "incremental_bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {"required": ["realization_profile"]},
+            "then": {"required": ["expected_authored", "expected_topology", "expected_layers"]},
+            "else": {"required": ["expected_realized_features", "expected_road_fragments", "expected_buildings"]}
+          }
+        ]
+      }
+    },
+    "package": {
+      "type": "object",
+      "required": ["required_map", "forbidden_suffixes", "forbidden_names"],
+      "properties": {
+        "required_map": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/"},
+        "forbidden_suffixes": {"type": "array", "items": {"type": "string", "pattern": "^\\.[a-z0-9]+$"}, "uniqueItems": true},
+        "forbidden_names": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "presentation_gate": {
+      "type": "object",
+      "required": ["world_profile", "machine_profile_id", "resolution", "scalability_level", "warmup_frames", "sample_frames", "camera_roles"],
+      "properties": {
+        "world_profile": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "machine_profile_id": {"type": "string", "pattern": "^[a-z0-9_-]+$"},
+        "resolution": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "integer", "minimum": 640},
+            {"type": "integer", "minimum": 360}
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "scalability_level": {"type": "integer", "minimum": 0, "maximum": 4},
+        "warmup_frames": {"type": "integer", "minimum": 1},
+        "sample_frames": {"type": "integer", "minimum": 30},
+        "camera_roles": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

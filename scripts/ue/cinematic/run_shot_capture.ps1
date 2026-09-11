@@ -43,6 +43,28 @@ function Get-ShotTool {
     throw "$Name is unavailable."
 }
 
+function Clear-ShotCaptureEnvironment {
+    foreach ($name in @('PROJECT_CINEMATIC_SHOT_PLAN', 'PROJECT_CINEMATIC_SHOT_STATUS',
+            'PROJECT_CINEMATIC_SHOT_PREVIEW', 'PROJECT_CINEMATIC_SHOT_OUTPUT')) {
+        [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+    }
+}
+
+function Remove-ShotCaptureRenderScratch {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $scratchRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'tmp\cinematic\shot_capture'))
+    $resolved = [IO.Path]::GetFullPath($Path)
+    Assert-Shot ($resolved.StartsWith($scratchRoot + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) `
+        "Refusing to remove capture scratch outside $scratchRoot"
+    if (Test-Path -LiteralPath $resolved) {
+        Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction Stop
+    }
+}
+
+$editorPid = $null
+try {
 $resolvedPlan = if ([IO.Path]::IsPathRooted($PlanPath)) { [IO.Path]::GetFullPath($PlanPath) }
     else { [IO.Path]::GetFullPath((Join-Path $projectRoot $PlanPath)) }
 Assert-Shot (Test-Path -LiteralPath $resolvedPlan -PathType Leaf) "Shot plan does not exist: $resolvedPlan"
@@ -95,10 +117,7 @@ Start-Process -FilePath 'cmd.exe' -WindowStyle Hidden -WorkingDirectory $project
     ('-ExecCmds="py {0}"' -f $driver),
     '-unattended', '-RenderOffscreen', '-NoSplash', '-NoSound',
     ('-abslog={0}' -f $logPath), '-log') | Out-Null
-foreach ($name in @('PROJECT_CINEMATIC_SHOT_PLAN', 'PROJECT_CINEMATIC_SHOT_STATUS', 'PROJECT_CINEMATIC_SHOT_PREVIEW',
-        'PROJECT_CINEMATIC_SHOT_OUTPUT')) {
-    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
-}
+Clear-ShotCaptureEnvironment
 
 $timeout = if ($plan.timeout_seconds) { [int]$plan.timeout_seconds } else { 5400 }
 $deadline = [DateTime]::UtcNow.AddSeconds($timeout)
@@ -163,38 +182,66 @@ Assert-Shot ($measuredFrames -eq $expectedFrames) `
 
 $finalName = if ($Preview) { "$($plan.id)_preview" } else { [string]$plan.id }
 $finalRoot = Join-Path $projectRoot "Saved\CinematicRaw\$finalName"
-if (Test-Path -LiteralPath $finalRoot) { Remove-Item -LiteralPath $finalRoot -Recurse -Force }
-New-Item -ItemType Directory -Path $finalRoot -Force | Out-Null
-$promoted = Join-Path $finalRoot ("{0}{1}" -f $finalName, $master.Extension)
-Copy-Item -LiteralPath $master.FullName -Destination $promoted -Force
-Copy-Item -LiteralPath $resolvedPlan -Destination (Join-Path $finalRoot 'plan.json') -Force
+$bundleRoot = Join-Path $workRoot 'bundle'
+New-Item -ItemType Directory -Path $bundleRoot -Force | Out-Null
+$promoted = Join-Path $bundleRoot ("{0}{1}" -f $finalName, $master.Extension)
+Move-Item -LiteralPath $master.FullName -Destination $promoted -Force
+Copy-Item -LiteralPath $resolvedPlan -Destination (Join-Path $bundleRoot 'plan.json') -Force
 if (Test-Path -LiteralPath $logPath -PathType Leaf) {
-    Copy-Item -LiteralPath $logPath -Destination (Join-Path $finalRoot 'editor.log') -Force
+    Copy-Item -LiteralPath $logPath -Destination (Join-Path $bundleRoot 'editor.log') -Force
 }
 
 # MRQ producing bytes is not evidence that the bytes show anything, so pull three
 # frames out for a look.
-$framesRoot = Join-Path $finalRoot 'frames'
+$framesRoot = Join-Path $bundleRoot 'frames'
 New-Item -ItemType Directory -Path $framesRoot -Force | Out-Null
-foreach ($mark in @{ first = 0.0; middle = [Math]::Round($measuredSeconds / 2, 3)
-                     last = [Math]::Round([Math]::Max($measuredSeconds - 0.2, 0), 3) }.GetEnumerator()) {
+$frameMarks = [ordered]@{
+    first  = 0.0
+    middle = [Math]::Round($measuredSeconds / 2, 3)
+    last   = [Math]::Round([Math]::Max($measuredSeconds - 0.2, 0), 3)
+}
+foreach ($mark in $frameMarks.GetEnumerator()) {
     & $ffmpeg -loglevel error -y -ss $mark.Value -i $promoted -frames:v 1 `
         (Join-Path $framesRoot "$($mark.Key).png") | Out-Null
+    Assert-Shot ($LASTEXITCODE -eq 0) "Could not extract the $($mark.Key) verification frame."
 }
 
+$relativeMaster = (Join-Path $finalRoot (Split-Path -Leaf $promoted)).Substring(
+    $projectRoot.Length).TrimStart('\', '/').Replace('\', '/')
+$frameSha256 = [ordered]@{}
+foreach ($name in @('first', 'middle', 'last')) {
+    $frameSha256[$name] = (Get-FileHash -LiteralPath (Join-Path $framesRoot "$name.png") `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
+}
 [IO.File]::WriteAllText(
-    (Join-Path $finalRoot 'receipt.json'),
+    (Join-Path $bundleRoot 'receipt.json'),
     (([ordered]@{
-        id       = $finalName
-        map      = [string]$status.map
-        seconds  = $measuredSeconds
-        frames   = $measuredFrames
-        width    = [int]$probe.streams[0].width
-        height   = [int]$probe.streams[0].height
-        fps      = [int]$plan.fps
-        captured = [DateTime]::UtcNow.ToString('o')
-    }) | ConvertTo-Json),
+        schema_version = 1
+        status         = 'accepted'
+        id             = $finalName
+        map            = [string]$status.map
+        sequence       = [string]$status.sequence
+        camera_binding = [string]$status.camera_binding
+        preset         = [string]$status.preset
+        scalability    = [int]$status.scalability
+        engine_version = [string]$status.engine_version
+        seconds        = $measuredSeconds
+        frames         = $measuredFrames
+        width          = [int]$probe.streams[0].width
+        height         = [int]$probe.streams[0].height
+        fps            = [int]$plan.fps
+        captured       = [DateTime]::UtcNow.ToString('o')
+        plan_sha256    = (Get-FileHash -LiteralPath (Join-Path $bundleRoot 'plan.json') `
+            -Algorithm SHA256).Hash.ToLowerInvariant()
+        master_path    = $relativeMaster
+        master_sha256  = (Get-FileHash -LiteralPath $promoted `
+            -Algorithm SHA256).Hash.ToLowerInvariant()
+        frame_sha256   = $frameSha256
+    }) | ConvertTo-Json -Depth 4),
     (New-Object Text.UTF8Encoding($false)))
+
+if (Test-Path -LiteralPath $finalRoot) { Remove-Item -LiteralPath $finalRoot -Recurse -Force }
+Move-Item -LiteralPath $bundleRoot -Destination $finalRoot
 
 # The driver quits the editor after writing its result, so the process can still
 # be shutting down here. Wait it out, or the next capture in a sequence refuses
@@ -202,9 +249,21 @@ foreach ($mark in @{ first = 0.0; middle = [Math]::Round($measuredSeconds / 2, 3
 for ($i = 0; $i -lt 60 -and (Get-Process -Id $editorPid -ErrorAction SilentlyContinue); $i++) {
     Start-Sleep -Seconds 1
 }
-if (Test-Path -LiteralPath $workRoot) {
-    Remove-Item -LiteralPath $workRoot -Recurse -Force -ErrorAction SilentlyContinue
-}
+if (Test-Path -LiteralPath $workRoot) { Remove-ShotCaptureRenderScratch -Path $workRoot }
 Write-Host "[ShotCapture] ACCEPTED $($plan.id): $([Math]::Round($measuredSeconds,2))s, $measuredFrames frames, $($probe.streams[0].width)x$($probe.streams[0].height)"
 Write-Host "[ShotCapture] $finalRoot"
 exit 0
+}
+catch {
+    Clear-ShotCaptureEnvironment
+    if ($editorPid -and (Get-Process -Id $editorPid -ErrorAction SilentlyContinue)) {
+        Stop-Process -Id $editorPid -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $editorPid -Timeout 30 -ErrorAction SilentlyContinue
+    }
+    foreach ($largePath in @($renderRoot, (Join-Path $workRoot 'bundle'))) {
+        if (Test-Path -LiteralPath $largePath) {
+            Remove-ShotCaptureRenderScratch -Path $largePath
+        }
+    }
+    throw
+}

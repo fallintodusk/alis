@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "kazan_territory_public_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "grid_id": "grid_413718bc833994e5",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "kazan_public_release",
+      "horizontal_accuracy_m": 10.1
+    }
+  ],
+  "overlays": []
+}

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import subprocess
 import sys
@@ -30,9 +31,19 @@ class ManifestError(RuntimeError):
     pass
 
 
+FIRST_PARTY_TOOL_ROOTS = {
+    ".claude",
+    ".codex",
+    ".githooks",
+    ".github",
+    "scripts",
+    "tools",
+}
+
+
 def git(repo_root: Path, *args: str, text: bool = True) -> str | bytes:
     result = subprocess.run(
-        ["git", *args],
+        ["git", "-c", "core.longpaths=true", "-c", "core.fsmonitor=false", *args],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -174,6 +185,7 @@ def classify_path(
     cargo_roots: dict[str, str],
     root_cargo_class: str | None,
     declarations: dict[str, dict[str, str]],
+    definition_sources: dict[str, str] | None = None,
 ) -> dict[str, object]:
     path = PurePosixPath(path_text)
     if (
@@ -221,6 +233,12 @@ def classify_path(
             declaration["class"],
             assignments,
             declaration["evidence"],
+        )
+
+    if definition_sources and path_text in definition_sources:
+        return component_entry(
+            path_text, blob, nearest_root(path_text, plugin_roots) or ".",
+            "ue-in-process", assignments, definition_sources[path_text],
         )
 
     cargo_root = nearest_root(path_text, set(cargo_roots))
@@ -273,6 +291,15 @@ def classify_path(
             blob,
             ".",
             root_cargo_class,
+            assignments,
+        )
+
+    if path.parts[0] in FIRST_PARTY_TOOL_ROOTS:
+        return component_entry(
+            path_text,
+            blob,
+            path.parts[0],
+            "separate-process",
             assignments,
         )
 
@@ -345,6 +372,40 @@ def generate_manifest(repo_root: Path, tag: str) -> dict[str, object]:
     }
     cargo = cargo_roots(repo_root, commit, paths)
     root_cargo = root_cargo_class(repo_root, commit, paths)
+    definition_sources: dict[str, str] = {}
+    contract_path = "scripts/git/mirror/developer_asset_release.json"
+    if contract_path in paths:
+        contract_bytes = read_blob(repo_root, commit, contract_path)
+        contract = json.loads(contract_bytes)
+        for authority in contract.get("asset_authorities", []):
+            if authority.get("authority_kind") != "generated_definition_manifest":
+                continue
+            manifest_path = authority["manifest_path"]
+            manifest = json.loads(read_blob(repo_root, commit, manifest_path))
+            if (authority.get("license_id") != assignments["ue-in-process"]
+                    or manifest.get("release_contract_sha256") != hashlib.sha256(contract_bytes).hexdigest()
+                    or manifest.get("owner") != authority.get("owner")
+                    or not authority.get("manifest_id")
+                    or manifest.get("manifest_id") != authority["manifest_id"]):
+                raise ManifestError(f"Invalid definition source authority: {manifest_path}")
+            for asset in manifest.get("assets", []):
+                source = asset["source_path"]
+                collections = [item for item in authority.get("collections", [])
+                               if item.get("asset_class") == asset.get("asset_class")]
+                if len(collections) != 1:
+                    raise ManifestError(f"Invalid definition collection: {source}")
+                collection = collections[0]
+                source_root = collection.get("source_root", "")
+                if (not source_root or ".." in PurePosixPath(source).parts
+                        or not source.startswith(source_root.rstrip("/") + "/")
+                        or not collection.get("schema_path")
+                        or asset.get("schema_path") != collection["schema_path"]
+                        or source in definition_sources):
+                    raise ManifestError(f"Invalid or duplicate definition source claim: {source}")
+                if (source not in paths or not source.endswith(".json")
+                        or hashlib.sha256(read_blob(repo_root, commit, source)).hexdigest() != asset["source_sha256"]):
+                    raise ManifestError(f"Stale definition source authority: {source}")
+                definition_sources[source] = manifest_path
 
     entries = [
         classify_path(
@@ -355,6 +416,7 @@ def generate_manifest(repo_root: Path, tag: str) -> dict[str, object]:
             cargo,
             root_cargo,
             declarations,
+            definition_sources,
         )
         for rel, blob in sorted(entries_by_path.items())
     ]

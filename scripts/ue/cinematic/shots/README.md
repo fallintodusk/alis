@@ -26,6 +26,11 @@ Plan contract: [`../schemas/shot-plan.schema.json`](../schemas/shot-plan.schema.
 A new take is a JSON file at `tmp/cinematic/shots/<world>/<id>.json` carrying only
 what reproduces the camera. Preview it, then render it.
 
+Captured asset IDs use `<city-local-priority>_<city>_<shot>` so Explorer sorts the
+editorial order without mixing city priorities: `1_manhattan_grand_traverse`,
+`2_manhattan_tower_canyon`, `1_kazan_grand_traverse`, and so on. Preview output adds
+only `_preview`. Priorities restart at 1 for each city and remain stable after approval.
+
 ## What a viewer should learn
 
 ALIS reconstructs large real territories as playable worlds, at a scale you feel
@@ -33,26 +38,25 @@ rather than read, and the same generic pipeline does it for more than one city.
 
 ## Takes
 
-**Active: `manhattan_scale_reveal` only.** Everything below it is a frozen idea, not
-a plan. Nothing else gets framed, previewed or rendered until the first shot has an
-approved framing. The seconds and percentages that used to be totalled here were
-counting shots that do not exist yet.
+**Accepted library:** all twelve numbered shots below were operator-approved and
+produced at 1920x1080, 30 fps. Their compact, edit-ready HEVC Main 10 files and
+hash-bound manifest live in `Saved/CinematicRaw/Final/`. Per-shot capture bundles and
+preview plans are working data, not part of the accepted library.
 
 | Shot | What it answers | Move | s |
 |---|---|---|---|
-| `kazan_city_traverse` | Is the second city as complete? | diagonal climb over the low-rise centre and lakes | 20 |
-| `kazan_river_reveal` | Does this work somewhere else? | diagonal across the river onto the far-bank city | 24 |
-| `manhattan_cells_long` | How far does it go on? | 4.6 km diagonal traverse, 1650 m to 1200 m, river in shot | 40 |
-| `manhattan_density_zoom` | How dense does it get? | targeted zoom 3200 m to 900 m onto the tall core | 26 |
-| `manhattan_downtown_pass` | Would I recognise this place? | diagonal descent 1800 m to 1080 m across the core | 22 |
-| `manhattan_fly_between` | What is it like down there? | corridor between the 446 m and 544 m towers at 420 m | 22 |
-| `manhattan_flyby` |  | 90 deg descending arc ending across the core on the river | 26 |
-| `manhattan_massing_descent` | What is actually built here? | descent 2050 m to 1100 m onto the tall cluster | 20 |
-| `manhattan_orbit` | Is it built on every side? | full 360 spiralling 2.0 km to 1.6 km out, 1200 m to 850 m | 56 |
-| `manhattan_scale_reveal` | How large is this world? | diagonal run-in, 1450 m to 1000 m, toward the river | 24 |
-| `manhattan_scale_reveal_high` | same, from twice the altitude | 2450 m to 1900 m, panning to hold the core | 24 |
-| `manhattan_skyline_long` | A skyline, or props on a plate? | 35 deg lens, diagonal dolly toward the core | 24 |
-| `manhattan_traversal` | Continuous world, or one viewpoint? | diagonal traverse climbing 800 m to 1180 m | 28 |
+| `1_manhattan_grand_traverse` | How far does it go on? | full useful-city diagonal with a skyline, river and park arrival | 30 |
+| `2_manhattan_tower_canyon` | What is it like down there? | corridor between the 446 m and 544 m towers opening onto the river | 22 |
+| `3_manhattan_skyline_compression` | Does the generated city read as a real skyline? | long-lens oblique layering near blocks, tall core, river and far bank | 20 |
+| `4_manhattan_massing_descent` | What is actually built here? | descent 2050 m to 1100 m onto the tall cluster | 22 |
+| `5_manhattan_central_park_glide` | How does its scale relate to open space? | oblique glide keeping park, tower wall, river and far bank in one composition | 20 |
+| `6_manhattan_waterfront_parallax` | Does the skyline have readable depth? | lower waterfront move with lateral parallax across the tower silhouette | 20 |
+| `7_manhattan_grid_tilt_reveal` | Is the street structure connected to the wider geography? | steep grid view tilting out to skyline, river and far bank | 20 |
+| `1_kazan_grand_traverse` | Is the second city continuous at scale? | diagonal traverse from broad water geography into the low-rise city, roads and canal | 30 |
+| `2_kazan_canal_axis_push` | Is its infrastructure legible? | lower push from river crossing and stadium forms onto the canal axis | 20 |
+| `3_kazan_kazanka_parallax_arc` | Does Kazan have a distinct geographic structure? | wide parallax arc across the Kazanka water system and urban districts | 24 |
+| `4_kazan_river_crossing_approach` | Are the two banks connected? | approach that keeps the river crossing and both banks readable | 20 |
+| `5_kazan_volga_waterfront_pullin` | How does the city meet the larger water system? | water-led pull-in resolving into roads, buildings and canal | 20 |
 
 Poses come from probe stills rendered through the real capture route - never from
 full-partition scouting stills, which show city where the renderer has nothing.
@@ -85,8 +89,8 @@ claims, what the viewer must understand, what we will not shoot - is owned by
   at what you are looking at only makes the subject grow; off-axis travel slides it
   across frame and puts near and far geometry in relative motion. This is a
   composition and parallax rule only - it does NOT change which cells load. The
-  streaming source is pinned near world origin, so travel direction has no effect
-  on the loaded envelope.
+  3 km World Partition source follows the active camera, so travel moves the loaded
+  envelope but does not make it wider.
 - **Always change altitude across a move.** A constant height is inert; a rise or
   descent keeps the eye working. Fifteen thousand units is the minimum worth having.
 - **Yaw slightly off the direction of travel.** Looking exactly where you are going
@@ -100,9 +104,10 @@ claims, what the viewer must understand, what we will not shoot - is owned by
 
 ### Framing
 
-- **Pitch has a floor, and it is derivable.** Only the world near origin is loaded,
-  so anything past that band is a flat void wall. The horizon leaves frame once the
-  camera pitches down past the vertical half-FOV plus a margin:
+- **Pitch has a floor, and it is derivable.** Only the world inside the 3 km
+  camera-following source is loaded, so a wide aerial frustum can still see a hard
+  edge. The horizon leaves frame once the camera pitches down past the vertical
+  half-FOV plus a margin:
 
   | fov | vertical half | pitch at or below |
   |---|---|---|
@@ -114,9 +119,9 @@ claims, what the viewer must understand, what we will not shoot - is owned by
 
   A shallower pitch is safe only when the city itself fills the top of frame, which
   means being close to it. Four takes were rejected for ignoring this.
-- **Stay over dense city.** A wide, high orbit swings out past the loaded band and
-  shows the gap where the cells end. Lower and tighter, with a steeper angle, keeps
-  built ground under the camera the whole way round.
+- **Stay over dense city.** A wide, high view can see beyond the moving 3 km envelope
+  and shows the gap where cells end. Lower and tighter, with a steeper angle, keeps
+  the visible ground inside the loaded region.
 - **Put water in the wide shots.** City edge to edge reads flat. The rivers sit
   about 2.1 km north-east of the core (bearing 27 degrees) and 2.6 km south-west
   (bearing 225). Aim across the core toward one of them and water lands in the
@@ -136,11 +141,11 @@ claims, what the viewer must understand, what we will not shoot - is owned by
 
 ### Handles
 
-Written into the camera keys, not a schema field: duplicate the first pose at
-`t=2` and the last at `t=duration-2`. The take then holds still for two seconds at
-each end and moves in between, which is what lets an editor trim, dissolve, retime
-or let a shot breathe. Measured at 45-51 dB across the hold windows against 26 dB
-across moving windows, so the holds are genuinely static under cubic auto tangents.
+Written into the camera keys, not a schema field: keep 2-3 seconds of slower motion
+at each end while the core move remains faster. Handles let an editor trim, dissolve,
+retime or let a shot breathe without making the raw clip look stuck when played whole.
+Do not duplicate the first or final pose by default. A genuinely static hold is used
+only when the shot calls for one and its complete playback has been visually approved.
 
 ### Grammar
 

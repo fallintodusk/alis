@@ -1,0 +1,4 @@
+interface:
+  display_name: "Character Animation Dev"
+  short_description: "Implement and debug ALIS character animation parity"
+  default_prompt: "Use $character-animation-dev to investigate or implement a modular character animation or parity change end to end."

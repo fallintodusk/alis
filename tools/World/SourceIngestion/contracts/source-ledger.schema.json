@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/source-ledger-v1.json",
+  "title": "World Source Ledger",
+  "type": "object",
+  "required": ["schema_version", "profile_id", "area", "snapshots", "policy_result"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "area": {
+      "type": "object",
+      "required": ["area_id", "label", "bbox", "axis_order", "crs", "area_fingerprint"],
+      "properties": {"area_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+    },
+    "snapshots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["snapshot_id", "provider", "dataset", "release", "byte_size", "hashes", "accuracy", "license", "policy_result"]
+      }
+    },
+    "policy_result": {"const": "approved"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../../../Data/Schemas/object.schema.json",
+  "id": "Door_Shop",
+  "meshes": [
+    {
+      "id": "door",
+      "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_1/SM_Door_Front_2",
+      "materials": [
+        "/ProjectElement/HumanMade/Metal/Steel/MI_SteelBrushed_Grey"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Hinged",
+      "scope": ["door"],
+      "properties": {
+        "OpenAngle": "-95"
+      }
+    }
+  ]
+}

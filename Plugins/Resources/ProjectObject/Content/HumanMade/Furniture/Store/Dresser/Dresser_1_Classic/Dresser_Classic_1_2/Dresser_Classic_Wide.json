@@ -1,0 +1,131 @@
+{
+    "id": "Dresser_Classic_Wide",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_1_2",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer_l_bot",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_Drawer_1",
+            "transform": {
+                "location": "(X=-39.7 Y=1 Z=17)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer_r_bot",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_Drawer_1",
+            "transform": {
+                "location": "(X=39.7 Y=1 Z=17)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer_l_mid",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_Drawer_1",
+            "transform": {
+                "location": "(X=-39.7 Y=1 Z=39)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer_r_mid",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_Drawer_1",
+            "transform": {
+                "location": "(X=39.7 Y=1 Z=39)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer_l_top",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_Drawer_1",
+            "transform": {
+                "location": "(X=-39.7 Y=1 Z=61)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer_r_top",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/SM_Dresser_Classic_Drawer_1",
+            "transform": {
+                "location": "(X=39.7 Y=1 Z=61)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer_l_bot"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=-39.7 Y=1 Z=17)",
+                "OpenPosition": "(X=-39.7 Y=31 Z=17)"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer_r_bot"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=39.7 Y=1 Z=17)",
+                "OpenPosition": "(X=39.7 Y=31 Z=17)"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer_l_mid"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=-39.7 Y=1 Z=39)",
+                "OpenPosition": "(X=-39.7 Y=31 Z=39)"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer_r_mid"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=39.7 Y=1 Z=39)",
+                "OpenPosition": "(X=39.7 Y=31 Z=39)"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer_l_top"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=-39.7 Y=1 Z=61)",
+                "OpenPosition": "(X=-39.7 Y=31 Z=61)"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer_r_top"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=39.7 Y=1 Z=61)",
+                "OpenPosition": "(X=39.7 Y=31 Z=61)"
+            }
+        }
+    ]
+}
+

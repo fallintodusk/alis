@@ -1,0 +1,36 @@
+{
+  "id": "KeyLuxuryApartment",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Accessory/Key/SM_KeyLuxuryFlat"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Luxury Apartment Key",
+      "description": "Crumpled note: 'Feed Rex. He doesn't bite. Usually. Back by Monday.'",
+      "iconCode": "\uF790",
+      "weight": 0.05,
+      "volume": 0.01,
+      "maxStack": 1,
+      "tags": ["Item.Type.Key.Apartment.Luxury"],
+      "canBeDropped": false,
+      "canBeTraded": false,
+      "isQuestItem": true
+    }
+  }
+}
+

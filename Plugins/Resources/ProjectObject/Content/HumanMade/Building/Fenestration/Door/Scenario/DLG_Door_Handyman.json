@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_Door_Handyman",
+  "startNode": "examine",
+  "nodes": {
+    "examine": {
+      "text": "Such a flimsy door, how can it still stand?",
+      "next": "knock"
+    },
+    "knock": {
+      "text": "Hello? Anyone home?",
+      "next": "no_answer"
+    },
+    "no_answer": {
+      "text": "Silence. Looks like nobody's home.",
+      "options": [
+        {
+          "text": "Try to open.",
+          "next": "pry_open",
+          "condition": {
+            "type": "inventory",
+            "id": "Crowbar",
+            "exact": false
+          }
+        },
+        {
+          "text": "Not now.",
+          "next": "$end"
+        }
+      ]
+    },
+    "pry_open": {
+      "text": "It worked. Doesn't look like anyone's been here for a while.",
+      "actions": ["lock.unlock", "motion.open"],
+      "next": "$end"
+    }
+  }
+}

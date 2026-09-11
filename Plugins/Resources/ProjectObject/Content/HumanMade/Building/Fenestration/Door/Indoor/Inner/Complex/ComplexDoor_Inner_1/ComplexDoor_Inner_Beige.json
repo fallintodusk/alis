@@ -1,0 +1,44 @@
+{
+    "id": "ComplexDoor_Inner_Beige",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_1/SM_ComplexFrame_Inner_1",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_1/SM_ComplexDoor_Inner_1",
+            "transform": {
+                "location": "(X=-5 Y=10 Z=0)",
+                "rotation": "(P=0 Y=180 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "glass",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_1/SM_Glass_ComplexDoor_Inner",
+            "parent": "door",
+            "transform": {
+                "location": "(X=0.0 Y=0.0 Z=0.0)",
+                "rotation": "(P=0.0 Y=0.0 R=0.0)",
+                "scale": "(X=1.0 Y=1.0 Z=1.0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "-85"
+            }
+        }
+    ]
+}

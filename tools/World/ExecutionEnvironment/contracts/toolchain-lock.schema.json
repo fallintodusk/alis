@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/toolchain-lock-v1.json",
+  "title": "World Source Toolchain Lock",
+  "type": "object",
+  "required": ["schema_version", "platform", "components"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "platform": {"const": "windows-x86_64"},
+    "components": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["component_id", "version", "license", "executable", "version_probe", "expected_version_text", "binary_hashes", "runtime_dependencies", "artifacts", "notice_urls", "redistribution"],
+        "properties": {
+          "component_id": {"type": "string", "pattern": "^[a-z0-9_]+$"}, "version": {"type": "string"},
+          "license": {"type": "string"}, "executable": {"type": "string"},
+          "version_probe": {"type": "array", "items": {"type": "string"}}, "expected_version_text": {"type": "string"},
+          "related_versions": {"type": "object", "additionalProperties": {"type": "string"}},
+          "binary_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+          "runtime_dependencies": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "required": ["path", "sha256", "license"],
+              "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "license": {"type": "string"}},
+              "additionalProperties": false
+            }
+          },
+          "artifacts": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "required": ["archive_type", "url", "file_name", "byte_size", "sha256", "extract_root"],
+              "properties": {
+                "archive_type": {"enum": ["zip", "tar.bz2"]}, "url": {"type": "string", "format": "uri"},
+                "file_name": {"type": "string"}, "byte_size": {"type": "integer", "minimum": 1},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "extract_root": {"type": "string"}, "license": {"type": "string"}
+              },
+              "additionalProperties": false
+            }
+          },
+          "notice_urls": {"type": "array", "minItems": 1, "items": {"type": "string", "format": "uri"}},
+          "plugin_autoload": {"const": "disabled"}, "redistribution": {"const": "provider_download_only"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

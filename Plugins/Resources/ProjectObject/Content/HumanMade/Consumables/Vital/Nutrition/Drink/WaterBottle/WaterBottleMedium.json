@@ -1,0 +1,40 @@
+{
+  "id": "WaterBottleMedium",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/SM_WaterBottle"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Water Bottle (Medium)",
+      "description": "Bottle with a small amount of water.",
+      "iconCode": "\uFF83",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 2,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Hydration": 0.3
+      },
+      "consumeOnUse": true
+    }
+  }
+}

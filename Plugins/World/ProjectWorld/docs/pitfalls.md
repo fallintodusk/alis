@@ -1014,3 +1014,24 @@ scope and excluded paths in aggregate/composite evidence.
 **Regression test.**
 `performance_aggregate.Tests.ps1` proves that runtime-state writes preserve the payload
 digest while an executable-byte change moves it.
+
+## 33. Producer fingerprints must not depend on text line endings
+
+**Symptom.** Generated artifacts and manifest hashes are byte-identical, but a clean
+public clone rejects every active World scope as produced by different source.
+
+**Root cause.** The producer fingerprint hashed ordinary text files as raw bytes. A
+Windows generation checkout used CRLF while the public Git projection used LF, so the
+same C++, PowerShell, and JSON semantics acquired different producer identities.
+
+**Fix.** Canonicalize text inputs to LF before hashing. Continue to hash Unreal assets,
+maps, and archives byte-for-byte. Advance the fingerprint envelope version and use the
+existing metadata-only manifest migration only after proving every declared producer
+input is semantically identical and every owned artifact remains byte-identical.
+
+**Files.**
+`scripts/ue/world/generator_fingerprint.ps1` and generated World manifests.
+
+**Regression test.**
+`generator_fingerprint.Tests.ps1` proves CRLF/LF stability and proves a real text edit
+still moves the owning producer fingerprint.

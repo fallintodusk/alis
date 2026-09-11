@@ -1,0 +1,41 @@
+{
+  "id": "BreadBlackQuarters",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Bread/SM_BreadBlackQuarters"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Black Bread Quarters",
+      "description": "Quarter of black bread.",
+      "iconCode": "\uFCAD",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 1,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Calories": 250.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

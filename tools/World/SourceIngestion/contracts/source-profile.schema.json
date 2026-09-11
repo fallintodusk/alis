@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/source-profile-v1.json",
+  "title": "World Source Profile",
+  "type": "object",
+  "$defs": {
+    "slug": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "bbox": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+    "hashes": {
+      "type": "object",
+      "required": ["sha256"],
+      "properties": {
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "md5": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+        "etag_md5": {"type": "string", "pattern": "^[0-9a-f]{32}$"}
+      },
+      "additionalProperties": false
+    },
+    "crs": {
+      "type": "object",
+      "required": ["horizontal", "axis_order"],
+      "properties": {
+        "horizontal": {"type": "string"},
+        "axis_order": {"type": "string"},
+        "vertical": {"type": "string"},
+        "vertical_unit": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "license": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "terms_url": {"type": "string", "format": "uri"},
+        "terms_version": {"type": "string", "minLength": 1},
+        "terms_accessed_on": {"type": "string", "format": "date"},
+        "terms_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "attribution": {"type": "string"}, "source_or_alteration_offer": {"type": "string"},
+        "original_notice": {"type": "string"}, "modified_notice": {"type": "string"},
+        "liability_notice": {"type": "string"}, "citation_notice": {"type": "string"},
+        "downstream_obligations": {"type": "string"}, "no_endorsement": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "admission": {
+      "type": "object",
+      "required": ["policy_result", "commercial_transformation", "generated_artifact_publication", "acquisition"],
+      "properties": {
+        "policy_result": {"const": "approved"}, "commercial_transformation": {"const": true},
+        "generated_artifact_publication": {"type": "string", "minLength": 1}, "acquisition": {"type": "string", "minLength": 1},
+        "boundaries": {
+          "type": "object",
+          "required": ["local_verification_cache", "tracked_canonical_data", "generated_unreal_assets", "packaged_commercial_distribution", "public_repository_raw_payload"],
+          "properties": {
+            "local_verification_cache": {"enum": ["approved", "approved_with_obligations", "not_distributed"]},
+            "tracked_canonical_data": {"enum": ["approved", "approved_with_obligations", "not_distributed"]},
+            "generated_unreal_assets": {"enum": ["approved", "approved_with_obligations", "not_distributed"]},
+            "packaged_commercial_distribution": {"enum": ["approved", "approved_with_obligations", "not_distributed"]},
+            "public_repository_raw_payload": {"enum": ["approved", "approved_with_obligations", "not_distributed"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "accuracy": {
+      "type": "object",
+      "required": ["horizontal_accuracy_m", "vertical_accuracy_m", "confidence"],
+      "properties": {
+        "horizontal_accuracy_m": {"type": ["number", "null"], "minimum": 0},
+        "vertical_accuracy_m": {"type": ["number", "null"], "minimum": 0},
+        "confidence": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "profile_id", "network_budget_bytes", "area", "sources"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"$ref": "#/$defs/slug"},
+    "network_budget_bytes": {"type": "integer", "minimum": 0},
+    "projected_coverage": {
+      "type": "object",
+      "required": ["projected_crs", "technical_bounds", "terrain_resampling_halo_m", "minimum_source_margin_m", "edge_sample_step_m"],
+      "properties": {
+        "projected_crs": {"type": "string", "minLength": 1},
+        "technical_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "terrain_resampling_halo_m": {"type": "number", "minimum": 0},
+        "minimum_source_margin_m": {"type": "number", "minimum": 0},
+        "edge_sample_step_m": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "raster_mosaic": {
+      "type": "object",
+      "required": ["contract_version", "component_order", "resolution_policy", "overlap_policy", "coverage_policy", "normalization", "artifact_format", "creation_options"],
+      "properties": {
+        "contract_version": {"const": 1},
+        "component_order": {"const": ["coverage_west_south_east_north", "source_id", "snapshot_id"]},
+        "resolution_policy": {"const": "same"},
+        "overlap_policy": {"const": "require_equal_float32_samples"},
+        "coverage_policy": {"const": "vrt_alpha_complete"},
+        "normalization": {"const": "pixel_aligned_clip_no_resample"},
+        "artifact_format": {"const": "COG"},
+        "creation_options": {
+          "type": "object",
+          "required": ["compression", "predictor", "block_size", "threads"],
+          "properties": {
+            "compression": {"const": "DEFLATE"},
+            "predictor": {"const": "YES"},
+            "block_size": {"const": 512},
+            "threads": {"const": 1}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "area": {
+      "type": "object",
+      "required": ["area_id", "label", "bbox", "axis_order", "crs"],
+      "properties": {
+        "area_id": {"$ref": "#/$defs/slug"},
+        "label": {"type": "string", "minLength": 1},
+        "bbox": {"$ref": "#/$defs/bbox"},
+        "axis_order": {"const": "longitude_latitude"},
+        "crs": {"const": "EPSG:4326"},
+        "demonstration_boundary": {
+          "type": "object", "required": ["area_id", "osm_filter"],
+          "properties": {"area_id": {"$ref": "#/$defs/slug"}, "osm_filter": {"type": "string", "minLength": 1}},
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["source_id", "adapter", "provider", "dataset", "release", "file_name", "expected_bytes", "hashes", "accuracy", "license", "admission"],
+        "properties": {
+          "source_id": {"$ref": "#/$defs/slug"},
+          "adapter": {"enum": ["synthetic_json", "geofabrik_osm", "copernicus_dem"]},
+          "provider": {"type": "string", "minLength": 1}, "dataset": {"type": "string", "minLength": 1},
+          "release": {"type": "string", "minLength": 1}, "file_name": {"type": "string", "pattern": "^[^/\\\\]+$"},
+          "expected_bytes": {"type": "integer", "minimum": 0}, "hashes": {"$ref": "#/$defs/hashes"},
+          "coverage_bbox": {"$ref": "#/$defs/bbox"}, "crs": {"$ref": "#/$defs/crs"},
+          "url": {"type": "string", "format": "uri"}, "provider_checksum_url": {"type": "string", "format": "uri"},
+          "distribution_url": {"type": "string", "format": "uri"}, "distribution_accessed_on": {"type": "string", "format": "date"},
+          "provider_last_modified": {"type": "string", "minLength": 1}, "local_path": {"type": "string", "minLength": 1},
+          "raster_class": {"type": "string", "minLength": 1},
+          "accuracy": {"$ref": "#/$defs/accuracy"},
+          "decode": {
+            "type": "object",
+            "required": ["feature_filters", "relation_completion_types"],
+            "properties": {
+              "feature_filters": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+              "relation_completion_types": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+            },
+            "additionalProperties": false
+          },
+          "license": {"$ref": "#/$defs/license"}, "admission": {"$ref": "#/$defs/admission"}
+        },
+        "allOf": [
+          {"if": {"properties": {"adapter": {"const": "geofabrik_osm"}}}, "then": {"required": ["url", "provider_checksum_url", "coverage_bbox", "crs", "decode"]}},
+          {
+            "if": {"properties": {"adapter": {"const": "copernicus_dem"}}},
+            "then": {
+              "required": ["url", "distribution_url", "distribution_accessed_on", "provider_last_modified", "coverage_bbox", "crs", "raster_class"],
+              "properties": {
+                "license": {"required": ["terms_url", "terms_version", "terms_accessed_on", "terms_sha256", "original_notice", "modified_notice", "liability_notice", "citation_notice", "downstream_obligations", "no_endorsement"]},
+                "admission": {"required": ["boundaries"]}
+              }
+            }
+          },
+          {"if": {"properties": {"adapter": {"const": "synthetic_json"}}}, "then": {"required": ["local_path", "coverage_bbox", "crs"]}}
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sources": {
+            "contains": {
+              "type": "object",
+              "required": ["adapter"],
+              "properties": {"adapter": {"const": "geofabrik_osm"}}
+            }
+          }
+        }
+      },
+      "then": {"properties": {"area": {"required": ["demonstration_boundary"]}}}
+    }
+  ],
+  "additionalProperties": false
+}

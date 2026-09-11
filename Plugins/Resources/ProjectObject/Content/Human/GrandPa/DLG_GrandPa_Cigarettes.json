@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_GrandPa_Cigarettes",
+  "startNode": "greeting",
+  "nodes": {
+    "greeting": {
+      "speaker": "Grandpa",
+      "text": "Did you find him?",
+      "options": [
+        {
+          "text": "I'm sorry... He wasn't there. Just these.",
+          "next": "bad_news",
+          "condition": {
+            "type": "inventory",
+            "id": "Cigarette",
+            "quantity": 3,
+            "exact": true
+          }
+        },
+        {
+          "text": "Just remind me - where is he?",
+          "next": "remind"
+        },
+        {
+          "text": "Not yet. I'll be back.",
+          "next": "wait"
+        }
+      ]
+    },
+    "wait": {
+      "speaker": "Grandpa",
+      "text": "Be careful out there.",
+      "next": "$end"
+    },
+    "remind": {
+      "speaker": "Grandpa",
+      "text": "Far entrance, 5th floor. ...Don't get hurt. I heard some shooting. Don't walk in the open.",
+      "next": "$end"
+    },
+    "bad_news": {
+      "speaker": "Grandpa",
+      "text": "...Hope he made it out. Thanks for the cigarettes. It's like water now.",
+      "actions": ["inventory.consume:Cigarette*:3"],
+      "next": "neighbor_task"
+    },
+    "neighbor_task": {
+      "speaker": "Grandpa",
+      "text": "...First floor neighbor - handy type. If he's still there, he might know more.",
+      "actions": ["dialogue.set_tree:/ProjectObject/Human/GrandPa/DLG_GrandPa_FamilyApartment.DLG_GrandPa_FamilyApartment"],
+      "next": "$end"
+    }
+  }
+}

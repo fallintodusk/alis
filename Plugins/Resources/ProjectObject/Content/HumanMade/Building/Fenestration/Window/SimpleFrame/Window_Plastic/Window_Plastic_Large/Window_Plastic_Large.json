@@ -1,0 +1,50 @@
+{
+    "id": "Window_Plastic_Large",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/Window_Plastic_Large/SM_Window_Plastic_Large_Frame",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)"
+            }
+        },
+        {
+            "id": "sash",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Sash.SM_Window_Plastic_Sash",
+            "transform": {
+                "location": "(X=245 Y=-15 Z=5)",
+                "scale": "(X=-1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "glass",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Glass",
+            "parent": "frame",
+            "transform": {
+                "location": "(X=-18 Y=-12 Z=-1)",
+                "scale": "(X=2.76 Y=1 Z=1.1)"
+            }
+        },
+        {
+            "id": "glass_sash",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Glass",
+            "parent": "sash",
+            "transform": {
+                "location": "(X=-6 Y=0 Z=-5)",
+                "scale": "(X=1.16 Y=1 Z=1.1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash"
+            ],
+            "properties": {
+                "OpenAngle": "85"
+            }
+        }
+    ]
+}
+

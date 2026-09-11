@@ -1,0 +1,41 @@
+{
+  "id": "FishPaste",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/FishPaste/SM_Can_FishPaste"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Fish Paste",
+      "description": "Can of fish paste.",
+      "iconCode": "\uF2A4",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 8,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Calories": 765.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

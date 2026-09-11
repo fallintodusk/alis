@@ -1,0 +1,52 @@
+{
+    "id": "Toilet_Base",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Building/Sanitation_Hygiene/SanitaryWare/Toilet/Toilet_4/SM_Toilet_4",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "seat",
+            "asset": "/ProjectObject/HumanMade/Building/Sanitation_Hygiene/SanitaryWare/Toilet/Toilet_4/SM_Toilet_4_Seat",
+            "transform": {
+                "location": "(X=-0.678438 Y=0.423935 Z=37.4857)",
+                "rotation": "(P=0 Y=-30 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "cap",
+            "asset": "/ProjectObject/HumanMade/Building/Sanitation_Hygiene/SanitaryWare/Toilet/Toilet_4/SM_Toilet_4_Cap",
+            "transform": {
+                "location": "(X=-0.678438 Y=0.423935 Z=37.4857)",
+                "rotation": "(P=0 Y=-30 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "seat"
+            ],
+            "properties": {
+                "OpenAngle": "-100"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "cap"
+            ],
+            "properties": {
+                "OpenAngle": "-100"
+            }
+        }
+    ]
+}

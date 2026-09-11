@@ -1,0 +1,42 @@
+{
+  "id": "EmergencyMedkit",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Health/Medical/Medkit/SM_MedKit",
+      "transform": {
+        "scale": "(X=0.5 Y=0.5 Z=0.5)"
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+  "sections": {
+    "item": {
+      "displayName": "Emergency Medkit",
+      "description": "Compact trauma supplies for one emergency treatment.",
+      "iconCode": "\uF5CE",
+      "weight": 0.6,
+      "volume": 1.5,
+      "maxStack": 1,
+      "gridSize": "2,2",
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "magnitudes": {
+        "SetByCaller.Bleeding": -1.0,
+        "SetByCaller.Condition": 15.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}

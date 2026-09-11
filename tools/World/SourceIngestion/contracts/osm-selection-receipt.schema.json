@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/osm-selection-receipt-v1.json",
+  "title": "Complete-geometry OSM membership evidence",
+  "type": "object",
+  "required": ["$schema", "schema_version", "snapshot_id", "membership_contract_id", "bbox", "filters", "candidate_layers_sha256", "membership_ids_sha256", "selected_membership_count", "selected_pbf_sha256", "intersecting_geojson_sha256", "reference_check", "selected_feature_count", "geometry_export_drop_count", "selected_features_sha256", "result"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "membership_contract_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "bbox": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "filters": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "candidate_layers_sha256": {
+      "type": "object",
+      "required": ["points", "lines", "multipolygons"],
+      "properties": {
+        "points": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "lines": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "multipolygons": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "membership_ids_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "selected_membership_count": {"type": "integer", "minimum": 1},
+    "selected_pbf_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "intersecting_geojson_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reference_check": {"type": "string"},
+    "selected_feature_count": {"type": "integer", "minimum": 1},
+    "geometry_export_drop_count": {"type": "integer", "minimum": 0},
+    "selected_features_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result": {"const": "accepted"}
+  },
+  "additionalProperties": false
+}

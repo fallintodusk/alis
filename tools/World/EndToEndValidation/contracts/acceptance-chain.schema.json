@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/acceptance-chain-v1.json",
+  "title": "ALIS world acceptance chain",
+  "description": "The single machine-readable record joining the two accepted E2E gates, the durable authority audits taken either side of packaging, the package plus its IoStore inspection, and the packaged Presentation Gate. A rejected chain is written with the same shape so a refusal leaves evidence rather than a console message.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "operation_id", "status", "e2e_runs", "errors"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "operation_id": {"type": "string", "pattern": "^accept-[0-9]{8}T[0-9]{6}Z$"},
+    "status": {"enum": ["accepted", "rejected"]},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bootstrap_preflight", "bootstrap_preflight_sha256"],
+      "properties": {
+        "bootstrap_preflight": {"type": "string"},
+        "bootstrap_preflight_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "e2e_runs": {
+      "type": "object",
+      "description": "Keyed by the run's OWN profile_id, which is verified against the argument it was supplied as; a run ID alone is a label, not provenance.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "result_path", "result_sha256"],
+        "properties": {
+          "run_id": {"type": "string"},
+          "result_path": {"type": "string"},
+          "result_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    "pre_package_audit": {"$ref": "#/$defs/auditReference"},
+    "post_package_audit": {"$ref": "#/$defs/auditReference"},
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "root", "required_map", "iostore_receipt", "iostore_receipt_sha256", "shipping_executable_sha256"],
+      "properties": {
+        "operation_id": {"type": "string"},
+        "root": {"type": "string"},
+        "required_map": {"type": "string"},
+        "iostore_receipt": {"type": "string"},
+        "iostore_receipt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "iostore_listed_bytes": {"type": ["integer", "null"]},
+        "shipping_executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "package_summary_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "presentation_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "receipt", "receipt_sha256"],
+      "properties": {
+        "operation_id": {"type": "string"},
+        "receipt": {"type": "string"},
+        "receipt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string"},
+          "message": {"type": "string"},
+          "details": {"type": "object"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "auditReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt", "receipt_sha256", "active_set_sha256"],
+      "properties": {
+        "receipt": {"type": "string"},
+        "receipt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "active_set_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "accepted"}}},
+      "then": {
+        "description": "An accepted chain must carry every link independently of the code that produced it: both audits, the package, the gate, the pinned bootstrap environment, and genuine two-run evidence including the P0 gate.",
+        "required": ["world_data_plugin", "pre_package_audit", "post_package_audit", "package", "presentation_gate", "environment"],
+        "properties": {
+          "errors": {"maxItems": 0},
+          "e2e_runs": {"minProperties": 2, "required": ["p0"]}
+        }
+      }
+    }
+  ]
+}

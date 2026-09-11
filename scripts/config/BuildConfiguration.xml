@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ALIS project-local UnrealBuildTool config (SOT).
+
+This file is the source of truth. It is materialized into
+Saved/UnrealBuildTool/BuildConfiguration.xml by Sync-UBTConfig.ps1, which is
+invoked at the start of packaging/build entry points so that periodic Saved/
+clean-ups do not lose the throttle settings.
+
+UBT reads <ProjectRoot>/Saved/UnrealBuildTool/BuildConfiguration.xml when
+invoked with project context (BuildCookRun -project=...) and gives it highest
+precedence among static XmlConfig paths. See Engine source:
+  Engine/Source/Programs/UnrealBuildTool/System/XmlConfig.cs:120-130
+
+Why these values (cold-build OOM fix, 2026-04-27):
+  MemoryPerActionBytes = 4 GiB
+    Matches observed UE 5.7 SharedPCH peak in monolithic Shipping. The UE
+    default 1.5 GiB is stale and was the OOM driver in our cold packaging
+    (cl.exe C3859 / C1076 / Windows commit code 1455).
+  ProcessorCountMultiplier = 1.0 (default)
+    Values >1.0 oversubscribe cl.exe and remove the only OOM safety net.
+  bAllCores = false (default)
+    Uses physical cores only. With 4 GiB/action throttle this yields ~14-15
+    parallel cl.exe on a 64 GB machine and fits with OS headroom.
+
+Do NOT add UnrealBuildAccelerator tuning here without a separate measured
+cause; UBA is an acceleration layer, not a memory-pressure fix.
+-->
+<Configuration xmlns="https://www.unrealengine.com/BuildConfiguration">
+  <BuildConfiguration>
+    <bAllCores>false</bAllCores>
+  </BuildConfiguration>
+
+  <ParallelExecutor>
+    <ProcessorCountMultiplier>1.0</ProcessorCountMultiplier>
+    <MemoryPerActionBytes>4294967296</MemoryPerActionBytes>
+  </ParallelExecutor>
+</Configuration>

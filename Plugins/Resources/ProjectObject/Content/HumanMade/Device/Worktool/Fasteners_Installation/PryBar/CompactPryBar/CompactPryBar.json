@@ -1,0 +1,38 @@
+{
+  "id": "CompactPryBar",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Device/Worktool/Fasteners_Installation/Crowbar/Crowbar_1/SM_Crowbar",
+      "transform": {
+        "scale": "(X=0.72 Y=0.72 Z=0.72)"
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0.5"
+      }
+    }
+  ],
+  "sections": {
+    "item": {
+      "displayName": "Compact Pry Bar",
+      "description": "A short steel tool for forcing weak fixtures and doors.",
+      "iconCode": "\uF412",
+      "weight": 0.8,
+      "volume": 0.8,
+      "maxStack": 1,
+      "gridSize": "2,2",
+      "tags": ["Item.Type.Equipment"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "equipSlotTag": "Item.EquipmentSlot.MainHand"
+    }
+  }
+}

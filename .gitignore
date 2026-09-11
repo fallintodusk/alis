@@ -21,6 +21,7 @@ __pycache__
 .env
 .env.*
 !.env.*.example
+/secrets/
 
 # --- agentic ---
 .langgraph_api
@@ -179,3 +180,9 @@ tmpclaude-*
 # Windows would materialize a committed link as a text stub and Codex would
 # silently discover zero skills.
 .agents/
+
+# BEGIN ALIS PUBLIC BINARY PAYLOAD
+*.uasset
+*.umap
+/Plugins/World/ProjectWorldData/Data/Canonical/*/bundles/*.zip
+# END ALIS PUBLIC BINARY PAYLOAD

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../Data/Schemas/object.schema.json",
+  "id": "Gramophone",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Device/Music/Rarity/SM_Gramophone"
+    },
+    {
+      "id": "plate",
+      "asset": "/ProjectObject/HumanMade/Device/Music/Rarity/SM_MusicPlate"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Dialogue",
+      "scope": ["actor"],
+      "properties": {
+        "DialogueTreeAsset": "/ProjectObject/HumanMade/Device/Music/Rarity/DLG_Gramophone_Main.DLG_Gramophone_Main"
+      }
+    },
+    {
+      "type": "Audio",
+      "scope": ["actor"],
+      "properties": {
+        "AudioPresetAsset": "/ProjectObject/HumanMade/Device/Music/Rarity/AUDIO_Gramophone.AUDIO_Gramophone"
+      }
+    }
+  ]
+}

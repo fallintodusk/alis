@@ -26,6 +26,11 @@ def normalized_json_md5(path: Path) -> str:
     return hashlib.md5(text.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
+def normalized_json_sha256(path: Path) -> str:
+    text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def resolve(repo_root: Path, raw: str) -> Path:
     path = (repo_root / Path(*PurePosixPath(raw.replace("\\", "/")).parts)).resolve()
     try:
@@ -61,6 +66,8 @@ def build(repo_root: Path, inventory_path: Path, contract_path: Path, owner: str
     if len(authorities) != 1:
         raise AuthorityError(f"Expected one declared asset authority for {owner}")
     authority = authorities[0]
+    if authority.get("authority_kind") != "generated_definition_manifest":
+        raise AuthorityError(f"Owner {owner} is not a generated-definition authority")
     inventory = json.loads(inventory_path.read_text(encoding="utf-8-sig"))
     assets = []
     inventory_sources: dict[str, set[str]] = {}
@@ -95,7 +102,7 @@ def build(repo_root: Path, inventory_path: Path, contract_path: Path, owner: str
                 "artifact_path": artifact_path.relative_to(repo_root).as_posix(),
                 "artifact_sha256": digest(artifact_path),
                 "source_path": source_path.relative_to(repo_root).as_posix(),
-                "source_sha256": digest(source_path),
+                "source_sha256": normalized_json_sha256(source_path),
                 "source_json_hash_md5": source_md5,
                 "schema_path": collection["schema_path"],
             }
@@ -116,9 +123,9 @@ def build(repo_root: Path, inventory_path: Path, contract_path: Path, owner: str
         raise AuthorityError("Asset Registry evidence contains no approved generated assets")
     output = resolve(repo_root, authority["manifest_path"])
     manifest = {
-        "$schema": "../Schemas/public_generated_definition_manifest.schema.json",
+        "$schema": authority["manifest_schema_ref"],
         "schema_version": 1,
-        "manifest_id": "project_object_public_generated_definitions_v1",
+        "manifest_id": authority["manifest_id"],
         "release_contract_sha256": digest(contract_path),
         "owner": authority["owner"],
         "assets": assets,

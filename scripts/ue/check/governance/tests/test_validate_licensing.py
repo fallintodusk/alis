@@ -1,4 +1,5 @@
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
@@ -87,6 +88,37 @@ class LicensingValidationTests(unittest.TestCase):
 
     def test_valid_explicit_metadata(self) -> None:
         self.assertEqual([], self._validate())
+
+    def test_repository_paths_ignore_tracked_worktree_deletions(self) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=self.repo_root, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@localhost"],
+            cwd=self.repo_root,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "ALIS Test"],
+            cwd=self.repo_root,
+            check=True,
+        )
+        notice = self.repo_root / "scripts" / "NOTICE"
+        notice.parent.mkdir(parents=True, exist_ok=True)
+        notice.write_text(
+            "ALIS-Component-Class: separate-process\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "-A"], cwd=self.repo_root, check=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "fixture"],
+            cwd=self.repo_root,
+            check=True,
+        )
+        notice.unlink()
+
+        self.assertNotIn(
+            "scripts/NOTICE",
+            validate_licensing.repository_paths(self.repo_root),
+        )
 
     def test_unexpected_owner_notice_fails_closed(self) -> None:
         self._write(

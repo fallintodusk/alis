@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/raster-mosaic-validation-v1.json",
+  "title": "Raster mosaic coverage and overlap evidence",
+  "type": "object",
+  "required": ["$schema", "schema_version", "mosaic_contract_id", "mosaic_authority_id", "coverage_policy", "coverage_pixels_checked", "uncovered_pixels", "overlap_policy", "overlap_checks", "result"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "mosaic_contract_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mosaic_authority_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "coverage_policy": {"const": "vrt_alpha_complete"},
+    "coverage_pixels_checked": {"type": "integer", "minimum": 1},
+    "uncovered_pixels": {"const": 0},
+    "overlap_policy": {"const": "require_equal_float32_samples"},
+    "overlap_checks": {"type": "array", "items": {"type": "object"}},
+    "result": {"const": "accepted"}
+  },
+  "additionalProperties": false
+}

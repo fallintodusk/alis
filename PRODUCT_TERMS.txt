@@ -1,0 +1,58 @@
+ALIS PRODUCT TERMS
+Version 2.0.0
+
+These terms apply to the packaged ALIS game (the "Product"), not to the
+public source code or other material that carries a separate license. By
+downloading, installing, or using the Product, you accept these terms. If you
+do not accept them, do not use the Product.
+
+1. Permission to play
+
+You may download, install, run, and play this version of the Product on devices
+you control. You may capture and share screenshots and gameplay video from the
+Product.
+
+2. Private Product content
+
+The permission above does not grant a right to extract, redistribute, sell,
+relicense, or reuse private ALIS art, story, music, levels, world identity,
+trademarks, or other content in another product. Rights not expressly granted
+remain reserved.
+
+3. Separately licensed material
+
+Open-source code, data, and third-party components remain governed by their
+applicable licenses and notices. These terms do not reduce rights granted by
+those licenses. Source and release notices are available from:
+
+https://github.com/fallintodusk/alis
+
+4. Unreal Engine
+
+The Product uses Unreal Engine. Unreal Engine and its Licensed Technology are
+provided by Epic Games under separate terms. No right is granted to extract or
+use Unreal Engine or its Licensed Technology outside the Product. Epic Games
+and its affiliates make no representations or warranties and disclaim all
+conditions and liabilities related to Unreal Engine and its Licensed
+Technology, to the maximum extent permitted by applicable law.
+
+5. Prototype and warranty disclaimer
+
+ALIS 2.0.0 is prototype software. The Product is provided "as is" and "as
+available", without warranties or conditions of any kind, express or implied,
+including merchantability, fitness for a particular purpose, title, and
+non-infringement, to the maximum extent permitted by applicable law.
+
+6. Limitation of liability
+
+To the maximum extent permitted by applicable law, the ALIS project and its
+contributors are not liable for indirect, incidental, special, consequential,
+or punitive damages, loss of data, loss of profits, or business interruption
+arising from use of or inability to use the Product.
+
+7. Trademarks
+
+ALIS names, logos, and other project identifiers are not licensed except as
+needed to identify the unmodified Product. Unreal and Unreal Engine are
+trademarks or registered trademarks of Epic Games, Inc. in the United States
+and elsewhere.

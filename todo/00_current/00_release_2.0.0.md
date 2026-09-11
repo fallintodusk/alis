@@ -1,15 +1,15 @@
 # ALIS 2.0.0 Release Plan
 
-**Status:** CURRENT RELEASE FOCUS - CINEMATIC ACTIVE
-**Active concern:** Agent cinematic/release workflow. Showcase city is machine-complete with
-operator visual acceptance.
+**Status:** CURRENT RELEASE FOCUS - READY FOR FINAL SOURCE FREEZE
+**Active concern:** Public game archive and developer payload transaction.
 
-What 2.0.0 still needs, in full: the release footage, and a packaging pass that actually
-produces a complete game archive plus a complete developer payload. Nothing else gates it.
+What 2.0.0 still needs in the repository is the distribution pass that produces a
+complete game archive plus a complete developer payload. The approved raw-footage
+library is sufficient for the external human montage and does not gate packaging.
 
 This is the single current product-focus and execution router. It aligns with
-[VISION.md](../../VISION.md) without duplicating implementation detail from the two
-current concern todos.
+[VISION.md](../../VISION.md) without duplicating implementation detail from the
+current concern todo.
 
 ## Release promise
 
@@ -19,8 +19,9 @@ globally recognizable territory without a city-specific runtime fork.
 
 ```text
 accepted playable Kazan
--> agent-authored, deterministic release footage
 -> second recognizable city through the same generic pipeline
+-> approved raw-footage library
+-> complete player and developer distribution
 -> ALIS 2.0.0 global proof
 ```
 
@@ -28,20 +29,22 @@ accepted playable Kazan
 
 | Order | Concern | Current todo | State |
 |---|---|---|---|
-| Active | Direct and capture raw release footage | [Raw footage](20260903-2205_cinematic_direct_raw_release_footage.md) | Selected now; produces the raw Manhattan and Kazan material the release footage is cut from |
-| Deferred | Agent cinematic release-render workflow | [Cinematic workflow](20260902-1218_cinematic_build_agent_release_workflow.md) | Retains only the deterministic release render bound to an accepted Candidate, and post-production |
-| Complete | Global showcase city | [Showcase city](20260902-1218_world_build_global_showcase_city.md) | Manhattan Development + Shipping route proof accepted; operator visual acceptance granted 2026-09-03 |
-| Required to publish | Distribution: game archive + developer payload | [Developer release transaction](publish_public_developer_release_transaction.md), [Assets mirror policy](publish_project_assets_mirror_policy.md) | See the distribution gate below |
+| Complete | Direct and capture raw release footage | [Raw footage](../01_done/tools/20260903-2205_cinematic_direct_raw_release_footage.md) | Twelve-shot final library verified; durable workflow is routed by the ALIS cinematic skill and stable cinematic docs |
+| Complete | Global showcase city | [Showcase city](../01_done/world/20260902-1218_world_build_global_showcase_city.md) | Manhattan Development + Shipping route proof accepted; operator visual acceptance granted 2026-09-03 |
+| Active | Distribution: game archive + developer payload | [Developer release transaction](20260813-1511_publish_public_developer_release_transaction.md) | Single current implementation concern; see the distribution gate below |
 
-Showcase city is done. The cinematic concern is selected next; do not execute both in
-parallel. Distribution is not a feature concern but must work before anything can be
-published.
+Showcase city and raw-footage capture are done. The speculative cinematic-workflow
+plan was dissolved because its useful outcome was achieved through the smaller proven
+raw-capture route. Distribution is now the single selected concern.
 
 ## Accepted baseline
 
-- Kazan Shipping product proof and operator walkthrough are complete.
-- The exact accepted Candidate remains owner-generated evidence and is not rebuilt by
-  this release-routing change.
+- Kazan Shipping machine proof and the pre-freeze operator walkthrough are complete.
+  The final tracked release-plan correction changes source identity, so one replacement
+  source-bound Candidate and short operator product/UX walkthrough remain.
+- The exact pre-freeze Candidate remains owner-generated evidence. Its
+  replacement is required by the final tracked source change, not by cinematic
+  or routing convenience.
 - ProjectCinematic already owns deterministic Editor/MRQ capture and release binding.
 - ProjectWorld already owns the generic canonical compilation and Unreal realization
   path used by Kazan.
@@ -61,11 +64,6 @@ published.
 - each take captured longer than its expected edit use, with handles both sides;
 - every promoted master authenticated against the map it claims, and looked at;
 - promoted durations sum to more than 60 seconds, Manhattan dominant.
-
-### Release-render concern (deferred)
-
-- existing ProjectCinematic owner renders and authenticates the selected product
-  Candidate without becoming a Shipping dependency.
 
 ### Showcase-city concern
 
@@ -89,11 +87,11 @@ What actually has to work to publish, beyond the two feature concerns:
 - the payload installs and verifies through `install_developer_payload.ps1` from a clean
   checkout, so the published source is actually usable for generation.
 
-Known gaps recorded by their own owners, not re-derived here: the split 7-Zip outputs are not
-yet wired into the GitHub release publish
-(`TODO(ALIS-Release)` in `scripts/ue/package/package_release.ps1`), and GitHub draft release
-staging/upload is unimplemented per
-[Developer release transaction](publish_public_developer_release_transaction.md).
+The local source, player archive, developer payload, privacy report, dependency
+closure, and clean-clone evidence are prepared. Production signing and GitHub draft
+publication remain explicit operator/external gates in the
+[Developer release transaction](20260813-1511_publish_public_developer_release_transaction.md);
+they are not hidden side effects of the package command.
 
 ### Not a release blocker: Shipping performance delta
 
@@ -123,7 +121,9 @@ below accepted Kazan.
 
 ## Immediate execution
 
-Collect the raw release footage through
-[Raw footage](20260903-2205_cinematic_direct_raw_release_footage.md): scout each shot
-family with authenticated stills, render the approved camera moves, and verify every
-promoted master. The showcase-city concern is complete and needs nothing further.
+Freeze tracked source, then finish the replacement Candidate and the
+human/external gates in the reviewed
+[Developer release transaction](20260813-1511_publish_public_developer_release_transaction.md)
+as the single current concern. The human montage may consume
+`Saved/CinematicRaw/Final/` independently; do not rerender approved shots or reopen
+cinematic engineering without a new concrete defect.

@@ -1,0 +1,29 @@
+{
+  "$schema": "../Schemas/public_generated_experience_manifest.schema.json",
+  "assets": [
+    {
+      "artifact_path": "Plugins/Resources/ProjectExperienceData/Content/Experiences/KazanTerritory.uasset",
+      "artifact_sha256": "d8716bd4dbb9c420dd7e4e389bda1e863791838eaf132c0543f9bf9ef976dd94",
+      "asset_class": "ProjectExperienceDefinition",
+      "package_name": "/ProjectExperienceData/Experiences/KazanTerritory",
+      "schema_path": "Plugins/Resources/ProjectExperienceData/Data/Schemas/experience.schema.json",
+      "source_json_hash_md5": "318ee938aae48604aa1d1b7daa6a120f",
+      "source_path": "Plugins/Resources/ProjectExperienceData/Data/Experiences/kazan_territory.json",
+      "source_sha256": "d5eadf8d17fb46081a0ba3c75be4d4c7e0684c5bbd1a4aeefeb1cbe8a2c81fcd"
+    },
+    {
+      "artifact_path": "Plugins/Resources/ProjectExperienceData/Content/Experiences/ManhattanShowcase.uasset",
+      "artifact_sha256": "27af3657945c322082663c0453e807b23dadaf2d973bd5c9a5e7765462391e99",
+      "asset_class": "ProjectExperienceDefinition",
+      "package_name": "/ProjectExperienceData/Experiences/ManhattanShowcase",
+      "schema_path": "Plugins/Resources/ProjectExperienceData/Data/Schemas/experience.schema.json",
+      "source_json_hash_md5": "85a0f587710f0055e132213c4b6087e1",
+      "source_path": "Plugins/Resources/ProjectExperienceData/Data/Experiences/manhattan_showcase.json",
+      "source_sha256": "63c94441827e3a2abc4c84b7ccd401e3778e793706f78fafb2965069bfc64c37"
+    }
+  ],
+  "manifest_id": "project_experience_data_public_generated_experiences_v1",
+  "owner": "ProjectExperienceData",
+  "release_contract_sha256": "d44a360c544f4eef21850966481ce4bf7382563d31846d0416cb4deae1040212",
+  "schema_version": 1
+}

@@ -1,0 +1,34 @@
+{
+  "id": "Loot_CardboardBox",
+  "sections": {
+    "storage": {
+      "gridSize": {
+        "x": 3,
+        "y": 3
+      },
+      "maxWeight": 12.0,
+      "maxVolume": 18.0,
+      "maxCells": 9,
+      "allowRotation": true,
+      "persistent": true,
+      "containerSlotId": "Primary",
+      "seedEntries": [],
+      "lootProfileId": "LootProfileDefinition:Scavenge_SmallConsumables"
+    }
+  },
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Trash/Packaging/Cardboard/Set_4/SM_Cardboard_Box_4_Close"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "LootContainer",
+      "scope": ["actor"],
+      "properties": {
+        "OneTimeUse": "false"
+      }
+    }
+  ]
+}

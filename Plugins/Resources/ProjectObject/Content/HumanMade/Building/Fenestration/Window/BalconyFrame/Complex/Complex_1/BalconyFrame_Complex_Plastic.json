@@ -1,0 +1,49 @@
+{
+    "id": "BalconyFrame_Complex_Plastic",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Complex/Complex_1/SM_BalconyFrame_1",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "frame_glass",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Complex/Complex_1/SM_BalconyFrame_1_Glass",
+            "transform": {
+                "location": "(X=0 Y=-30 Z=130)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Complex/Complex_1/SM_BalconyFrame_1_Window",
+            "transform": {
+                "location": "(X=310 Y=-137 Z=120)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_door",
+            "parent": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Complex/Complex_1/SM_BalconyPlasticGlass_Window",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "-45"
+            }
+        }
+    ]
+}

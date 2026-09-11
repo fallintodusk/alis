@@ -1,0 +1,53 @@
+{
+    "id": "ChangingDresser_Kid",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_Kid/SM_ChangingDresser_1",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door_l",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_Kid/SM_ChangingDresser_1_Door_L",
+            "transform": {
+                "location": "(X=-35.733963 Y=20 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door_r",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_Kid/SM_ChangingDresser_1_Door_R",
+            "transform": {
+                "location": "(X=35.733963 Y=20 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_l"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_r"
+            ],
+            "properties": {
+                "OpenAngle": "-90"
+            }
+        }
+    ]
+}
+

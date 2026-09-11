@@ -1,0 +1,36 @@
+{
+  "id": "Loot_DuffleBag",
+  "sections": {
+    "storage": {
+      "gridSize": {
+        "x": 5,
+        "y": 4
+      },
+      "maxWeight": 18.0,
+      "maxVolume": 28.0,
+      "maxCells": 20,
+      "allowRotation": true,
+      "persistent": true,
+      "containerSlotId": "Primary",
+      "seedEntries": [
+        { "objectId": "ObjectDefinition:Cigarette", "quantity": 10 }
+      ],
+      "lootProfileId": ""
+    }
+  },
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Container/Bags/Bag/SM_DuffleBag_1"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "LootContainer",
+      "scope": ["actor"],
+      "properties": {
+        "OneTimeUse": "false"
+      }
+    }
+  ]
+}

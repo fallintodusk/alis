@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/canonical-authority-v1.json",
+  "title": "Accepted canonical bundle authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "authority_id", "world_data_plugin", "profile_id", "inputs_hash", "profile_sha256", "external_inputs", "admission_receipt_sha256", "admission_artifacts", "compile_result_sha256", "output_count", "bundle"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "authority_id": {"type": "string", "pattern": "^[a-z0-9_]+:[0-9a-f]{64}$"},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "external_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_profile_path", "source_profile_sha256", "source_run_inputs_hash", "authored_overlay_path", "authored_overlay_sha256", "fixture_features_path", "fixture_features_sha256", "budget_profile_path", "budget_profile_sha256", "control_profile_path", "control_profile_sha256"],
+      "properties": {
+        "source_profile_path": {"type": "string"},
+        "source_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_run_inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "authored_overlay_path": {"type": "string"},
+        "authored_overlay_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "fixture_features_path": {"type": ["string", "null"]},
+        "fixture_features_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "budget_profile_path": {"type": ["string", "null"]},
+        "budget_profile_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "control_profile_path": {"type": ["string", "null"]},
+        "control_profile_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "admission_receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "admission_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "byte_size"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^admission/.+\\.json$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "byte_size": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "compile_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "output_count": {"type": "integer", "minimum": 1},
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "path", "byte_size", "sha256"],
+      "properties": {
+        "format": {"const": "deterministic_zip_v1"},
+        "path": {"type": "string", "pattern": "^bundles/[0-9a-f]{64}\\.zip$"},
+        "byte_size": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

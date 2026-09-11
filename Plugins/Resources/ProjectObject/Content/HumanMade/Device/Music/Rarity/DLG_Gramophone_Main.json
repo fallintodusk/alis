@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_Gramophone_Main",
+  "startNode": "menu",
+  "nodes": {
+    "menu": {
+      "text": "What would you like to do?",
+      "options": [
+        { "text": "Play", "next": "playing" },
+        { "text": "Pause", "next": "paused" },
+        { "text": "Select composition", "next": "songs" },
+        { "text": "Leave", "next": "$end" }
+      ]
+    },
+    "playing": {
+      "text": "The gramophone begins playing...",
+      "actions": ["audio.play:along_the_petersburg"],
+      "next": "menu"
+    },
+    "paused": {
+      "text": "The gramophone stops.",
+      "actions": ["audio.stop"],
+      "next": "menu"
+    },
+    "songs": {
+      "text": "Choose a composition:",
+      "options": [
+        { "text": "Along The Petersburg", "next": "song_along_the_petersburg" },
+        { "text": "Temperature Of The Air", "next": "song_temperature_of_the_air" },
+        { "text": "Music", "next": "song_music" },
+        { "text": "Back", "next": "menu" }
+      ]
+    },
+    "song_along_the_petersburg": {
+      "text": "Now playing: Along The Petersburg",
+      "actions": ["audio.play:along_the_petersburg"],
+      "next": "menu"
+    },
+    "song_temperature_of_the_air": {
+      "text": "Now playing: The Temperature Of The Air On The Bow Of The Kaleetan",
+      "actions": ["audio.play:temperature_of_the_air"],
+      "next": "menu"
+    },
+    "song_music": {
+      "text": "Now playing: Music",
+      "actions": ["audio.play:music"],
+      "next": "menu"
+    }
+  }
+}

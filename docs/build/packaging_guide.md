@@ -19,13 +19,14 @@ packaged Product, satisfy the
 [Packaged Product Legal Compliance](../legal/release_compliance.md) gate.
 
 1. Run `make prepare-tests` followed by `make test-unit-smart BASE=origin/main`.
-2. Package and sign through the project Make target:
+2. Package through the project Make target:
    ```powershell
    make package
    ```
-3. Review `debug/package_summary.txt` and `debug/sign_release_summary.txt` in the output folder.
-4. Upload the same custom ALIS release-root files to each approved distribution mirror; do not upload `debug/`.
-5. Point users to the ALIS trust page for authoritative fingerprint confirmation.
+3. Review `package_summary.txt` in the output folder.
+4. Feed the accepted package and developer evidence into the
+   [combined release transaction](../../scripts/ue/package/README.md#release-transaction).
+5. Sign only its explicitly approved `ready_for_signature` output.
 
 ## Canonical Script
 
@@ -48,11 +49,10 @@ Script behavior:
   supplies the explicit source-release admission flag
 - uses `-nodebuginfo` by default so staged `.pdb` files do not bloat the distributable payload
 - uses `-skipencryption` by default for public release packaging
-- writes `package_summary.txt` and, for signed releases, moves it under `debug/`
+- writes `package_summary.txt`
 - can create a release zip
 - defaults to `1700 MiB` split threshold for GitHub-safe archive transport
 - signing script writes `SHA256SUMS.txt`, `SHA256SUMS.txt.asc`, and `sign_release_summary.txt`
-- signed package flow moves `Windows/` and summary files under `debug/` so the release root is the upload set
 - signing script exports the selected signing key's public half as `ALIS_PUBLIC_KEY.asc` before hashing
 - signing script also writes `INSTALL.txt` so the release folder contains a fast install and verify guide
 - signing script also copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release folder so advanced users do not need the repo docs
@@ -66,8 +66,6 @@ Important flags:
 - `package_release_source.bat` for the configured `%UE_SOURCE_PATH%`
 - `-OutputDir <path>`
 - `-CreateReleaseArchive`
-- `-SignRelease`
-- `-GpgHome <isolated-keyring-path>` for throwaway signing tests
 - `-SplitSizeMB 1700`
 - `-SkipBuild`
 - `-IncludeStagedDebugFiles`
@@ -132,12 +130,11 @@ Important implementation note:
 
 ## Recommended Public Release Flow
 
-1. Package and sign with `make package`.
-2. Review `debug/package_summary.txt` and `debug/sign_release_summary.txt`.
-3. Upload the same custom ALIS release-root files to every approved mirror; do not upload `debug/`.
-4. Only override the split threshold if you have a specific transport reason.
-5. Upload optional torrent file.
-6. Point users to the canonical ALIS trust page for fingerprint confirmation.
+1. Package with `make package`.
+2. Review `package_summary.txt`.
+3. Prepare and approve the combined release transaction.
+4. Sign and verify that exact release directory.
+5. Publish only the signed files after explicit remote authorization.
 
 ## User Experience
 
@@ -313,23 +310,25 @@ Package into an explicit directory:
   -OutputDir Saved\PackageRelease\MyBuild
 ```
 
-Package and sign in one flow:
+Package the game, then prepare the combined player/developer release:
 
 ```powershell
 .\scripts\ue\package\package_release_source.bat `
   -OutputDir Saved\PackageRelease\MyBuild `
-  -SignRelease
+  -CreateReleaseArchive
 ```
 
-Package, sign, and verify in one flow:
+The exact accepted Candidate and developer-source reports then enter the single
+release transaction documented in
+[Package Scripts](../../scripts/ue/package/README.md#release-transaction).
+Only its explicitly approved `ready_for_signature` directory may be signed:
 
 ```powershell
-.\scripts\ue\package\package_release_source.bat `
-  -OutputDir Saved\PackageRelease\MyBuild `
-  -SignRelease
+.\scripts\ue\package\sign_release.ps1 `
+  -ReleaseDir tmp\release\v2.0.0
 
 .\scripts\ue\package\verify_release.ps1 `
-  -ReleaseDir Saved\PackageRelease\MyBuild
+  -ReleaseDir tmp\release\v2.0.0
 ```
 
 Force split archives:

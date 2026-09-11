@@ -1,0 +1,94 @@
+{
+    "id": "Window_Wooden_Small_Left",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Small_Window_Wooden_Frame",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "sash_1",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Window_Wooden_Part_1",
+            "transform": {
+                "location": "(X=0 Y=10 Z=100)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_1",
+            "parent": "sash_1",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Window_Wooden_Glass_1",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "sash_2",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Window_Wooden_Part_2",
+            "transform": {
+                "location": "(X=0 Y=10 Z=5)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_2",
+            "parent": "sash_2",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Window_Wooden_Glass_2",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "sash_3",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Window_Wooden_Part_4",
+            "transform": {
+                "location": "(X=-158 Y=10 Z=5)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_3",
+            "parent": "sash_3",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/SM_Window_Wooden_Glass_4",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash_1"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash_2"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash_3"
+            ],
+            "properties": {
+                "OpenAngle": "-90"
+            }
+        }
+    ]
+}
+

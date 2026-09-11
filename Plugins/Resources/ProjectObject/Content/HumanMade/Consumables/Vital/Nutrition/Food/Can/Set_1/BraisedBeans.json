@@ -1,0 +1,41 @@
+{
+  "id": "BraisedBeans",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/SM_Can_1"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Braised Beans",
+      "description": "Canned braised beans.",
+      "iconCode": "\uFA07",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 8,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Calories": 360.0
+      },
+      "consumeOnUse": true
+    }
+  }
+}
+

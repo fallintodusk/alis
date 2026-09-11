@@ -1,0 +1,87 @@
+{
+  "$schema": "contracts/toolchain-lock.schema.json",
+  "schema_version": 1,
+  "platform": "windows-x86_64",
+  "components": [
+    {
+      "component_id": "osmium",
+      "version": "1.16.0",
+      "license": "GPL-3.0-only",
+      "executable": "osmium/root/bin/osmium.exe",
+      "version_probe": ["--version"],
+      "expected_version_text": "osmium version 1.16.0",
+      "binary_hashes": {
+        "osmium/root/bin/osmium.exe": "590b1c72a0c64e9440a9d88c0d8bc72988b8b88a607ac230f94016f8997bb095"
+      },
+      "runtime_dependencies": [
+        {"path": "osmium/root/bin/libexpat.dll", "sha256": "c1edb2b9531927a896fd140a3ce8dc3d1d0033bb3e3013f93bb8c1b44c9f3e58", "license": "MIT"},
+        {"path": "osmium/root/bin/lz4.dll", "sha256": "86a8fd412e843f57250db49072cd1a7526075e045eac5db039f392eac06f3cbe", "license": "BSD-2-Clause"},
+        {"path": "osmium/root/bin/zlib.dll", "sha256": "37e7ea97c0c414013f376269064d90a1826c4e831d9e6c259412dc6e8befe903", "license": "Zlib"}
+      ],
+      "artifacts": [
+        {"archive_type": "tar.bz2", "url": "https://download.osgeo.org/osgeo4w/v2/x86_64/release/osmium/osmium-1.16.0-5.tar.bz2", "file_name": "osmium-1.16.0-5.tar.bz2", "byte_size": 573089, "sha256": "55d336e806b47ddaecd32e1730ef7e2f46d9b9464353928c898215a7812d167a", "extract_root": "osmium/root"},
+        {"archive_type": "tar.bz2", "url": "https://download.osgeo.org/osgeo4w/v2/x86_64/release/expat/expat-2.8.2-1.tar.bz2", "file_name": "expat-2.8.2-1.tar.bz2", "byte_size": 72696, "sha256": "b84b5b317a95f20a4164e02da433fec706280ec7dd7e1ebd3fa3dab75d5b8ddd", "extract_root": "osmium/root", "license": "MIT"},
+        {"archive_type": "tar.bz2", "url": "https://download.osgeo.org/osgeo4w/v2/x86_64/release/zlib/zlib-1.3.2-3.tar.bz2", "file_name": "zlib-1.3.2-3.tar.bz2", "byte_size": 54860, "sha256": "4a909219dfb40dc611ccef1d32c84ebff99b1298852f21f9a322d181783440ef", "extract_root": "osmium/root", "license": "Zlib"},
+        {"archive_type": "tar.bz2", "url": "https://download.osgeo.org/osgeo4w/v2/x86_64/release/lz4/lz4-1.10.0-1.tar.bz2", "file_name": "lz4-1.10.0-1.tar.bz2", "byte_size": 54045, "sha256": "4f0263a8a6e0242a8530c694a2985f04621c18e8ac251d5949995e92a81aa13e", "extract_root": "osmium/root", "license": "BSD-2-Clause"}
+      ],
+      "notice_urls": ["https://github.com/osmcode/osmium-tool/blob/v1.16.0/LICENSE.txt"],
+      "redistribution": "provider_download_only"
+    },
+    {
+      "component_id": "gdal",
+      "version": "3.11.5",
+      "license": "LicenseRef-GISInternals-Mixed-Runtime",
+      "executable": "gdal/root/bin/gdal/apps/gdalinfo.exe",
+      "version_probe": ["--version"],
+      "expected_version_text": "GDAL 3.11.5",
+      "related_versions": {"PROJ": "9.7.1"},
+      "binary_hashes": {
+        "gdal/root/bin/gdal/apps/gdalbuildvrt.exe": "2f21b5f0bdb796e5fe9657dca50e7d29f8cc6c200a23186fccf99b492ab7ee43",
+        "gdal/root/bin/gdal/apps/gdalinfo.exe": "1e9658d2fa9d6bec3a9e7bd12cc503316105194fd591aa4534140ab448fa2365",
+        "gdal/root/bin/gdal/apps/gdal_rasterize.exe": "7177ba17dab5e57f17452acc618592c28c6b81985ba10490593eb698b01b9ddb",
+        "gdal/root/bin/gdal/apps/gdal_translate.exe": "c62c08dcfd6271862ba1d39cffa26581a484ed71a7ab17f339903272be5a1cbf",
+        "gdal/root/bin/gdal/apps/gdalwarp.exe": "59b0a5874634b07581a0b8a9ef0771eebe66dd3e964531643c81441e49bdfe96",
+        "gdal/root/bin/gdal/apps/ogr2ogr.exe": "0c7461f5cea30f565074f8687b8a3412f4679efcf69e9394cbd96fedf29f694e",
+        "gdal/root/bin/proj9/apps/projinfo.exe": "5773eba8938f01b18e575fec697043a98c4cade558aafb5fb0ad3e229620c784"
+      },
+      "runtime_dependencies": [
+        {"path": "gdal/root/bin/freexl.dll", "sha256": "0bcfc4cd67226064c30659a358a73b9091de939c9a4cefce3860347bc414971e", "license": "MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later"},
+        {"path": "gdal/root/bin/gdal.dll", "sha256": "5eeebc6fce811e78d5a408690e3088d8e80910138a929729ff9d5eb9174bc8e3", "license": "MIT"},
+        {"path": "gdal/root/bin/geos.dll", "sha256": "69bb1a47bb4b5163ef0e7c66773cb1c2b1aa248dc4432bbbafc208390d3da0ce", "license": "LGPL-2.1-or-later"},
+        {"path": "gdal/root/bin/geos_c.dll", "sha256": "e0513c28b586edae398e1a7c9e77d9c28b3fb856423f3d380d276e9205243330", "license": "LGPL-2.1-or-later"},
+        {"path": "gdal/root/bin/iconv-2.dll", "sha256": "76dc494fe514502f13e3f9ad3dbf4070e696e58dddfc4b87f9bc83735c7fc026", "license": "LGPL-2.1-or-later"},
+        {"path": "gdal/root/bin/libcrypto-3-x64.dll", "sha256": "c14b1f864fa940c214950ce4b8cd64040abe59228e891b483bf41f6d6bb2232c", "license": "Apache-2.0"},
+        {"path": "gdal/root/bin/libcurl.dll", "sha256": "79cd77badeb8abfdc2470602b1bc5c5dd480865af9d791156bd5cfec529eaf5f", "license": "curl"},
+        {"path": "gdal/root/bin/libexpat.dll", "sha256": "29418b59154d7e1be97e62d7d31b245b91f1587a400bc19320eb084b573cc5d8", "license": "MIT"},
+        {"path": "gdal/root/bin/libmysql.dll", "sha256": "4739691d659a26a0979fd5d73f604175fd5f0549cb27de9028897cbf857ade17", "license": "GPL-2.0-only WITH MySQL-FOSS-exception-2.0"},
+        {"path": "gdal/root/bin/libpng16.dll", "sha256": "8c658e7ac06bd7bbdb65dc787e0731fcc242a21bf96748e9f431760ee8e09bc6", "license": "Libpng"},
+        {"path": "gdal/root/bin/libpq.dll", "sha256": "e1cb52a5fb896fb216939c180edc766769f0f19a5718186a11687084d9143b13", "license": "PostgreSQL"},
+        {"path": "gdal/root/bin/libssl-3-x64.dll", "sha256": "f40f52f76b9403f808a65c689f311530f013f10734b8a5f7f0c8118d3d196832", "license": "Apache-2.0"},
+        {"path": "gdal/root/bin/libxml2.dll", "sha256": "c818268738f69ccb730d6265a9de43fde69b935fc355fced7ce2a3ca0d7f1081", "license": "MIT"},
+        {"path": "gdal/root/bin/msvcp140.dll", "sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9", "license": "LicenseRef-Microsoft-Visual-Cpp-Runtime"},
+        {"path": "gdal/root/bin/openjp2.dll", "sha256": "a33af78ea121231359db583418ece502f4ecac03f5dceefd929f2178ad9478fb", "license": "BSD-2-Clause"},
+        {"path": "gdal/root/bin/pcre.dll", "sha256": "633fc515df31f1b88b29af2baf57059b8c25c8a59835dfdcac20f38db493cf3b", "license": "BSD-3-Clause"},
+        {"path": "gdal/root/bin/proj_9.dll", "sha256": "4169629c73f463d5cd908bcd65c3402fbccf9ded00170e287b49abaa91c50b5e", "license": "MIT"},
+        {"path": "gdal/root/bin/spatialite.dll", "sha256": "f49e497954712032295265bfa3f5f053179134fa120c58ad68d0bd7093cde602", "license": "MPL-1.1 OR GPL-2.0-or-later OR LGPL-2.1-or-later"},
+        {"path": "gdal/root/bin/sqlite3.dll", "sha256": "c2c544f8d048826cbd7f0aaa074de62f0c231d04df99baa9e07195719bd212f9", "license": "blessing"},
+        {"path": "gdal/root/bin/tiff.dll", "sha256": "05fbda5e67171c7153b15baba8bfdffc02416fff37445364a2174b5e4f43e46b", "license": "libtiff"},
+        {"path": "gdal/root/bin/vcruntime140.dll", "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066", "license": "LicenseRef-Microsoft-Visual-Cpp-Runtime"},
+        {"path": "gdal/root/bin/vcruntime140_1.dll", "sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f", "license": "LicenseRef-Microsoft-Visual-Cpp-Runtime"},
+        {"path": "gdal/root/bin/xerces-c_3_3.dll", "sha256": "5610a4ae93b8f6e55d2652265eb1f7a5753baada9a32ee7dd4a02ef8d1107f3f", "license": "Apache-2.0"},
+        {"path": "gdal/root/bin/zlib.dll", "sha256": "c76a26caa091569d336b67f3cbabd857377fe03d738ffb9cdeab4bc326fc043d", "license": "Zlib"},
+        {"path": "gdal/root/bin/zstd.dll", "sha256": "c09f292937ad099b7a1696b3d329425d56ffa8acb0ba4b1e3c50cb4f42938c1e", "license": "BSD-3-Clause"}
+      ],
+      "artifacts": [
+        {"archive_type": "zip", "url": "https://download.gisinternals.com/sdk/downloads/release-1944-x64-gdal-3-11-5-mapserver-8-4-1.zip", "file_name": "release-1944-x64-gdal-3-11-5-mapserver-8-4-1.zip", "byte_size": 60790163, "sha256": "5a8f4dc1c290339cd8e1b92b4d90f6fdf9c01f173d3dc72f160ebad819d71403", "extract_root": "gdal/root", "license": "LicenseRef-GISInternals-Mixed-Binary-Distribution"}
+      ],
+      "notice_urls": [
+        "https://www.gisinternals.com/licensing.html",
+        "https://www.gisinternals.com/packageinfo.php?file=release-1944-x64-gdal-3-11-5-mapserver-8-4-1.zip",
+        "https://gdal.org/en/stable/license.html",
+        "https://proj.org/en/stable/about.html"
+      ],
+      "plugin_autoload": "disabled",
+      "redistribution": "provider_download_only"
+    }
+  ]
+}

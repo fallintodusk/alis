@@ -1,0 +1,70 @@
+{
+    "id": "Window_Plastic_Small",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/Window_Plastic_Small/SM_Small_Window_Plastic_Frame",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "sash_left",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Sash",
+            "transform": {
+                "location": "(X=157 Y=-15 Z=5)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=-1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "glass_left",
+            "parent": "sash_left",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Glass",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "sash_right",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Sash",
+            "transform": {
+                "location": "(X=1 Y=-15 Z=5)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "glass_right",
+            "parent": "sash_right",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/SM_Window_Plastic_Glass",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash_left"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "sash_right"
+            ],
+            "properties": {
+                "OpenAngle": "-90"
+            }
+        }
+    ]
+}
+

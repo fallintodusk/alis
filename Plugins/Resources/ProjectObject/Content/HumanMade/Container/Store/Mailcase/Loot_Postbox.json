@@ -1,0 +1,37 @@
+{
+  "id": "Loot_Postbox",
+  "sections": {
+    "storage": {
+      "gridSize": {
+        "x": 3,
+        "y": 3
+      },
+      "maxWeight": 12.0,
+      "maxVolume": 18.0,
+      "maxCells": 9,
+      "allowRotation": true,
+      "persistent": true,
+      "containerSlotId": "Primary",
+      "seedEntries": [
+        { "objectId": "ObjectDefinition:KeyLuxuryApartment" },
+        { "objectId": "ObjectDefinition:Cigarette" }
+      ],
+      "lootProfileId": ""
+    }
+  },
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Container/Store/Mailcase/SM_Postbox_1"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "LootContainer",
+      "scope": ["actor"],
+      "properties": {
+        "OneTimeUse": "false"
+      }
+    }
+  ]
+}

@@ -48,8 +48,8 @@ function Resolve-GpgPath {
     $Candidates = @(
         "C:\Program Files\GnuPG\bin\gpg.exe",
         "C:\Program Files (x86)\GnuPG\bin\gpg.exe",
-        "gpg",
-        "gpg"
+        "C:\Program Files\Git\usr\bin\gpg.exe",
+        "C:\Program Files\Git\mingw64\bin\gpg.exe"
     )
 
     foreach ($Candidate in $Candidates) {

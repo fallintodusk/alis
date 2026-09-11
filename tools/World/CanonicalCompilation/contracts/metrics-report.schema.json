@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/metrics-report-v1.json",
+  "title": "World Compiler Observational Metrics",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "determinism_level", "duration_ms", "canonical_bytes", "cell_count", "terrain_processed_cells", "feature_processed_count", "feature_count", "rejection_count"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "determinism_level": {"const": "observational_excluded_from_d1"},
+    "duration_ms": {"type": "integer", "minimum": 0},
+    "canonical_bytes": {"type": "integer", "minimum": 0},
+    "cell_count": {"type": "integer", "minimum": 0},
+    "terrain_processed_cells": {"type": "integer", "minimum": 0},
+    "feature_processed_count": {"type": "integer", "minimum": 0},
+    "feature_count": {"type": "integer", "minimum": 0},
+    "rejection_count": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false
+}

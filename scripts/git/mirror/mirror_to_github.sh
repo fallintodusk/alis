@@ -11,12 +11,21 @@ REMOTE_URL="${MIRROR_REMOTE_URL:-}"
 BRANCH="main"
 EXCLUDE_FILE="$SCRIPT_DIR/mirror.exclude"
 FORBIDDEN_PATTERNS_FILE="${MIRROR_FORBIDDEN_PATTERNS_FILE:-$SCRIPT_DIR/forbidden_text_patterns.regex}"
+PRIVATE_FORBIDDEN_PATTERNS_FILE="$SCRIPT_DIR/forbidden_private_text_patterns.regex"
 ALLOW_DIRTY=0
 DO_PUSH=0
 EPHEMERAL_PREVIEW=0
 DEVELOPER_RELEASE_DIR=""
 DEVELOPER_VERSION=""
 DEVELOPER_PART_SIZE_MIB=1700
+SOURCE_REVISION="HEAD"
+CANDIDATE_DIR=""
+PUBLIC_WORLD_MANIFEST_ROOT=""
+DEVELOPER_ASSET_ROOT=""
+REPORT_PATH=""
+OFFICIAL_RELEASE=0
+OFFICIAL_BASE_SHA=""
+CLEAN_PREVALIDATED="${MIRROR_CLEAN_PREVALIDATED:-0}"
 
 usage() {
   cat <<'USAGE'
@@ -37,14 +46,22 @@ Options:
   --developer-release-dir <path>    Compose the public developer payload in this empty directory.
   --developer-version <version>     Human release version used in developer archive names.
   --developer-part-size-mib <int>   Split size in MiB (default: 1700; maximum: 1900).
-  --force                           Allow running from a dirty source repository.
+  --source-revision <commit>        Private source commit to filter (default: HEAD).
+  --candidate-dir <path>            Preserve the local filtered Git repository here.
+  --public-world-manifest-root <path>
+                                    Project public World manifests into filtered source.
+  --developer-asset-root <path>     Compose payload bytes from this generated project root.
+  --report <path>                   Write an accepted machine-readable privacy/projection report.
+  --official-release                Require the canonical ALIS GitHub remote, a release branch,
+                                    and the accepted public World manifest projection.
+  --force                           Project the current tracked/untracked non-ignored worktree.
   --allow-dirty                     Backward-compatible alias for --force.
   -h, --help                        Show this help.
 
 Examples:
   ./scripts/git/mirror/mirror_to_github.sh --remote-url git@github.com:org/repo.git --dry-run
   ./scripts/git/mirror/mirror_to_github.sh --dry-run --ephemeral-preview \
-    --developer-release-dir ../alis-developer-v1 --developer-version v1
+    --developer-release-dir ../alis-developer-1.0.0 --developer-version 1.0.0
   ./scripts/git/mirror/mirror_to_github.sh --dry-run --ephemeral-preview
   ./scripts/git/mirror/mirror_to_github.sh --remote-url git@github.com:org/repo.git --push
 USAGE
@@ -63,6 +80,35 @@ warn() {
   printf '[WARN] %s\n' "$*" >&2
 }
 
+write_report() {
+  local report_path="$1"
+  local source_revision="$2"
+  local source_tree="$3"
+  local files_changed="$4"
+  local push_result="$5"
+  mkdir -p "$(dirname -- "$report_path")"
+  python3 - "$report_path" "$source_revision" "$source_tree" "$BRANCH" \
+    "$files_changed" "$push_result" "${REMOTE_URL:-none}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path, revision, tree, branch, changed, push, remote = sys.argv[1:]
+report = {
+    "schema": "alis-public-source-privacy-v1",
+    "status": "accepted",
+    "source_revision": revision,
+    "source_tree": tree,
+    "branch": branch,
+    "files_changed": int(changed),
+    "publication_result": push,
+    "remote": remote,
+    "issue_count": 0,
+}
+Path(path).write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+}
+
 require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -79,7 +125,9 @@ require_cmd() {
 # The directory must be per-invocation: a fixed shared path persists between runs,
 # so anything that ever drops a hook there would be executed by every later
 # "safe" call - the opposite of the guarantee this makes.
-PROJECT_EMPTY_HOOKS="$(mktemp -d "${TMPDIR:-/tmp}/project-empty-hooks.XXXXXX")"
+PROJECT_TMP_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)/tmp/git/mirror"
+mkdir -p "$PROJECT_TMP_ROOT"
+PROJECT_EMPTY_HOOKS="$(mktemp -d "$PROJECT_TMP_ROOT/project-empty-hooks.XXXXXX")"
 trap 'rm -rf "$PROJECT_EMPTY_HOOKS" 2>/dev/null || true' EXIT
 
 git_safe() {
@@ -88,15 +136,22 @@ git_safe() {
 
 compose_developer_payload() {
   local public_revision="$1"
-  info "Composing developer payload for public revision $public_revision"
-  python3 "$SCRIPT_DIR/compose_developer_payload.py" \
-    --repo-root "$REPO_ROOT" \
-    --output-dir "$DEVELOPER_RELEASE_DIR" \
-    --version "$DEVELOPER_VERSION" \
-    --public-source-revision "$public_revision" \
-    --public-source-branch "$BRANCH" \
-    --part-size-mib "$DEVELOPER_PART_SIZE_MIB" \
+  local compose_args=(
+    --repo-root "$DEVELOPER_ASSET_ROOT"
+    --output-dir "$DEVELOPER_RELEASE_DIR"
+    --release-version "$DEVELOPER_VERSION"
+    --public-source-tag "v${DEVELOPER_VERSION#v}"
+    --public-source-revision "$public_revision"
+    --public-source-branch "$BRANCH"
+    --world-manifest-root "$MIRROR_DIR/Plugins/World/ProjectWorldData/Data/Manifests"
+    --part-size-mib "$DEVELOPER_PART_SIZE_MIB"
     --owner ProjectWorldData
+  )
+  if [[ "$DEVELOPER_ASSET_ROOT" != "$REPO_ROOT" ]]; then
+    compose_args+=(--allow-dirty)
+  fi
+  info "Composing developer payload for public revision $public_revision"
+  python3 "$SCRIPT_DIR/compose_developer_payload.py" "${compose_args[@]}"
 }
 
 resolve_file() {
@@ -126,14 +181,21 @@ build_filtered_snapshot() {
   local exclude_file="$2"
   local filtered_dir="$3"
   local temp_root="$4"
+  local source_revision="$5"
   local tracked_paths_file="$temp_root/tracked_paths.nul"
   local allowed_paths_file="$temp_root/allowed_paths.nul"
   local head_index_file="$temp_root/head.index"
 
-  info "Selecting tracked HEAD files that survive blacklist rules"
-  git_safe -C "$repo_root" ls-tree -r --name-only -z HEAD > "$tracked_paths_file"
+  if [[ "$ALLOW_DIRTY" -eq 1 ]]; then
+    info "Selecting current tracked/untracked non-ignored worktree files that survive blacklist rules"
+    git_safe -C "$repo_root" ls-files --cached --others --exclude-standard -z > "$tracked_paths_file"
+  else
+    info "Selecting tracked source files that survive blacklist rules"
+    git_safe -C "$repo_root" ls-tree -r --name-only -z "$source_revision" > "$tracked_paths_file"
+  fi
 
-  python3 - "$exclude_file" "$tracked_paths_file" "$allowed_paths_file" <<'PY'
+  python3 - "$exclude_file" "$tracked_paths_file" "$allowed_paths_file" "$repo_root" "$ALLOW_DIRTY" <<'PY'
+import pathlib
 import sys
 from fnmatch import fnmatchcase
 
@@ -158,6 +220,8 @@ for raw_path in raw_paths:
     rel_path = raw_path.decode("utf-8", errors="surrogateescape").replace("\\", "/")
     if any(fnmatchcase(rel_path, pattern) for pattern in patterns):
         continue
+    if not (pathlib.Path(sys.argv[4]) / rel_path).exists() and sys.argv[5] == "1":
+        continue
     allowed.append(raw_path)
 
 with open(allowed_paths_file, "wb") as handle:
@@ -166,10 +230,14 @@ with open(allowed_paths_file, "wb") as handle:
 PY
 
   mkdir -p "$filtered_dir"
-  : > "$head_index_file"
-  GIT_INDEX_FILE="$head_index_file" git_safe -C "$repo_root" read-tree HEAD
-  if [[ -s "$allowed_paths_file" ]]; then
-    GIT_INDEX_FILE="$head_index_file" git_safe -C "$repo_root" checkout-index -q -z --stdin --prefix="$filtered_dir/" < "$allowed_paths_file"
+  if [[ "$ALLOW_DIRTY" -eq 1 ]]; then
+    rsync -a --from0 --files-from="$allowed_paths_file" "$repo_root/" "$filtered_dir/"
+  else
+    : > "$head_index_file"
+    GIT_INDEX_FILE="$head_index_file" git_safe -C "$repo_root" read-tree "$source_revision"
+    if [[ -s "$allowed_paths_file" ]]; then
+      GIT_INDEX_FILE="$head_index_file" git_safe -C "$repo_root" checkout-index -q -z --stdin --prefix="$filtered_dir/" < "$allowed_paths_file"
+    fi
   fi
 }
 
@@ -206,9 +274,9 @@ text_suffixes = {
 }
 
 text_replacements = [
-    (re.compile(r"[A-Za-z]:\\Repos_Alis\\site"), r"<site-root>"),
+    (re.compile(r"[A-Za-z]:\\+Repos_Alis\\+site"), r"<site-root>"),
     (re.compile(r"[A-Za-z]:/Repos_Alis/site"), r"<site-root>"),
-    (re.compile(r"[A-Za-z]:\\Repos_Alis\\Alis"), r"<project-root>"),
+    (re.compile(r"[A-Za-z]:\\+Repos_Alis\\+Alis"), r"<project-root>"),
     (re.compile(r"[A-Za-z]:/Repos_Alis/Alis"), r"<project-root>"),
     (re.compile(r"/mnt/[A-Za-z]/Repos_Alis/site"), r"<site-root>"),
     (re.compile(r"/mnt/[A-Za-z]/Repos_Alis/Alis"), r"<project-root>"),
@@ -222,8 +290,6 @@ text_replacements = [
     (re.compile(r"[A-Za-z]:/UnrealEngine(?:-[0-9.]+|/UE_[0-9.]+)"), r"<ue-path>"),
     (re.compile(r"[A-Za-z]:\\Program Files(?: \\(x86\\))?\\Epic Games\\UE_[0-9.]+"), r"<ue-path>"),
     (re.compile(r"[A-Za-z]:/Program Files(?: \\(x86\\))?/Epic Games/UE_[0-9.]+"), r"<ue-path>"),
-    (re.compile(r"[A-Za-z]:\\Program Files(?: \\(x86\\))?\\Git(?:\\(?:usr|mingw64)\\bin)?\\gpg\.exe"), r"gpg"),
-    (re.compile(r"[A-Za-z]:/Program Files(?: \\(x86\\))?/Git(?:/(?:usr|mingw64)/bin)?/gpg\.exe"), r"gpg"),
     (re.compile(r"[A-Za-z]:\\Program Files\\Python[0-9]+\\python\.exe"), r"python"),
     (re.compile(r"[A-Za-z]:/Program Files/Python[0-9]+/python\.exe"), r"python"),
     (re.compile(r"[A-Za-z]:\\Program Files(?: \\(x86\\))?\\Windows Kits\\10\\Debuggers\\x64\\cdb\.exe"), r"<debugger-path>"),
@@ -257,7 +323,6 @@ identity_replacements = [
     (re.compile(r"\bAlis Team\b"), "ALIS"),
     (re.compile(r"\bvslvg\b"), "<user>"),
     (re.compile(r"\bKATANA\b"), "<user>"),
-    (re.compile(r"\bfallintodusk\b"), "<user>"),
 ]
 
 uplugin_replacements = [
@@ -402,7 +467,7 @@ validate_filtered_tree() {
     rel_path_lc="$(printf '%s' "$rel_path" | tr '[:upper:]' '[:lower:]')"
 
     case "$rel_path_lc" in
-      binaries|binaries/*|build|build/*|content|content/*|config|config/*|deriveddatacache|deriveddatacache/*|intermediate|intermediate/*|saved|saved/*|releases|releases/*|artifacts|artifacts/*|localappdata|localappdata/*|langchain_env|langchain_env/*|plugins/*/binaries|plugins/*/binaries/*|plugins/*/content|plugins/*/content/*|plugins/*/intermediate|plugins/*/intermediate/*|plugins/*/resources|plugins/*/resources/*|plugins/*/thirdparty|plugins/*/thirdparty/*)
+      binaries|binaries/*|build|build/*|content|content/*|deriveddatacache|deriveddatacache/*|intermediate|intermediate/*|saved|saved/*|releases|releases/*|artifacts|artifacts/*|localappdata|localappdata/*|langchain_env|langchain_env/*|plugins/*/binaries|plugins/*/binaries/*|plugins/*/intermediate|plugins/*/intermediate/*|plugins/*/resources|plugins/*/resources/*|plugins/*/thirdparty|plugins/*/thirdparty/*)
         printf '[FAIL] Forbidden path survived filtering: %s\n' "$rel_path" >&2
         fail_flag=1
         ;;
@@ -432,22 +497,27 @@ validate_filtered_tree() {
   done < <(find "$filtered_dir" -mindepth 1 -print0)
 
   if [[ -f "$forbidden_patterns_file" ]] && grep -Eqv '^[[:space:]]*(#|$)' "$forbidden_patterns_file"; then
-    text_patterns_compiled="$(mktemp "${TMPDIR:-/tmp}/mirror-forbidden.XXXXXX")"
+    text_patterns_compiled="$TEMP_ROOT/mirror-forbidden.regex"
     grep -Ev '^[[:space:]]*(#|$)' "$forbidden_patterns_file" > "$text_patterns_compiled"
+    if [[ -f "$PRIVATE_FORBIDDEN_PATTERNS_FILE" ]]; then
+      grep -Ev '^[[:space:]]*(#|$)' "$PRIVATE_FORBIDDEN_PATTERNS_FILE" >> "$text_patterns_compiled"
+    fi
     while IFS= read -r -d '' item; do
       rel_path="${item#$filtered_dir/}"
       rel_path_lc="$(printf '%s' "$rel_path" | tr '[:upper:]' '[:lower:]')"
-      if [[ "$rel_path_lc" == scripts/git/mirror/* ]]; then
+      if [[ "$rel_path_lc" == scripts/git/mirror/tests/* ||
+            "$rel_path_lc" == scripts/git/mirror/forbidden_text_patterns.regex ||
+            "$rel_path_lc" == scripts/git/mirror/mirror_to_github.sh ]]; then
         continue
       fi
-      if LC_ALL=C grep -I -n -H -E -f "$text_patterns_compiled" "$item" >/tmp/mirror_forbidden_matches.txt 2>/dev/null; then
+      if LC_ALL=C grep -I -n -H -E -f "$text_patterns_compiled" "$item" >"$TEMP_ROOT/mirror_forbidden_matches.txt" 2>/dev/null; then
         printf '[FAIL] Forbidden content matched in %s\n' "$rel_path" >&2
-        cat /tmp/mirror_forbidden_matches.txt >&2
+        cat "$TEMP_ROOT/mirror_forbidden_matches.txt" >&2
         fail_flag=1
       fi
     done < <(find "$filtered_dir" -type f \
       \( -iname '*.md' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.ini' -o -iname '*.cs' -o -iname '*.cpp' -o -iname '*.c' -o -iname '*.h' -o -iname '*.hpp' -o -iname '*.inl' -o -iname '*.ps1' -o -iname '*.bat' -o -iname '*.sh' -o -iname '*.py' -o -iname '*.yml' -o -iname '*.yaml' -o -iname '*.dsl' -o -iname '*.uplugin' -o -iname '*.uproject' -o -iname 'readme*' \) -print0)
-    rm -f "$text_patterns_compiled" /tmp/mirror_forbidden_matches.txt
+    rm -f "$text_patterns_compiled" "$TEMP_ROOT/mirror_forbidden_matches.txt"
   fi
 
   # Hard guard: a Git LFS pointer that leaked into the snapshot (object not
@@ -528,6 +598,34 @@ while (($# > 0)); do
       (($# > 0)) || fail "Missing value for --developer-part-size-mib"
       DEVELOPER_PART_SIZE_MIB="$1"
       ;;
+    --source-revision)
+      shift
+      (($# > 0)) || fail "Missing value for --source-revision"
+      SOURCE_REVISION="$1"
+      ;;
+    --candidate-dir)
+      shift
+      (($# > 0)) || fail "Missing value for --candidate-dir"
+      CANDIDATE_DIR="$1"
+      ;;
+    --public-world-manifest-root)
+      shift
+      (($# > 0)) || fail "Missing value for --public-world-manifest-root"
+      PUBLIC_WORLD_MANIFEST_ROOT="$1"
+      ;;
+    --developer-asset-root)
+      shift
+      (($# > 0)) || fail "Missing value for --developer-asset-root"
+      DEVELOPER_ASSET_ROOT="$1"
+      ;;
+    --report)
+      shift
+      (($# > 0)) || fail "Missing value for --report"
+      REPORT_PATH="$1"
+      ;;
+    --official-release)
+      OFFICIAL_RELEASE=1
+      ;;
     --allow-dirty)
       ALLOW_DIRTY=1
       ;;
@@ -556,8 +654,25 @@ if { [[ -n "$DEVELOPER_RELEASE_DIR" ]] && [[ -z "$DEVELOPER_VERSION" ]]; } ||
    { [[ -z "$DEVELOPER_RELEASE_DIR" ]] && [[ -n "$DEVELOPER_VERSION" ]]; }; then
   fail "--developer-release-dir and --developer-version must be supplied together."
 fi
+if [[ -n "$DEVELOPER_ASSET_ROOT" ]] && [[ -z "$DEVELOPER_RELEASE_DIR" ]]; then
+  fail "--developer-asset-root requires --developer-release-dir."
+fi
 if [[ "$DO_PUSH" -eq 1 ]] && [[ -n "$DEVELOPER_RELEASE_DIR" ]]; then
   fail "Developer payload publication is not implemented: compose with --dry-run, then use the tracked draft release transaction before pushing source/tag."
+fi
+if [[ "$DO_PUSH" -eq 1 ]] && [[ -n "$CANDIDATE_DIR" ]]; then
+  fail "--candidate-dir is a local evidence output and cannot be combined with --push."
+fi
+if [[ "$OFFICIAL_RELEASE" -eq 1 ]]; then
+  case "$REMOTE_URL" in
+    git@github.com:fallintodusk/alis.git|https://github.com/fallintodusk/alis.git|ssh://git@github.com/fallintodusk/alis.git)
+      ;;
+    *)
+      fail "Official release remote must be fallintodusk/alis."
+      ;;
+  esac
+  [[ "$BRANCH" == release/v* ]] || fail "Official release source must use a release/v* branch, not '$BRANCH'."
+  [[ -n "$PUBLIC_WORLD_MANIFEST_ROOT" ]] || fail "Official release requires --public-world-manifest-root; private World authority cannot enter the public source or developer payload."
 fi
 if ! [[ "$DEVELOPER_PART_SIZE_MIB" =~ ^[0-9]+$ ]] || ((DEVELOPER_PART_SIZE_MIB < 1 || DEVELOPER_PART_SIZE_MIB > 1900)); then
   fail "--developer-part-size-mib must be between 1 and 1900."
@@ -573,6 +688,17 @@ require_cmd python3
 
 REPO_ROOT="$(git_safe -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
 [[ -n "$REPO_ROOT" ]] || fail "Could not detect repository root from script location"
+DEVELOPER_ASSET_ROOT="${DEVELOPER_ASSET_ROOT:-$REPO_ROOT}"
+if [[ "$ALLOW_DIRTY" -eq 1 ]]; then
+  [[ "$(git_safe -C "$REPO_ROOT" rev-parse "$SOURCE_REVISION")" == "$(git_safe -C "$REPO_ROOT" rev-parse HEAD)" ]] ||
+    fail "--force projects the current worktree and therefore requires --source-revision HEAD."
+fi
+SOURCE_REVISION="$(git_safe -C "$REPO_ROOT" rev-parse --verify "$SOURCE_REVISION^{commit}" 2>/dev/null || true)"
+[[ -n "$SOURCE_REVISION" ]] || fail "Source revision does not resolve to a commit."
+[[ -d "$DEVELOPER_ASSET_ROOT" ]] || fail "Developer asset root does not exist: $DEVELOPER_ASSET_ROOT"
+if [[ -n "$PUBLIC_WORLD_MANIFEST_ROOT" ]]; then
+  [[ -d "$PUBLIC_WORLD_MANIFEST_ROOT" ]] || fail "Public World manifest root does not exist: $PUBLIC_WORLD_MANIFEST_ROOT"
+fi
 
 EXCLUDE_FILE="$(resolve_file "$EXCLUDE_FILE" "$REPO_ROOT")"
 [[ -f "$EXCLUDE_FILE" ]] || fail "Exclude file not found: $EXCLUDE_FILE"
@@ -584,7 +710,7 @@ if [[ -n "$FORBIDDEN_PATTERNS_FILE" ]] && [[ ! -f "$FORBIDDEN_PATTERNS_FILE" ]];
   fail "Forbidden patterns file not found: $FORBIDDEN_PATTERNS_FILE"
 fi
 
-if [[ "$ALLOW_DIRTY" -eq 0 ]]; then
+if [[ "$ALLOW_DIRTY" -eq 0 ]] && [[ "$CLEAN_PREVALIDATED" -ne 1 ]]; then
   STAGED_CHANGES="$(git_safe -C "$REPO_ROOT" diff --cached --name-only)"
   UNSTAGED_CHANGES="$(git_safe -C "$REPO_ROOT" diff --name-only)"
   UNTRACKED_CHANGES="$(git_safe -C "$REPO_ROOT" ls-files --others --exclude-standard)"
@@ -604,9 +730,9 @@ if [[ "$ALLOW_DIRTY" -eq 0 ]]; then
   fi
 fi
 
-TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/repo-mirror.XXXXXX")"
+TEMP_ROOT="$(mktemp -d "$PROJECT_TMP_ROOT/repo-mirror.XXXXXX")"
 FILTERED_DIR="$TEMP_ROOT/filtered"
-MIRROR_DIR="$TEMP_ROOT/mirror"
+MIRROR_DIR="${CANDIDATE_DIR:-$TEMP_ROOT/mirror}"
 
 cleanup() {
   rm -rf "$TEMP_ROOT" 2>/dev/null || true
@@ -614,11 +740,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if [[ -n "$CANDIDATE_DIR" ]] && [[ -e "$CANDIDATE_DIR" ]] && [[ -n "$(find "$CANDIDATE_DIR" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
+  fail "Candidate directory must be absent or empty: $CANDIDATE_DIR"
+fi
 mkdir -p "$FILTERED_DIR" "$MIRROR_DIR"
 
-build_filtered_snapshot "$REPO_ROOT" "$EXCLUDE_FILE" "$FILTERED_DIR" "$TEMP_ROOT"
+build_filtered_snapshot "$REPO_ROOT" "$EXCLUDE_FILE" "$FILTERED_DIR" "$TEMP_ROOT" "$SOURCE_REVISION"
 info "Sanitizing filtered mirror tree for public anonymity"
 sanitize_filtered_tree "$FILTERED_DIR"
+
+info "Applying deterministic public project/config projection"
+PROJECTION_ARGS=(--root "$FILTERED_DIR")
+if [[ -n "$PUBLIC_WORLD_MANIFEST_ROOT" ]]; then
+  PROJECTION_ARGS+=(--world-manifest-root "$PUBLIC_WORLD_MANIFEST_ROOT")
+fi
+python3 "$SCRIPT_DIR/prepare_public_source.py" "${PROJECTION_ARGS[@]}"
 
 info "Neutralizing Git LFS attributes for code-only public mirror"
 neutralize_lfs_attributes "$FILTERED_DIR"
@@ -634,11 +770,24 @@ git_safe -C "$MIRROR_DIR" config core.safecrlf false
 
 if [[ -n "$REMOTE_URL" ]]; then
   git_safe -C "$MIRROR_DIR" remote add mirror "$REMOTE_URL"
-  if git_safe -C "$MIRROR_DIR" ls-remote --exit-code --heads mirror "$BRANCH" >/dev/null 2>&1; then
+  REMOTE_PROBE_OUTPUT=""
+  if REMOTE_PROBE_OUTPUT="$(git_safe -C "$MIRROR_DIR" ls-remote --exit-code --heads mirror "$BRANCH" 2>&1)"; then
     git_safe -C "$MIRROR_DIR" fetch --depth=1 --quiet mirror "$BRANCH"
     git_safe -C "$MIRROR_DIR" checkout -q -B "$BRANCH" FETCH_HEAD
   else
-    git_safe -C "$MIRROR_DIR" checkout -q --orphan "$BRANCH"
+    REMOTE_PROBE_STATUS=$?
+    if [[ "$REMOTE_PROBE_STATUS" -eq 2 ]]; then
+      if [[ "$OFFICIAL_RELEASE" -eq 1 ]]; then
+        git_safe -C "$MIRROR_DIR" fetch --depth=1 --quiet mirror main
+        OFFICIAL_BASE_SHA="$(git_safe -C "$MIRROR_DIR" rev-parse FETCH_HEAD)"
+        git_safe -C "$MIRROR_DIR" checkout -q -B "$BRANCH" "$OFFICIAL_BASE_SHA"
+      else
+        git_safe -C "$MIRROR_DIR" checkout -q --orphan "$BRANCH"
+      fi
+    else
+      printf '%s\n' "$REMOTE_PROBE_OUTPUT" >&2
+      fail "Cannot establish remote branch state for $BRANCH (git exit $REMOTE_PROBE_STATUS)."
+    fi
   fi
 else
   git_safe -C "$MIRROR_DIR" checkout -q --orphan "$BRANCH"
@@ -649,8 +798,13 @@ rsync -a --delete --exclude='.git/' "$FILTERED_DIR"/ "$MIRROR_DIR"/
 
 git_safe -C "$MIRROR_DIR" add -A
 if git_safe -C "$MIRROR_DIR" diff --cached --quiet; then
+  COMMIT_SHA="$(git_safe -C "$MIRROR_DIR" rev-parse HEAD)"
   if [[ -n "$DEVELOPER_RELEASE_DIR" ]]; then
-    compose_developer_payload "$(git_safe -C "$MIRROR_DIR" rev-parse HEAD)"
+    compose_developer_payload "$COMMIT_SHA"
+  fi
+  if [[ -n "$REPORT_PATH" ]]; then
+    write_report "$REPORT_PATH" "$COMMIT_SHA" \
+      "$(git_safe -C "$MIRROR_DIR" rev-parse HEAD^{tree})" 0 "no-change"
   fi
   printf '[SUMMARY] no changes after filtering; nothing to commit\n'
   exit 0
@@ -694,6 +848,15 @@ GIT_COMMITTER_EMAIL="mirror-bot@localhost" \
 git_safe -C "$MIRROR_DIR" commit -m "$COMMIT_MESSAGE" >/dev/null
 COMMIT_SHA="$(git_safe -C "$MIRROR_DIR" rev-parse HEAD)"
 
+if [[ -n "$OFFICIAL_BASE_SHA" ]]; then
+  [[ "$(git_safe -C "$MIRROR_DIR" rev-parse HEAD^)" == "$OFFICIAL_BASE_SHA" ]] ||
+    fail "Official release candidate is not a direct child of remote main."
+fi
+
+if [[ -n "$DEVELOPER_VERSION" ]]; then
+  git_safe -C "$MIRROR_DIR" tag "v${DEVELOPER_VERSION#v}" "$COMMIT_SHA"
+fi
+
 if [[ -n "$DEVELOPER_RELEASE_DIR" ]]; then
   compose_developer_payload "$COMMIT_SHA"
 fi
@@ -708,6 +871,11 @@ elif [[ -z "$REMOTE_URL" ]]; then
 else
   info "Dry run complete. Use --push to publish."
   PUSH_RESULT="dry-run"
+fi
+
+if [[ -n "$REPORT_PATH" ]]; then
+  write_report "$REPORT_PATH" "$COMMIT_SHA" \
+    "$(git_safe -C "$MIRROR_DIR" rev-parse HEAD^{tree})" "$FILES_CHANGED" "$PUSH_RESULT"
 fi
 
 printf '[SUMMARY] branch=%s commit=%s files_changed=%s push=%s remote=%s\n' \

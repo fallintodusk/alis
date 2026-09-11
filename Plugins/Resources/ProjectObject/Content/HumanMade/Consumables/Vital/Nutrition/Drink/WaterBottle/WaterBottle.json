@@ -1,0 +1,41 @@
+{
+  "id": "WaterBottle",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/SM_WaterBottle"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Water Bottle",
+      "description": "A bottle of clean drinking water.",
+      "iconCode": "\uFF83",
+      "weight": 0.5,
+      "volume": 0.5,
+      "maxStack": 5,
+      "gridSize": "1,2",
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Hydration": 0.03
+      },
+      "consumeOnUse": true
+    }
+  }
+}

@@ -12,6 +12,18 @@ This router focuses on the build and release paths that are meaningful in the pu
 - Testing router: [../testing/README.md](../testing/README.md)
 - Scripts router: [../../scripts/README.md](../../scripts/README.md)
 
+## Public Developer Prerequisites
+
+- Windows 10 or 11
+- Git and PowerShell 5.1 or newer
+- Epic Games Launcher installation of Unreal Engine 5.8
+- Visual Studio 2022 with Desktop development with C++, Game development with
+  C++, an MSVC v143 toolset, and a Windows 10 or 11 SDK
+- The `v2.0.0` public source checkout and matching signed developer payload
+
+The payload installer never needs the private release-signing key. It verifies
+the published signature through the repository public key and fingerprint.
+
 ## Common Tasks
 
 ### Build the editor
@@ -19,10 +31,24 @@ This router focuses on the build and release paths that are meaningful in the pu
 Use:
 
 ```powershell
-.\scripts\ue\build\build.bat AlisEditor Win64 Development
+Copy-Item .\scripts\config\ue_path.conf.example .\scripts\config\ue_path.local.conf
+# Edit ue_path.local.conf and set UE_PATH to the launcher UE 5.8 directory.
+.\scripts\ue\standalone\build.ps1
 ```
 
 See: [workflow.md](workflow.md)
+
+### Open the generated public worlds
+
+Kazan is the default Editor map. Open either accepted public root directly:
+
+```powershell
+.\scripts\ue\run\run_editor.bat /ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory
+.\scripts\ue\run\run_editor.bat /ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase
+```
+
+Old City 17 remains visible as legacy product context, but its proprietary
+content is deliberately not part of the public developer route.
 
 ### Rebuild one module
 
@@ -75,14 +101,17 @@ Related docs:
 - [workflow.md](workflow.md)
 - [../gameplay/multiplayer/architecture.md](../gameplay/multiplayer/architecture.md)
 
-## Important Public-Scope Note
+## Public Source and Developer Payload
 
-This repository intentionally excludes Unreal content payloads and private machine configuration from the public mirror.
+The public Git tag contains source, JSON, schemas, documentation, and release
+automation. The matching signed developer payload contains the approved Unreal
+assets required to build and open the public Kazan and Manhattan routes.
+Restricted third-party content and private machine configuration are excluded.
 
-That means:
-- the code and automation are public
-- the release flow is public
-- some full runtime or packaging scenarios still require the complete internal asset-bearing checkout
+Install the payload through the checkout-local installer documented in the
+root [README](../../README.md). The installer verifies the public signature,
+tag, revision, inventory, and file hashes before copying any asset. Developers
+need the published public key, not the private release-signing key.
 
 ## Related References
 

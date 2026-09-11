@@ -1,0 +1,28 @@
+# External Tools Configuration
+# Copy this file to tools.conf and set your local paths.
+# tools.conf is gitignored and takes precedence.
+#
+# LOCAL OVERRIDE: Create tools.local.conf (same format) to override values
+# without modifying the tracked file. Priority: env var > .local.conf > this file.
+
+# --- Node.js ---
+# Required by MCP bridges (blueprint-mcp, ue-mcp).
+# Node 20+ required (Node 18 has broken fetch for localhost).
+NODE_PATH=C:/Program Files/nodejs/node.exe
+
+# --- BlueprintMCP (mirno-ehf/ue5-mcp) ---
+# Graph-level Blueprint surgery. Plugin lives in Plugins/Local/BlueprintMCP/.
+# HTTP port must match the UE editor plugin setting.
+MCP_BLUEPRINT_PORT=9847
+
+# --- UE MCP (ChiR24/Unreal_mcp) ---
+# Broad UE automation (Niagara, Sequencer, NavMesh, GAS, Landscape, etc.).
+# Fork: github.com/6r0m/Unreal_mcp (adds MCP_ADDITIONAL_PATH_PREFIXES support).
+# Plugin: Plugins/Local/McpAutomationBridge/ (already in repo, compiles with project).
+# Entry point: path to dist/cli.js from your fork clone.
+# Example: UE_MCP_ENTRY=G:/PublicRepos/Unreal_mcp/dist/cli.js
+UE_MCP_ENTRY=
+MCP_AUTOMATION_PORT=8091
+# REQUIRED: without this, ue-mcp cannot access plugin content mounts (/ProjectObject/ etc.)
+# Comma-separated list of UE plugin mount points to whitelist.
+# MCP_ADDITIONAL_PATH_PREFIXES=/ProjectObject/,/ProjectAnimation/,/ProjectCore/,/ProjectCharacter/,/ProjectInventory/,/ProjectUI/

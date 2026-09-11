@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../Gameplay/ProjectObjectCapabilities/Data/Schemas/audio.schema.json",
+  "id": "AUDIO_SniperZone",
+  "Attenuation": {
+    "Shape": "Cone",
+    "InnerRadius": 6471.3,
+    "FalloffDistance": 3600.0,
+    "ConeAngle": 25.27
+  },
+  "tracks": [
+    {
+      "id": "shot",
+      "name": "Sniper Shot",
+      "sound": "/ProjectAudio/Wheapon/sniper_shot.sniper_shot"
+    }
+  ]
+}

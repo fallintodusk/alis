@@ -129,19 +129,24 @@ function Get-ProjectWorldPackagePayloadDigest {
     $runtimeStates = @($RuntimeStateRelativePaths | ForEach-Object {
             $_.Trim('\', '/').Replace('\', '/')
         })
-    $lines = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force |
-        Sort-Object FullName |
+    $relativePaths = [string[]]@(Get-ChildItem -LiteralPath $root -Recurse -File -Force |
         ForEach-Object {
             $relative = $_.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
             $isRuntimeState = @($runtimeStates | Where-Object {
                     $relative.Equals($_, [StringComparison]::OrdinalIgnoreCase) -or
                     $relative.StartsWith($_ + '/', [StringComparison]::OrdinalIgnoreCase)
                 }).Count -gt 0
-            if ($isRuntimeState) {
-                return
+            if (-not $isRuntimeState) {
+                $relative
             }
-            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            '{0}|{1}|{2}' -f $relative, $_.Length, $hash
+        })
+    [Array]::Sort($relativePaths, [StringComparer]::Ordinal)
+    $lines = @($relativePaths | ForEach-Object {
+            $relative = $_
+            $file = Join-Path $root $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            $item = Get-Item -LiteralPath $file
+            $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            '{0}|{1}|{2}' -f $relative, $item.Length, $hash
         })
     $sha = [Security.Cryptography.SHA256]::Create()
     try {

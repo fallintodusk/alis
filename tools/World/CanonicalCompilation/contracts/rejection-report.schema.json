@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/rejection-report-v1.json",
+  "title": "Canonical Rejection Report",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "rejections"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "rejections": {"type": "array", "items": {"type": "object", "required": ["source_identity", "reason_code", "message"], "properties": {"source_identity": {"type": "string"}, "reason_code": {"type": "string"}, "message": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

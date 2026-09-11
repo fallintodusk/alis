@@ -40,11 +40,12 @@ def repository_paths(repo_root: Path) -> list[str]:
         check=True,
         capture_output=True,
     )
-    return [
+    paths = [
         raw.decode("utf-8", errors="surrogateescape").replace("\\", "/")
         for raw in result.stdout.split(b"\0")
         if raw
     ]
+    return [rel for rel in paths if (repo_root / rel).is_file()]
 
 
 def software_assignments(policy: str) -> dict[str, str]:
@@ -140,6 +141,8 @@ def unreal_relative_class(relative_path: str) -> str | None:
     first = path.parts[0]
     if first in {"Source", "Config", "Data"}:
         return "ue-in-process"
+    if first == "Tools":
+        return "separate-process"
     if first in {"Content", "Resources"}:
         return "provenance-required"
     if first.lower() == "docs" or path.name.lower().startswith("readme"):

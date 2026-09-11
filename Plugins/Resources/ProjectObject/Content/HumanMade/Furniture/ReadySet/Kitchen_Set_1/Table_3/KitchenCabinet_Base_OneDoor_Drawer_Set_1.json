@@ -1,0 +1,53 @@
+{
+    "id": "KitchenCabinet_Base_OneDoor_Drawer_Set_1",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_3/SM_KitchenSetC",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_3/SM_KitchenSetC_Door",
+            "transform": {
+                "location": "(X=-54 Y=-3 Z=-1)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        },
+        {
+            "id": "drawer",
+            "asset": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_3/SM_KitchenSetC_Drawer",
+            "transform": {
+                "location": "(X=-47 Y=10 Z=70)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "drawer"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=-47 Y=10 Z=70)",
+                "OpenPosition": "(X=-66 Y=23 Z=70)"
+            }
+        }
+    ]
+}

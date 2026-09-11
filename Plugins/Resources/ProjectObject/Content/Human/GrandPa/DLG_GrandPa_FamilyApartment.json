@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_GrandPa_FamilyApartment",
+  "startNode": "greeting",
+  "nodes": {
+    "greeting": {
+      "speaker": "Grandpa",
+      "text": "Ah. ...Glad to see you, son. ...If you find more cigarettes, save them for me?",
+      "options": [
+        {
+          "text": "Here. All yours.",
+          "next": "thanks_cigs",
+          "condition": {
+            "type": "inventory",
+            "id": "Cigarette",
+            "quantity": 20,
+            "exact": true
+          }
+        },
+        {
+          "text": "I'll bring back all I find.",
+          "next": "hurry"
+        }
+      ]
+    },
+    "hurry": {
+      "speaker": "Grandpa",
+      "text": "Take your time. ...And come back.",
+      "next": "$end"
+    },
+    "thanks_cigs": {
+      "speaker": "Grandpa",
+      "text": "You keep helping me. Couple upstairs left me their key. Maybe there you'll find something to survive.",
+      "actions": ["inventory.consume:Cigarette*:20", "inventory.give:KeyPlayerApartment"],
+      "next": "$end"
+    }
+  }
+}

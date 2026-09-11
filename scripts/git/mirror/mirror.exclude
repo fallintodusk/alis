@@ -9,7 +9,8 @@
 # - if a future workflow needs secrets, keep them outside the repository and outside the mirror
 
 # Workspace and local machine state
-.claude/**
+.claude/settings*.json*
+.claude/*.lock
 .vs/**
 .vscode/**
 langchain_env/**
@@ -34,6 +35,7 @@ Saved/**
 Releases/**
 artifacts/**
 scripts/ue/check/reports/**
+**/.gitkeep
 
 # Secrets, keys, and private infrastructure
 # Never publish credential/key material or private infra config. Secret CONTENT
@@ -94,6 +96,7 @@ credentials/**
 **/*.tiff
 **/*.ico
 **/*.exr
+**/*.hdr
 **/*.psd
 **/*.xcf
 **/*.ai
@@ -110,6 +113,10 @@ credentials/**
 **/*.mov
 **/*.avi
 **/*.webm
+**/*.ttf
+**/*.otf
+**/*.woff
+**/*.woff2
 
 # Binary containers, databases, and model weights. The validator's binary-content
 # guard is the real enforcement (fails any NUL-byte file regardless of extension);
@@ -133,11 +140,17 @@ credentials/**
 **/*.sqlite3
 
 Content/**
-Config/**
+# Public runtime/build configuration is projected after filtering. Keep only
+# explicit private, machine-local, backup, and Editor-state exclusions here.
+Config/DefaultCrypto.ini
+Config/DefaultEditor.ini
+Config/*.backup*
+Config/__sel_probe.tmp
 Plugins/**/Binaries/**
-Plugins/**/Content/**
 Plugins/**/Intermediate/**
 Plugins/**/Resources/**
+Plugins/UI/ProjectUI/Content/Slate/Fonts/*.css
+Plugins/World/City17/Content/**
 # NOTE: plugin Data/ dirs are intentionally NOT excluded (denylist-first). They
 # hold JSON schemas and live data-driven generator inputs (loot, dialogue, UI
 # layouts, vitals) that are useful public references. Any UE assets inside Data/
@@ -148,7 +161,10 @@ Plugins/Local/**
 Plugins/ThirdParty/**
 Plugins/**/ThirdParty/**
 Test/**
-tools/**
+tools/agentic/**
+tools/BuildService/**
+tools/docs/**
+tools/Launcher/**
 Wiki/**
 
 # Internal docs and local automation
@@ -159,7 +175,10 @@ docs/ci/**
 docs/debugging/**
 docs/integration/**
 docs/loading/**
-scripts/config/**
+scripts/config/ue_path.conf
+scripts/config/*.local.conf
+scripts/config/__sel_probe.tmp
+scripts/git/mirror/forbidden_private_text_patterns.regex
 scripts/ci/**
 scripts/git/hooks/**
 scripts/utils/**

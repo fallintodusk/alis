@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/bootstrap-preflight-v1.json",
+  "title": "World Pipeline Bootstrap Preflight",
+  "type": "object",
+  "required": ["$schema", "schema_version", "operation_id", "status", "all_absent", "observations"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-validation/bootstrap-preflight-v1.json"},
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string", "pattern": "^bootstrap-preflight:"},
+    "status": {"const": "accepted"},
+    "all_absent": {"type": "boolean"},
+    "observations": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "present"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"},
+          "present": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

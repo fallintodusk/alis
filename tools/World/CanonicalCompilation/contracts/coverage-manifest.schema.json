@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/coverage-manifest-v1.json",
+  "title": "Canonical Coverage Manifest",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "world_data_plugin", "engine_georeference_origin", "algorithm_version", "grid_id", "grid", "area_fingerprints", "cells", "feature_count", "rejected_feature_count", "artifact_descriptors", "semantic_hash"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
+    "engine_georeference_origin": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+    "algorithm_version": {"type": "string"},
+    "grid_id": {"type": "string"},
+    "grid": {"type": "object"},
+    "area_fingerprints": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "minItems": 1, "uniqueItems": true},
+    "cells": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["cell_id", "path", "sha256", "byte_size", "terrain_lineage", "feature_lineage"]
+      }
+    },
+    "feature_count": {"type": "integer", "minimum": 0},
+    "rejected_feature_count": {"type": "integer", "minimum": 0},
+    "artifact_descriptors": {
+      "type": "array",
+      "items": {"type": "object", "required": ["artifact_id", "cell_id", "representation", "content_hash", "byte_size", "schema_version", "dependencies", "provenance_result"], "properties": {"artifact_id": {"type": "string"}, "cell_id": {"type": "string"}, "representation": {"type": "string"}, "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "byte_size": {"type": "integer", "minimum": 1}, "schema_version": {"type": "integer"}, "dependencies": {"type": "array", "items": {"type": "string"}}, "provenance_result": {"const": "accepted"}}, "additionalProperties": false}
+    },
+    "semantic_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

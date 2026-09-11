@@ -1,0 +1,27 @@
+{
+    "id": "WardrobeSlider2",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Wardrobe/Hutch_Cabinet/SM_Wardrobe_Slider_2"
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Furniture/Store/Wardrobe/Hutch_Cabinet/SM_WardrobeSlider_Door_2",
+            "transform": {
+                "location": "(X=-29 Y=0 Z=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Sliding",
+            "scope": ["door"],
+            "properties": {
+                "ClosedPosition": "(X=0 Y=0 Z=0)",
+                "OpenPosition": "(X=-90 Y=0 Z=0)"
+            }
+        }
+    ]
+}
+

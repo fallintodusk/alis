@@ -1,0 +1,33 @@
+{
+  "$schema": "../../Data/Schemas/object.schema.json",
+  "id": "SniperZone",
+
+  "triggers": [
+    {
+      "id": "Trigger",
+      "kind": "Box",
+      "extent": "(X=300 Y=300 Z=201)"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "EnvironmentEffect",
+      "scope": ["actor"],
+      "properties": {
+        "TriggerComponentName": "Trigger",
+        "EntryAction": "audio.play:shot",
+        "EntryMagnitudes": "SetByCaller.Condition=-50.0;SetByCaller.Bleeding=0.1",
+        "PeriodicMagnitudes": "SetByCaller.Condition=-50.0",
+        "TickInterval": "3.0"
+      }
+    },
+    {
+      "type": "Audio",
+      "scope": ["actor"],
+      "properties": {
+        "AudioPresetAsset": "/ProjectObject/Environment/Hazard/AUDIO_SniperZone.AUDIO_SniperZone"
+      }
+    }
+  ]
+}

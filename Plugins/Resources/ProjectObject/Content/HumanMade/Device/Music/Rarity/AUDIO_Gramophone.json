@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../../../Gameplay/ProjectObjectCapabilities/Data/Schemas/audio.schema.json",
+  "id": "AUDIO_Gramophone",
+  "Attenuation": {
+    "Shape": "Sphere",
+    "InnerRadius": 200,
+    "FalloffDistance": 2000
+  },
+  "tracks": [
+    {
+      "id": "along_the_petersburg",
+      "name": "Along The Petersburg",
+      "sound": "/ProjectAudio/Music/Author/SW_FedorChaliapin_AlongThePetersburg.SW_FedorChaliapin_AlongThePetersburg"
+    },
+    {
+      "id": "temperature_of_the_air",
+      "name": "The Temperature Of The Air On The Bow Of The Kaleetan",
+      "sound": "/ProjectAudio/Music/Author/SW_ChrisZabriskie_TheTemperatureOfTheAirOnTheBowOfTheKaleetan.SW_ChrisZabriskie_TheTemperatureOfTheAirOnTheBowOfTheKaleetan"
+    },
+    {
+      "id": "music",
+      "name": "Music",
+      "sound": "/ProjectAudio/Music/Misc/Music.Music"
+    }
+  ]
+}

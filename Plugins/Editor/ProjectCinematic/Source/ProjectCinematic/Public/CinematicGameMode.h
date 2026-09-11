@@ -148,12 +148,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cinematic|Streaming")
 	FVector CinematicTrajectoryCenter = FVector::ZeroVector;
 
-	/** Radius of the WP streaming source, in cm. Default 1km - generous for
-	 *  indoor trailer scenes; bump for outdoor wide shots. Wider = more
-	 *  cells loaded = more memory; tune per shot. */
+	/** Radius of the WP streaming source, in cm. Three kilometres keeps the
+	 *  foreground, skyline, and background resident for offline city-wide
+	 *  shots. This Editor-only capture path trades memory for complete frames. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cinematic|Streaming",
 		meta = (ClampMin = "100.0", UIMin = "100.0"))
-	float CinematicStreamingRadiusCm = 100000.0f;
+	float CinematicStreamingRadiusCm = 300000.0f;
 
 protected:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;

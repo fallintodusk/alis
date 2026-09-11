@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_Door_LuxuryApartment",
+  "startNode": "examine",
+  "nodes": {
+    "examine": {
+      "text": "Locked.",
+      "options": [
+        {
+          "text": "Use the key.",
+          "next": "unlock",
+          "condition": {
+            "type": "inventory",
+            "id": "KeyLuxuryApartment",
+            "exact": true
+          }
+        },
+        {
+          "text": "Leave.",
+          "next": "$end"
+        }
+      ]
+    },
+    "unlock": {
+      "text": "Done.",
+      "actions": ["lock.unlock", "motion.open", "inventory.consume:KeyLuxuryApartment*"],
+      "next": "$end"
+    }
+  }
+}

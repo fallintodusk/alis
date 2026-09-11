@@ -1,0 +1,103 @@
+{
+    "id": "BalconyFrame_DoubleGlazed_Wooden_Left",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyFrameWindowWooden",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyDoorWooden",
+            "transform": {
+                "location": "(X=245 Y=10 Z=-64)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_door",
+            "parent": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyDoorWooden_Glass",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "window_a",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyWindowWooden_Part_A",
+            "transform": {
+                "location": "(X=0 Y=9 Z=5)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_a",
+            "parent": "window_a",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyWindowWooden_Glass_A",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "window_b",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyWindowWooden_Part_B",
+            "transform": {
+                "location": "(X=0 Y=9 Z=100)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_b",
+            "parent": "window_b",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyWindowWooden_Glass_B",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_c",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/SM_BalconyWindowWooden_Glass_C",
+            "transform": {
+                "location": "(X=207 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)",
+                "scale": "(X=-1 Y=1 Z=1)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "85"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "window_a"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "window_b"
+            ],
+            "properties": {
+                "OpenAngle": "90"
+            }
+        }
+    ]
+}
+

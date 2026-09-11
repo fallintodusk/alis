@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/run-inputs-v1.json",
+  "title": "World Compiler Run Inputs",
+  "type": "object",
+  "$defs": {
+    "layerReuse": {
+      "type": "object",
+      "required": ["decision", "reasons"],
+      "properties": {
+        "decision": {"enum": ["reused", "full_rebuild"]},
+        "reasons": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema", "schema_version", "profile_id", "grid_id", "source_inputs_hash", "source_result_sha256", "profile_sha256", "overlay_sha256", "overlay_document", "execution_environment", "base_reuse", "change_scope", "authoritative_change_scope", "implementation_sha256", "run_inputs_hash"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "grid_id": {"type": "string", "pattern": "^grid_[0-9a-f]{16}$"},
+    "source_inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "feature_set_semantic_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "overlay_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "overlay_document": {"type": "object"},
+    "execution_environment": {
+      "type": "object",
+      "required": ["python_runtime", "python_dependency_lock_sha256", "toolchain_lock_sha256", "toolchain_receipt_sha256", "implementation_sha256", "identity_sha256"],
+      "properties": {
+        "python_runtime": {"type": "string"},
+        "python_dependency_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "toolchain_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "toolchain_receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "fixture_features_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "base_result_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "base_reuse": {
+      "type": "object",
+      "required": ["decision", "reasons"],
+      "properties": {
+        "decision": {"enum": ["not_requested", "reused", "full_rebuild"]},
+        "reasons": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "layers": {
+          "type": "object",
+          "required": ["terrain", "feature"],
+          "properties": {
+            "terrain": {"$ref": "#/$defs/layerReuse"},
+            "feature": {"$ref": "#/$defs/layerReuse"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "change_scope": {
+      "type": "object",
+      "required": ["terrain_bounds", "provider_feature_ids"],
+      "properties": {
+        "terrain_bounds": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}
+        },
+        "provider_feature_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "authoritative_change_scope": {
+      "type": "object",
+      "required": ["new_target_cells", "terrain_bounds", "provider_feature_ids", "source_result_changed", "source_overlap_verified"],
+      "properties": {
+        "new_target_cells": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2}, "uniqueItems": true},
+        "terrain_bounds": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}, "uniqueItems": true},
+        "provider_feature_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "source_result_changed": {"type": "boolean"},
+        "source_overlap_verified": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run_inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

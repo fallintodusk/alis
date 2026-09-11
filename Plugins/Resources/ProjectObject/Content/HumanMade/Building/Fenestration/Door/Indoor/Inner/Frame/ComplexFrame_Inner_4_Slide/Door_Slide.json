@@ -1,0 +1,74 @@
+{
+    "id": "Door_Slide",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/SM_DoorFrame_4_Slide",
+            "transform": {
+                "location": "(X=0.0 Y=0.0 Z=0.0)",
+                "rotation": "(P=0.0 Y=0.0 R=0.0)",
+                "scale": "(X=1.0 Y=1.0 Z=1.0)"
+            }
+        },
+        {
+            "id": "door_l",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/SM_Door_Slide_4_Door_L",
+            "transform": {
+                "location": "(X=47.625911 Y=-1.464404 Z=0.000000)",
+                "rotation": "(P=0.0 Y=0.0 R=0.0)",
+                "scale": "(X=1.0 Y=1.0 Z=1.0)"
+            }
+        },
+        {
+            "id": "glass_l",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/SM_Door_Slide_4_Glass_L",
+            "parent": "door_l",
+            "transform": {
+                "location": "(X=0.0 Y=0.0 Z=0.0)",
+                "rotation": "(P=0.0 Y=0.0 R=0.0)",
+                "scale": "(X=1.0 Y=1.0 Z=1.0)"
+            }
+        },
+        {
+            "id": "door_r",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/SM_Door_Slide_Door_R",
+            "transform": {
+                "location": "(X=-44.629761 Y=-0.001783 Z=0.0)",
+                "rotation": "(P=0.0 Y=0.0 R=0.0)",
+                "scale": "(X=1.0 Y=1.0 Z=1.0)"
+            }
+        },
+        {
+            "id": "glass_r",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/SM_Door_Slide_Glass_R",
+            "parent": "door_r",
+            "transform": {
+                "location": "(X=0.0 Y=0.0 Z=0.0)",
+                "rotation": "(P=0.0 Y=0.0 R=0.0)",
+                "scale": "(X=1.0 Y=1.0 Z=1.0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Sliding",
+            "scope": [
+                "door_l"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=47.625911 Y=-1.464404 Z=0.000000)",
+                "OpenPosition": "(X=47.625911 Y=-93.964404 Z=0.000000)"
+            }
+        },
+        {
+            "type": "Sliding",
+            "scope": [
+                "door_r"
+            ],
+            "properties": {
+                "ClosedPosition": "(X=-44.629761 Y=-0.001783 Z=0.000000)",
+                "OpenPosition": "(X=-44.629761 Y=89.998217 Z=0.000000)"
+            }
+        }
+    ]
+}

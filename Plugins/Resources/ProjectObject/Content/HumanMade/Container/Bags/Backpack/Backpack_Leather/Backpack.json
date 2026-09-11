@@ -1,0 +1,37 @@
+{
+  "id": "Backpack",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Container/Bags/Backpack/Backpack_Leather/SM_Backpack_Leather_1"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0.5"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Backpack",
+      "description": "Old leather backpack.",
+      "iconCode": "\uF12A",
+      "weight": 0.1,
+      "volume": 0.05,
+      "maxStack": 1,
+      "tags": ["Item.Type.Equipment"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "equipSlotTag": "Item.EquipmentSlot.Back"
+    }
+  }
+}
+

@@ -1,0 +1,36 @@
+{
+  "id": "KeyPlayerApartment",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Accessory/Key/SM_KeyPlayerFlat"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Player Apartment Key",
+      "description": "Key to the player's apartment.",
+      "iconCode": "\uF790",
+      "weight": 0.05,
+      "volume": 0.01,
+      "maxStack": 1,
+      "tags": ["Item.Type.Key.Apartment.Family"],
+      "canBeDropped": false,
+      "canBeTraded": false,
+      "isQuestItem": true
+    }
+  }
+}
+

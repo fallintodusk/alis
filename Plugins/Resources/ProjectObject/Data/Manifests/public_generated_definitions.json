@@ -99,7 +99,7 @@
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
       "source_json_hash_md5": "2985d67896a59123e3b21d2f9a4d1a15",
       "source_path": "Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json",
-      "source_sha256": "0efcde37fdebf83c96cc9de0fbeb71b2b65a58054f7d6bfcfb39e2e10ee28e05"
+      "source_sha256": "f34d666086366b2adb5048c7be5221528deda9d67c05032ebd98e066432c1852"
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/EngineeringSystem/ElectricalInfrastructure/DistributionPanel/ElectricPanel_Entrance.uasset",
@@ -372,6 +372,16 @@
       "source_sha256": "beeb961ad11ae7b08b224a869a3801053024246c0272e90d4e4af6b3a8b59850"
     },
     {
+      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Health/Medical/EmergencyMedkit/EmergencyMedkit.uasset",
+      "artifact_sha256": "eea37e57af02baf202ff82ea5cfb93500bfb2676b7cd135040e175688b582f56",
+      "asset_class": "ObjectDefinition",
+      "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Health/Medical/EmergencyMedkit/EmergencyMedkit",
+      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+      "source_json_hash_md5": "cb018317a10e3ddb970cf6e549eeecc0",
+      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Health/Medical/EmergencyMedkit/EmergencyMedkit.json",
+      "source_sha256": "eedcf783f0af8df7226449ed5c159d30eaef714d022c1fbf2b28100d5ae083e9"
+    },
+    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Health/Medical/Medkit/Medkit.uasset",
       "artifact_sha256": "4e7727664747b117952fe484ada4a754130cb743b82d50f01e9209f0acb27d29",
       "asset_class": "ObjectDefinition",
@@ -380,6 +390,16 @@
       "source_json_hash_md5": "58337bfc0ef325363fec047aa915cc98",
       "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Health/Medical/Medkit/Medkit.json",
       "source_sha256": "3b4254f7090d504f23aff2ee0b6f3e6304155767d42bbec400238c9219405e55"
+    },
+    {
+      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/EmergencyWater/EmergencyWater.uasset",
+      "artifact_sha256": "93bf814ac90729d49542c666e9cec9453adbd06fe6d93d8da89bf4d5d6f40e99",
+      "asset_class": "ObjectDefinition",
+      "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/EmergencyWater/EmergencyWater",
+      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+      "source_json_hash_md5": "884b7faf2ea4d4db2c99ca5e49616282",
+      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/EmergencyWater/EmergencyWater.json",
+      "source_sha256": "08c7d6d8f84dde94192c9a30d528e050be317d76e6c7f8d34492a697c01a02e9"
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottle.uasset",
@@ -502,6 +522,16 @@
       "source_sha256": "c96eb698a0cf471405316854a86044939695843430075fa95974af9942b3ecb6"
     },
     {
+      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Ration/EmergencyRation/EmergencyRation.uasset",
+      "artifact_sha256": "9095432d1e9cbbd344370cda74a4ebb9be844a66e0c2eac4b993501d5871ef98",
+      "asset_class": "ObjectDefinition",
+      "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Ration/EmergencyRation/EmergencyRation",
+      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+      "source_json_hash_md5": "8f5d59f955ebbc214f3c5e78db51abfb",
+      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Ration/EmergencyRation/EmergencyRation.json",
+      "source_sha256": "e8eb88d1a8a16940f31e351b199a294937806572f50397a907f0a9b671809ec0"
+    },
+    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Backpack/Backpack_Leather/Backpack.uasset",
       "artifact_sha256": "cbcf96e55f4bef5672c353078da6638c57daebebcf7ac9f6f3cbb4b838e2aa27",
       "asset_class": "ObjectDefinition",
@@ -512,6 +542,16 @@
       "source_sha256": "a1621ff9404cb57c0c80ea6a7aeb9792b9d57823413be4f405d4b87c6cb5e734"
     },
     {
+      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Bag/EmergencySupplyCache.uasset",
+      "artifact_sha256": "6601c8a563a2b38c34e985e8ec3daee0818cfce9d069f91962e862feb21d7743",
+      "asset_class": "ObjectDefinition",
+      "package_name": "/ProjectObject/HumanMade/Container/Bags/Bag/EmergencySupplyCache",
+      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+      "source_json_hash_md5": "3d584a9f05bce48fd697d7a363f94032",
+      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Bag/EmergencySupplyCache.json",
+      "source_sha256": "a971dc308afb05510f28d61f1772f6560d2f68b5fb93a64b1cca44010e884a84"
+    },
+    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Bag/Loot_DuffleBag.uasset",
       "artifact_sha256": "31ef27bdd88f1328f5dc68c2e969d8b4cb61274835784a3a9e005ace7c07e4a6",
       "asset_class": "ObjectDefinition",
@@ -520,6 +560,16 @@
       "source_json_hash_md5": "8afd318a07c06a46e02e0e77096bdad7",
       "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Bag/Loot_DuffleBag.json",
       "source_sha256": "7135061f966629e8aa08601c636e60cac172946e66251f8721db92233e06ba83"
+    },
+    {
+      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Pouch/EmergencyPouch/EmergencyPouch.uasset",
+      "artifact_sha256": "b68254e390cbeccd8bffedd714a3c72316d9e1030de84fc6d26fa02b3a1c73ee",
+      "asset_class": "ObjectDefinition",
+      "package_name": "/ProjectObject/HumanMade/Container/Bags/Pouch/EmergencyPouch/EmergencyPouch",
+      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+      "source_json_hash_md5": "2a61f7313dfe624d83928d83a6ce572a",
+      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Pouch/EmergencyPouch/EmergencyPouch.json",
+      "source_sha256": "ef3c600483f3beb4bb6fdb5de756122bd7b229ff69f27823fdee87c471eaeb25"
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Locker/Locker_Steel.uasset",
@@ -610,6 +660,16 @@
       "source_json_hash_md5": "76c1f44eb8bb45a368219d5168c3c4fd",
       "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Worktool/Fasteners_Installation/Crowbar/Crowbar_1/Crowbar.json",
       "source_sha256": "6b71776c71ec6bf52dfad5e946a718c4caefde462a2c6e1f15646bd0debec859"
+    },
+    {
+      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Worktool/Fasteners_Installation/PryBar/CompactPryBar/CompactPryBar.uasset",
+      "artifact_sha256": "9895370d8490e08e02c3799b5d35bec8a23e29ee883a549a9f00eccbeb96792d",
+      "asset_class": "ObjectDefinition",
+      "package_name": "/ProjectObject/HumanMade/Device/Worktool/Fasteners_Installation/PryBar/CompactPryBar/CompactPryBar",
+      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
+      "source_json_hash_md5": "5776f8aab481b20e2907a0dc5c43099b",
+      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Worktool/Fasteners_Installation/PryBar/CompactPryBar/CompactPryBar.json",
+      "source_sha256": "4c0bf23f9469dfb882889f95eacd7560993c9ad0bd2d2ec8643042d3c7dd08ed"
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Lay/Bed/DoubleBed/DoubleBed_2_Wooden/DoubleBed_2_Wooden.uasset",
@@ -824,6 +884,6 @@
   ],
   "manifest_id": "project_object_public_generated_definitions_v1",
   "owner": "ProjectObject",
-  "release_contract_sha256": "c8c2b50fa64e0a89eae61d6dccd29261e9dc923d88d66649034652119984c163",
+  "release_contract_sha256": "d44a360c544f4eef21850966481ce4bf7382563d31846d0416cb4deae1040212",
   "schema_version": 1
 }

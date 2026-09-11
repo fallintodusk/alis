@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_GrandPa_Inside",
+  "startNode": "greeting",
+  "nodes": {
+    "greeting": {
+      "speaker": "Grandpa",
+      "text": "Oh... you're half-dead too. Thank you for the water. I have a little food in the kitchen - please, eat some.",
+      "options": [
+        {
+          "text": "What's going on?",
+          "next": "skip_to_quest"
+        }
+      ]
+    },
+    "skip_to_quest": {
+      "speaker": "Grandpa",
+      "text": "Eh. The shaking, blasts. Lights gone. Water gone. Everyone... They left. I stayed. Locked the door. Fucking TV not worked. [Crying.]",
+      "next": "quest_assignment"
+    },
+    "quest_assignment": {
+      "speaker": "Grandpa",
+      "text": "Could you... do something for me, son? I had a friend - far entrance. Could you check on him? ...Maybe ask him for a few cigarettes for me.",
+      "options": [
+        {
+          "text": "Yeah. I'll find him.",
+          "next": "quest_confirm"
+        },
+        {
+          "text": "Locked yourself... Why?",
+          "next": "why_not_yourself"
+        }
+      ]
+    },
+    "why_not_yourself": {
+      "speaker": "Grandpa",
+      "text": "Something... Just stopped... Foolish mistakes... [Crying.]",
+      "next": "quest_assignment"
+    },
+    "quest_confirm": {
+      "speaker": "Grandpa",
+      "text": "Far entrance, 5th floor. Be careful...",
+      "actions": ["dialogue.set_tree:/ProjectObject/Human/GrandPa/DLG_GrandPa_Cigarettes.DLG_GrandPa_Cigarettes"],
+      "next": "$end"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+    "id": "ElectricPanel_Entrance",
+    "meshes": [
+        {
+            "id": "device",
+            "asset": "/ProjectObject/HumanMade/Building/EngineeringSystem/ElectricalInfrastructure/DistributionPanel/SM_ElectricPanel_Entrance_Device",
+            "transform": {
+                "location": "(X=-0.554886 Y=1.757034 Z=1.027787)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Building/EngineeringSystem/ElectricalInfrastructure/DistributionPanel/SM_ElectricPanel_Entrancel_Door",
+            "transform": {
+                "location": "(X=38.507308 Y=-5.757389 Z=18.311451)"
+            }
+        },
+        {
+            "id": "glass",
+            "asset": "/ProjectObject/HumanMade/Building/EngineeringSystem/ElectricalInfrastructure/DistributionPanel/SM_ElectricPanel_Entrance_Glass",
+            "parent": "door",
+            "transform": {
+                "location": "(X=-8.109294 Y=-0.01246 Z=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "150"
+            }
+        }
+    ]
+}
+

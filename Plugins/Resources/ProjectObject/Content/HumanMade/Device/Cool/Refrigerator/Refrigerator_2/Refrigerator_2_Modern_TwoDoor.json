@@ -1,0 +1,54 @@
+{
+    "id": "Refrigerator_2_Modern_TwoDoor",
+    "meshes": [
+        {
+            "id": "body",
+            "asset": "/ProjectObject/HumanMade/Device/Cool/Refrigerator/Refrigerator_2/SM_Refrigerator_2"
+        },
+        {
+            "id": "door_top",
+            "asset": "/ProjectObject/HumanMade/Device/Cool/Refrigerator/Refrigerator_2/SM_Refrigerator_2_Door_1",
+            "transform": {
+                "location": "(X=46.015602 Y=39.3162 Z=158.762726)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "door_bottom",
+            "asset": "/ProjectObject/HumanMade/Device/Cool/Refrigerator/Refrigerator_2/SM_Refrigerator_2_Door_2",
+            "transform": {
+                "location": "(X=46.015602 Y=39.3162 Z=130.310822)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_top"
+            ],
+            "properties": {
+                "OpenAngle": "-90",
+                "HingePivotLocal": "(X=0 Y=39 Z=0)",
+                "HingeMotorStrength": "8000",
+                "HingeMotorDamping": "150",
+                "HingeMotorMaxForce": "200000"
+            }
+        },
+        {
+            "type": "Hinged",
+            "scope": [
+                "door_bottom"
+            ],
+            "properties": {
+                "OpenAngle": "-90",
+                "HingePivotLocal": "(X=0 Y=39 Z=0)",
+                "HingeMotorStrength": "8000",
+                "HingeMotorDamping": "150",
+                "HingeMotorMaxForce": "200000"
+            }
+        }
+    ]
+}
+

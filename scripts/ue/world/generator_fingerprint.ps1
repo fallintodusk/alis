@@ -183,9 +183,20 @@ function Get-ProjectWorldProducerSourceDigest {
         return 'missing'
     }
 
-    $text = [System.IO.File]::ReadAllText($Path)
-    if ($text -notmatch 'PROJECTWORLD_PRODUCER_BEGIN') {
+    $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
+    if ($extension -in @('.uasset', '.umap', '.zip')) {
         return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+
+    $text = [System.IO.File]::ReadAllText($Path)
+    $text = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+    if ($text -notmatch 'PROJECTWORLD_PRODUCER_BEGIN') {
+        $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($text)
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+        }
+        finally { $sha.Dispose() }
     }
 
     $pattern = '(?ms)^[ \t]*// PROJECTWORLD_PRODUCER_BEGIN (?<owner>[A-Za-z0-9_.-]+)\r?\n(?<body>.*?)^[ \t]*// PROJECTWORLD_PRODUCER_END \k<owner>\r?\n'
@@ -219,7 +230,7 @@ function Get-ProjectWorldGeneratorFingerprint {
     )
 
     $lines = [System.Collections.Generic.List[string]]::new()
-    $lines.Add("project_world_producer_fingerprint_v2`0$ProducerId")
+    $lines.Add("project_world_producer_fingerprint_v3`0$ProducerId")
     foreach ($relative in Get-ProjectWorldProducerSourcePaths -ProducerId $ProducerId) {
         $full = Join-Path $ProjectRoot $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
         $digest = Get-ProjectWorldProducerSourceDigest -Path $full -ProducerId $ProducerId

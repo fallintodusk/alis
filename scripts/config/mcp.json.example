@@ -1,0 +1,40 @@
+{
+  "_comment_setup": "Copy to .mcp.json at project root. Replace ${...} with absolute paths. .mcp.json is gitignored.",
+  "_comment_servers": "Agent decides which server to use based on task. Servers can run simultaneously, but mutating editor operations must be serialized across all agents and routes.",
+
+  "mcpServers": {
+
+    "_comment_blueprint_mcp": "Graph-level BP surgery: pin wiring, snapshot/restore, anim BP state machines, materials. 94 tools. Requires UE editor running on UE_PORT or spawns headless commandlet.",
+    "blueprint-mcp": {
+      "command": "${NODE_PATH}",
+      "args": ["${PROJECT_ROOT}/Plugins/Local/BlueprintMCP/Tools/dist/index.js"],
+      "cwd": "${PROJECT_ROOT}",
+      "env": {
+        "UE_PROJECT_DIR": "${PROJECT_ROOT}",
+        "UE_PORT": "9847",
+        "UE_EDITOR_CMD": "${UE_PATH}/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
+      }
+    },
+
+    "_comment_ue_mcp": "Broad UE automation: Niagara, Sequencer, NavMesh, GAS, Landscape, Splines, Networking. 36+ tools. Requires McpAutomationBridge plugin in Plugins/Local/. Fork: github.com/6r0m/Unreal_mcp",
+    "_comment_ue_mcp_paths": "MCP_ADDITIONAL_PATH_PREFIXES is REQUIRED for this project. Without it, ue-mcp cannot access plugin content such as character or animation assets - only /Game/ assets. List all plugin mount points that contain assets you need to access.",
+    "ue-mcp": {
+      "command": "${NODE_PATH}",
+      "args": ["${UE_MCP_ENTRY}"],
+      "env": {
+        "UE_PROJECT_PATH": "${PROJECT_ROOT}",
+        "MCP_AUTOMATION_HOST": "127.0.0.1",
+        "MCP_AUTOMATION_PORT": "8091",
+        "MCP_DEFAULT_CATEGORIES": "world,gameplay,utility",
+        "MCP_ADDITIONAL_PATH_PREFIXES": "/ProjectObject/,/ProjectAnimation/,/ProjectCore/,/ProjectCharacter/,/ProjectInventory/,/ProjectUI/",
+        "LOG_LEVEL": "info"
+      }
+    },
+
+    "_comment_unreal_mcp": "Official UE 5.8 loopback-only, editor-only server. Preferred for proven native discovery and supervised control. Keep tool search enabled, serialize calls, and retain community servers as precision and coverage fallbacks.",
+    "unreal-mcp": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}

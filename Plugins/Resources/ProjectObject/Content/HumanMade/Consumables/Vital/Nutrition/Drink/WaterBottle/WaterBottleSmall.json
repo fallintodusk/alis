@@ -1,0 +1,40 @@
+{
+  "id": "WaterBottleSmall",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/SM_WaterBottleSmall"
+    }
+  ],
+
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0"
+      }
+    }
+  ],
+
+  "sections": {
+    "item": {
+      "displayName": "Water Bottle (Small)",
+      "description": "Small water bottle with remaining water.",
+      "iconCode": "\uFF83",
+      "weight": 0.25,
+      "volume": 0.05,
+      "maxStack": 4,
+      "tags": ["Item.Type.Consumable"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+
+      "magnitudes": {
+        "SetByCaller.Hydration": 0.15
+      },
+      "consumeOnUse": true
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/attribution-report-v1.json",
+  "title": "Canonical Attribution Report",
+  "type": "object",
+  "required": ["$schema", "schema_version", "profile_id", "entries"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "entries": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["license"], "properties": {"license": {"type": "object"}, "provider": {"type": "string"}, "release": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

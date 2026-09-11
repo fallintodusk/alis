@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/validation-result-v1.json",
+  "title": "World Pipeline Validation Result",
+  "type": "object",
+  "required": ["$schema", "schema_version", "operation_id", "operation", "status", "profile_id", "checks", "metrics", "evidence", "errors"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string"},
+    "operation": {"const": "world_pipeline_validation"},
+    "status": {"enum": ["accepted", "rejected", "failed"]},
+    "profile_id": {"type": "string"},
+    "checks": {"type": "array"},
+    "metrics": {"type": "object"},
+    "evidence": {"type": "object"},
+    "errors": {"type": "array"}
+  },
+  "additionalProperties": false
+}

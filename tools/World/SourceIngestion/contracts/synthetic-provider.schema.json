@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/synthetic-provider-v1.json",
+  "title": "Synthetic Provider Fixture",
+  "type": "object",
+  "required": ["schema_version", "provider", "release", "area", "features", "raster"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "provider": {"const": "synthetic"},
+    "release": {"type": "string"},
+    "area": {"type": "object"},
+    "features": {"type": "array"},
+    "raster": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,18 @@
+{
+  "id": "Plain_Door_1_Shop",
+  "meshes": [
+    {
+      "id": "door",
+      "asset": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Plain/SM_Plain_Door_1_Shop"
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Hinged",
+      "scope": ["door"],
+      "properties": {
+        "OpenAngle": "85"
+      }
+    }
+  ]
+}

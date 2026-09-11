@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/run-inputs-v1.json",
+  "title": "World Source Run Inputs",
+  "type": "object",
+  "required": ["schema_version", "profile_id", "source_profile_sha256", "toolchain_lock_sha256", "python_dependency_lock_sha256", "python_runtime", "implementation_sha256", "run_inputs_hash"],
+  "properties": {
+    "$schema": {"type": "string"}, "schema_version": {"const": 1},
+    "profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "source_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "toolchain_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "python_dependency_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "python_runtime": {"type": "string", "pattern": "^3\\.14\\.[0-9]+$"},
+    "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run_inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,101 @@
+{
+	"$schema": "../../../../Data/Schemas/object.schema.json",
+	"id": "GrandPa",
+	"spawnClass": "/Script/ProjectCharacter.DefinitionCharacter",
+	"actorScale": 0.9,
+	"meshes": [
+		{
+			"id": "DriverBody",
+			"kind": "SkeletalMesh",
+			"asset": "/MotionMatching/Characters/UEFN_Mannequin/Meshes/SKM_UEFN_Mannequin",
+			"role": "DriverBody",
+			"visibility": "Hidden",
+			"animClass": "/MotionMatching/Blueprints/SandboxCharacter_CMC_ABP.SandboxCharacter_CMC_ABP_C"
+		},
+		{
+			"id": "WorldBody",
+			"kind": "SkeletalMesh",
+			"asset": "/Game/MetaHumans/GrandPa/Body/SKM_GrandPa_BodyMesh",
+			"parent": "DriverBody",
+			"role": "WorldBody",
+			"animClass": "/ProjectSkeletalCapabilities/MotionMatching/ABP_WorldBodyRetarget.ABP_WorldBodyRetarget_C",
+			"retargetTag": "RTG_GrandPa"
+		},
+		{
+			"id": "Face",
+			"kind": "SkeletalMesh",
+			"asset": "/Game/MetaHumans/GrandPa/Face/SKM_GrandPa_FaceMesh",
+			"parent": "WorldBody",
+			"role": "Head"
+		},
+		{
+			"id": "Hair",
+			"kind": "Groom",
+			"asset": "/Game/MetaHumans/GrandPa/Grooms/Hair_S_HairLoss",
+			"parent": "Face",
+			"bindingAsset": "/Game/MetaHumans/GrandPa/Grooms/Hair_S_HairLoss_Binding"
+		},
+		{
+			"id": "Beard",
+			"kind": "Groom",
+			"asset": "/Game/MetaHumans/GrandPa/Grooms/Beard_S_Uneven",
+			"parent": "Face",
+			"bindingAsset": "/Game/MetaHumans/GrandPa/Grooms/Beard_S_Uneven_Binding"
+		},
+		{
+			"id": "Mustache",
+			"kind": "Groom",
+			"asset": "/Game/MetaHumans/GrandPa/Grooms/Mustache_M_Stubble",
+			"parent": "Face",
+			"bindingAsset": "/Game/MetaHumans/GrandPa/Grooms/Mustache_M_Stubble_Binding"
+		},
+		{
+			"id": "Eyebrows",
+			"kind": "Groom",
+			"asset": "/Game/MetaHumans/GrandPa/Grooms/Eyebrows_L_Scraggly",
+			"parent": "Face",
+			"bindingAsset": "/Game/MetaHumans/GrandPa/Grooms/Eyebrows_L_Scraggly_Binding"
+		},
+		{
+			"id": "Eyelashes",
+			"kind": "Groom",
+			"asset": "/Game/MetaHumans/GrandPa/Grooms/Eyelashes_S_Sparse",
+			"parent": "Face",
+			"bindingAsset": "/Game/MetaHumans/GrandPa/Grooms/Eyelashes_S_Sparse_Binding"
+		}
+	],
+	"capabilities": [
+		{
+			"type": "SkeletalAssembly",
+			"scope": ["actor"]
+		},
+		{
+			"type": "MotionMatching",
+			"scope": ["actor"],
+			"properties": {
+				"BridgeAnimBPPath": "/ProjectSkeletalCapabilities/MotionMatching/ABP_MotionMatchingBridge.ABP_MotionMatchingBridge_C"
+			}
+		},
+		{
+			"type": "Dialogue",
+			"scope": ["actor"],
+			"properties": {
+				"DialogueTreeAsset": "/ProjectObject/Human/GrandPa/DLG_GrandPa_Entry.DLG_GrandPa_Entry",
+				"InteractPriority": "110"
+			}
+		},
+		{
+			"type": "ActorWatcher",
+			"scope": ["actor"],
+			"properties": {
+				"RequiredEventName": "lock.access_denied",
+				"WatchedActorTag": "Scenario.GrandpaDoor"
+			}
+		}
+	],
+	"sections": {
+		"animation": {
+			"locomotionProfile": "Human.Default"
+		}
+	}
+}

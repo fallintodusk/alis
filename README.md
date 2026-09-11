@@ -1,185 +1,103 @@
-# ALIS - Open-Source Unreal Engine 5 Survival Game
+# ALIS
 
 Learn. Survive. Connect.
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM">
-    <img src="https://fall.is/assets/images/teaser.jpg" alt="ALIS world preview - watch on YouTube" width="480">
-  </a>
-</p>
+ALIS is an open-source Unreal Engine 5 survival-game prototype. Its current
+world-generation showcase rebuilds real geography as playable, streamed
+blockout worlds. The public project is work in progress, not finished city art.
 
-ALIS is an open-source Unreal Engine 5 survival game set in a post-apocalyptic real-world city. Scavenge, learn practical skills through gameplay, and survive in believable locations built from real geography.
+## Choose Your Route
 
-## Download and run ALIS
+| You are | Start here |
+|---|---|
+| Player | Download the packaged prototype from the [latest GitHub release](https://github.com/fallintodusk/alis/releases/latest) and follow its `INSTALL.txt`. |
+| Developer | Use the [build and setup router](docs/build/README.md). Source releases pair one exact Git tag with one signed developer asset payload. |
+| World builder | Start at the [World plugin router](Plugins/World/README.md) for generation ownership and tools. |
+| Architecture reviewer | Start at the [architecture router](docs/architecture/README.md) for principles, plugin boundaries, and diagrams. |
+| Contributor | Read [CONTRIBUTING.md](CONTRIBUTING.md), then use the [testing router](docs/testing/README.md). |
+| Legal or security reviewer | Use the [legal router](docs/legal/README.md). Report a vulnerability privately through [GitHub Security Advisories](https://github.com/fallintodusk/alis/security/advisories/new). |
 
-A runnable public prototype is available as a packaged release.
+Project purpose and social contract live in [VISION.md](VISION.md) and
+[ALIS_PACT.md](ALIS_PACT.md). The complete documentation tree starts at
+[docs/README.md](docs/README.md).
 
-Download it from the
-[latest GitHub release](https://github.com/<user>/alis/releases/latest)
-and follow the included `INSTALL.txt`.
+## Run or Build
 
-You do not need a source checkout to run the packaged build. Building the
-complete project from source additionally requires asset payloads that are not
-stored in this Git tree.
+Players do not need a source checkout. Download the game archive from the
+matching GitHub release and follow its included instructions.
 
-## This repository
+Developers use two matching release artifacts:
 
-This repository is the public code and documentation home for ALIS -- source code, architecture docs, build and release workflows, and modular plugin structure. Exactly what is published and what stays out of the public tree is listed in [What This Repository Contains](#what-this-repository-contains).
+```text
+public Git tag v2.0.0
+        +
+signed ALIS developer payload v2.0.0
+        -> buildable Unreal project
+```
 
-- Site: https://fall.is/
-- Vision: [VISION.md](VISION.md)
-- Social contract: [ALIS_PACT.md](ALIS_PACT.md)
-- Licensing and component boundaries: [docs/legal/README.md](docs/legal/README.md)
-- Start here: [testing, feedback, and contribution](https://github.com/<user>/alis/discussions/1)
+The Git tag contains public source, JSON, schemas, configuration templates,
+documentation, and tools. Unreal `.uasset` and `.umap` projections are kept out
+of Git and installed from the matching signed payload. Restricted third-party
+content is not redistributed.
 
-## ALIS as an Unreal Engine architecture reference
+From an exact clean tag checkout on Windows:
 
-ALIS is a public Unreal Engine project that exposes modular plugin source across boot, foundation, systems, user interface, gameplay, world, and feature layers.
+```powershell
+git clone --config core.longpaths=true --branch v2.0.0 --depth 1 `
+  https://github.com/fallintodusk/alis.git Alis
+Set-Location .\Alis
 
-The repository includes public architecture, data, build, testing, and workflow documentation, together with module-level readmes and automation paths that reflect the real project structure.
+.\scripts\git\mirror\install_developer_payload.ps1 `
+  -ProjectRoot . `
+  -ReleaseDir C:\path\to\ALIS_DeveloperProject_v2.0.0 `
+  -RequireReleaseSignature
 
-These materials provide a direct view of how the project is organized, how responsibilities are separated, and how technical decisions are represented in code and documentation.
+Copy-Item .\scripts\config\ue_path.conf.example .\scripts\config\ue_path.local.conf
+# Edit ue_path.local.conf and set UE_PATH to a launcher-installed Unreal Engine 5.8.
+.\scripts\ue\standalone\build.ps1
+```
 
-## Gameplay and runtime systems
+The installer verifies the public signature, exact tag and revision, archive
+inventory, paths, and conflicts before copying. It uses only the public key;
+developers never need the private release-signing key.
 
-Concrete systems implemented as plugins in this repository:
+Detailed setup, prerequisites, and troubleshooting are owned by the
+[build documentation](docs/build/README.md). Payload composition and trust
+boundaries are owned by the [public mirror tooling](scripts/git/mirror/README.md).
 
-- **Inventory** - server-authoritative inventory with equip, use, drop, weight, volume, and depth stacking
-- **Vitals** - server-side metabolism tick, threshold states, condition regen and drain
-- **Dialogue** - universal data-driven dialogue for NPCs, objects, and terminals
-- **Mind** - inner-voice thought guidance system
-- **Interaction** - player interaction with world objects via trace and prompt
-- **Object Capabilities** - composable capability components: lockable, loot container, pickup
-- **GAS** - Gameplay Ability System integration layer
-- **Character** - base character plugin for gameplay modes
-- **Motion** - skeleton-agnostic motion primitives
-- **Settings** - typed settings persistence consumed by gameplay and UI
-- **Loading** - 6-phase content loading pipeline with loading screens
+## What Is Implemented
 
-Each system has its own plugin README with architecture and entry points.
+The repository exposes current project code and verifiable patterns, including:
 
-## Editor tools and data pipeline
+- modular Unreal plugins with explicit dependency direction;
+- JSON-driven definitions, UI, experiences, and world-generation inputs;
+- deterministic source-to-canonical-to-Unreal world generation;
+- generated terrain, roads, water, vegetation, and building layers;
+- World Partition runtime streaming for city-scale blockout worlds;
+- inventory, vitals, dialogue, interaction, character, loading, and UI systems;
+- focused validation, packaging, signing, and release automation.
 
-Editor-side plugins that make the JSON-first workflow practical at scale:
+The generated Kazan and Manhattan maps demonstrate the World pipeline. Legacy
+Old City 17 content is not part of the public developer acceptance route.
 
-- **Definition Generator** - universal JSON-to-DataAsset generation; resource plugins ship a runtime class plus JSON schema with an `x-alis-generator` extension, the generator handles parsing, field mapping, incremental builds, and orphan cleanup
-- **Placement Editor** - dockable panel for spawning template actors and DataAssets, with two-level filtering driven by `ALIS.Cap.<Name>` gameplay tags and `Item.Type`, evaluated on AssetRegistry metadata so filters never trigger asset loads
-- **Asset Sync** - automatic JSON path updates and redirector cleanup when assets are renamed in the Content Browser, so text references stay consistent without manual fix-up
-- **Editor Core** - shared delegates and interfaces (e.g. `FDefinitionEvents::OnDefinitionRegenerated`) so editor plugins compose without depending on each other (DIP)
+## Repository Map
 
-Pipeline split is intentional: **SYNC** (mechanical path updates) -> **GENERATION** (JSON to DataAsset) -> **PROPAGATION** (cascading actor updates in placed scenes). Each step is its own plugin and communicates via broadcast events.
+| Path | Owner |
+|---|---|
+| `Source/` | Game targets and the top-level game module |
+| `Plugins/` | Boot, foundation, systems, UI, gameplay, feature, resource, editor, and World owners |
+| `docs/` | Project documentation routers and durable contracts |
+| `scripts/` | Build, test, setup, package, verification, and mirror automation |
+| `tools/` | Standalone project tooling, including the World data pipeline |
 
-Entry points: [Plugins/Editor/ProjectDefinitionGenerator/README.md](Plugins/Editor/ProjectDefinitionGenerator/README.md), [Plugins/Editor/ProjectPlacementEditor/README.md](Plugins/Editor/ProjectPlacementEditor/README.md), [Plugins/Editor/ProjectAssetSync/README.md](Plugins/Editor/ProjectAssetSync/README.md), [Plugins/Editor/ProjectEditorCore/README.md](Plugins/Editor/ProjectEditorCore/README.md).
+Use each directory's README rather than guessing ownership from filenames.
 
-## Why This Repo Is Distinct
+## License and Release Trust
 
-The public codebase is organized around explicit technical decisions:
-- C++ as the main systems and architecture layer
-- text-first workflows for data, configuration, and many iteration paths
-- JSON-driven definitions and layouts where binary authoring would slow automation
-- universal generators instead of plugin-by-plugin custom authoring pipelines
-- modular plugins with clear ownership boundaries
-- contract-first integration across plugins
-- signed release artifacts with public verification
-- public documentation next to code wherever possible
-- a public mirror strategy that supports long-term open and decentralized workflows
+Component licensing starts at [LICENSE](LICENSE). Asset provenance and release
+policy are routed through [docs/legal/README.md](docs/legal/README.md).
 
-Architectural themes visible in this repo:
-- boot and plugin lifecycle are separated from runtime content loading
-- foundation plugins define contracts and shared infrastructure, not gameplay logic
-- UI is framework-driven, JSON-driven, and descriptor-driven rather than hardcoded per screen
-- the data pipeline is split intentionally into sync, generation, and propagation
-- feature plugins are expected to remain optional, bounded, and soft-coupled
-- world plugins own world data, while shared world code owns reusable tooling
-
-## Public Repository Map
-
-Top-level public structure:
-- `Source/` - Unreal targets and shared game module entry points (`Alis`, `AlisClient`, `AlisEditor`, `AlisServer`)
-- `Plugins/Boot/` - early boot and plugin lifecycle management
-- `Plugins/Editor/` - editor-side generation, sync, and propagation tools for data-driven workflows
-- `Plugins/Foundation/` - contracts, shared types, service location, low-level utilities
-- `Plugins/Systems/` - reusable runtime services such as loading, save, settings, and motion systems
-- `Plugins/UI/` - UI framework plus feature-facing UI plugins
-- `Plugins/Gameplay/` - gameplay framework and shared runtime gameplay patterns
-- `Plugins/Features/` - optional domain capabilities such as inventory, combat, and dialogue
-- `Plugins/World/` - shared world tools and world-specific implementations
-- `docs/` - public architecture, build, UI, testing, and reference docs
-- `scripts/` - automation for build, test, release packaging, signing, verification, and mirroring
-
-Plugin tier entry points:
-- Boot tier: [Plugins/Boot/README.md](Plugins/Boot/README.md)
-- Foundation tier: [Plugins/Foundation/README.md](Plugins/Foundation/README.md)
-- Systems tier: [Plugins/Systems/README.md](Plugins/Systems/README.md)
-- UI tier: [Plugins/UI/README.md](Plugins/UI/README.md)
-- Gameplay framework: [Plugins/Gameplay/ProjectGameplay/README.md](Plugins/Gameplay/ProjectGameplay/README.md)
-- Features tier: [Plugins/Features/README.md](Plugins/Features/README.md)
-- World utilities: [Plugins/World/ProjectWorld/README.md](Plugins/World/ProjectWorld/README.md)
-
-## Start Here
-
-If you want the best overview first:
-- Project-wide docs router: [docs/README.md](docs/README.md)
-- Public build and release router: [docs/build/README.md](docs/build/README.md)
-- Scripts and automation router: [scripts/README.md](scripts/README.md)
-
-If you want architecture first:
-- Architecture router: [docs/architecture/README.md](docs/architecture/README.md)
-- Source-of-truth architecture map: [docs/architecture/source_of_truth.md](docs/architecture/source_of_truth.md)
-- Data architecture and pipeline: [docs/data/README.md](docs/data/README.md)
-- Boot lifecycle and orchestration: [Plugins/Boot/Orchestrator/README.md](Plugins/Boot/Orchestrator/README.md)
-- Foundation contracts and shared services: [Plugins/Foundation/ProjectCore/README.md](Plugins/Foundation/ProjectCore/README.md)
-
-If you want gameplay and UI entry points:
-- UI router: [docs/ui/README.md](docs/ui/README.md)
-- UI hot reload and JSON-first workflow: [docs/ui/hot_reload.md](docs/ui/hot_reload.md)
-- UI framework plugin: [Plugins/UI/ProjectUI/README.md](Plugins/UI/ProjectUI/README.md)
-- Gameplay framework: [Plugins/Gameplay/ProjectGameplay/README.md](Plugins/Gameplay/ProjectGameplay/README.md)
-- Feature tier overview: [Plugins/Features/README.md](Plugins/Features/README.md)
-- Inventory design vision: [Plugins/Features/ProjectInventory/docs/design_vision.md](Plugins/Features/ProjectInventory/docs/design_vision.md)
-
-If you want generation and agent-friendly pipelines:
-- Data architecture: [docs/data/README.md](docs/data/README.md)
-- Universal JSON-to-DataAsset generation: [Plugins/Editor/ProjectDefinitionGenerator/README.md](Plugins/Editor/ProjectDefinitionGenerator/README.md)
-- Definition propagation into placed actors: [Plugins/Editor/ProjectPlacementEditor/README.md](Plugins/Editor/ProjectPlacementEditor/README.md)
-- Object definitions from JSON: [Plugins/Resources/ProjectObject/README.md](Plugins/Resources/ProjectObject/README.md)
-
-If you want build, test, and release workflows:
-- Build router: [docs/build/README.md](docs/build/README.md)
-- Testing router: [docs/testing/README.md](docs/testing/README.md)
-- Packaging, signing, and verification: [scripts/ue/package/README.md](scripts/ue/package/README.md)
-- Public mirror flow: [scripts/git/mirror/README.md](scripts/git/mirror/README.md)
-
-## What This Repository Contains
-
-Published here:
-- engine-side and gameplay C++ code
-- modular plugin source across boot, foundation, systems, UI, gameplay, world, and feature layers
-- public-facing architecture, build, testing, and workflow documentation
-- build, test, packaging, signing, verification, and mirror automation
-- text-based design and runtime data workflows
-- the canonical `Alis.uproject`, so the public repo reflects the real plugin layout
-
-Not stored in this Git source tree:
-- cooked builds and packaged binaries, which are distributed separately through
-  [GitHub Releases](https://github.com/<user>/alis/releases)
-- project asset payloads that are not yet published
-- third-party payloads whose licenses do not permit public redistribution
-- secrets, credentials, and operator-specific machine configuration
-
-## Release Trust
-
-ALIS public releases are intended to be verifiable, not just downloadable.
-
-Relevant entry points:
-- Packaging guide: [docs/build/packaging_guide.md](docs/build/packaging_guide.md)
-- Packaging scripts: [scripts/ue/package/README.md](scripts/ue/package/README.md)
-- Trust page and public key: https://fall.is/trust/
-
-## Contributing and Project Policy
-
-Before contributing, read:
-- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
-- License policy: [LICENSE](LICENSE)
-- Project pact: [ALIS_PACT.md](ALIS_PACT.md)
-- Trademark policy: [TRADEMARKS.md](TRADEMARKS.md)
+Every public release publishes hashes and a detached signature. The trusted
+checkout-local verifier checks them before developer payload installation.
+Release commands and evidence requirements are owned by the
+[packaging documentation](docs/build/README.md).

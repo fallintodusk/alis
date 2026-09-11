@@ -1,0 +1,49 @@
+{
+  "id": "EmergencyPouch",
+  "meshes": [
+    {
+      "id": "body",
+      "asset": "/ProjectObject/HumanMade/Container/Bags/Backpack/Backpack_Leather/SM_Backpack_Leather_1",
+      "transform": {
+        "scale": "(X=0.65 Y=0.65 Z=0.65)"
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "type": "Pickup",
+      "scope": ["actor"],
+      "properties": {
+        "InitialQuantity": "1",
+        "PickupTime": "0.5"
+      }
+    }
+  ],
+  "sections": {
+    "item": {
+      "displayName": "Emergency Pouch",
+      "description": "A compact field pouch with a strict one-kilogram carrying limit.",
+      "iconCode": "\uF12A",
+      "weight": 0.6,
+      "volume": 1.5,
+      "maxStack": 1,
+      "gridSize": "2,2",
+      "tags": ["Item.Type.Equipment"],
+      "canBeDropped": true,
+      "canBeTraded": true,
+      "isQuestItem": false,
+      "equipSlotTag": "Item.EquipmentSlot.Back",
+      "containerGrants": [
+        {
+          "containerId": "Item.Container.Backpack",
+          "gridSize": "2,4",
+          "maxWeight": 1.0,
+          "maxVolume": 3.0,
+          "maxCells": 8,
+          "cellDepthUnits": 1,
+          "allowRotation": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/source-plan-v1.json",
+  "title": "World Source Plan",
+  "type": "object",
+  "required": ["schema_version", "profile_id", "operation_id", "area", "network_budget_bytes", "planned_network_bytes", "inputs"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string"},
+    "operation_id": {"type": "string"},
+    "area": {
+      "type": "object",
+      "required": ["area_id", "label", "bbox", "axis_order", "crs", "area_fingerprint"],
+      "properties": {"area_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}
+    },
+    "network_budget_bytes": {"type": "integer"},
+    "planned_network_bytes": {"type": "integer"},
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["source_id", "adapter", "release", "expected_bytes", "auth_mode", "hashes", "license", "admission"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "adapter": {"type": "string"},
+          "release": {"type": "string"},
+          "expected_bytes": {"type": "integer", "minimum": 0},
+          "auth_mode": {"type": "string"},
+          "hashes": {"type": "object", "minProperties": 1},
+          "license": {"type": "object", "minProperties": 1},
+          "admission": {"type": "object", "minProperties": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["projection_authority", "projected_crs", "technical_bounds", "required_projected_bounds", "terrain_resampling_halo_m", "minimum_source_margin_m", "edge_sample_step_m", "edge_samples_checked", "required_geographic_bbox", "accepted_geographic_bbox", "raster_source_ids", "raster_union_complete"],
+      "properties": {
+        "projection_authority": {"const": "pinned_gdal_ogr"},
+        "projected_crs": {"type": "string"},
+        "technical_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "required_projected_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "terrain_resampling_halo_m": {"type": "number", "minimum": 0},
+        "minimum_source_margin_m": {"type": "number", "minimum": 0},
+        "edge_sample_step_m": {"type": "number", "exclusiveMinimum": 0},
+        "edge_samples_checked": {"type": "integer", "minimum": 4},
+        "required_geographic_bbox": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "accepted_geographic_bbox": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "raster_source_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "raster_union_complete": {"const": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

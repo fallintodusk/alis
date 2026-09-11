@@ -36,12 +36,29 @@ function Resolve-ProjectCinematicProjectPath {
 function Get-ProjectCinematicPackageTreeDigest {
     param([Parameter(Mandatory = $true)][string]$Path)
     $root = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
-    $lines = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force |
-        Sort-Object FullName |
+    $runtimeStates = @(
+        'Windows/Alis/LocalAppData',
+        'Windows/Alis/Saved',
+        'Windows/Engine/Saved'
+    )
+    $relativePaths = [string[]]@(Get-ChildItem -LiteralPath $root -Recurse -File -Force |
         ForEach-Object {
             $relative = $_.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
-            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            '{0}|{1}|{2}' -f $relative, $_.Length, $hash
+            $isRuntimeState = @($runtimeStates | Where-Object {
+                    $relative.Equals($_, [StringComparison]::OrdinalIgnoreCase) -or
+                    $relative.StartsWith($_ + '/', [StringComparison]::OrdinalIgnoreCase)
+                }).Count -gt 0
+            if (-not $isRuntimeState) {
+                $relative
+            }
+        })
+    [Array]::Sort($relativePaths, [StringComparer]::Ordinal)
+    $lines = @($relativePaths | ForEach-Object {
+            $relative = $_
+            $file = Join-Path $root $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            $item = Get-Item -LiteralPath $file
+            $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            '{0}|{1}|{2}' -f $relative, $item.Length, $hash
         })
     $sha = [Security.Cryptography.SHA256]::Create()
     try {

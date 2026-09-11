@@ -1,0 +1,50 @@
+{
+    "id": "BalconyFrame_DoubleGlazed_Left",
+    "meshes": [
+        {
+            "id": "frame",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_1/SM_BalconyFrame_DoubleGlazed_1",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_window",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_1/SM_BalconyFrame_Glass",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_1/SM_BalconyFrame_DubleGlazed_Door",
+            "transform": {
+                "location": "(X=245 Y=14 Z=-65)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        },
+        {
+            "id": "glass_door",
+            "parent": "door",
+            "asset": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_1/SM_BalconyFrame_Window_1_Glass",
+            "transform": {
+                "location": "(X=0 Y=0 Z=0)",
+                "rotation": "(P=0 Y=0 R=0)"
+            }
+        }
+    ],
+    "capabilities": [
+        {
+            "type": "Hinged",
+            "scope": [
+                "door"
+            ],
+            "properties": {
+                "OpenAngle": "85"
+            }
+        }
+    ]
+}
+

@@ -1,11 +1,23 @@
 {
   "$schema": "contracts/developer_asset_release.schema.json",
-  "schema_version": 1,
-  "contract_id": "alis_public_developer_assets_v1",
+  "schema_version": 2,
+  "contract_id": "alis_public_developer_assets_v2",
+  "world_authorities": [
+    {
+      "owner": "ProjectWorldData",
+      "canonical_profiles": [
+        "kazan_territory_v1",
+        "manhattan_showcase_v1"
+      ]
+    }
+  ],
   "asset_authorities": [
     {
+      "authority_kind": "generated_definition_manifest",
       "owner": "ProjectObject",
       "manifest_path": "Plugins/Resources/ProjectObject/Data/Manifests/public_generated_definitions.json",
+      "manifest_schema_ref": "../Schemas/public_generated_definition_manifest.schema.json",
+      "manifest_id": "project_object_public_generated_definitions_v1",
       "license_id": "MPL-2.0",
       "distribution_class": "rights_cleared_first_party_code_bearing",
       "dependency_payload_policy": "references_only",
@@ -39,6 +51,36 @@
           "artifact_root": "Plugins/Resources/ProjectObject/Content/LootProfiles"
         }
       ]
+    },
+    {
+      "authority_kind": "generated_definition_manifest",
+      "owner": "ProjectExperienceData",
+      "manifest_path": "Plugins/Resources/ProjectExperienceData/Data/Manifests/public_generated_experiences.json",
+      "manifest_schema_ref": "../Schemas/public_generated_experience_manifest.schema.json",
+      "manifest_id": "project_experience_data_public_generated_experiences_v1",
+      "license_id": "MPL-2.0",
+      "distribution_class": "rights_cleared_first_party_code_bearing",
+      "dependency_payload_policy": "references_only",
+      "collections": [
+        {
+          "asset_class": "ProjectExperienceDefinition",
+          "schema_path": "Plugins/Resources/ProjectExperienceData/Data/Schemas/experience.schema.json",
+          "source_root": "Plugins/Resources/ProjectExperienceData/Data/Experiences",
+          "package_root": "/ProjectExperienceData/Experiences",
+          "artifact_root": "Plugins/Resources/ProjectExperienceData/Content/Experiences"
+        }
+      ]
+    },
+    {
+      "authority_kind": "material_manifest",
+      "owner": "ProjectMaterial",
+      "manifest_path": "Plugins/Resources/ProjectMaterial/Data/Manifests/Materials/accepted.material-manifest.json",
+      "license_id": "MPL-2.0",
+      "distribution_class": "rights_cleared_first_party_generated",
+      "dependency_payload_policy": "references_only",
+      "recipe_root": "Plugins/Resources/ProjectMaterial/Data/Materials",
+      "artifact_root": "Plugins/Resources/ProjectMaterial/Content",
+      "package_root": "/ProjectMaterial"
     }
   ]
 }

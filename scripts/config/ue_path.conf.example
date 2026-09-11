@@ -1,0 +1,17 @@
+# Machine-local UE engine override - copy to ue_path.local.conf.
+# ue_path.local.conf is gitignored; its keys override ue_path.conf PER KEY.
+#
+# STRICT GRAMMAR (same as ue_path.conf - see its header for the full
+# contract): KEY=VALUE, no spaces around '=', no quotes, no '$', no
+# inline comments; duplicate/unknown/empty keys are errors.
+#
+# Known keys: UE_PATH, UE_SOURCE_PATH, BUILD_TARGET, BUILD_CONFIG,
+#             BUILD_PLATFORM
+#
+# You may declare any SUBSET - e.g. only UE_PATH to point this machine
+# at a different launcher install:
+# UE_PATH=D:/Engines/CustomInstall
+#
+# Engine VERSION updates: never edit paths by hand - run
+#   scripts/ue/update/update_engine.ps1
+# (it updates ue_path.local.conf too when present).

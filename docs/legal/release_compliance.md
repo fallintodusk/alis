@@ -31,8 +31,6 @@ Before public distribution, the release operator must confirm that:
 
 - every first-party portion is controlled by its identified copyright holder
   and may be distributed under the root assignment;
-- contributor identity aliases and employer ownership questions are resolved
-  in private evidence records;
 - accurate copyright, upstream, and proprietary notices are retained;
 - every dependency, asset, dataset, and generated input has compatible terms;
 - private official layers remain optional relative to the
@@ -40,22 +38,15 @@ Before public distribution, the release operator must confirm that:
   and
 - unresolved ownership blocks the release.
 
-The public repository must not contain personal identity evidence. Record only
-the release decision and non-personal component provenance publicly.
+The release suite records a non-personal rights-review result bound to the exact
+release revision. It records the completion state, unresolved count, applicable
+component and dependency reports, and the responsible project role. It does not
+store legal names, aliases, email addresses, employer history, or a private/KYC
+record identifier.
 
-The durable private evidence record must bind the decision to a repository
-revision and record:
-
-- author-alias and automation-identity groups;
-- employer or contractor ownership assessment;
-- copied, generated, and imported material assessment;
-- known third-party exclusions;
-- controlled, excluded, and unresolved decisions;
-- the responsible project role; and
-- an opaque evidence-record ID suitable for the public release manifest.
-
-Unresolved identity or material remains excluded. Do not publish the private
-record or copy its personal fields into GitHub.
+Any concrete disputed or unresolved material remains excluded and blocks the
+release. The public repository and release artifacts must contain no private
+identity evidence.
 
 ## 3. Product Terms
 
@@ -95,7 +86,7 @@ Primary contract: [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal)
 The signed release manifest must identify the actual paths or URLs for:
 
 - a non-personal rights-review result containing the reviewed revision,
-  completion state, and opaque private evidence-record ID;
+  completion state, unresolved count, and responsible project role;
 - each distributed first-party path's root component assignment;
 - the root license policy and applicable standard license texts;
 - approved Product terms;

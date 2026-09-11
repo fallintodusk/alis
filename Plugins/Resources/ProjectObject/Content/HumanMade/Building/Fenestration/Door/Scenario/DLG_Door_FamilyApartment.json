@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../../../Features/ProjectDialogue/Data/Schemas/dialogue.schema.json",
+  "id": "DLG_Door_FamilyApartment",
+  "startNode": "examine",
+  "nodes": {
+    "examine": {
+      "text": "This apartment looks... lived-in. Someone was here recently.",
+      "options": [
+        {
+          "text": "Open.",
+          "next": "unlock",
+          "condition": {
+            "type": "inventory",
+            "id": "KeyPlayerApartment",
+            "exact": true
+          }
+        },
+        {
+          "text": "Not now.",
+          "next": "$end"
+        }
+      ]
+    },
+    "unlock": {
+      "text": "Victor sent me to water your flowers, don't be alarmed.",
+      "actions": ["lock.unlock", "motion.open", "inventory.consume:KeyPlayerApartment*"],
+      "next": "$end"
+    }
+  }
+}
