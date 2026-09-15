@@ -62,6 +62,7 @@ private:
 	void PreloadDefinitions(APlayerController* PlayerController);
 	void SetupAutoVisibilityBindings();
 	void TeardownAutoVisibilityBindings();
+	void RefreshActiveLayersForCurrentViewport();
 	void ApplyInputForActiveLayers();
 	EProjectWidgetInputMode GetRequestedInputForLayer(FGameplayTag LayerTag) const;
 	void RefreshHUDSlot(FGameplayTag SlotTag) const;

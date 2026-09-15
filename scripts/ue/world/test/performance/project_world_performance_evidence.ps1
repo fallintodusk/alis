@@ -259,8 +259,17 @@ function New-ProjectWorldPerformanceAggregate {
         [Parameter(Mandatory = $true)][string]$ExpectedExecutableSha256,
         [Parameter(Mandatory = $true)][string]$ExpectedPackage,
         [Parameter(Mandatory = $true)][string]$ExpectedPackageSha256,
-        [double]$FrameP95BudgetMilliseconds = 16.67
+        [double]$HostCpuLoadPercent = 0.0,
+        [double]$HostGpuLoadPercent = 0.0
     )
+
+    foreach ($value in @($HostCpuLoadPercent, $HostGpuLoadPercent)) {
+        if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or
+            $value -lt 0.0 -or $value -gt 100.0) {
+            throw 'Host load must be a finite percentage from 0 through 100.'
+        }
+    }
+    $frameP95BudgetMilliseconds = 16.67
 
     if ($Children.Count -ne 3) {
         throw 'Performance aggregation requires exactly three predetermined child runs.'
@@ -344,7 +353,7 @@ function New-ProjectWorldPerformanceAggregate {
         }
         $outcome = Get-ProjectWorldPerformanceChildOutcome -Receipt $receipt `
             -ProcessExitCode ([int]$child.ExpectedProcessExitCode) `
-            -FrameP95BudgetMilliseconds $FrameP95BudgetMilliseconds
+            -FrameP95BudgetMilliseconds $frameP95BudgetMilliseconds
         if (-not $outcome.valid) {
             throw ('Performance child failed for a non-aggregatable reason: ' +
                 "status=$($receipt.status) frame_p95_ms=$($receipt.frame_p95_ms) " +
@@ -384,7 +393,8 @@ function New-ProjectWorldPerformanceAggregate {
     }
 
     $pooled = Get-ProjectWorldPerformanceStatistics -Samples @($allSamples)
-    $accepted = [double]$pooled.frame_p95_ms -le $FrameP95BudgetMilliseconds
+    $accepted = [double]$pooled.frame_p95_ms -le $frameP95BudgetMilliseconds
+    $hostLoadPercent = [Math]::Max($HostCpuLoadPercent, $HostGpuLoadPercent)
     return [pscustomobject][ordered]@{
         schema_version = 1
         status = if ($accepted) { 'accepted' } else { 'rejected' }
@@ -403,7 +413,12 @@ function New-ProjectWorldPerformanceAggregate {
         development_executable = $resolvedExecutable
         development_executable_sha256 = $ExpectedExecutableSha256
         execution_count = 3
-        frame_p95_budget_ms = $FrameP95BudgetMilliseconds
+        base_frame_p95_budget_ms = $frameP95BudgetMilliseconds
+        host_cpu_load_percent = $HostCpuLoadPercent
+        host_gpu_load_percent = $HostGpuLoadPercent
+        host_load_percent = $hostLoadPercent
+        host_load_allowance_percent = 0.0
+        frame_p95_budget_ms = $frameP95BudgetMilliseconds
         children = @($childEvidence)
         total_sample_count = $pooled.sample_count
         frame_p95_ms = $pooled.frame_p95_ms
@@ -420,7 +435,7 @@ function New-ProjectWorldPerformanceAggregate {
         streaming_failures = 0
         acceptance_reason = if ($accepted) { '' } else {
             'Pooled Frame p95 {0:F3} ms exceeded the {1:F3} ms budget.' -f `
-                $pooled.frame_p95_ms, $FrameP95BudgetMilliseconds
+                $pooled.frame_p95_ms, $frameP95BudgetMilliseconds
         }
     }
 }

@@ -25,7 +25,7 @@ severe dehydration
 | Owner | Responsibility |
 |---|---|
 | `ProjectSinglePlay` | Generic policy, strict profile loader, state machine, runner, terminal restart request |
-| `ProjectSinglePlayClient` | Local toast projection and packaged real-input acceptance driver |
+| `ProjectSinglePlayClient` | Local scenario presentation and packaged real-input acceptance driver |
 | `ProjectCore` | Read-only capability interfaces such as `IVitalsReadOnly` |
 | Feature plugins | Inventory, Vitals, interaction, loading, and character behavior |
 | `ProjectObject` | Reusable item and container definitions |
@@ -73,17 +73,18 @@ re-enters the existing loading service and preserves the effective experience,
 mode, scenario, traversal, and character selection. Character identity is written
 to the travel URL as its primary asset name because `:` is not URL-safe there.
 
-The client projects each actionable phase through the existing ProjectUI toast
-service. Cache discovery has its own recovery instruction because this is the point
-where the player must understand hands-only storage, pouch equipment, item transfer,
-and water use. Actionable messages remain visible long enough to read; terminal
-messages stay shorter. It adds no second HUD or scenario widget framework.
+The client projects each actionable survival phase through the existing ProjectUI
+toast service. Cache discovery has its own recovery instruction because this is the
+point where the player must understand hands-only storage, pouch equipment, item
+transfer, and water use. Actionable messages remain visible long enough to read;
+terminal messages stay shorter.
 
-Explicit `PreviewFlight` sessions suppress survival instructions and show the actual
-inspection controls instead: mouse look, WASD, Space to rise, Left Ctrl to descend,
-and Left Shift for the fast manual overview boost. Normal Kazan selects
-`PreviewFlight` to present territory scale and does not
-expose a runtime fly/walk toggle.
+Explicit `PreviewFlight` sessions suppress survival instructions and keep a compact
+control legend visible through the existing ProjectUI registry and notification
+layer. It shows the actual inspection controls: mouse look, WASD, Space to rise,
+Left Ctrl to descend, and Left Shift for the fast manual overview boost. Normal
+Kazan selects `PreviewFlight` to present territory scale and does not expose a
+runtime fly/walk toggle.
 
 ## World and data boundary
 

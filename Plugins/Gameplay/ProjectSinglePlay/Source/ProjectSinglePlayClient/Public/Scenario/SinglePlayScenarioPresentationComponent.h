@@ -21,6 +21,7 @@ protected:
 private:
 	void HandlePhaseChanged(ESinglePlayScenarioPhase Phase, const FString& Message);
 	void ShowMessage(const FString& Message, float Duration, FName Type) const;
+	void SetPreviewFlightHintsVisible(bool bVisible) const;
 
 	TWeakObjectPtr<USinglePlayScenarioRunnerComponent> Runner;
 	FDelegateHandle PhaseChangedHandle;

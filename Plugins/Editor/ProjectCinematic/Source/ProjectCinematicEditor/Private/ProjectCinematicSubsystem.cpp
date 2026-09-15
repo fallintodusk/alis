@@ -536,7 +536,7 @@ bool UProjectCinematicSubsystem::AddRecorderSourceForActor(AActor* TargetActor)
 		return false;
 	}
 	Src->Target = TargetActor;
-	Src->bRecordParentHierarchy = false;
+	Src->SetAttachRecordBehaviour(ETakeRecorderAttachRecordBehaviour::None);
 	Src->RecordType = ETakeRecorderActorRecordType::Spawnable;
 
 	// RebuildRecordedPropertyMap is protected on UTakeRecorderActorSource;
@@ -622,9 +622,9 @@ bool UProjectCinematicSubsystem::AddRecorderSourceForActor(AActor* TargetActor)
 	}
 
 	UE_LOG(LogProjectCinematicEditor, Display,
-		TEXT("[CinematicSubsystem][AddSource] OK | actor='%s' RecordType=Spawnable bRecordParentHierarchy=%d startTime=%d (rate=%s) | post-add source count=%d"),
+		TEXT("[CinematicSubsystem][AddSource] OK | actor='%s' RecordType=Spawnable AttachRecordBehaviour=%d startTime=%d (rate=%s) | post-add source count=%d"),
 		*TargetActor->GetActorLabel(),
-		Src->bRecordParentHierarchy ? 1 : 0,
+		static_cast<int32>(Src->AttachRecordBehaviour),
 		StartTime.Time.FrameNumber.Value,
 		*StartTime.Rate.ToPrettyText().ToString(),
 		Sources->GetSources().Num());

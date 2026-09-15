@@ -26,6 +26,8 @@ python -m unittest discover tools/World/ExecutionEnvironment/tests
 The bootstrap validates Windows x86-64 and the pinned CPython version, then
 accepts an ignored environment only after runtime verification and final
 receipt creation. Failed or interrupted installations are not reusable.
+Windows PowerShell coordinators use `resolve_python_host.ps1` so an unrelated
+active virtual environment cannot replace the pinned bootstrap host.
 
 Native tools are content-addressed and verified before use. External GDAL
 plugins are disabled; the built-in GTiff and COG capabilities remain enabled.

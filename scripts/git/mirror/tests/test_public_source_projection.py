@@ -23,15 +23,20 @@ SPEC.loader.exec_module(MODULE)
 class PublicSourceProjectionTests(unittest.TestCase):
 
     def test_public_front_door_routes_and_commands_exist(self):
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        local_targets = {
-            match.group(1).split("#", 1)[0]
-            for match in re.finditer(r"\]\(([^)]+)\)", readme)
-            if not match.group(1).startswith(("http://", "https://", "mailto:"))
-        }
-        missing = sorted(
-            target for target in local_targets if target and not (REPO_ROOT / target).exists()
-        )
+        missing = []
+        for relative in ("README.md", "player/README.md", "developer/README.md"):
+            document = REPO_ROOT / relative
+            text = document.read_text(encoding="utf-8")
+            local_targets = {
+                match.group(1).split("#", 1)[0]
+                for match in re.finditer(r"\]\(([^)]+)\)", text)
+                if not match.group(1).startswith(("http://", "https://", "mailto:"))
+            }
+            missing.extend(
+                f"{relative}: {target}"
+                for target in local_targets
+                if target and not (document.parent / target).exists()
+            )
         self.assertEqual([], missing)
         for required in (
             "scripts/git/mirror/install_developer_payload.ps1",

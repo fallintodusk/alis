@@ -65,23 +65,6 @@ if ($ReleaseDir) {
     $ReleaseRoot = $PSScriptRoot
 }
 
-$TrustedReleaseVerifier = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\ue\package\verify_release.ps1"))
-$HasSignedManifest = (Test-Path -LiteralPath (Join-Path $ReleaseRoot "SHA256SUMS.txt")) -and
-    (Test-Path -LiteralPath (Join-Path $ReleaseRoot "SHA256SUMS.txt.asc"))
-if ($HasSignedManifest) {
-    if (-not (Test-Path -LiteralPath $TrustedReleaseVerifier -PathType Leaf)) {
-        throw "Run the installer from the matching trusted source checkout, not the downloaded release copy."
-    }
-    & $TrustedReleaseVerifier -ReleaseDir $ReleaseRoot
-    if ($LASTEXITCODE -ne 0) {
-        throw "Release signature verification failed."
-    }
-} elseif ($RequireReleaseSignature) {
-    throw "This folder has no signed SHA256SUMS.txt release manifest."
-} else {
-    Write-Warning "Release signature was not required; payload hashes will still be verified."
-}
-
 if ($ManifestPath) {
     $ManifestPath = (Resolve-Path -LiteralPath $ManifestPath).Path
     $ReleasePrefix = [System.IO.Path]::GetFullPath($ReleaseRoot).TrimEnd("\", "/") +
@@ -90,20 +73,46 @@ if ($ManifestPath) {
         throw "ManifestPath must be inside the authenticated release directory."
     }
 }
-
-if (-not $ManifestPath) {
-    $Candidates = @(Get-ChildItem -LiteralPath $ReleaseRoot -Filter "*.developer-payload.json" -File)
+else {
+    $Candidates = @(Get-ChildItem -LiteralPath $ReleaseRoot -Filter "*.developer-payload.json" -File -Recurse)
     if ($Candidates.Count -ne 1) {
-        throw "Expected exactly one *.developer-payload.json next to this installer."
+        throw "Expected exactly one *.developer-payload.json in the release directory."
     }
     $ManifestPath = $Candidates[0].FullName
 }
 $Manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+$PayloadRoot = Split-Path -Parent $ManifestPath
 
 if ($Manifest.schema_version -ne 2 -or -not $Manifest.payload_id -or
     -not $Manifest.public_source.tag -or $Manifest.public_source.revision -notmatch "^[0-9a-f]{40}$") {
     throw "Unsupported developer payload manifest."
 }
+$RequiredReleaseAssets = @([IO.Path]::GetFileName($ManifestPath))
+foreach ($Part in $Manifest.archive.parts) {
+    $PartName = [string]$Part.name
+    if ([string]::IsNullOrWhiteSpace($PartName) -or [IO.Path]::GetFileName($PartName) -cne $PartName) {
+        throw "Unsafe developer archive part name: $PartName"
+    }
+    $RequiredReleaseAssets += $PartName
+}
+
+$TrustedReleaseVerifier = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\ue\package\verify_release.ps1"))
+$HasSignedManifest = (Test-Path -LiteralPath (Join-Path $ReleaseRoot "SHA256SUMS.txt")) -and
+    (Test-Path -LiteralPath (Join-Path $ReleaseRoot "SHA256SUMS.txt.asc"))
+if ($HasSignedManifest) {
+    if (-not (Test-Path -LiteralPath $TrustedReleaseVerifier -PathType Leaf)) {
+        throw "Run the installer from the matching trusted source checkout, not the downloaded release copy."
+    }
+    & $TrustedReleaseVerifier -ReleaseDir $ReleaseRoot -RequiredAsset $RequiredReleaseAssets
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release signature verification failed."
+    }
+} elseif ($RequireReleaseSignature) {
+    throw "This folder has no signed SHA256SUMS.txt release manifest."
+} else {
+    Write-Host "[INFO] Release signature was not required; payload hashes will still be verified."
+}
+
 if (-not $ProjectRoot) {
     $SourceCheckout = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
     if (Test-Path -LiteralPath (Join-Path $SourceCheckout "Alis.uproject") -PathType Leaf) {
@@ -155,7 +164,7 @@ try {
     $ArchiveStream = [System.IO.File]::Open($TempArchive, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write)
     try {
         foreach ($Part in $Manifest.archive.parts) {
-            $PartPath = Join-Path $ReleaseRoot $Part.name
+            $PartPath = Join-Path $PayloadRoot $Part.name
             Assert-FileIdentity -Path $PartPath -ByteSize $Part.byte_size -Sha256 $Part.sha256
             $PartStream = [System.IO.File]::OpenRead($PartPath)
             try {

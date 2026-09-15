@@ -1,89 +1,64 @@
 {
-    "$schema":  "../../../ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json",
-    "schema_version":  1,
-    "transaction_id":  "38f13f84c33b432bac96d9b238089ca2",
-    "accepted_operation_id":  "38f13f84c33b432bac96d9b238089ca2",
-    "prior_active_set_sha256":  "0dcf2dce846cdef796d51d49f673153e327e6a58215a45b3c581970818b9e0e5",
-    "scopes":  [
-                   {
-                       "scope_id":  "layer_kazan_territory_v1_buildings",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_buildings.14.json",
-                       "manifest_sha256":  "1dd4ecedd9a55162bfcbdf0bac9dd916bc66b8f7850e8574532bb9d0326dc66f"
-                   },
-                   {
-                       "scope_id":  "layer_kazan_territory_v1_gameplay",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_gameplay.16.json",
-                       "manifest_sha256":  "ae0af79f69afe24e5f1203d4addf8a72e21bf594ae5012681d91893f4d8d0083"
-                   },
-                   {
-                       "scope_id":  "layer_kazan_territory_v1_roads",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.15.json",
-                       "manifest_sha256":  "712156b6a627a7c1e785d3e4182e47117b15ffd592025bfd0dcb2ca0d9be6282"
-                   },
-                   {
-                       "scope_id":  "layer_kazan_territory_v1_terrain",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_terrain.21.json",
-                       "manifest_sha256":  "814a2f2aa4ea7c3d0b6533f15564917503e7390c65297c545afa39ca026415c0"
-                   },
-                   {
-                       "scope_id":  "layer_kazan_territory_v1_vegetation",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_vegetation.26.json",
-                       "manifest_sha256":  "c62dbaa4f9bed0aa71e2a247df64be44ba6da667e05d0e757916faeeb71449a8"
-                   },
-                   {
-                       "scope_id":  "layer_kazan_territory_v1_water",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.25.json",
-                       "manifest_sha256":  "c207efe137c21002db06b8203580a508b0c1826e386fe653e152a4530a4c36d4"
-                   },
-                   {
-                       "scope_id":  "layer_manhattan_showcase_v1_buildings",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_buildings.2.json",
-                       "manifest_sha256":  "534ca3252c52c303ac123a3478f0b6c95d88c77031851aaddb2514bfbf8b29c0"
-                   },
-                   {
-                       "scope_id":  "layer_manhattan_showcase_v1_roads",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_roads.2.json",
-                       "manifest_sha256":  "50447cdbbb0200d496b2b88298223e9ec4bf09dd089b86054decbf671154c239"
-                   },
-                   {
-                       "scope_id":  "layer_manhattan_showcase_v1_terrain",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_terrain.2.json",
-                       "manifest_sha256":  "8b220c13d76d47284e786c8c8f045983059d49a71eec0aa54efdd57f230027c0"
-                   },
-                   {
-                       "scope_id":  "layer_manhattan_showcase_v1_vegetation",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_vegetation.2.json",
-                       "manifest_sha256":  "f3edb5be4e7131f7f8b51f6370a5611aee320dd580f56252715a0823fa71d153"
-                   },
-                   {
-                       "scope_id":  "layer_manhattan_showcase_v1_water",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_water.2.json",
-                       "manifest_sha256":  "721f6ed8aae678e36eb63b0f0d4181e52493d9aff6db7c16cb7bc22a205abb88"
-                   },
-                   {
-                       "scope_id":  "map_p0_l_projectworldkazan",
-                       "manifest_path":  "scopes/map_p0_l_projectworldkazan.24.json",
-                       "manifest_sha256":  "b4784cec5e612d00915246cb9a1211d9456c432bec9cf6c3dfdfe0d360963f27"
-                   },
-                   {
-                       "scope_id":  "map_representative_l_projectworldkazan_representative",
-                       "manifest_path":  "scopes/map_representative_l_projectworldkazan_representative.21.json",
-                       "manifest_sha256":  "c2d828e8e64bbe85e8f479b881455acdacac416d030bac4d580336bbe3178ad9"
-                   },
-                   {
-                       "scope_id":  "map_showcase_manhattan_l_projectworldmanhattanshowcase",
-                       "manifest_path":  "scopes/map_showcase_manhattan_l_projectworldmanhattanshowcase.2.json",
-                       "manifest_sha256":  "6520934b10de79b7338facebeb182b6fd1b1629c5e02a3bea629a1fc615b9ccf"
-                   },
-                   {
-                       "scope_id":  "map_territory_l_projectworldkazanterritory",
-                       "manifest_path":  "scopes/map_territory_l_projectworldkazanterritory.27.json",
-                       "manifest_sha256":  "6579afaaa28a1617d8537b906e0e03757f1284b53d08f5216c5ba0b8d2cd8a69"
-                   },
-                   {
-                       "scope_id":  "presentation_kazan_representative_v1",
-                       "manifest_path":  "scopes/presentation_kazan_representative_v1.25.json",
-                       "manifest_sha256":  "72d7387befedd01b92c5a9a80669d4face99bff1bf410caf497421b06b4112e3"
-                   }
-               ]
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json",
+  "schema_version": 1,
+  "transaction_id": "2d9404d8c8c54bfbad0cffa82a0ce5ba",
+  "accepted_operation_id": "2d9404d8c8c54bfbad0cffa82a0ce5ba",
+  "prior_active_set_sha256": "1fa41a2538d08a55aa8ff4f163053697f9eca5f2606892d2aba82fe7acc9df7d",
+  "scopes": [
+    {
+      "scope_id": "layer_kazan_territory_public_v1_buildings",
+      "manifest_path": "scopes/layer_kazan_territory_public_v1_buildings.1.json",
+      "manifest_sha256": "3f7f808f08d92ace857df4d0e4d98916ce2e42f31e7e9b5b30dd2e588e204392"
+    },
+    {
+      "scope_id": "layer_kazan_territory_public_v1_roads",
+      "manifest_path": "scopes/layer_kazan_territory_public_v1_roads.1.json",
+      "manifest_sha256": "7819521e69f7b4e542f3df1a64940b5c09b07f823cdac7a60b6713554bc68609"
+    },
+    {
+      "scope_id": "layer_kazan_territory_public_v1_terrain",
+      "manifest_path": "scopes/layer_kazan_territory_public_v1_terrain.1.json",
+      "manifest_sha256": "a6454a97635e6338fd6714b760544509ba1aba0bf774788a286eaa903d298756"
+    },
+    {
+      "scope_id": "layer_kazan_territory_public_v1_water",
+      "manifest_path": "scopes/layer_kazan_territory_public_v1_water.1.json",
+      "manifest_sha256": "d1164ce0f58444c3ab7df5ca877b6ddbe4686c47a0d8b0fe6c99eb1ef8ec8922"
+    },
+    {
+      "scope_id": "layer_manhattan_showcase_public_v1_buildings",
+      "manifest_path": "scopes/layer_manhattan_showcase_public_v1_buildings.1.json",
+      "manifest_sha256": "c0544c0ef47705e9d4ca7f28312443579f7bdc8a5faaa1beebb444dfc30b76b0"
+    },
+    {
+      "scope_id": "layer_manhattan_showcase_public_v1_roads",
+      "manifest_path": "scopes/layer_manhattan_showcase_public_v1_roads.1.json",
+      "manifest_sha256": "62a4947e3f1681679be2b2bf4cc64d0570e795c4d349504c71421cc8f38a4b2d"
+    },
+    {
+      "scope_id": "layer_manhattan_showcase_public_v1_terrain",
+      "manifest_path": "scopes/layer_manhattan_showcase_public_v1_terrain.1.json",
+      "manifest_sha256": "b357af44cfde7df047dc35b609479aafd995712f65b9cc8557db71acac0fd5bc"
+    },
+    {
+      "scope_id": "layer_manhattan_showcase_public_v1_water",
+      "manifest_path": "scopes/layer_manhattan_showcase_public_v1_water.1.json",
+      "manifest_sha256": "fdf7b8e9515effded182016066ff9f875bd1fd1efe33ae6782a2db91b7a751ad"
+    },
+    {
+      "scope_id": "map_showcase_manhattan_l_projectworldmanhattanshowcase",
+      "manifest_path": "scopes/map_showcase_manhattan_l_projectworldmanhattanshowcase.1.json",
+      "manifest_sha256": "7dd546ebd6c5acaa112a21b1897295794dd8bf6a210b374149acdf7e17b1a245"
+    },
+    {
+      "scope_id": "map_territory_l_projectworldkazanterritory",
+      "manifest_path": "scopes/map_territory_l_projectworldkazanterritory.1.json",
+      "manifest_sha256": "dacdf131d3680e3c3e0fe24cf7ab610e52b41f35b95c0f3fe667a16a8570f8ce"
+    },
+    {
+      "scope_id": "presentation_kazan_representative_v1",
+      "manifest_path": "scopes/presentation_kazan_representative_v1.2.json",
+      "manifest_sha256": "094fd94bc2838a4e018491a151bb306b433b36918966c8ac3731fb3eeb176dd3"
+    }
+  ]
 }

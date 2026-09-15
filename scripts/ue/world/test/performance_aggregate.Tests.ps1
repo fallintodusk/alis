@@ -11,13 +11,35 @@ Describe 'Packaged World performance aggregation' {
         $helper = Join-Path $script:projectRoot `
             'scripts\ue\world\test\performance\project_world_performance_evidence.ps1'
         . $helper
+		$script:runner = Join-Path $script:projectRoot `
+			'scripts\ue\world\test\performance\run_kazan_playable_tour.ps1'
+
+		function Import-RunnerFunction {
+			param([string]$Name)
+			$tokens = $null
+			$parseErrors = $null
+			$ast = [Management.Automation.Language.Parser]::ParseFile(
+				$script:runner, [ref]$tokens, [ref]$parseErrors)
+			@($parseErrors).Count | Should -Be 0
+			$definition = $ast.Find({
+					param($node)
+					$node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+						$node.Name -ceq $Name
+				}, $true)
+			$null -ne $definition | Should -BeTrue
+			Set-Item -Path "Function:script:$Name" -Value $definition.Body.GetScriptBlock()
+		}
+
+		Import-RunnerFunction -Name 'Assert-PlayableTour'
+		Import-RunnerFunction -Name 'Measure-PlayableTourHostLoad'
+		Import-RunnerFunction -Name 'Wait-PlayableTourHostIdle'
 
         function Write-TestSamples {
-            param([string]$Path, [int]$SlowCount = 0)
+            param([string]$Path, [int]$SlowCount = 0, [double]$SlowFrame = 31.0)
             $lines = [Collections.Generic.List[string]]::new()
             $lines.Add('FrameTime,GameThreadTime,RenderThreadTime,GPUTime')
             for ($index = 0; $index -lt 300; ++$index) {
-                $frame = if ($index -lt $SlowCount) { 31.0 } else { 10.0 }
+                $frame = if ($index -lt $SlowCount) { $SlowFrame } else { 10.0 }
                 $lines.Add(('{0},5,7,8' -f $frame.ToString(
                             '0.0', [Globalization.CultureInfo]::InvariantCulture)))
             }
@@ -25,13 +47,13 @@ Describe 'Packaged World performance aggregation' {
         }
 
         function New-TestChild {
-            param([int]$Index, [int]$SlowCount = 0)
+            param([int]$Index, [int]$SlowCount = 0, [double]$SlowFrame = 31.0)
             $root = Join-Path $script:testRoot ("run-{0:D2}" -f $Index)
             New-Item -ItemType Directory -Path $root -Force | Out-Null
             $samplePath = Join-Path $root 'performance.samples.csv'
             $richCsvPath = Join-Path $root 'performance.csv'
             $receiptPath = Join-Path $root 'performance.json'
-            Write-TestSamples -Path $samplePath -SlowCount $SlowCount
+            Write-TestSamples -Path $samplePath -SlowCount $SlowCount -SlowFrame $SlowFrame
             [IO.File]::WriteAllText($richCsvPath, 'diagnostic')
             $samples = @(Import-ProjectWorldPerformanceSamples -Path $samplePath -ExpectedCount 300)
             $statistics = Get-ProjectWorldPerformanceStatistics -Samples $samples
@@ -91,7 +113,12 @@ Describe 'Packaged World performance aggregation' {
         }
 
         function Invoke-TestAggregate {
-            param([object[]]$Children, [string]$ExecutableHash = $script:executableHash)
+            param(
+                [object[]]$Children,
+                [string]$ExecutableHash = $script:executableHash,
+                [double]$HostCpuLoadPercent = 0.0,
+                [double]$HostGpuLoadPercent = 0.0
+            )
             return New-ProjectWorldPerformanceAggregate -Children $Children `
                 -OperationId 'test-operation' -SourceRevision $script:revision `
                 -SourceStateSha256 $script:sourceHash `
@@ -99,7 +126,9 @@ Describe 'Packaged World performance aggregation' {
                 -ExpectedExecutable $script:executable `
                 -ExpectedExecutableSha256 $ExecutableHash `
                 -ExpectedPackage $script:package `
-                -ExpectedPackageSha256 $script:packageHash
+                -ExpectedPackageSha256 $script:packageHash `
+                -HostCpuLoadPercent $HostCpuLoadPercent `
+                -HostGpuLoadPercent $HostGpuLoadPercent
         }
     }
 
@@ -141,6 +170,47 @@ Describe 'Packaged World performance aggregation' {
         $aggregate.frame_p95_ms | Should -Be 10.0
         @($aggregate.children).Count | Should -Be 3
     }
+
+    It 'records host load without relaxing the fixed pooled budget' {
+        $children = @(1..3 | ForEach-Object {
+                New-TestChild -Index $_ -SlowCount 300 -SlowFrame 18.0
+            })
+        $aggregate = Invoke-TestAggregate -Children $children `
+            -HostCpuLoadPercent 35 -HostGpuLoadPercent 5
+        $aggregate.status | Should -BeExactly 'rejected'
+        $aggregate.base_frame_p95_budget_ms | Should -Be 16.67
+        $aggregate.host_cpu_load_percent | Should -Be 35.0
+        $aggregate.host_gpu_load_percent | Should -Be 5.0
+        $aggregate.host_load_allowance_percent | Should -Be 0.0
+        $aggregate.frame_p95_budget_ms | Should -Be 16.67
+        $aggregate.frame_p95_ms | Should -Be 18.0
+        { Invoke-TestAggregate -Children $children -HostCpuLoadPercent 101 } |
+            Should -Throw
+    }
+
+	It 'waits for an idle host without changing the product budget' {
+		$script:hostLoads = [Collections.Queue]::new()
+		$script:hostLoads.Enqueue([pscustomobject]@{ cpu_percent = 31.0; gpu_percent = 8.0 })
+		$script:hostLoads.Enqueue([pscustomobject]@{ cpu_percent = 18.0; gpu_percent = 7.0 })
+		Mock Measure-PlayableTourHostLoad { return $script:hostLoads.Dequeue() }
+		Mock Start-Sleep {}
+
+		$load = Wait-PlayableTourHostIdle -MaxWaitSeconds 60 -PollSeconds 1
+
+		$load.cpu_percent | Should -Be 18.0
+		$load.gpu_percent | Should -Be 7.0
+		$script:hostLoads.Count | Should -Be 0
+	}
+
+	It 'fails closed when the release host stays busy' {
+		Mock Measure-PlayableTourHostLoad {
+			return [pscustomobject]@{ cpu_percent = 31.0; gpu_percent = 8.0 }
+		}
+		Mock Start-Sleep {}
+
+		{ Wait-PlayableTourHostIdle -MaxWaitSeconds 0 -PollSeconds 1 } |
+			Should -Throw '*remained busy*'
+	}
 
     It 'keeps every slow frame and is invariant to child order' {
         $children = @(
@@ -200,12 +270,13 @@ Describe 'Packaged World performance aggregation' {
     }
 
     It 'pins exactly three executions in the existing release runner' {
-        $runner = Get-Content -LiteralPath (Join-Path $script:projectRoot `
-                'scripts\ue\world\test\performance\run_kazan_playable_tour.ps1') -Raw
+		$runner = Get-Content -LiteralPath $script:runner -Raw
         $runner | Should -Match '\$developmentIndex -le 3'
         $runner | Should -Match 'New-ProjectWorldPerformanceAggregate'
         $runner | Should -Match 'ProjectWorldPerformanceSamples'
         $runner | Should -Match 'Development pooled performance rejected:'
+        $runner | Should -Not -Match 'nvidia-smi\s+--id=0'
+        $runner | Should -Match 'Host load \(diagnostic only\)'
     }
 
     It 'hashes immutable package payload while excluding owned runtime state' {

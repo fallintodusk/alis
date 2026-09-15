@@ -16,6 +16,7 @@ $waterVerifier = Join-Path $projectRoot 'scripts\ue\world\test\water_temporal_st
 $waterViewpointVerifier = Join-Path $projectRoot `
     'scripts\ue\world\test\verify_canonical_feature_viewpoint.ps1'
 $compilerBootstrap = Join-Path $projectRoot 'tools\World\CanonicalCompilation\bootstrap.py'
+$worldPythonResolver = Join-Path $projectRoot 'tools\World\ExecutionEnvironment\resolve_python_host.ps1'
 $compilerProfile = Join-Path $projectRoot `
     'Plugins\World\ProjectWorldData\Data\Profiles\CanonicalCompilation\kazan_territory_v1.compile.json'
 $runtimeProfile = Join-Path $projectRoot `
@@ -80,6 +81,76 @@ function Assert-PlayableTourSourceState {
     $currentRuntimeHash = (Get-FileHash -LiteralPath $runtimeProfile -Algorithm SHA256).Hash.ToLowerInvariant()
     Assert-PlayableTour ($currentRuntimeHash -ceq $ExpectedRuntimeHash) `
         "Runtime profile changed during the playable-tour transaction at $Stage."
+}
+
+function Measure-PlayableTourHostLoad {
+    $cpuSamples = [Collections.Generic.List[double]]::new()
+    $gpuSamples = [Collections.Generic.List[double]]::new()
+    for ($sampleIndex = 0; $sampleIndex -lt 3; ++$sampleIndex) {
+        $processor = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor `
+            -Filter "Name='_Total'" -ErrorAction Stop
+        Assert-PlayableTour ($null -ne $processor) `
+            'Unable to measure Windows CPU load for the performance envelope.'
+        $cpuSamples.Add([double]$processor.PercentProcessorTime)
+
+        $gpuOutput = @(& nvidia-smi --query-gpu=utilization.gpu `
+                --format=csv,noheader,nounits)
+        Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $gpuOutput.Count -ge 1) `
+            'Unable to measure NVIDIA GPU load for the performance envelope.'
+        $adapterLoads = [Collections.Generic.List[double]]::new()
+        foreach ($gpuValue in $gpuOutput) {
+            $gpuLoad = 0.0
+            Assert-PlayableTour ([double]::TryParse(
+                    [string]$gpuValue,
+                    [Globalization.NumberStyles]::Float,
+                    [Globalization.CultureInfo]::InvariantCulture,
+                    [ref]$gpuLoad)) `
+                'NVIDIA GPU load measurement was invalid.'
+            $adapterLoads.Add($gpuLoad)
+        }
+        $gpuSamples.Add([double](($adapterLoads | Measure-Object -Maximum).Maximum))
+        if ($sampleIndex -lt 2) {
+            Start-Sleep -Seconds 1
+        }
+    }
+    return [pscustomobject][ordered]@{
+        cpu_percent = [double](($cpuSamples | Measure-Object -Average).Average)
+        gpu_percent = [double](($gpuSamples | Measure-Object -Average).Average)
+    }
+}
+
+function Wait-PlayableTourHostIdle {
+    param(
+        [double]$CpuLimitPercent = 25.0,
+        [double]$GpuLimitPercent = 20.0,
+        [int]$MaxWaitSeconds = 300,
+        [int]$PollSeconds = 15
+    )
+    Assert-PlayableTour ($CpuLimitPercent -ge 0.0 -and $CpuLimitPercent -le 100.0) `
+        'Host CPU idle limit must be between 0 and 100 percent.'
+    Assert-PlayableTour ($GpuLimitPercent -ge 0.0 -and $GpuLimitPercent -le 100.0) `
+        'Host GPU idle limit must be between 0 and 100 percent.'
+    Assert-PlayableTour ($MaxWaitSeconds -ge 0 -and $PollSeconds -gt 0) `
+        'Host idle wait settings are invalid.'
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($MaxWaitSeconds)
+    while ($true) {
+        $hostLoad = Measure-PlayableTourHostLoad
+        if ($hostLoad.cpu_percent -le $CpuLimitPercent -and
+            $hostLoad.gpu_percent -le $GpuLimitPercent) {
+            return $hostLoad
+        }
+        Assert-PlayableTour ([DateTime]::UtcNow -lt $deadline) `
+            (('Release host remained busy: CPU {0:F1}%, GPU {1:F1}%; ' +
+                    'required at most {2:F1}% CPU and {3:F1}% GPU.') -f
+                $hostLoad.cpu_percent, $hostLoad.gpu_percent,
+                $CpuLimitPercent, $GpuLimitPercent)
+        Write-Host (('[i] Waiting for an idle release host: CPU {0:F1}%, GPU {1:F1}%; ' +
+                'limits are {2:F1}% CPU and {3:F1}% GPU.') -f
+            $hostLoad.cpu_percent, $hostLoad.gpu_percent,
+            $CpuLimitPercent, $GpuLimitPercent)
+        Start-Sleep -Seconds $PollSeconds
+    }
 }
 
 function Remove-PlayableTourWorkspace {
@@ -478,6 +549,10 @@ function Read-PlayableTourPerformance {
 }
 
 New-Item -ItemType Directory -Path $evidenceRoot, $ownerRoot, $packageRoot -Force | Out-Null
+$worldPython = @(& $worldPythonResolver)
+Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $worldPython.Count -eq 1) `
+    'Unable to resolve the pinned World Python host.'
+$worldPython = $worldPython[0]
 if (Test-Path -LiteralPath $previousFinalPackage) {
     if (Test-Path -LiteralPath $finalPackage) {
         Remove-PlayableTourPackage -Path $previousFinalPackage
@@ -499,7 +574,7 @@ try {
     $sourceRevision = (& git -C $projectRoot rev-parse HEAD).Trim()
     Assert-PlayableTour ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceRevision)) `
         'Unable to freeze the playable-tour source revision.'
-    $materializeOutput = @(& python -S $compilerBootstrap materialize --profile $compilerProfile)
+    $materializeOutput = @(& $worldPython -S $compilerBootstrap materialize --profile $compilerProfile)
     Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $materializeOutput.Count -gt 0) `
         'Canonical authority materialization failed.'
     $materialized = $materializeOutput[-1] | ConvertFrom-Json
@@ -555,6 +630,10 @@ try {
     $developmentPackageHash = Get-ProjectWorldPackagePayloadDigest -Path $finalPackage
     $developmentExecutableHash = (Get-FileHash -LiteralPath $developmentExecutable `
         -Algorithm SHA256).Hash.ToLowerInvariant()
+    $hostLoad = Wait-PlayableTourHostIdle
+    $hostLoadMessage = '[i] Host load (diagnostic only): CPU {0:F1}%, ' +
+        'maximum NVIDIA GPU {1:F1}%; fixed p95 budget 16.670 ms.'
+    Write-Host ($hostLoadMessage -f $hostLoad.cpu_percent, $hostLoad.gpu_percent)
     $developmentChildren = [Collections.Generic.List[object]]::new()
     $developmentExitCodes = [Collections.Generic.List[int]]::new()
     for ($developmentIndex = 1; $developmentIndex -le 3; ++$developmentIndex) {
@@ -608,7 +687,9 @@ try {
         -RuntimeProfileSha256 $runtimeProfileHash `
         -ExpectedExecutable $developmentExecutable `
         -ExpectedExecutableSha256 $developmentExecutableHash `
-        -ExpectedPackage $finalPackage -ExpectedPackageSha256 $developmentPackageHash
+        -ExpectedPackage $finalPackage -ExpectedPackageSha256 $developmentPackageHash `
+        -HostCpuLoadPercent $hostLoad.cpu_percent `
+        -HostGpuLoadPercent $hostLoad.gpu_percent
     $developmentAggregatePath = Join-Path $developmentRoot 'performance-aggregate.json'
     [IO.File]::WriteAllText(
         $developmentAggregatePath,

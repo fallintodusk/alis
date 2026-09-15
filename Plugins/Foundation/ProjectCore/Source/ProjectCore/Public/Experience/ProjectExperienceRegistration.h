@@ -45,7 +45,7 @@ namespace ProjectExperience
 			if (!bPostEngineBound)
 			{
 				bPostEngineBound = true;
-				FCoreDelegates::OnPostEngineInit.AddStatic(&FlushPendingDescriptors);
+				FCoreDelegates::GetOnPostEngineInit().AddStatic(&FlushPendingDescriptors);
 			}
 			return;
 		}

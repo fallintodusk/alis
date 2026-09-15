@@ -6,7 +6,9 @@
 .DESCRIPTION
     Reads an explicit or bundled ALIS public key, falling back to the site key URL
     only for older releases. Verifies the expected fingerprint, checks the detached
-    signature on SHA256SUMS.txt, and validates every manifest hash locally.
+    signature on SHA256SUMS.txt, and validates every manifest hash locally by
+    default. RequiredAsset limits local hashing to an explicitly downloaded
+    subset while retaining the same signed publisher authority.
 #>
 
 param(
@@ -18,6 +20,8 @@ param(
     [string]$ExpectedFingerprint = "3B9885F0C2D8D927C27FAB58F61A530034CFB5E7",
     [string]$TrustPageUrl = "https://fall.is/trust/",
     [string]$TempGpgHome,
+    [string[]]$RequiredAsset,
+    [string]$SummaryPath,
     [switch]$KeepTempKeyring
 )
 
@@ -238,12 +242,31 @@ function Parse-Manifest {
     return @($Entries)
 }
 
+function Resolve-ManifestAssetPath {
+    param(
+        [string]$Directory,
+        [string]$Name
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Name) -or [IO.Path]::GetFileName($Name) -cne $Name) {
+        throw "Unsafe SHA256SUMS.txt asset name: $Name"
+    }
+    $FlatPath = Join-Path $Directory $Name
+    if (Test-Path -LiteralPath $FlatPath -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $FlatPath).Path
+    }
+    $Matches = @(Get-ChildItem -LiteralPath $Directory -File -Recurse | Where-Object Name -CEQ $Name)
+    if ($Matches.Count -ne 1) {
+        throw "Manifest entry must resolve to exactly one release asset: $Name"
+    }
+    return $Matches[0].FullName
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ResolvedReleaseDir = Resolve-ReleaseDir -RequestedPath $ReleaseDir -ScriptDir $ScriptDir
 $ResolvedGpgPath = Resolve-GpgPath -RequestedPath $GpgPath
 Initialize-GpgEnvironment -ResolvedGpgPath $ResolvedGpgPath
 $ResolvedGpgvPath = Resolve-GpgvPath -ResolvedGpgPath $ResolvedGpgPath
-$SummaryPath = Join-Path $ResolvedReleaseDir "verify_release_summary.txt"
 $ManifestPath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt"
 $SignaturePath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt.asc"
 
@@ -303,13 +326,29 @@ try {
     }
 
     $ManifestEntries = Parse-Manifest -ManifestPath $ManifestPath
+    $EntriesToVerify = $ManifestEntries
+    if ($RequiredAsset.Count -gt 0) {
+        $Requested = @{}
+        $EntriesToVerify = @($RequiredAsset | ForEach-Object {
+            $Name = [string]$_
+            if ([string]::IsNullOrWhiteSpace($Name) -or [IO.Path]::GetFileName($Name) -cne $Name) {
+                throw "Unsafe required release asset name: $Name"
+            }
+            if ($Requested.ContainsKey($Name)) {
+                throw "Duplicate required release asset name: $Name"
+            }
+            $Requested[$Name] = $true
+            $Matches = @($ManifestEntries | Where-Object Name -CEQ $Name)
+            if ($Matches.Count -ne 1) {
+                throw "Required release asset must appear exactly once in SHA256SUMS.txt: $Name"
+            }
+            $Matches[0]
+        })
+    }
     $VerifiedCount = 0
 
-    foreach ($Entry in $ManifestEntries) {
-        $AssetPath = Join-Path $ResolvedReleaseDir $Entry.Name
-        if (-not (Test-Path $AssetPath)) {
-            throw "Manifest entry was not found in release directory: $($Entry.Name)"
-        }
+    foreach ($Entry in $EntriesToVerify) {
+        $AssetPath = Resolve-ManifestAssetPath -Directory $ResolvedReleaseDir -Name $Entry.Name
 
         $ActualHash = (Get-FileHash $AssetPath -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($ActualHash -ne $Entry.Hash) {
@@ -335,11 +374,18 @@ try {
         $SummaryLines += "VerifiedAsset=$($Entry.Name)"
     }
 
-    $SummaryLines | Set-Content -Encoding Ascii $SummaryPath
+    if ($SummaryPath) {
+        $ResolvedSummaryPath = [IO.Path]::GetFullPath($SummaryPath)
+        $SummaryParent = Split-Path -Parent $ResolvedSummaryPath
+        New-Item -ItemType Directory -Path $SummaryParent -Force | Out-Null
+        $SummaryLines | Set-Content -Encoding Ascii $ResolvedSummaryPath
+    }
 
     Write-Host "Verification completed successfully." -ForegroundColor Green
     Write-Host "Verified assets: $VerifiedCount"
-    Write-Host "Summary: $SummaryPath"
+    if ($SummaryPath) {
+        Write-Host "Summary: $ResolvedSummaryPath"
+    }
 }
 finally {
     if (-not $KeepTempKeyring) {

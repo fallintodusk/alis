@@ -4,7 +4,7 @@
     Generate SHA256SUMS.txt and SHA256SUMS.txt.asc for an ALIS release output.
 
 .DESCRIPTION
-    Hashes root-level release assets in a packaged ALIS release directory, signs the
+    Hashes release assets in a packaged ALIS release directory, signs the
     resulting SHA256SUMS.txt with the ALIS site trust key, exports the matching
     public key into the release, and verifies the detached signature by default.
 #>
@@ -16,6 +16,7 @@ param(
     [string]$SigningKeyFingerprint = "3B9885F0C2D8D927C27FAB58F61A530034CFB5E7",
     [string]$TrustPageUrl = "https://fall.is/trust/",
     [string]$PublicKeyUrl = "https://fall.is/assets/security/public-key.asc",
+    [string]$SummaryPath,
     [switch]$SkipVerify
 )
 
@@ -299,7 +300,7 @@ function Get-ReleaseAssets {
         "SHA256SUMS.txt.asc"
     )
 
-    $Assets = Get-ChildItem $Directory -File | Where-Object {
+    $Assets = Get-ChildItem $Directory -File -Recurse | Where-Object {
         $IsExcluded = $false
 
         foreach ($Pattern in $ExcludedPatterns) {
@@ -333,134 +334,6 @@ function Write-ReleaseVerifyHelpers {
         "powershell -ExecutionPolicy Bypass -File ""%~dp0VERIFY_RELEASE.ps1"" %*",
         "exit /b %ERRORLEVEL%"
     ) | Set-Content -Encoding Ascii $TargetBat
-}
-
-function Write-ReleaseReadme {
-    param(
-        [string]$Directory,
-        [System.IO.FileInfo[]]$Assets,
-        [string]$TrustPageUrl,
-        [string]$PublicKeyUrl,
-        [string]$PublicKeyAssetName,
-        [string]$Fingerprint
-    )
-
-    $ReadmePath = Join-Path $Directory "INSTALL.txt"
-    $ArchiveAssets = @($Assets | Where-Object { $_.Name -like "*.zip*" -or $_.Name -like "*.7z*" })
-    $IsDeveloperRelease = @($Assets | Where-Object { $_.Name -like "*.developer-payload.json" }).Count -gt 0
-    $IsGameRelease = @($Assets | Where-Object { $_.Name -like "ALIS_Win64_*.zip*" }).Count -gt 0
-
-    if ($IsDeveloperRelease -and $IsGameRelease) {
-        $Lines = @(
-            "ALIS Release Install Guide",
-            "",
-            "Player:",
-            "1. Download every ALIS_Win64 archive part into one folder.",
-            "2. Extract the first numbered part with 7-Zip.",
-            "3. Run Alis.exe.",
-            "",
-            "Developer:",
-            "1. Clone the public ALIS source repository.",
-            "2. Download the developer payload files into one separate folder.",
-            "3. Check out the exact public source tag named by the payload manifest.",
-            "4. From that clean checkout, run scripts/git/mirror/install_developer_payload.ps1 -ProjectRoot <alis-path> -ReleaseDir <payload-folder> -RequireReleaseSignature.",
-            "5. Open Alis.uproject with the supported Unreal Engine version.",
-            "",
-            "The developer installer verifies and joins its numbered parts automatically.",
-            "Do not manually extract or rename developer payload parts.",
-            "",
-            "Archive parts in this release:"
-        )
-    }
-    elseif ($IsDeveloperRelease) {
-        $Lines = @(
-            "ALIS Developer Project Install Guide",
-            "",
-            "Fast install:",
-            "1. Clone the public ALIS source repository.",
-            "2. Download every file from this release into one separate folder.",
-            "3. Check out the exact public source tag named by the payload manifest.",
-            "4. From that clean checkout, run scripts/git/mirror/install_developer_payload.ps1 -ProjectRoot <alis-path> -ReleaseDir <this-folder> -RequireReleaseSignature.",
-            "5. Open Alis.uproject with the supported Unreal Engine version.",
-            "",
-            "The installer verifies and joins numbered parts automatically.",
-            "Do not manually extract, rename parts, or execute downloaded helper scripts.",
-            "",
-            "Archive parts in this release:"
-        )
-    } else {
-        $Lines = @(
-            "ALIS Install Guide",
-            "",
-            "Fast install:",
-            "1. Download all archive parts to one folder.",
-            "2. Install 7-Zip if needed: https://www.7-zip.org/",
-            "3. Right-click the first archive part and extract it with 7-Zip.",
-            "4. Run Alis.exe.",
-            "",
-            "Archive parts in this release:"
-        )
-    }
-
-    foreach ($Asset in $ArchiveAssets) {
-        $Lines += "- $($Asset.Name)"
-    }
-
-    $Lines += @(
-        "",
-        "Product terms:",
-        ".\PRODUCT_TERMS.txt",
-        "",
-        "Trust source of truth:",
-        "Fingerprint authority: $TrustPageUrl",
-        "Bundled public key: .\$PublicKeyAssetName",
-        "Public key mirror: $PublicKeyUrl",
-        "Fingerprint: $Fingerprint",
-        "",
-        "Fast advanced path on Windows:",
-        ".\VERIFY_RELEASE.bat",
-        "",
-        "What VERIFY_RELEASE.bat does:",
-        "- checks the ALIS public key fingerprint",
-        "- verifies SHA256SUMS.txt.asc",
-        "- verifies the hashes of all release assets in this folder",
-        "",
-        "Advanced verify:",
-        "1. Download SHA256SUMS.txt and SHA256SUMS.txt.asc from this release.",
-        "2. Keep $PublicKeyAssetName in the same folder.",
-        "3. Verify the detached signature.",
-        "4. Verify file hashes from SHA256SUMS.txt.",
-        "",
-        "If gpg is not on PATH, use the bundled verifier or call gpg by full path.",
-        "",
-        "Manual PowerShell + GPG quick path:",
-        "gpg --import .\$PublicKeyAssetName",
-        "gpg --verify .\SHA256SUMS.txt.asc .\SHA256SUMS.txt",
-        "",
-        "PowerShell hash check:",
-        "Get-Content .\SHA256SUMS.txt | ForEach-Object {",
-        "  if (`$_ -match '^(?<hash>[0-9a-f]{64}) \*(?<name>.+)$') {",
-        "    `$actual = (Get-FileHash `$Matches.name -Algorithm SHA256).Hash.ToLower()",
-        "    if (`$actual -eq `$Matches.hash) { ""[OK] `$(`$Matches.name)"" } else { ""[FAIL] `$(`$Matches.name)"" }",
-        "  }",
-        "}",
-        "",
-        "If the signature is good and every hash is [OK], the release files are authentic.",
-        "",
-        "Important for split archives:",
-        "- keep all parts in the same folder",
-        "- packaged game: extract the first part only",
-        "- developer project: run INSTALL_ALIS_DEVELOPER_PROJECT.ps1",
-        "",
-        "Bundled helper files in this release:",
-        "- INSTALL.txt",
-        "- $PublicKeyAssetName",
-        "- VERIFY_RELEASE.ps1",
-        "- VERIFY_RELEASE.bat"
-    )
-
-    $Lines | Set-Content -Encoding Ascii $ReadmePath
-    return $ReadmePath
 }
 
 function Assert-SecretKeyAvailable {
@@ -519,9 +392,6 @@ $GpgHomeArgument = ConvertTo-GpgHomeArgument -ResolvedGpgPath $ResolvedGpgPath -
 Initialize-GpgEnvironment -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgHomeArgument
 $PublicKeyAssetName = "ALIS_PUBLIC_KEY.asc"
 $PublicKeyAssetPath = Join-Path $ResolvedReleaseDir $PublicKeyAssetName
-$ReadmePath = Join-Path $ResolvedReleaseDir "INSTALL.txt"
-Remove-Item $ReadmePath -Force -ErrorAction SilentlyContinue
-Remove-Item (Join-Path $ResolvedReleaseDir "README_RELEASE.txt") -Force -ErrorAction SilentlyContinue
 Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.ps1"), (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.bat") -Force -ErrorAction SilentlyContinue
 Remove-Item $PublicKeyAssetPath -Force -ErrorAction SilentlyContinue
 
@@ -530,18 +400,18 @@ Export-ReleasePublicKey -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgH
 
 Write-ReleaseVerifyHelpers -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot
 
-$PreReadmeAssets = Get-ReleaseAssets -Directory $ResolvedReleaseDir
-[void](Write-ReleaseReadme -Directory $ResolvedReleaseDir -Assets $PreReadmeAssets -TrustPageUrl $TrustPageUrl -PublicKeyUrl $PublicKeyUrl -PublicKeyAssetName $PublicKeyAssetName -Fingerprint $SigningKeyFingerprint)
 $Assets = Get-ReleaseAssets -Directory $ResolvedReleaseDir
 
 if ($Assets.Count -eq 0) {
-    throw "No root-level release assets were found in $ResolvedReleaseDir. Package with -CreateReleaseArchive first, or place release assets in the release root before signing."
+    throw "No release assets were found in $ResolvedReleaseDir."
+}
+$DuplicateAssetNames = @($Assets | Group-Object Name | Where-Object Count -gt 1)
+if ($DuplicateAssetNames.Count -gt 0) {
+    throw "Release assets must have unique public file names: $($DuplicateAssetNames.Name -join ', ')"
 }
 
 $ManifestPath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt"
 $SignaturePath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt.asc"
-$SummaryPath = Join-Path $ResolvedReleaseDir "sign_release_summary.txt"
-
 Remove-Item $ManifestPath, $SignaturePath -Force -ErrorAction SilentlyContinue
 
 $HashLines = foreach ($Asset in $Assets) {
@@ -611,9 +481,16 @@ foreach ($Asset in $Assets) {
     $SummaryLines += "Asset=$($Asset.Name)"
 }
 
-$SummaryLines | Set-Content -Encoding Ascii $SummaryPath
+if ($SummaryPath) {
+    $ResolvedSummaryPath = [IO.Path]::GetFullPath($SummaryPath)
+    $SummaryParent = Split-Path -Parent $ResolvedSummaryPath
+    New-Item -ItemType Directory -Path $SummaryParent -Force | Out-Null
+    $SummaryLines | Set-Content -Encoding Ascii $ResolvedSummaryPath
+}
 
 Write-Host "Signing completed successfully." -ForegroundColor Green
 Write-Host "Manifest:  $ManifestPath"
 Write-Host "Signature: $SignaturePath"
-Write-Host "Summary:   $SummaryPath"
+if ($SummaryPath) {
+    Write-Host "Summary:   $ResolvedSummaryPath"
+}

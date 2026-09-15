@@ -5,9 +5,16 @@
 
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
+#include "ProjectSinglePlayLog.h"
 #include "Scenario/SinglePlayScenarioRunnerComponent.h"
 #include "SinglePlayerGameMode.h"
+#include "Subsystems/ProjectUILayerHostSubsystem.h"
 #include "Subsystems/ProjectToastSubsystem.h"
+
+namespace
+{
+	const FName PreviewFlightHintsDefinitionId(TEXT("ProjectSinglePlay.PreviewFlightHints"));
+}
 
 void USinglePlayScenarioPresentationComponent::BeginPlay()
 {
@@ -27,10 +34,7 @@ void USinglePlayScenarioPresentationComponent::BeginPlay()
 	bPreviewFlight = GameMode->GetTraversalMode() == ESinglePlayTraversalMode::PreviewFlight;
 	if (bPreviewFlight)
 	{
-		ShowMessage(
-			TEXT("PREVIEW FLIGHT - Mouse look, WASD move, hold SPACE to rise, hold LEFT CTRL to descend, hold LEFT SHIFT for fast overview."),
-			12.0f,
-			FName(TEXT("Info")));
+		SetPreviewFlightHintsVisible(true);
 	}
 
 	USinglePlayScenarioRunnerComponent* ScenarioRunner =
@@ -60,6 +64,10 @@ void USinglePlayScenarioPresentationComponent::EndPlay(const EEndPlayReason::Typ
 	}
 	Runner.Reset();
 	PhaseChangedHandle.Reset();
+	if (bPreviewFlight)
+	{
+		SetPreviewFlightHintsVisible(false);
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -97,4 +105,43 @@ void USinglePlayScenarioPresentationComponent::ShowMessage(
 	}
 
 	Toast->ShowToast(FText::FromString(Message), Duration, Type);
+}
+
+void USinglePlayScenarioPresentationComponent::SetPreviewFlightHintsVisible(bool bVisible) const
+{
+	APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
+	UGameInstance* GameInstance = GetWorld() == nullptr ? nullptr : GetWorld()->GetGameInstance();
+	UProjectUILayerHostSubsystem* LayerHost = GameInstance == nullptr
+		? nullptr
+		: GameInstance->GetSubsystem<UProjectUILayerHostSubsystem>();
+	if (LayerHost == nullptr)
+	{
+		if (bVisible)
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("PreviewFlight controls cannot resolve the ProjectUI layer host."));
+		}
+		return;
+	}
+
+	if (bVisible)
+	{
+		if (PlayerController == nullptr || !PlayerController->IsLocalController())
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("PreviewFlight controls cannot resolve the local player controller."));
+			return;
+		}
+		LayerHost->InitializeForPlayer(PlayerController);
+		if (LayerHost->ShowDefinition(PreviewFlightHintsDefinitionId) == nullptr)
+		{
+			UE_LOG(LogProjectSinglePlay, Error,
+				TEXT("PreviewFlight controls failed to show registered definition %s."),
+				*PreviewFlightHintsDefinitionId.ToString());
+		}
+	}
+	else
+	{
+		LayerHost->HideDefinition(PreviewFlightHintsDefinitionId);
+	}
 }

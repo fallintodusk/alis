@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "prepare_release.py"
@@ -91,6 +93,7 @@ class PrepareReleaseTests(unittest.TestCase):
                     "branch": "main",
                 },
                 "archive": {
+                    "logical_name": "developer.zip",
                     "byte_size": 9,
                     "sha256": MODULE.sha256_file(self.developer / "developer.zip"),
                     "parts": [
@@ -142,6 +145,18 @@ class PrepareReleaseTests(unittest.TestCase):
                 "issue_count": 0,
             },
         )
+        self.map_load = self.root / "public-world-map-load.json"
+        write_json(
+            self.map_load,
+            {
+                "schema": "alis-public-world-map-load-v1",
+                "status": "accepted",
+                "maps": [
+                    "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+                    "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase",
+                ],
+            },
+        )
         self.terms = self.root / "PRODUCT_TERMS.txt"
         self.terms.write_text("ALIS Product Terms\n", encoding="utf-8")
         self.player_archive = self.root / "ALIS_Win64_v2.0.0.zip"
@@ -179,6 +194,7 @@ class PrepareReleaseTests(unittest.TestCase):
             component_manifest=self.component,
             dependency_report=self.dependency,
             privacy_report=self.privacy,
+            map_load_report=self.map_load,
             attribution_notice=self.attribution,
             product_terms=self.terms,
         )
@@ -229,8 +245,86 @@ class PrepareReleaseTests(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.assertEqual("pending_owner_approval", manifest["status"])
         self.assertEqual("pending_owner_approval", manifest["product_review"]["status"])
-        self.assertTrue((output / "player-machine-acceptance.json").is_file())
+        self.assertFalse((output / "player-machine-acceptance.json").exists())
         self.assertFalse((output / "player-acceptance.json").exists())
+
+    def test_unsigned_release_is_the_minimal_flat_github_asset_set(self) -> None:
+        output = self.root / "release"
+
+        MODULE.prepare_release(
+            self.inputs(), output, [self.player_archive], self.archive_report
+        )
+
+        self.assertTrue((output / "README.txt").is_file())
+        self.assertTrue((output / "INSTALL_ALIS_PLAYER.bat").is_file())
+        self.assertTrue((output / "INSTALL_ALIS_PLAYER.ps1").is_file())
+        self.assertTrue((output / self.player_archive.name).is_file())
+        self.assertTrue((output / "PRODUCT_TERMS.txt").is_file())
+        self.assertTrue((output / "INSTALL_ALIS_DEVELOPER.bat").is_file())
+        self.assertTrue((output / "INSTALL_ALIS_DEVELOPER.ps1").is_file())
+        self.assertTrue((output / "developer.zip").is_file())
+        self.assertTrue((output / "developer.developer-payload.json").is_file())
+        self.assertTrue((output / "developer.notices.json").is_file())
+        self.assertTrue((output / "effective-component-manifest.json").is_file())
+        self.assertFalse((output / "INSTALL_ALIS_DEVELOPER_PROJECT.bat").exists())
+        self.assertFalse((output / "player-archive.json").exists())
+        self.assertFalse((output / "player-machine-acceptance.json").exists())
+        self.assertFalse((output / "developer-dependency-report.json").exists())
+        self.assertFalse((output / "public-source-privacy.json").exists())
+        self.assertFalse((output / "public-world-map-load.json").exists())
+        self.assertFalse((output / "LICENSE.txt").exists())
+        self.assertFalse((output / "LICENSE_MPL-2.0.txt").exists())
+        self.assertFalse(any(path.is_dir() for path in output.iterdir()))
+
+        root_entries = {path.name for path in output.iterdir() if path.is_file()}
+        self.assertEqual(
+            {
+                "README.txt",
+                "release_manifest.json",
+                "PRODUCT_TERMS.txt",
+                self.player_archive.name,
+                "INSTALL_ALIS_PLAYER.bat",
+                "INSTALL_ALIS_PLAYER.ps1",
+                "developer.zip",
+                "developer.developer-payload.json",
+                "developer.notices.json",
+                "effective-component-manifest.json",
+                "INSTALL_ALIS_DEVELOPER.bat",
+                "INSTALL_ALIS_DEVELOPER.ps1",
+            },
+            root_entries,
+        )
+
+        root_readme = (output / "README.txt").read_text(encoding="ascii")
+        self.assertIn("WHAT'S NEW 2.0.0", root_readme)
+        self.assertIn("Choose Kazan or Manhattan from the main menu", root_readme)
+        self.assertIn("deterministic world pipeline", root_readme)
+        self.assertIn("PLAY ON WINDOWS", root_readme)
+        self.assertIn("With 7-Zip, extract ALIS_Win64_v2.0.0.zip", root_readme)
+        self.assertIn("Optional convenience", root_readme)
+        self.assertIn("DEVELOP OR CONTRIBUTE", root_readme)
+        self.assertIn("Clone the exact v2.0.0 tag", root_readme)
+        self.assertIn("developer/README.md", root_readme)
+        self.assertIn("Product terms: PRODUCT_TERMS.txt", root_readme)
+        self.assertIn("Data and third-party notices: developer.notices.json", root_readme)
+        self.assertNotIn("player/README.md", root_readme)
+        self.assertNotIn("README_PLAYER.txt", root_readme)
+        self.assertNotIn("README_DEVELOPER.txt", root_readme)
+        self.assertNotIn("developer source", root_readme.lower())
+
+        manifest = json.loads(
+            (output / "release_manifest.json").read_text(encoding="utf-8")
+        )
+        artifact_names = {item["name"] for item in manifest["artifacts"]}
+        self.assertIn("README.txt", artifact_names)
+        self.assertIn(self.player_archive.name, artifact_names)
+        self.assertIn("developer.zip", artifact_names)
+        self.assertTrue(all(Path(name).name == name for name in artifact_names))
+
+        player_installer = (output / "INSTALL_ALIS_PLAYER.ps1").read_text(encoding="utf-8")
+        self.assertIn(self.player_archive.name, player_installer)
+        self.assertIn(MODULE.sha256_file(self.player_archive), player_installer)
+        self.assertNotIn("__ALIS_PLAYER_ARCHIVE_MANIFEST_JSON__", player_installer)
 
     def test_prepare_accepts_player_archive_already_in_output(self) -> None:
         output = self.root / "release"
@@ -245,7 +339,31 @@ class PrepareReleaseTests(unittest.TestCase):
         manifest = MODULE.prepare_release(self.inputs(), output, [archive], report)
 
         self.assertTrue(manifest.is_file())
-        self.assertTrue(archive.is_file())
+        self.assertTrue((output / archive.name).is_file())
+        self.assertFalse(report.exists())
+
+    def test_archive_player_rejects_part_at_github_asset_limit(self) -> None:
+        output = self.root / "player-archive"
+        original_stat = Path.stat
+
+        def run_7zip(command: list[str], check: bool = False) -> subprocess.CompletedProcess:
+            if command[1] == "a":
+                (output / "ALIS_Win64_v2.0.0.zip.001").write_bytes(b"part")
+            return subprocess.CompletedProcess(command, 0)
+
+        def report_oversized_part(path: Path, *args: object, **kwargs: object) -> object:
+            if path.parent == output and path.name.endswith(".001"):
+                return SimpleNamespace(st_size=2 * 1024 * 1024 * 1024)
+            return original_stat(path, *args, **kwargs)
+
+        with (
+            mock.patch.object(MODULE, "resolve_7zip", return_value=sys.executable),
+            mock.patch.object(MODULE.subprocess, "run", side_effect=run_7zip),
+            mock.patch.object(Path, "stat", report_oversized_part),
+            self.assertRaisesRegex(MODULE.ReleaseError, "GitHub release asset limit"),
+        ):
+            MODULE.archive_player(self.candidate, output, "2.0.0", 1900, None)
+        self.assertFalse(output.exists())
 
     def test_dependency_rejection_fails_before_output(self) -> None:
         dependency = json.loads(self.dependency.read_text(encoding="utf-8"))
@@ -316,22 +434,52 @@ class PrepareReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.ReleaseError, "explicit approval"):
             MODULE.approve_release(output, approve=False)
 
-    def test_source_state_hashes_raw_binary_diff_bytes(self) -> None:
+    def test_source_state_hashes_tracked_and_untracked_binary_bytes(self) -> None:
         repo = self.root / "source-state"
         init_repo(repo)
         (repo / "tracked.txt").write_bytes(b"changed \xe2\x80\x94 bytes\n")
         (repo / "untracked.txt").write_bytes(b"untracked\n")
-        diff = subprocess.run(
-            ["git", "-C", str(repo), "diff", "--binary", "--no-ext-diff", "HEAD"],
+        initial = MODULE.source_state_digest(repo)
+
+        (repo / "tracked.txt").write_bytes(b"different tracked bytes\n")
+        self.assertNotEqual(MODULE.source_state_digest(repo), initial)
+        (repo / "tracked.txt").write_bytes(b"changed \xe2\x80\x94 bytes\n")
+
+        (repo / "untracked.txt").write_bytes(b"different untracked bytes\n")
+        self.assertNotEqual(MODULE.source_state_digest(repo), initial)
+
+    def test_source_state_is_stable_when_new_file_is_staged(self) -> None:
+        repo = self.root / "source-state-staging"
+        init_repo(repo)
+        (repo / "new.txt").write_bytes(b"same source bytes\n")
+        untracked_digest = MODULE.source_state_digest(repo)
+
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--", "new.txt"],
             check=True,
             capture_output=True,
-        ).stdout
-        untracked_hash = hashlib.sha256((repo / "untracked.txt").read_bytes()).hexdigest()
-        expected = hashlib.sha256(
-            diff + b"\nuntracked.txt|" + untracked_hash.encode("ascii")
-        ).hexdigest()
+        )
 
-        self.assertEqual(MODULE.source_state_digest(repo), expected)
+        self.assertEqual(MODULE.source_state_digest(repo), untracked_digest)
+
+    def test_source_state_is_stable_when_same_effective_tree_is_committed(self) -> None:
+        repo = self.root / "source-state-commit"
+        init_repo(repo)
+        (repo / "new.txt").write_bytes(b"same source bytes\n")
+        before_commit = MODULE.source_state_digest(repo)
+
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--", "new.txt"],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo), "commit", "-q", "-m", "same effective tree"],
+            check=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(MODULE.source_state_digest(repo), before_commit)
 
 
 if __name__ == "__main__":

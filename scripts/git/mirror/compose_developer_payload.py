@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-PART_LIMIT_MIB = 1700
+PART_LIMIT_MIB = 1900
 MAX_PART_MIB = 1900
 MAX_RELEASE_PARTS = 990
 ASSET_RELEASE_CONTRACT = "scripts/git/mirror/developer_asset_release.json"
@@ -363,10 +363,18 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
 
 
 def ensure_tracked(repo_root: Path, entries: list[Entry]) -> None:
-    command = ["git", "-c", "core.fsmonitor=false", "-C", str(repo_root), "ls-files", "--error-unmatch"]
+    result = subprocess.run(
+        ["git", "-c", "core.fsmonitor=false", "-C", str(repo_root), "ls-files", "-z"],
+        capture_output=True,
+        check=True,
+    )
+    tracked = {
+        value.decode("utf-8", errors="surrogateescape")
+        for value in result.stdout.split(b"\0")
+        if value
+    }
     for entry in entries:
-        result = subprocess.run(command + [entry.path], capture_output=True, text=True, check=False)
-        if result.returncode != 0:
+        if entry.path not in tracked:
             raise PayloadError(f"Payload authority is not tracked by git: {entry.path}")
 
 
@@ -518,8 +526,7 @@ def compose(
     ]
     if non_binary_entries:
         raise PayloadError(f"Developer payload contains public-source text: {non_binary_entries}")
-    if not allow_dirty:
-        ensure_tracked(repo_root, ordered)
+    ensure_tracked(repo_root, ordered)
 
     identity = {
         "release_version": release_version,

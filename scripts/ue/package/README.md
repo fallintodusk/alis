@@ -4,34 +4,43 @@ Canonical release packaging entry points for ALIS.
 
 ## Release Transaction
 
-The maintainer-facing KISS entry point is:
+The operator uses only `make release` and `make mirror`:
 
 ```powershell
+make release 2.0.0 RELEASE_SIGN=0
+# Review tmp/release/v2.0.0.
+make mirror RTAG=v2.0.0
 make release 2.0.0
+# Manually upload the signed files from tmp/release/v2.0.0.
 ```
 
-It owns the complete local release state machine. From the repository alone it
+`make release` owns the complete local release state machine. From the repository alone it
 builds and machine-verifies a stale/missing player Candidate, prepares the
 matching filtered public source and developer payload, verifies an isolated
 payload install/build and both public maps, composes the combined release, and
 resumes the same bytes for signing. It performs no GitHub write.
 
-The unsigned command has no human checkpoint: it runs the machine-owned gates
-and prepares one complete review directory. The maintainer reviews the packaged
-Product, developer payload, reports, and Product terms there. A later signed
-invocation resumes those exact bytes, asks once for `APPROVE X.Y.Z`, and passes
-the private-key prompt directly to GPG.
-
-Use the same transaction without any private-key access while preparing and
-reviewing a release:
-
-```powershell
-make release 2.0.0 RELEASE_SIGN=0
-```
+Unsigned mode runs the machine-owned gates and prepares one complete review
+directory without approval, GPG, or a GitHub write. After human review and the
+source commit, explicit `RTAG` selects the mirror-owned reviewed publication
+route; bare `make mirror` remains generic. The final signed invocation is the
+explicit Product/terms/rights approval action: it refuses a changed public Git
+tree, records approval, signs the exact prepared bytes, and consumer-verifies
+them. The only interactive prompt is GPG itself. See the
+[mirror command contract](../../git/mirror/README.md#make-wrapper).
 
 The unsigned mode stops at a hash-verified `pending_owner_approval` directory.
 It never approves terms, invokes GPG, or creates signing outputs. A later
-`make release 2.0.0` resumes that exact directory instead of rebuilding it.
+`make release 2.0.0 RELEASE_SIGN=0` or `make release 2.0.0` treats a valid
+`tmp/release/v2.0.0/` as the candidate authority and reuses those exact files.
+Later workspace changes do not rebuild or replace it. To intentionally prepare
+a fresh candidate, remove that version directory and run the same unsigned
+command; there is no separate rebuild flag.
+When the exact default output path still contains a matching pending unsigned
+manifest from an obsolete layout, unsigned mode removes it and prepares the
+current flat public layout in the same command.
+Signed, partially signed, mismatched, and custom-path legacy state remains
+unchanged and fails closed.
 
 Release automation stages the version-scoped inputs under
 `tmp/release/inputs/v2.0.0/`:
@@ -42,6 +51,7 @@ developer/
 reports/effective-component-manifest.json
 reports/developer-dependency-report.json
 reports/public-source-privacy.json
+reports/public-world-map-load.json
 ```
 
 The machine-accepted player Candidate and its composite evidence remain in their
@@ -55,7 +65,25 @@ and emits `tmp/release/v2.0.0/`.
 combined player and developer release. It consumes, but does not replace, the
 machine-accepted player Candidate, public source/payload manifests, dependency and
 privacy reports, component manifest, attribution, and Product terms. It emits
-one hash-bound `release_manifest.json` under project `tmp/`.
+one hash-bound `release_manifest.json` under project `tmp/`. The unsigned output
+already has the public review surface as one flat directory:
+
+```text
+README.txt
+ALIS_Win64_vX.Y.Z.zip.001
+ALIS_DeveloperProject_X.Y.Z_<id>.zip
+PRODUCT_TERMS.txt
+INSTALL_ALIS_PLAYER.bat
+INSTALL_ALIS_DEVELOPER.bat
+effective-component-manifest.json
+release_manifest.json
+```
+
+`README.txt` owns the version highlights and complete Player/Developer quick
+starts. Manual 7-Zip setup is primary for both roles; the BAT/PowerShell pairs
+are optional convenience. Validation reports stay with the release inputs and
+are not public assets. Tagged repository guides and licenses remain in their
+source owners instead of being copied into the release.
 
 Player package identity excludes only declared runtime-written state and orders
 relative paths by ordinal UTF-8 bytes. The World gate, ProjectCinematic binding,
@@ -73,6 +101,7 @@ cross-owner regression is `scripts/ue/world/test/package_identity.Tests.ps1`.
   -ComponentManifest <effective-component-manifest.json> `
   -DependencyReport <developer-dependency-report.json> `
   -PrivacyReport <public-source-privacy.json> `
+  -MapLoadReport <public-world-map-load.json> `
   -AttributionNotice <developer-payload-directory>\<payload>.notices.json `
   -ProductTerms PRODUCT_TERMS.txt
 ```
@@ -82,19 +111,14 @@ The attribution input is the exact composer-produced notices manifest whose
 developer archive part, the joined logical archive, and the complete allowed
 developer-directory inventory before copying anything.
 
-The prepared state is intentionally not signable. The release owner first
-reviews the exact Product build, Product terms, and rights inputs, then records
-the bounded non-personal approval:
-
-```powershell
-python scripts/ue/package/prepare_release.py approve `
-  --release-dir tmp/release/v2.0.0 `
-  --approve-product-terms-and-rights
-```
-
-Only `ready_for_signature` passes `sign_release.ps1`. Signing remains the
-release owner's private action. Developers and players only run the bundled
-public verifier; they never need the private key.
+The prepared state is intentionally not signable. After reviewing the exact
+Product build, Product terms, and rights inputs, the release owner runs
+`make release X.Y.Z`. That command boundary records the bounded non-personal
+approval through the internal `prepare_release.py approve` transition. There
+is no separate confirmation prompt or maintainer command. Only
+`ready_for_signature` passes `sign_release.ps1`, and only GPG asks for private
+key input. Developers and players run the bundled public verifier; they never
+need the private key.
 
 For a tagged public source release, generate
 `effective-component-manifest.json` from the clean public tag before signing:
@@ -126,11 +150,21 @@ consumer verifier. It never writes to a remote.
 
 ### `prepare_release_inputs.ps1`
 
-Internal release step. It selects an authenticated public World projection,
-runs the existing mirror/developer-payload owner, installs the payload into an
-isolated exact-tag checkout, builds the Editor, loads Kazan and Manhattan, runs
-the dependency audit, and promotes the complete input tree only after every
-check passes. Maintainers call `make release X.Y.Z`, not this script.
+Internal release step. It regenerates the public-safe Kazan and Manhattan
+projection from current ProjectWorldData canonical authority and the declared
+public realization profiles inside a byte-restored generated-content
+transaction. It never discovers an old projection under `tmp/release`.
+It then runs the existing mirror/developer-payload owner, installs the payload
+into an isolated exact-tag checkout, builds the Editor, loads Kazan and
+Manhattan, runs the dependency audit, and promotes the complete input tree only
+after every check passes. Failed work trees and isolated verification checkouts
+are removed on success or failure, and the release entry point clears abandoned
+scratch from interrupted runs. Starting a fresh automatic review replaces prior
+automatic input trees, so only its promoted public-source repository remains.
+That input tree is retained for reviewed mirror publication, then removed after
+the signed release passes consumer verification.
+`-PublicAssetRoot` is an explicit test/diagnostic seam, not normal release
+discovery. Maintainers call `make release X.Y.Z`, not this script.
 
 ### `package_release.ps1`
 
@@ -144,7 +178,7 @@ Defaults:
 - uses `-skipencryption` for public release packaging
 - disables Asset Registry cache reads for the cook so replaced World Partition
   external actors are discovered from the current content tree
-- uses `1700 MiB` split threshold for GitHub-safe archive transport
+- uses `1900 MiB` split threshold for GitHub-safe archive transport
 - writes a `package_summary.txt` into the output directory
 - accepts `-RequiredCookMap` for validation runs; this preserves the configured
   `MapsToCook` set and adds one explicit map without editing shipping config
@@ -167,7 +201,7 @@ Examples:
 ```
 
 ```bat
-scripts\ue\package\package_release_source.bat -CreateReleaseArchive -SplitSizeMB 1700
+scripts\ue\package\package_release_source.bat -CreateReleaseArchive -SplitSizeMB 1900
 ```
 
 The default command resolves the installed launcher engine and is the fast
@@ -202,7 +236,7 @@ Key parameters:
 - `-EncryptContent` opt-in override for encrypted containers
 - `-CreateReleaseArchive` creates a zip, optionally split into parts
 - when a created zip already fits under the requested split threshold, the script keeps a normal `.zip`
-- `-SplitSizeMB` archive split size in MiB, default `1700`
+- `-SplitSizeMB` archive split size in MiB, default `1900`
 
 ### `package_release.bat`
 
@@ -233,23 +267,19 @@ Defaults:
 - rejects the directory before key access unless `release_manifest.json` is
   hash-clean and `ready_for_signature`
 - reuses the ALIS site trust fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
-- signs the root-level release assets in a packaged output directory
+- signs every prepared flat release asset
 - exports the public half of the selected signing key as `ALIS_PUBLIC_KEY.asc`
 - includes the exported key in `SHA256SUMS.txt` so every distribution mirror carries the same key asset
 - excludes `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` from the manifest; the signature signs the manifest, and the manifest never hashes itself
-- writes `INSTALL.txt` into the release directory before hashing so the helper file is covered by the signed manifest
+- preserves the already-reviewed `README.txt` unchanged
 - copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release directory before hashing so advanced users have a self-contained verifier next to the archives
-- writes separate Player and Developer install routes when one release contains both the game archive and developer payload
-- links the bundled `PRODUCT_TERMS.txt` from `INSTALL.txt`
+- requires unique public filenames
 - verifies the detached signature after signing
-- writes `sign_release_summary.txt` into the release directory
+- writes a summary only when an explicit path outside the upload directory is
+  requested
 
-Example after `prepare_release.py approve` reports the same directory ready:
-
-```powershell
-.\scripts\ue\package\sign_release.ps1 `
-  -ReleaseDir tmp\release\v2.0.0
-```
+This is an internal worker of signed `make release X.Y.Z`, not a separate
+operator step.
 
 Key parameters:
 
@@ -259,17 +289,12 @@ Key parameters:
 - an explicit GPG home must already exist, must be owned by the calling operation, and is rejected if it resolves to the default user GPG directory or user profile
 - the signing script never deletes an explicit GPG home because it contains caller-owned secret-key material; a throwaway test harness must clean only the disposable home it created
 - `-SigningKeyFingerprint` override only if the ALIS public trust identity changes
+- `-SummaryPath` optional signing receipt outside the upload directory
 - `-SkipVerify` skips the post-sign `gpg --verify` step
 
 ### `sign_release.bat`
 
-Windows wrapper for `sign_release.ps1`.
-
-Example:
-
-```bat
-scripts\ue\package\sign_release.bat -ReleaseDir <build-dir>
-```
+Windows wrapper for internal diagnostics around `sign_release.ps1`.
 
 ### `verify_release.ps1`
 
@@ -282,15 +307,19 @@ Defaults:
 - falls back to `https://fall.is/assets/security/public-key.asc` only for older releases without a bundled key
 - checks fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
 - passes a temporary GPG home explicitly to all public-key operations, so it does not initialize or modify the user's main keyring
-- verifies both the detached signature and every asset hash listed in `SHA256SUMS.txt`
-- writes `verify_release_summary.txt` into the release directory
+- verifies both the detached signature and every asset hash listed in
+  `SHA256SUMS.txt` by default
+- accepts an explicit required-asset subset for role installers without
+  requiring unrelated downloads
+- writes a summary only when an explicit path outside the download directory is
+  requested
 - when copied into a release directory, it can infer that directory automatically without `-ReleaseDir`
 
 Examples:
 
 ```powershell
 .\scripts\ue\package\verify_release.ps1 `
-  -ReleaseDir <temp-dir>\ALIS_release_20260310_154307
+  -ReleaseDir tmp\release\v2.0.0
 ```
 
 ```powershell
@@ -308,6 +337,9 @@ Key parameters:
 - `-PublicKeyUrl` override only if the site public key URL changes
 - `-ExpectedFingerprint` override only if the ALIS trust identity changes
 - `-TempGpgHome` optional explicit temporary verification keyring directory
+- `-RequiredAsset` verifies only named downloaded assets after authenticating
+  the complete checksum manifest
+- `-SummaryPath` optional verification receipt outside the download directory
 - `-KeepTempKeyring` keeps the temporary verification keyring for debugging
 
 ### `verify_release.bat`

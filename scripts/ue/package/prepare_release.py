@@ -14,6 +14,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
+GITHUB_RELEASE_ASSET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
+DEFAULT_RELEASE_PART_SIZE_MIB = 1900
+MAX_RELEASE_PART_SIZE_MIB = 1900
+
+
 class ReleaseError(RuntimeError):
     pass
 
@@ -31,6 +36,7 @@ class ReleaseInputs:
     component_manifest: Path
     dependency_report: Path
     privacy_report: Path
+    map_load_report: Path
     attribution_notice: Path
     product_terms: Path
 
@@ -42,13 +48,19 @@ RUNTIME_STATE_PATHS = (
 )
 GENERATED_SIGNING_FILES = {
     "ALIS_PUBLIC_KEY.asc",
-    "INSTALL.txt",
     "SHA256SUMS.txt",
     "SHA256SUMS.txt.asc",
     "VERIFY_RELEASE.bat",
     "VERIFY_RELEASE.ps1",
     "sign_release_summary.txt",
     "verify_release_summary.txt",
+}
+DEVELOPER_INPUT_ONLY_FILES = {
+    "INSTALL_ALIS_DEVELOPER_PROJECT.bat",
+    "INSTALL_ALIS_DEVELOPER_PROJECT.ps1",
+    "LICENSE.txt",
+    "LICENSE_MPL-2.0.txt",
+    "VERIFY_RELEASE.ps1",
 }
 DEVELOPER_HELPER_FILES = {
     "INSTALL_ALIS_DEVELOPER_PROJECT.bat",
@@ -94,14 +106,22 @@ def git_value(root: Path, *arguments: str) -> str:
 def source_state_digest(root: Path) -> str:
     root = root.resolve()
     command = ["git", "-c", "core.fsmonitor=false", "-C", str(root)]
-    diff_result = subprocess.run(
-        [*command, "diff", "--binary", "--no-ext-diff", "HEAD"],
+    index_result = subprocess.run(
+        [*command, "ls-files", "-s", "-z"],
         capture_output=True,
         check=False,
     )
-    if diff_result.returncode != 0:
-        detail = diff_result.stderr.decode("utf-8", errors="replace").strip()
-        raise ReleaseError(f"Unable to read tracked source state: {detail}")
+    if index_result.returncode != 0:
+        detail = index_result.stderr.decode("utf-8", errors="replace").strip()
+        raise ReleaseError(f"Unable to read indexed source state: {detail}")
+    worktree_result = subprocess.run(
+        [*command, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--"],
+        capture_output=True,
+        check=False,
+    )
+    if worktree_result.returncode != 0:
+        detail = worktree_result.stderr.decode("utf-8", errors="replace").strip()
+        raise ReleaseError(f"Unable to read working-tree source state: {detail}")
     untracked_result = subprocess.run(
         [*command, "ls-files", "-z", "--others", "--exclude-standard"],
         capture_output=True,
@@ -111,20 +131,58 @@ def source_state_digest(root: Path) -> str:
         detail = untracked_result.stderr.decode("utf-8", errors="replace").strip()
         raise ReleaseError(f"Unable to read untracked source state: {detail}")
 
-    payload = bytearray(diff_result.stdout)
-    for relative_bytes in sorted(filter(None, untracked_result.stdout.split(b"\0"))):
+    entries: dict[bytes, tuple[bytes, bytes]] = {}
+    for record in filter(None, index_result.stdout.split(b"\0")):
+        metadata, separator, relative_bytes = record.partition(b"\t")
+        fields = metadata.split()
+        if not separator or len(fields) != 3:
+            raise ReleaseError("Git returned an invalid index entry")
+        mode, object_id, stage = fields
+        if stage != b"0":
+            raise ReleaseError("Release source contains an unresolved Git index entry")
+        entries[relative_bytes] = (mode, object_id)
+
+    changed_paths = set(filter(None, worktree_result.stdout.split(b"\0")))
+    changed_paths.update(filter(None, untracked_result.stdout.split(b"\0")))
+    for relative_bytes in changed_paths:
         try:
             relative = relative_bytes.decode("utf-8")
         except UnicodeDecodeError as error:
-            raise ReleaseError("Untracked Git path is not valid UTF-8") from error
+            raise ReleaseError("Changed Git path is not valid UTF-8") from error
         path = root / relative
-        if not path.is_file():
-            raise ReleaseError(f"Untracked release input is not a file: {relative}")
-        payload.extend(b"\n")
-        payload.extend(relative_bytes)
-        payload.extend(b"|")
-        payload.extend(sha256_file(path).encode("ascii"))
-    return hashlib.sha256(payload).hexdigest()
+        if not path.exists() and not path.is_symlink():
+            entries.pop(relative_bytes, None)
+            continue
+        if not path.is_file() and not path.is_symlink():
+            raise ReleaseError(f"Changed release input is not a file: {relative}")
+
+        current_mode = entries.get(relative_bytes, (b"", b""))[0]
+        if path.is_symlink():
+            mode = b"120000"
+        elif current_mode in {b"100644", b"100755"}:
+            mode = current_mode
+        else:
+            executable = bool(path.stat().st_mode & 0o111)
+            mode = b"100755" if executable else b"100644"
+        object_result = subprocess.run(
+            [*command, "hash-object", f"--path={relative}", "--", relative],
+            capture_output=True,
+            check=False,
+        )
+        if object_result.returncode != 0:
+            detail = object_result.stderr.decode("utf-8", errors="replace").strip()
+            raise ReleaseError(f"Unable to hash release input {relative}: {detail}")
+        entries[relative_bytes] = (mode, object_result.stdout.strip())
+
+    digest = hashlib.sha256()
+    for relative_bytes, (mode, object_id) in sorted(entries.items()):
+        digest.update(relative_bytes)
+        digest.update(b"\0")
+        digest.update(mode)
+        digest.update(b"\0")
+        digest.update(object_id)
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def package_tree_digest(root: Path) -> str:
@@ -322,6 +380,15 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
     require_equal(privacy.get("source_revision"), public_revision, "privacy source revision")
     require_equal(privacy.get("source_tree"), public_tree, "privacy source tree")
 
+    map_load = read_json(inputs.map_load_report)
+    require_equal(map_load.get("schema"), "alis-public-world-map-load-v1", "public map-load schema")
+    require_equal(map_load.get("status"), "accepted", "public map-load status")
+    required_maps = {
+        "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+        "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase",
+    }
+    require_equal(set(map_load.get("maps", [])), required_maps, "public map-load maps")
+
     archive_report = read_json(archive_report_path)
     require_equal(archive_report.get("schema"), "alis-player-archive-v1", "player archive schema")
     require_equal(archive_report.get("status"), "accepted", "player archive status")
@@ -355,6 +422,7 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
         "evidence_files": evidence_files,
         "composite": composite,
         "archive_report": archive_report,
+        "developer_manifest": developer,
         "developer_files": developer_files,
     }
 
@@ -367,13 +435,171 @@ def copy_asset(source: Path, output: Path, target_name: str, copied: dict[str, P
             raise ReleaseError(f"Conflicting release asset name: {target_name}")
         return
     target = output / target_name
+    target.parent.mkdir(parents=True, exist_ok=True)
     if source.resolve() == target.resolve():
         copied[target_name] = target
         return
     if target.exists():
         raise ReleaseError(f"Release output already contains unexpected asset: {target}")
-    shutil.copy2(source, target)
+    if source.resolve().is_relative_to(output.resolve()):
+        source.replace(target)
+    else:
+        shutil.copy2(source, target)
     copied[target_name] = target
+
+
+def write_release_text(output: Path, target_name: str, lines: list[str], copied: dict[str, Path]) -> None:
+    target = output / target_name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("\n".join(lines) + "\n", encoding="ascii")
+    copied[target_name] = target
+
+
+PLAYER_ARCHIVE_MANIFEST_MARKER = "__ALIS_PLAYER_ARCHIVE_MANIFEST_JSON__"
+
+
+def write_player_installer(
+    source: Path,
+    output: Path,
+    archive_report: dict[str, Any],
+    copied: dict[str, Path],
+) -> None:
+    template = source.read_text(encoding="utf-8-sig")
+    if template.count(PLAYER_ARCHIVE_MANIFEST_MARKER) != 1:
+        raise ReleaseError("Player installer template has no unique archive-manifest marker")
+    manifest_json = json.dumps(archive_report, sort_keys=True, separators=(",", ":"))
+    rendered = template.replace(PLAYER_ARCHIVE_MANIFEST_MARKER, manifest_json.replace("'", "''"))
+    target = output / "INSTALL_ALIS_PLAYER.ps1"
+    target.write_text(rendered, encoding="utf-8")
+    copied[target.name] = target
+
+
+def write_release_guide(
+    output: Path,
+    version: str,
+    tag: str,
+    archive_report: dict[str, Any],
+    developer_manifest: dict[str, Any],
+    copied: dict[str, Path],
+) -> None:
+    repository = "https://github.com/fallintodusk/alis"
+    if version == "2.0.0":
+        player_changes = [
+            "- Choose Kazan or Manhattan from the main menu.",
+            "- Fly across the large-scale Kazan territory with fast overview controls.",
+            "- Explore streamed terrain, water, roads, vegetation, and buildings rebuilt",
+            "  from real geography.",
+            "- Open the in-game pause menu with Escape.",
+        ]
+        developer_changes = [
+            "- Build Kazan and Manhattan from real geographic data with the new",
+            "  deterministic world pipeline.",
+            "- Develop against Unreal Engine 5.8 with the generated world assets used by",
+            "  the packaged release.",
+            "- Validate world generation, streaming, gameplay routes, and performance with",
+            "  expanded automated gates.",
+        ]
+        changes_heading = f"WHAT'S NEW {version}"
+    else:
+        player_changes = ["- See the Git history for changes in this release."]
+        developer_changes = ["- See the Git history for changes in this release."]
+        changes_heading = f"WHAT'S NEW {version}"
+    player_parts = [
+        require_safe_file_name(part.get("name"), "player archive part name")
+        for part in archive_report["parts"]
+    ]
+    developer_parts = [
+        require_safe_file_name(part.get("name"), "developer archive part name")
+        for part in developer_manifest["archive"]["parts"]
+    ]
+    developer_payload = next(
+        path.name for path in output.iterdir() if path.name.endswith(".developer-payload.json")
+    )
+    notices_artifact = next(
+        path.name for path in output.iterdir() if path.name.endswith(".notices.json")
+    )
+    player_downloads = [f"   {name}" for name in player_parts]
+    developer_downloads = [f"   {name}" for name in developer_parts]
+    if len(player_parts) == 1 and not player_parts[0].endswith(".001"):
+        player_extract = [f"2. With 7-Zip, extract {player_parts[0]}."]
+    else:
+        player_extract = [
+            f"2. With 7-Zip, extract only {player_parts[0]}.",
+            "   Keep the remaining numbered parts beside it.",
+        ]
+    if len(developer_parts) == 1 and not developer_parts[0].endswith(".001"):
+        developer_extract = [f"3. With 7-Zip, extract {developer_parts[0]} into the source checkout."]
+    else:
+        developer_extract = [
+            f"3. With 7-Zip, extract only {developer_parts[0]} into the source checkout.",
+            "   Keep the remaining numbered parts beside it.",
+        ]
+    write_release_text(
+        output,
+        "README.txt",
+        [
+            f"ALIS {version}",
+            "",
+            "World Reborn",
+            "",
+            "Explore real geography rebuilt as playable, streamed worlds.",
+            "",
+            changes_heading,
+            "",
+            "Players",
+            *player_changes,
+            "",
+            "Developers and contributors",
+            *developer_changes,
+            "",
+            "PLAY ON WINDOWS",
+            "",
+            "1. Download these files into one folder:",
+            "",
+            *player_downloads,
+            "",
+            *player_extract,
+            "",
+            "3. Run Alis.exe from the extracted folder.",
+            "",
+            "Optional convenience",
+            "Keep INSTALL_ALIS_PLAYER.bat and INSTALL_ALIS_PLAYER.ps1 beside the archive",
+            "parts, then double-click INSTALL_ALIS_PLAYER.bat. It works offline, requires",
+            "no administrator access, and only verifies, joins, and extracts the game.",
+            "",
+            "DEVELOP OR CONTRIBUTE",
+            "",
+            f"1. Clone the exact {tag} tag.",
+            "",
+            "2. Download:",
+            "",
+            *developer_downloads,
+            "",
+            *developer_extract,
+            "",
+            "4. Follow the Developer Quick Start:",
+            f"   {repository}/blob/{tag}/developer/README.md",
+            "",
+            "Optional convenience",
+            f"Keep those Developer archive files, {developer_payload}, the two Developer",
+            "installer files, ALIS_PUBLIC_KEY.asc, SHA256SUMS.txt, and SHA256SUMS.txt.asc",
+            "in one folder, then double-click INSTALL_ALIS_DEVELOPER.bat. It creates the exact",
+            "tagged checkout, verifies the matching payload, and installs its generated assets.",
+            "It does not install Unreal Engine or Visual Studio.",
+            "",
+            "OPTIONAL RELEASE VERIFICATION",
+            "",
+            "Advanced users can download the complete release and double-click",
+            "VERIFY_RELEASE.bat to verify the publisher signature and every asset.",
+            "",
+            "LICENSES AND TERMS",
+            "",
+            "Product terms: PRODUCT_TERMS.txt",
+            f"Data and third-party notices: {notices_artifact}",
+            f"Open-source license: {repository}/blob/{tag}/LICENSE",
+        ],
+        copied,
+    )
 
 
 def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable[Path], archive_report_path: Path | None = None) -> Path:
@@ -394,15 +620,11 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
     for archive in archive_paths:
         sources.append((archive, archive.name))
     for source in sorted(validated["developer_files"], key=lambda item: item.name.lower()):
-        sources.append((source, source.name))
-    sources.extend(validated["evidence_files"])
+        if source.name not in DEVELOPER_INPUT_ONLY_FILES:
+            sources.append((source, source.name))
     sources.extend(
         [
-            (archive_report_path, "player-archive.json"),
             (inputs.component_manifest, "effective-component-manifest.json"),
-            (inputs.dependency_report, "developer-dependency-report.json"),
-            (inputs.privacy_report, "public-source-privacy.json"),
-            (inputs.attribution_notice, "WORLD_ATTRIBUTION.json"),
             (inputs.product_terms, "PRODUCT_TERMS.txt"),
         ]
     )
@@ -417,6 +639,27 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
     try:
         for source, name in sources:
             copy_asset(source, output, name, copied)
+        package_scripts = Path(__file__).resolve().parent
+        mirror_scripts = package_scripts.parents[1] / "git" / "mirror"
+        write_player_installer(
+            package_scripts / "install_player_release.ps1",
+            output,
+            validated["archive_report"],
+            copied,
+        )
+        copy_asset(package_scripts / "install_player_release.bat", output, "INSTALL_ALIS_PLAYER.bat", copied)
+        copy_asset(mirror_scripts / "bootstrap_developer_release.ps1", output, "INSTALL_ALIS_DEVELOPER.ps1", copied)
+        copy_asset(mirror_scripts / "bootstrap_developer_release.bat", output, "INSTALL_ALIS_DEVELOPER.bat", copied)
+        write_release_guide(
+            output,
+            inputs.release_version,
+            inputs.release_tag,
+            validated["archive_report"],
+            validated["developer_manifest"],
+            copied,
+        )
+        if archive_report_path.is_relative_to(output.resolve()):
+            archive_report_path.unlink()
         artifacts = [
             {
                 "name": name,
@@ -426,7 +669,7 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
             for name, path in sorted(copied.items())
         ]
         manifest = {
-            "schema": "alis-release-manifest-v1",
+            "schema": "alis-release-manifest-v3",
             "status": "pending_owner_approval",
             "release_version": inputs.release_version,
             "release_tag": inputs.release_tag,
@@ -444,6 +687,13 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
             "unresolved_count": 0,
             "product_review": {"status": validated["player"]["product_review"]},
             "rights_review": {"status": "pending_owner_approval"},
+            "release_documents": {
+                "component_manifest_artifact": "effective-component-manifest.json",
+                "developer_guide_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/developer/README.md",
+                "notices_artifact": inputs.attribution_notice.name,
+                "product_terms_artifact": "PRODUCT_TERMS.txt",
+                "source_license_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/LICENSE",
+            },
             "artifacts": artifacts,
         }
         manifest_path = output / "release_manifest.json"
@@ -461,7 +711,15 @@ def verify_artifacts(root: Path, manifest: dict[str, Any]) -> None:
     seen: set[str] = set()
     for item in artifacts:
         name = str(item.get("name", ""))
-        if not name or Path(name).name != name or name in seen:
+        relative = Path(name)
+        if (
+            not name
+            or relative.is_absolute()
+            or ".." in relative.parts
+            or "\\" in name
+            or relative.name != name
+            or name in seen
+        ):
             raise ReleaseError(f"Invalid or duplicate release artifact name: {name!r}")
         seen.add(name)
         path = root / name
@@ -470,8 +728,12 @@ def verify_artifacts(root: Path, manifest: dict[str, Any]) -> None:
         require_equal(item.get("byte_size"), path.stat().st_size, f"release artifact size for {name}")
         require_equal(item.get("sha256"), sha256_file(path), f"release artifact hash for {name}")
     expected = seen | {"release_manifest.json"}
-    actual = {path.name for path in root.iterdir() if path.is_file()}
-    directories = [path.name for path in root.iterdir() if path.is_dir()]
+    actual = {
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+    directories = [path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_dir()]
     if directories or actual != expected:
         raise ReleaseError(
             "Release directory inventory mismatch: "
@@ -482,7 +744,7 @@ def verify_artifacts(root: Path, manifest: dict[str, Any]) -> None:
 
 def verify_release_manifest(root: Path, require_ready: bool = False) -> dict[str, Any]:
     manifest = read_json(root / "release_manifest.json")
-    require_equal(manifest.get("schema"), "alis-release-manifest-v1", "release manifest schema")
+    require_equal(manifest.get("schema"), "alis-release-manifest-v3", "release manifest schema")
     expected = "ready_for_signature" if require_ready else manifest.get("status")
     if expected not in {"pending_owner_approval", "ready_for_signature"}:
         raise ReleaseError(f"Unsupported release manifest status: {expected!r}")
@@ -524,7 +786,7 @@ def approve_release(root: Path, approve: bool) -> Path:
     rights_path.write_text(json.dumps(rights, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     manifest["artifacts"].append(
         {
-            "name": rights_path.name,
+            "name": rights_path.relative_to(root).as_posix(),
             "byte_size": rights_path.stat().st_size,
             "sha256": sha256_file(rights_path),
         }
@@ -532,7 +794,7 @@ def approve_release(root: Path, approve: bool) -> Path:
     manifest["artifacts"] = sorted(manifest["artifacts"], key=lambda item: item["name"])
     manifest["rights_review"] = {
         "status": "accepted",
-        "artifact": rights_path.name,
+        "artifact": rights_path.relative_to(root).as_posix(),
         "sha256": sha256_file(rights_path),
     }
     manifest["product_review"] = {
@@ -555,6 +817,10 @@ def resolve_7zip(requested: str | None) -> str:
 
 def archive_player(package_root: Path, output: Path, version: str, split_size_mib: int, seven_zip: str | None) -> Path:
     package_root = package_root.resolve()
+    if not 1 <= split_size_mib <= MAX_RELEASE_PART_SIZE_MIB:
+        raise ReleaseError(
+            f"Player archive split size must be between 1 and {MAX_RELEASE_PART_SIZE_MIB} MiB"
+        )
     windows = package_root / "Windows"
     if not windows.is_dir():
         raise ReleaseError(f"Accepted player package has no Windows directory: {package_root}")
@@ -578,6 +844,11 @@ def archive_player(package_root: Path, output: Path, version: str, split_size_mi
     if not parts:
         shutil.rmtree(output, ignore_errors=True)
         raise ReleaseError("7-Zip produced no player archive")
+    oversized = [part for part in parts if part.stat().st_size >= GITHUB_RELEASE_ASSET_LIMIT_BYTES]
+    if oversized:
+        names = ", ".join(part.name for part in oversized)
+        shutil.rmtree(output, ignore_errors=True)
+        raise ReleaseError(f"Player archive exceeded the GitHub release asset limit: {names}")
     test = subprocess.run([tool, "t", str(parts[0])], check=False)
     if test.returncode != 0:
         shutil.rmtree(output, ignore_errors=True)
@@ -603,7 +874,7 @@ def main() -> int:
     archive.add_argument("--package-root", type=Path, required=True)
     archive.add_argument("--output-dir", type=Path, required=True)
     archive.add_argument("--release-version", required=True)
-    archive.add_argument("--split-size-mib", type=int, default=1700)
+    archive.add_argument("--split-size-mib", type=int, default=DEFAULT_RELEASE_PART_SIZE_MIB)
     archive.add_argument("--seven-zip")
     prepare = commands.add_parser("prepare")
     prepare.add_argument("--release-version", required=True)
@@ -618,6 +889,7 @@ def main() -> int:
     prepare.add_argument("--component-manifest", type=Path, required=True)
     prepare.add_argument("--dependency-report", type=Path, required=True)
     prepare.add_argument("--privacy-report", type=Path, required=True)
+    prepare.add_argument("--map-load-report", type=Path, required=True)
     prepare.add_argument("--attribution-notice", type=Path, required=True)
     prepare.add_argument("--product-terms", type=Path, required=True)
     prepare.add_argument("--output-dir", type=Path, required=True)
@@ -654,6 +926,7 @@ def main() -> int:
                 args.component_manifest,
                 args.dependency_report,
                 args.privacy_report,
+                args.map_load_report,
                 args.attribution_notice,
                 args.product_terms,
             )

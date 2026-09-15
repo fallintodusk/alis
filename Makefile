@@ -116,6 +116,7 @@ help:
 	@echo "  Git Workflow:"
 	@echo "    make merge-ai BRANCH=<branch> - Squash merge AI work branch (clean history)"
 	@echo "    make mirror - Publish to default public mirror ($(DEFAULT_MIRROR_REMOTE_URL))"
+	@echo "    make mirror RTAG=v2.0.0 - Publish reviewed main and matching release tag"
 	@echo "    make mirror MIRROR_DRY_RUN=1 - Preview against default mirror baseline"
 	@echo "    make mirror MIRROR_REMOTE_URL=<url> - Override mirror remote explicitly"
 	@echo "    make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1 - One-off local preview without remote"
@@ -401,9 +402,13 @@ test-integration-batch:
 merge-ai:
 	@bash scripts/git/squash_merge.sh $(BRANCH)
 
+# Bare mirror is always generic. RTAG is the only switch into reviewed release
+# publication; pending release folders never change dispatch.
 mirror:
 ifeq ($(IS_WSL),1)
 	@set -eu; \
+	if [ -n "$(strip $(RTAG))" ]; then echo "[ERROR] RTAG release publication requires native Windows PowerShell/Make."; exit 2; fi; \
+	echo "[INFO] mirror mode: generic"; \
 	CMD="./scripts/git/mirror/mirror_to_github.sh"; \
 	set --; \
 	if [ -n "$(MIRROR_REMOTE_URL)" ]; then set -- "$$@" --remote-url "$(MIRROR_REMOTE_URL)"; fi; \
@@ -430,8 +435,19 @@ ifeq ($(IS_WSL),1)
 else
 	@echo [INFO] mirror target uses PowerShell wrapper on Windows
 	@echo [INFO] mirror remote: $(EFFECTIVE_MIRROR_REMOTE_URL)
+ifneq ($(strip $(RTAG)),)
+ifeq ($(strip $(MIRROR_BRANCH)$(MIRROR_EXCLUDE_FILE)$(MIRROR_FORBIDDEN_PATTERNS_FILE)$(MIRROR_DEVELOPER_RELEASE_DIR)$(MIRROR_DEVELOPER_VERSION)$(MIRROR_DEVELOPER_PART_SIZE_MIB)$(MIRROR_DRY_RUN)$(MIRROR_EPHEMERAL_PREVIEW)$(MIRROR_FORCE)$(MIRROR_ARGS)),)
+	@echo [INFO] mirror mode: reviewed release publication
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\scripts\git\mirror\publish_reviewed_release_source.ps1" -RemoteUrl "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(strip $(RTAG)),-ReleaseTag "$(strip $(RTAG))")
+else
+	@echo [ERROR] RTAG cannot be combined with generic MIRROR_* publication arguments.
+	@exit 2
+endif
+else
+	@echo [INFO] mirror mode: generic
 	@echo [INFO] mirror args: --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(MIRROR_DEVELOPER_ARGS)$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
 	@$(if $(MIRROR_GIT_SSH_COMMAND),set "MIRROR_GIT_SSH_COMMAND=$(MIRROR_GIT_SSH_COMMAND)" && )powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\mirror_to_github.ps1" --remote-url "$(EFFECTIVE_MIRROR_REMOTE_URL)" $(if $(MIRROR_BRANCH),--branch "$(MIRROR_BRANCH)" )$(if $(MIRROR_EXCLUDE_FILE),--exclude-file "$(MIRROR_EXCLUDE_FILE)" )$(if $(MIRROR_FORBIDDEN_PATTERNS_FILE),--forbidden-patterns-file "$(MIRROR_FORBIDDEN_PATTERNS_FILE)" )$(MIRROR_DEVELOPER_ARGS)$(if $(filter 1,$(MIRROR_DRY_RUN)),--dry-run,--push) $(if $(filter 1,$(MIRROR_EPHEMERAL_PREVIEW)),--ephemeral-preview )$(if $(filter 1,$(MIRROR_FORCE)),--force )$(MIRROR_ARGS)
+endif
 endif
 
 # Source engine path comes from scripts/config/ue_path.conf via ue_env.mk

@@ -16,7 +16,11 @@ param(
     [string]$ComponentManifest,
     [string]$DependencyReport,
     [string]$PrivacyReport,
+    [string]$MapLoadReport,
     [string]$ProductTerms,
+    [string]$FinalPublicSourceRoot,
+    [string]$PublicRemoteUrl = "https://github.com/fallintodusk/alis.git",
+    [string]$PublicBranch = "main",
     [string]$GpgPath,
     [string]$GpgHome
 )
@@ -90,25 +94,120 @@ function Read-ReleaseManifest {
     return Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 }
 
+function Remove-ObsoleteUnsignedRelease {
+    param(
+        [string]$Directory,
+        [string]$ExpectedDirectory,
+        [string]$ReleaseRoot,
+        [string]$ReleaseVersion,
+        [string]$ReleaseTag,
+        [object]$Manifest
+    )
+
+    $ResolvedDirectory = [IO.Path]::GetFullPath($Directory).TrimEnd('\', '/')
+    $ResolvedExpected = [IO.Path]::GetFullPath($ExpectedDirectory).TrimEnd('\', '/')
+    $ResolvedReleaseRoot = [IO.Path]::GetFullPath($ReleaseRoot).TrimEnd('\', '/')
+    if (-not $ResolvedDirectory.Equals($ResolvedExpected, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Obsolete release cleanup is limited to the default version path: $ResolvedExpected"
+    }
+    Assert-PathUnderRoot -Path $ResolvedDirectory -Root $ResolvedReleaseRoot -Description "Obsolete release directory"
+    if ($Manifest.schema -notin @("alis-release-manifest-v1", "alis-release-manifest-v2") -or
+        $Manifest.status -ne "pending_owner_approval" -or
+        $Manifest.release_version -ne $ReleaseVersion -or
+        $Manifest.release_tag -ne $ReleaseTag) {
+        throw "Obsolete release is not the matching unsigned pending release; it was left unchanged for inspection."
+    }
+
+    $OldSigningManifest = Join-Path $ResolvedDirectory "SHA256SUMS.txt"
+    $OldSignature = Join-Path $ResolvedDirectory "SHA256SUMS.txt.asc"
+    if ((Test-Path -LiteralPath $OldSigningManifest) -or (Test-Path -LiteralPath $OldSignature)) {
+        throw "Obsolete release has signed or incomplete signing output; it was left unchanged for inspection."
+    }
+    $ReleaseItem = Get-Item -LiteralPath $ResolvedDirectory -Force
+    if (($ReleaseItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Obsolete release path is a reparse point; it was left unchanged for inspection."
+    }
+
+    Remove-Item -LiteralPath $ResolvedDirectory -Recurse -Force
+}
+
+function Remove-AutomaticReleaseInputs {
+    param(
+        [string]$InputRoot,
+        [string]$ProjectTmpRoot,
+        [bool]$UsesExplicitInputs
+    )
+
+    if ($UsesExplicitInputs -or -not (Test-Path -LiteralPath $InputRoot)) {
+        return
+    }
+    Assert-PathUnderRoot -Path $InputRoot -Root $ProjectTmpRoot -Description "Automatic release inputs"
+    Remove-Item -LiteralPath $InputRoot -Recurse -Force
+}
+
+function Remove-AbandonedReleaseScratch {
+    param([string]$ReleaseRoot)
+
+    foreach ($Name in @("work", "c", "final-public-source")) {
+        $ScratchRoot = [IO.Path]::GetFullPath((Join-Path $ReleaseRoot $Name))
+        Assert-PathUnderRoot -Path $ScratchRoot -Root $ReleaseRoot -Description "Release scratch"
+        if (Test-Path -LiteralPath $ScratchRoot) {
+            Remove-Item -LiteralPath $ScratchRoot -Recurse -Force
+        }
+    }
+}
+
 $ReleaseTag = "v$ReleaseVersion"
 $ResolvedInputRoot = Resolve-ProjectPath -Path $InputRoot -DefaultPath "tmp\release\inputs\$ReleaseTag"
 $ResolvedReleaseDir = Resolve-ProjectPath -Path $ReleaseDir -DefaultPath "tmp\release\$ReleaseTag"
 $ProjectTmpRoot = Join-Path $ProjectRoot "tmp"
+$ReleaseRoot = Join-Path $ProjectTmpRoot "release"
 Assert-PathUnderRoot -Path $ResolvedReleaseDir -Root $ProjectTmpRoot -Description "ReleaseDir"
+Remove-AbandonedReleaseScratch -ReleaseRoot $ReleaseRoot
 $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerPackageRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerEvidence) -or
     -not [string]::IsNullOrWhiteSpace($DeveloperReleaseDir) -or
     -not [string]::IsNullOrWhiteSpace($ComponentManifest) -or
     -not [string]::IsNullOrWhiteSpace($DependencyReport) -or
-    -not [string]::IsNullOrWhiteSpace($PrivacyReport)
+    -not [string]::IsNullOrWhiteSpace($PrivacyReport) -or
+    -not [string]::IsNullOrWhiteSpace($MapLoadReport)
 $SigningManifest = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt"
 $Signature = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt.asc"
 $PreparedThisRun = $false
 $AutomaticPlayerEvidence = $null
 
+if (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container) {
+    $ExistingManifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
+    if ($ExistingManifest.schema -ne "alis-release-manifest-v3") {
+        if (-not $SkipSigning) {
+            throw "Release directory uses an obsolete public layout. Run the unsigned release command first to remove and replace it."
+        }
+        $ExpectedReleaseDir = Join-Path $ReleaseRoot $ReleaseTag
+        Remove-ObsoleteUnsignedRelease `
+            -Directory $ResolvedReleaseDir `
+            -ExpectedDirectory $ExpectedReleaseDir `
+            -ReleaseRoot $ReleaseRoot `
+            -ReleaseVersion $ReleaseVersion `
+            -ReleaseTag $ReleaseTag `
+            -Manifest $ExistingManifest
+        Write-Host "[Release] Removed obsolete unsigned release: $ResolvedReleaseDir"
+    }
+}
+
 if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
     if (-not $UsesExplicitInputs) {
+        $InputsToReplace = if ([string]::IsNullOrWhiteSpace($InputRoot)) {
+            Join-Path $ReleaseRoot "inputs"
+        }
+        else {
+            $ResolvedInputRoot
+        }
+        if (Test-Path -LiteralPath $InputsToReplace) {
+            Assert-PathUnderRoot -Path $InputsToReplace -Root $ProjectTmpRoot -Description "InputRoot"
+            Remove-Item -LiteralPath $InputsToReplace -Recurse -Force
+        }
+
         $AcceptanceScript = Join-Path $ProjectRoot "scripts\ue\world\accept_playable_tour_candidate.ps1"
         $StatusJson = @(& $AcceptanceScript -Mode Status -ReleaseVersion $ReleaseVersion)
         if ($LASTEXITCODE -ne 0 -or $StatusJson.Count -ne 1) {
@@ -136,10 +235,6 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         }
         $AutomaticPlayerEvidence = [string]$AcceptanceStatus.composite
 
-        if (Test-Path -LiteralPath $ResolvedInputRoot) {
-            Assert-PathUnderRoot -Path $ResolvedInputRoot -Root $ProjectTmpRoot -Description "InputRoot"
-            Remove-Item -LiteralPath $ResolvedInputRoot -Recurse -Force
-        }
         & (Join-Path $ScriptDir "prepare_release_inputs.ps1") `
             -ReleaseVersion $ReleaseVersion -InputRoot $ResolvedInputRoot
         if ($LASTEXITCODE -ne 0) {
@@ -159,6 +254,7 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
     $ResolvedComponentManifest = Resolve-ProjectPath -Path $ComponentManifest -DefaultPath (Join-Path $ResolvedInputRoot "reports\effective-component-manifest.json")
     $ResolvedDependencyReport = Resolve-ProjectPath -Path $DependencyReport -DefaultPath (Join-Path $ResolvedInputRoot "reports\developer-dependency-report.json")
     $ResolvedPrivacyReport = Resolve-ProjectPath -Path $PrivacyReport -DefaultPath (Join-Path $ResolvedInputRoot "reports\public-source-privacy.json")
+    $ResolvedMapLoadReport = Resolve-ProjectPath -Path $MapLoadReport -DefaultPath (Join-Path $ResolvedInputRoot "reports\public-world-map-load.json")
     $ResolvedProductTerms = Resolve-ProjectPath -Path $ProductTerms -DefaultPath "PRODUCT_TERMS.txt"
 
     $RequiredDirectories = @($ResolvedPublicSourceRoot, $ResolvedPlayerPackageRoot, $ResolvedDeveloperReleaseDir)
@@ -167,7 +263,7 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
             throw "Required release input directory is missing: $RequiredDirectory"
         }
     }
-    $RequiredFiles = @($ResolvedPlayerEvidence, $ResolvedComponentManifest, $ResolvedDependencyReport, $ResolvedPrivacyReport, $ResolvedProductTerms)
+    $RequiredFiles = @($ResolvedPlayerEvidence, $ResolvedComponentManifest, $ResolvedDependencyReport, $ResolvedPrivacyReport, $ResolvedMapLoadReport, $ResolvedProductTerms)
     foreach ($RequiredFile in $RequiredFiles) {
         if (-not (Test-Path -LiteralPath $RequiredFile -PathType Leaf)) {
             throw "Required release input file is missing: $RequiredFile"
@@ -188,6 +284,7 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         "-ComponentManifest", $ResolvedComponentManifest,
         "-DependencyReport", $ResolvedDependencyReport,
         "-PrivacyReport", $ResolvedPrivacyReport,
+        "-MapLoadReport", $ResolvedMapLoadReport,
         "-AttributionNotice", $AttributionNotice,
         "-ProductTerms", $ResolvedProductTerms,
         "-ReleaseVersion", $ReleaseVersion,
@@ -201,6 +298,9 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
 }
 
 $Manifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
+if ($Manifest.schema -ne "alis-release-manifest-v3") {
+    throw "Release directory uses an unsupported manifest schema."
+}
 if ($Manifest.release_version -ne $ReleaseVersion -or $Manifest.release_tag -ne $ReleaseTag) {
     throw "Release directory identity does not match requested version $ReleaseVersion."
 }
@@ -219,6 +319,10 @@ if ($HasSigningManifest) {
     if (-not $?) {
         throw "Consumer-side release verification failed."
     }
+    Remove-AutomaticReleaseInputs `
+        -InputRoot $ResolvedInputRoot `
+        -ProjectTmpRoot $ProjectTmpRoot `
+        -UsesExplicitInputs $UsesExplicitInputs
     Write-Host "[OK] Existing signed release verified: $ResolvedReleaseDir" -ForegroundColor Green
     exit 0
 }
@@ -227,7 +331,7 @@ Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedReleas
 
 if ($PreparedThisRun -and -not $SkipSigning) {
     Write-Host "[CHECKPOINT] Unsigned release prepared and verified: $ResolvedReleaseDir" -ForegroundColor Yellow
-    Write-Host "Review the exact Product build, release files, and PRODUCT_TERMS.txt, then rerun:"
+    Write-Host "Review README.txt and the flat public asset set, then rerun:"
     Write-Host "  make release $ReleaseVersion"
     exit 0
 }
@@ -241,30 +345,79 @@ if ($SkipSigning) {
     exit 0
 }
 
-if ($Manifest.status -eq "pending_owner_approval") {
-    Write-Host "Review the exact bundled PRODUCT_TERMS.txt and release artifacts before approval."
-    $Confirmation = Read-Host "Type APPROVE $ReleaseVersion to approve the exact Product, terms, and rights"
-    if ($Confirmation -cne "APPROVE $ReleaseVersion") {
-        throw "Release owner approval was not granted; signing was not started."
+$OwnedFinalPublicSource = $null
+$OwnedFinalPublicSourceParent = $null
+try {
+    if ($Manifest.status -eq "pending_owner_approval") {
+        $ResolvedFinalPublicSource = if ([string]::IsNullOrWhiteSpace($FinalPublicSourceRoot)) {
+            $FinalSourceParent = Join-Path $ProjectRoot "tmp\release\final-public-source"
+            $FinalSource = Join-Path $FinalSourceParent $ReleaseTag
+            $ResolvedFinal = [IO.Path]::GetFullPath($FinalSource)
+            Assert-PathUnderRoot `
+                -Path $ResolvedFinal `
+                -Root $FinalSourceParent `
+                -Description "Final public source checkout"
+            $OwnedFinalPublicSource = $ResolvedFinal
+            $OwnedFinalPublicSourceParent = $FinalSourceParent
+            if (Test-Path -LiteralPath $ResolvedFinal) {
+                Remove-Item -LiteralPath $ResolvedFinal -Recurse -Force
+            }
+            New-Item -ItemType Directory -Path $FinalSourceParent -Force | Out-Null
+            & git -c core.longpaths=true clone --no-tags --depth 1 --branch $PublicBranch `
+                $PublicRemoteUrl $ResolvedFinal
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to resolve final public source branch $PublicBranch."
+            }
+            & git -C $ResolvedFinal config core.longpaths true
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to persist long-path support in the final public source checkout."
+            }
+            $ResolvedFinal
+        }
+        else {
+            Resolve-ProjectPath -Path $FinalPublicSourceRoot -DefaultPath ""
+        }
+        & $Python.Source (Join-Path $ScriptDir "finalize_release.py") `
+            --release-dir $ResolvedReleaseDir `
+            --final-public-source $ResolvedFinalPublicSource `
+            --branch $PublicBranch
+        if ($LASTEXITCODE -ne 0) {
+            throw "Final public source binding failed."
+        }
+        $Manifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
+        Invoke-PythonReleaseTool -Arguments @(
+            "approve", "--release-dir", $ResolvedReleaseDir,
+            "--approve-product-terms-and-rights"
+        )
     }
-    Invoke-PythonReleaseTool -Arguments @(
-        "approve", "--release-dir", $ResolvedReleaseDir,
-        "--approve-product-terms-and-rights"
-    )
+
+    Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedReleaseDir, "--require-ready")
+    $SignArguments = @{ ReleaseDir = $ResolvedReleaseDir }
+    if ($GpgPath) { $SignArguments.GpgPath = $GpgPath }
+    if ($GpgHome) { $SignArguments.GpgHome = $GpgHome }
+    & (Join-Path $ScriptDir "sign_release.ps1") @SignArguments
+    if (-not $?) {
+        throw "Release signing failed."
+    }
+    & (Join-Path $ScriptDir "verify_release.ps1") -ReleaseDir $ResolvedReleaseDir -GpgPath $GpgPath
+    if (-not $?) {
+        throw "Consumer-side release verification failed."
+    }
+}
+finally {
+    if ($OwnedFinalPublicSource -and (Test-Path -LiteralPath $OwnedFinalPublicSource)) {
+        Assert-PathUnderRoot `
+            -Path $OwnedFinalPublicSource `
+            -Root $OwnedFinalPublicSourceParent `
+            -Description "Final public source checkout"
+        Remove-Item -LiteralPath $OwnedFinalPublicSource -Recurse -Force
+    }
 }
 
-Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedReleaseDir, "--require-ready")
-$SignArguments = @{ ReleaseDir = $ResolvedReleaseDir }
-if ($GpgPath) { $SignArguments.GpgPath = $GpgPath }
-if ($GpgHome) { $SignArguments.GpgHome = $GpgHome }
-& (Join-Path $ScriptDir "sign_release.ps1") @SignArguments
-if (-not $?) {
-    throw "Release signing failed."
-}
-& (Join-Path $ScriptDir "verify_release.ps1") -ReleaseDir $ResolvedReleaseDir -GpgPath $GpgPath
-if (-not $?) {
-    throw "Consumer-side release verification failed."
-}
+Remove-AutomaticReleaseInputs `
+    -InputRoot $ResolvedInputRoot `
+    -ProjectTmpRoot $ProjectTmpRoot `
+    -UsesExplicitInputs $UsesExplicitInputs
 
 Write-Host "[OK] Signed release is ready for upload: $ResolvedReleaseDir" -ForegroundColor Green
 Write-Host "[OK] No remote write was performed." -ForegroundColor Green

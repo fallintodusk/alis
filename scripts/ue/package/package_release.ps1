@@ -29,7 +29,7 @@ param(
     [switch]$IncludeStagedDebugFiles,
     [switch]$EncryptContent,
     [switch]$CreateReleaseArchive,
-    [int]$SplitSizeMB = 1700
+    [int]$SplitSizeMB = 1900
 )
 
 $ErrorActionPreference = "Stop"
@@ -356,6 +356,13 @@ if ($CreateReleaseArchive) {
         )
     }
 
+    $UnsafeArchiveOutputs = @($ArchiveOutputs | Where-Object { $_.Length -ge 2GB })
+    if ($UnsafeArchiveOutputs.Count -gt 0) {
+        $UnsafeNames = ($UnsafeArchiveOutputs | ForEach-Object { $_.Name }) -join ", "
+        $ArchiveOutputs | Remove-Item -Force
+        throw "Generated archive exceeded the GitHub release asset limit: $UnsafeNames"
+    }
+
     $SummaryLines += "ArchiveParts=$($ArchiveOutputs.Count)"
     foreach ($ArchiveFile in $ArchiveOutputs) {
         $SummaryLines += "ArchivePart=$($ArchiveFile.Name) :: $([string](Format-Bytes -Bytes $ArchiveFile.Length))"
@@ -372,9 +379,9 @@ Write-Host "Largest release file: $($LargestFile.Name) :: $(Format-Bytes -Bytes 
 Write-Host "Total release payload: $(Format-Bytes -Bytes $TotalBytes)"
 
 if ($OverLimitFiles.Count -gt 0) {
-    Write-Host "[WARNING] Files at or above 2 GiB were detected:" -ForegroundColor Yellow
+    Write-Host "[i] Internal package files at or above 2 GiB (GitHub assets are checked after archive splitting):"
     foreach ($File in $OverLimitFiles) {
-        Write-Host "  $($File.FullName) :: $(Format-Bytes -Bytes $File.Length)" -ForegroundColor Yellow
+        Write-Host "  $($File.FullName) :: $(Format-Bytes -Bytes $File.Length)"
     }
 }
 

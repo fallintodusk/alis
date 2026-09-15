@@ -1,6 +1,6 @@
 # Publish Public Developer Release Transaction
 
-Status: READY - R7 PASS; freeze tracked source before final Candidate
+Status: READY - R10 PATCH APPLIED; freeze tracked source before final Candidate
 Priority: Release 2.0.0 critical
 Created: 2026-08-13 15:11 Europe/Moscow
 Active gate: P7 - final source freeze and replacement Candidate
@@ -47,8 +47,9 @@ regenerate-everything-on-first-open workflow.
   installer; raw unzip is not a second authority.
 - **D6:** consume the accepted Shipping Candidate; rebuild only if the release
   transaction changes evidence-bound source or required bytes.
-- **D7:** make the root README a concise role router for players, developers,
-  World builders, architecture reviewers, contributors, and legal/security.
+- **D7 [SUPERSEDED by D28]:** make the root README a concise role router for
+  players, developers, World builders, architecture reviewers, contributors,
+  and legal/security.
 - **D8:** public Git is text-only. Every approved `.uasset` and `.umap`, small
   or large, uses the signed developer payload.
 - **D9:** authoritative public-safe JSON, schemas, code, docs, config, and tools
@@ -85,14 +86,15 @@ regenerate-everything-on-first-open workflow.
   automation roots. Retain local notices only for genuine boundary exceptions,
   third-party/original terms, or an attribution obligation of distributed
   material; release-specific generated notice bundles remain evidence.
-- **D20:** ALIS currently has one GitHub maintainer. Official publication must
-  not depend on a ceremonial second collaborator. Keep the protected-PR and
-  required-`verify` rules, but configure the approval count for the single-owner
-  repository to zero before the release PR. Untrusted users may propose a PR;
-  only an authorized repository account may merge or publish it. Official
-  release mode validates `fallintodusk/alis` as its target; the reusable mirror
-  utility may still create a dry run or user-owned fork without conferring ALIS
-  publication authority.
+- **D20:** ALIS currently has one GitHub maintainer. The 2.0.0 source publication
+  route is the maintainer running `make mirror RTAG=v2.0.0` from native Windows
+  through the configured SSH identity. The release-specific path verifies the
+  exact reviewed commit and tag, requires a fast-forward, publishes `main` and
+  the immutable tag, and reads both back. No ceremonial
+  collaborator or protected-PR step is required for this owner publication.
+  Official release mode validates `fallintodusk/alis` as its target; the reusable
+  mirror utility may still create a dry run or user-owned fork without conferring
+  ALIS publication authority.
 - **D21:** one release-suite owner must prepare and verify the complete 2.0.0
   transaction. Extend the existing package/release scripts at their shared
   boundary rather than teaching one narrow payload composer about the player
@@ -124,8 +126,25 @@ regenerate-everything-on-first-open workflow.
   to run again.
 - **D27:** `make release X.Y.Z RELEASE_SIGN=0` has no human checkpoint. It binds
   the machine-accepted Shipping Candidate and prepares the complete unsigned
-  review directory. One later `APPROVE X.Y.Z` accepts the exact packaged
-  Product, Product terms, and rights before signing those unchanged bytes.
+  review directory. One later `make release X.Y.Z` invocation is the explicit
+  approval of the exact packaged Product, Product terms, and rights before
+  signing those unchanged bytes. There is no separate approval phrase; only GPG
+  prompts for private-key input.
+- **D28 [supersedes D7]:** the public front door has exactly two audience
+  boundaries: Player and Developer, with contribution included in Developer.
+  Keep one concise root README and one root-level folder per role; do not add a
+  `docs/` audience wrapper or duplicate technical SOT content.
+- **D29:** the unsigned release must expose the final root router and
+  `player/`/`developer/` role folders before owner review. Player installation
+  uses a small Windows join/extract helper without a user-side 7-Zip dependency.
+  Developer bootstrap clones the exact tag and delegates to the existing
+  trusted checkout-local installer; it is not a second install authority.
+- **D30 [supersedes D28-D29 release-asset shape]:** the local review directory
+  is the exact flat GitHub asset set. One `README.txt` gives complete minimal
+  instructions for both roles. Manual 7-Zip setup is primary for Player and
+  Developer; both installer pairs are optional conveniences. Internal machine
+  reports remain outside the public directory, while Product terms and the
+  non-personal rights result remain signed public compliance artifacts.
 - **F1 [verified]:** `prepare_release.py source-state` and its focused World /
   ProjectCinematic parity regression prove that tracked working-tree byte
   changes move the release source-state digest while Git revision remains a
@@ -134,9 +153,9 @@ regenerate-everything-on-first-open workflow.
 - **Q1 [OPEN - BLOCKING at signing]:** operator approval of the exact unsigned
   Product directory, including its packaged game and `PRODUCT_TERMS.txt`.
 - **Q2 [OPEN - BLOCKING at remote boundary]:** explicit authorization for the
-  named GitHub ruleset, branch, PR/merge, tag, release, and asset writes after
-  the local release suite is ready.
-- **Q3 [OPEN - INLINE INPUT at signing boundary]:** after the actual merged
+  named GitHub `main`, tag, release, and asset writes after the local release
+  suite is ready.
+- **Q3 [OPEN - INLINE INPUT at signing boundary]:** after the actual published
   source identity and exact ready directory are known, the operator enters the
   passphrase into the one production signing prompt. This is part of the final
   release flow, not a separate release-approval phase.
@@ -339,9 +358,9 @@ proven before this tracked todo update.
 5. [ ] Operator approves the exact Product and short `PRODUCT_TERMS.txt`. Current candidate
    hash `33e46c4a8f0f1135c15f4bf18351a832ddad56c98c3cfbb9fa7682a443697a60`
    is evidence for review, not approval.
-6. [ ] After explicit remote-write authorization, configure the single-owner
-   ruleset per D20, publish the validated source branch through a protected PR,
-   and bind the final tag/payload to the actual merged `main` commit.
+6. [ ] After the operator's explicit remote-write action, run
+   `make mirror RTAG=v2.0.0` from native Windows to publish and read back the
+   reviewed commit on `main` and its matching immutable tag.
 7. [ ] Recompose and verify the exact ready directory, invoke the existing
    signing stage once, and let the operator enter the passphrase directly into
    the GPG prompt. Continue with consumer-side signature, fingerprint, tag,
@@ -361,19 +380,20 @@ proven before this tracked todo update.
   rejects forbidden text/metadata, binary files, Unreal assets, key material,
   and LFS pointers, and applies a private denylist only from the private source
   operation. The exact local candidate passed this boundary.
-- Live GitHub `main` is protected by active ruleset `protection for main`:
-  pull request required, one approval required, review threads resolved,
-  non-fast-forward and deletion rejected, and required status `verify`.
-  The active `Rights affirmation` workflow verifies the four canonical PR-body
-  declarations. It does not inspect privacy, payload bytes, Product terms, or
-  release assets.
-- The ruleset protects only the default branch. It does not protect release
-  tags or authenticate uploaded assets. Signed hashes and read-back remain the
-  release-asset trust boundary.
-- `mirror_to_github.sh --push` targets `main` directly and therefore conflicts
-  with the active pull-request rule. Final source publication must push only an
-  already-validated public candidate branch, merge it through the protected PR,
-  then bind the tag and payload to the actual merged `main` commit.
+- The 2026-09-11 ruleset snapshot reported a pull-request requirement on
+  `main`. On 2026-09-14 the operator confirmed that the intended and working
+  2.0.0 route is direct publication from the trusted native Windows checkout
+  through the configured SSH identity. D20 supersedes the earlier protected-PR
+  plan for this release.
+- SSH authenticates the maintainer and transport. The release-specific mirror
+  wrapper separately verifies the pending unsigned manifest, exact reviewed
+  commit/tree/tag identity, fast-forward relationship, push result, and remote
+  identities. Those checks, not SSH alone, bind the reviewed content.
+- Bare `make mirror` always uses the generic mirror route and never inspects
+  pending release state. The explicit `make mirror RTAG=v2.0.0` transaction is
+  the only route that publishes the reviewed commit and tag,
+  then verifies that remote `main` and the tag resolve to that commit before
+  signing. It never infers or force-moves a tag.
 - The repository's configured hooks path is `.githooks`, whose active
   `pre-push` currently runs Git LFS only. The autonomous-branch refusal shown
   in `docs/ci/push_protection.md` exists only in inactive `.git/hooks` state.
@@ -401,22 +421,20 @@ proven before this tracked todo update.
   but it contains no publication credential. A random user may fork or propose
   a PR; they cannot merge to protected `main`, create the official release, or
   upload official assets without repository authorization.
-- The single-owner repository makes the current one-approval rule
-  operationally unsatisfiable. The KISS correction is approval count zero while
-  retaining PR review flow, required `verify`, resolved threads, and
-  non-fast-forward/deletion protection. Do not add a collaborator merely to
-  manufacture an approval, and do not create an owner bypass that skips
-  `verify`.
+- The single-owner repository does not add a collaborator or a ceremonial PR
+  solely to manufacture approval. The explicit native-Windows
+  `make mirror RTAG=v2.0.0` invocation is the owner publication action; it
+  remains fail-closed on release identity, fast-forward, and remote read-back.
 - The active `.githooks/pre-push` owns Git LFS invocation only. Preserve it.
   The autonomous-push refusal described by `docs/ci/push_protection.md` exists
   only as inactive local `.git/hooks` residue and is not a security boundary.
-  Clean that stale claim during durable-doc propagation; retain GitHub ruleset
-  protection and agent authorization policy as the real controls.
+  Clean that stale claim during durable-doc propagation; retain applicable
+  GitHub ruleset controls and agent authorization policy as the real controls.
 
 No architecture or identity question remains open. The remaining work is the
 ordered closeout above: final source-bound replacement evidence, exact Product
-terms approval, one production signature, and explicitly authorized protected
-GitHub publication/read-back.
+terms approval, one production signature, and explicitly authorized GitHub
+publication/read-back.
 
 ### P0 - Freeze identity, roots, and owner inventory
 
@@ -594,12 +612,12 @@ GitHub publication/read-back.
   `fallintodusk/alis`. Do not prevent local dry runs or user-owned forks.
 - [x] HARD STOP for explicit operator authorization before remote tag, release,
   or asset writes.
-- [ ] Under that authorization, set the single-owner approval count to zero
-  without weakening required `verify`, publish only the validated release
-  branch, and merge it through the protected PR route.
-- [ ] Bind the final local source tag, developer payload, notices, reports, and
-  ready release directory to the actual merged `main` commit. Re-run release
-  verification and require zero unresolved items.
+- [ ] From native Windows, run `make mirror RTAG=v2.0.0` as the explicit owner
+  publication action. Require the validated fast-forward commit and immutable
+  tag, then read back both remote identities; do not create a second source
+  projection. Bind the developer
+  payload, notices, reports, and ready release directory to that published
+  commit. Re-run release verification and require zero unresolved items.
 - [ ] After the suite reports ready, invoke the existing signing stage once.
   The operator enters the passphrase directly into the GPG prompt; then run the
   existing verifier and prove the public fingerprint, signature, hashes, tag,
@@ -739,7 +757,8 @@ GitHub publication/read-back.
 - **R5 - 2026-09-09:** duplicate mirror-policy authority dissolved after its
   unique clean-clone skill-bootstrap proof moved to P5. `InstanceArrayTool` is
   forbidden as a required dependency of either public acceptance root.
-- **R6 - 2026-09-10:** live repository, mirror, hook, release-script, privacy,
+- **R6 - 2026-09-10 [publication route superseded by R8]:** live repository,
+  mirror, hook, release-script, privacy,
   attribution, and player-archive audit resolved the remote/legal questions.
   Single-owner branch protection keeps PR plus `verify` with zero mandatory
   approvals; the release suite owns one non-personal readiness manifest;
@@ -751,3 +770,24 @@ GitHub publication/read-back.
   the last planned pre-freeze tracked edits. Post-publication router/archive
   edits are explicitly
   post-v2.0 housekeeping outside the immutable release tag.
+- **R8 - PATCH APPLIED - 2026-09-14 [tag interface superseded by R9]:** operator
+  clarified the KISS approval transaction. Native Windows `make mirror` is the
+  direct SSH owner-publication action; the tag was pushed and read back
+  separately on that exact commit. The later signed `make release X.Y.Z`
+  invocation itself approves the reviewed Product, terms,
+  and rights, so only GPG prompts. WSL is outside the 2.0.0 acceptance route.
+  Public World projection interruption recovery is deferred to the dedicated
+  follow-up audit. The no-prompt regression failed before the fix and passed
+  afterward; 15 prepare/finalize tests and the reviewed-source publication test
+  also pass. Because this patch changes tracked source, the final unsigned 2.0.0
+  candidate must still be regenerated after commit.
+- **R9 - PATCH APPLIED - 2026-09-14:** the explicit native-Windows
+  `make mirror RTAG=v2.0.0` interface now owns reviewed branch-and-tag
+  publication. Bare `make mirror` remains branch-only. Tag mode validates the
+  reviewed tag, atomically publishes an absent tag with `main`, treats the same
+  remote tag as idempotent, rejects a conflicting tag without mutation, and
+  reads both identities back. The focused publication test covers each path.
+- **R10 - PATCH APPLIED - 2026-09-14:** `RTAG` is now the sole dispatch into
+  reviewed release publication. Bare `make mirror` always uses the generic
+  mirror route, regardless of pending release folders. The post-2.0 World
+  projection recovery audit moved from the current queue to `02_backlog/world`.

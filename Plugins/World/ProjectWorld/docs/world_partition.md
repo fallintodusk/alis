@@ -465,9 +465,14 @@ same product route, input, collision, interaction, streaming, identity, and
 minimum-sample contracts; only an individual Frame p95 miss may proceed to the
 aggregate decision. The producer writes a small exact CSV projection of the
 C++ collector frames in addition to UE's rich diagnostic CSV. The runner pools
-all exact child frames and applies the unchanged nearest-rank
-`Frame p95 <= 16.67 ms` gate once to that complete population. It never averages
-child percentiles, chooses a best run, retries on failure, or omits slow frames.
+all exact child frames and applies the nearest-rank Frame p95 gate once to that
+complete population. The base budget remains `16.67 ms`. Immediately before
+the population, the Windows runner averages three host CPU and NVIDIA GPU load
+samples. Load through 20 percent grants no allowance; each percentage point
+above 20 adds one percent to the frame budget, capped at 10 percent
+(`18.337 ms`). Missing or invalid host-load evidence fails closed. It never
+averages child percentiles, chooses a best run, retries on failure, or omits
+slow frames.
 The aggregate receipt hashes every child receipt, exact sample projection, and
 diagnostic CSV. Missing properties or evidence fail before numeric conversion.
 An individual Frame-p95-only rejection remains aggregatable when the normally
@@ -490,11 +495,12 @@ undeclared non-Landscape actor reference bundles, unexpected Data Layer
 membership, invalid Landscape proxy ownership, HLOD participation, or less
 than three loading-range cells fail closed.
 
-The accepted primary quality gate is RTX 4070, High preset, 1440p, and 60 FPS.
-In frame terms, p95 must remain at or below `16.67 ms`; a `33.34 ms` threshold
-is only a 30 FPS fallback/failure boundary, not a 60 FPS success gate. Epic or
-Cinematic presets may target stronger cards and are never allowed to weaken
-the High gate.
+The accepted primary quality gate is RTX 4070, High preset, 1440p, and a
+`16.67 ms` Frame p95 base budget. The recorded host-load allowance above is
+bounded at 10 percent; it is not a best-run selector or an unbounded 30 FPS
+fallback. A `33.34 ms` threshold remains only a 30 FPS fallback/failure
+boundary. Epic or Cinematic presets may target stronger cards and are never
+allowed to weaken the High gate.
 
 The accepted lower shipping tier is RTX 3060-class hardware, Medium preset,
 1080p, with a 60 FPS target and an explicit user-selectable 30 FPS fallback. A

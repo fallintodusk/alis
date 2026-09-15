@@ -53,6 +53,7 @@ void UProjectUILayerHostSubsystem::InitializeForPlayer(APlayerController* Player
 	}
 
 	PrimaryPlayerController = PlayerController;
+	RefreshActiveLayersForCurrentViewport();
 
 	if (bInitializeHUD)
 	{
@@ -97,11 +98,15 @@ UUserWidget* UProjectUILayerHostSubsystem::ShowDefinition(FName DefinitionId)
 	{
 		if (UUserWidget* ExistingWidget = Existing->Widget.Get())
 		{
-			ExistingWidget->SetVisibility(ESlateVisibility::Visible);
-			ActiveLayers.Add(Existing->LayerTag);
-			ApplyInputForActiveLayers();
-			return ExistingWidget;
+			if (ExistingWidget->IsInViewport())
+			{
+				ExistingWidget->SetVisibility(ESlateVisibility::Visible);
+				ActiveLayers.Add(Existing->LayerTag);
+				ApplyInputForActiveLayers();
+				return ExistingWidget;
+			}
 		}
+		ActiveWidgets.Remove(DefinitionId);
 	}
 
 	UObject* WorldContext = PrimaryPlayerController.IsValid() ? static_cast<UObject*>(PrimaryPlayerController.Get()) : GetGameInstance();
@@ -204,32 +209,27 @@ void UProjectUILayerHostSubsystem::HideDefinition(FName DefinitionId)
 		ActiveWidgets.Remove(DefinitionId);
 	}
 
-	// Rebuild active layers
-	UE_LOG(LogProjectUILayerHost, Log, TEXT("HideDefinition - Rebuilding ActiveLayers, ActiveWidgets count=%d"), ActiveWidgets.Num());
+	RefreshActiveLayersForCurrentViewport();
+	UE_LOG(LogProjectUILayerHost, Log, TEXT("HideDefinition END"));
+}
+
+void UProjectUILayerHostSubsystem::RefreshActiveLayersForCurrentViewport()
+{
 	ActiveLayers.Reset();
-	for (const TPair<FName, FActiveWidgetEntry>& Pair : ActiveWidgets)
+	for (auto Iterator = ActiveWidgets.CreateIterator(); Iterator; ++Iterator)
 	{
-		if (UUserWidget* ActiveWidget = Pair.Value.Widget.Get())
+		UUserWidget* ActiveWidget = Iterator.Value().Widget.Get();
+		if (ActiveWidget == nullptr || !ActiveWidget->IsInViewport())
 		{
-			const bool bIsVisible = ActiveWidget->IsVisible();
-			const bool bHasValidLayer = Pair.Value.LayerTag.IsValid();
-			UE_LOG(LogProjectUILayerHost, Log, TEXT("  Widget=%s, IsVisible=%d, LayerTag=%s, Adding=%d"),
-				*Pair.Key.ToString(), bIsVisible, *Pair.Value.LayerTag.ToString(), bIsVisible && bHasValidLayer);
-			if (bIsVisible && bHasValidLayer)
-			{
-				ActiveLayers.Add(Pair.Value.LayerTag);
-			}
+			Iterator.RemoveCurrent();
+			continue;
+		}
+		if (ActiveWidget->IsVisible() && Iterator.Value().LayerTag.IsValid())
+		{
+			ActiveLayers.Add(Iterator.Value().LayerTag);
 		}
 	}
-
-	UE_LOG(LogProjectUILayerHost, Log, TEXT("HideDefinition - ActiveLayers count=%d"), ActiveLayers.Num());
-	for (const FGameplayTag& Layer : ActiveLayers)
-	{
-		UE_LOG(LogProjectUILayerHost, Log, TEXT("  ActiveLayer: %s"), *Layer.ToString());
-	}
-
 	ApplyInputForActiveLayers();
-	UE_LOG(LogProjectUILayerHost, Log, TEXT("HideDefinition END"));
 }
 
 bool UProjectUILayerHostSubsystem::IsDefinitionVisible(FName DefinitionId) const

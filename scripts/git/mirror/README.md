@@ -151,7 +151,7 @@ Windows wrapper:
 The final release command internally uses
 `stage_public_world_manifests.py` to authenticate the exact 11-scope public
 World projection and every admitted artifact before mirroring. It then uses
-`verify_public_world_maps.py` inside the isolated installed checkout to load the
+`scripts/ue/editor/level/verify_public_world_maps.py` inside the isolated installed checkout to load the
 Kazan and Manhattan maps. These are internal gates; the maintainer entry point
 remains `make release X.Y.Z`.
 
@@ -192,7 +192,7 @@ ALIS_DeveloperProject_1.0.0_<identity>.zip.002
 ```
 
 An archive below the threshold remains a single `.zip`. Larger archives are
-split into numbered raw parts, 1700 MiB by default. This stays below GitHub's
+split into numbered raw parts, 1900 MiB by default. This stays below GitHub's
 2 GiB per-release-asset limit without changing the logical ZIP. The release
 also contains its identity manifest, extracted attribution notices, and
 `INSTALL_ALIS_DEVELOPER_PROJECT.*`. Applicable ALIS license texts are copied
@@ -249,13 +249,23 @@ ignore rules keep installed payload files out of Git status, so reinstalling
 the same authenticated payload is a verified no-op. The receipt is ignored under
 `Saved/DeveloperPayload`.
 
-Release copies of the installer are convenience material only and are not a
-trust root. Do not execute downloaded scripts before authenticating them.
+Composer-local copies of the payload installer are input diagnostics only and
+are not published by the combined release. The public bootstrap always
+delegates to the trusted installer from the exact source checkout.
 
 The installer restores all currently approved ALIS payloads. It does not make
 an unclassified or restricted third-party dependency redistributable. As those
 dependencies are replaced by ALIS-generated assets, add their plugin-owned
 authority and the same release/install route picks them up.
+
+The combined release places the payload, manifest, notices, and optional
+bootstrap in its flat GitHub asset set. Manual exact-tag checkout plus 7-Zip
+extraction is the primary Developer path. The optional
+`INSTALL_ALIS_DEVELOPER.bat` bootstrap clones the exact public tag and delegates
+to this checkout-local installer. It authenticates only the required Developer
+assets from the signed checksum manifest; Player archives are not required.
+The bootstrap is transport orchestration, not a second payload installer or
+trust authority.
 
 ### Publication boundary
 
@@ -300,12 +310,41 @@ scripts\git\mirror\mirror_to_github.bat --remote-url git@github.com:org/repo.git
 
 ## Make Wrapper
 
-The root `Makefile` exposes a mirror wrapper:
+The root `Makefile` exposes two explicit modes. Files under `tmp/release/` never
+select a mode implicitly.
 
 Push (default):
 ```bash
 make mirror
 ```
+
+Bare `make mirror` always invokes the generic `mirror_to_github.ps1` route on
+native Windows. Pending release folders do not change its behavior or select a
+release publication mode.
+
+Publish the reviewed commit and its explicit release tag:
+
+```bash
+make mirror RTAG=v2.0.0
+```
+
+`RTAG` is the only switch into reviewed release publication. It is valid only as
+`vX.Y.Z` and must match the pending reviewed release.
+The command requires the local tag and reviewed manifest to identify the same
+commit. It preflights the remote tag, publishes the branch and an absent tag in
+one atomic push, and reads both identities back. An existing tag on the same
+commit is an idempotent success. A tag on any other commit fails closed and is
+never force-moved. `RTAG` cannot be combined with generic `MIRROR_*` projection
+arguments, and the release-tag route is native Windows only.
+
+The later `make release X.Y.Z` still compares the final public Git tree before
+recording the operator's approval and signing. Only GPG prompts. The complete
+operator sequence is owned by the
+[release transaction](../../ue/package/README.md#release-transaction).
+
+The 2.0.0 release acceptance route uses native Windows PowerShell/Make. The WSL
+Make branch remains the generic mirror route and is not evidence for this
+release transaction.
 
 Default mirror remote:
 ```text

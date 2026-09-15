@@ -11,11 +11,12 @@ param(
     [Parameter(Mandatory = $true)][string]$ComponentManifest,
     [Parameter(Mandatory = $true)][string]$DependencyReport,
     [Parameter(Mandatory = $true)][string]$PrivacyReport,
+    [Parameter(Mandatory = $true)][string]$MapLoadReport,
     [Parameter(Mandatory = $true)][string]$AttributionNotice,
     [Parameter(Mandatory = $true)][string]$ProductTerms,
     [string]$ReleaseVersion = "2.0.0",
     [string]$ReleaseTag = "v2.0.0",
-    [int]$SplitSizeMiB = 1700,
+    [int]$SplitSizeMiB = 1900,
     [string]$SevenZip
 )
 
@@ -69,6 +70,7 @@ $PrepareArgs = @(
     "--component-manifest", $ComponentManifest,
     "--dependency-report", $DependencyReport,
     "--privacy-report", $PrivacyReport,
+    "--map-load-report", $MapLoadReport,
     "--attribution-notice", $AttributionNotice,
     "--product-terms", $ProductTerms,
     "--output-dir", $ResolvedReleaseDir

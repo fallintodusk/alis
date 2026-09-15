@@ -31,8 +31,9 @@ $PublicSource = Join-Path $WorkRoot "public-source"
 $Developer = Join-Path $WorkRoot "developer"
 $Reports = Join-Path $WorkRoot "reports"
 $ManifestProjection = Join-Path $WorkRoot "public-world-manifests"
-$CleanCheckout = Join-Path $WorkRoot "clean-checkout"
-New-Item -ItemType Directory -Path $Reports -Force | Out-Null
+$CleanCheckout = Join-Path (Join-Path $ProjectRoot "tmp\release\c") `
+    ([guid]::NewGuid().ToString("N"))
+$InputsPromoted = $false
 
 function Invoke-Checked {
     param(
@@ -45,41 +46,15 @@ function Invoke-Checked {
     }
 }
 
-function Find-PublicAssetRoot {
-    if ($PublicAssetRoot) {
-        return [IO.Path]::GetFullPath($PublicAssetRoot)
-    }
-    $Candidates = @(
-        Get-ChildItem -LiteralPath (Join-Path $ProjectRoot "tmp\release") -Directory -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.Name -notin @("inputs", "tests", "work") -and
-                (Test-Path -LiteralPath (Join-Path $_.FullName "Plugins\World\ProjectWorldData\Data\Manifests\active_set.json"))
-            } |
-            Sort-Object LastWriteTimeUtc -Descending
+function Invoke-PublicReleaseComposition {
+    param(
+        [Parameter(Mandatory = $true)][string]$ManifestRoot,
+        [Parameter(Mandatory = $true)][string]$AssetRoot
     )
-    foreach ($Candidate in $Candidates) {
-        $Probe = Join-Path $WorkRoot ("probe-" + [guid]::NewGuid().ToString("N"))
-        & python (Join-Path $ProjectRoot "scripts\git\mirror\stage_public_world_manifests.py") `
-            --source-root (Join-Path $Candidate.FullName "Plugins\World\ProjectWorldData\Data\Manifests") `
-            --asset-root $Candidate.FullName --output-root $Probe *> $null
-        if ($LASTEXITCODE -eq 0) {
-            Remove-Item -LiteralPath $Probe -Recurse -Force
-            return $Candidate.FullName
-        }
-        if (Test-Path -LiteralPath $Probe) {
-            Remove-Item -LiteralPath $Probe -Recurse -Force
-        }
-    }
-    throw "No authenticated public World asset projection is available under tmp/release."
-}
 
-try {
-    $ResolvedAssetRoot = Find-PublicAssetRoot
-    Write-Host "[Release] Public World asset authority: $ResolvedAssetRoot"
     Invoke-Checked "Public World manifest staging" {
         & python (Join-Path $ProjectRoot "scripts\git\mirror\stage_public_world_manifests.py") `
-            --source-root (Join-Path $ResolvedAssetRoot "Plugins\World\ProjectWorldData\Data\Manifests") `
-            --asset-root $ResolvedAssetRoot --output-root $ManifestProjection
+            --source-root $ManifestRoot --asset-root $AssetRoot --output-root $ManifestProjection
     }
 
     $PrivacyReport = Join-Path $Reports "public-source-privacy.json"
@@ -91,11 +66,31 @@ try {
         "--developer-version", $ReleaseVersion,
         "--candidate-dir", $PublicSource,
         "--public-world-manifest-root", $ManifestProjection,
-        "--developer-asset-root", $ResolvedAssetRoot,
+        "--developer-asset-root", $AssetRoot,
         "--report", $PrivacyReport
     )
     Invoke-Checked "Public source/developer projection" {
         & (Join-Path $ProjectRoot "scripts\git\mirror\mirror_to_github.ps1") @MirrorArguments
+    }
+}
+
+try {
+    New-Item -ItemType Directory -Path $Reports -Force | Out-Null
+    if ($PublicAssetRoot) {
+        $ResolvedAssetRoot = [IO.Path]::GetFullPath($PublicAssetRoot)
+        $ResolvedManifestRoot = Join-Path $ResolvedAssetRoot `
+            'Plugins\World\ProjectWorldData\Data\Manifests'
+        Invoke-PublicReleaseComposition -ManifestRoot $ResolvedManifestRoot `
+            -AssetRoot $ResolvedAssetRoot
+    }
+    else {
+        . (Join-Path $ScriptDir 'public_world_projection.ps1')
+        Invoke-WithProjectWorldPublicProjection -ProjectRoot $ProjectRoot -WorkRoot $WorkRoot `
+            -Action {
+                param($PublicManifestRoot, $LiveProjectRoot)
+                Invoke-PublicReleaseComposition -ManifestRoot $PublicManifestRoot `
+                    -AssetRoot $LiveProjectRoot
+            }
     }
 
     $ComponentReport = Join-Path $Reports "effective-component-manifest.json"
@@ -105,7 +100,11 @@ try {
     }
 
     Invoke-Checked "Isolated public checkout" {
-        & git clone --no-local --branch $ReleaseTag $PublicSource $CleanCheckout
+        & git -c core.longpaths=true -c advice.detachedHead=false clone --quiet --no-local --branch $ReleaseTag `
+            $PublicSource $CleanCheckout
+    }
+    Invoke-Checked "Public checkout long-path configuration" {
+        & git -C $CleanCheckout config core.longpaths true
     }
     $Installer = Join-Path $CleanCheckout "scripts\git\mirror\install_developer_payload.ps1"
     Invoke-Checked "Developer payload installation" {
@@ -136,7 +135,7 @@ try {
     $env:ALIS_PUBLIC_MAP_RECEIPT = $MapReceipt
     try {
         $Editor = Join-Path $PrivateConfig.UE_PATH "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
-        $MapVerifier = Join-Path $CleanCheckout "scripts\git\mirror\verify_public_world_maps.py"
+        $MapVerifier = Join-Path $CleanCheckout "scripts\ue\editor\level\verify_public_world_maps.py"
         Invoke-Checked "Kazan/Manhattan map load" {
             & $Editor (Join-Path $CleanCheckout "Alis.uproject") -run=pythonscript `
                 "-script=$MapVerifier" -unattended -nop4 -NoSound -NullRHI
@@ -154,12 +153,21 @@ try {
         throw "Public verification checkout did not remain clean."
     }
 
-    Remove-Item -LiteralPath $CleanCheckout -Recurse -Force
     Remove-Item -LiteralPath $ManifestProjection -Recurse -Force
     New-Item -ItemType Directory -Path (Split-Path -Parent $InputRoot) -Force | Out-Null
     Move-Item -LiteralPath $WorkRoot -Destination $InputRoot
+    $InputsPromoted = $true
     Write-Host "[OK] Release inputs prepared automatically: $InputRoot" -ForegroundColor Green
 }
-catch {
-    throw
+finally {
+    if (Test-Path -LiteralPath $CleanCheckout) {
+        Remove-Item -LiteralPath $CleanCheckout -Recurse -Force
+    }
+    if (-not $InputsPromoted -and (Test-Path -LiteralPath $WorkRoot)) {
+        Remove-Item -LiteralPath $WorkRoot -Recurse -Force
+    }
+    if ((Test-Path -LiteralPath $WorkParent) -and
+        @(Get-ChildItem -LiteralPath $WorkParent -Force).Count -eq 0) {
+        Remove-Item -LiteralPath $WorkParent -Force
+    }
 }

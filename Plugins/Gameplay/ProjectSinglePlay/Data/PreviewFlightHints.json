@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../UI/ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "RootCanvas",
+    "anchor": "Fill",
+    "children": [
+      {
+        "type": "Border",
+        "name": "FlightControlsPanel",
+        "anchor": "BottomRight",
+        "alignment": {"x": 1.0, "y": 1.0},
+        "position": {"x": -24, "y": -24},
+        "autoSize": true,
+        "background": "Surface",
+        "opacity": 0.88,
+        "padding": {"left": 14, "right": 14, "top": 10, "bottom": 10},
+        "children": [
+          {
+            "type": "VerticalBox",
+            "name": "FlightControlsColumn",
+            "spacing": 3,
+            "children": [
+              {
+                "type": "TextBlock",
+                "name": "FlightControlsTitle",
+                "text": "FLIGHT CONTROLS",
+                "font": "BodySmall",
+                "color": "TextSecondary"
+              },
+              {
+                "type": "TextBlock",
+                "name": "FlightLookHint",
+                "text": "MOUSE - Look",
+                "font": "BodySmall",
+                "color": "Text"
+              },
+              {
+                "type": "TextBlock",
+                "name": "FlightMoveHint",
+                "text": "WASD - Move",
+                "font": "BodySmall",
+                "color": "Text"
+              },
+              {
+                "type": "TextBlock",
+                "name": "FlightRiseHint",
+                "text": "SPACE - Rise",
+                "font": "BodySmall",
+                "color": "Text"
+              },
+              {
+                "type": "TextBlock",
+                "name": "FlightDescendHint",
+                "text": "LEFT CTRL - Descend",
+                "font": "BodySmall",
+                "color": "Text"
+              },
+              {
+                "type": "TextBlock",
+                "name": "FlightBoostHint",
+                "text": "LEFT SHIFT - Accelerate",
+                "font": "BodySmall",
+                "color": "Text"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

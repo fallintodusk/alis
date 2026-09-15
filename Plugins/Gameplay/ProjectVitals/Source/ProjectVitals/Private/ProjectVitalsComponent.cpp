@@ -64,13 +64,13 @@ void UProjectVitalsComponent::TestTickVitalsOnce()
 
 void UProjectVitalsComponent::TestSeedDebuffHandles()
 {
-	DebuffHandle_HydrationLow = FActiveGameplayEffectHandle(101);
-	DebuffHandle_HydrationCritical = FActiveGameplayEffectHandle(102);
-	DebuffHandle_CaloriesLow = FActiveGameplayEffectHandle(103);
-	DebuffHandle_CaloriesCritical = FActiveGameplayEffectHandle(104);
-	DebuffHandle_FatigueHigh = FActiveGameplayEffectHandle(105);
-	DebuffHandle_WeightHeavy = FActiveGameplayEffectHandle(106);
-	DebuffHandle_WeightOverweight = FActiveGameplayEffectHandle(107);
+	DebuffHandle_HydrationLow = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
+	DebuffHandle_HydrationCritical = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
+	DebuffHandle_CaloriesLow = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
+	DebuffHandle_CaloriesCritical = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
+	DebuffHandle_FatigueHigh = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
+	DebuffHandle_WeightHeavy = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
+	DebuffHandle_WeightOverweight = FActiveGameplayEffectHandle::GenerateNewHandle(nullptr);
 }
 
 void UProjectVitalsComponent::TestClearDebuffsWithoutASC()

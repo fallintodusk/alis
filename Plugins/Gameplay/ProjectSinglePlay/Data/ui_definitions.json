@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ProjectSinglePlay.PreviewFlightHints",
+    "layer": "UI.Layer.Notification",
+    "widget_class": "/Script/ProjectSinglePlayClient.W_PreviewFlightHints",
+    "layout_json": "PreviewFlightHints.json",
+    "load": "OnDemand",
+    "spawn": "Persistent",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Game",
+    "priority": 1
+  }
+]

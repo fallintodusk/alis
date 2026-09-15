@@ -17,7 +17,7 @@ DO_PUSH=0
 EPHEMERAL_PREVIEW=0
 DEVELOPER_RELEASE_DIR=""
 DEVELOPER_VERSION=""
-DEVELOPER_PART_SIZE_MIB=1700
+DEVELOPER_PART_SIZE_MIB=1900
 SOURCE_REVISION="HEAD"
 CANDIDATE_DIR=""
 PUBLIC_WORLD_MANIFEST_ROOT=""
@@ -45,7 +45,7 @@ Options:
   --ephemeral-preview               Allow local preview without a remote baseline.
   --developer-release-dir <path>    Compose the public developer payload in this empty directory.
   --developer-version <version>     Human release version used in developer archive names.
-  --developer-part-size-mib <int>   Split size in MiB (default: 1700; maximum: 1900).
+  --developer-part-size-mib <int>   Split size in MiB (default and maximum: 1900).
   --source-revision <commit>        Private source commit to filter (default: HEAD).
   --candidate-dir <path>            Preserve the local filtered Git repository here.
   --public-world-manifest-root <path>
@@ -131,7 +131,7 @@ PROJECT_EMPTY_HOOKS="$(mktemp -d "$PROJECT_TMP_ROOT/project-empty-hooks.XXXXXX")
 trap 'rm -rf "$PROJECT_EMPTY_HOOKS" 2>/dev/null || true' EXIT
 
 git_safe() {
-  git -c core.fsmonitor=false -c core.hooksPath="$PROJECT_EMPTY_HOOKS" "$@"
+  git -c core.fsmonitor=false -c core.hooksPath="$PROJECT_EMPTY_HOOKS" -c core.longpaths=true "$@"
 }
 
 compose_developer_payload() {
@@ -147,7 +147,7 @@ compose_developer_payload() {
     --part-size-mib "$DEVELOPER_PART_SIZE_MIB"
     --owner ProjectWorldData
   )
-  if [[ "$DEVELOPER_ASSET_ROOT" != "$REPO_ROOT" ]]; then
+  if [[ "$DEVELOPER_ASSET_ROOT" != "$REPO_ROOT" || "$ALLOW_DIRTY" -eq 1 ]]; then
     compose_args+=(--allow-dirty)
   fi
   info "Composing developer payload for public revision $public_revision"
@@ -767,6 +767,7 @@ git_safe -c init.defaultBranch="$BRANCH" init -q "$MIRROR_DIR"
 git_safe -C "$MIRROR_DIR" config gc.auto 0
 git_safe -C "$MIRROR_DIR" config core.autocrlf false
 git_safe -C "$MIRROR_DIR" config core.safecrlf false
+git_safe -C "$MIRROR_DIR" config core.longpaths true
 
 if [[ -n "$REMOTE_URL" ]]; then
   git_safe -C "$MIRROR_DIR" remote add mirror "$REMOTE_URL"
@@ -835,8 +836,13 @@ while IFS= read -r changed_path; do
 done < <(git_safe -C "$MIRROR_DIR" diff --cached --name-only)
 
 if [[ "$AUTHORITY_CHANGED" -eq 1 ]]; then
-  warn "Generated public authority changed relative to the public branch."
-  warn "The public source tip moves ahead of the latest signed developer release; assets for this tip become installable only with the next tagged developer release."
+  if [[ "$OFFICIAL_RELEASE" -eq 1 ]]; then
+    info "Generated public authority changed relative to the public branch."
+    info "The public source tip moves ahead of the latest signed developer release; assets for this tip become installable only with the next tagged developer release."
+  else
+    warn "Generated public authority changed relative to the public branch."
+    warn "The public source tip moves ahead of the latest signed developer release; assets for this tip become installable only with the next tagged developer release."
+  fi
 fi
 
 COMMIT_MESSAGE="mirror_$(date -u '+%Y%m%d_%H%M%S_UTC')"

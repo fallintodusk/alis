@@ -94,9 +94,20 @@ Describe 'World and ProjectCinematic release source identity' {
             $LASTEXITCODE | Should -Be 0
 
             $secondRevision = (& git -C $projectRoot rev-parse HEAD).Trim()
-            (Get-PlayableTourSourceStateDigest) | Should -BeExactly $cleanDigest
-            (Get-CaptureSourceStateDigest) | Should -BeExactly $cleanDigest
+			(Get-PlayableTourSourceStateDigest) | Should -BeExactly $trackedDigest
+			(Get-CaptureSourceStateDigest) | Should -BeExactly $trackedDigest
+			$trackedDigest | Should -Not -BeExactly $cleanDigest
             $secondRevision | Should -Not -BeExactly $firstRevision
+
+			$newPath = Join-Path $testRoot 'new.txt'
+			[IO.File]::WriteAllText($newPath, 'same effective bytes')
+			$newDigest = Get-PlayableTourSourceStateDigest
+			& git -C $testRoot add -- new.txt
+			$LASTEXITCODE | Should -Be 0
+			(Get-PlayableTourSourceStateDigest) | Should -BeExactly $newDigest
+			& git -C $testRoot -c core.hooksPath=NUL commit --quiet -m 'same effective tree'
+			$LASTEXITCODE | Should -Be 0
+			(Get-PlayableTourSourceStateDigest) | Should -BeExactly $newDigest
         }
         finally {
             $owner = [IO.Path]::GetFullPath($ownerRoot).TrimEnd('\', '/')

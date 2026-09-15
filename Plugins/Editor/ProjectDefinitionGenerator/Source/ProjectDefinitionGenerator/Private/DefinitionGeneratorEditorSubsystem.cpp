@@ -30,7 +30,7 @@ void UDefinitionGeneratorEditorSubsystem::Initialize(FSubsystemCollectionBase& C
 	UE_LOG(LogDefinitionGeneratorEditor, Log, TEXT("DefinitionGeneratorEditorSubsystem initialized"));
 
 	// Register for post engine init to run startup validation
-	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UDefinitionGeneratorEditorSubsystem::OnPostEngineInit);
+	FCoreDelegates::GetOnPostEngineInit().AddUObject(this, &UDefinitionGeneratorEditorSubsystem::OnPostEngineInit);
 
 	SyncBatchHandle = FSyncEvents::OnSyncBatchApplied().AddUObject(this, &UDefinitionGeneratorEditorSubsystem::OnSyncBatchApplied);
 }
@@ -61,7 +61,7 @@ void UDefinitionGeneratorEditorSubsystem::Deinitialize()
 		SyncBatchHandle.Reset();
 	}
 
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	FCoreDelegates::GetOnPostEngineInit().RemoveAll(this);
 
 	Super::Deinitialize();
 }

@@ -19,6 +19,22 @@ SPEC.loader.exec_module(MODULE)
 
 
 class DeveloperPayloadTests(unittest.TestCase):
+    def test_allow_dirty_skips_checkout_cleanliness_but_not_tracked_admission(self):
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            tracked = root / "tracked.uasset"
+            tracked.write_bytes(b"tracked")
+            subprocess.run(["git", "-C", str(root), "add", "tracked.uasset"], check=True)
+            accepted = MODULE.Entry("tracked.uasset", MODULE.sha256_file(tracked), 7, "asset", "Owner")
+            MODULE.ensure_tracked(root, [accepted])
+
+            untracked = root / "untracked.uasset"
+            untracked.write_bytes(b"untracked")
+            rejected = MODULE.Entry("untracked.uasset", MODULE.sha256_file(untracked), 9, "asset", "Owner")
+            with self.assertRaisesRegex(MODULE.PayloadError, "not tracked by git"):
+                MODULE.ensure_tracked(root, [rejected])
+
     def test_generated_source_sha_is_stable_across_checkout_line_endings(self):
         with tempfile.TemporaryDirectory() as temp_value:
             root = Path(temp_value)
@@ -213,8 +229,13 @@ class DeveloperPayloadTests(unittest.TestCase):
             revision = self._write_project_checkout(seed)
             release = temp_root / "release"
             MODULE.compose(REPO_ROOT, release, "installer-test", "installer-test", ["ProjectWorldData"], 1, True, revision, "main")
+            developer_release = release / "developer"
+            developer_release.mkdir()
+            for path in list(release.iterdir()):
+                if path != developer_release:
+                    path.replace(developer_release / path.name)
             subprocess.run(["git", "tag", "installer-test"], cwd=seed, check=True)
-            manifest_path = next(release.glob("*.developer-payload.json"))
+            manifest_path = next(developer_release.glob("*.developer-payload.json"))
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(2, manifest["schema_version"])
             self.assertEqual("installer-test", manifest["release_version"])
@@ -234,6 +255,8 @@ class DeveloperPayloadTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("[INFO] Release signature was not required", result.stdout)
+            self.assertNotIn("WARNING:", result.stdout + result.stderr)
             self.assertTrue(all((project / Path(entry["path"])).is_file() for entry in manifest["entries"]))
 
             conflict = temp_root / "conflict"
@@ -350,7 +373,7 @@ class DeveloperPayloadTests(unittest.TestCase):
                 capture_output=True, text=True, check=False,
             )
             self.assertNotEqual(0, result.returncode)
-            self.assertTrue(verifier_marker.is_file())
+            self.assertFalse(verifier_marker.exists())
             self.assertIn("ManifestPath must be inside", result.stderr + result.stdout)
             manifest = json.loads(next(authenticated.glob("*.developer-payload.json")).read_text())
             self.assertFalse(any((project / Path(entry["path"])).exists() for entry in manifest["entries"]))

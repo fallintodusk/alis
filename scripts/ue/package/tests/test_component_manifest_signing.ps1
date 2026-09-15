@@ -117,13 +117,21 @@ try {
         Set-Content -LiteralPath (Join-Path $ReleaseDir "PRODUCT_TERMS.txt") -Encoding Ascii
     "fixture rights" |
         Set-Content -LiteralPath (Join-Path $ReleaseDir "release-rights-review.json") -Encoding Ascii
+    @(
+        "ALIS fixture",
+        "",
+        "PLAY ON WINDOWS",
+        "DEVELOP OR CONTRIBUTE",
+        "Product terms: PRODUCT_TERMS.txt"
+    ) | Set-Content -LiteralPath (Join-Path $ReleaseDir "README.txt") -Encoding Ascii
 
     $ArtifactNames = @(
+        "README.txt",
+        "ALIS_Win64_fixture.zip",
+        "PRODUCT_TERMS.txt",
         "effective-component-manifest.json",
         "ALIS_Source.zip",
-        "ALIS_Win64_fixture.zip",
         "ALIS_DeveloperProject_fixture.developer-payload.json",
-        "PRODUCT_TERMS.txt",
         "release-rights-review.json"
     )
     $Artifacts = @($ArtifactNames | ForEach-Object {
@@ -136,7 +144,7 @@ try {
     })
     $ReleaseManifestPath = Join-Path $ReleaseDir "release_manifest.json"
     $ReleaseManifest = @{
-        schema = "alis-release-manifest-v1"
+        schema = "alis-release-manifest-v3"
         status = "pending_owner_approval"
         release_version = "fixture"
         release_tag = "fixture"
@@ -187,12 +195,12 @@ try {
     if ($ExpectedLine -notin (Get-Content -LiteralPath $HashManifestPath)) {
         throw "SHA256SUMS.txt does not cover the exact component manifest"
     }
-    $InstallLines = @(Get-Content -LiteralPath (Join-Path $ReleaseDir "INSTALL.txt"))
-    if ('Player:' -notin $InstallLines -or 'Developer:' -notin $InstallLines) {
-        throw "Combined release INSTALL.txt does not expose separate Player and Developer routes"
+    $ReadmeLines = @(Get-Content -LiteralPath (Join-Path $ReleaseDir "README.txt"))
+    if ("PLAY ON WINDOWS" -notin $ReadmeLines -or "DEVELOP OR CONTRIBUTE" -notin $ReadmeLines) {
+        throw "Combined release README.txt does not expose separate Player and Developer paths"
     }
-    if ('.\PRODUCT_TERMS.txt' -notin $InstallLines) {
-        throw "Combined release INSTALL.txt does not route to Product terms"
+    if ("Product terms: PRODUCT_TERMS.txt" -notin $ReadmeLines) {
+        throw "Combined release README.txt does not route to Product terms"
     }
 
     & $VerifyScript `
@@ -205,7 +213,47 @@ try {
         throw "verify_release.ps1 failed"
     }
 
-    Write-Host "[OK] Component manifest is signed and verified"
+    $DeveloperSubsetDir = Join-Path $TestRoot "developer-subset"
+    New-Item -ItemType Directory -Path $DeveloperSubsetDir | Out-Null
+    Copy-Item -LiteralPath `
+        $HashManifestPath, `
+        (Join-Path $ReleaseDir "SHA256SUMS.txt.asc"), `
+        (Join-Path $ReleaseDir "ALIS_PUBLIC_KEY.asc"), `
+        $ComponentManifestPath `
+        -Destination $DeveloperSubsetDir
+    & $VerifyScript `
+        -ReleaseDir $DeveloperSubsetDir `
+        -RequiredAsset "effective-component-manifest.json" `
+        -GpgPath $GpgPath `
+        -PublicKeyPath (Join-Path $DeveloperSubsetDir "ALIS_PUBLIC_KEY.asc") `
+        -ExpectedFingerprint $Fingerprint `
+        -PublicKeyUrl ""
+    if (-not $?) {
+        throw "Signed Developer subset verification failed"
+    }
+    if ((Test-Path -LiteralPath (Join-Path $ReleaseDir "sign_release_summary.txt")) -or
+        (Test-Path -LiteralPath (Join-Path $ReleaseDir "verify_release_summary.txt")) -or
+        (Test-Path -LiteralPath (Join-Path $DeveloperSubsetDir "verify_release_summary.txt"))) {
+        throw "Signing or verification diagnostics leaked into the public asset directory"
+    }
+    $RejectedMissingEntry = $false
+    try {
+        & $VerifyScript `
+            -ReleaseDir $DeveloperSubsetDir `
+            -RequiredAsset "not-in-signed-manifest.bin" `
+            -GpgPath $GpgPath `
+            -PublicKeyPath (Join-Path $DeveloperSubsetDir "ALIS_PUBLIC_KEY.asc") `
+            -ExpectedFingerprint $Fingerprint `
+            -PublicKeyUrl ""
+    }
+    catch {
+        $RejectedMissingEntry = $_.Exception.Message -like "*must appear exactly once*"
+    }
+    if (-not $RejectedMissingEntry) {
+        throw "Subset verification accepted an asset absent from the signed manifest"
+    }
+
+    Write-Host "[OK] Flat full-release and signed Developer-subset verification passed"
 }
 finally {
     if (Test-Path -LiteralPath $GpgConfPath) {

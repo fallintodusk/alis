@@ -15,6 +15,7 @@ $realizeScript = Join-Path $worldRoot 'realize_canonical_world.ps1'
 $packageScript = Join-Path $projectRoot 'scripts\ue\package\package_release.ps1'
 $cleanupScript = Join-Path $worldRoot 'cleanup_workspace.ps1'
 $compilerBootstrap = Join-Path $projectRoot 'tools\World\CanonicalCompilation\bootstrap.py'
+$worldPythonResolver = Join-Path $projectRoot 'tools\World\ExecutionEnvironment\resolve_python_host.ps1'
 . (Join-Path $worldRoot 'generated_content_transaction.ps1')
 . (Join-Path $worldRoot 'generated_manifest.ps1')
 . (Join-Path $worldRoot 'realization_layer_operation.ps1')
@@ -317,7 +318,11 @@ $candidates = [Collections.Generic.List[object]]::new()
 
 New-Item -ItemType Directory -Path $evidenceRoot, $workRoot -Force | Out-Null
 try {
-    $materializeOutput = @(& python -S $compilerBootstrap materialize --profile $compilerProfilePath)
+    $worldPython = @(& $worldPythonResolver)
+    Assert-Tournament ($LASTEXITCODE -eq 0 -and $worldPython.Count -eq 1) `
+        'Unable to resolve the pinned World Python host.'
+    $worldPython = $worldPython[0]
+    $materializeOutput = @(& $worldPython -S $compilerBootstrap materialize --profile $compilerProfilePath)
     Assert-Tournament ($LASTEXITCODE -eq 0 -and $materializeOutput.Count -gt 0) `
         'Canonical authority materialization failed.'
     $materialized = $materializeOutput[-1] | ConvertFrom-Json
