@@ -1,72 +1,45 @@
 # Task Tracker
 
+Tasks record active or parked work. They are not architecture authorities.
+
 ## Structure
 
-```
-00_current/      active work (flat, no subfolders)
-01_done/         completed (sorted by category)
-02_backlog/      parked work, not scheduled (sorted by category)
-03_cancelled/    superseded, abandoned, no longer relevant
-```
-
-## Categories
-
-Categories are consistent between `01_done/` and `02_backlog/`.
-When finishing or starting a task, keep the same category subfolder.
-
-```
-  chore/        docs cleanup, tech debt, housekeeping
-  content/      Content/ folder structure, assets, materials, packs
-  debug/        investigating issues, regressions, crash analysis
-  diagnostics/  FPS counter, dev overlay, in-game monitoring
-  editor/       thumbnails, asset pickers, editor UX
-  gameplay/     character, combat, dialogue, interaction, vitals
-  rendering/    anti-aliasing, post-process, TSR, visual artifacts
-  systems/      save/load, multiplayer, loading, networking
-  test/         packaged build reports, QA, test results
-  tools/        build scripts, MCP, workflow, automation
-  ui/           layout, panels, widgets, HUD
-  world/        environment, foliage, landscape, vehicles, lighting
+```text
+00_current/  active work, flat
+01_done/     completed work, grouped by owning domain
+02_backlog/  parked work, grouped by owning domain
+03_cancelled/ cancelled work, grouped by owning domain
 ```
 
-If a task does not fit any category -- create a new one in both
-`01_done/` and `02_backlog/` to keep them mirrored.
+Completed and cancelled task files remain in their lifecycle section as the
+reviewable execution record. Still-current facts must first move to their
+durable owner; task files never become architecture authorities.
+
+## Ownership
+
+- Keep one task per unresolved problem in this central tree.
+- Do not create plugin-local `TODO.md` files.
+- Stable code and documentation must not link to tasks.
+- A task may link to stable owners for evidence; it must not restate their
+  contracts.
+- Do not build task-to-task dependency graphs. Merge duplicates or name the
+  single owner in prose.
 
 ## Naming
 
-- Every newly created task todo starts with its creation timestamp:
-  `YYYYMMDD-HHMM_<descriptive_name>.md`. Preserve that timestamp forever when
-  moving the todo between `00_current`, `02_backlog`, and `01_done`; edits do
-  not change it. Do not bulk-rename existing todos merely to add timestamps.
-  When an untimestamped legacy task is materially reopened or rewritten into
-  current work, assign its original creation timestamp once, using its earliest
-  Git addition time (or filesystem creation time only when it was never
-  committed), and update todo-to-todo links in the same change. Router/control
-  files using the `00_<purpose>.md` pattern are exempt.
-- After the timestamp, use `topic_verb_noun` so the topic prefix groups related
-  tasks together.
-- `00_` prefix is reserved for meta/dashboard/router files, never ordinary tasks.
-- No generic `todo.md` names -- every file earns its own name
+New tasks use `YYYYMMDD-HHMM_topic_verb_noun.md`. Preserve the creation
+timestamp when moving between current and backlog. Existing parked tasks keep
+their current names until materially re-investigated; rewritten tasks receive
+a timestamp.
 
-## Workflow
+## Lifecycle
 
-- Start task: move from `02_backlog/<category>/` to `00_current/`
-- Finish task: move from `00_current/` to `01_done/<category>/` when the file
-  retains unique, useful execution provenance.
-- Cancel task: move a still-useful standalone record from anywhere to
-  `03_cancelled/`.
-- Dissolve a fully superseded duplicate only after durable contracts have moved
-  to their stable owner and current routing has retained every still-live
-  decision. Delete the duplicate task file; Git history remains its audit trail.
-- No index to maintain -- file names are the index
-- Multi-slice initiatives keep exactly one clearly numbered slice file active.
-  On acceptance, move that file to its done category before creating the next.
+- Start: move one task from its backlog category into `00_current/`.
+- Park: move an active task back to its owning backlog category.
+- Finish: migrate durable facts, record the outcome, then move the task to
+  `01_done/<domain>/`.
+- Cancel: migrate any durable facts, record why work stopped, then move the
+  task to `03_cancelled/<domain>/`.
+- Keep only one numbered slice active for a multi-slice initiative.
 
-## Rules
-
-- Only todo files link to docs, never docs to todo (one-way dependency)
-- `01_done/` is execution provenance, not a second documentation tree. Do not
-  archive a large stale packet when stable owner docs, accepted evidence, and
-  current routing already preserve everything still authoritative.
-- Plugin-scoped work stays in `Plugins/*/TODO.md`
-- Cross-plugin or unowned work lives here
+File names and directories are the index; no second dashboard is maintained.

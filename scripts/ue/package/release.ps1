@@ -6,6 +6,7 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')]
     [string]$ReleaseVersion,
+    [ValidateSet("All", "Game")][string]$Target = "All",
     [switch]$SkipSigning,
     [string]$InputRoot,
     [string]$ReleaseDir,
@@ -22,7 +23,8 @@ param(
     [string]$PublicRemoteUrl = "https://github.com/fallintodusk/alis.git",
     [string]$PublicBranch = "main",
     [string]$GpgPath,
-    [string]$GpgHome
+    [string]$GpgHome,
+    [string]$SigningKeyFingerprint
 )
 
 $ErrorActionPreference = "Stop"
@@ -111,7 +113,7 @@ function Remove-ObsoleteUnsignedRelease {
         throw "Obsolete release cleanup is limited to the default version path: $ResolvedExpected"
     }
     Assert-PathUnderRoot -Path $ResolvedDirectory -Root $ResolvedReleaseRoot -Description "Obsolete release directory"
-    if ($Manifest.schema -notin @("alis-release-manifest-v1", "alis-release-manifest-v2") -or
+    if ($Manifest.schema -notin @("alis-release-manifest-v1", "alis-release-manifest-v2", "alis-release-manifest-v3") -or
         $Manifest.status -ne "pending_owner_approval" -or
         $Manifest.release_version -ne $ReleaseVersion -or
         $Manifest.release_tag -ne $ReleaseTag) {
@@ -160,9 +162,19 @@ function Remove-AbandonedReleaseScratch {
 $ReleaseTag = "v$ReleaseVersion"
 $ResolvedInputRoot = Resolve-ProjectPath -Path $InputRoot -DefaultPath "tmp\release\inputs\$ReleaseTag"
 $ResolvedReleaseDir = Resolve-ProjectPath -Path $ReleaseDir -DefaultPath "tmp\release\$ReleaseTag"
+$ResolvedGameDir = Join-Path $ResolvedReleaseDir "game"
+$ResolvedGitHubDir = Join-Path $ResolvedReleaseDir "github"
+$ResolvedPlayerPackageRoot = Resolve-ProjectPath -Path $PlayerPackageRoot -DefaultPath "Saved\PackageRelease\KazanPlayableTour\Candidate"
+$WorkspaceTool = Join-Path $ScriptDir "release_workspace.py"
 $ProjectTmpRoot = Join-Path $ProjectRoot "tmp"
 $ReleaseRoot = Join-Path $ProjectTmpRoot "release"
 Assert-PathUnderRoot -Path $ResolvedReleaseDir -Root $ProjectTmpRoot -Description "ReleaseDir"
+if ($Target -eq "Game" -and $SkipSigning) {
+    throw "TARGET=game is a signing command and cannot be combined with RELEASE_SIGN=0."
+}
+if ($Target -eq "Game" -and -not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
+    throw "TARGET=game requires an existing reviewed release workspace: $ResolvedReleaseDir"
+}
 Remove-AbandonedReleaseScratch -ReleaseRoot $ReleaseRoot
 $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerPackageRoot) -or
@@ -172,14 +184,51 @@ $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($DependencyReport) -or
     -not [string]::IsNullOrWhiteSpace($PrivacyReport) -or
     -not [string]::IsNullOrWhiteSpace($MapLoadReport)
-$SigningManifest = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt"
-$Signature = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt.asc"
+$SigningManifest = Join-Path $ResolvedGitHubDir "SHA256SUMS.txt"
+$Signature = Join-Path $ResolvedGitHubDir "SHA256SUMS.txt.asc"
+$GameSigningManifest = Join-Path $ResolvedGameDir "Verification\SHA256SUMS.txt"
+$GameSignature = Join-Path $ResolvedGameDir "Verification\SHA256SUMS.txt.asc"
+$GitHubVerifyArguments = @{ ReleaseDir = $ResolvedGitHubDir }
+$GameVerifyArguments = @{
+    ReleaseDir = $ResolvedGameDir
+    ManifestRelativePath = "Verification\SHA256SUMS.txt"
+    SignatureRelativePath = "Verification\SHA256SUMS.txt.asc"
+    BundledPublicKeyName = "Verification\ALIS_PUBLIC_KEY.asc"
+    AllowRelativeAssetPaths = $true
+    RequireExactInventory = $true
+}
+if ($GpgPath) {
+    $GitHubVerifyArguments.GpgPath = $GpgPath
+    $GameVerifyArguments.GpgPath = $GpgPath
+}
+if ($SigningKeyFingerprint) {
+    $GitHubVerifyArguments.ExpectedFingerprint = $SigningKeyFingerprint
+    $GameVerifyArguments.ExpectedFingerprint = $SigningKeyFingerprint
+}
 $PreparedThisRun = $false
 $AutomaticPlayerEvidence = $null
 
 if (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container) {
-    $ExistingManifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
-    if ($ExistingManifest.schema -ne "alis-release-manifest-v3") {
+    $WorkspaceState = Join-Path $ResolvedReleaseDir "release-workspace.json"
+    $FlatManifest = Join-Path $ResolvedReleaseDir "release_manifest.json"
+    if (Test-Path -LiteralPath $WorkspaceState -PathType Leaf) {
+        & $Python.Source $WorkspaceTool recover-github --workspace-root $ResolvedReleaseDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to recover an interrupted GitHub projection replacement."
+        }
+        & $Python.Source $WorkspaceTool adopt `
+            --workspace-root $ResolvedReleaseDir `
+            --candidate-root $ResolvedPlayerPackageRoot
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to resume the release workspace game adoption."
+        }
+        & $Python.Source $WorkspaceTool verify --workspace-root $ResolvedReleaseDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "Release workspace verification failed."
+        }
+    }
+    elseif (Test-Path -LiteralPath $FlatManifest -PathType Leaf) {
+        $ExistingManifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
         if (-not $SkipSigning) {
             throw "Release directory uses an obsolete public layout. Run the unsigned release command first to remove and replace it."
         }
@@ -192,6 +241,9 @@ if (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container) {
             -ReleaseTag $ReleaseTag `
             -Manifest $ExistingManifest
         Write-Host "[Release] Removed obsolete unsigned release: $ResolvedReleaseDir"
+    }
+    else {
+        throw "Release directory has no recognized game/github workspace: $ResolvedReleaseDir"
     }
 }
 
@@ -243,7 +295,6 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
     }
 
     $ResolvedPublicSourceRoot = Resolve-ProjectPath -Path $PublicSourceRoot -DefaultPath (Join-Path $ResolvedInputRoot "public-source")
-    $ResolvedPlayerPackageRoot = Resolve-ProjectPath -Path $PlayerPackageRoot -DefaultPath "Saved\PackageRelease\KazanPlayableTour\Candidate"
     $ResolvedPlayerEvidence = if ($AutomaticPlayerEvidence) {
         [IO.Path]::GetFullPath($AutomaticPlayerEvidence)
     }
@@ -297,27 +348,49 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
     $PreparedThisRun = $true
 }
 
-$Manifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
+$Manifest = Read-ReleaseManifest -Directory $ResolvedGitHubDir
 if ($Manifest.schema -ne "alis-release-manifest-v3") {
     throw "Release directory uses an unsupported manifest schema."
 }
 if ($Manifest.release_version -ne $ReleaseVersion -or $Manifest.release_tag -ne $ReleaseTag) {
     throw "Release directory identity does not match requested version $ReleaseVersion."
 }
+$ApprovalScope = if ($Manifest.PSObject.Properties["approval_scope"]) {
+    [string]$Manifest.approval_scope
+}
+else {
+    "full"
+}
+$RequestedApprovalScope = if ($Target -eq "Game") { "game" } else { "full" }
+if ($Target -eq "All" -and $Manifest.status -eq "ready_for_signature" -and $ApprovalScope -eq "game") {
+    throw "Game-only approval cannot be promoted to a full GitHub release; prepare a new release workspace."
+}
 
 $HasSigningManifest = Test-Path -LiteralPath $SigningManifest -PathType Leaf
 $HasSignature = Test-Path -LiteralPath $Signature -PathType Leaf
+$HasGameSigningManifest = Test-Path -LiteralPath $GameSigningManifest -PathType Leaf
+$HasGameSignature = Test-Path -LiteralPath $GameSignature -PathType Leaf
 if ($HasSigningManifest -ne $HasSignature) {
     throw "Release directory contains an incomplete signing result; inspect it before retrying."
+}
+if ($HasGameSigningManifest -ne $HasGameSignature) {
+    throw "Game directory contains an incomplete signing result; inspect it before retrying."
 }
 
 if ($HasSigningManifest) {
     if ($SkipSigning) {
         throw "Unsigned rehearsal requires an unsigned release directory: $ResolvedReleaseDir"
     }
-    & (Join-Path $ScriptDir "verify_release.ps1") -ReleaseDir $ResolvedReleaseDir -GpgPath $GpgPath
+    if (-not $HasGameSigningManifest) {
+        throw "Signed GitHub projection is missing the signed game projection."
+    }
+    & (Join-Path $ScriptDir "verify_release.ps1") @GitHubVerifyArguments
     if (-not $?) {
         throw "Consumer-side release verification failed."
+    }
+    & (Join-Path $ScriptDir "verify_release.ps1") @GameVerifyArguments
+    if (-not $?) {
+        throw "Game projection verification failed."
     }
     Remove-AutomaticReleaseInputs `
         -InputRoot $ResolvedInputRoot `
@@ -327,11 +400,11 @@ if ($HasSigningManifest) {
     exit 0
 }
 
-Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedReleaseDir)
+Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedGitHubDir)
 
 if ($PreparedThisRun -and -not $SkipSigning) {
     Write-Host "[CHECKPOINT] Unsigned release prepared and verified: $ResolvedReleaseDir" -ForegroundColor Yellow
-    Write-Host "Review README.txt and the flat public asset set, then rerun:"
+    Write-Host "Review game\ and github\, then rerun:"
     Write-Host "  make release $ReleaseVersion"
     exit 0
 }
@@ -348,7 +421,7 @@ if ($SkipSigning) {
 $OwnedFinalPublicSource = $null
 $OwnedFinalPublicSourceParent = $null
 try {
-    if ($Manifest.status -eq "pending_owner_approval") {
+    if ($Target -eq "All" -and $Manifest.status -eq "pending_owner_approval") {
         $ResolvedFinalPublicSource = if ([string]::IsNullOrWhiteSpace($FinalPublicSourceRoot)) {
             $FinalSourceParent = Join-Path $ProjectRoot "tmp\release\final-public-source"
             $FinalSource = Join-Path $FinalSourceParent $ReleaseTag
@@ -378,30 +451,104 @@ try {
             Resolve-ProjectPath -Path $FinalPublicSourceRoot -DefaultPath ""
         }
         & $Python.Source (Join-Path $ScriptDir "finalize_release.py") `
-            --release-dir $ResolvedReleaseDir `
+            --release-dir $ResolvedGitHubDir `
             --final-public-source $ResolvedFinalPublicSource `
             --branch $PublicBranch
         if ($LASTEXITCODE -ne 0) {
             throw "Final public source binding failed."
         }
-        $Manifest = Read-ReleaseManifest -Directory $ResolvedReleaseDir
+        $Manifest = Read-ReleaseManifest -Directory $ResolvedGitHubDir
+    }
+    if ($Manifest.status -eq "pending_owner_approval") {
         Invoke-PythonReleaseTool -Arguments @(
-            "approve", "--release-dir", $ResolvedReleaseDir,
-            "--approve-product-terms-and-rights"
+            "approve", "--release-dir", $ResolvedGitHubDir,
+            "--approve-product-terms-and-rights",
+            "--approval-scope", $RequestedApprovalScope
         )
+        $Manifest = Read-ReleaseManifest -Directory $ResolvedGitHubDir
     }
 
-    Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedReleaseDir, "--require-ready")
-    $SignArguments = @{ ReleaseDir = $ResolvedReleaseDir }
+    Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedGitHubDir, "--require-ready")
+    if (-not $HasGameSigningManifest) {
+        $GameSignArguments = @{
+            ReleaseDir = $ResolvedGameDir
+            ApprovalDir = $ResolvedGitHubDir
+            Projection = "Game"
+        }
+        if ($GpgPath) { $GameSignArguments.GpgPath = $GpgPath }
+        if ($GpgHome) { $GameSignArguments.GpgHome = $GpgHome }
+        if ($SigningKeyFingerprint) { $GameSignArguments.SigningKeyFingerprint = $SigningKeyFingerprint }
+        & (Join-Path $ScriptDir "sign_release.ps1") @GameSignArguments
+        if (-not $?) {
+            throw "Game projection signing failed."
+        }
+    }
+    & (Join-Path $ScriptDir "verify_release.ps1") @GameVerifyArguments
+    if (-not $?) {
+        throw "Game projection verification failed."
+    }
+
+    if ($Target -eq "Game") {
+        Remove-AutomaticReleaseInputs `
+            -InputRoot $ResolvedInputRoot `
+            -ProjectTmpRoot $ProjectTmpRoot `
+            -UsesExplicitInputs $UsesExplicitInputs
+        Write-Host "[OK] Signed game release is ready for distribution: $ResolvedGameDir" -ForegroundColor Green
+        Write-Host "[OK] GitHub source validation, archive refresh, and signing were skipped." -ForegroundColor Green
+        exit 0
+    }
+
+    $RefreshWork = Join-Path $ReleaseRoot ("work\{0}-signed-{1}" -f $ReleaseTag, [Guid]::NewGuid().ToString("N"))
+    $ArchiveOutput = Join-Path $RefreshWork "archive"
+    $RefreshedGitHub = Join-Path $RefreshWork "github"
+    $PreviousGitHub = Join-Path $ResolvedReleaseDir ("github-previous-" + [Guid]::NewGuid().ToString("N"))
+    try {
+        & $Python.Source (Join-Path $ScriptDir "prepare_release.py") archive-game `
+            --game-root $ResolvedGameDir `
+            --output-dir $ArchiveOutput `
+            --release-version $ReleaseVersion
+        if ($LASTEXITCODE -ne 0) {
+            throw "Signed game archive preparation failed."
+        }
+        & $Python.Source (Join-Path $ScriptDir "refresh_github_release.py") `
+            --source-github $ResolvedGitHubDir `
+            --output-github $RefreshedGitHub `
+            --game-root $ResolvedGameDir `
+            --archive-report (Join-Path $ArchiveOutput "player-archive.json")
+        if ($LASTEXITCODE -ne 0) {
+            throw "GitHub projection refresh failed."
+        }
+        Move-Item -LiteralPath $ResolvedGitHubDir -Destination $PreviousGitHub
+        try {
+            Move-Item -LiteralPath $RefreshedGitHub -Destination $ResolvedGitHubDir
+        }
+        catch {
+            Move-Item -LiteralPath $PreviousGitHub -Destination $ResolvedGitHubDir
+            throw
+        }
+        Remove-Item -LiteralPath $PreviousGitHub -Recurse -Force
+    }
+    finally {
+        if (Test-Path -LiteralPath $RefreshWork) {
+            Remove-Item -LiteralPath $RefreshWork -Recurse -Force
+        }
+    }
+
+    $SignArguments = @{ ReleaseDir = $ResolvedGitHubDir }
     if ($GpgPath) { $SignArguments.GpgPath = $GpgPath }
     if ($GpgHome) { $SignArguments.GpgHome = $GpgHome }
+    if ($SigningKeyFingerprint) { $SignArguments.SigningKeyFingerprint = $SigningKeyFingerprint }
     & (Join-Path $ScriptDir "sign_release.ps1") @SignArguments
     if (-not $?) {
         throw "Release signing failed."
     }
-    & (Join-Path $ScriptDir "verify_release.ps1") -ReleaseDir $ResolvedReleaseDir -GpgPath $GpgPath
+    & (Join-Path $ScriptDir "verify_release.ps1") @GitHubVerifyArguments
     if (-not $?) {
         throw "Consumer-side release verification failed."
+    }
+    & (Join-Path $ScriptDir "verify_release.ps1") @GameVerifyArguments
+    if (-not $?) {
+        throw "Game projection verification failed."
     }
 }
 finally {

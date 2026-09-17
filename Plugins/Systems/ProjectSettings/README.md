@@ -1,15 +1,10 @@
-ProjectSettings
+# ProjectSettings
 
-Purpose
-- Persist and expose typed settings used by gameplay and UI.
+Disabled module shell reserved for a reusable settings service.
 
-Responsibilities
-- Defaults, validation, read/write APIs, persistence.
+The current plugin contains module startup/shutdown only. It does not provide
+settings storage, validation, persistence, or a public service contract, and
+it is not part of the supported Player route.
 
-Non-responsibilities
-- No UI. Settings screens live in Features/ProjectSettingsUI.
-- No platform auth/network logic.
-
-See ProjectLoadingSubsystem for reference implementation pattern.
-See TODO.md for implementation tasks.
-
+Settings presentation remains a separate UI concern. Runtime settings behavior
+must be implemented and accepted before this README can claim it.

@@ -4,7 +4,6 @@
 
 void FProjectSettingsModule::StartupModule()
 {
-	// Stub: will contain settings storage and API
 }
 
 void FProjectSettingsModule::ShutdownModule()

@@ -9,6 +9,7 @@ $ReleaseScript = Join-Path $PackageDir "release.ps1"
 $TestParent = Join-Path $ProjectRoot "tmp\release"
 $TestRoot = Join-Path $TestParent "v9.8.7"
 $ReleaseDir = $TestRoot
+$WorkspaceRoot = Join-Path $TestParent "v9.8.8"
 $FinalRemote = Join-Path $TestParent ("final-source-fixture-" + [Guid]::NewGuid().ToString("N"))
 $FinalCheckout = Join-Path $TestParent "final-public-source\v9.8.7"
 $EphemeralRoots = @(
@@ -50,18 +51,45 @@ function Write-PendingRelease {
     param(
         [string]$Directory,
         [string]$Status = "pending_owner_approval",
-        [string]$Schema = "alis-release-manifest-v3"
+        [string]$Schema = "alis-release-manifest-v3",
+        [string]$ReleaseVersion = "9.8.7"
     )
 
     New-Item -ItemType Directory -Path $Directory -Force | Out-Null
-    $PayloadPath = Join-Path $Directory "fixture.bin"
+    $ManifestDirectory = $Directory
+    $PlayerSource = $null
+    if ($Schema -eq "alis-release-manifest-v3") {
+        $Game = Join-Path $Directory "game"
+        $ManifestDirectory = Join-Path $Directory "github"
+        $Shipping = Join-Path $Game "Alis\Binaries\Win64\Alis-Win64-Shipping.exe"
+        New-Item -ItemType Directory -Path (Split-Path -Parent $Shipping), $ManifestDirectory -Force | Out-Null
+        Set-Content -LiteralPath $Shipping -Value "shipping" -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $Game "Alis.exe") -Value "game" -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $Directory "package_summary.txt") -Value "accepted" -Encoding Ascii
+        $PackageTree = & python (Join-Path $PackageDir "release_workspace.py") package-tree --workspace-root $Directory
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not prepare release workspace package identity."
+        }
+        $PlayerSource = @{
+            package_tree_sha256 = [string]$PackageTree
+            shipping_executable_sha256 = (Get-FileHash -LiteralPath $Shipping -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        [ordered]@{
+            schema = "alis-release-workspace-v1"
+            status = "complete"
+            release_version = $ReleaseVersion
+            release_tag = "v$ReleaseVersion"
+        } | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath (Join-Path $Directory "release-workspace.json") -Encoding Ascii
+    }
+    $PayloadPath = Join-Path $ManifestDirectory "fixture.bin"
     [IO.File]::WriteAllBytes($PayloadPath, [byte[]](1, 2, 3, 4))
     $Payload = Get-Item -LiteralPath $PayloadPath
     $Manifest = [ordered]@{
         schema = $Schema
         status = $Status
-        release_version = "9.8.7"
-        release_tag = "v9.8.7"
+        release_version = $ReleaseVersion
+        release_tag = "v$ReleaseVersion"
         unresolved_count = 0
         product_review = if ($Status -eq "ready_for_signature") {
             @{ status = "accepted" }
@@ -73,6 +101,7 @@ function Write-PendingRelease {
         } else {
             @{ status = "pending_owner_approval" }
         }
+        player_source = $PlayerSource
         artifacts = @(
             [ordered]@{
                 name = $Payload.Name
@@ -82,7 +111,7 @@ function Write-PendingRelease {
         )
     }
     $Manifest | ConvertTo-Json -Depth 8 |
-        Set-Content -LiteralPath (Join-Path $Directory "release_manifest.json") -Encoding Ascii
+        Set-Content -LiteralPath (Join-Path $ManifestDirectory "release_manifest.json") -Encoding Ascii
 }
 
 function Get-InventoryDigest {
@@ -119,7 +148,21 @@ function Assert-Fails {
 if (Test-Path -LiteralPath $TestRoot) {
     throw "Release entrypoint fixture already exists: $TestRoot"
 }
+if (Test-Path -LiteralPath $WorkspaceRoot) {
+    throw "Release workspace fixture already exists: $WorkspaceRoot"
+}
 try {
+    Write-PendingRelease -Directory $WorkspaceRoot -ReleaseVersion "9.8.8"
+    $WorkspaceBefore = Get-InventoryDigest -Directory $WorkspaceRoot
+    & $ReleaseScript -ReleaseVersion "9.8.8" -ReleaseDir $WorkspaceRoot -SkipSigning
+    if (-not $?) {
+        throw "Unsigned release did not accept the game/github workspace."
+    }
+    $WorkspaceAfter = Get-InventoryDigest -Directory $WorkspaceRoot
+    if ($WorkspaceBefore -cne $WorkspaceAfter) {
+        throw "Unsigned release mutated the game/github workspace."
+    }
+
     Write-PendingRelease -Directory $ReleaseDir
     foreach ($EphemeralRoot in $EphemeralRoots) {
         New-Item -ItemType Directory -Path (Join-Path $EphemeralRoot "stale\.git") -Force | Out-Null
@@ -139,8 +182,9 @@ try {
     if ($Before -cne $After) {
         throw "Unsigned release entrypoint mutated the prepared release."
     }
-    if ((Test-Path -LiteralPath (Join-Path $ReleaseDir "SHA256SUMS.txt")) -or
-        (Test-Path -LiteralPath (Join-Path $ReleaseDir "SHA256SUMS.txt.asc"))) {
+    if ((Test-Path -LiteralPath (Join-Path $ReleaseDir "github\SHA256SUMS.txt")) -or
+        (Test-Path -LiteralPath (Join-Path $ReleaseDir "github\SHA256SUMS.txt.asc")) -or
+        (Test-Path -LiteralPath (Join-Path $ReleaseDir "game\Verification\SHA256SUMS.txt"))) {
         throw "Unsigned release entrypoint created signing outputs."
     }
     foreach ($EphemeralRoot in $EphemeralRoots) {
@@ -206,6 +250,17 @@ try {
         Remove-Item -LiteralPath $ReleaseDir -Recurse -Force
     }
     Write-PendingRelease -Directory $ReleaseDir -Status "ready_for_signature"
+    $ReadyManifestPath = Join-Path $ReleaseDir "github\release_manifest.json"
+    $ReadyManifest = Get-Content -LiteralPath $ReadyManifestPath -Raw | ConvertFrom-Json
+    $ReadyManifest | Add-Member -NotePropertyName approval_scope -NotePropertyValue "game"
+    $ReadyManifest | ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath $ReadyManifestPath -Encoding Ascii
+    Assert-Fails -MessagePattern "*Game-only approval cannot be promoted*" -Action {
+        & $ReleaseScript -ReleaseVersion "9.8.7" -ReleaseDir $ReleaseDir
+    }
+    $ReadyManifest.approval_scope = "full"
+    $ReadyManifest | ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath $ReadyManifestPath -Encoding Ascii
     Assert-Fails -MessagePattern "*expected pending_owner_approval*" -Action {
         & $ReleaseScript -ReleaseVersion "9.8.7" -ReleaseDir $ReleaseDir -SkipSigning
     }
@@ -230,6 +285,14 @@ try {
             -SkipSigning
     }
 
+    Assert-Fails -MessagePattern "*requires an existing reviewed release workspace*" -Action {
+        & $ReleaseScript `
+            -ReleaseVersion "9.8.6" `
+            -ReleaseDir (Join-Path $TestParent "v9.8.6") `
+            -Target Game `
+            -PublicRemoteUrl (Join-Path $TestParent "must-not-be-read-public-remote")
+    }
+
     Write-Host "[OK] Release entrypoint unsigned contract passed"
 }
 finally {
@@ -250,5 +313,9 @@ finally {
             throw "Refusing to remove unexpected test path: $ResolvedTestRoot"
         }
         Remove-Item -LiteralPath $ResolvedTestRoot -Recurse -Force
+    }
+    if (Test-Path -LiteralPath $WorkspaceRoot) {
+        $ResolvedWorkspaceRoot = (Resolve-Path -LiteralPath $WorkspaceRoot).Path
+        Remove-Item -LiteralPath $ResolvedWorkspaceRoot -Recurse -Force
     }
 }

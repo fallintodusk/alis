@@ -236,7 +236,7 @@ bool UProjectUILayerHostSubsystem::IsDefinitionVisible(FName DefinitionId) const
 {
 	const FActiveWidgetEntry* Entry = ActiveWidgets.Find(DefinitionId);
 	const UUserWidget* Widget = Entry != nullptr ? Entry->Widget.Get() : nullptr;
-	return Widget != nullptr && Widget->IsVisible();
+	return Widget != nullptr && Widget->IsInViewport() && Widget->IsVisible();
 }
 
 UProjectViewModel* UProjectUILayerHostSubsystem::GetSharedViewModel(TSubclassOf<UProjectViewModel> ViewModelClass) const

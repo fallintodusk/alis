@@ -16,12 +16,16 @@ param(
     [string]$GpgPath,
     [string]$PublicKeyPath,
     [string]$BundledPublicKeyName = "ALIS_PUBLIC_KEY.asc",
+    [string]$ManifestRelativePath = "SHA256SUMS.txt",
+    [string]$SignatureRelativePath = "SHA256SUMS.txt.asc",
     [string]$PublicKeyUrl = "https://fall.is/assets/security/public-key.asc",
     [string]$ExpectedFingerprint = "3B9885F0C2D8D927C27FAB58F61A530034CFB5E7",
     [string]$TrustPageUrl = "https://fall.is/trust/",
     [string]$TempGpgHome,
     [string[]]$RequiredAsset,
     [string]$SummaryPath,
+    [switch]$AllowRelativeAssetPaths,
+    [switch]$RequireExactInventory,
     [switch]$KeepTempKeyring
 )
 
@@ -245,11 +249,37 @@ function Parse-Manifest {
 function Resolve-ManifestAssetPath {
     param(
         [string]$Directory,
-        [string]$Name
+        [string]$Name,
+        [bool]$AllowRelativePaths
     )
 
-    if ([string]::IsNullOrWhiteSpace($Name) -or [IO.Path]::GetFileName($Name) -cne $Name) {
+    if ([string]::IsNullOrWhiteSpace($Name)) {
         throw "Unsafe SHA256SUMS.txt asset name: $Name"
+    }
+    $Segments = @($Name -split "/", -1)
+    if ($Name.Contains('\') -or $Segments.Count -eq 0 -or
+        @($Segments | Where-Object { $_ -in @("", ".", "..") }).Count -gt 0) {
+        throw "Unsafe SHA256SUMS.txt asset name: $Name"
+    }
+    if (-not $AllowRelativePaths -and [IO.Path]::GetFileName($Name) -cne $Name) {
+        throw "Unsafe SHA256SUMS.txt asset name: $Name"
+    }
+    if ([IO.Path]::IsPathRooted($Name)) {
+        throw "Unsafe SHA256SUMS.txt asset name: $Name"
+    }
+    $NormalizedName = $Name.Replace('/', [IO.Path]::DirectorySeparatorChar)
+    $Candidate = [IO.Path]::GetFullPath((Join-Path $Directory $NormalizedName))
+    $ResolvedRoot = [IO.Path]::GetFullPath($Directory).TrimEnd('\', '/')
+    if (-not $Candidate.StartsWith(
+            $ResolvedRoot + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Unsafe SHA256SUMS.txt asset name: $Name"
+    }
+    if ($AllowRelativePaths) {
+        if (-not (Test-Path -LiteralPath $Candidate -PathType Leaf)) {
+            throw "Manifest entry does not resolve to a release asset: $Name"
+        }
+        return (Resolve-Path -LiteralPath $Candidate).Path
     }
     $FlatPath = Join-Path $Directory $Name
     if (Test-Path -LiteralPath $FlatPath -PathType Leaf) {
@@ -262,13 +292,33 @@ function Resolve-ManifestAssetPath {
     return $Matches[0].FullName
 }
 
+function Resolve-SafeReleaseRelativePath {
+    param(
+        [string]$Directory,
+        [string]$RelativePath,
+        [string]$Description
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RelativePath) -or [IO.Path]::IsPathRooted($RelativePath)) {
+        throw "$Description must be a safe relative path: $RelativePath"
+    }
+    $ResolvedRoot = [IO.Path]::GetFullPath($Directory).TrimEnd('\', '/')
+    $Resolved = [IO.Path]::GetFullPath((Join-Path $ResolvedRoot $RelativePath))
+    if (-not $Resolved.StartsWith(
+            $ResolvedRoot + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Description escapes the release directory: $RelativePath"
+    }
+    return $Resolved
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ResolvedReleaseDir = Resolve-ReleaseDir -RequestedPath $ReleaseDir -ScriptDir $ScriptDir
 $ResolvedGpgPath = Resolve-GpgPath -RequestedPath $GpgPath
 Initialize-GpgEnvironment -ResolvedGpgPath $ResolvedGpgPath
 $ResolvedGpgvPath = Resolve-GpgvPath -ResolvedGpgPath $ResolvedGpgPath
-$ManifestPath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt"
-$SignaturePath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt.asc"
+$ManifestPath = Resolve-SafeReleaseRelativePath -Directory $ResolvedReleaseDir -RelativePath $ManifestRelativePath -Description "ManifestRelativePath"
+$SignaturePath = Resolve-SafeReleaseRelativePath -Directory $ResolvedReleaseDir -RelativePath $SignatureRelativePath -Description "SignatureRelativePath"
 
 if (-not (Test-Path $ManifestPath)) {
     throw "Manifest was not found: $ManifestPath"
@@ -326,12 +376,26 @@ try {
     }
 
     $ManifestEntries = Parse-Manifest -ManifestPath $ManifestPath
+    if ($RequireExactInventory) {
+        $ManifestRelative = $ManifestPath.Substring($ResolvedReleaseDir.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+        $SignatureRelative = $SignaturePath.Substring($ResolvedReleaseDir.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+        $ExpectedNames = @($ManifestEntries | ForEach-Object Name | Sort-Object -CaseSensitive)
+        $ActualNames = @(Get-ChildItem -LiteralPath $ResolvedReleaseDir -File -Recurse |
+            ForEach-Object { $_.FullName.Substring($ResolvedReleaseDir.TrimEnd('\', '/').Length + 1).Replace('\', '/') } |
+            Where-Object { $_ -cne $ManifestRelative -and $_ -cne $SignatureRelative } |
+            Sort-Object -CaseSensitive)
+        $InventoryDifference = @(Compare-Object -ReferenceObject $ExpectedNames -DifferenceObject $ActualNames -CaseSensitive)
+        if ($InventoryDifference.Count -gt 0) {
+            throw "Signed release inventory mismatch: $($InventoryDifference.InputObject -join ', ')"
+        }
+    }
     $EntriesToVerify = $ManifestEntries
     if ($RequiredAsset.Count -gt 0) {
         $Requested = @{}
         $EntriesToVerify = @($RequiredAsset | ForEach-Object {
             $Name = [string]$_
-            if ([string]::IsNullOrWhiteSpace($Name) -or [IO.Path]::GetFileName($Name) -cne $Name) {
+            if ([string]::IsNullOrWhiteSpace($Name) -or
+                (-not $AllowRelativeAssetPaths -and [IO.Path]::GetFileName($Name) -cne $Name)) {
                 throw "Unsafe required release asset name: $Name"
             }
             if ($Requested.ContainsKey($Name)) {
@@ -348,7 +412,10 @@ try {
     $VerifiedCount = 0
 
     foreach ($Entry in $EntriesToVerify) {
-        $AssetPath = Resolve-ManifestAssetPath -Directory $ResolvedReleaseDir -Name $Entry.Name
+        $AssetPath = Resolve-ManifestAssetPath `
+            -Directory $ResolvedReleaseDir `
+            -Name $Entry.Name `
+            -AllowRelativePaths $AllowRelativeAssetPaths
 
         $ActualHash = (Get-FileHash $AssetPath -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($ActualHash -ne $Entry.Hash) {

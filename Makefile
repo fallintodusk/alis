@@ -34,14 +34,14 @@ ifneq ($(FORCE_WSL),)
   IS_WSL := $(FORCE_WSL)
 endif
 
-.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package release structurizr-start structurizr-stop structurizr-open cinematics cinematics-convert
+.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package release publish cinematics cinematics-convert
 
 # Exact positional UX: `make release 2.0.0`. Only the one version goal is
 # synthesized; there is no catch-all target that could hide a misspelling.
 ifeq (release,$(firstword $(MAKECMDGOALS)))
   RELEASE_VERSION_GOALS := $(filter-out release,$(MAKECMDGOALS))
   ifneq ($(words $(RELEASE_VERSION_GOALS)),1)
-    $(error Usage: make release X.Y.Z [RELEASE_SIGN=0])
+    $(error Usage: make release X.Y.Z [RELEASE_SIGN=0] [TARGET=game])
   endif
   RELEASE_VERSION := $(firstword $(RELEASE_VERSION_GOALS))
   $(eval $(RELEASE_VERSION):;@:)
@@ -53,6 +53,19 @@ ifneq ($(RELEASE_SIGN),0)
     $(error RELEASE_SIGN must be 0 or 1)
   endif
 endif
+
+# Exact destination dispatch for `make publish itch`.
+ifeq (publish,$(firstword $(MAKECMDGOALS)))
+  PUBLISH_DESTINATION_GOALS := $(filter-out publish,$(MAKECMDGOALS))
+  ifneq ($(words $(PUBLISH_DESTINATION_GOALS)),1)
+    $(error Usage: make publish itch [PUBLISH_VERSION=X.Y.Z] [ITCH_TARGET=user/game])
+  endif
+  PUBLISH_DESTINATION := $(firstword $(PUBLISH_DESTINATION_GOALS))
+  $(eval $(PUBLISH_DESTINATION):;@:)
+endif
+
+ITCH_CHANNEL ?= windows
+ITCH_TARGET ?= fallalis/fallalis
 
 # Subcommand dispatch for `make cinematics <subcmd>`.
 # When `cinematics` is the first goal, every following word becomes a no-op
@@ -87,6 +100,7 @@ help:
 	@echo "    make test-quick        - Run quick smoke tests"
 	@echo "    make test-package EXE=<path> - Run packaged build hitch smoke test"
 	@echo "    make prepare-tests     - Prepare plugins and generate code before tests"
+	@echo "    make publish itch      - Publish a signed local game release to itch.io"
 	@echo "    make test-unit-smart BASE=origin/main - Run selective tests against a base ref"
 	@echo ""
 	@echo "  Build Commands:"
@@ -99,6 +113,7 @@ help:
 	@echo "    make package           - Package Shipping build and archive (no signing)"
 	@echo "    make release 2.0.0     - Prepare/approve/sign/verify the exact accepted release"
 	@echo "    make release 2.0.0 RELEASE_SIGN=0 - Prepare and verify without private-key access"
+	@echo "    make release 2.0.0 TARGET=game - Sign and verify only the retained game"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make open              - Open project in Unreal Editor"
@@ -107,11 +122,6 @@ help:
 	@echo "  Cinematics:"
 	@echo "    make cinematics convert - Batch ProRes .mov -> NVENC HEVC mp4 (_enc suffix) in Saved/MovieRenders"
 	@echo "    make cinematics-convert - Same, hyphenated form"
-	@echo ""
-	@echo "  Documentation:"
-	@echo "    make structurizr-start - Start Structurizr Lite (C4 diagrams)"
-	@echo "    make structurizr-stop  - Stop Structurizr Lite"
-	@echo "    make structurizr-open  - Open Structurizr in browser"
 	@echo ""
 	@echo "  Git Workflow:"
 	@echo "    make merge-ai BRANCH=<branch> - Squash merge AI work branch (clean history)"
@@ -143,7 +153,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)" ); \
 	CMD="\"$${UE_WIN}\\Engine\\Binaries\\DotNET\\UnrealBuildTool\\UnrealBuildTool.exe\" -Mode=UnrealHeaderTool \"-Target=AlisEditor Win64 Development -Project=$${PROJ_WIN}\" -WarningsAsErrors -FailIfGeneratedCodeChanges > $${LOG_WIN} 2>&1"; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	if grep -Eqi "(error|exception|fail)" "$(REPORTS_DIR)/uht.log"; then \
 		echo "UHT validation reported errors"; \
 		exit 1; \
@@ -170,7 +180,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)"); \
 	CMD="\"$${UE_WIN}\\Engine\\Build\\BatchFiles\\Build.bat\" AlisEditor Win64 Development \"$${PROJ_WIN}\" -skipcompile -NoHotReload > $${LOG_WIN} 2>&1"; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	echo "✓ Syntax validation passed"
 else
 	@powershell -NoLogo -NoProfile -Command "if (-not (Test-Path \"$(REPORTS_DIR)\")) { New-Item -ItemType Directory -Path \"$(REPORTS_DIR)\" | Out-Null }"
@@ -258,7 +268,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)"); \
 	CMD="\"$${UE_WIN}\\Engine\\Build\\BatchFiles\\Build.bat\" -projectfiles -project=\"$${PROJ_WIN}\" -game -engine"; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	echo "✓ Project files generated"
 else
 	@"$(UE_PATH)/Engine/Build/BatchFiles/Build.bat" \
@@ -279,7 +289,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)"); \
 	CMD="\"$${UE_WIN}\\Engine\\Build\\BatchFiles\\Build.bat\" AlisEditor Win64 Development \"$${PROJ_WIN}\""; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	echo "✓ Editor build complete"
 else
 	@"$(UE_PATH)/Engine/Build/BatchFiles/Build.bat" \
@@ -304,7 +314,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)"); \
 	CMD="\"$${UE_WIN}\\Engine\\Build\\BatchFiles\\Build.bat\" AlisEditor Win64 Development \"$${PROJ_WIN}\" -WaitMutex -Module=$(MODULE)"; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	echo "✓ Module $(MODULE) build complete"
 else
 	@"$(UE_PATH)/Engine/Build/BatchFiles/Build.bat" \
@@ -322,7 +332,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)"); \
 	CMD="\"$${UE_WIN}\\Engine\\Build\\BatchFiles\\Build.bat\" Alis Win64 Development \"$${PROJ_WIN}\""; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	echo "✓ Game build complete"
 else
 	@"$(UE_PATH)/Engine/Build/BatchFiles/Build.bat" \
@@ -338,7 +348,7 @@ ifeq ($(IS_WSL),1)
 	UE_WIN=$$(wslpath -w "$(UE_PATH)"); \
 	CMD="\"$${UE_WIN}\\Engine\\Build\\BatchFiles\\Build.bat\" AlisServer Win64 Development \"$${PROJ_WIN}\""; \
 	echo Running: cmd.exe /C $$CMD; \
-	cmd.exe /C $$CMD; \
+	cmd.exe /C $$CMD || exit $$?; \
 	echo "✓ Server build complete"
 else
 	@"$(UE_PATH)/Engine/Build/BatchFiles/Build.bat" \
@@ -469,17 +479,22 @@ package:
 release:
 	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
 		-File "scripts/ue/package/release.ps1" \
-		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,)
+		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(strip $(TARGET)),-Target "$(strip $(TARGET))",) $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,)
 
-# Documentation: Structurizr Lite (C4 Architecture Diagrams)
-structurizr-start:
-	@cmd.exe /C scripts\\utils\\structurizr\\start_structurizr.bat
-
-structurizr-stop:
-	@cmd.exe /C scripts\\utils\\structurizr\\stop_structurizr.bat
-
-structurizr-open:
-	@cmd.exe /C "start http://localhost:8080"
+# Publish an already signed local release. This target never builds or signs.
+publish:
+ifeq ($(PUBLISH_DESTINATION),itch)
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+		-File "scripts/ue/package/publish_itch.ps1" \
+		-Target "$(strip $(ITCH_TARGET))" \
+		-Channel "$(strip $(ITCH_CHANNEL))" \
+		$(if $(strip $(PUBLISH_VERSION)),-ReleaseVersion "$(strip $(PUBLISH_VERSION))",) \
+		$(if $(strip $(BUTLER_PATH)),-ButlerPath "$(strip $(BUTLER_PATH))",)
+else
+	@echo "Unknown publish destination: $(PUBLISH_DESTINATION)"
+	@echo "Available: itch"
+	@exit 2
+endif
 
 # Cinematics: batch ProRes .mov -> NVENC HEVC mp4
 cinematics-convert:

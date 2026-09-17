@@ -14,7 +14,7 @@ Framework consolidation rules (critical)
 - Keep ProjectMenuMain focused on menu semantics and flow orchestration.
 - Reuse ProjectUI for widget binding, popup/tooltip lifecycle, layer activation, and reusable interaction mechanics.
 - Settings screen hosting should reuse a single presenter-owned settings root (show/hide, no recreate on navigation).
-- See `Plugins/UI/ProjectUI/docs/framework_consolidation.md`.
+- See `Plugins/UI/ProjectUI/docs/architecture/README.md`.
 
 Notes
 - Internally keep Core/ (domain) and Shell/ (composition) folders to enable a future split.

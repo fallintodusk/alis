@@ -8,7 +8,7 @@ tests, and README.
 
 | Goal | Owner |
 |---|---|
-| See the complete ownership, persistence, realization, and evidence flow | [World architecture overview](../../Plugins/World/ProjectWorld/docs/architecture_overview.md) |
+| See the complete ownership, persistence, realization, and evidence flow | [World architecture](../../Plugins/World/ProjectWorld/docs/architecture/README.md) |
 | Reproduce the pinned Python and native tool runtime | [Execution Environment](ExecutionEnvironment/README.md) |
 | Acquire, verify, and normalize provider data | [Source Ingestion](SourceIngestion/README.md) |
 | Compile accepted source receipts into canonical ALIS cells | [Canonical Compilation](CanonicalCompilation/README.md) |

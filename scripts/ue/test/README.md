@@ -1,58 +1,27 @@
-# Test Scripts
+# Unreal Test Scripts
 
-Scripts for running Unreal automation tests in ALIS.
+## Development Entry Point
 
-## Main Entry Point
+Run one exact test through the guarded iteration wrapper:
 
-### `test.bat`
-
-Runs Unreal automation tests through grouped modes.
-
-Usage:
-
-```bat
-test.bat [--unit|--integration|--all] [--filter <name>]
+```powershell
+.\scripts\ue\test\unit\iterate.ps1 -TestFilter "Project.Full.Exact.Test.Name"
 ```
 
-Examples:
-- `test.bat --unit`
-- `test.bat --integration`
-- `test.bat --filter ProjectUI`
+`unit/run_single.ps1` provides strict exact dispatch without compile-mode
+selection. Both routes reject broad filter shapes during normal development.
 
-## Test Categories
+## Gate Routes
 
-### `smoke/`
+| Boundary | Owner |
+|---|---|
+| Broad Unreal automation acceptance | `unit/iterate.ps1 -Mode Gate` |
+| Editor boot smoke | `smoke/boot_test.bat` |
+| Packaged boot smoke | `smoke/packaged_boot_test.ps1` |
+| Cross-system boot | `integration/autonomous_boot_test.bat` |
+| Character evidence capture | `character/capture_parity.ps1` |
+| Inventory evidence capture | [Inventory testing](inventory/README.md) |
 
-Critical-path health checks.
-
-- Example: `smoke\\boot_test.bat`
-
-### `integration/`
-
-Multi-system validation.
-
-- Example: `integration\\autonomous_boot_test.bat`
-- Additional preflight helpers live in this folder as needed
-
-### `character/`
-
-Character-specific runtime debug helpers.
-
-- Example: `character\\capture_parity.ps1`
-
-### `unit/`
-
-Fast plugin or subsystem tests.
-
-## Execution Notes
-
-- Tests are typically run headless with `-NullRHI`
-- Reports are written under `Saved/Automation/Reports`
-- Full UE logs go to `Saved/Logs/`
-
-## Related Docs
-
-- Public testing router: [../../../docs/testing/README.md](../../../docs/testing/README.md)
-- Packaged gameplay acceptance: [../gameplay/test/README.md](../gameplay/test/README.md)
-- Character animation debug guide: [../../../docs/testing/character_parity.md](../../../docs/testing/character_parity.md)
-- Build router: [../../../docs/build/README.md](../../../docs/build/README.md)
+Shared process and log helpers under `lib/` are not independent user entry
+points. Test selection policy and evidence interpretation are owned by the
+[testing documentation](../../../docs/testing/README.md).

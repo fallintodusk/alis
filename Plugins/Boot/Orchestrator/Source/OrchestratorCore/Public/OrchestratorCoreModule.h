@@ -13,18 +13,18 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogOrchestrator, Log, All);
 
 /**
- * Launcher IPC context passed to game client.
- * Read from named pipe (--ipc-pipe argument) or environment.
+ * Boot context reserved for an external Launcher handoff.
+ * The current implementation materializes local development values.
  */
 struct FLauncherContext
 {
-	/** Auth token from OAuth flow */
+	/** Reserved authentication token; empty in the current local route. */
 	FString AuthToken;
 
-	/** Path to verified manifest.json (already downloaded/verified by Launcher) */
+	/** Path to the manifest consumed by Orchestrator. */
 	FString ManifestPath;
 
-	/** Installation root (e.g., <install-root>) */
+	/** Installation root; currently the project directory. */
 	FString InstallPath;
 
 	/** Engine build identifier - must match manifest.engine_build_id */
@@ -47,7 +47,7 @@ DECLARE_MULTICAST_DELEGATE(FOnBootComplete);
 
 /**
  * Orchestrator module implementation.
- * Base plugin loaded early - reads Launcher IPC context and manages plugin lifecycle.
+ * Base plugin loaded early to materialize boot context and manage plugin lifecycle.
  */
 class FOrchestratorCoreModule : public IModuleInterface, public IOrchestratorRegistry
 {
@@ -124,7 +124,7 @@ private:
 	// int32 CurrentBootIndex = 0;
 	// FString CurrentPluginName;
 
-	/** Read Launcher IPC context (from named pipe or command line args) */
+	/** Materialize the current boot context. */
 	bool ReadLauncherContext();
 
 	/** Initialize Orchestrator workflow (called from StartupModule) */

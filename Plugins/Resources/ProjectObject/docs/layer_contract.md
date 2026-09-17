@@ -332,4 +332,3 @@ Definition data (DisplayName, Weight, Effects) lives in `ObjectDefinition.Sectio
 ## See Also
 
 - [ProjectObjectCapabilities README](../../../Gameplay/ProjectObjectCapabilities/README.md) - Capability components
-- [merge_pickups_into_objects.md](../../../../todo/current/merge_pickups_into_objects.md) - Implementation plan

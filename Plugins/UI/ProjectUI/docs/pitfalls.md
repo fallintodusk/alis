@@ -223,6 +223,24 @@ Fill
 
 ---
 
+## 9. Detached Persistent Widget Still Reports Visible
+
+**Symptom:** A service treats a persistent definition as open even though its
+widget is no longer attached to the current game viewport.
+
+**Root cause:** `UWidget::IsVisible()` checks the cached Slate widget's
+visibility. It does not prove membership in the game viewport.
+
+**Fix:** Definition visibility requires both `IsInViewport()` and
+`IsVisible()`. Initialization and show paths then discard or recreate a
+stale persistent instance before reporting success.
+
+**File:** [ProjectUILayerHostSubsystem.cpp](../Source/ProjectUI/Private/Subsystems/ProjectUILayerHostSubsystem.cpp) - `IsDefinitionVisible()`
+
+**Regression test:** `ProjectIntegrationTests.SinglePlay.Traversal.PreviewFlightPresentation`
+
+---
+
 ## Quick Debug Checklist
 
 1. Run `Project.UI.DumpWidgetTree` - Check for ZERO!, PENDING, SlotSize=0!, Align flags

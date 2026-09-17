@@ -53,6 +53,7 @@ namespace
 
 		virtual bool Update() override
 		{
+			const FName DefinitionId(TEXT("ProjectSinglePlay.PreviewFlightHints"));
 			UWorld* World = AutomationCommon::GetAnyGameWorld();
 			UGameInstance* GameInstance = World == nullptr ? nullptr : World->GetGameInstance();
 			APlayerController* PlayerController = World == nullptr
@@ -78,12 +79,12 @@ namespace
 				return true;
 			}
 			Test.TestNotNull(TEXT("Registry discovery resolves the PreviewFlight definition."),
-				Registry->FindDefinition(TEXT("ProjectSinglePlay.PreviewFlightHints")));
+				Registry->FindDefinition(DefinitionId));
 
 			LayerHost->InitializeForPlayer(PlayerController);
-			LayerHost->HideDefinition(TEXT("ProjectSinglePlay.PreviewFlightHints"));
+			LayerHost->HideDefinition(DefinitionId);
 			UUserWidget* PreviewFlightWidget =
-				LayerHost->ShowDefinition(TEXT("ProjectSinglePlay.PreviewFlightHints"));
+				LayerHost->ShowDefinition(DefinitionId);
 			if (!Test.TestNotNull(
 				TEXT("ShowDefinition creates the PreviewFlight widget."), PreviewFlightWidget))
 			{
@@ -91,9 +92,33 @@ namespace
 			}
 			Test.TestTrue(TEXT("The PreviewFlight widget is visible in the viewport."),
 				PreviewFlightWidget->IsInViewport() && PreviewFlightWidget->IsVisible());
-			LayerHost->HideDefinition(TEXT("ProjectSinglePlay.PreviewFlightHints"));
-			Test.TestFalse(TEXT("HideDefinition removes the PreviewFlight widget from view."),
+			Test.TestTrue(TEXT("The layer host reports the attached widget as visible."),
+				LayerHost->IsDefinitionVisible(DefinitionId));
+
+			PreviewFlightWidget->RemoveFromParent();
+			const TSharedRef<SWidget> DetachedSlateWidget = PreviewFlightWidget->TakeWidget();
+			PreviewFlightWidget->SetVisibility(ESlateVisibility::Visible);
+			Test.TestTrue(TEXT("The stale persistent widget retains Visible slate visibility."),
 				PreviewFlightWidget->IsVisible());
+			Test.TestFalse(TEXT("The stale persistent widget is detached from the viewport."),
+				PreviewFlightWidget->IsInViewport());
+			Test.TestFalse(TEXT("A detached persistent widget is not definition-visible."),
+				LayerHost->IsDefinitionVisible(DefinitionId));
+
+			UUserWidget* RecreatedWidget = LayerHost->ShowDefinition(DefinitionId);
+			if (!Test.TestNotNull(TEXT("ShowDefinition recreates a detached persistent widget."),
+				RecreatedWidget))
+			{
+				return true;
+			}
+			Test.TestTrue(TEXT("The recreated widget uses a new viewport instance."),
+				RecreatedWidget != PreviewFlightWidget);
+			Test.TestTrue(TEXT("The recreated widget is visible in the viewport."),
+				RecreatedWidget->IsInViewport() && RecreatedWidget->IsVisible());
+
+			LayerHost->HideDefinition(DefinitionId);
+			Test.TestFalse(TEXT("HideDefinition removes the PreviewFlight widget from view."),
+				LayerHost->IsDefinitionVisible(DefinitionId));
 			return true;
 		}
 

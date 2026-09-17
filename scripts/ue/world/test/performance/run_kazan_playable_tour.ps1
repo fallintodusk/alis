@@ -631,8 +631,8 @@ try {
     $developmentExecutableHash = (Get-FileHash -LiteralPath $developmentExecutable `
         -Algorithm SHA256).Hash.ToLowerInvariant()
     $hostLoad = Wait-PlayableTourHostIdle
-    $hostLoadMessage = '[i] Host load (diagnostic only): CPU {0:F1}%, ' +
-        'maximum NVIDIA GPU {1:F1}%; fixed p95 budget 16.670 ms.'
+    $hostLoadMessage = '[i] Host load acceptance precondition: CPU {0:F1}%, ' +
+        'maximum NVIDIA GPU {1:F1}%; the fixed product budget is unchanged.'
     Write-Host ($hostLoadMessage -f $hostLoad.cpu_percent, $hostLoad.gpu_percent)
     $developmentChildren = [Collections.Generic.List[object]]::new()
     $developmentExitCodes = [Collections.Generic.List[int]]::new()

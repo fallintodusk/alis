@@ -270,6 +270,8 @@ function New-ProjectWorldPerformanceAggregate {
         }
     }
     $frameP95BudgetMilliseconds = 16.67
+    $hostLoadPercent = [Math]::Max($HostCpuLoadPercent, $HostGpuLoadPercent)
+    $hostLoadAllowancePercent = 0.0
 
     if ($Children.Count -ne 3) {
         throw 'Performance aggregation requires exactly three predetermined child runs.'
@@ -394,7 +396,6 @@ function New-ProjectWorldPerformanceAggregate {
 
     $pooled = Get-ProjectWorldPerformanceStatistics -Samples @($allSamples)
     $accepted = [double]$pooled.frame_p95_ms -le $frameP95BudgetMilliseconds
-    $hostLoadPercent = [Math]::Max($HostCpuLoadPercent, $HostGpuLoadPercent)
     return [pscustomobject][ordered]@{
         schema_version = 1
         status = if ($accepted) { 'accepted' } else { 'rejected' }
@@ -417,7 +418,7 @@ function New-ProjectWorldPerformanceAggregate {
         host_cpu_load_percent = $HostCpuLoadPercent
         host_gpu_load_percent = $HostGpuLoadPercent
         host_load_percent = $hostLoadPercent
-        host_load_allowance_percent = 0.0
+        host_load_allowance_percent = $hostLoadAllowancePercent
         frame_p95_budget_ms = $frameP95BudgetMilliseconds
         children = @($childEvidence)
         total_sample_count = $pooled.sample_count

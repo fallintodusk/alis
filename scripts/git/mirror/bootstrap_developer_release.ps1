@@ -34,11 +34,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($Destination)) {
-    $DefaultParent = if ((Split-Path -Leaf $DeveloperRoot) -ieq "developer") {
-        $Parent
-    } else {
-        $DeveloperRoot
-    }
+    $DefaultParent = Split-Path -Parent $ReleaseRoot
     $DefaultDestination = Join-Path $DefaultParent ("Alis-" + $Manifest.public_source.tag)
     $Answer = Read-Host "Developer checkout location [$DefaultDestination] (press Enter to accept)"
     $Destination = if ([string]::IsNullOrWhiteSpace($Answer)) { $DefaultDestination } else { $Answer }
@@ -48,29 +44,38 @@ if (Test-Path -LiteralPath $Destination) {
     throw "Developer checkout destination already exists: $Destination"
 }
 
-& git -c core.longpaths=true -c advice.detachedHead=false clone --quiet --branch $Manifest.public_source.tag --depth 1 $RepositoryUrl $Destination
-if ($LASTEXITCODE -ne 0) {
-    throw "Unable to clone the exact ALIS release tag."
-}
-& git -C $Destination config core.longpaths true
-if ($LASTEXITCODE -ne 0) {
-    throw "Unable to persist Git long-path support in the developer checkout."
-}
-$Revision = (& git -C $Destination rev-parse HEAD 2>$null | Out-String).Trim().ToLowerInvariant()
-if ($LASTEXITCODE -ne 0 -or $Revision -ne ([string]$Manifest.public_source.revision).ToLowerInvariant()) {
-    throw "Cloned developer source revision does not match the signed payload."
-}
-$TrustedInstaller = Join-Path $Destination "scripts\git\mirror\install_developer_payload.ps1"
-if (-not (Test-Path -LiteralPath $TrustedInstaller -PathType Leaf)) {
-    throw "Trusted checkout-local developer installer is missing."
-}
-& $TrustedInstaller `
-    -ProjectRoot $Destination `
-    -ReleaseDir $ReleaseRoot `
-    -ManifestPath $ManifestPath `
-    -RequireReleaseSignature
-if ($LASTEXITCODE -ne 0) {
-    throw "Developer payload installation failed."
+$OwnsDestination = $false
+try {
+    & git -c core.longpaths=true -c advice.detachedHead=false clone --quiet --branch $Manifest.public_source.tag --depth 1 $RepositoryUrl $Destination
+    $OwnsDestination = Test-Path -LiteralPath $Destination -PathType Container
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to clone the exact ALIS release tag."
+    }
+    & git -C $Destination config core.longpaths true
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to persist Git long-path support in the developer checkout."
+    }
+    $Revision = (& git -C $Destination rev-parse HEAD 2>$null | Out-String).Trim().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0 -or $Revision -ne ([string]$Manifest.public_source.revision).ToLowerInvariant()) {
+        throw "Cloned developer source revision does not match the signed payload."
+    }
+    $TrustedInstaller = Join-Path $Destination "scripts\git\mirror\install_developer_payload.ps1"
+    if (-not (Test-Path -LiteralPath $TrustedInstaller -PathType Leaf)) {
+        throw "Trusted checkout-local developer installer is missing."
+    }
+    & $TrustedInstaller `
+        -ProjectRoot $Destination `
+        -ReleaseDir $ReleaseRoot `
+        -ManifestPath $ManifestPath `
+        -RequireReleaseSignature
+    if ($LASTEXITCODE -ne 0) {
+        throw "Developer payload installation failed."
+    }
+} catch {
+    if ($OwnsDestination -and (Test-Path -LiteralPath $Destination)) {
+        Remove-Item -LiteralPath $Destination -Recurse -Force
+    }
+    throw
 }
 
 Write-Host "[OK] ALIS developer project installed: $Destination"

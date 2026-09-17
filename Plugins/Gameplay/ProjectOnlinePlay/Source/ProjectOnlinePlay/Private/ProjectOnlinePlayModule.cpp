@@ -4,7 +4,6 @@
 
 void FProjectOnlinePlayModule::StartupModule()
 {
-	// Stub: will contain GameMode for online multiplayer
 }
 
 void FProjectOnlinePlayModule::ShutdownModule()

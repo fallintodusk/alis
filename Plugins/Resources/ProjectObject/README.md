@@ -316,7 +316,7 @@ Expected response:
 2. Fix the reported failing property in JSON or tag registration.
 3. Re-place actor from Project Placement (do not keep partially-configured old instance).
 
-**Architecture:** See [Flexible Path Pattern](../../../docs/architecture/flexible_path.md)
+**Architecture:** See [Asset identity](../../Foundation/ProjectCore/docs/architecture/asset_identity.md).
 
 ### Definition Update System (Auto-Update When JSON Changes)
 
@@ -357,15 +357,6 @@ Follow the pattern:
 4. Compose capability components as needed
 5. Register in [ProjectPlacementEditor](../../Editor/ProjectPlacementEditor/README.md)
 6. Add interaction handling in appropriate Features plugin
-
-## Legacy Paths
-
-Code marker format:
-- `// LEGACY_OBJECT_PARENT_GENERALIZATION(L###): <reason>. Remove when <condition>.`
-
-| Legacy ID | Location | Why It Exists | Remove Trigger |
-|-----------|----------|---------------|----------------|
-| `L001` | `Source/ProjectObject/Private/Spawning/ObjectSpawnUtility.cpp` (`SpawnObjectFromDefinitionInternal`) | Keep fallback spawn behavior for definitions without `spawnClass` | Remove when all targeted definitions use explicit parent/host path and fallback-free smoke tests pass |
 
 ## References
 

@@ -17,8 +17,10 @@ Use this doc for:
 Packaging success is not public-distribution approval. Before uploading a
 packaged Product, satisfy the
 [Packaged Product Legal Compliance](../legal/release_compliance.md) gate.
-The release operator uses only `make release` and `make mirror`; `RTAG` is the
-explicit switch from generic mirroring to reviewed release publication.
+The release operator uses `make release` and `make mirror` for GitHub. The
+optional `make publish itch` command distributes the already signed game;
+`RTAG` remains the explicit switch from generic mirroring to reviewed source
+publication.
 
 1. Start or resume the automated local release without signing:
    ```powershell
@@ -32,9 +34,9 @@ explicit switch from generic mirroring to reviewed release publication.
    fresh candidate. If the exact default output contains a
    matching pending unsigned release from an obsolete layout, the command
    removes it and continues from fresh output.
-2. Review the flat public asset set, including `README.txt`, the Player archives,
-   Developer payload, and bundled Product terms. Machine reports remain outside
-   the upload directory.
+2. Review `tmp/release/v2.0.0/game/` as the directly runnable game and
+   `tmp/release/v2.0.0/github/` as the exact flat GitHub upload inventory.
+   Machine reports remain outside `github/`.
 3. From native Windows, run the explicit reviewed release publication command:
    ```powershell
    make mirror RTAG=v2.0.0
@@ -43,14 +45,38 @@ explicit switch from generic mirroring to reviewed release publication.
    the maintainer's SSH identity, then requires remote `main` and `v2.0.0` to
    resolve to that commit. An existing identical remote tag is an idempotent
    success; a conflicting tag fails closed and is never moved.
-4. Finalize the same content with `make release 2.0.0`. That command is the
+4. Finalize the same workspace with `make release 2.0.0`. That command is the
    explicit Product/terms/rights approval action. It refuses a changed public
-   Git tree, rebinds revision-only metadata when the tree is identical, and
-   passes the only interactive prompt directly to GPG.
+   Git tree, adds signed verification material to `game/`, rebuilds only the
+   affected Player archive, signs the flat `github/` inventory, verifies both
+   projections, and passes the only interactive prompt directly to GPG.
 5. Ensure GitHub release immutability is enabled for the repository. Create a
-   draft release, upload every signed file from `tmp/release/v2.0.0/`, compare
+   draft release, upload every signed file from `tmp/release/v2.0.0/github/`, compare
    each uploaded asset digest covered by `SHA256SUMS.txt`, and then publish the
    draft. Neither command uploads or publishes release assets.
+6. Publish the same signed game directory to the ALIS itch project:
+   ```powershell
+   make publish itch
+   ```
+   Add `PUBLISH_VERSION=2.0.0` only to select an older non-default workspace.
+   `ITCH_TARGET=user/game` overrides the project default when intentionally
+   publishing to another destination.
+   This command does not build, sign, mirror, or modify the retained release.
+
+For an itch-only release, the reviewed local candidate does not depend on the
+GitHub source tag. After steps 1 and 2, sign only the retained game projection:
+
+```powershell
+make release 2.0.0 TARGET=game
+make publish itch
+```
+
+`TARGET=game` requires the existing reviewed workspace, never builds, and does
+not read a GitHub remote or tag. It records approval for game distribution,
+signs and verifies `game/`, and does not refresh Player archives or sign the
+GitHub projection. Its local release manifest records that bounded approval;
+it cannot later become a full GitHub release from the same workspace. A full
+release requires a newly prepared and reviewed workspace.
 
 `make package` remains the lower-level Shipping package/archive command. It
 does not approve or sign a release.
@@ -63,6 +89,7 @@ Primary script:
 - `scripts/ue/package/package_release.ps1`
 - `scripts/ue/package/sign_release.ps1`
 - `scripts/ue/package/verify_release.ps1`
+- `scripts/ue/package/publish_itch.ps1`
 
 Windows wrapper:
 
@@ -82,7 +109,8 @@ Script behavior:
 - defaults to a `1900 MiB` split threshold, leaving `148 MiB` below GitHub's
   `2 GiB` per-asset limit while maximizing payload capacity per part; reduce it
   only for a demonstrated transport constraint
-- signing script writes `SHA256SUMS.txt` and `SHA256SUMS.txt.asc`
+- signing writes recursive game verification under `game/Verification/` and
+  flat GitHub verification under `github/`
 - signing script exports the selected signing key's public half as `ALIS_PUBLIC_KEY.asc` before hashing
 - unsigned preparation writes one self-contained `README.txt` for both roles
   before owner review
@@ -169,8 +197,8 @@ Important implementation note:
 ## Recommended Public Release Flow
 
 1. Run `make release 2.0.0 RELEASE_SIGN=0`; it creates all machine-owned inputs.
-2. Review the exact flat unsigned folder, including its packaged Product,
-   Developer payload, release README, and Product terms.
+2. Run and inspect the exact unsigned `game/`, then review the exact flat
+   `github/` projection including its Developer payload, README, and terms.
 3. Commit/freeze the reviewed tracked source without changing the reviewed
    public tree. Any public content drift returns to step 1.
 4. From native Windows, run `make mirror RTAG=v2.0.0` after the explicit
@@ -178,8 +206,9 @@ Important implementation note:
    source commit on `main` and the matching immutable tag.
 5. Run `make release 2.0.0`. The command invocation approves the exact prepared
    Product, terms, and rights, proves the final public tree is unchanged, signs
-   once, and consumer-verifies the same release content. Only GPG prompts.
-6. Upload only the signed files after explicit remote authorization.
+   both projections in one finalization pass, and consumer-verifies both. Only
+   GPG prompts.
+6. Upload only the files under `github/` after explicit remote authorization.
 
 ## User Experience
 
@@ -366,11 +395,17 @@ Approve, sign, and consumer-verify that exact prepared folder:
 make release 2.0.0
 ```
 
+Publish the highest local signed game workspace to the ALIS itch project:
+
+```powershell
+make publish itch
+```
+
 Verify release artifacts:
 
 ```powershell
 .\scripts\ue\package\verify_release.ps1 `
-  -ReleaseDir tmp\release\v2.0.0
+  -ReleaseDir tmp\release\v2.0.0\github
 ```
 
 Package into an explicit directory:
@@ -453,15 +488,17 @@ Use the published ALIS public key and verify SHA256SUMS.txt.asc before installat
 
 Generated release helper:
 
-- `prepare_release.py` writes one root Quick Start into the unsigned review
-  directory
+- `prepare_release.py` writes one Quick Start into the flat `github/` review
+  projection
 - `README.txt` owns the release overview, version highlights, and complete
   minimal instructions for both roles
-- `ALIS_PUBLIC_KEY.asc` is exported from the selected signing key into the release directory
-- `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` are also written into the release directory by `sign_release.ps1`
+- `ALIS_PUBLIC_KEY.asc`, `VERIFY_RELEASE.ps1`, and `VERIFY_RELEASE.bat` are
+  written into `github/`; the runnable game keeps its equivalents under
+  `game/Verification/` plus root `VERIFY_ALIS.bat`
 - the key, README, optional installers, and verification helpers are included
   in `SHA256SUMS.txt` and covered by the detached signature
-- `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` are present in the release root but are not entries in the manifest
+- each projection's checksum manifest and detached signature are protocol
+  envelopes and do not hash themselves
 
 ## Validation Checklist
 
@@ -486,6 +523,8 @@ Generated release helper:
 - manifest contains no self-hash or detached-signature entry
 - published tags and their existing assets were not mutated; corrections use a new release identity
 - release notes point to `https://fall.is/trust/` and `https://fall.is/assets/security/public-key.asc`
+- itch publication reads back the exact channel/version after Butler accepts
+  the upload
 
 ## Troubleshooting
 
@@ -513,5 +552,7 @@ Generated release helper:
 - Git LFS and Pages note: <https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-git-large-file-storage>
 - Unreal chunking overview: <https://dev.epicgames.com/documentation/en-us/unreal-engine/cooking-content-and-creating-chunks-in-unreal-engine>
 - Unreal preparing assets for chunking: <https://dev.epicgames.com/documentation/en-us/unreal-engine/preparing-assets-for-chunking-in-unreal-engine>
+- Butler installation: <https://itch.io/docs/butler/installing.html>
+- Butler push command: <https://itch.io/docs/butler/pushing.html>
 - Unreal packaging settings API: <https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Developer/DeveloperToolSettings/UProjectPackagingSettings>
 - Unreal packaging settings page: <https://dev.epicgames.com/documentation/en-us/unreal-engine/project-section-of-the-unreal-engine-project-settings>

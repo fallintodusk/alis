@@ -163,12 +163,9 @@ void FOrchestratorCoreModule::ShutdownModule()
 
 bool FOrchestratorCoreModule::ReadLauncherContext()
 {
-	UE_LOG(LogOrchestrator, Log, TEXT("Reading Launcher IPC context..."));
+	UE_LOG(LogOrchestrator, Log, TEXT("Materializing local development boot context..."));
 
-	// TODO: Implement actual IPC reading from named pipe
-	// For now, use fallback paths for development
-
-	// Dev mode fallback: Use local appdata paths
+	// No external Launcher transport is implemented in this repository.
 	LauncherContext.InstallPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
 	LauncherContext.ManifestPath = FProjectPaths::GetPluginDataDir(TEXT("Orchestrator")) / TEXT("dev_manifest.json");
 	LauncherContext.EngineBuildId = FApp::GetBuildVersion();
@@ -183,7 +180,7 @@ bool FOrchestratorCoreModule::ReadLauncherContext()
 
 void FOrchestratorCoreModule::Initialize()
 {
-	UE_LOG(LogOrchestrator, Log, TEXT("=== Orchestrator Initialize (Launcher-driven boot) ==="));
+	UE_LOG(LogOrchestrator, Log, TEXT("=== Orchestrator Initialize ==="));
 	UE_LOG(LogOrchestrator, Log, TEXT("  InstallPath: %s"), *LauncherContext.InstallPath);
 	UE_LOG(LogOrchestrator, Log, TEXT("  EngineBuildId: %s"), *LauncherContext.EngineBuildId);
 

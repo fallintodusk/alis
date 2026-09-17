@@ -645,7 +645,7 @@ namespace ObjectSectionIds
  *
  * Consumed by UProjectObjectActorFactory to spawn fully-configured actors.
  *
- * Architecture: [flexible_path.md] - Pattern A (DataAssets)
+ * Architecture: Plugins/Foundation/ProjectCore/docs/architecture/asset_identity.md
  */
 UCLASS(BlueprintType)
 class PROJECTOBJECT_API UObjectDefinition : public UPrimaryDataAsset, public IItemDataProvider

@@ -241,14 +241,10 @@ Expected: settings root created once and reused across navigation.
 - Inventory container rendering must follow the contract in `Plugins/Features/ProjectInventory/docs/design_vision.md`.
 - Keep this doc as a routing note only; do not duplicate the contract here.
 
-### Integration with CI
-
-Add to overnight run or pre-commit:
+### Focused layout check
 
 ```powershell
-# In scripts/autonomous/claude/overnight/main.ps1
 .\scripts\ue\test\ui\check_inventory_layout.ps1
-if ($LASTEXITCODE -ne 0) { throw "UI layout issues detected" }
 ```
 
 ---

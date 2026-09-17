@@ -750,6 +750,9 @@ def verify_release_manifest(root: Path, require_ready: bool = False) -> dict[str
         raise ReleaseError(f"Unsupported release manifest status: {expected!r}")
     if require_ready:
         require_equal(manifest.get("status"), "ready_for_signature", "release readiness")
+        approval_scope = manifest.get("approval_scope", "full")
+        if approval_scope not in {"full", "game"}:
+            raise ReleaseError(f"Unsupported release approval scope: {approval_scope!r}")
         product = manifest.get("product_review")
         if not isinstance(product, dict) or product.get("status") != "accepted":
             raise ReleaseError("Release Product review is not accepted")
@@ -761,9 +764,11 @@ def verify_release_manifest(root: Path, require_ready: bool = False) -> dict[str
     return manifest
 
 
-def approve_release(root: Path, approve: bool) -> Path:
+def approve_release(root: Path, approve: bool, approval_scope: str = "full") -> Path:
     if not approve:
         raise ReleaseError("Owner approval requires the explicit approval flag")
+    if approval_scope not in {"full", "game"}:
+        raise ReleaseError(f"Unsupported release approval scope: {approval_scope!r}")
     manifest_path = root / "release_manifest.json"
     manifest = verify_release_manifest(root)
     require_equal(manifest.get("status"), "pending_owner_approval", "release approval state")
@@ -779,6 +784,7 @@ def approve_release(root: Path, approve: bool) -> Path:
         "product_terms_sha256": terms["sha256"],
         "unresolved_count": 0,
         "review_role": "release_owner",
+        "approval_scope": approval_scope,
     }
     rights_path = root / "release-rights-review.json"
     if rights_path.exists():
@@ -801,6 +807,7 @@ def approve_release(root: Path, approve: bool) -> Path:
         "status": "accepted",
         "evidence": "owner approval of the exact prepared release directory",
     }
+    manifest["approval_scope"] = approval_scope
     manifest["status"] = "ready_for_signature"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     verify_release_manifest(root, require_ready=True)
@@ -815,25 +822,25 @@ def resolve_7zip(requested: str | None) -> str:
     raise ReleaseError("7-Zip was not found; pass --seven-zip")
 
 
-def archive_player(package_root: Path, output: Path, version: str, split_size_mib: int, seven_zip: str | None) -> Path:
-    package_root = package_root.resolve()
+def archive_game(game_root: Path, output: Path, version: str, split_size_mib: int, seven_zip: str | None,
+                 package_root: Path | None = None) -> Path:
+    game_root = game_root.resolve()
     if not 1 <= split_size_mib <= MAX_RELEASE_PART_SIZE_MIB:
         raise ReleaseError(
             f"Player archive split size must be between 1 and {MAX_RELEASE_PART_SIZE_MIB} MiB"
         )
-    windows = package_root / "Windows"
-    if not windows.is_dir():
-        raise ReleaseError(f"Accepted player package has no Windows directory: {package_root}")
+    if not game_root.is_dir():
+        raise ReleaseError(f"Game directory is missing: {game_root}")
     if output.exists():
         raise ReleaseError(f"Player archive output must not exist: {output}")
     output.mkdir(parents=True)
-    executable = list(windows.glob("Alis/Binaries/Win64/Alis-Win64-Shipping.exe"))
+    executable = list(game_root.glob("Alis/Binaries/Win64/Alis-Win64-Shipping.exe"))
     if len(executable) != 1:
         shutil.rmtree(output, ignore_errors=True)
         raise ReleaseError("Accepted player package must contain exactly one Shipping executable")
     tool = resolve_7zip(seven_zip)
     base = output / f"ALIS_Win64_v{normalize_version(version)}.zip"
-    command = [tool, "a", "-tzip", f"-v{split_size_mib}m", str(base), str(windows / "*")]
+    command = [tool, "a", "-tzip", f"-v{split_size_mib}m", str(base), str(game_root / "*")]
     result = subprocess.run(command, check=False)
     if result.returncode != 0:
         shutil.rmtree(output, ignore_errors=True)
@@ -854,17 +861,27 @@ def archive_player(package_root: Path, output: Path, version: str, split_size_mi
         shutil.rmtree(output, ignore_errors=True)
         raise ReleaseError(f"7-Zip archive verification failed with exit code {test.returncode}")
     report = {
-        "schema": "alis-player-archive-v1",
+        "schema": "alis-player-archive-v1" if package_root else "alis-game-archive-v1",
         "status": "accepted",
-        "package_tree_sha256": package_tree_digest(package_root),
+        "game_tree_sha256": package_tree_digest(game_root),
         "parts": [
             {"name": part.name, "byte_size": part.stat().st_size, "sha256": sha256_file(part)}
             for part in parts
         ],
     }
+    if package_root:
+        report["package_tree_sha256"] = package_tree_digest(package_root)
     report_path = output / "player-archive.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report_path
+
+
+def archive_player(package_root: Path, output: Path, version: str, split_size_mib: int, seven_zip: str | None) -> Path:
+    package_root = package_root.resolve()
+    windows = package_root / "Windows"
+    if not windows.is_dir():
+        raise ReleaseError(f"Accepted player package has no Windows directory: {package_root}")
+    return archive_game(windows, output, version, split_size_mib, seven_zip, package_root)
 
 
 def main() -> int:
@@ -876,6 +893,12 @@ def main() -> int:
     archive.add_argument("--release-version", required=True)
     archive.add_argument("--split-size-mib", type=int, default=DEFAULT_RELEASE_PART_SIZE_MIB)
     archive.add_argument("--seven-zip")
+    game_archive = commands.add_parser("archive-game")
+    game_archive.add_argument("--game-root", type=Path, required=True)
+    game_archive.add_argument("--output-dir", type=Path, required=True)
+    game_archive.add_argument("--release-version", required=True)
+    game_archive.add_argument("--split-size-mib", type=int, default=DEFAULT_RELEASE_PART_SIZE_MIB)
+    game_archive.add_argument("--seven-zip")
     prepare = commands.add_parser("prepare")
     prepare.add_argument("--release-version", required=True)
     prepare.add_argument("--release-tag", required=True)
@@ -896,6 +919,7 @@ def main() -> int:
     approve = commands.add_parser("approve")
     approve.add_argument("--release-dir", type=Path, required=True)
     approve.add_argument("--approve-product-terms-and-rights", action="store_true")
+    approve.add_argument("--approval-scope", choices=("full", "game"), default="full")
     verify = commands.add_parser("verify")
     verify.add_argument("--release-dir", type=Path, required=True)
     verify.add_argument("--require-ready", action="store_true")
@@ -913,6 +937,8 @@ def main() -> int:
             return 0
         if args.command == "archive-player":
             result = archive_player(args.package_root, args.output_dir, args.release_version, args.split_size_mib, args.seven_zip)
+        elif args.command == "archive-game":
+            result = archive_game(args.game_root, args.output_dir, args.release_version, args.split_size_mib, args.seven_zip)
         elif args.command == "prepare":
             inputs = ReleaseInputs(
                 args.release_version,
@@ -935,7 +961,11 @@ def main() -> int:
             archives = [archive_report.parent / item["name"] for item in report.get("parts", [])]
             result = prepare_release(inputs, args.output_dir, archives, archive_report)
         elif args.command == "approve":
-            result = approve_release(args.release_dir, args.approve_product_terms_and_rights)
+            result = approve_release(
+                args.release_dir,
+                args.approve_product_terms_and_rights,
+                args.approval_scope,
+            )
         else:
             verify_release_manifest(args.release_dir, args.require_ready)
             result = args.release_dir / "release_manifest.json"

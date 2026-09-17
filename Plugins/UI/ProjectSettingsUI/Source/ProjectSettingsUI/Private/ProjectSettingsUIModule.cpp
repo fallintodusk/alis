@@ -7,7 +7,6 @@
 
 void FProjectSettingsUIModule::StartupModule()
 {
-	// Stub: will contain settings screens
 }
 
 void FProjectSettingsUIModule::ShutdownModule()

@@ -10,8 +10,15 @@ $Seed = Join-Path $TestRoot "seed"
 $ReleaseRoot = Join-Path $TestRoot "release"
 $DeveloperRoot = Join-Path $ReleaseRoot "developer"
 $Destination = Join-Path $TestRoot "installed"
+$DefaultDestination = Join-Path $TestRoot "Alis-v9.8.7"
 
 New-Item -ItemType Directory -Path (Join-Path $Seed "scripts\git\mirror"), $DeveloperRoot -Force | Out-Null
+
+function Read-Host {
+    param([string]$Prompt)
+
+    return ""
+}
 
 try {
     $BootstrapSource = Get-Content -LiteralPath (Join-Path $MirrorDir "bootstrap_developer_release.ps1") -Raw
@@ -28,6 +35,7 @@ param(
     [switch]$RequireReleaseSignature
 )
 if (-not $RequireReleaseSignature) { throw "signature was not required" }
+if ($env:ALIS_TEST_BOOTSTRAP_FAIL -eq "1") { throw "fixture install failure" }
 "$ReleaseDir|$ManifestPath" | Set-Content -LiteralPath (Join-Path $ProjectRoot "bootstrap-invocation.txt") -Encoding Ascii
 '@ | Set-Content -LiteralPath (Join-Path $Seed "scripts\git\mirror\install_developer_payload.ps1") -Encoding Ascii
     & git -C $Seed init -q
@@ -49,6 +57,14 @@ if (-not $RequireReleaseSignature) { throw "signature was not required" }
     "fixture" | Set-Content -LiteralPath (Join-Path $ReleaseRoot "SHA256SUMS.txt.asc") -Encoding Ascii
     Copy-Item -LiteralPath (Join-Path $MirrorDir "bootstrap_developer_release.ps1") -Destination (Join-Path $DeveloperRoot "INSTALL_ALIS_DEVELOPER.ps1")
 
+    & (Join-Path $DeveloperRoot "INSTALL_ALIS_DEVELOPER.ps1") -RepositoryUrl $Seed
+    if (-not (Test-Path -LiteralPath (Join-Path $DefaultDestination "bootstrap-invocation.txt") -PathType Leaf)) {
+        throw "Developer bootstrap default destination must be beside, not inside, the release directory."
+    }
+    if (Test-Path -LiteralPath (Join-Path $ReleaseRoot "Alis-v9.8.7")) {
+        throw "Developer bootstrap contaminated its release directory."
+    }
+
     & (Join-Path $DeveloperRoot "INSTALL_ALIS_DEVELOPER.ps1") -Destination $Destination -RepositoryUrl $Seed
     $Invocation = Join-Path $Destination "bootstrap-invocation.txt"
     if (-not (Test-Path -LiteralPath $Invocation -PathType Leaf)) {
@@ -57,6 +73,21 @@ if (-not $RequireReleaseSignature) { throw "signature was not required" }
     $ExpectedInvocation = "$ReleaseRoot|$(Join-Path $DeveloperRoot 'fixture.developer-payload.json')"
     if ((Get-Content -LiteralPath $Invocation -Raw).Trim() -cne $ExpectedInvocation) {
         throw "Developer bootstrap passed the wrong release boundary to the trusted installer."
+    }
+
+    $FailedDestination = Join-Path $TestRoot "failed-install"
+    $InstallFailureRejected = $false
+    $env:ALIS_TEST_BOOTSTRAP_FAIL = "1"
+    try {
+        & (Join-Path $DeveloperRoot "INSTALL_ALIS_DEVELOPER.ps1") `
+            -Destination $FailedDestination -RepositoryUrl $Seed
+    } catch {
+        $InstallFailureRejected = $_.Exception.Message -like "*fixture install failure*"
+    } finally {
+        Remove-Item Env:\ALIS_TEST_BOOTSTRAP_FAIL -ErrorAction SilentlyContinue
+    }
+    if (-not $InstallFailureRejected -or (Test-Path -LiteralPath $FailedDestination)) {
+        throw "Developer bootstrap did not remove its failed checkout."
     }
 
     Remove-Item -LiteralPath (Join-Path $ReleaseRoot "SHA256SUMS.txt.asc") -Force

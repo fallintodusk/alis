@@ -1,55 +1,24 @@
 # Testing
 
-Public testing router for ALIS.
+Testing is routed by the boundary being accepted, not by a desire to run the
+largest available suite.
 
-Use this section to understand which tests exist, when to run them, and where the main automation entry points live.
+| Need | Owner |
+|---|---|
+| Iterate on one exact Unreal automation test | [Unit and focused tests](unit_tests.md) |
+| Verify a cross-component contract | [Integration tests](integration_tests.md) |
+| Check a critical boot or packaged route | [Smoke tests](smoke_tests.md) |
+| Understand dispatch, filters, and reports | [Automation](automation.md) |
+| Select a World pipeline evidence layer | [World pipeline layers](world_pipeline_layers.md) |
+| Inspect UI state for an agent | [UE inspection](agent_ue_inspection.md) |
+| Verify character parity | [Character parity](character_parity.md) |
+| Diagnose failures | [Troubleshooting](troubleshooting.md) |
 
-## Decision Guide
-
-If you need:
-- world-pipeline test level selection -> [world_pipeline_layers.md](world_pipeline_layers.md)
-- a fast health check -> [smoke_tests.md](smoke_tests.md)
-- multi-system validation -> [integration_tests.md](integration_tests.md)
-- isolated logic verification -> [unit_tests.md](unit_tests.md)
-- automation pipeline details -> [automation.md](automation.md)
-- UI dump and agent-readable inspection -> [agent_ue_inspection.md](agent_ue_inspection.md)
-- character and animation debug automation -> [character_parity.md](character_parity.md)
-- debugging and manual verification notes -> [troubleshooting.md](troubleshooting.md)
-
-## Test Layers
-
-### Smoke tests
-
-Critical-path health checks for boot and basic usability.
-
-- Docs: [smoke_tests.md](smoke_tests.md)
-- Typical command: `scripts/ue/test/smoke/boot_test.bat`
-
-### Integration tests
-
-Cross-plugin and cross-system validation.
-
-- Docs: [integration_tests.md](integration_tests.md)
-- Typical command: `scripts/ue/test/integration/autonomous_boot_test.bat`
-- Main integration test plugin: `Plugins/Test/ProjectIntegrationTests/`
-
-### Unit tests
-
-Fast, isolated verification for plugin or subsystem logic.
-
-- Docs: [unit_tests.md](unit_tests.md)
-- Typical command: `scripts/ue/test/test.bat --unit`
-
-## Common Commands
+Normal development runs one exact test:
 
 ```powershell
-.\scripts\ue\test\test.bat --unit
-.\scripts\ue\test\test.bat --integration
-.\scripts\ue\test\smoke\boot_test.bat
+.\scripts\ue\test\unit\iterate.ps1 -TestFilter "Project.Full.Exact.Test.Name"
 ```
 
-## Related Public Routes
-
-- Scripts router: [../../scripts/README.md](../../scripts/README.md)
-- Test scripts: [../../scripts/ue/test/README.md](../../scripts/ue/test/README.md)
-- Build router: [../build/README.md](../build/README.md)
+Broad filters, tags, suites, and matrices are acceptance gates. Use them only
+with the explicit gate mode described in [Automation](automation.md).

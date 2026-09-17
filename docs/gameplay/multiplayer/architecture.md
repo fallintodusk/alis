@@ -25,5 +25,3 @@ This document outlines how the upcoming multiplayer stack fits into the existing
 2. **Loading subsystem hooks** - `OnTravelRequested`, matchmaking gating, host migration helpers.  
 3. **Lobby UI** - roster/ready panels, invite & matchmaking UI, null-backend fallbacks.  
 4. **Validation** - unit tests (mock OSS), functional Null backend runs, GAuntlet scenario, telemetry capture.
-
-See `../../../todo/create_multiplayer.md` for the actionable checklist.

@@ -50,7 +50,7 @@ C++ actor classes - click button to spawn:
 - Capabilities resolved via [FCapabilityRegistry](../../Gameplay/ProjectObjectCapabilities/Source/ProjectObjectCapabilities/Public/CapabilityRegistry.h) (CDO scan)
 - Asset resolution: stable ID via `GetPrimaryAssetId()`, folder path is for browsing only
 
-**Architecture:** See [Flexible Path Pattern](../../../docs/architecture/flexible_path.md) for ID-based asset resolution.
+**Architecture:** See [Asset identity](../../Foundation/ProjectCore/docs/architecture/asset_identity.md) for ID-based asset resolution.
 
 **Thumbnail mechanics:** See [Thumbnail Mechanics](docs/thumbnail_mechanics.md) for engine interaction details, cache strategy, and troubleshooting.
 
@@ -91,7 +91,9 @@ When spawning actors, the factory enables auto-update when JSON changes:
 
 This supports the two-tier update system:
 - **Reapply**: Property/transform changes update in-place (preserves references)
-- **Replace**: Structural changes (meshes/capabilities added/removed) respawn actor
+- **Replace**: Interactive and passive structural changes (meshes or capabilities
+  added/removed) respawn the actor. Batch PreSave currently reports structural
+  mismatches instead of replacing the actor.
 
 See [ProjectObject README](../../Resources/ProjectObject/README.md#definition-update-system-auto-update-when-json-changes) for details.
 
@@ -152,15 +154,6 @@ Automatically synchronizes placed world actors when their definitions are modifi
 - `ProjectObjectCapabilities` - FCapabilityRegistry
 - `ProjectEditorCore` - FDefinitionEvents delegate for decoupled pub/sub
 - `GameplayTags` - FGameplayTag property special-case in SetPropertyByName
-
-## Legacy Paths
-
-Code marker format:
-- `// LEGACY_OBJECT_PARENT_GENERALIZATION(L###): <reason>. Remove when <condition>.`
-
-| Legacy ID | Location | Why It Exists | Remove Trigger |
-|-----------|----------|---------------|----------------|
-| _(none active)_ | n/a | Sync discovery now uses host abstraction instead of `AProjectWorldActor` iteration | n/a |
 
 ## References
 

@@ -77,6 +77,37 @@ identity.
 
 Official basis: [Epic GeoReferencing a Level](https://dev.epicgames.com/documentation/en-us/unreal-engine/georeferencing-a-level-in-unreal-engine).
 
+### Terrain elevation acceptance
+
+Landscape presence, component topology, package hashes, and edit-layer identity
+do not prove that the rendered terrain matches canonical elevation. A flat
+Landscape can satisfy every one of those structural checks.
+
+The Apply route therefore emits two independent evidence families:
+
+- `terrain_source_height_*` compares canonical samples with the realized
+  Generated Base edit-layer input.
+- `terrain_final_height_*` compares canonical samples with the final composed
+  Landscape heightmap that Unreal renders.
+
+Both evidence families must cover the complete expected sample set, report zero
+mismatches, stay within their recorded tolerance, carry a valid semantic
+SHA-256 identity, and remain stable across the first, incremental, and clean
+Matrix legs. Source-layer success cannot substitute for final-surface success.
+Final-surface reads use `ULandscapeComponent::GetHeightmap(FGuid())`;
+`FLandscapeEditDataInterface` with an invalid layer GUID is not a documented
+final-heightmap accessor.
+
+Static profile validation does not load a World and therefore produces no
+terrain-height acceptance evidence. Profiles without explicit topology and a
+realization route may assert Landscape structure only. GeoReferencing placement
+error is separate XY evidence and cannot establish terrain elevation.
+
+The executable acceptance rules live in
+[layered validation](../../../../tools/World/EndToEndValidation/app/layered_validation.py),
+with known-bad coverage in the
+[territory Matrix tests](../../../../tools/World/EndToEndValidation/tests/test_territory_matrix.py).
+
 Every accepted territory profile records its CRS pair, transform identity,
 georeference origin, lattice origin, vertical datum, source provenance, and
 declared accuracy. At least three non-collinear, named control points across
@@ -1250,11 +1281,10 @@ generation may recreate it.
 
 ### 5. Content integration decision
 
-Only after the generated territory passes visual, traversal, regeneration,
-and packaging gates are retained legacy references moved by content class.
-The accepted coexistence, per-class disposition, and retirement conditions
-are owned by [legacy_world_transition.md](legacy_world_transition.md). There
-is no blanket migration route.
+Generated territory is promoted only after it passes visual, traversal,
+regeneration, and packaging gates. Existing authored World content remains
+independently owned until a content-class migration has its own acceptance
+evidence. There is no blanket migration route.
 
 ## Acceptance
 

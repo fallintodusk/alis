@@ -12,11 +12,18 @@ from unittest import mock
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "prepare_release.py"
+WRAPPER = SCRIPT.with_suffix(".ps1")
+TEST_TMP = SCRIPT.parents[3] / "tmp/release/tests"
 SPEC = importlib.util.spec_from_file_location("prepare_release", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+REFRESH_SCRIPT = SCRIPT.with_name("refresh_github_release.py")
+REFRESH_SPEC = importlib.util.spec_from_file_location("refresh_github_release", REFRESH_SCRIPT)
+REFRESH = importlib.util.module_from_spec(REFRESH_SPEC)
+assert REFRESH_SPEC.loader
+REFRESH_SPEC.loader.exec_module(REFRESH)
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -45,7 +52,8 @@ def init_repo(path: Path, tag: str | None = None) -> tuple[str, str]:
 
 class PrepareReleaseTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temp = tempfile.TemporaryDirectory()
+        TEST_TMP.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=TEST_TMP)
         self.root = Path(self.temp.name)
         self.private = self.root / "private"
         self.public = self.root / "public"
@@ -218,6 +226,20 @@ class PrepareReleaseTests(unittest.TestCase):
 
         MODULE.verify_release_manifest(output, require_ready=True)
 
+    def test_game_only_approval_records_bounded_scope(self) -> None:
+        output = self.root / "release"
+        manifest_path = MODULE.prepare_release(
+            self.inputs(), output, [self.player_archive], self.archive_report
+        )
+
+        MODULE.approve_release(output, approve=True, approval_scope="game")
+
+        approved = json.loads(manifest_path.read_text(encoding="utf-8"))
+        rights = json.loads((output / "release-rights-review.json").read_text(encoding="utf-8"))
+        self.assertEqual("game", approved["approval_scope"])
+        self.assertEqual("game", rights["approval_scope"])
+        MODULE.verify_release_manifest(output, require_ready=True)
+
     def test_machine_accepted_candidate_prepares_reviewable_unsigned_release(self) -> None:
         evidence = self.root / "machine-acceptance.json"
         write_json(
@@ -365,6 +387,59 @@ class PrepareReleaseTests(unittest.TestCase):
             MODULE.archive_player(self.candidate, output, "2.0.0", 1900, None)
         self.assertFalse(output.exists())
 
+    def test_wrapper_creates_game_and_github_workspace_from_absent_output(self) -> None:
+        project_root = SCRIPT.parents[3]
+        release = self.root / "workspace"
+        evidence = self.root / "wrapper-machine-acceptance.json"
+        write_json(
+            evidence,
+            {
+                "schema_version": 1,
+                "status": "accepted",
+                "operation_id": "fixture-operation",
+                "revision": subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.strip(),
+                "source_state_sha256": MODULE.source_state_digest(project_root),
+                "final_package": self.candidate.as_posix(),
+                "shipping_package_sha256": MODULE.package_tree_digest(self.candidate),
+                "shipping_executable_sha256": MODULE.sha256_file(
+                    self.candidate / "Windows/Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
+                ),
+            },
+        )
+        result = subprocess.run(
+            [
+                "powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", str(WRAPPER),
+                "-ReleaseDir", str(release),
+                "-PublicSourceRoot", str(self.public),
+                "-PlayerPackageRoot", str(self.candidate),
+                "-PlayerEvidence", str(evidence),
+                "-DeveloperReleaseDir", str(self.developer),
+                "-DeveloperPayloadManifest", str(self.developer_manifest),
+                "-ComponentManifest", str(self.component),
+                "-DependencyReport", str(self.dependency),
+                "-PrivacyReport", str(self.privacy),
+                "-MapLoadReport", str(self.map_load),
+                "-AttributionNotice", str(self.attribution),
+                "-ProductTerms", str(self.terms),
+                "-ReleaseVersion", "2.0.0",
+                "-ReleaseTag", "v2.0.0",
+                "-SplitSizeMiB", "1",
+            ],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue((release / "game/Alis/Binaries/Win64/Alis-Win64-Shipping.exe").is_file())
+        self.assertTrue((release / "github/release_manifest.json").is_file())
+
     def test_dependency_rejection_fails_before_output(self) -> None:
         dependency = json.loads(self.dependency.read_text(encoding="utf-8"))
         dependency["status"] = "rejected"
@@ -480,6 +555,63 @@ class PrepareReleaseTests(unittest.TestCase):
         )
 
         self.assertEqual(MODULE.source_state_digest(repo), before_commit)
+
+    def test_signed_game_refreshes_only_player_transport_in_github_projection(self) -> None:
+        output = self.root / "github"
+        MODULE.prepare_release(self.inputs(), output, [self.player_archive], self.archive_report)
+        MODULE.approve_release(output, approve=True)
+        old_part = self.player_archive.name
+
+        game = self.root / "game"
+        verification = game / "Verification"
+        verification.mkdir(parents=True)
+        (game / "Alis.exe").write_bytes(b"game")
+        (verification / "SHA256SUMS.txt").write_bytes(b"game hashes")
+        (verification / "SHA256SUMS.txt.asc").write_bytes(b"game signature")
+        archive_dir = self.root / "signed-archive"
+        archive_dir.mkdir()
+        part = archive_dir / "ALIS_Win64_v2.0.0.zip.001"
+        part.write_bytes(b"signed game archive")
+        report_path = archive_dir / "player-archive.json"
+        write_json(
+            report_path,
+            {
+                "schema": "alis-game-archive-v1",
+                "status": "accepted",
+                "game_tree_sha256": MODULE.package_tree_digest(game),
+                "parts": [{
+                    "name": part.name,
+                    "byte_size": part.stat().st_size,
+                    "sha256": MODULE.sha256_file(part),
+                }],
+            },
+        )
+
+        refreshed = self.root / "refreshed"
+        REFRESH.refresh(output, refreshed, game, report_path)
+        self.assertFalse((refreshed / old_part).exists())
+        self.assertTrue((refreshed / part.name).is_file())
+        rendered_installer = (refreshed / "INSTALL_ALIS_PLAYER.ps1").read_text(encoding="utf-8")
+        self.assertIn('"schema":"alis-game-archive-v1"', rendered_installer)
+        manifest = MODULE.verify_release_manifest(refreshed, require_ready=True)
+        self.assertEqual(
+            MODULE.sha256_file(game / "Verification/SHA256SUMS.txt.asc"),
+            manifest["player_distribution"]["signature_sha256"],
+        )
+
+    def test_archive_game_packages_directly_runnable_root(self) -> None:
+        game = self.root / "signed-game"
+        executable = game / "Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"shipping")
+        (game / "Alis.exe").write_bytes(b"launcher")
+        output = self.root / "signed-game-archive"
+
+        report_path = MODULE.archive_game(game, output, "2.0.0", 1, None)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.assertEqual("alis-game-archive-v1", report["schema"])
+        self.assertEqual(MODULE.package_tree_digest(game), report["game_tree_sha256"])
+        self.assertGreaterEqual(len(report["parts"]), 1)
 
 
 if __name__ == "__main__":

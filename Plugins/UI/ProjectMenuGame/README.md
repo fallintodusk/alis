@@ -18,10 +18,9 @@ Framework consolidation rules (critical)
 - Keep pause menu code domain-focused (resume/quit/settings intents only).
 - Reuse ProjectUI presenters for popup/settings hosting and avoid custom overlay lifecycle logic.
 - Share the same settings-root reuse pattern as main menu (single instance, visibility switching).
-- See `Plugins/UI/ProjectUI/docs/framework_consolidation.md`.
+- See `Plugins/UI/ProjectUI/docs/architecture/README.md`.
 
 See ProjectMenuMain for reference implementation pattern with ILoadingService.
-See TODO.md for implementation tasks.
 
 Current runtime contract
 - Escape is mapped by the active gameplay controller and resolves

@@ -1,6 +1,6 @@
 # ProjectWorldData
 
-Data/content-only owner for concrete generated territories.
+Data/content-only owner for the current generated Kazan and Manhattan routes.
 
 ## Ownership
 

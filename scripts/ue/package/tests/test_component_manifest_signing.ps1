@@ -55,6 +55,8 @@ $PackageDir = Split-Path -Parent $ScriptDir
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PackageDir))
 $SignScript = Join-Path $PackageDir "sign_release.ps1"
 $VerifyScript = Join-Path $PackageDir "verify_release.ps1"
+$ReleaseScript = Join-Path $PackageDir "release.ps1"
+$WorkspaceTool = Join-Path $PackageDir "release_workspace.py"
 $GpgPath = Resolve-TestGpg
 $GpgDir = Split-Path -Parent $GpgPath
 $GpgConfPath = Join-Path $GpgDir "gpgconf.exe"
@@ -63,9 +65,10 @@ $env:PATH = "$GpgDir;$env:PATH"
 $ProjectTmpRoot = Join-Path $ProjectRoot "tmp\sg"
 $TestRoot = Join-Path $ProjectTmpRoot ([Guid]::NewGuid().ToString("N").Substring(0, 8))
 $ReleaseDir = Join-Path $TestRoot "r"
+$GameDir = Join-Path $TestRoot "game"
 $GpgHome = Join-Path $TestRoot "g"
 
-New-Item -ItemType Directory -Path $ReleaseDir, $GpgHome -Force | Out-Null
+New-Item -ItemType Directory -Path $ReleaseDir, $GameDir, $GpgHome -Force | Out-Null
 $GpgHomeArgument = ConvertTo-GpgHomeArgument -GpgPath $GpgPath -GpgHome $GpgHome
 
 try {
@@ -111,8 +114,10 @@ try {
         Set-Content -LiteralPath (Join-Path $ReleaseDir "ALIS_Source.zip") -Encoding Ascii
     "game archive fixture" |
         Set-Content -LiteralPath (Join-Path $ReleaseDir "ALIS_Win64_fixture.zip") -Encoding Ascii
-    '{"schema_version":1}' |
+    '{"schema_version":2,"archive":{"parts":[{"name":"ALIS_Source.zip"}]}}' |
         Set-Content -LiteralPath (Join-Path $ReleaseDir "ALIS_DeveloperProject_fixture.developer-payload.json") -Encoding Ascii
+    '{"schema":"fixture-notices"}' |
+        Set-Content -LiteralPath (Join-Path $ReleaseDir "ALIS_DeveloperProject_fixture.notices.json") -Encoding Ascii
     "fixture terms" |
         Set-Content -LiteralPath (Join-Path $ReleaseDir "PRODUCT_TERMS.txt") -Encoding Ascii
     "fixture rights" |
@@ -132,6 +137,7 @@ try {
         "effective-component-manifest.json",
         "ALIS_Source.zip",
         "ALIS_DeveloperProject_fixture.developer-payload.json",
+        "ALIS_DeveloperProject_fixture.notices.json",
         "release-rights-review.json"
     )
     $Artifacts = @($ArtifactNames | ForEach-Object {
@@ -177,8 +183,273 @@ try {
     $ReleaseManifest.status = "ready_for_signature"
     $ReleaseManifest.product_review = @{ status = "accepted" }
     $ReleaseManifest.rights_review = @{ status = "accepted" }
+    $ReleaseManifest.approval_scope = "game"
     $ReleaseManifest | ConvertTo-Json -Depth 8 |
         Set-Content -LiteralPath $ReleaseManifestPath -Encoding Ascii
+
+    $RejectedGameScopeForGitHub = $false
+    try {
+        & $SignScript `
+            -ReleaseDir $ReleaseDir `
+            -Projection GitHub `
+            -GpgPath (Join-Path $TestRoot "must-not-be-read-gpg.exe") `
+            -GpgHome $GpgHome `
+            -SigningKeyFingerprint $Fingerprint
+    }
+    catch {
+        $RejectedGameScopeForGitHub = $_.Exception.Message -like "*requires full release approval*"
+    }
+    if (-not $RejectedGameScopeForGitHub -or
+        (Test-Path -LiteralPath (Join-Path $ReleaseDir "SHA256SUMS.txt"))) {
+        throw "GitHub signing did not reject game-only approval before GPG access"
+    }
+    $ReleaseManifest.approval_scope = "full"
+    $ReleaseManifest | ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath $ReleaseManifestPath -Encoding Ascii
+
+    $CoordinatedWorkspace = Join-Path $TestRoot "workspace"
+    $CoordinatedGame = Join-Path $CoordinatedWorkspace "game"
+    $CoordinatedGitHub = Join-Path $CoordinatedWorkspace "github"
+    New-Item -ItemType Directory -Path `
+        (Join-Path $CoordinatedGame "Alis\Binaries\Win64"), `
+        (Join-Path $CoordinatedGame "Alis\Content"), `
+        (Join-Path $CoordinatedGame "Engine\Content"), `
+        $CoordinatedGitHub -Force | Out-Null
+    "launcher" | Set-Content -LiteralPath (Join-Path $CoordinatedGame "Alis.exe") -Encoding Ascii
+    "shipping" | Set-Content -LiteralPath (Join-Path $CoordinatedGame "Alis\Binaries\Win64\Alis-Win64-Shipping.exe") -Encoding Ascii
+    "alis data" | Set-Content -LiteralPath (Join-Path $CoordinatedGame "Alis\Content\fixture.bin") -Encoding Ascii
+    "engine data" | Set-Content -LiteralPath (Join-Path $CoordinatedGame "Engine\Content\fixture.bin") -Encoding Ascii
+    "accepted" | Set-Content -LiteralPath (Join-Path $CoordinatedWorkspace "package_summary.txt") -Encoding Ascii
+    Get-ChildItem -LiteralPath $ReleaseDir -File | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $CoordinatedGitHub
+    }
+    Remove-Item -LiteralPath (Join-Path $CoordinatedGitHub "ALIS_Win64_fixture.zip")
+    "unsigned player archive" | Set-Content -LiteralPath (Join-Path $CoordinatedGitHub "ALIS_Win64_v9.8.9.zip.001") -Encoding Ascii
+    $CoordinatedManifestPath = Join-Path $CoordinatedGitHub "release_manifest.json"
+    $CoordinatedManifest = Get-Content -LiteralPath $CoordinatedManifestPath -Raw | ConvertFrom-Json
+    $CoordinatedManifest.release_version = "9.8.9"
+    $CoordinatedManifest.release_tag = "v9.8.9"
+    $CoordinatedManifest.artifacts = @(Get-ChildItem -LiteralPath $CoordinatedGitHub -File |
+        Where-Object Name -ne "release_manifest.json" |
+        ForEach-Object {
+            @{
+                name = $_.Name
+                byte_size = $_.Length
+                sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+        })
+    $CoordinatedShipping = Join-Path $CoordinatedGame "Alis\Binaries\Win64\Alis-Win64-Shipping.exe"
+    $CoordinatedPackageTree = & python $WorkspaceTool package-tree --workspace-root $CoordinatedWorkspace
+    Assert-CommandSucceeded -Action "Coordinated package identity"
+    $CoordinatedManifest | Add-Member -NotePropertyName player_source -NotePropertyValue @{
+        package_tree_sha256 = [string]$CoordinatedPackageTree
+        shipping_executable_sha256 = (Get-FileHash -LiteralPath $CoordinatedShipping -Algorithm SHA256).Hash.ToLowerInvariant()
+    } -Force
+    $CoordinatedManifest | ConvertTo-Json -Depth 10 |
+        Set-Content -LiteralPath $CoordinatedManifestPath -Encoding Ascii
+    @{
+        schema = "alis-release-workspace-v1"
+        status = "complete"
+        release_version = "9.8.9"
+        release_tag = "v9.8.9"
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $CoordinatedWorkspace "release-workspace.json") -Encoding Ascii
+
+    $PendingFullWorkspace = Join-Path $TestRoot "pending-full-workspace"
+    Copy-Item -LiteralPath $CoordinatedWorkspace -Destination $PendingFullWorkspace -Recurse
+    $PendingFullGame = Join-Path $PendingFullWorkspace "game"
+    $PendingFullGitHub = Join-Path $PendingFullWorkspace "github"
+    $PendingFullManifestPath = Join-Path $PendingFullGitHub "release_manifest.json"
+    $PendingFullManifest = Get-Content -LiteralPath $PendingFullManifestPath -Raw | ConvertFrom-Json
+    $PendingFullManifest.status = "pending_owner_approval"
+    $PendingFullManifest.release_version = "9.9.0"
+    $PendingFullManifest.release_tag = "v9.9.0"
+    $PendingFullManifest.product_review = @{ status = "pending_owner_approval" }
+    $PendingFullManifest.rights_review = @{ status = "pending_owner_approval" }
+    $PendingFullManifest.PSObject.Properties.Remove("approval_scope")
+    $PendingFullManifest.artifacts = @($PendingFullManifest.artifacts | Where-Object {
+            $_.name -ne "release-rights-review.json"
+        })
+    Remove-Item -LiteralPath (Join-Path $PendingFullGitHub "release-rights-review.json")
+
+    $PendingFullSource = Join-Path $TestRoot "pending-full-source"
+    New-Item -ItemType Directory -Path $PendingFullSource -Force | Out-Null
+    & git -c init.defaultBranch=main init -q $PendingFullSource
+    & git -C $PendingFullSource config user.name "release-test"
+    & git -C $PendingFullSource config user.email "release-test@localhost"
+    "source" | Set-Content -LiteralPath (Join-Path $PendingFullSource "README.md") -Encoding Ascii
+    & git -C $PendingFullSource add README.md
+    & git -C $PendingFullSource commit -q -m "fixture"
+    Assert-CommandSucceeded -Action "Pending full-release source fixture"
+    $PendingFullRevision = [string](& git -C $PendingFullSource rev-parse HEAD)
+    $PendingFullTree = [string](& git -C $PendingFullSource rev-parse 'HEAD^{tree}')
+    Assert-CommandSucceeded -Action "Pending full-release source identity"
+    $PendingFullManifest | Add-Member -NotePropertyName public_source -NotePropertyValue @{
+        revision = $PendingFullRevision
+        tree = $PendingFullTree
+        branch = "main"
+    } -Force
+    $PendingFullManifest | ConvertTo-Json -Depth 10 |
+        Set-Content -LiteralPath $PendingFullManifestPath -Encoding Ascii
+    $PendingFullWorkspaceManifest = Get-Content `
+        -LiteralPath (Join-Path $PendingFullWorkspace "release-workspace.json") -Raw |
+        ConvertFrom-Json
+    $PendingFullWorkspaceManifest.release_version = "9.9.0"
+    $PendingFullWorkspaceManifest.release_tag = "v9.9.0"
+    $PendingFullWorkspaceManifest | ConvertTo-Json -Depth 4 |
+        Set-Content -LiteralPath (Join-Path $PendingFullWorkspace "release-workspace.json") -Encoding Ascii
+
+    & $ReleaseScript `
+        -ReleaseVersion "9.9.0" `
+        -ReleaseDir $PendingFullWorkspace `
+        -FinalPublicSourceRoot $PendingFullSource `
+        -GpgPath $GpgPath `
+        -GpgHome $GpgHome `
+        -SigningKeyFingerprint $Fingerprint
+    if (-not $?) {
+        throw "Pending full-release finalization failed"
+    }
+    $PendingFullApproved = Get-Content -LiteralPath $PendingFullManifestPath -Raw | ConvertFrom-Json
+    if ($PendingFullApproved.approval_scope -ne "full" -or
+        -not (Test-Path -LiteralPath (Join-Path $PendingFullGame "Verification\SHA256SUMS.txt.asc")) -or
+        -not (Test-Path -LiteralPath (Join-Path $PendingFullGitHub "SHA256SUMS.txt.asc"))) {
+        throw "Pending full release did not record full approval and sign both projections"
+    }
+
+    $UnexpectedVerification = Join-Path $CoordinatedGame "Verification\unexpected.bin"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $UnexpectedVerification) -Force | Out-Null
+    "unexpected" | Set-Content -LiteralPath $UnexpectedVerification -Encoding Ascii
+    $RejectedUnknownVerificationFile = $false
+    try {
+        & $SignScript `
+            -ReleaseDir $CoordinatedGame `
+            -ApprovalDir $CoordinatedGitHub `
+            -Projection Game `
+            -GpgPath (Join-Path $TestRoot "must-not-be-read-gpg.exe") `
+            -GpgHome $GpgHome `
+            -SigningKeyFingerprint $Fingerprint
+    }
+    catch {
+        $RejectedUnknownVerificationFile = $_.Exception.Message -like "*workspace verification failed*"
+    }
+    if (-not $RejectedUnknownVerificationFile) {
+        throw "Game signing did not reject an unknown Verification file before GPG access"
+    }
+    Remove-Item -LiteralPath $UnexpectedVerification
+
+    & $ReleaseScript `
+        -ReleaseVersion "9.8.9" `
+        -ReleaseDir $CoordinatedWorkspace `
+        -Target Game `
+        -PublicRemoteUrl (Join-Path $TestRoot "must-not-be-read-public-remote") `
+        -GpgPath $GpgPath `
+        -GpgHome $GpgHome `
+        -SigningKeyFingerprint $Fingerprint
+    if (-not $?) {
+        throw "Game-only finalization failed"
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $CoordinatedGame "Verification\SHA256SUMS.txt.asc")) -or
+        (Test-Path -LiteralPath (Join-Path $CoordinatedGitHub "SHA256SUMS.txt.asc")) -or
+        @(Get-ChildItem -LiteralPath $CoordinatedGitHub -Filter "ALIS_Win64_v9.8.9.zip*").Count -ne 1) {
+        throw "Game-only finalization did not remain isolated from GitHub signing and archive refresh"
+    }
+
+    & $ReleaseScript `
+        -ReleaseVersion "9.8.9" `
+        -ReleaseDir $CoordinatedWorkspace `
+        -GpgPath $GpgPath `
+        -GpgHome $GpgHome `
+        -SigningKeyFingerprint $Fingerprint
+    if (-not $?) {
+        throw "Coordinated game/GitHub finalization failed"
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $CoordinatedGame "Verification\SHA256SUMS.txt.asc")) -or
+        -not (Test-Path -LiteralPath (Join-Path $CoordinatedGitHub "SHA256SUMS.txt.asc")) -or
+        @(Get-ChildItem -LiteralPath $CoordinatedGitHub -Filter "ALIS_Win64_v9.8.9.zip*").Count -lt 1) {
+        throw "Coordinated finalization did not produce both signatures and the refreshed Player archive"
+    }
+
+    New-Item -ItemType Directory -Path (Join-Path $GameDir "Alis\Content"), (Join-Path $GameDir "Engine\Content") -Force | Out-Null
+    "game" | Set-Content -LiteralPath (Join-Path $GameDir "Alis.exe") -Encoding Ascii
+    "alis data" | Set-Content -LiteralPath (Join-Path $GameDir "Alis\Content\fixture.bin") -Encoding Ascii
+    "engine data" | Set-Content -LiteralPath (Join-Path $GameDir "Engine\Content\fixture.bin") -Encoding Ascii
+
+    $RejectedUnrelatedGame = $false
+    try {
+        & $SignScript `
+            -ReleaseDir $GameDir `
+            -ApprovalDir $ReleaseDir `
+            -Projection Game `
+            -GpgPath (Join-Path $TestRoot "must-not-be-read-gpg.exe") `
+            -GpgHome $GpgHome `
+            -SigningKeyFingerprint $Fingerprint
+    }
+    catch {
+        $RejectedUnrelatedGame = $_.Exception.Message -like "*same release workspace*"
+    }
+    if (-not $RejectedUnrelatedGame) {
+        throw "Game signing accepted unrelated game and approval directories"
+    }
+
+    $GameDir = $CoordinatedGame
+    $GameManifest = Join-Path $GameDir "Verification\SHA256SUMS.txt"
+    if (-not ((Get-Content -LiteralPath $GameManifest) -match "\*Alis/Content/fixture\.bin") -or
+        -not ((Get-Content -LiteralPath $GameManifest) -match "\*Engine/Content/fixture\.bin")) {
+        throw "Game signature manifest does not preserve safe relative paths"
+    }
+    & $VerifyScript `
+        -ReleaseDir $GameDir `
+        -ManifestRelativePath "Verification\SHA256SUMS.txt" `
+        -SignatureRelativePath "Verification\SHA256SUMS.txt.asc" `
+        -BundledPublicKeyName "Verification\ALIS_PUBLIC_KEY.asc" `
+        -AllowRelativeAssetPaths `
+        -RequireExactInventory `
+        -GpgPath $GpgPath `
+        -ExpectedFingerprint $Fingerprint `
+        -PublicKeyUrl ""
+    if (-not $?) {
+        throw "Signed game projection verification failed"
+    }
+    "mutated" | Set-Content -LiteralPath (Join-Path $GameDir "Alis\Content\fixture.bin") -Encoding Ascii
+    $RejectedMutation = $false
+    try {
+        & $VerifyScript `
+            -ReleaseDir $GameDir `
+            -ManifestRelativePath "Verification\SHA256SUMS.txt" `
+            -SignatureRelativePath "Verification\SHA256SUMS.txt.asc" `
+            -BundledPublicKeyName "Verification\ALIS_PUBLIC_KEY.asc" `
+            -AllowRelativeAssetPaths `
+            -RequireExactInventory `
+            -GpgPath $GpgPath `
+            -ExpectedFingerprint $Fingerprint `
+            -PublicKeyUrl ""
+    }
+    catch {
+        $RejectedMutation = $_.Exception.Message -like "*Hash mismatch*"
+    }
+    if (-not $RejectedMutation) {
+        throw "Game verification accepted a mutated packaged file"
+    }
+    "alis data" | Set-Content -LiteralPath (Join-Path $GameDir "Alis\Content\fixture.bin") -Encoding Ascii
+    "unexpected" | Set-Content -LiteralPath (Join-Path $GameDir "unexpected.bin") -Encoding Ascii
+    $RejectedExtra = $false
+    try {
+        & $VerifyScript `
+            -ReleaseDir $GameDir `
+            -ManifestRelativePath "Verification\SHA256SUMS.txt" `
+            -SignatureRelativePath "Verification\SHA256SUMS.txt.asc" `
+            -BundledPublicKeyName "Verification\ALIS_PUBLIC_KEY.asc" `
+            -AllowRelativeAssetPaths `
+            -RequireExactInventory `
+            -GpgPath $GpgPath `
+            -ExpectedFingerprint $Fingerprint `
+            -PublicKeyUrl ""
+    }
+    catch {
+        $RejectedExtra = $_.Exception.Message -like "*inventory mismatch*"
+    }
+    if (-not $RejectedExtra) {
+        throw "Game verification accepted an unsigned extra file"
+    }
 
     & $SignScript `
         -ReleaseDir $ReleaseDir `

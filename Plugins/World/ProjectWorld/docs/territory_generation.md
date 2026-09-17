@@ -8,7 +8,7 @@ default session bootstrap.
 
 | Task | Single source of truth |
 |---|---|
-| Full architecture, ownership, data flow, and operator observability | [Architecture overview](architecture_overview.md) |
+| Full architecture, ownership, data flow, and operator observability | [Architecture](architecture/README.md) |
 | Generation order, identity, geospatial authority, error budget | [Territory contract](territory_contract.md#purpose) |
 | Logic/data ownership and persistent canonical authority | [Territory contract](territory_contract.md#ownership-layers) |
 | Layer add/remove/order and precise dirty regeneration | [Territory contract](territory_contract.md#layered-regeneration-contract-scale-out-precondition) |
@@ -19,7 +19,6 @@ default session bootstrap.
 | Delivery stages and final acceptance | [Territory contract](territory_contract.md#delivery-stages) |
 | World Partition design and measurement | [World Partition](world_partition.md) |
 | UE 5.8 native reuse gate and excluded experimental systems | [World Partition](world_partition.md#ue-58-native-reuse-gate) |
-| Legacy transition | [Legacy world transition](legacy_world_transition.md) |
 | Realization, enrollment, recovery, and audit commands | [Canonical World Realization](../../../../scripts/ue/world/README.md) |
 | Source, compile, validation, and acceptance commands | [World tools](../../../../tools/World/README.md) |
 | Test-layer selection and cadence | [World pipeline layers](../../../../docs/testing/world_pipeline_layers.md) |

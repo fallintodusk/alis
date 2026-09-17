@@ -17,7 +17,7 @@ Displays player vitals (Condition, Stamina, Calories, Hydration, Fatigue) and st
 - Keep vitals plugin code domain-specific (attribute mapping, vitals presentation semantics).
 - Reuse ProjectUI primitives for widget binding, popup/tooltip lifecycle, and shared interaction mechanics.
 - Do not introduce local generic helpers when the logic is reusable by other UI plugins.
-- See `Plugins/UI/ProjectUI/docs/framework_consolidation.md`.
+- See `Plugins/UI/ProjectUI/docs/architecture/README.md`.
 
 ## Architecture
 

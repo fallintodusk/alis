@@ -94,7 +94,6 @@ Run the check:
 
 ## Cross-refs
 
-- [canonical.md](../../../../docs/agents/canonical.md) - Dev Loop Contract + testing strategy.
-- [overnight_mode.md](../../../../docs/agents/overnight_mode.md) - autonomous rulebook.
+- [canonical.md](../../../../docs/agents/canonical.md) - Dev Loop Contract and testing strategy.
 - `scripts/ue/test/unit/iterate.ps1` - Layer A dispatch entrypoint.
 - `tools/agentic/ui/layout_report.py` - reused by Layer B.

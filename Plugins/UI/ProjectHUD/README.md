@@ -20,7 +20,7 @@ Scope
 Framework consolidation rules
 - Keep `W_HUDLayout` as a composition host only.
 - Do not duplicate popup, tooltip, binding, or grid mechanics in ProjectHUD.
-- Reuse ProjectUI framework primitives and follow `Plugins/UI/ProjectUI/docs/framework_consolidation.md`.
+- Reuse ProjectUI framework primitives and follow `Plugins/UI/ProjectUI/docs/architecture/README.md`.
 
 ## Architecture
 

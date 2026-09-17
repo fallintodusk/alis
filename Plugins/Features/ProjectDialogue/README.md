@@ -86,8 +86,7 @@ If step 1-2 pass but no dialogue panel:
 - Check `IDialogueService` is available at runtime (warning is logged when missing).
 
 If panel appears and immediately disappears:
-- Old behavior closed dialogue on any interact while active.
-- Current behavior closes only when re-interacting with the same dialogue owner actor.
+- Dialogue closes only when re-interacting with the same dialogue owner actor.
 - Rebuild and verify no immediate `Dialogue active, ending on re-interact` after door-triggered start.
 
 Log note:

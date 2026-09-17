@@ -27,7 +27,7 @@ inline const FName NAME_CapabilityScope_Actor(TEXT("actor"));
  *
  * For capability validation, see FCapabilityValidationRegistry in ProjectCore.
  *
- * Architecture: [flexible_path.md] - Pattern B (C++ Classes)
+ * Architecture: Plugins/Foundation/ProjectCore/docs/architecture/asset_identity.md
  */
 class PROJECTOBJECTCAPABILITIES_API FCapabilityRegistry
 {

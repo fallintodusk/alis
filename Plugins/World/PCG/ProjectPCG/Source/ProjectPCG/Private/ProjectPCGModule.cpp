@@ -4,7 +4,6 @@
 
 void FProjectPCGModule::StartupModule()
 {
-	// Stub: will contain PCG engine integration
 }
 
 void FProjectPCGModule::ShutdownModule()

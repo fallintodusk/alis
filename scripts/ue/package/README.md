@@ -4,14 +4,16 @@ Canonical release packaging entry points for ALIS.
 
 ## Release Transaction
 
-The operator uses only `make release` and `make mirror`:
+The operator uses `make release` and `make mirror` for the GitHub release, then
+may publish the same signed game to another authorized channel:
 
 ```powershell
 make release 2.0.0 RELEASE_SIGN=0
-# Review tmp/release/v2.0.0.
+# Review tmp/release/v2.0.0/game and tmp/release/v2.0.0/github.
 make mirror RTAG=v2.0.0
 make release 2.0.0
-# Manually upload the signed files from tmp/release/v2.0.0.
+# Manually upload every file from tmp/release/v2.0.0/github.
+make publish itch
 ```
 
 `make release` owns the complete local release state machine. From the repository alone it
@@ -26,8 +28,29 @@ source commit, explicit `RTAG` selects the mirror-owned reviewed publication
 route; bare `make mirror` remains generic. The final signed invocation is the
 explicit Product/terms/rights approval action: it refuses a changed public Git
 tree, records approval, signs the exact prepared bytes, and consumer-verifies
-them. The only interactive prompt is GPG itself. See the
+both projections. It adds verification sidecars to `game/`, rebuilds only the
+Player transport archive in `github/`, then signs the flat GitHub inventory.
+The only interactive prompt is GPG itself. See the
 [mirror command contract](../../git/mirror/README.md#make-wrapper).
+
+For game-only distribution from an already reviewed unsigned workspace:
+
+```powershell
+make release 2.0.0 TARGET=game
+make publish itch
+```
+
+This path signs and verifies only `game/`. It does not build, resolve a GitHub
+branch or tag, refresh the Player archives, or sign `github/`. The recorded
+approval is scoped to game distribution and cannot be promoted into the full
+GitHub route from that workspace.
+
+`make publish itch` consumes only an existing signed `game/` projection. By
+default it selects the highest stable SemVer workspace directly under
+`tmp/release/`; if that selected workspace fails validation, it fails closed
+instead of falling back to an older version. `PUBLISH_VERSION=X.Y.Z` selects an
+exact version. The Makefile owns the ALIS itch destination;
+`ITCH_TARGET=user/game` is an explicit override.
 
 The unsigned mode stops at a hash-verified `pending_owner_approval` directory.
 It never approves terms, invokes GPG, or creates signing outputs. A later
@@ -38,7 +61,7 @@ a fresh candidate, remove that version directory and run the same unsigned
 command; there is no separate rebuild flag.
 When the exact default output path still contains a matching pending unsigned
 manifest from an obsolete layout, unsigned mode removes it and prepares the
-current flat public layout in the same command.
+current `game/` plus flat `github/` workspace in the same command.
 Signed, partially signed, mismatched, and custom-path legacy state remains
 unchanged and fails closed.
 
@@ -54,36 +77,47 @@ reports/public-source-privacy.json
 reports/public-world-map-load.json
 ```
 
-The machine-accepted player Candidate and its composite evidence remain in their
-World-owned locations. Human Product approval belongs to the exact combined
-release directory, not an intermediate package. No agent or maintainer manually
-populates the input tree. `release.ps1` discovers exactly one developer payload
-manifest and one matching notices manifest, rejects missing or ambiguous inputs,
-and emits `tmp/release/v2.0.0/`.
+The machine-accepted player Candidate is World-owned until release preparation
+has validated the complete workspace. Release then recoverably adopts its
+`Windows/` contents as `game/`; interrupted adoption is resumable and does not
+leave a second reusable package authority. Human Product approval belongs to
+the exact combined release workspace, not an intermediate package. No agent or
+maintainer manually populates the input tree.
+
+Signed finalization replaces the GitHub projection through one recognized
+workspace-local backup. A retry restores that backup when `github/` is missing,
+or removes it only after the replacement `github/` passes workspace and release
+manifest verification. Multiple backups fail closed for operator inspection.
 
 `prepare_release.ps1` is the one cross-owner preparation entry point for a
-combined player and developer release. It consumes, but does not replace, the
+combined player and developer release. It consumes and then adopts the
 machine-accepted player Candidate, public source/payload manifests, dependency and
 privacy reports, component manifest, attribution, and Product terms. It emits
-one hash-bound `release_manifest.json` under project `tmp/`. The unsigned output
-already has the public review surface as one flat directory:
+one versioned workspace under project `tmp/`:
 
 ```text
-README.txt
-ALIS_Win64_vX.Y.Z.zip.001
-ALIS_DeveloperProject_X.Y.Z_<id>.zip
-PRODUCT_TERMS.txt
-INSTALL_ALIS_PLAYER.bat
-INSTALL_ALIS_DEVELOPER.bat
-effective-component-manifest.json
-release_manifest.json
+tmp/release/vX.Y.Z/
+|-- game/                 # Directly runnable; Alis.exe is here.
+|-- github/               # Exact flat GitHub Release upload inventory.
+|   |-- README.txt
+|   |-- ALIS_Win64_vX.Y.Z.zip.001
+|   |-- ALIS_DeveloperProject_X.Y.Z_<id>.zip
+|   |-- PRODUCT_TERMS.txt
+|   |-- INSTALL_ALIS_PLAYER.bat
+|   |-- INSTALL_ALIS_DEVELOPER.bat
+|   |-- effective-component-manifest.json
+|   `-- release_manifest.json
+|-- package_summary.txt
+`-- release-workspace.json
 ```
 
 `README.txt` owns the version highlights and complete Player/Developer quick
 starts. Manual 7-Zip setup is primary for both roles; the BAT/PowerShell pairs
-are optional convenience. Validation reports stay with the release inputs and
-are not public assets. Tagged repository guides and licenses remain in their
-source owners instead of being copied into the release.
+are optional convenience. Their default installation destinations are siblings
+of the download directory, so accepting the prompt leaves the release asset
+inventory unchanged. Validation reports stay with the release inputs and are
+not public assets. Tagged repository guides and licenses remain in their source
+owners instead of being copied into the release.
 
 Player package identity excludes only declared runtime-written state and orders
 relative paths by ordinal UTF-8 bytes. The World gate, ProjectCinematic binding,
@@ -145,8 +179,25 @@ Focused signing proof:
 Coordinates the complete local release state machine over existing owners. It
 validates one `X.Y.Z` identity, creates missing owner outputs, prepares or
 resumes the exact release directory, keeps unsigned rehearsal private-key-free,
-gates approval, invokes the existing signer once, and runs the existing
-consumer verifier. It never writes to a remote.
+gates approval, invokes the existing signer for `game/` and `github/` in one
+finalization pass, and runs the existing consumer verifier against both. It
+never writes to a remote.
+
+### `publish_itch.ps1`
+
+Verifies the selected release workspace and its signed `game/` inventory,
+then invokes Butler for one exact `user/game:channel`. It refuses pending
+remote work, downgrade, or changed same-version content; identical
+same-version content is an idempotent success. A successful upload is read back
+through Butler before the command reports acceptance. Butler owns credentials
+outside the repository. This script never builds, signs, mirrors, archives, or
+modifies the release workspace.
+
+Focused publisher proof:
+
+```powershell
+.\scripts\ue\package\tests\test_publish_itch.ps1
+```
 
 ### `prepare_release_inputs.ps1`
 
@@ -259,7 +310,7 @@ scripts\ue\package\package_release.bat -OutputDir Saved\PackageRelease\Candidate
 
 ### `sign_release.ps1`
 
-Generates `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` for a packaged release directory.
+Generates a signed checksum manifest for one release projection.
 
 Defaults:
 
@@ -267,13 +318,17 @@ Defaults:
 - rejects the directory before key access unless `release_manifest.json` is
   hash-clean and `ready_for_signature`
 - reuses the ALIS site trust fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
-- signs every prepared flat release asset
+- `GitHub` mode signs every prepared flat release asset
+- `Game` mode signs the recursive runnable tree with safe relative paths and
+  writes its public verification material under `game/Verification/`; it first
+  proves that `game/` and the approval-owning `github/` are exact siblings in
+  one verified release workspace
 - exports the public half of the selected signing key as `ALIS_PUBLIC_KEY.asc`
 - includes the exported key in `SHA256SUMS.txt` so every distribution mirror carries the same key asset
 - excludes `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` from the manifest; the signature signs the manifest, and the manifest never hashes itself
 - preserves the already-reviewed `README.txt` unchanged
 - copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release directory before hashing so advanced users have a self-contained verifier next to the archives
-- requires unique public filenames
+- requires unique public filenames only for the flat GitHub projection
 - verifies the detached signature after signing
 - writes a summary only when an explicit path outside the upload directory is
   requested
@@ -283,7 +338,10 @@ operator step.
 
 Key parameters:
 
-- `-ReleaseDir` packaged release output directory that contains the archive parts
+- `-ReleaseDir` projection root; Game mode accepts only the workspace's exact
+  `game/` child
+- `-Projection` selects `GitHub` or `Game`; release coordination owns this choice
+- `-ApprovalDir` points Game mode at the same workspace's exact `github/` child
 - `-GpgPath` optional explicit path to `gpg.exe`
 - `-GpgHome` optional explicit signing keyring directory; it is mandatory when `-SigningKeyFingerprint` differs from the canonical ALIS key
 - an explicit GPG home must already exist, must be owned by the calling operation, and is rejected if it resolves to the default user GPG directory or user profile
@@ -298,8 +356,8 @@ Windows wrapper for internal diagnostics around `sign_release.ps1`.
 
 ### `verify_release.ps1`
 
-Verifies `SHA256SUMS.txt.asc` and all archive hashes using the ALIS public key
-bundled with the release.
+Verifies a signed checksum manifest and its listed files using the ALIS public
+key bundled with the selected projection.
 
 Defaults:
 
@@ -319,7 +377,7 @@ Examples:
 
 ```powershell
 .\scripts\ue\package\verify_release.ps1 `
-  -ReleaseDir tmp\release\v2.0.0
+  -ReleaseDir tmp\release\v2.0.0\github
 ```
 
 ```powershell
@@ -334,6 +392,10 @@ Key parameters:
 - `-ReleaseDir` packaged release output directory that contains archive parts and the hash/signature files
 - `-PublicKeyPath` optional local ALIS public key file
 - `-BundledPublicKeyName` override only for a legacy/nonstandard release asset name
+- `-ManifestRelativePath` and `-SignatureRelativePath` locate a projection's
+  signed envelope under its root
+- `-AllowRelativeAssetPaths` enables recursive game-manifest entries
+- `-RequireExactInventory` rejects unsigned extra files in a game projection
 - `-PublicKeyUrl` override only if the site public key URL changes
 - `-ExpectedFingerprint` override only if the ALIS trust identity changes
 - `-TempGpgHome` optional explicit temporary verification keyring directory

@@ -1,6 +1,8 @@
 # Dialogue Writing Style
 
-How NPC and player lines should read in ALIS. Companion to [../gameplay/dialogue_guide.md](../gameplay/dialogue_guide.md) (authoring/technical). This doc owns **voice and prose**; that one owns **structure and assets**.
+How NPC and player lines should read in ALIS. This document owns voice and
+prose; [ProjectDialogue](../../Plugins/Features/ProjectDialogue/README.md) owns
+structure and runtime behavior.
 
 ALIS is post-apocalyptic survival: chaos, starvation, isolation, fear. Lines must read like a real person under that load, not a writer's idea of one.
 
@@ -145,7 +147,7 @@ Player is disoriented (recently woke up in a ruined world, missing memory). Voic
 
 ## Cross-References
 
-- Authoring/technical: [../gameplay/dialogue_guide.md](../gameplay/dialogue_guide.md)
+- Authoring and runtime: [ProjectDialogue](../../Plugins/Features/ProjectDialogue/README.md)
 - Narrative principles: [../architecture/principles.md](../architecture/principles.md)
 - Worked example: `Plugins/Resources/ProjectObject/Content/Human/GrandPa/DLG_GrandPa_Entry.json` and the grandpa dialogue chain
 

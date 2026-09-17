@@ -26,6 +26,8 @@ __pycache__
 # --- agentic ---
 .langgraph_api
 .mcp.json
+.playwright-cli/
+.playwright/
 .claude/settings.json
 .claude/settings.local.json
 .claude/settings.local.json.backup
@@ -51,10 +53,6 @@ Config/UserEngine.ini
 
 # --- Runtime state (generated at runtime) ---
 LocalAppData/Alis/State/
-
-# --- Structurizr generated files (render from .dsl on demand) ---
-docs/architecture/diagrams/.structurizr/
-scripts/utils/structurizr/structurizr-lite.war
 
 # --- OS junk ---
 .DS_Store

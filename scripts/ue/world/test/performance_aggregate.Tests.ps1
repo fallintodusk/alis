@@ -188,6 +188,17 @@ Describe 'Packaged World performance aggregation' {
             Should -Throw
     }
 
+    It 'keeps the fixed product budget at an idle host load' {
+        $children = @(1..3 | ForEach-Object {
+                New-TestChild -Index $_ -SlowCount 300 -SlowFrame 17.0
+            })
+        $aggregate = Invoke-TestAggregate -Children $children `
+            -HostCpuLoadPercent 20 -HostGpuLoadPercent 20
+        $aggregate.status | Should -BeExactly 'rejected'
+        $aggregate.host_load_allowance_percent | Should -Be 0.0
+        $aggregate.frame_p95_budget_ms | Should -Be 16.67
+    }
+
 	It 'waits for an idle host without changing the product budget' {
 		$script:hostLoads = [Collections.Queue]::new()
 		$script:hostLoads.Enqueue([pscustomobject]@{ cpu_percent = 31.0; gpu_percent = 8.0 })
@@ -276,7 +287,7 @@ Describe 'Packaged World performance aggregation' {
         $runner | Should -Match 'ProjectWorldPerformanceSamples'
         $runner | Should -Match 'Development pooled performance rejected:'
         $runner | Should -Not -Match 'nvidia-smi\s+--id=0'
-        $runner | Should -Match 'Host load \(diagnostic only\)'
+        $runner | Should -Match 'Host load acceptance precondition'
     }
 
     It 'hashes immutable package payload while excluding owned runtime state' {

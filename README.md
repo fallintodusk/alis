@@ -23,12 +23,17 @@ art.
 The [latest GitHub release](https://github.com/fallintodusk/alis/releases/latest)
 contains the matching Windows player build and developer payload.
 
-## Project
+## Repository
 
-- Purpose: [VISION.md](VISION.md)
-- Social contract: [ALIS_PACT.md](ALIS_PACT.md)
-- Source clone URL: [fallintodusk/alis.git](https://github.com/fallintodusk/alis.git)
-- Technical documentation: [docs/README.md](docs/README.md)
-- License: [LICENSE](LICENSE)
-- Licensing and provenance: [docs/legal/README.md](docs/legal/README.md)
-- Security reports: [GitHub Security Advisories](https://github.com/fallintodusk/alis/security/advisories/new)
+| Area | Owner |
+|---|---|
+| Game composition | [Source](Source/README.md) |
+| Runtime and editor components | [Plugins](Plugins/README.md) |
+| Technical documentation | [Docs](docs/README.md) |
+| Development automation | [Scripts](scripts/README.md) |
+| Standalone development tools | [Tools](tools/README.md) |
+
+Project purpose is defined in [VISION.md](VISION.md), community expectations in
+[ALIS_PACT.md](ALIS_PACT.md), source licensing in [LICENSE](LICENSE), and the
+canonical clone route at [fallintodusk/alis.git](https://github.com/fallintodusk/alis.git).
+Security reports use [GitHub Security Advisories](https://github.com/fallintodusk/alis/security/advisories/new).

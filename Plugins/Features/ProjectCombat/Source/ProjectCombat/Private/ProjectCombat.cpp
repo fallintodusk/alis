@@ -11,7 +11,7 @@ void FProjectCombatModule::StartupModule()
 {
 	// REGISTRATION ONLY - no init happens here
 	// GameMode will call this lambda later, in order, after pawn spawn
-	// See: Plugins/Gameplay/ProjectFeature/README.md for design rationale
+	// See: Plugins/Features/ProjectFeature/README.md for lifecycle ownership.
 	FFeatureRegistry::RegisterFeature(TEXT("Combat"), [](const FFeatureInitContext& Context)
 	{
 		// NOW we init - GameMode called us with context (pawn exists)

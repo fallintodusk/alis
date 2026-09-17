@@ -23,7 +23,7 @@ Settings screens and viewmodels for graphics, audio, and gameplay controls.
 - Reuse ProjectUI framework primitives for binding, popup lifecycle, layout loading, and theme resolution.
 - Do not add local generic helpers that duplicate ProjectUI capabilities.
 - Menu hosts should reuse one settings-root instance through presenter-driven show/hide behavior.
-- See `Plugins/UI/ProjectUI/docs/framework_consolidation.md`.
+- See `Plugins/UI/ProjectUI/docs/architecture/README.md`.
 
 ---
 

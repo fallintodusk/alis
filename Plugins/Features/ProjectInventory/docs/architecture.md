@@ -2,10 +2,6 @@
 
 Behavior SOT
 - Inventory behavior and world-storage rules live only in `design_vision.md`.
-- Track inventory code-vs-SOT gaps in
-  `../../../../todo/current/implement_inventory_vision.md`.
-- World-storage delivery note:
-  `../../../../todo/done/improve_loot_places.md`.
 - Do not restate inventory behavior here.
 
 Purpose

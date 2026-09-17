@@ -11,6 +11,8 @@
 
 param(
     [string]$ReleaseDir,
+    [ValidateSet("GitHub", "Game")][string]$Projection = "GitHub",
+    [string]$ApprovalDir,
     [string]$GpgPath,
     [string]$GpgHome,
     [string]$SigningKeyFingerprint = "3B9885F0C2D8D927C27FAB58F61A530034CFB5E7",
@@ -287,31 +289,23 @@ function Resolve-ReleaseDir {
 
 function Get-ReleaseAssets {
     param(
-        [string]$Directory
+        [string]$Directory,
+        [string]$ReleaseProjection
     )
 
     # The manifest and detached signature are protocol envelopes. The manifest
     # hashes release payload assets, but it must never hash itself or its signature.
-    $ExcludedPatterns = @(
-        "package_summary.txt",
-        "sign_release_summary.txt",
-        "verify_release_summary.txt",
-        "SHA256SUMS.txt",
-        "SHA256SUMS.txt.asc"
-    )
+    $ExcludedPaths = if ($ReleaseProjection -eq "Game") {
+        @("Verification/SHA256SUMS.txt", "Verification/SHA256SUMS.txt.asc")
+    }
+    else {
+        @("package_summary.txt", "sign_release_summary.txt", "verify_release_summary.txt", "SHA256SUMS.txt", "SHA256SUMS.txt.asc")
+    }
 
     $Assets = Get-ChildItem $Directory -File -Recurse | Where-Object {
-        $IsExcluded = $false
-
-        foreach ($Pattern in $ExcludedPatterns) {
-            if ($_.Name -like $Pattern) {
-                $IsExcluded = $true
-                break
-            }
-        }
-
-        return -not $IsExcluded
-    } | Sort-Object Name
+        $Relative = $_.FullName.Substring($Directory.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+        return $Relative -notin $ExcludedPaths
+    } | Sort-Object FullName
 
     return @($Assets)
 }
@@ -319,10 +313,27 @@ function Get-ReleaseAssets {
 function Write-ReleaseVerifyHelpers {
     param(
         [string]$Directory,
-        [string]$ProjectRoot
+        [string]$ProjectRoot,
+        [string]$ReleaseProjection
     )
 
     $SourcePs1 = Join-Path $ProjectRoot "scripts\ue\package\verify_release.ps1"
+    if ($ReleaseProjection -eq "Game") {
+        $VerificationDir = Join-Path $Directory "Verification"
+        New-Item -ItemType Directory -Path $VerificationDir -Force | Out-Null
+        $TargetPs1 = Join-Path $VerificationDir "VERIFY_ALIS.ps1"
+        $TargetBat = Join-Path $Directory "VERIFY_ALIS.bat"
+        Copy-Item $SourcePs1 $TargetPs1 -Force
+        @(
+            "@echo off",
+            "setlocal",
+            "",
+            "powershell -ExecutionPolicy Bypass -File ""%~dp0Verification\VERIFY_ALIS.ps1"" -ReleaseDir ""%~dp0"" -ManifestRelativePath ""Verification\SHA256SUMS.txt"" -SignatureRelativePath ""Verification\SHA256SUMS.txt.asc"" -BundledPublicKeyName ""Verification\ALIS_PUBLIC_KEY.asc"" -AllowRelativeAssetPaths -RequireExactInventory %*",
+            "exit /b %ERRORLEVEL%"
+        ) | Set-Content -Encoding Ascii $TargetBat
+        return
+    }
+
     $TargetPs1 = Join-Path $Directory "VERIFY_RELEASE.ps1"
     Copy-Item $SourcePs1 $TargetPs1 -Force
 
@@ -384,39 +395,101 @@ function Assert-ReleaseReadyForSignature {
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $ResolvedReleaseDir = Resolve-ReleaseDir -RequestedPath $ReleaseDir -ProjectRoot $ProjectRoot
-Assert-ReleaseReadyForSignature -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot
+$ReadinessDir = if ($Projection -eq "Game") {
+    if ([string]::IsNullOrWhiteSpace($ApprovalDir)) {
+        throw "Game signing requires -ApprovalDir for the ready GitHub release manifest."
+    }
+    $ResolvedApprovalDir = (Resolve-Path -LiteralPath $ApprovalDir).Path
+    $WorkspaceRoot = Split-Path -Parent $ResolvedApprovalDir
+    $ExpectedGameDir = Get-NormalizedPathForComparison -Path (Join-Path $WorkspaceRoot "game")
+    $ExpectedApprovalDir = Get-NormalizedPathForComparison -Path (Join-Path $WorkspaceRoot "github")
+    if (-not [string]::Equals(
+            (Get-NormalizedPathForComparison -Path $ResolvedReleaseDir),
+            $ExpectedGameDir,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals(
+            (Get-NormalizedPathForComparison -Path $ResolvedApprovalDir),
+            $ExpectedApprovalDir,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Game and approval directories must belong to the same release workspace as game/ and github/."
+    }
+
+    $WorkspaceVerifier = Join-Path $ScriptDir "release_workspace.py"
+    if (-not (Test-Path -LiteralPath $WorkspaceVerifier -PathType Leaf)) {
+        throw "Release workspace verifier is missing: $WorkspaceVerifier"
+    }
+    $Python = Get-Command "python" -ErrorAction SilentlyContinue
+    if (-not $Python) {
+        throw "Python is required to verify the release workspace before game signing."
+    }
+    & $Python.Source $WorkspaceVerifier verify --workspace-root $WorkspaceRoot | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Game release workspace verification failed before signing."
+    }
+    $ResolvedApprovalDir
+}
+else {
+    $ResolvedReleaseDir
+}
+Assert-ReleaseReadyForSignature -Directory $ReadinessDir -ProjectRoot $ProjectRoot
+$ApprovalManifest = Get-Content -LiteralPath (Join-Path $ReadinessDir "release_manifest.json") -Raw | ConvertFrom-Json
+$ApprovalScope = if ($ApprovalManifest.PSObject.Properties["approval_scope"]) {
+    [string]$ApprovalManifest.approval_scope
+}
+else {
+    "full"
+}
+if ($Projection -eq "GitHub" -and $ApprovalScope -ne "full") {
+    throw "GitHub signing requires full release approval; this workspace is approved for game distribution only."
+}
 $ResolvedGpgPath = Resolve-GpgPath -RequestedPath $GpgPath
 $ResolvedGpgHome = Resolve-GpgHome -RequestedPath $GpgHome
 Assert-IsolatedGpgHome -ResolvedGpgPath $ResolvedGpgPath -ResolvedGpgHome $ResolvedGpgHome
 $GpgHomeArgument = ConvertTo-GpgHomeArgument -ResolvedGpgPath $ResolvedGpgPath -ResolvedGpgHome $ResolvedGpgHome
 Initialize-GpgEnvironment -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgHomeArgument
-$PublicKeyAssetName = "ALIS_PUBLIC_KEY.asc"
+$PublicKeyAssetName = if ($Projection -eq "Game") { "Verification\ALIS_PUBLIC_KEY.asc" } else { "ALIS_PUBLIC_KEY.asc" }
 $PublicKeyAssetPath = Join-Path $ResolvedReleaseDir $PublicKeyAssetName
-Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.ps1"), (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.bat") -Force -ErrorAction SilentlyContinue
+if ($Projection -eq "Game") {
+    New-Item -ItemType Directory -Path (Split-Path -Parent $PublicKeyAssetPath) -Force | Out-Null
+    Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_ALIS.bat"), (Join-Path $ResolvedReleaseDir "Verification\VERIFY_ALIS.ps1") -Force -ErrorAction SilentlyContinue
+}
+else {
+    Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.ps1"), (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.bat") -Force -ErrorAction SilentlyContinue
+}
 Remove-Item $PublicKeyAssetPath -Force -ErrorAction SilentlyContinue
 
 Assert-SecretKeyAvailable -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgHomeArgument -Fingerprint $SigningKeyFingerprint
 Export-ReleasePublicKey -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgHomeArgument -Fingerprint $SigningKeyFingerprint -TargetPath $PublicKeyAssetPath
 
-Write-ReleaseVerifyHelpers -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot
+Write-ReleaseVerifyHelpers -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot -ReleaseProjection $Projection
 
-$Assets = Get-ReleaseAssets -Directory $ResolvedReleaseDir
+$Assets = Get-ReleaseAssets -Directory $ResolvedReleaseDir -ReleaseProjection $Projection
 
 if ($Assets.Count -eq 0) {
     throw "No release assets were found in $ResolvedReleaseDir."
 }
-$DuplicateAssetNames = @($Assets | Group-Object Name | Where-Object Count -gt 1)
-if ($DuplicateAssetNames.Count -gt 0) {
-    throw "Release assets must have unique public file names: $($DuplicateAssetNames.Name -join ', ')"
+if ($Projection -eq "GitHub") {
+    $DuplicateAssetNames = @($Assets | Group-Object Name | Where-Object Count -gt 1)
+    if ($DuplicateAssetNames.Count -gt 0) {
+        throw "Release assets must have unique public file names: $($DuplicateAssetNames.Name -join ', ')"
+    }
 }
 
-$ManifestPath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt"
-$SignaturePath = Join-Path $ResolvedReleaseDir "SHA256SUMS.txt.asc"
+$ManifestRelativePath = if ($Projection -eq "Game") { "Verification\SHA256SUMS.txt" } else { "SHA256SUMS.txt" }
+$SignatureRelativePath = if ($Projection -eq "Game") { "Verification\SHA256SUMS.txt.asc" } else { "SHA256SUMS.txt.asc" }
+$ManifestPath = Join-Path $ResolvedReleaseDir $ManifestRelativePath
+$SignaturePath = Join-Path $ResolvedReleaseDir $SignatureRelativePath
 Remove-Item $ManifestPath, $SignaturePath -Force -ErrorAction SilentlyContinue
 
 $HashLines = foreach ($Asset in $Assets) {
     $Hash = (Get-FileHash $Asset.FullName -Algorithm SHA256).Hash.ToLower()
-    "{0} *{1}" -f $Hash, $Asset.Name
+    $AssetName = if ($Projection -eq "Game") {
+        $Asset.FullName.Substring($ResolvedReleaseDir.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+    }
+    else {
+        $Asset.Name
+    }
+    "{0} *{1}" -f $Hash, $AssetName
 }
 
 $HashLines | Set-Content -Encoding Ascii $ManifestPath
@@ -426,6 +499,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " ALIS Release Signing" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "RELEASE_DIR   = $ResolvedReleaseDir"
+Write-Host "PROJECTION    = $Projection"
 Write-Host "GPG_PATH      = $ResolvedGpgPath"
 Write-Host "GPG_HOME      = $(if ($ResolvedGpgHome) { $ResolvedGpgHome } else { '<default>' })"
 Write-Host "FINGERPRINT   = $SigningKeyFingerprint"
@@ -478,7 +552,13 @@ $SummaryLines = @(
 )
 
 foreach ($Asset in $Assets) {
-    $SummaryLines += "Asset=$($Asset.Name)"
+    $SummaryName = if ($Projection -eq "Game") {
+        $Asset.FullName.Substring($ResolvedReleaseDir.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+    }
+    else {
+        $Asset.Name
+    }
+    $SummaryLines += "Asset=$SummaryName"
 }
 
 if ($SummaryPath) {

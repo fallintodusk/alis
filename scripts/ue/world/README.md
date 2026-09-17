@@ -161,15 +161,13 @@ Each Development child writes both UE's rich diagnostic CSV and an exact CSV
 projection of the C++ performance collector frames. The runner requires every
 child's functional, streaming, envelope, package, executable, source, and
 minimum-sample evidence, then concatenates all exact frame samples and applies
-the nearest-rank Frame p95 threshold. The 60 FPS product budget is fixed at
-`16.67 ms`.
-Before the three runs, the Windows runner averages three CPU samples and the
-maximum NVIDIA GPU load observed across installed adapters. Host load is
-diagnostic evidence only and never changes the product budget. The aggregate
-records CPU/GPU load, the fixed budget, and a zero allowance. An unavailable or
-invalid load measurement fails closed. Child p95 values are reported, never
-averaged or selected. A fixed count of three is release evidence, not the
-separate runtime-profile tournament.
+the nearest-rank Frame p95 threshold. The fixed 60 FPS product budget is
+`16.67 ms`. Host-load measurement is an idle-host precondition and receipt
+diagnostic; it never changes that product budget. Its evidence contract is owned
+by [World Partition](../../../Plugins/World/ProjectWorld/docs/world_partition.md#automated-design-and-performance-gate).
+An unavailable or invalid load measurement fails closed. Child p95 values are
+reported, never averaged or selected. A fixed count of three is release
+evidence, not the separate runtime-profile tournament.
 An individual child whose only rejection is the Frame p95 gate remains part of
 the aggregate. UE requests process status 10 for that case, but packaged Windows
 may report normal exit 0; the authenticated rejection receipt and normal-exit

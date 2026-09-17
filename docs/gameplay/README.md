@@ -1,34 +1,13 @@
-# Gameplay Architecture
+# Gameplay
 
-Documentation for gameplay mechanics, modes, and features.
+| Need | Owner |
+|---|---|
+| Route game-mode and gameplay composition | [Gameplay plugins](../../Plugins/Gameplay/README.md) |
+| Route optional domain capabilities | [Feature plugins](../../Plugins/Features/README.md) |
+| Author and run dialogue | [ProjectDialogue](../../Plugins/Features/ProjectDialogue/README.md) |
+| Implement inventory behavior | [ProjectInventory](../../Plugins/Features/ProjectInventory/README.md) |
+| Compose characters | [ProjectCharacter](../../Plugins/Gameplay/ProjectCharacter/README.md) |
+| Implement World behavior | [World plugins](../../Plugins/World/README.md) |
 
-> **Implementation Note:** Code lives in `Plugins/Gameplay/`, `Plugins/Features/`, and `Plugins/World/`.
-
-## Gameplay Framework
-
-- **[ProjectGameplay](../../Plugins/Gameplay/ProjectGameplay/README.md)** - Base classes, interfaces, and shared types.
-- **[ProjectCharacter](../../Plugins/Gameplay/ProjectCharacter/README.md)** - The primary player character, inputs, and camera.
-    - [Design Doc](../../Plugins/Gameplay/ProjectCharacter/docs/design.md)
-- **[ProjectGAS](../../Plugins/Gameplay/ProjectGAS/README.md)** - Gameplay Ability System configuration (Attributes, GEs).
-- **[ProjectVitals](../../Plugins/Gameplay/ProjectVitals/README.md)** - Survival mechanics (Health, Stamina, Hunger).
-
-## Game Modes
-
-- **[SinglePlay](../../Plugins/Gameplay/ProjectSinglePlay/README.md)** - Orchestrator for single-player session.
-- **[OnlinePlay](../../Plugins/Gameplay/ProjectOnlinePlay/README.md)** - Orchestrator for multiplayer session.
-- **[MenuPlay](../../Plugins/Gameplay/ProjectMenuPlay/README.md)** - Lightweight mode for the main menu.
-
-## Features
-
-- **[Interaction](../../Plugins/Gameplay/ProjectInteraction/README.md)** - Interaction system.
-- **[Inventory](../../Plugins/Features/ProjectInventory/README.md)** - Inventory management.
-
-## World
-
-- **[ProjectWorld](../../Plugins/World/ProjectWorld/README.md)** - World Partition, Tiles, and Environment.
-
-## Usage Guides (Moved to Features)
-
-- **[Dialogue Manual](../../Plugins/Features/ProjectDialogue/docs/manual.md)** - Asset authoring & setup.
-- **[World Partition Guide](../../Plugins/World/ProjectWorld/docs/world_partition.md)** - World Partition & Maps guide.
-- **[Experience Manual](../../Plugins/Gameplay/ProjectGameplay/docs/manual_experiences.md)** - Game Modes & Experience setup.
+Domain facts belong to the responsible plugin. This router does not reproduce
+their APIs or execution flows.

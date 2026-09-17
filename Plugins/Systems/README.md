@@ -1,22 +1,12 @@
-Systems Tier
+# Systems
 
-Purpose
-- Reusable runtime services (always-on or broadly depended upon).
+Reusable runtime services with lifecycles broader than one gameplay feature.
 
-Examples
-- ProjectLoading: loading phases orchestration; no UI widgets.
-- ProjectSession: session lifecycle (offline/online-agnostic); not networking.
-- ProjectSave: save/load service and slots; UI-agnostic.
-- ProjectPCG: PCG engine integration, nodes, registries.
-- ProjectWorld: WP/HLOD/streaming policies (always-on).
-- ProjectSettings: settings storage, defaults, typed API.
-
-Non-responsibilities
-- No domain screens here; UI belongs to Features.
-- Session does not wrap networking; Online/* adapters live in an optional Online tier.
-
-Useful entry points
-- [ProjectLoading](ProjectLoading/README.md)
-- [ProjectSave](ProjectSave/README.md)
-- [ProjectSettings](ProjectSettings/README.md)
-- [ProjectMotionSystem](ProjectMotionSystem/README.md)
+| Component | Owner |
+|---|---|
+| Runtime loading | [ProjectLoading](ProjectLoading/README.md) |
+| Motion modes | [ProjectMotionSystem](ProjectMotionSystem/README.md) |
+| Save data | [ProjectSave](ProjectSave/README.md) |
+| Settings data | [ProjectSettings](ProjectSettings/README.md) |
+| Skeletal assembly | [ProjectSkeletalAssembly](ProjectSkeletalAssembly/README.md) |
+| Sound execution | [ProjectSoundSystem](ProjectSoundSystem/README.md) |

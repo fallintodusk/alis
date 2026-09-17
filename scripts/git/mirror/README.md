@@ -263,7 +263,9 @@ bootstrap in its flat GitHub asset set. Manual exact-tag checkout plus 7-Zip
 extraction is the primary Developer path. The optional
 `INSTALL_ALIS_DEVELOPER.bat` bootstrap clones the exact public tag and delegates
 to this checkout-local installer. It authenticates only the required Developer
-assets from the signed checksum manifest; Player archives are not required.
+assets from the signed checksum manifest; Player archives are not required. Its
+default checkout is a sibling of the download directory, and a failed checkout
+created by the bootstrap is removed.
 The bootstrap is transport orchestration, not a second payload installer or
 trust authority.
 

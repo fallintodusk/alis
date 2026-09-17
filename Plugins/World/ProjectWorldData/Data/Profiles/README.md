@@ -14,10 +14,10 @@ source path must agree before execution.
 It asserts that a content-identical incremental leg rewrites no Landscape components,
 that the Authored Corrections layer survives, and that GeoReferencing placement error is
 zero - all of which a completely flat Landscape satisfies. Elevation correctness is a
-separate contract carried by the `terrain_height_*` receipt fields and authenticated by
-layered validation; see
-[ProjectWorld architecture overview](../../../ProjectWorld/docs/architecture_overview.md)
-section 3.1. `p0` and `representative_v1` set `require_landscape` with an empty
+separate contract carried by the `terrain_source_height_*` and
+`terrain_final_height_*` receipt fields and authenticated by layered validation; see the
+[terrain elevation acceptance contract](../../../ProjectWorld/docs/territory_contract.md#terrain-elevation-acceptance).
+`p0` and `representative_v1` set `require_landscape` with an empty
 `expected_topology` and own no realization profile, so they never execute the terrain
 generator and must never be read as evidence that terrain elevation is correct. A profile
 that wants terrain correctness must declare explicit topology and run the layered

@@ -32,8 +32,8 @@ struct FProjectAnalyticsEvent
 };
 
 /**
- * Interface for analytics service.
- * Concrete implementation will integrate with backend (e.g., Google Analytics, custom telemetry).
+ * Optional analytics service contract. This repository provides only the
+ * disabled development stub below; no upload provider is registered here.
  *
  * Usage:
  *   IProjectAnalyticsService* Analytics = FProjectServiceLocator::Get().GetAnalyticsService();
@@ -42,12 +42,7 @@ struct FProjectAnalyticsEvent
  *       Analytics->RecordEvent(Event);
  *   }
  *
- * Implementation Notes:
- * - Events are queued and uploaded in batches to reduce network overhead
- * - Analytics can be disabled via project settings or user preferences
- * - All data should be anonymized per privacy policies
- *
- * See: todo/create_architecture.md Phase 10 (Telemetry & Analytics)
+ * Providers must make enablement and queued-event behavior explicit.
  */
 class IProjectAnalyticsService
 {

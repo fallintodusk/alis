@@ -9,6 +9,7 @@ $TestRoot = Join-Path $TestParent ([guid]::NewGuid().ToString("N"))
 $PlayerDir = Join-Path $TestRoot "release"
 $PackageRoot = Join-Path $TestRoot "package"
 $Destination = Join-Path $TestRoot "installed"
+$DefaultDestination = Join-Path $TestRoot "ALIS_v9.8.7"
 
 New-Item -ItemType Directory -Path $PlayerDir, $PackageRoot -Force | Out-Null
 
@@ -28,6 +29,12 @@ function Write-RenderedInstaller {
         ConvertTo-Json -Depth 10 -Compress).Replace("'", "''")
     $Template.Replace($Marker, $ManifestJson) |
         Set-Content -LiteralPath (Join-Path $PlayerDir "INSTALL_ALIS_PLAYER.ps1") -Encoding UTF8
+}
+
+function Read-Host {
+    param([string]$Prompt)
+
+    return ""
 }
 
 try {
@@ -54,12 +61,20 @@ try {
     }
     $ReportPath = Join-Path $PlayerDir "player-archive.json"
     [ordered]@{
-        schema = "alis-player-archive-v1"
+        schema = "alis-game-archive-v1"
         status = "accepted"
         parts = $Parts
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding Ascii
     Write-RenderedInstaller -ReportPath $ReportPath
     Remove-Item -LiteralPath $ReportPath
+
+    & (Join-Path $PlayerDir "INSTALL_ALIS_PLAYER.ps1")
+    if (-not (Test-Path -LiteralPath (Join-Path $DefaultDestination "Alis.exe") -PathType Leaf)) {
+        throw "Player installer default destination must be beside, not inside, the release directory."
+    }
+    if (Test-Path -LiteralPath (Join-Path $PlayerDir "ALIS_v9.8.7")) {
+        throw "Player installer contaminated its release directory."
+    }
 
     & (Join-Path $PlayerDir "INSTALL_ALIS_PLAYER.ps1") -Destination $Destination
     if (-not (Test-Path -LiteralPath (Join-Path $Destination "Alis.exe") -PathType Leaf)) {

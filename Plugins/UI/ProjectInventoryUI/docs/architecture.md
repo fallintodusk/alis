@@ -344,7 +344,7 @@ Shared UI framework dependencies (ProjectUI):
   so UI and gameplay cannot diverge without putting data/helper drift into
   ProjectCore.
 - Do not reintroduce removed inventory-generic helpers (`FInventoryPanelDragDrop`, `FInventoryGridHitDetector`, `FInventoryGridVisualState`, `UInventoryGridCell`).
-- Reference: `Plugins/UI/ProjectUI/docs/framework_consolidation.md`.
+- Reference: `Plugins/UI/ProjectUI/docs/architecture/README.md`.
 
 ## External References
 

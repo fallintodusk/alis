@@ -4,7 +4,6 @@
 
 void FProjectGameplayModule::StartupModule()
 {
-	// Stub: will contain base gameplay classes
 }
 
 void FProjectGameplayModule::ShutdownModule()

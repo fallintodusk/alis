@@ -44,7 +44,8 @@ $Report = if ($EmbeddedArchiveManifestJson.StartsWith("__ALIS_PLAYER_")) {
 } else {
     $EmbeddedArchiveManifestJson | ConvertFrom-Json
 }
-if ($Report.schema -ne "alis-player-archive-v1" -or $Report.status -ne "accepted" -or @($Report.parts).Count -lt 1) {
+if ($Report.schema -notin @("alis-player-archive-v1", "alis-game-archive-v1") -or
+    $Report.status -ne "accepted" -or @($Report.parts).Count -lt 1) {
     throw "Unsupported player archive manifest."
 }
 $PartPaths = @($Report.parts | ForEach-Object {
@@ -58,11 +59,7 @@ $Version = if ($FirstName -match "ALIS_Win64_v(?<version>[0-9]+\.[0-9]+\.[0-9]+)
 }
 
 if ([string]::IsNullOrWhiteSpace($Destination)) {
-    $DefaultParent = if ((Split-Path -Leaf $ReleaseRoot) -ieq "player") {
-        Split-Path -Parent $ReleaseRoot
-    } else {
-        $ReleaseRoot
-    }
+    $DefaultParent = Split-Path -Parent $ReleaseRoot
     $DefaultDestination = Join-Path $DefaultParent "ALIS_v$Version"
     $Answer = Read-Host "Install location [$DefaultDestination] (press Enter to accept)"
     $Destination = if ([string]::IsNullOrWhiteSpace($Answer)) { $DefaultDestination } else { $Answer }
