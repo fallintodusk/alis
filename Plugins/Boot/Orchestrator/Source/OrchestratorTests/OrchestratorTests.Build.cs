@@ -14,6 +14,7 @@ public class OrchestratorTests : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"ProjectCore",
 			"OrchestratorCore"
 			// BootROM dependency removed - FBootManifest deleted, tests use FOrchestratorManifest
 		});

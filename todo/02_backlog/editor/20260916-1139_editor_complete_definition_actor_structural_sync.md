@@ -16,6 +16,14 @@ an ObjectDefinition replacement path. Batch PreSave only calls
   existing definition-backed actor and a capability add or remove.
 - Keep replacement orchestration in the editor owner; do not move editor
   factories or replacement policy into the runtime actor.
+- Do not destroy and replace an actor from that actor's `PreSave`. Unreal has
+  already entered object serialization at that point. A world-level pre-save
+  hook also needs proof for World Partition external actors: the editor can
+  select external packages before broadcasting `PreSaveExternalActors`, so a
+  replacement created there may not belong to the selected save set.
+- Select an editor-owned batch preflight that finishes replacement before the
+  packages to save are fixed, then let actor `PreSave` validate rather than
+  mutate structure.
 - Preserve transform, label, folder, definition identity, undo/save behavior,
   and fail visibly if replacement cannot complete.
 - Add focused regressions proving capability property updates reapply and

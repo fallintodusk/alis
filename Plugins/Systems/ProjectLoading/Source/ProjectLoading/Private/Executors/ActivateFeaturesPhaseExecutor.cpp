@@ -2,12 +2,8 @@
 // License terms: see repository root LICENSE.
 
 #include "ActivateFeaturesPhaseExecutor.h"
+#include "Interfaces/IOrchestratorRegistry.h"
 #include "ProjectLoadingLog.h"
-#include "ProjectLoadingSubsystem.h"
-#include "ProjectLoadingSettings.h"
-#include "Modules/ModuleManager.h"
-#include "Engine/GameInstance.h"
-#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "ProjectLoadPhaseExecutors"
 
@@ -18,15 +14,6 @@ FText FActivateFeaturesPhaseExecutor::GetPhaseName() const
 
 bool FActivateFeaturesPhaseExecutor::ShouldSkip(const FLoadRequest& Request) const
 {
-	// Check if feature activation is delegated to Orchestrator
-	const UProjectLoadingSettings* Settings = GetDefault<UProjectLoadingSettings>();
-	if (Settings && Settings->bDelegateFeatureActivationToOrchestrator)
-	{
-		// Orchestrator handles feature activation in the immutable bootloader path
-		return true;
-	}
-
-	// Legacy path: Skip if no features to activate
 	return Request.FeaturesToActivate.Num() == 0;
 }
 
@@ -41,52 +28,49 @@ FProjectPhaseResult FActivateFeaturesPhaseExecutor::Execute(FProjectPhaseContext
 		return FProjectPhaseResult::Cancelled();
 	}
 
-	UProjectLoadingSubsystem* LoadingSubsystem = Context.Subsystem.Get();
-	if (!LoadingSubsystem)
+	IOrchestratorRegistry* Registry = GetOrchestratorRegistry();
+	if (!Registry)
 	{
-		const FText Error = LOCTEXT("NoLoadingSubsystem", "Project loading subsystem unavailable.");
+		const FText Error = LOCTEXT("NoOrchestratorRegistry", "Feature readiness authority unavailable.");
 		UE_LOG(LogProjectLoading, Error, TEXT("Phase 4: Activate Features - %s"), *Error.ToString());
 		return FProjectPhaseResult::Failure(Error, ProjectLoadingErrors::FeatureActivationFailed);
 	}
 
-	// Convert feature IDs to module names (assume feature ID == plugin name == module name for now)
-	TArray<FName> FeatureModules;
+	TArray<FName> RequestedFeatures;
 	for (const FString& FeatureIdString : Context.Request.FeaturesToActivate)
 	{
 		if (!FeatureIdString.IsEmpty())
 		{
-			FeatureModules.AddUnique(FName(*FeatureIdString));
+			RequestedFeatures.AddUnique(FName(*FeatureIdString));
 		}
 	}
 
-	if (FeatureModules.Num() == 0)
+	if (RequestedFeatures.Num() == 0)
 	{
 		UE_LOG(LogProjectLoading, Verbose, TEXT("Phase 4: Activate Features - No features to validate"));
 		ReportProgress(Context, 1.0f, LOCTEXT("NoFeaturesActivate", "No features to validate"));
 		return FProjectPhaseResult::Skipped();
 	}
 
-	// Validate that required feature modules are loaded (Orchestrator guarantees ordering and load)
-	FModuleManager& ModuleManager = FModuleManager::Get();
 	TArray<FString> MissingFeatures;
 
-	for (int32 Index = 0; Index < FeatureModules.Num(); ++Index)
+	for (int32 Index = 0; Index < RequestedFeatures.Num(); ++Index)
 	{
-		const FName& ModuleName = FeatureModules[Index];
-		const float Progress = (float)(Index + 1) / (float)FeatureModules.Num();
+		const FName& FeatureName = RequestedFeatures[Index];
+		const float Progress = static_cast<float>(Index + 1) / static_cast<float>(RequestedFeatures.Num());
 
 		ReportProgress(Context, Progress, FText::Format(
 			LOCTEXT("CheckingFeature", "Checking feature: {0}"),
-			FText::FromName(ModuleName)));
+			FText::FromName(FeatureName)));
 
-		if (!ModuleManager.IsModuleLoaded(ModuleName))
+		if (!Registry->IsFeatureAvailable(FeatureName))
 		{
-			UE_LOG(LogProjectLoading, Error, TEXT("Phase 4: Activate Features - Required feature not loaded: %s"), *ModuleName.ToString());
-			MissingFeatures.Add(ModuleName.ToString());
+			UE_LOG(LogProjectLoading, Error, TEXT("Phase 4: Activate Features - Required feature unavailable: %s"), *FeatureName.ToString());
+			MissingFeatures.Add(FeatureName.ToString());
 		}
 		else
 		{
-			UE_LOG(LogProjectLoading, Verbose, TEXT("Phase 4: Activate Features - Validated: %s"), *ModuleName.ToString());
+			UE_LOG(LogProjectLoading, Verbose, TEXT("Phase 4: Activate Features - Validated: %s"), *FeatureName.ToString());
 		}
 
 		if (CheckCancellation(Context))
@@ -100,7 +84,7 @@ FProjectPhaseResult FActivateFeaturesPhaseExecutor::Execute(FProjectPhaseContext
 	{
 		FString MissingList = FString::Join(MissingFeatures, TEXT(", "));
 		const FText Error = FText::Format(
-			LOCTEXT("MissingFeatures", "Required feature modules not loaded: {0}"),
+			LOCTEXT("MissingFeatures", "Required features unavailable: {0}"),
 			FText::FromString(MissingList));
 
 		UE_LOG(LogProjectLoading, Error, TEXT("Phase 4: Activate Features - %s"), *Error.ToString());
@@ -108,10 +92,9 @@ FProjectPhaseResult FActivateFeaturesPhaseExecutor::Execute(FProjectPhaseContext
 	}
 
 	ReportProgress(Context, 1.0f, LOCTEXT("ActivateFeaturesComplete", "Feature validation complete"));
-	UE_LOG(LogProjectLoading, Display, TEXT("Phase 4: Activate Features - Completed successfully (%d feature(s))"), FeatureModules.Num());
+	UE_LOG(LogProjectLoading, Display, TEXT("Phase 4: Activate Features - Completed successfully (%d feature(s))"), RequestedFeatures.Num());
 
 	return FProjectPhaseResult::Success();
 }
 
 #undef LOCTEXT_NAMESPACE
-

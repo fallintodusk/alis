@@ -32,16 +32,4 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category="Phase Configuration")
 	bool bMountContentPacksOnly = true;
 
-	/**
-	 * When true, Phase 4 (ActivateFeatures) skips feature activation and delegates to Orchestrator.
-	 * When false, Phase 4 computes and activates features locally (legacy behavior).
-	 *
-	 * This enables the immutable bootloader path:
-	 *   BootROM -> Orchestrator -> [Orchestrator activates features] -> ProjectLoading (phases 1,2,3,5,6)
-	 *
-	 * When false (legacy path):
-	 *   ProjectLoading -> [Phase 4 activates features based on Request.FeaturesToActivate]
-	 */
-	UPROPERTY(Config, EditAnywhere, Category="Phase Configuration")
-	bool bDelegateFeatureActivationToOrchestrator = false;
 };

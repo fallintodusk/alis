@@ -47,13 +47,15 @@ the core loading module.
 1. Every accepted request reaches exactly one terminal success, failure, or
    cancellation state.
 2. Unknown or unsupported required work fails; it is not silently skipped.
-3. Explicit runtime content-pack requests currently fail because mounting is
+3. Requested feature readiness is validated through `IOrchestratorRegistry`;
+   ProjectLoading neither loads nor inspects modules directly.
+4. Explicit runtime content-pack requests currently fail because mounting is
    unsupported; requests with no packs continue to the next phase.
-4. Preloaded assets remain referenced through travel and are released on every
+5. Preloaded assets remain referenced through travel and are released on every
    terminal path and shutdown.
-5. Asynchronous callbacks use weak owners and cannot complete an obsolete load.
-6. ProjectLoading owns loading state; presentation owners only observe it.
-7. ProjectLoading-authored travel carries the owner-only
+6. Asynchronous callbacks use weak owners and cannot complete an obsolete load.
+7. ProjectLoading owns loading state; presentation owners only observe it.
+8. ProjectLoading-authored travel carries the owner-only
    `ProjectLoadingRoute=1` option. Caller options cannot replace it, and a
    destination carrying it must not start the initial experience again. The
    [travel URL regression](../../Source/ProjectLoadingTests/Private/Unit/ProjectLoadingTravelURLTests.cpp)

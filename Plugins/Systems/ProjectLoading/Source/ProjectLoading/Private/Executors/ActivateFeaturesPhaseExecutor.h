@@ -8,8 +8,8 @@
 
 /**
  * Phase 4: Activate Features
- * Activates feature plugins required by the load request.
- * Integrates with ProjectFeatureActivationSubsystem.
+ * Validates that features requested by the load are ready through the
+ * Orchestrator registry. ProjectLoading does not own module activation.
  */
 class FActivateFeaturesPhaseExecutor : public FProjectLoadPhaseExecutor
 {

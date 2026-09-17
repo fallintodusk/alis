@@ -8,7 +8,6 @@ public class ProjectLoadingTests : ModuleRules
 	public ProjectLoadingTests(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-
 		// Tier 1 Test Module: Only depend on the plugin being tested
 		PublicDependencyModuleNames.AddRange(new string[]
 		{

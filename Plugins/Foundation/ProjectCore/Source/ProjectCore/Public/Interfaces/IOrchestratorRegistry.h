@@ -41,10 +41,11 @@ public:
 	virtual ~IOrchestratorRegistry() = default;
 
 	/**
-	 * Check if a feature plugin is loaded and available
+	 * Check whether a feature is ready under the active Orchestrator manifest.
 	 *
 	 * @param PluginName The plugin name (e.g., "ProjectMenuCore")
-	 * @return True if plugin is registered, mounted, and module loaded
+	 * @return True when the manifested plugin is enabled and mounted, and its
+	 * declared module is loaded when it has code
 	 */
 	virtual bool IsFeatureAvailable(FName PluginName) const = 0;
 

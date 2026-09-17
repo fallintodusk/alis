@@ -94,10 +94,10 @@ bool FProjectCore_LoadRequest_Properties::RunTest(const FString& Parameters)
 	FLoadRequest Request;
 
 	// Test features
-	Request.FeaturesToActivate.Add(TEXT("CombatSystem"));
-	Request.FeaturesToActivate.Add(TEXT("DialogueSystem"));
+	Request.FeaturesToActivate.Add(TEXT("ProjectCombat"));
+	Request.FeaturesToActivate.Add(TEXT("ProjectDialogue"));
 	TestEqual(TEXT("FeaturesToActivate count is 2"), Request.FeaturesToActivate.Num(), 2);
-	TestEqual(TEXT("First feature is CombatSystem"), Request.FeaturesToActivate[0], TEXT("CombatSystem"));
+	TestEqual(TEXT("First feature is ProjectCombat"), Request.FeaturesToActivate[0], TEXT("ProjectCombat"));
 
 	// Test content packs
 	Request.ContentPacksToMount.Add(TEXT("KazanPack"));

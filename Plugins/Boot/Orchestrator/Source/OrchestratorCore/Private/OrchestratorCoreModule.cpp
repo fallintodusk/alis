@@ -1420,19 +1420,17 @@ bool FOrchestratorCoreModule::IsFeatureAvailable(FName PluginName) const
 	IPluginManager& PluginManager = IPluginManager::Get();
 	FModuleManager& ModuleManager = FModuleManager::Get();
 
-	// Check if plugin is registered and mounted
+	// Availability is limited to the manifest authority and realized plugin state.
 	TSharedPtr<IPlugin> Plugin = PluginManager.FindPlugin(PluginName.ToString());
-	if (!Plugin.IsValid() || !Plugin->IsEnabled())
+	const FOrchestratorPluginEntry* ManifestEntry = CurrentManifest.FindPlugin(PluginName.ToString());
+	if (!ManifestEntry || !Plugin.IsValid() || !Plugin->IsEnabled() || !Plugin->IsMounted())
 	{
 		return false;
 	}
 
-	// Find plugin entry in manifest to get module name
-	const FOrchestratorPluginEntry* ManifestEntry = CurrentManifest.FindPlugin(PluginName.ToString());
-	if (!ManifestEntry || ManifestEntry->Module.IsEmpty())
+	if (ManifestEntry->Module.IsEmpty())
 	{
-		// Content-only plugin - available if enabled (UE 5.5+: no IsMounted() method)
-		return Plugin->IsEnabled();
+		return true;
 	}
 
 	// Check if module is loaded

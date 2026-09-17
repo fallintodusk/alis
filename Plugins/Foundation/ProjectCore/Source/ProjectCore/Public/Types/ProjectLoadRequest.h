@@ -36,7 +36,7 @@ enum class ELoadMode : uint8
  * - Target map/experience to load
  * - Desired mode (SP/MP)
  * - Session data for multiplayer
- * - Feature toggles
+ * - Orchestrator plugin readiness requirements
  * - Options (skip cinematics, etc.)
  */
 USTRUCT(BlueprintType)
@@ -119,8 +119,9 @@ public:
 	TArray<FString> PartyMemberIds;
 
 	/**
-	 * Feature plugin identifiers to activate
-	 * Example: ["CombatSystem", "DialogueSystem"]
+	 * Orchestrator plugin names that must be ready before travel.
+	 * These are plugin identities such as "ProjectCombat", not gameplay feature
+	 * identities such as "Combat" from FFeatureRegistry.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Features")
 	TArray<FString> FeaturesToActivate;

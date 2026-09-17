@@ -201,7 +201,7 @@ bool FProjectLoadingSubsystemLoadRequestTest::RunTest(const FString& Parameters)
 	Request.Priority = 200;
 	Request.bSkipCinematics = true;
 	Request.bPerformWarmup = false;
-	Request.FeaturesToActivate = { TEXT("CombatSystem"), TEXT("DialogueSystem") };
+	Request.FeaturesToActivate = { TEXT("ProjectCombat"), TEXT("ProjectDialogue") };
 	Request.ContentPacksToMount = { TEXT("ProjectContentPack_Starter"), TEXT("ProjectContentPack_Tower") };
 	Request.CustomOptions.Add(TEXT("Difficulty"), TEXT("Hard"));
 
