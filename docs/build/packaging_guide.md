@@ -304,29 +304,25 @@ manually compare hashes unless they want authenticity guarantees.
 
 This is the security-conscious path:
 
-1. Download all archive parts.
-2. Download `SHA256SUMS.txt`, `SHA256SUMS.txt.asc`, and `ALIS_PUBLIC_KEY.asc` from the same mirror.
-3. Confirm the bundled key fingerprint against the site trust page or another trusted record.
-4. Verify the detached signature on `SHA256SUMS.txt`.
-5. Verify all archive hashes against `SHA256SUMS.txt`.
-6. Run the applicable role installer only after verification succeeds.
+1. Install GnuPG or Git for Windows. Verification requires `gpg` and `gpgv`.
+2. Download `VERIFY_RELEASE.bat`, `VERIFY_RELEASE.ps1`, `SHA256SUMS.txt`,
+   `SHA256SUMS.txt.asc`, and `ALIS_PUBLIC_KEY.asc` from one release.
+3. Download every release asset named by `SHA256SUMS.txt` into that same folder.
+4. Confirm the bundled key fingerprint against the
+   [ALIS trust page](https://fall.is/trust/) or another trusted record.
+5. Run the verifier from that folder. It authenticates the checksum manifest
+   and then verifies every file named by it.
 
-Recommended command:
-
-```powershell
-.\scripts\ue\package\verify_release.ps1 -ReleaseDir <release_dir>
-```
-
-Preferred release-side Windows command:
+Windows:
 
 ```powershell
 .\VERIFY_RELEASE.bat
 ```
 
-Preferred release-side Linux command:
+Repository operators may run the same implementation directly:
 
-```sh
-./VERIFY_RELEASE.sh
+```powershell
+.\scripts\ue\package\verify_release.ps1 -ReleaseDir <release_dir>
 ```
 
 ### Why Verification Exists

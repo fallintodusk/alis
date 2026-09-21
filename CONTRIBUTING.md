@@ -9,6 +9,19 @@ The pull-request checklist records the contributor's rights and provenance
 affirmation without adding personal certification data to every commit. It is
 not a CLA, copyright assignment, or consent to future relicensing.
 
+## Submit a Change
+
+1. Use [Discussions](https://github.com/fallintodusk/alis/discussions) for
+   questions and ideas, and [Issues](https://github.com/fallintodusk/alis/issues/new/choose)
+   for reproducible work. Report vulnerabilities through the private
+   [Security Policy](SECURITY.md).
+2. Fork the repository and create one focused branch from `main`.
+3. Choose the smallest relevant checks through the
+   [testing router](docs/testing/README.md). The [CI router](docs/ci/README.md)
+   identifies the checks hosted by GitHub.
+4. Open a pull request to `fallintodusk/alis:main` and complete the checked-in
+   [pull-request template](.github/pull_request_template.md).
+
 ## License Integrity
 
 Before submitting:

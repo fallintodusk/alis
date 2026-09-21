@@ -248,7 +248,8 @@ Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL;
  # Create config
  Copy-Item scripts/config/ue_path.conf.example scripts/config/ue_path.local.conf
  
- # Edit: UE_PATH="%UE_PATH%"
+ # Edit ue_path.local.conf with an unquoted launcher path, for example:
+ # UE_PATH=<ue-path>
  ```
  
  ### GameFeature Plugin Not Compiling
@@ -275,18 +276,10 @@ Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL;
 
 ---
 
-## CI/CD Integration
+## Continuous Integration
 
-**Overnight builds:** See [docs/guides/ci_setup.md](../guides/ci_setup.md)
-
-**Jenkins/GitHub Actions:**
-```bash
-# Headless development build (launcher UE_PATH)
-scripts/ue/standalone/build.ps1
-
-# Package for distribution (source UE_SOURCE_PATH)
-scripts/ue/package/package_release_source.bat
-```
+See the [CI router](../ci/README.md) for the checks hosted by GitHub. Unreal
+build, test, and package commands remain with their local owners.
 
 ---
 

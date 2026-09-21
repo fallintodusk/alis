@@ -4,6 +4,7 @@ Current technical documentation for the ALIS repository.
 
 | Concern | Owner |
 |---|---|
+| Role-based onboarding | [Quick Starts](quickstart/README.md) |
 | Project composition and boundaries | [Architecture](architecture/README.md) |
 | Animation | [Animation](animation/README.md) |
 | Build and release | [Build](build/README.md) |

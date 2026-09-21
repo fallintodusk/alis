@@ -7,7 +7,7 @@ acceptance host is available and configured
 qualified promotion handoff
 
 **Stable documentation owners:** `docs/build/packaging_guide.md`,
-`scripts/ue/package/README.md`, and `player/README.md`
+`scripts/ue/package/README.md`, and `docs/quickstart/player/README.md`
 
 ## Contents
 
@@ -300,7 +300,7 @@ This is an adapter to the existing trust model, not a second trust authority.
   GitHub upload, `TARGET=game`, and Windows-only itch compatibility.
 - `scripts/ue/package/README.md` owns the platform workspace, toolchain input,
   recovery, signing, and verification behavior.
-- `player/README.md` owns concise Windows/Linux extraction, verification, and
+- `docs/quickstart/player/README.md` owns concise Windows/Linux extraction, verification, and
   run instructions. Root README only routes and names release platforms.
 - Generated `README.txt` derives platform instructions from the manifest.
   Developer workflow remains Windows-hosted; promotion/connector details remain

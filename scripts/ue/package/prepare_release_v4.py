@@ -200,7 +200,7 @@ def write_guide(
         "",
         f"Clone the exact {tag} tag and download:",
         *[f"  {name}" for name in developer_parts],
-        f"Follow https://github.com/fallintodusk/alis/blob/{tag}/developer/README.md",
+        f"Follow https://github.com/fallintodusk/alis/blob/{tag}/docs/quickstart/developer/README.md",
         "",
         "VERIFY THE RELEASE",
         "",
@@ -333,7 +333,7 @@ def prepare(
             "rights_review": {"status": "pending_owner_approval"},
             "release_documents": {
                 "component_manifest_artifact": "effective-component-manifest.json",
-                "developer_guide_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/developer/README.md",
+                "developer_guide_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/docs/quickstart/developer/README.md",
                 "notices_artifact": inputs.attribution_notice.name,
                 "product_terms_artifact": "PRODUCT_TERMS.txt",
                 "source_license_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/LICENSE",

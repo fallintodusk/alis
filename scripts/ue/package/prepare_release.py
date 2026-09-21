@@ -580,7 +580,7 @@ def write_release_guide(
             *developer_extract,
             "",
             "4. Follow the Developer Quick Start:",
-            f"   {repository}/blob/{tag}/developer/README.md",
+            f"   {repository}/blob/{tag}/docs/quickstart/developer/README.md",
             "",
             "Optional convenience",
             f"Keep those Developer archive files, {developer_payload}, the two Developer",
@@ -691,7 +691,7 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
             "rights_review": {"status": "pending_owner_approval"},
             "release_documents": {
                 "component_manifest_artifact": "effective-component-manifest.json",
-                "developer_guide_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/developer/README.md",
+                "developer_guide_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/docs/quickstart/developer/README.md",
                 "notices_artifact": inputs.attribution_notice.name,
                 "product_terms_artifact": "PRODUCT_TERMS.txt",
                 "source_license_url": f"https://github.com/fallintodusk/alis/blob/{inputs.release_tag}/LICENSE",

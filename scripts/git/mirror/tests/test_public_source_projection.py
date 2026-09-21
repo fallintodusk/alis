@@ -24,7 +24,15 @@ class PublicSourceProjectionTests(unittest.TestCase):
 
     def test_public_front_door_routes_and_commands_exist(self):
         missing = []
-        for relative in ("README.md", "player/README.md", "developer/README.md", "SECURITY.md"):
+        for relative in (
+            "README.md",
+            "docs/README.md",
+            "docs/quickstart/README.md",
+            "docs/quickstart/player/README.md",
+            "docs/quickstart/developer/README.md",
+            "docs/quickstart/developer/world-generation.md",
+            "SECURITY.md",
+        ):
             document = REPO_ROOT / relative
             text = document.read_text(encoding="utf-8")
             local_targets = {

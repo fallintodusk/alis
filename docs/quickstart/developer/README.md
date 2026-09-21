@@ -26,10 +26,16 @@ the matching payload, and delegates installation to the trusted script in that
 checkout. It does not install Unreal Engine, Visual Studio, or other
 machine-wide dependencies.
 
-## Work on ALIS
+## World generation
 
-- Setup and build details: [build documentation](../docs/build/README.md)
-- Contribution rules: [CONTRIBUTING.md](../CONTRIBUTING.md)
-- Architecture: [architecture router](../docs/architecture/README.md)
-- Testing: [testing router](../docs/testing/README.md)
-- Licensing and provenance: [legal router](../docs/legal/README.md)
+Start with the [World Generation Quick Start](world-generation.md). It identifies
+the owning World stage, the safe first commands, and the routes to the complete
+contracts and acceptance flow.
+
+## Other development routes
+
+- Setup and build details: [build documentation](../../build/README.md)
+- Contribution rules: [CONTRIBUTING.md](../../../CONTRIBUTING.md)
+- Architecture: [architecture router](../../architecture/README.md)
+- Testing: [testing router](../../testing/README.md)
+- Licensing and provenance: [legal router](../../legal/README.md)

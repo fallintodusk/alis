@@ -326,10 +326,10 @@ class PrepareReleaseTests(unittest.TestCase):
         self.assertIn("Optional convenience", root_readme)
         self.assertIn("DEVELOP OR CONTRIBUTE", root_readme)
         self.assertIn("Clone the exact v2.0.0 tag", root_readme)
-        self.assertIn("developer/README.md", root_readme)
+        self.assertIn("docs/quickstart/developer/README.md", root_readme)
         self.assertIn("Product terms: PRODUCT_TERMS.txt", root_readme)
         self.assertIn("Data and third-party notices: developer.notices.json", root_readme)
-        self.assertNotIn("player/README.md", root_readme)
+        self.assertNotIn("docs/quickstart/player/README.md", root_readme)
         self.assertNotIn("README_PLAYER.txt", root_readme)
         self.assertNotIn("README_DEVELOPER.txt", root_readme)
         self.assertNotIn("developer source", root_readme.lower())
@@ -338,6 +338,10 @@ class PrepareReleaseTests(unittest.TestCase):
             (output / "release_manifest.json").read_text(encoding="utf-8")
         )
         artifact_names = {item["name"] for item in manifest["artifacts"]}
+        self.assertEqual(
+            "https://github.com/fallintodusk/alis/blob/v2.0.0/docs/quickstart/developer/README.md",
+            manifest["release_documents"]["developer_guide_url"],
+        )
         self.assertIn("README.txt", artifact_names)
         self.assertIn(self.player_archive.name, artifact_names)
         self.assertIn("developer.zip", artifact_names)

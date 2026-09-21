@@ -13,15 +13,12 @@ geography as playable, streamed worlds. The project is in active development;
 its current public worlds are functional showcases rather than finished city
 art.
 
-## Quick Start
-
-| Route | Start here |
-|---|---|
-| Play ALIS | [Player Quick Start](player/README.md) |
-| Develop or contribute | [Developer Quick Start](developer/README.md) |
-
 The [latest GitHub release](https://github.com/fallintodusk/alis/releases/latest)
 contains the matching Windows player build and developer payload.
+
+## Quick Start
+
+Pick the [Quick Start for your role](docs/quickstart/README.md).
 
 ## Repository
 

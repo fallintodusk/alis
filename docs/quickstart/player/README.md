@@ -16,9 +16,10 @@ For optional automatic setup, keep `INSTALL_ALIS_PLAYER.bat` and
 file. It works offline, requires no administrator access, verifies every part,
 and does not overwrite an existing destination.
 
-Authenticity verification is optional for normal installation. To verify the
-publisher signature and every release file first, run the release's
-`VERIFY_RELEASE.bat`.
+Authenticity verification is optional for normal installation and requires
+additional release files plus GnuPG or Git for Windows. Follow
+[Advanced Verify](../../build/packaging_guide.md#advanced-verify) to verify the
+publisher signature and downloaded files before installation.
 
 The packaged game is governed by the `PRODUCT_TERMS.txt` included with its
 release. Report problems through [GitHub Issues](https://github.com/fallintodusk/alis/issues).

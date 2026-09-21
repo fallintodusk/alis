@@ -194,6 +194,14 @@ class PrepareReleaseV4Tests(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.assertEqual("alis-release-manifest-v4", manifest["schema"])
         self.assertEqual(set(workspace.PLATFORM_KEYS), set(manifest["player_sources"]))
+        self.assertEqual(
+            "https://github.com/fallintodusk/alis/blob/v2.1.0/docs/quickstart/developer/README.md",
+            manifest["release_documents"]["developer_guide_url"],
+        )
+        self.assertIn(
+            "/docs/quickstart/developer/README.md",
+            (output / "README.txt").read_text(encoding="ascii"),
+        )
         legacy.verify_release_manifest(output)
 
         windows_game = inputs.player_package_root / "Windows"

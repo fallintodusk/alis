@@ -109,9 +109,10 @@ assets required to build and open the public Kazan and Manhattan routes.
 Restricted third-party content and private machine configuration are excluded.
 
 Install the payload through the checkout-local installer documented in the
-root [README](../../README.md). The installer verifies the public signature,
-tag, revision, inventory, and file hashes before copying any asset. Developers
-need the published public key, not the private release-signing key.
+[Developer Quick Start](../quickstart/developer/README.md). The installer
+verifies the public signature, tag, revision, inventory, and file hashes before
+copying any asset. Developers need the published public key, not the private
+release-signing key.
 
 ## Related References
 
