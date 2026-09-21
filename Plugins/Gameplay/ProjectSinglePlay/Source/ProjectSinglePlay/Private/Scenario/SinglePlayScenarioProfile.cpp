@@ -57,11 +57,12 @@ namespace
 			TEXT("shelterInteractionRadius"), TEXT("failureRestartDelaySeconds"),
 			TEXT("startMessage"), TEXT("recoveryMessage"), TEXT("recoveredMessage"), TEXT("successMessage"),
 			TEXT("failureMessage")};
-		for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : Object->Values)
+		for (const auto& Field : Object->Values)
 		{
-			if (!AllowedFields.Contains(Field.Key))
+			const FString FieldName(Field.Key);
+			if (!AllowedFields.Contains(FieldName))
 			{
-				OutError = FString::Printf(TEXT("Unknown scenario profile field '%s'."), *Field.Key);
+				OutError = FString::Printf(TEXT("Unknown scenario profile field '%s'."), *FieldName);
 				return false;
 			}
 		}

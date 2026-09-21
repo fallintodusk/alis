@@ -114,6 +114,11 @@ stage 12_make_syntax
 printf 'UE_PATH := %s\n' "$WIN_A" > "$WORK/case/12_make_syntax/ue_path.conf"
 run_case 12_make_syntax err
 
+# 14 Linux cross-toolchain is a first-class config key
+stage 14_linux_toolchain
+printf 'UE_PATH=%s\nLINUX_MULTIARCH_ROOT=C:/UnrealToolchains/v26_clang-20.1.8-rockylinux8\n' "$WIN_A" > "$WORK/case/14_linux_toolchain/ue_path.conf"
+run_case 14_linux_toolchain ok
+
 # stale env: mismatching cache must hard-fail
 stage 20_stale_env
 printf 'UE_PATH=%s\n' "$WIN_A" > "$WORK/case/20_stale_env/ue_path.conf"

@@ -29,6 +29,7 @@
 #include "Logging/LogMacros.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Registry/RegisteredClassProviderRegistry.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectIntegrationTestsPersistent, Log, All);
 
@@ -87,6 +88,10 @@ class FProjectIntegrationTestsModule : public IModuleInterface
 public:
     virtual void StartupModule() override
     {
+		FRegisteredClassProviderRegistry::RegisterProviderModule(
+			FPrimaryAssetType(TEXT("CapabilityComponent")),
+			TEXT("ProjectIntegrationTests"));
+
         // The command file watcher is only useful under -unattended launch;
         // enabling it unconditionally in the module is cheap (one file stat
         // per second) and avoids adding a launch switch.

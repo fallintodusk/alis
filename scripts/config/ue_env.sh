@@ -112,6 +112,7 @@ LOCAL_CONFIG_FILE="${SCRIPT_DIR}/ue_path.local.conf"
 UE_ENV_INCOMING_UE_PATH="${UE_PATH:-}"
 UE_PATH=""
 UE_SOURCE_PATH="${UE_SOURCE_PATH:-}"
+LINUX_MULTIARCH_ROOT=""
 
 # Canonical comparable form: windows-style, lowercase, no trailing slash
 canon_engine_path() {
@@ -138,7 +139,7 @@ parse_conf_file() {
         key="${BASH_REMATCH[1]}"
         value="${BASH_REMATCH[2]}"
         case "$key" in
-            UE_PATH|UE_SOURCE_PATH|BUILD_TARGET|BUILD_CONFIG|BUILD_PLATFORM) ;;
+            UE_PATH|UE_SOURCE_PATH|LINUX_MULTIARCH_ROOT|BUILD_TARGET|BUILD_CONFIG|BUILD_PLATFORM) ;;
             *)
                 echo "ERROR: ${file}:${lineno}: unknown key '${key}'" >&2
                 exit 1 ;;
@@ -159,7 +160,7 @@ parse_conf_file() {
         eval "SEEN_${key}=1"
         eval "CONF_${key}=\"\$value\""
     done < "$file"
-    unset SEEN_UE_PATH SEEN_UE_SOURCE_PATH SEEN_BUILD_TARGET SEEN_BUILD_CONFIG SEEN_BUILD_PLATFORM
+    unset SEEN_UE_PATH SEEN_UE_SOURCE_PATH SEEN_LINUX_MULTIARCH_ROOT SEEN_BUILD_TARGET SEEN_BUILD_CONFIG SEEN_BUILD_PLATFORM
 }
 
 # Key-level merge: tracked first, local overrides
@@ -168,6 +169,7 @@ parse_conf_file() {
 
 UE_PATH_RAW="${CONF_UE_PATH:-}"
 UE_SOURCE_PATH="${CONF_UE_SOURCE_PATH:-$UE_SOURCE_PATH}"
+LINUX_MULTIARCH_ROOT="${CONF_LINUX_MULTIARCH_ROOT:-$LINUX_MULTIARCH_ROOT}"
 
 # Numeric-highest valid launcher fallback (only when no conf declares it)
 detect_ue_fallback() {
@@ -217,6 +219,7 @@ echo "Using UE_PATH: $UE_PATH"
 export UE_PATH
 export UE_ENGINE_DIR="${UE_PATH}/Engine"
 [ -n "$UE_SOURCE_PATH" ] && export UE_SOURCE_PATH
+[ -n "$LINUX_MULTIARCH_ROOT" ] && export LINUX_MULTIARCH_ROOT
 
 # Verify engine directory exists
 if [ ! -d "$UE_ENGINE_DIR" ]; then

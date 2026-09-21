@@ -24,7 +24,7 @@ class PublicSourceProjectionTests(unittest.TestCase):
 
     def test_public_front_door_routes_and_commands_exist(self):
         missing = []
-        for relative in ("README.md", "player/README.md", "developer/README.md"):
+        for relative in ("README.md", "player/README.md", "developer/README.md", "SECURITY.md"):
             document = REPO_ROOT / relative
             text = document.read_text(encoding="utf-8")
             local_targets = {
@@ -43,6 +43,7 @@ class PublicSourceProjectionTests(unittest.TestCase):
             "scripts/config/ue_path.conf.example",
             "scripts/ue/standalone/build.ps1",
             "Plugins/World/README.md",
+            *MODULE.REQUIRED_PUBLIC_COMMUNITY_PATHS,
         ):
             self.assertTrue((REPO_ROOT / required).is_file(), required)
 
@@ -101,12 +102,15 @@ class PublicSourceProjectionTests(unittest.TestCase):
         for relative in (
             ".gitignore",
             "README.md",
+            "SECURITY.md",
             "Alis.uproject",
             "Config/DefaultEngine.ini",
             "Config/DefaultGame.ini",
+            *MODULE.REQUIRED_PUBLIC_COMMUNITY_PATHS,
         ):
             source = REPO_ROOT / relative
             target = self.root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
 
     def tearDown(self):
@@ -138,8 +142,27 @@ class PublicSourceProjectionTests(unittest.TestCase):
             self.assertIn(pattern, ignore)
         readme = (self.root / "README.md").read_text(encoding="utf-8")
         self.assertIn(MODULE.PUBLIC_GITHUB_ROOT + "/releases/latest", readme)
-        self.assertIn(MODULE.PUBLIC_GITHUB_ROOT + "/security/advisories/new", readme)
+        self.assertIn("[Security Policy](SECURITY.md)", readme)
+        self.assertTrue((self.root / "SECURITY.md").is_file())
+        for relative_path in MODULE.REQUIRED_PUBLIC_COMMUNITY_PATHS:
+            self.assertTrue((self.root / relative_path).is_file(), relative_path)
         self.assertNotIn("https://github.com/<user>/alis", readme)
+
+    def test_projection_refuses_missing_security_policy(self):
+        (self.root / "SECURITY.md").unlink()
+
+        with self.assertRaisesRegex(MODULE.ProjectionError, "security policy is absent"):
+            MODULE.project(self.root)
+
+    def test_projection_refuses_missing_public_community_file(self):
+        missing_path = MODULE.REQUIRED_PUBLIC_COMMUNITY_PATHS[-1]
+        (self.root / missing_path).unlink()
+
+        with self.assertRaisesRegex(
+            MODULE.ProjectionError,
+            f"Required public community file is absent: {re.escape(missing_path)}",
+        ):
+            MODULE.project(self.root)
 
     def test_projection_repairs_sanitized_public_project_routes(self):
         path = self.root / "README.md"
@@ -153,8 +176,9 @@ class PublicSourceProjectionTests(unittest.TestCase):
         MODULE.project(self.root)
 
         readme = path.read_text(encoding="utf-8")
-        for suffix in (".git", "/releases/latest", "/security/advisories/new"):
+        for suffix in (".git", "/releases/latest"):
             self.assertIn(MODULE.PUBLIC_GITHUB_ROOT + suffix, readme)
+        self.assertIn("[Security Policy](SECURITY.md)", readme)
         self.assertNotIn("https://github.com/<user>/alis", readme)
 
     def test_projection_redacts_private_documentation_examples(self):
@@ -285,6 +309,8 @@ class PublicSourceProjectionTests(unittest.TestCase):
 
         self.assertFalse(excluded(".claude/skills/world-engineering/SKILL.md"))
         self.assertFalse(excluded(".claude/skills/world-engineering/agents/openai.yaml"))
+        for relative_path in MODULE.REQUIRED_PUBLIC_COMMUNITY_PATHS:
+            self.assertFalse(excluded(relative_path), relative_path)
         self.assertTrue(excluded(".claude/settings.json"))
         self.assertTrue(excluded(".claude/settings.local.json.backup"))
         self.assertTrue(excluded(".claude/scheduled_tasks.lock"))

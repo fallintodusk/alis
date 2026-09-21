@@ -108,6 +108,16 @@ public:
     /** Current screen title text */
     VIEWMODEL_PROPERTY_READONLY(FText, ScreenTitle)
 
+    static FName GetCurrentScreenPropertyName()
+    {
+        return GET_MEMBER_NAME_CHECKED(UProjectMenuViewModel, CurrentScreen);
+    }
+
+    static FName GetShowQuitConfirmationPropertyName()
+    {
+        return GET_MEMBER_NAME_CHECKED(UProjectMenuViewModel, bShowQuitConfirmation);
+    }
+
 protected:
     /** Navigate to screen (internal) */
     void NavigateToScreen(EMenuScreen NewScreen, bool bPushToStack);
@@ -126,4 +136,3 @@ private:
     UPROPERTY()
     TArray<EMenuScreen> NavigationStack;
 };
-

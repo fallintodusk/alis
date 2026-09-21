@@ -7,11 +7,12 @@ $PackageDir = Split-Path -Parent $ScriptDir
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PackageDir))
 $ReleaseScript = Join-Path $PackageDir "release.ps1"
 $TestParent = Join-Path $ProjectRoot "tmp\release"
-$TestRoot = Join-Path $TestParent "v9.8.7"
+$TestRoot = Join-Path $TestParent "v2.0.97"
 $ReleaseDir = $TestRoot
-$WorkspaceRoot = Join-Path $TestParent "v9.8.8"
+$WorkspaceRoot = Join-Path $TestParent "v2.0.98"
+$SchemaMismatchRoot = Join-Path $TestParent ("schema-mismatch-" + [Guid]::NewGuid().ToString("N"))
 $FinalRemote = Join-Path $TestParent ("final-source-fixture-" + [Guid]::NewGuid().ToString("N"))
-$FinalCheckout = Join-Path $TestParent "final-public-source\v9.8.7"
+$FinalCheckout = Join-Path $TestParent "final-public-source\v2.0.97"
 $EphemeralRoots = @(
     (Join-Path $TestParent "work"),
     (Join-Path $TestParent "c"),
@@ -52,7 +53,7 @@ function Write-PendingRelease {
         [string]$Directory,
         [string]$Status = "pending_owner_approval",
         [string]$Schema = "alis-release-manifest-v3",
-        [string]$ReleaseVersion = "9.8.7"
+        [string]$ReleaseVersion = "2.0.97"
     )
 
     New-Item -ItemType Directory -Path $Directory -Force | Out-Null
@@ -152,9 +153,14 @@ if (Test-Path -LiteralPath $WorkspaceRoot) {
     throw "Release workspace fixture already exists: $WorkspaceRoot"
 }
 try {
-    Write-PendingRelease -Directory $WorkspaceRoot -ReleaseVersion "9.8.8"
+    Write-PendingRelease -Directory $SchemaMismatchRoot -ReleaseVersion "2.1.0"
+    Assert-Fails -MessagePattern "*requires workspace schema*" -Action {
+        & $ReleaseScript -ReleaseVersion "2.1.0" -ReleaseDir $SchemaMismatchRoot -SkipSigning
+    }
+
+    Write-PendingRelease -Directory $WorkspaceRoot -ReleaseVersion "2.0.98"
     $WorkspaceBefore = Get-InventoryDigest -Directory $WorkspaceRoot
-    & $ReleaseScript -ReleaseVersion "9.8.8" -ReleaseDir $WorkspaceRoot -SkipSigning
+    & $ReleaseScript -ReleaseVersion "2.0.98" -ReleaseDir $WorkspaceRoot -SkipSigning
     if (-not $?) {
         throw "Unsigned release did not accept the game/github workspace."
     }
@@ -170,7 +176,7 @@ try {
     $Before = Get-InventoryDigest -Directory $ReleaseDir
     Push-Location $ProjectRoot
     try {
-        & make release 9.8.7 RELEASE_SIGN=0
+        & make release 2.0.97 RELEASE_SIGN=0
         if ($LASTEXITCODE -ne 0) {
             throw "Unsigned make release entrypoint failed."
         }
@@ -205,7 +211,7 @@ try {
     }
     Assert-Fails -MessagePattern "*Final public source binding failed*" -Action {
         & $ReleaseScript `
-            -ReleaseVersion "9.8.7" `
+            -ReleaseVersion "2.0.97" `
             -PublicRemoteUrl $FinalRemote
     }
     if (Test-Path -LiteralPath $FinalCheckout) {
@@ -216,12 +222,12 @@ try {
     Write-PendingRelease -Directory $ReleaseDir -Schema "alis-release-manifest-v2"
     $ArchiveRoot = Join-Path $TestParent "archive"
     $ArchivesBefore = @(
-        Get-ChildItem -LiteralPath $ArchiveRoot -Directory -Filter "v9.8.7-flat-*" -ErrorAction SilentlyContinue |
+        Get-ChildItem -LiteralPath $ArchiveRoot -Directory -Filter "v2.0.97-flat-*" -ErrorAction SilentlyContinue |
             ForEach-Object FullName
     )
     Assert-Fails -MessagePattern "*Required release input directory is missing*" -Action {
         & $ReleaseScript `
-            -ReleaseVersion "9.8.7" `
+            -ReleaseVersion "2.0.97" `
             -ReleaseDir $ReleaseDir `
             -PublicSourceRoot (Join-Path $TestParent "missing-public-source") `
             -SkipSigning
@@ -230,7 +236,7 @@ try {
         throw "Obsolete unsigned release was not deleted before fresh preparation."
     }
     $ArchivesAfter = @(
-        Get-ChildItem -LiteralPath $ArchiveRoot -Directory -Filter "v9.8.7-flat-*" -ErrorAction SilentlyContinue |
+        Get-ChildItem -LiteralPath $ArchiveRoot -Directory -Filter "v2.0.97-flat-*" -ErrorAction SilentlyContinue |
             ForEach-Object FullName
     )
     if (($ArchivesBefore -join "`n") -cne ($ArchivesAfter -join "`n")) {
@@ -240,7 +246,7 @@ try {
     Write-PendingRelease -Directory $ReleaseDir -Schema "alis-release-manifest-v2"
     Set-Content -LiteralPath (Join-Path $ReleaseDir "SHA256SUMS.txt") -Value "fixture" -Encoding Ascii
     Assert-Fails -MessagePattern "*signed or incomplete signing output*" -Action {
-        & $ReleaseScript -ReleaseVersion "9.8.7" -ReleaseDir $ReleaseDir -SkipSigning
+        & $ReleaseScript -ReleaseVersion "2.0.97" -ReleaseDir $ReleaseDir -SkipSigning
     }
     if (-not (Test-Path -LiteralPath $ReleaseDir -PathType Container)) {
         throw "Ambiguous obsolete release must remain unchanged for inspection."
@@ -256,39 +262,39 @@ try {
     $ReadyManifest | ConvertTo-Json -Depth 8 |
         Set-Content -LiteralPath $ReadyManifestPath -Encoding Ascii
     Assert-Fails -MessagePattern "*Game-only approval cannot be promoted*" -Action {
-        & $ReleaseScript -ReleaseVersion "9.8.7" -ReleaseDir $ReleaseDir
+        & $ReleaseScript -ReleaseVersion "2.0.97" -ReleaseDir $ReleaseDir
     }
     $ReadyManifest.approval_scope = "full"
     $ReadyManifest | ConvertTo-Json -Depth 8 |
         Set-Content -LiteralPath $ReadyManifestPath -Encoding Ascii
     Assert-Fails -MessagePattern "*expected pending_owner_approval*" -Action {
-        & $ReleaseScript -ReleaseVersion "9.8.7" -ReleaseDir $ReleaseDir -SkipSigning
+        & $ReleaseScript -ReleaseVersion "2.0.97" -ReleaseDir $ReleaseDir -SkipSigning
     }
 
     Assert-Fails -MessagePattern "*does not match*pattern*" -Action {
-        & $ReleaseScript -ReleaseVersion "9.8" -ReleaseDir $ReleaseDir -SkipSigning
+        & $ReleaseScript -ReleaseVersion "2.0" -ReleaseDir $ReleaseDir -SkipSigning
     }
 
     Assert-Fails -MessagePattern "*ReleaseDir must remain under*tmp*" -Action {
         & $ReleaseScript `
-            -ReleaseVersion "9.8.7" `
+            -ReleaseVersion "2.0.97" `
             -ReleaseDir (Join-Path $ProjectRoot "Saved\ReleaseOutsideTmp") `
             -SkipSigning
     }
 
     Assert-Fails -MessagePattern "*Required release input directory is missing*" -Action {
         & $ReleaseScript `
-            -ReleaseVersion "9.8.6" `
+            -ReleaseVersion "2.0.96" `
             -InputRoot (Join-Path $TestParent "missing-inputs") `
-            -ReleaseDir (Join-Path $TestParent "v9.8.6") `
+            -ReleaseDir (Join-Path $TestParent "v2.0.96") `
             -PublicSourceRoot (Join-Path $TestParent "missing-public-source") `
             -SkipSigning
     }
 
     Assert-Fails -MessagePattern "*requires an existing reviewed release workspace*" -Action {
         & $ReleaseScript `
-            -ReleaseVersion "9.8.6" `
-            -ReleaseDir (Join-Path $TestParent "v9.8.6") `
+            -ReleaseVersion "2.0.96" `
+            -ReleaseDir (Join-Path $TestParent "v2.0.96") `
             -Target Game `
             -PublicRemoteUrl (Join-Path $TestParent "must-not-be-read-public-remote")
     }
@@ -317,5 +323,9 @@ finally {
     if (Test-Path -LiteralPath $WorkspaceRoot) {
         $ResolvedWorkspaceRoot = (Resolve-Path -LiteralPath $WorkspaceRoot).Path
         Remove-Item -LiteralPath $ResolvedWorkspaceRoot -Recurse -Force
+    }
+    if (Test-Path -LiteralPath $SchemaMismatchRoot) {
+        $ResolvedSchemaMismatchRoot = (Resolve-Path -LiteralPath $SchemaMismatchRoot).Path
+        Remove-Item -LiteralPath $ResolvedSchemaMismatchRoot -Recurse -Force
     }
 }

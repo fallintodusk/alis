@@ -48,6 +48,7 @@ call "%~dp0resolve_ue_path.bat"
 if errorlevel 1 exit /b 1
 echo UE_PATH=%UE_PATH%
 echo UE_SOURCE_PATH=%UE_SOURCE_PATH%
+echo LINUX_MULTIARCH_ROOT=%LINUX_MULTIARCH_ROOT%
 "@
         return $sandbox
     }
@@ -110,7 +111,7 @@ Describe "resolve_ue_path.bat conformance" {
         }
         else {
             $result.ExitCode | Should -Be 0 -Because ($result.Out + $result.Err)
-            foreach ($k in @("UE_PATH", "UE_SOURCE_PATH")) {
+            foreach ($k in @("UE_PATH", "UE_SOURCE_PATH", "LINUX_MULTIARCH_ROOT")) {
                 if ($expected.ContainsKey($k)) {
                     $result.Out | Should -Match ([regex]::Escape("$k=$($expected[$k])"))
                 }

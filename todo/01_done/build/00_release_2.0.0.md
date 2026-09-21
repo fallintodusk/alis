@@ -2,7 +2,7 @@
 
 **Status:** Complete
 
-**Stable owner:** [Package and Release Guide](../../../docs/build/packaging_guide.md)
+**Stable owner:** [Public package and release operations](../../../docs/build/packaging_guide.md)
 
 ## Outcome
 

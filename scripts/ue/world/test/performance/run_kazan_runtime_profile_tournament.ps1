@@ -179,7 +179,7 @@ function Invoke-TournamentGame {
         '-RenderOffScreen', '-novsync', '-unattended', '-nosplash'
     )
     $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
-        -WorkingDirectory (Split-Path -Parent $Executable) -PassThru
+        -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit($GameTimeoutSeconds * 1000)) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         throw "Packaged tournament candidate exceeded the bounded game timeout: $($Profile.profile_id)"

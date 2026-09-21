@@ -55,7 +55,7 @@ public:
 			return false;
 		}
 
-		case 1: // Wait for Mutable rebuild and capture
+		case 1: // Wait for the fixed skeletal assembly to settle, then capture.
 		{
 			if (Tick < 180) return false;
 			GEngine->Exec(World, TEXT("project.character.debug 1"));

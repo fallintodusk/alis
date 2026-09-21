@@ -153,12 +153,12 @@
           "kind": {
             "type": "string",
             "description": "Optional component type override. When omitted, auto-detects from asset (StaticMesh or SkeletalMesh). Required for types that cannot be auto-detected.",
-            "enum": ["SkeletalMesh", "StaticMesh", "CustomizableSkeletalMesh", "Groom"]
+            "enum": ["SkeletalMesh", "StaticMesh", "Groom"]
           },
           "role": {
             "type": "string",
             "description": "Optional semantic role for assembly orchestration. Only valid when SkeletalAssembly capability is present. The assembly component reads roles to build the component graph.",
-            "enum": ["DriverBody", "WorldBody", "LocalBody", "Head", "BodyCustomization", "HeadCustomization", "LocalBodyCustomization"]
+            "enum": ["DriverBody", "WorldBody", "LocalBody", "Head"]
           },
           "visibility": {
             "type": "string",
@@ -555,17 +555,6 @@
             "traversalProfile": {
               "type": "string",
               "description": "Optional traversal profile (e.g. 'Human.Parkour')"
-            }
-          }
-        },
-        "customization": {
-          "type": "object",
-          "description": "Customization config for skeletal assembly definitions.",
-          "additionalProperties": false,
-          "properties": {
-            "mutableSource": {
-              "type": "string",
-              "description": "Mutable CustomizableObject asset path"
             }
           }
         },

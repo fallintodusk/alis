@@ -3,44 +3,23 @@
 
 #include "CapabilityRegistry.h"
 #include "Registry/RegisteredClassScan.h"
+#include "Registry/RegisteredClassProviderRegistry.h"
 #include "Components/ActorComponent.h"
 #include "ProjectObjectCapabilitiesModule.h"
 
 TMap<FName, UClass*> FCapabilityRegistry::Registry;
-TArray<FName> FCapabilityRegistry::ExternalCapabilityModules;
 bool FCapabilityRegistry::bIsBuilt = false;
+uint32 FCapabilityRegistry::BuiltProviderGeneration = 0;
 
 // Motion capability IDs (meshes with these need Movable mobility)
 static const TArray<FName> MotionCapabilityIds = { FName(TEXT("Hinged")), FName(TEXT("Sliding")) };
 
-void FCapabilityRegistry::RegisterCapabilityModule(FName ModuleName)
-{
-	check(IsInGameThread());
-
-	if (!ExternalCapabilityModules.Contains(ModuleName))
-	{
-		ExternalCapabilityModules.Add(ModuleName);
-
-		// Auto-invalidate so next lookup rescans with the new module
-		if (bIsBuilt)
-		{
-			bIsBuilt = false;
-			UE_LOG(LogProjectObjectCapabilities, Log,
-				TEXT("CapabilityRegistry: registered external module '%s' (late registration, will rescan on next lookup)"),
-				*ModuleName.ToString());
-		}
-		else
-		{
-			UE_LOG(LogProjectObjectCapabilities, Log,
-				TEXT("CapabilityRegistry: registered external module '%s'"),
-				*ModuleName.ToString());
-		}
-	}
-}
-
 UClass* FCapabilityRegistry::GetCapabilityClass(FName CapabilityId)
 {
-	EnsureBuilt();
+	if (!EnsureBuilt())
+	{
+		return nullptr;
+	}
 
 	if (UClass** Found = Registry.Find(CapabilityId))
 	{
@@ -51,8 +30,18 @@ UClass* FCapabilityRegistry::GetCapabilityClass(FName CapabilityId)
 
 bool FCapabilityRegistry::HasCapability(FName CapabilityId)
 {
-	EnsureBuilt();
+	if (!EnsureBuilt())
+	{
+		return false;
+	}
 	return Registry.Contains(CapabilityId);
+}
+
+bool FCapabilityRegistry::IsReady(FString* OutReason)
+{
+	return FRegisteredClassProviderRegistry::AreProviderModulesReady(
+		FPrimaryAssetType(TEXT("CapabilityComponent")),
+		OutReason);
 }
 
 void FCapabilityRegistry::RebuildRegistry()
@@ -69,7 +58,10 @@ bool FCapabilityRegistry::IsMotionCapability(FName CapabilityId)
 
 void FCapabilityRegistry::ForEach(TFunctionRef<void(FName Id, UClass* Class)> Func)
 {
-	EnsureBuilt();
+	if (!EnsureBuilt())
+	{
+		return;
+	}
 	for (const auto& Pair : Registry)
 	{
 		Func(Pair.Key, Pair.Value);
@@ -78,7 +70,10 @@ void FCapabilityRegistry::ForEach(TFunctionRef<void(FName Id, UClass* Class)> Fu
 
 void FCapabilityRegistry::DumpToLog()
 {
-	EnsureBuilt();
+	if (!EnsureBuilt())
+	{
+		return;
+	}
 	UE_LOG(LogProjectObjectCapabilities, Log,
 		TEXT("=== CapabilityRegistry dump (%d entries) ==="), Registry.Num());
 	for (const auto& Pair : Registry)
@@ -90,45 +85,55 @@ void FCapabilityRegistry::DumpToLog()
 
 int32 FCapabilityRegistry::Num()
 {
-	EnsureBuilt();
+	if (!EnsureBuilt())
+	{
+		return 0;
+	}
 	return Registry.Num();
 }
 
-void FCapabilityRegistry::EnsureBuilt()
+bool FCapabilityRegistry::EnsureBuilt()
 {
 	check(IsInGameThread());
-	if (!bIsBuilt)
+	const FPrimaryAssetType AssetType(TEXT("CapabilityComponent"));
+	const uint32 ProviderGeneration =
+		FRegisteredClassProviderRegistry::GetGeneration(AssetType);
+	if (!bIsBuilt || BuiltProviderGeneration != ProviderGeneration)
 	{
-		Build();
+		return Build();
 	}
+	return true;
 }
 
-void FCapabilityRegistry::Build()
+bool FCapabilityRegistry::Build()
 {
 	Registry.Empty();
 
+	FString ReadinessError;
+	if (!IsReady(&ReadinessError))
+	{
+		bIsBuilt = false;
+		UE_LOG(LogProjectObjectCapabilities, Error,
+			TEXT("CapabilityRegistry is not ready: %s"),
+			*ReadinessError);
+		return false;
+	}
+
 	FRegistryScanConfig Config;
 	Config.AssetType = FPrimaryAssetType(TEXT("CapabilityComponent"));
-	// TObjectIterator only sees classes from loaded DLLs.
-	// Preload core capability modules so the single scan discovers all
-	// capability classes. These are always-enabled plugins that provide
-	// built-in capabilities. No compile-time dependency -- just module name
-	// strings for the kernel's preload step.
-	// External optional plugins self-register via RegisterCapabilityModule().
-	Config.RequiredModules = {
-		FName(TEXT("ProjectObjectCapabilities")),
-		FName(TEXT("ProjectMotionSystem")),
-		FName(TEXT("ProjectSkeletalAssembly"))
-	};
-	Config.RequiredModules.Append(ExternalCapabilityModules);
+	Config.RequiredModules =
+		FRegisteredClassProviderRegistry::GetProviderModules(Config.AssetType);
 	Config.RequiredBaseClass = UActorComponent::StaticClass();
 	Config.DomainName = TEXT("CapabilityRegistry");
 
 	FRegisteredClassScan::ScanByPrimaryAssetId(Config, Registry);
 
 	bIsBuilt = true;
+	BuiltProviderGeneration =
+		FRegisteredClassProviderRegistry::GetGeneration(Config.AssetType);
 
 	UE_LOG(LogProjectObjectCapabilities, Log,
 		TEXT("CapabilityRegistry built: %d capabilities registered"),
 		Registry.Num());
+	return true;
 }

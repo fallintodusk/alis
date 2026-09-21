@@ -8,11 +8,11 @@ The operator uses `make release` and `make mirror` for the GitHub release, then
 may publish the same signed game to another authorized channel:
 
 ```powershell
-make release 2.0.0 RELEASE_SIGN=0
-# Review tmp/release/v2.0.0/game and tmp/release/v2.0.0/github.
-make mirror RTAG=v2.0.0
-make release 2.0.0
-# Manually upload every file from tmp/release/v2.0.0/github.
+make release X.Y.Z RELEASE_SIGN=0
+# Review tmp/release/vX.Y.Z/game and tmp/release/vX.Y.Z/github.
+make mirror RTAG=vX.Y.Z
+make release X.Y.Z
+# Manually upload every file from tmp/release/vX.Y.Z/github.
 make publish itch
 ```
 
@@ -40,12 +40,13 @@ make release 2.0.0 TARGET=game
 make publish itch
 ```
 
-This path signs and verifies only `game/`. It does not build, resolve a GitHub
+This path signs and verifies every required platform below `game/`. It does not build, resolve a GitHub
 branch or tag, refresh the Player archives, or sign `github/`. The recorded
 approval is scoped to game distribution and cannot be promoted into the full
 GitHub route from that workspace.
 
-`make publish itch` consumes only an existing signed `game/` projection. By
+`make publish itch` consumes only an existing signed Windows game projection.
+Workspace v1 uses `game/`; workspace v2 uses `game/windows-x86_64/`. By
 default it selects the highest stable SemVer workspace directly under
 `tmp/release/`; if that selected workspace fails validation, it fails closed
 instead of falling back to an older version. `PUBLISH_VERSION=X.Y.Z` selects an
@@ -77,12 +78,19 @@ reports/public-source-privacy.json
 reports/public-world-map-load.json
 ```
 
-The machine-accepted player Candidate is World-owned until release preparation
-has validated the complete workspace. Release then recoverably adopts its
-`Windows/` contents as `game/`; interrupted adoption is resumable and does not
-leave a second reusable package authority. Human Product approval belongs to
-the exact combined release workspace, not an intermediate package. No agent or
-maintainer manually populates the input tree.
+The machine-accepted Windows player Candidate is World-owned until release
+preparation has validated the complete workspace. For a multi-platform release,
+package/release separately owns the Linux package and Linux platform-acceptance
+receipt. Final rendered acceptance requires a native Ubuntu 22.04 x86-64 GPU
+host; WSL is limited to transport, filesystem-mode, verifier, and non-rendering
+diagnostics. The Linux receipt binds the normalized runtime payload from the
+unsigned TAR. Game signing adds only the platform's declared verification
+files; final archive refresh must reproduce the accepted runtime payload tree
+before the final archive parts are added to the GitHub signing inventory.
+Release recoverably adopts both runtime payload trees; interrupted adoption is
+resumable and does not leave a second reusable package authority. Human Product
+approval belongs to the exact combined release workspace, not an intermediate
+package. No agent or maintainer manually populates the input tree.
 
 Signed finalization replaces the GitHub projection through one recognized
 workspace-local backup. A retry restores that backup when `github/` is missing,
@@ -95,21 +103,32 @@ machine-accepted player Candidate, public source/payload manifests, dependency a
 privacy reports, component manifest, attribution, and Product terms. It emits
 one versioned workspace under project `tmp/`:
 
+The multi-platform workspace written for 2.1.0 and later is:
+
 ```text
 tmp/release/vX.Y.Z/
-|-- game/                 # Directly runnable; Alis.exe is here.
+|-- game/
+|   |-- windows-x86_64/   # Directly runnable Windows game.
+|   `-- linux-x86_64/     # Directly runnable Linux game.
 |-- github/               # Exact flat GitHub Release upload inventory.
 |   |-- README.txt
 |   |-- ALIS_Win64_vX.Y.Z.zip.001
+|   |-- ALIS_Linux_x86_64_vX.Y.Z.tar.001
 |   |-- ALIS_DeveloperProject_X.Y.Z_<id>.zip
 |   |-- PRODUCT_TERMS.txt
 |   |-- INSTALL_ALIS_PLAYER.bat
 |   |-- INSTALL_ALIS_DEVELOPER.bat
 |   |-- effective-component-manifest.json
 |   `-- release_manifest.json
-|-- package_summary.txt
 `-- release-workspace.json
 ```
+
+This shape writes `alis-release-workspace-v2` with
+`alis-release-manifest-v4`. Historical 2.0.0 workspace v1 / manifest v3
+remains readable and verifiable but is never migrated or reinterpreted in
+place. The requested version selects the required schema generation; existing
+workspace metadata can satisfy that requirement or fail, but never selects a
+different generation.
 
 `README.txt` owns the version highlights and complete Player/Developer quick
 starts. Manual 7-Zip setup is primary for both roles; the BAT/PowerShell pairs
@@ -186,7 +205,8 @@ never writes to a remote.
 ### `publish_itch.ps1`
 
 Verifies the selected release workspace and its signed `game/` inventory,
-then invokes Butler for one exact `user/game:channel`. It refuses pending
+then invokes Butler for one exact `user/game:channel`. Workspace v2 always
+selects `game/windows-x86_64/`; Linux has no itch publication route. It refuses pending
 remote work, downgrade, or changed same-version content; identical
 same-version content is an idempotent success. A successful upload is read back
 through Butler before the command reports acceptance. Butler owns credentials
@@ -219,11 +239,16 @@ discovery. Maintainers call `make release X.Y.Z`, not this script.
 
 ### `package_release.ps1`
 
-Packages a Win64 release build through `RunUAT BuildCookRun`.
+Packages a Win64 or Linux x86-64 release build through `RunUAT BuildCookRun`.
 
 Defaults:
 
 - reads `UE_PATH` from `scripts/config/ue_path.conf`
+- for Linux, reads the exact side-by-side `LINUX_MULTIARCH_ROOT` from the same
+  config owner, validates the UE 5.8 v26 SDK, scopes it to UAT, and restores the
+  caller environment
+- binds the package to one unchanged source revision and effective source-state
+  digest in `package_summary.txt`
 - uses `Shipping`
 - uses `-nodebuginfo` so staged `.pdb` files do not bloat the distributable package
 - uses `-skipencryption` for public release packaging
@@ -276,7 +301,8 @@ Focused admission regression:
 
 Key parameters:
 
-- `-EngineRoot` optional installed-engine override without changing `scripts/config/ue_path.conf`
+- `-Platform` selects `Win64` or `Linux`
+- `-EngineRoot` optional engine override without changing `scripts/config/ue_path.conf`
 - `-SourceRelease` explicit admission for a non-installed source engine; the
   public source wrapper supplies it
 - `-OutputDir` explicit archive directory
@@ -285,7 +311,9 @@ Key parameters:
 - `-SkipBuild` skips the build step but still cooks/packages
 - `-IncludeStagedDebugFiles` keeps `.pdb` files in the packaged output
 - `-EncryptContent` opt-in override for encrypted containers
-- `-CreateReleaseArchive` creates a zip, optionally split into parts
+- `-CreateReleaseArchive` creates a Windows zip, optionally split into parts;
+  Linux transport is TAR-owned by `release_platforms.py` so executable modes
+  survive
 - when a created zip already fits under the requested split threshold, the script keeps a normal `.zip`
 - `-SplitSizeMB` archive split size in MiB, default `1900`
 
@@ -319,15 +347,19 @@ Defaults:
   hash-clean and `ready_for_signature`
 - reuses the ALIS site trust fingerprint `3B9885F0C2D8D927C27FAB58F61A530034CFB5E7`
 - `GitHub` mode signs every prepared flat release asset
-- `Game` mode signs the recursive runnable tree with safe relative paths and
-  writes its public verification material under `game/Verification/`; it first
-  proves that `game/` and the approval-owning `github/` are exact siblings in
-  one verified release workspace
+- `Game` mode signs one coordinator-selected recursive runnable tree with safe
+  relative paths; workspace v2 requires an exact closed platform key and the
+  release coordinator signs both platform children in one approval pass
+- Windows game verification is `VERIFY_ALIS.bat` plus PowerShell under
+  `Verification/`; Linux game verification is `VERIFY_ALIS.sh`; both bind the
+  same ALIS public key and detached-signature authority
 - exports the public half of the selected signing key as `ALIS_PUBLIC_KEY.asc`
 - includes the exported key in `SHA256SUMS.txt` so every distribution mirror carries the same key asset
 - excludes `SHA256SUMS.txt` and `SHA256SUMS.txt.asc` from the manifest; the signature signs the manifest, and the manifest never hashes itself
 - preserves the already-reviewed `README.txt` unchanged
-- copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release directory before hashing so advanced users have a self-contained verifier next to the archives
+- copies the Windows and Linux GitHub verifiers into the flat release directory
+  before hashing so advanced users have a self-contained verifier next to the
+  archives
 - requires unique public filenames only for the flat GitHub projection
 - verifies the detached signature after signing
 - writes a summary only when an explicit path outside the upload directory is
@@ -339,9 +371,10 @@ operator step.
 Key parameters:
 
 - `-ReleaseDir` projection root; Game mode accepts only the workspace's exact
-  `game/` child
+  v1 `game/` child or selected v2 platform child
 - `-Projection` selects `GitHub` or `Game`; release coordination owns this choice
 - `-ApprovalDir` points Game mode at the same workspace's exact `github/` child
+- `-GamePlatform` is coordinator-owned and required only for workspace v2
 - `-GpgPath` optional explicit path to `gpg.exe`
 - `-GpgHome` optional explicit signing keyring directory; it is mandatory when `-SigningKeyFingerprint` differs from the canonical ALIS key
 - an explicit GPG home must already exist, must be owned by the calling operation, and is rejected if it resolves to the default user GPG directory or user profile
@@ -413,6 +446,19 @@ Example:
 ```bat
 scripts\ue\package\verify_release.bat -ReleaseDir <build-dir>
 ```
+
+### `verify_release.sh`
+
+Linux-native consumer verification for the flat GitHub asset set and the
+signed Linux game tree. It checks the canonical ALIS key fingerprint, detached
+signature, every SHA-256 entry, and exact inventory without PowerShell.
+
+Linux release eligibility requires copying the GitHub-shaped TAR parts to the
+native Ubuntu acceptance host's local Linux filesystem before verification,
+extraction, executable-mode checks, and execution of the exact launcher. Shared
+storage and `/mnt/*`-style mounts are transport only and cannot provide the
+runtime-filesystem evidence. The existing WSL route remains a bounded
+diagnostic and cannot issue the final rendered acceptance receipt.
 
 ## Notes
 

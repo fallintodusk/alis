@@ -442,14 +442,6 @@ USkeletalMeshComponent* FindWorldVisibleMesh(AActor* Owner)
 		}
 	}
 
-	if (USkeletalMeshComponent* Mesh = FindMeshByRole(Owner, TEXT("BodyCustomization")))
-	{
-		if (!Mesh->bHiddenInGame && !Mesh->bOnlyOwnerSee && Mesh->GetSkeletalMeshAsset())
-		{
-			return Mesh;
-		}
-	}
-
 	return FindMeshByNameSubstring(Owner, TEXT("WorldBody"));
 }
 
@@ -458,14 +450,6 @@ USkeletalMeshComponent* FindOwnerVisibleMesh(AActor* Owner)
 	if (!Owner)
 	{
 		return nullptr;
-	}
-
-	if (USkeletalMeshComponent* Mesh = FindMeshByRole(Owner, TEXT("LocalBodyCustomization")))
-	{
-		if (!Mesh->bHiddenInGame && Mesh->GetSkeletalMeshAsset())
-		{
-			return Mesh;
-		}
 	}
 
 	if (USkeletalMeshComponent* Mesh = FindMeshByRole(Owner, TEXT("LocalBody")))

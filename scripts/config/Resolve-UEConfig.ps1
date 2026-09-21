@@ -17,7 +17,8 @@
 #   $config.ConfigFiles  # all files used, tracked first
 
 $script:UEConfKnownKeys = @(
-    "UE_PATH", "UE_SOURCE_PATH", "BUILD_TARGET", "BUILD_CONFIG", "BUILD_PLATFORM"
+    "UE_PATH", "UE_SOURCE_PATH", "LINUX_MULTIARCH_ROOT",
+    "BUILD_TARGET", "BUILD_CONFIG", "BUILD_PLATFORM"
 )
 
 function Read-UEConfFile {
@@ -66,6 +67,7 @@ function Resolve-UEConfig {
         ConfigFiles    = @()
         UE_PATH        = ""
         UE_SOURCE_PATH = ""
+        LINUX_MULTIARCH_ROOT = ""
         BUILD_TARGET   = "AlisEditor"
         BUILD_CONFIG   = "Development"
         BUILD_PLATFORM = "Win64"

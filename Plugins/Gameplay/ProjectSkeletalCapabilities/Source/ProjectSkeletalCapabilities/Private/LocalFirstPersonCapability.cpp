@@ -6,8 +6,6 @@
 
 #include "Interfaces/IAssemblyCapability.h"
 #include "LocalBodyAnimInstance.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "MuCO/CustomizableSkeletalComponent.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
@@ -88,8 +86,6 @@ void ULocalFirstPersonCapability::EndPlay(EEndPlayReason::Type EndPlayReason)
 	{
 		if (UWorld* World = Owner->GetWorld())
 		{
-			World->GetTimerManager().ClearTimer(GroomRetryTimerHandle);
-			World->GetTimerManager().ClearTimer(MutableBindRetryHandle);
 			World->GetTimerManager().ClearTimer(LocalControlRetryHandle);
 		}
 	}
@@ -102,11 +98,6 @@ void ULocalFirstPersonCapability::EndPlay(EEndPlayReason::Type EndPlayReason)
 		}
 	}
 	AssemblyStateHandle.Reset();
-
-	if (BoundMutableInstance.IsValid())
-	{
-		BoundMutableInstance->UpdatedNativeDelegate.RemoveAll(this);
-	}
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -162,97 +153,12 @@ void ULocalFirstPersonCapability::DiscoverMeshes()
 	HeadMesh = FindMeshByRole(Owner, TEXT("Head"));
 	DriverBodyMesh = FindMeshByRole(Owner, TEXT("DriverBody"));
 
-	// Try to bind to Mutable COI. If MutableCustomization hasn't created
-	// CSKs yet (assembly delegate ordering), retry on next frame.
-	if (!TryBindMutableCOI())
-	{
-		RetryMutableBinding();
-	}
-
 	UE_LOG(LogProjectSkeletalCapabilities, Log,
-		TEXT("[LocalFirstPerson] Discovered on '%s': LocalBody=%s WorldBody=%s Head=%s MutableBound=%s"),
+		TEXT("[LocalFirstPerson] Discovered on '%s': LocalBody=%s WorldBody=%s Head=%s"),
 		*GetNameSafe(Owner),
 		LocalBodyMesh.IsValid() ? TEXT("yes") : TEXT("no"),
 		WorldBodyMesh.IsValid() ? TEXT("yes") : TEXT("no"),
-		HeadMesh.IsValid() ? TEXT("yes") : TEXT("no"),
-		BoundMutableInstance.IsValid() ? TEXT("yes") : TEXT("deferred"));
-}
-
-// ---------------------------------------------------------------------------
-// Mutable COI binding (with retry for delegate ordering)
-// ---------------------------------------------------------------------------
-
-bool ULocalFirstPersonCapability::TryBindMutableCOI()
-{
-	if (BoundMutableInstance.IsValid())
-	{
-		return true;
-	}
-
-	AActor* Owner = GetOwner();
-	if (!Owner)
-	{
-		return false;
-	}
-
-	TArray<UCustomizableSkeletalComponent*> CSKs;
-	Owner->GetComponents<UCustomizableSkeletalComponent>(CSKs);
-
-	for (UCustomizableSkeletalComponent* CSK : CSKs)
-	{
-		UCustomizableObjectInstance* COI = CSK->GetCustomizableObjectInstance();
-		if (COI)
-		{
-			BoundMutableInstance = COI;
-			COI->UpdatedNativeDelegate.AddUObject(
-				this, &ULocalFirstPersonCapability::OnMutableInstanceUpdated);
-
-			UE_LOG(LogProjectSkeletalCapabilities, Log,
-				TEXT("[LocalFirstPerson] Bound to Mutable COI on '%s' (retry %d)"),
-				*GetNameSafe(Owner), MutableBindRetryCount);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void ULocalFirstPersonCapability::RetryMutableBinding()
-{
-	if (MutableBindRetryCount >= MaxMutableBindRetries)
-	{
-		UE_LOG(LogProjectSkeletalCapabilities, Log,
-			TEXT("[LocalFirstPerson] No Mutable CSKs found after %d retries on '%s'. Actor may not use Mutable."),
-			MutableBindRetryCount, *GetNameSafe(GetOwner()));
-		return;
-	}
-
-	AActor* Owner = GetOwner();
-	if (!Owner)
-	{
-		return;
-	}
-
-	UWorld* World = Owner->GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	++MutableBindRetryCount;
-
-	// Retry next frame (0 delay = next tick)
-	World->GetTimerManager().SetTimer(
-		MutableBindRetryHandle,
-		FTimerDelegate::CreateWeakLambda(this, [this]()
-		{
-			if (!TryBindMutableCOI())
-			{
-				RetryMutableBinding();
-			}
-		}),
-		0.0f,
-		false);
+		HeadMesh.IsValid() ? TEXT("yes") : TEXT("no"));
 }
 
 // ---------------------------------------------------------------------------
@@ -265,13 +171,6 @@ void ULocalFirstPersonCapability::ApplyVisibility()
 	if (!Owner)
 	{
 		return;
-	}
-
-	// Attempt COI binding on every visibility pass -- CSKs may have been created
-	// since our initial discovery (Mutable adapter creates them async).
-	if (!BoundMutableInstance.IsValid())
-	{
-		TryBindMutableCOI();
 	}
 
 	// Only apply on locally controlled pawns.
@@ -302,8 +201,7 @@ void ULocalFirstPersonCapability::ApplyVisibility()
 		}
 	}
 
-	// LocalBody: hide specified bones (head removal for first-person view)
-	// Apply to both parent LocalBody and its Mutable child (LocalBodyCustomization)
+	// LocalBody owns the player-visible fixed mesh and its CopyPose animation.
 	auto HideBonesOnMesh = [this](USkeletalMeshComponent* Mesh)
 	{
 		if (!Mesh || HiddenBones.IsEmpty())
@@ -323,49 +221,29 @@ void ULocalFirstPersonCapability::ApplyVisibility()
 	if (USkeletalMeshComponent* LB = LocalBodyMesh.Get())
 	{
 		HideBonesOnMesh(LB);
-
-		// Also hide bones on child LocalBodyCustomization (Mutable output mesh)
-		TArray<USceneComponent*> Children;
-		LB->GetChildrenComponents(false, Children);
-		for (USceneComponent* Child : Children)
+		if (LB->LeaderPoseComponent.IsValid())
 		{
-			if (USkeletalMeshComponent* ChildSKC = Cast<USkeletalMeshComponent>(Child))
+			LB->SetLeaderPoseComponent(nullptr);
+		}
+
+		if (LB->GetSkeletalMeshAsset())
+		{
+			UAnimInstance* Anim = LB->GetAnimInstance();
+			if (!Anim || !Anim->IsA(ULocalBodyAnimInstance::StaticClass()))
 			{
-				if (ChildSKC->ComponentTags.Contains(FName(TEXT("AssemblyRole=LocalBodyCustomization"))))
-				{
-					HideBonesOnMesh(ChildSKC);
+				LB->SetAnimInstanceClass(ULocalBodyAnimInstance::StaticClass());
+				LB->InitAnim(true);
 
-					// Clear LeaderPose FIRST -- must be done before installing anim
-					// instance, otherwise init can tick under stale leader-pose state.
-					if (ChildSKC->LeaderPoseComponent.IsValid())
-					{
-						ChildSKC->SetLeaderPoseComponent(nullptr);
-					}
-
-					// Install CopyPose + SpineLock anim instance for camera-locked
-					// first-person body. Check for wrong class too -- Mutable rebuild
-					// may reset the anim instance to something else.
-					if (ChildSKC->GetSkeletalMeshAsset())
-					{
-						UAnimInstance* Anim = ChildSKC->GetAnimInstance();
-						if (!Anim || !Anim->IsA(ULocalBodyAnimInstance::StaticClass()))
-						{
-							ChildSKC->SetAnimInstanceClass(ULocalBodyAnimInstance::StaticClass());
-							ChildSKC->InitAnim(true);
-
-							UE_LOG(LogProjectSkeletalCapabilities, Log,
-								TEXT("[LocalFirstPerson] Installed LocalBodyAnimInstance on '%s'"),
-								*GetNameSafe(ChildSKC));
-						}
-					}
-				}
+				UE_LOG(LogProjectSkeletalCapabilities, Log,
+					TEXT("[LocalFirstPerson] Installed LocalBodyAnimInstance on '%s'"),
+					*GetNameSafe(LB));
 			}
 		}
 	}
 
-	// Head mesh: prefer the world visual layer once it has a generated mesh.
+	// Head mesh follows the world visual layer.
 	// This keeps the hidden first-person head/shadow aligned with the same body
-	// source that drives LocalBody. Fall back to DriverBody while WorldBody is empty.
+	// source that drives LocalBody. Fall back to DriverBody during early init.
 	if (USkeletalMeshComponent* Head = HeadMesh.Get())
 	{
 		USkeletalMeshComponent* LeaderSource = WorldBodyMesh.Get();
@@ -401,42 +279,7 @@ void ULocalFirstPersonCapability::ApplyVisibility()
 	bVisibilityApplied = true;
 	LocalControlRetryCount = 0;
 
-		UE_LOG(LogProjectSkeletalCapabilities, Verbose,
-			TEXT("[LocalFirstPerson] Applied visibility on '%s'"),
-			*GetNameSafe(Owner));
-}
-
-// ---------------------------------------------------------------------------
-// Mutable rebuild callback
-// ---------------------------------------------------------------------------
-
-void ULocalFirstPersonCapability::OnMutableInstanceUpdated(
-	UCustomizableObjectInstance* Instance)
-{
-	// Mutable replaces meshes and resets visibility flags -- re-apply
-	ApplyVisibility();
-
-	// Groom components may attach asynchronously after Mutable finishes
-	RetryVisibility();
-}
-
-void ULocalFirstPersonCapability::RetryVisibility()
-{
-	AActor* Owner = GetOwner();
-	if (!Owner)
-	{
-		return;
-	}
-
-	UWorld* World = Owner->GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		GroomRetryTimerHandle,
-		FTimerDelegate::CreateUObject(this, &ULocalFirstPersonCapability::ApplyVisibility),
-		0.5f,
-		false);
+	UE_LOG(LogProjectSkeletalCapabilities, Verbose,
+		TEXT("[LocalFirstPerson] Applied visibility on '%s'"),
+		*GetNameSafe(Owner));
 }

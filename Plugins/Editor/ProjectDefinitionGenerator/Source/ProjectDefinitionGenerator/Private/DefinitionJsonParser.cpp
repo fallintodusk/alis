@@ -815,40 +815,7 @@ bool FDefinitionJsonParser::ParseJsonToAsset(
 		}
 
 		// ---------------------------------------------------------------------
-		// 7. CUSTOMIZATION SECTION (optional) - Mutable customization config
-		// ---------------------------------------------------------------------
-		const TSharedPtr<FJsonObject>* CustomizationObj = nullptr;
-
-		if (SectionsObj && SectionsObj->IsValid())
-		{
-			(*SectionsObj)->TryGetObjectField(TEXT("customization"), CustomizationObj);
-		}
-		if (!CustomizationObj || !CustomizationObj->IsValid())
-		{
-			JsonObject->TryGetObjectField(TEXT("customization"), CustomizationObj);
-		}
-
-		if (CustomizationObj && CustomizationObj->IsValid())
-		{
-			FCustomizationSection CustomizationData;
-			if (FJsonObjectConverter::JsonObjectToUStruct(
-				CustomizationObj->ToSharedRef(), FCustomizationSection::StaticStruct(), &CustomizationData, 0, 0, false, nullptr, &Callback))
-			{
-				FInstancedStruct CustomizationSection;
-				CustomizationSection.InitializeAs(FCustomizationSection::StaticStruct());
-				*CustomizationSection.GetMutablePtr<FCustomizationSection>() = MoveTemp(CustomizationData);
-				ObjDef->Sections.Add(ObjectSectionIds::Customization, MoveTemp(CustomizationSection));
-
-				UE_LOG(LogDefinitionJsonParser, Log, TEXT("[%s] Parsed customization section"), *Asset->GetName());
-			}
-			else
-			{
-				UE_LOG(LogDefinitionJsonParser, Error, TEXT("[%s] Failed to parse customization section"), *Asset->GetName());
-			}
-		}
-
-		// ---------------------------------------------------------------------
-		// 8. VIEW SECTION (optional) - camera and first-person policy
+		// 7. VIEW SECTION (optional) - camera and first-person policy
 		// ---------------------------------------------------------------------
 		const TSharedPtr<FJsonObject>* ViewObj = nullptr;
 

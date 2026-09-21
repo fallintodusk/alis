@@ -50,11 +50,11 @@ void UW_MainMenu::NativeConstruct()
 		// Subscribe to ViewModel property changes
 		MenuViewModel->OnPropertyChangedNative.AddLambda([this](FName PropertyName)
 		{
-			if (PropertyName == GET_MEMBER_NAME_CHECKED(UProjectMenuViewModel, CurrentScreen))
+			if (PropertyName == UProjectMenuViewModel::GetCurrentScreenPropertyName())
 			{
 				OnCurrentScreenChanged();
 			}
-			else if (PropertyName == GET_MEMBER_NAME_CHECKED(UProjectMenuViewModel, bShowQuitConfirmation))
+			else if (PropertyName == UProjectMenuViewModel::GetShowQuitConfirmationPropertyName())
 			{
 				OnQuitConfirmationChanged();
 			}

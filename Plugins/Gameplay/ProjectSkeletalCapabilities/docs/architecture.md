@@ -10,12 +10,12 @@ The split is by dependency domain, not by gameplay concept.
 
 `ProjectObjectCapabilities` is generic: Lockable, Pickup, Hinged, Audio. It has no third-party engine plugin dependencies.
 
-Skeletal adapters drag in engine plugin dependencies:
-- `MutableCustomizationCapability` depends on CustomizableObject (Mutable)
-- `MotionMatchingCapability` will depend on PoseSearch (when wired beyond v1 stub)
+Skeletal adapters drag in animation-specific engine dependencies:
+- `MotionMatchingCapability` integrates the Motion Matching animation graph
 - `ULocalBodyAnimInstance` depends on AnimGraphRuntime (CopyPose, ModifyBone nodes)
 
-If these lived in ProjectObjectCapabilities, every consumer would inherit Mutable + PoseSearch + AnimGraphRuntime -- even worlds with only doors and pickups.
+If these lived in ProjectObjectCapabilities, every consumer would inherit the
+animation stack even in worlds with only doors and pickups.
 
 **Rule:** plugin name matches its dependency domain. Same registry, same capability mental model, different dependency domains.
 
@@ -25,32 +25,14 @@ If these lived in ProjectObjectCapabilities, every consumer would inherit Mutabl
 
 | Capability | Dependencies | Status |
 |-----------|-------------|--------|
-| MutableCustomization | CustomizableObject | Complete -- explicit ComponentName mapping, one COI shared across CSKs, JSON-driven DefaultParameters |
 | LocalFirstPerson | AnimGraphRuntime, AnimationCore | Complete -- bone hiding, visibility re-apply, LocalBodyAnimInstance |
 | MotionMatching | Engine (reflection) | Complete -- PostProcess bridge feeds CMC data to MM AnimBP via reflection |
 
 ---
 
-## Mutable Adapter Flow
-
-1. Actor-scoped capability (one instance per actor)
-2. Self-manages timing via assembly state delegate (waits for Ready)
-3. Discovers target meshes by `AssemblyRole=*Customization` tags
-4. Loads CO from `MutableSource` property
-5. Creates COI via `CO->CreateInstance()`
-6. Creates CSK per target with explicit ComponentName from `ComponentNameMapping` property
-7. Triggers `UpdateSkeletalMeshAsync` on COI
-8. Binds to `UpdatedNativeDelegate` for rebuild callbacks
-
-**ComponentName mapping:** `"BodyCustomization=Body,HeadCustomization=Head,LocalBodyCustomization=Body"` -- explicit, not ordinal.
-
-**COI strategy:** runtime `CreateInstance()`, not pre-authored COI asset. Legacy `COI_Hero` at `/Game/Project/Test/Mutable/` was a test artifact. Default clothing is applied via `DefaultParameters` property (JSON-driven).
-
----
-
 ## MotionMatching Adapter Flow
 
-1. Capability waits for assembly Ready (same lifecycle as MutableCustomization)
+1. Capability waits for assembly Ready
 2. Finds DriverBody mesh via `AssemblyRole=DriverBody` tag
 3. Installs `UMotionMatchingBridgeAnimInstance` as PostProcess AnimInstance on DriverBody
 4. PostProcess updates AFTER primary AnimBP (which zeros CharacterProperties via failed interface call)
@@ -81,12 +63,15 @@ Copy-pose source discovery (no AProjectCharacter cast):
 2. Role tag: `AssemblyRole=DriverBody` while the world visual layer is empty during early init
 3. Component name fallback: `WorldBodyMesh` for historical `AProjectCharacter` inspection only
 
-After Mutable rebuild, `WorldBody` is promoted to the generated body mesh and
-re-initialized only when its mesh or anim instance actually changed. The
-retarget AnimBP for production comes from object data (`Hero.json`), so the
-owner-visible local body copies from the same retargeted world visual layer
-without Mutable code overriding asset paths. The component-name fallback does
-not participate in runtime pawn selection.
+The fixed `WorldBody` and `LocalBody` meshes come from object data (`Hero.json`).
+The retarget AnimBP also comes from object data, so the owner-visible local body
+copies from the same retargeted world visual layer. The component-name fallback
+does not participate in runtime pawn selection.
+
+`ULocalBodyAnimInstance` reads `FAssemblyViewConfig` through
+`IAssemblyViewConfigSource`. It does not read authoring JSON at runtime. The
+generated ObjectDefinition is therefore the authority in editor and packaged
+execution.
 
 ---
 
@@ -129,9 +114,8 @@ spine_05 is the last visible bone before neck_01. Head is a separate mesh (SkipO
 | System | Responsibility | NOT responsible for |
 |---|---|---|
 | MotionMatchingBridgeAnimInstance | Feed sample ABP contract | Camera anti-clip |
-| MutableCustomizationCapability | Mutable/mesh rebuild/mapping | Visual policy for camera bugs |
 | LocalFirstPersonCapability | Owner-only visibility, local body install | Pose correction |
-| LocalBodyAnimInstance | Final camera-safety correction only | Bridge data, mutable state |
+| LocalBodyAnimInstance | Final camera-safety correction only | Bridge data, mesh selection |
 | DefinitionCharacter | Camera and movement only | Body clipping |
 
 ### Proven Dead Ends (do not retry)
@@ -160,7 +144,7 @@ spine_05 is the last visible bone before neck_01. Head is a separate mesh (SkipO
 - `ControlRot.Pitch` can wrap (330 vs -30) -- normalize first
 - Automated test must check camera-volume intrusion, not bone rotation values
 - Keep crouch fix separate from look-clipping fix
-- Do not change bridge, mutable, local-body, and camera in one commit
+- Do not change bridge, local-body, and camera policy in one change
 
 ### Test Infrastructure
 
@@ -168,17 +152,24 @@ Map: `Content/Project/Maps/Test/ClipMatrix_CleanMap`
 Runner: `scripts/ue/test/character/capture_parity.ps1`
 
 ```powershell
-# Baseline (no correction)
+# Disabled (no correction)
 ./scripts/ue/test/character/capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.Baseline" -TimeoutSeconds 900
 
-# TransitionGuard (mode=1 via reflection)
+# TransitionGuard
 ./scripts/ue/test/character/capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.FilterV1" -TimeoutSeconds 900
 
-# Full matrix (all 15 phases, runtime default)
-./scripts/ue/test/character/capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.Default" -TimeoutSeconds 900
+# AngleClamp
+./scripts/ue/test/character/capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.AngleClamp" -TimeoutSeconds 900
+
+# ChainIK
+./scripts/ue/test/character/capture_parity.ps1 -TestFilter "ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.ChainIK" -TimeoutSeconds 900
 ```
 
 Output: `Saved/Validation/ClipMatrix/` (JSONL timeline + summary JSON + edge screenshots)
+
+Each named mode runs the same 15-phase full matrix. `Default` remains available
+for proving the configured runtime default, but it is not a substitute for the
+four-mode comparison when correction policy is under review.
 
 ---
 

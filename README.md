@@ -36,4 +36,4 @@ contains the matching Windows player build and developer payload.
 Project purpose is defined in [VISION.md](VISION.md), community expectations in
 [ALIS_PACT.md](ALIS_PACT.md), source licensing in [LICENSE](LICENSE), and the
 canonical clone route at [fallintodusk/alis.git](https://github.com/fallintodusk/alis.git).
-Security reports use [GitHub Security Advisories](https://github.com/fallintodusk/alis/security/advisories/new).
+Security reports follow the private routes in the [Security Policy](SECURITY.md).

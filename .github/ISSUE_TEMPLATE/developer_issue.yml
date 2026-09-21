@@ -1,0 +1,52 @@
+name: Developer or contribution issue
+description: Report a reproducible source, build, tooling, or contribution problem.
+title: "[Developer]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use Discussions for questions and early ideas. For security vulnerabilities, follow the private route in the security policy.
+  - type: input
+    id: revision
+    attributes:
+      label: Source revision
+      description: Enter the tag or commit SHA you used.
+      placeholder: v2.0.0 or a commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Build or tooling
+        - Runtime or plugin behavior
+        - Documentation or contribution workflow
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem?
+      description: Describe the current behavior and why it blocks or degrades development.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction and evidence
+      description: Include the smallest command or sequence that reproduces the problem and its relevant output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already run
+      description: List relevant tests or validation commands and their results.

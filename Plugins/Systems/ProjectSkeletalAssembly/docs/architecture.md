@@ -17,7 +17,7 @@ This is NOT a rewrite of Blueprint content into C++. It is a move of orchestrati
 | Plugin | Tier | Owns |
 |--------|------|------|
 | `ProjectSkeletalAssembly` | Systems | Assembly lifecycle, state machine, debug capture |
-| `ProjectSkeletalCapabilities` | Gameplay | Adapter capabilities (Mutable, MotionMatching, LocalFirstPerson) |
+| `ProjectSkeletalCapabilities` | Gameplay | Adapter capabilities (MotionMatching, LocalFirstPerson) |
 | `ProjectObjectCapabilities` | Gameplay | Generic capabilities (Lockable, Pickup, Hinged) + FCapabilityRegistry |
 | `ProjectObject` | Resources | ObjectDefinition, meshes, spawn utility |
 | `ProjectCharacter` | Gameplay | Production `ADefinitionCharacter` pawn and character-owned runtime wiring |
@@ -40,7 +40,6 @@ The framework owns:
 Assets and Blueprints keep:
 - Motion Matching AnimBP graphs
 - Retarget AnimBPs
-- Mutable content graphs (CO/COI authoring)
 - Skeleton-specific asset choices
 
 ---
@@ -53,9 +52,11 @@ A door capability and a skeletal capability are the same concept. JSON declares 
 
 There is NO separate skeletal registry.
 
-**Registration:**
-- Core always-enabled plugins listed in registry scan config by FName: `ProjectObjectCapabilities`, `ProjectMotionSystem`, `ProjectSkeletalAssembly`
-- External plugins call `FCapabilityRegistry::RegisterCapabilityModule()` in StartupModule()
+**Registration:** capability provider modules self-register their module identity
+for the `CapabilityComponent` primary-asset type during `StartupModule()`.
+`FCapabilityRegistry` uses that generic provider registry to establish readiness
+and discover capability classes. Consumers do not own a list of provider module
+names.
 
 **Capability IDs** (FPrimaryAssetId("CapabilityComponent", "...")):
 
@@ -64,7 +65,6 @@ There is NO separate skeletal registry.
 | Lockable, Pickup, Hinged, Sliding, LootContainer, Audio, ActorWatcher | ProjectObjectCapabilities | Generic object capabilities |
 | SkeletalAssembly | ProjectSkeletalAssembly | Assembly lifecycle coordinator |
 | DebugCapture | ProjectSkeletalAssembly | Runtime debug capture |
-| MutableCustomization | ProjectSkeletalCapabilities | Mutable body customization |
 | MotionMatching | ProjectSkeletalCapabilities | Motion Matching driver (v1 stub) |
 | LocalFirstPerson | ProjectSkeletalCapabilities | First-person body handling |
 
@@ -127,7 +127,6 @@ This matches the Lyra init state coordinator pattern: peer component manages sib
 ## Non-Goals (V1)
 
 - Rewrite Motion Matching AnimBP graphs into C++
-- Rewrite Mutable content graphs into C++
 - Redesign traversal, foley, or smart-object behavior
 - Force all skeletal actors through assembly orchestration
 
@@ -137,15 +136,15 @@ This matches the Lyra init state coordinator pattern: peer component manages sib
 
 ### Component Layout IDs
 
-Flat PascalCase: `DriverBody`, `WorldBody`, `LocalBody`, `Head`, `BodyCustomization`, `HeadCustomization`, `LocalBodyCustomization`
+Flat PascalCase: `DriverBody`, `WorldBody`, `LocalBody`, `Head`
 
 ### Capability IDs
 
-Flat PascalCase FName via FPrimaryAssetId("CapabilityComponent", "..."): `MotionMatching`, `MutableCustomization`, `LocalFirstPerson`, `DebugCapture`
+Flat PascalCase FName via FPrimaryAssetId("CapabilityComponent", "..."): `MotionMatching`, `LocalFirstPerson`, `DebugCapture`
 
 ### Section Categories
 
-Flat PascalCase: `Animation`, `Customization`, `View`, `Debug`
+Flat PascalCase: `Animation`, `View`, `Debug`
 
 ### Definition IDs
 
@@ -157,7 +156,7 @@ FPrimaryAssetId with type ObjectDefinition: `ObjectDefinition:Hero`, `ObjectDefi
 2. No underscores in IDs
 3. Singular nouns
 4. No prefixes on IDs (no `SK_`, `SA_`, `Comp_`)
-5. No legacy abbreviations (`BodyCustomization` not `Body_CSK`)
+5. No role-specific abbreviations
 
 ---
 

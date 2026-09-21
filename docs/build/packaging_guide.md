@@ -4,7 +4,7 @@ Canonical source of truth for ALIS public release packaging.
 
 Use this doc for:
 
-- Win64 release packaging
+- Windows and Linux x86-64 release packaging
 - mirror transport decisions
 - script usage
 - size-limit validation
@@ -54,7 +54,7 @@ publication.
    draft release, upload every signed file from `tmp/release/v2.0.0/github/`, compare
    each uploaded asset digest covered by `SHA256SUMS.txt`, and then publish the
    draft. Neither command uploads or publishes release assets.
-6. Publish the same signed game directory to the ALIS itch project:
+6. Publish the signed Windows game projection to the ALIS itch project:
    ```powershell
    make publish itch
    ```
@@ -64,7 +64,7 @@ publication.
    This command does not build, sign, mirror, or modify the retained release.
 
 For an itch-only release, the reviewed local candidate does not depend on the
-GitHub source tag. After steps 1 and 2, sign only the retained game projection:
+GitHub source tag. After steps 1 and 2, sign only the retained game set:
 
 ```powershell
 make release 2.0.0 TARGET=game
@@ -73,13 +73,46 @@ make publish itch
 
 `TARGET=game` requires the existing reviewed workspace, never builds, and does
 not read a GitHub remote or tag. It records approval for game distribution,
-signs and verifies `game/`, and does not refresh Player archives or sign the
-GitHub projection. Its local release manifest records that bounded approval;
-it cannot later become a full GitHub release from the same workspace. A full
-release requires a newly prepared and reviewed workspace.
+signs and verifies every required game platform projection, and does not
+refresh Player archives or sign the GitHub projection. Its local release
+manifest records that bounded approval; it cannot later become a full GitHub
+release from the same workspace. A full release requires a newly prepared and
+reviewed workspace.
+
+Linux release assets are GitHub-only. `make publish itch` never selects or
+creates a Linux channel.
 
 `make package` remains the lower-level Shipping package/archive command. It
 does not approve or sign a release.
+
+For 2.1.0 and later, the same commands own one multi-platform workspace:
+
+```text
+tmp/release/vX.Y.Z/
+|-- game/
+|   |-- windows-x86_64/
+|   `-- linux-x86_64/
+|-- github/
+`-- release-workspace.json
+```
+
+The Windows game remains the World-owned product/performance Candidate. The
+Linux package is cross-compiled with the configured v26 toolchain. Linux release
+eligibility remains parked until the exact unsigned TAR passes rendered runtime
+acceptance on a native Ubuntu 22.04 x86-64 GPU host. Acceptance copies the exact
+archive to that host's local Linux filesystem before verification, extraction,
+and execution; shared storage is transport only. WSL may prove archive
+transport, ext4 execute modes, shell-native verification, and non-rendering
+diagnostics, but it is not the final Vulkan acceptance authority. The receipt
+binds the normalized runtime payload tree. Signing may add only the declared
+verification envelope; final refresh rejects any other payload change and the
+GitHub signature binds the final downloadable archive parts. If the declared
+Vulkan device or either required product route is unavailable, release
+preparation fails without creating the workspace.
+
+Multi-platform releases write workspace v2 and manifest v4. Historical 2.0.0
+workspace v1 and manifest v3 remain readable and verifiable, and are never
+migrated in place.
 
 ## Canonical Script
 
@@ -89,6 +122,7 @@ Primary script:
 - `scripts/ue/package/package_release.ps1`
 - `scripts/ue/package/sign_release.ps1`
 - `scripts/ue/package/verify_release.ps1`
+- `scripts/ue/package/verify_release.sh`
 - `scripts/ue/package/publish_itch.ps1`
 
 Windows wrapper:
@@ -109,12 +143,13 @@ Script behavior:
 - defaults to a `1900 MiB` split threshold, leaving `148 MiB` below GitHub's
   `2 GiB` per-asset limit while maximizing payload capacity per part; reduce it
   only for a demonstrated transport constraint
-- signing writes recursive game verification under `game/Verification/` and
+- signing writes recursive verification under each required game platform and
   flat GitHub verification under `github/`
 - signing script exports the selected signing key's public half as `ALIS_PUBLIC_KEY.asc` before hashing
 - unsigned preparation writes one self-contained `README.txt` for both roles
   before owner review
-- signing script also copies `VERIFY_RELEASE.ps1` and `VERIFY_RELEASE.bat` into the release folder so advanced users do not need the repo docs
+- signing copies BAT/PowerShell and shell verifiers into the flat release so
+  advanced Windows and Linux users do not need repository scripts
 - unsigned manifest hashes every flat public asset; the signed checksum later
   adds the bundled key and verification helpers while excluding itself and its
   detached signature
@@ -132,25 +167,46 @@ Important flags:
 - `-IncludeStagedDebugFiles`
 - `-EncryptContent`
 
-## Verified ALIS Baseline
+## Verified Win64 Shipping Package Baseline
 
-Verified on 2026-03-10 with the project packaging script and source engine path `%UE_SOURCE_PATH%`.
+The documented installed-engine Win64 Shipping route, a full cook, and the
+packaged GrandPa fixed-view gate establish the current package baseline:
 
-Current verified output:
+- total packaged payload: `2,038,005,138` bytes (`1.898 GiB`)
+- largest packaged file: `pakchunk10-Windows.ucas` = `1,248,397,392`
+  bytes (`1.163 GiB`)
+- listed IoStore entries: `10,402`
+- ProjectWorld entries: `2,425`
+- ProjectWorld listed bytes: `285,928,100` (`272.68 MiB`)
+- ProjectWorldTestData entries: `0`
+- generated ObjectDefinitions present: `69` of `69`
+- generated capability cook references present: `8` of `8`
+- MetaHuman authoring entries: `0`
+- Mutable sample entries: `0`
+- package generated with `-skipencryption`
 
-- release payload: `2,134,597,110` bytes (`1.988 GiB`)
-- generated archive part 1: `1,782,579,200` bytes (`1.660 GiB`)
-- generated archive part 2: `96,143,799` bytes (`0.090 GiB`)
-- largest packaged file: `pakchunk10-Windows.ucas` = `851,966,304` bytes (`0.793 GiB`)
-- files `>= 2 GiB`: `0`
-- public release package was generated with `-skipencryption`
-- equivalent single-zip headroom under GitHub's `2 GiB` limit: `268,760,662` bytes (`256.31 MiB`, `12.52%`)
+This is `3,011,476,101` bytes (`2.805 GiB`, `59.64%`) smaller than the
+`5,049,481,239` byte pre-cleanup baseline. The reduction comes from cook
+ownership rather than compression tuning:
 
-Meaning:
+- ProjectObject is no longer an unconditional whole-plugin cook root
+- generated ObjectDefinitions carry their validated soft-reference closure
+- the Hero uses fixed project-owned body/head assets instead of Mutable sample content
+- MetaHuman authoring model roots are explicitly excluded from Shipping
 
-- current ALIS public release technically fits as one zip asset
-- that margin is too small to treat single-zip transport as stable
-- split archives should be the default GitHub release transport for ALIS
+MetaHuman Core Tech remains available because current GrandPa runtime content
+retains its transitive classes and assets. The cook exclusion is limited to
+authoring roots; it does not remove the runtime MetaHuman owner.
+
+`FObjectCapabilityPropertyResolver` derives capability cook references from
+reflected soft-object and soft-class properties. The packaging route exports
+that projection from the generated assets, and `inspect_iostore.ps1` proves the
+projected paths are present without reinterpreting arbitrary JSON strings. The
+inspection also rejects MetaHuman authoring or Mutable sample entries and proves
+every generated ObjectDefinition is present.
+
+The internal IoStore container size is not a GitHub asset-size failure. Public
+transport remains the split release archive owned by `make release`.
 
 ## GitHub Release Constraints
 
@@ -197,8 +253,9 @@ Important implementation note:
 ## Recommended Public Release Flow
 
 1. Run `make release 2.0.0 RELEASE_SIGN=0`; it creates all machine-owned inputs.
-2. Run and inspect the exact unsigned `game/`, then review the exact flat
-   `github/` projection including its Developer payload, README, and terms.
+2. Run and inspect each exact unsigned platform below `game/`, then review the
+   exact flat `github/` projection including its Developer payload, README, and
+   terms.
 3. Commit/freeze the reviewed tracked source without changing the reviewed
    public tree. Any public content drift returns to step 1.
 4. From native Windows, run `make mirror RTAG=v2.0.0` after the explicit
@@ -266,6 +323,12 @@ Preferred release-side Windows command:
 .\VERIFY_RELEASE.bat
 ```
 
+Preferred release-side Linux command:
+
+```sh
+./VERIFY_RELEASE.sh
+```
+
 ### Why Verification Exists
 
 Verification is optional for convenience, but useful for:
@@ -283,6 +346,7 @@ Practical rule:
 Recommended release asset set:
 
 - `ALIS_Win64_<version>.zip` or split zip parts
+- `ALIS_Linux_x86_64_<version>.tar` or split TAR parts for a multi-platform release
 - `INSTALL_ALIS_PLAYER.bat` and `INSTALL_ALIS_PLAYER.ps1`
 - `INSTALL_ALIS_DEVELOPER.bat` and `INSTALL_ALIS_DEVELOPER.ps1`
 - `README.txt`, `PRODUCT_TERMS.txt`, and `release_manifest.json`
@@ -291,6 +355,7 @@ Recommended release asset set:
 - `ALIS_PUBLIC_KEY.asc`
 - `VERIFY_RELEASE.ps1`
 - `VERIFY_RELEASE.bat`
+- `VERIFY_RELEASE.sh`
 - `SHA256SUMS.txt`
 - `SHA256SUMS.txt.asc`
 
@@ -492,9 +557,9 @@ Generated release helper:
   projection
 - `README.txt` owns the release overview, version highlights, and complete
   minimal instructions for both roles
-- `ALIS_PUBLIC_KEY.asc`, `VERIFY_RELEASE.ps1`, and `VERIFY_RELEASE.bat` are
-  written into `github/`; the runnable game keeps its equivalents under
-  `game/Verification/` plus root `VERIFY_ALIS.bat`
+- `ALIS_PUBLIC_KEY.asc`, `VERIFY_RELEASE.ps1`, `VERIFY_RELEASE.bat`, and
+  `VERIFY_RELEASE.sh` are written into `github/`; each runnable game keeps its
+  platform-native verifier plus signed material under `Verification/`
 - the key, README, optional installers, and verification helpers are included
   in `SHA256SUMS.txt` and covered by the detached signature
 - each projection's checksum manifest and detached signature are protocol

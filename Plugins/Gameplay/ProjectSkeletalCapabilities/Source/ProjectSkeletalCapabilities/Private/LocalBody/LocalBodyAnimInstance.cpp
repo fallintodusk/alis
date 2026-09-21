@@ -10,42 +10,26 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Interfaces/IAssemblyViewConfigSource.h"
 #include "TimerManager.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
-#include "Dom/JsonObject.h"
 
-static FVector LoadNeckOffsetFromHeroJson()
+static bool ResolveAssemblyViewConfig(AActor* Owner, FAssemblyViewConfig& OutConfig)
 {
-	// Packaged builds can't read Hero.json (FPaths::ProjectPluginsDir() fails).
-	// Default must match Hero.json neckOffset to avoid body blocking camera.
-	FVector Result(-23.f, -1.f, -23.f);
-	const FString Path = FPaths::ProjectPluginsDir() / TEXT("Resources/ProjectObject/Content/Human/Hero/Hero.json");
-	FString JsonStr;
-	if (!FFileHelper::LoadFileToString(JsonStr, *Path)) return Result;
-
-	TSharedPtr<FJsonObject> Root;
-	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
-	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return Result;
-
-	const TSharedPtr<FJsonObject>* Sections = nullptr;
-	if (!Root->TryGetObjectField(TEXT("sections"), Sections)) return Result;
-
-	const TSharedPtr<FJsonObject>* View = nullptr;
-	if (!(*Sections)->TryGetObjectField(TEXT("view"), View)) return Result;
-
-	FString OffsetStr;
-	if ((*View)->TryGetStringField(TEXT("neckOffset"), OffsetStr))
+	if (!Owner)
 	{
-		FVector Parsed;
-		if (Parsed.InitFromString(OffsetStr))
+		return false;
+	}
+
+	TArray<UActorComponent*> Components;
+	Owner->GetComponents(Components);
+	for (UActorComponent* Component : Components)
+	{
+		if (IAssemblyViewConfigSource* Source = Cast<IAssemblyViewConfigSource>(Component))
 		{
-			Result = Parsed;
+			return Source->GetViewConfig(OutConfig);
 		}
 	}
-	return Result;
+	return false;
 }
 
 static USkeletalMeshComponent* FindCopyPoseSource(AActor* Owner)
@@ -218,7 +202,12 @@ ILocalBodyCorrection* ULocalBodyAnimInstance::ResolveCorrection()
 void ULocalBodyAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
-	NeckOffsetFromCamera = LoadNeckOffsetFromHeroJson();
+	const USkeletalMeshComponent* MeshComponent = GetSkelMeshComponent();
+	FAssemblyViewConfig ViewConfig;
+	if (ResolveAssemblyViewConfig(MeshComponent ? MeshComponent->GetOwner() : nullptr, ViewConfig))
+	{
+		NeckOffsetFromCamera = ViewConfig.NeckOffsetFromCamera;
+	}
 	bModeReinitPending = false;
 }
 

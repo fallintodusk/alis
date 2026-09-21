@@ -17,7 +17,6 @@ public class ProjectCharacter : ModuleRules
 			"GameplayTags",
 			"ProjectGAS",
 			"ProjectVitals",
-			"CustomizableObject",
 			"AnimGraphRuntime",
 			"AnimationCore"
 		});

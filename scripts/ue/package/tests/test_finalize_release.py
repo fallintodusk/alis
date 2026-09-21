@@ -86,6 +86,45 @@ class FinalizeReleaseTests(unittest.TestCase):
         }
         self.assertEqual(before, after)
 
+    def test_v4_rebind_preserves_each_platform_game_identity(self) -> None:
+        manifest_path = self.release / "release_manifest.json"
+        manifest = PREPARE.read_json(manifest_path)
+        player = manifest.pop("player_source")
+        manifest["schema"] = "alis-release-manifest-v4"
+        manifest["release_version"] = "2.1.0"
+        manifest["release_tag"] = "v2.1.0"
+        manifest["player_sources"] = {
+            "windows-x86_64": {
+                "revision": "a" * 40,
+                "source_state_sha256": "b" * 64,
+                "runtime_payload_tree_sha256": "1" * 64,
+                "shipping_executable": "Alis/Binaries/Win64/Alis-Win64-Shipping.exe",
+                "shipping_executable_sha256": player["shipping_executable_sha256"],
+            },
+            "linux-x86_64": {
+                "revision": "a" * 40,
+                "source_state_sha256": "b" * 64,
+                "runtime_payload_tree_sha256": "2" * 64,
+                "shipping_executable": "Alis/Binaries/Linux/Alis-Linux-Shipping",
+                "shipping_executable_sha256": "3" * 64,
+            },
+        }
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        subprocess.run(["git", "commit", "--allow-empty", "-q", "-m", "metadata"], cwd=self.public, check=True)
+
+        FINALIZE.rebind_release(self.release, self.public, "main")
+
+        rebound = PREPARE.read_json(manifest_path)
+        self.assertEqual(
+            {
+                "windows-x86_64": "1" * 64,
+                "linux-x86_64": "2" * 64,
+            },
+            rebound["public_source_rebind"]["player_runtime_payload_tree_sha256"],
+        )
+        self.assertNotIn("player_package_tree_sha256", rebound["public_source_rebind"])
+        PREPARE.verify_release_manifest(self.release)
+
     def tearDown(self) -> None:
         self.fixture.tearDown()
 

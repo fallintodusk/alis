@@ -42,7 +42,7 @@ namespace
 {
 	constexpr double ProductRouteGateTimeoutSeconds = 300.0;
 	constexpr double WorldTimeoutSeconds = 180.0;
-	constexpr double StreamingTimeoutSeconds = 90.0;
+	constexpr double ProductRouteStreamingTimeoutSeconds = 90.0;
 	constexpr double MovementTimeoutSeconds = 8.0;
 	constexpr double InteractionTimeoutSeconds = 8.0;
 	constexpr double ProductRouteScreenshotTimeoutSeconds = 30.0;
@@ -366,7 +366,7 @@ bool FProjectWorldProductRouteGate::TickCenterSettlement()
 			return false;
 		}
 	}
-	if (FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
+	if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
 	{
 		FinishRejected(TEXT("product_route_center_not_ready"),
 			TEXT("The possessed player never became grounded in a streaming-complete center state."));
@@ -424,7 +424,7 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 			BuildingCandidateCount,
 			BuildingBlockingPrimitiveCount,
 			*PlayerCharacter->GetActorLocation().ToCompactString());
-		if (FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
+		if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
 		{
 			FinishRejected(TEXT("product_route_collision_failed"), LastReadinessError);
 		}
@@ -434,7 +434,7 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 	if (CenterCellMarker.IsEmpty())
 	{
 		LastReadinessError = TEXT("Waiting for a spatial generated cell marker near the center.");
-		if (FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
+		if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
 		{
 			FinishRejected(TEXT("product_route_center_marker_missing"), LastReadinessError);
 		}
@@ -445,7 +445,7 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 		BeginEdgeTraversal();
 		return true;
 	}
-	if (!BeginGameplayInteraction() && FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
+	if (!BeginGameplayInteraction() && FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
 	{
 		FinishRejected(TEXT("product_route_interaction_contract_missing"), LastReadinessError);
 	}
@@ -525,7 +525,7 @@ bool FProjectWorldProductRouteGate::TickEdgeSettlement()
 			return true;
 		}
 	}
-	if (FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
+	if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
 	{
 		FinishRejected(TEXT("product_route_edge_streaming_failed"),
 			TEXT("The edge did not load while the center cell marker unloaded."));
@@ -551,7 +551,7 @@ bool FProjectWorldProductRouteGate::TickCenterReturn()
 		SetPhase(EPhase::SettlingForScreenshot);
 		return true;
 	}
-	if (FPlatformTime::Seconds() - PhaseStartedSeconds > StreamingTimeoutSeconds)
+	if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
 	{
 		FinishRejected(TEXT("product_route_center_reload_failed"),
 			TEXT("The original center cell marker did not return after center traversal."));

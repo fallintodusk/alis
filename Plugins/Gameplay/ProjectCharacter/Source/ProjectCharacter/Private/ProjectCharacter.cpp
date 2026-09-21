@@ -22,8 +22,6 @@
 #include "Abilities/ProjectAbilitySet.h"
 #include "ProjectVitalsComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "MuCO/CustomizableSkeletalComponent.h"
-#include "MuCO/CustomizableObjectInstance.h"
 #include "LocalBodyAnimInstance.h"  // CopyPose + spine lock AnimInstance for LocalBody
 
 DEFINE_LOG_CATEGORY(LogProjectCharacter);
@@ -304,22 +302,7 @@ void AProjectCharacter::BeginPlay()
 	// Bind to MovementSpeedMultiplier attribute for movement speed changes
 	BindMovementSpeedAttribute();
 
-	// -------------------------------------------------------------------------
-	// First-Person Visibility — Layer 2 split
-	// -------------------------------------------------------------------------
-	// Bind Mutable delegate — reapply visibility after mesh rebuild
-	TArray<UCustomizableSkeletalComponent*> MutableComps;
-	GetComponents<UCustomizableSkeletalComponent>(MutableComps);
-	for (UCustomizableSkeletalComponent* Comp : MutableComps)
-	{
-		UCustomizableObjectInstance* Instance = Comp ? Comp->GetCustomizableObjectInstance() : nullptr;
-		if (Instance)
-		{
-			Instance->UpdatedNativeDelegate.AddUObject(this, &AProjectCharacter::OnMutableMeshUpdated);
-		}
-	}
-
-	// Apply immediately (in case Mutable already finished before BeginPlay)
+	// Apply the first-person layer policy after component initialization.
 	ApplyFirstPersonVisibility();
 }
 
@@ -723,8 +706,8 @@ void AProjectCharacter::ApplyFirstPersonVisibility()
 	// === WorldBodyMesh: other players see this body + it casts the FP shadow ===
 	if (WorldBodyMesh)
 	{
-		// Sync mesh from Driver in case Mutable generated it after constructor
-		if (Body->GetSkeletalMeshAsset() && WorldBodyMesh->GetSkeletalMeshAsset() != Body->GetSkeletalMeshAsset())
+		// The fixed world mesh is authoritative; the driver is only a fallback.
+		if (!WorldBodyMesh->GetSkeletalMeshAsset() && Body->GetSkeletalMeshAsset())
 		{
 			WorldBodyMesh->SetSkeletalMeshAsset(Body->GetSkeletalMeshAsset());
 		}
@@ -750,8 +733,7 @@ void AProjectCharacter::ApplyFirstPersonVisibility()
 	}
 
 	// === Layer 2b: Local Body (headless, owner sees) ===
-	// Local_Body_CSK (Blueprint) should generate mesh via Mutable.
-	// Fallback: copy from Layer 2a if CSK hasn't populated it yet.
+	// Reuse a fixed body representation only when the legacy local layer is empty.
 	if (LocalBodyMesh)
 	{
 		LocalBodyMesh->SetOnlyOwnerSee(true);
@@ -759,13 +741,13 @@ void AProjectCharacter::ApplyFirstPersonVisibility()
 		LocalBodyMesh->SetCastShadow(true);        // Override: owner needs to see own body shadow
 		LocalBodyMesh->SetHiddenInGame(false);
 
-		// Fallback: sync mesh from Layer 2a if Local_Body_CSK hasn't generated it
+		// First fallback: use the driver's fixed mesh.
 		if (!LocalBodyMesh->GetSkeletalMeshAsset() && Body->GetSkeletalMeshAsset())
 		{
 			LocalBodyMesh->SetSkeletalMeshAsset(Body->GetSkeletalMeshAsset());
 		}
 
-		// Second fallback: WorldBody may have mesh if Driver was empty (Mutable workflow)
+		// Second fallback: use the world body's fixed mesh.
 		if (!LocalBodyMesh->GetSkeletalMeshAsset() && WorldBodyMesh)
 		{
 			LocalBodyMesh->SetSkeletalMeshAsset(WorldBodyMesh->GetSkeletalMeshAsset());
@@ -773,7 +755,9 @@ void AProjectCharacter::ApplyFirstPersonVisibility()
 
 		// Setup CopyPose + ModifyBone(root) AnimInstance for spine lock
 		// LeaderPose bypasses AnimGraph so per-bone offset is impossible with it
-		if (LocalBodyMesh->GetSkeletalMeshAsset() && !LocalBodyMesh->GetAnimInstance())
+		UAnimInstance* LocalAnim = LocalBodyMesh->GetAnimInstance();
+		if (LocalBodyMesh->GetSkeletalMeshAsset() &&
+			(!LocalAnim || !LocalAnim->IsA(ULocalBodyAnimInstance::StaticClass())))
 		{
 			LocalBodyMesh->SetAnimInstanceClass(ULocalBodyAnimInstance::StaticClass());
 			LocalBodyMesh->InitAnim(true);
@@ -836,20 +820,4 @@ void AProjectCharacter::ApplyFirstPersonVisibility()
 			PrimComp->SetCastHiddenShadow(true);
 		}
 	}
-}
-
-void AProjectCharacter::OnMutableMeshUpdated(UCustomizableObjectInstance* Instance)
-{
-	ApplyFirstPersonVisibility();
-
-	// Groom components may be re-attached asynchronously after Mutable finishes — retry after short delay
-	GetWorld()->GetTimerManager().SetTimer(
-		GroomRetryTimerHandle,
-		[this]()
-		{
-			ApplyFirstPersonVisibility();
-		},
-		0.5f,
-		false
-	);
 }

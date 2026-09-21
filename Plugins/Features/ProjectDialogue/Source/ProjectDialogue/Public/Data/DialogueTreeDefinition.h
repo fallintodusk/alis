@@ -10,7 +10,7 @@
 
 /**
  * Auto-generated UAsset from dialogue JSON files.
- * Created by ProjectDefinitionGenerator from Data/Sources/*.json.
+ * Created by ProjectDefinitionGenerator from JSON files under Data/Sources.
  *
  * Maps directly to dialogue JSON schema:
  *   { "id": "...", "startNode": "...", "nodes": { "id": { ... } } }

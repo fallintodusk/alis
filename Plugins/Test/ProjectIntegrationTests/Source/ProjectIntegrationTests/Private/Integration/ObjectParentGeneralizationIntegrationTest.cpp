@@ -773,10 +773,7 @@ bool FObjectParentGeneralization_SpawnClassCookedPreflightTest::RunTest(const FS
 	FString Error;
 	const bool bParsed = FDefinitionJsonParser::ParseJsonToAsset(
 		TypeInfo,
-		// Retargeted from the never-existent GrandPa_BP to the real BP_GrandPa asset. GrandPa.json
-		// now spawns the modular DefinitionCharacter; this preflight still guards the cooked
-		// blueprint-spawnClass code path (normalize -> _C -> LoadSynchronous) against a real asset.
-		OPG_MakeMinimalObjectJson(TEXT("/ProjectObject/Human/GrandPa/BP_GrandPa")),
+		OPG_MakeMinimalObjectJson(TEXT("/ProjectIntegrationTests/Fixtures/BP_SpawnClassFixture")),
 		Def,
 		Error);
 	TestTrue(TEXT("Parser should accept spawnClass for cook preflight"), bParsed);
@@ -800,9 +797,9 @@ bool FObjectParentGeneralization_SpawnClassCookedPreflightTest::RunTest(const FS
 
 	TestTrue(TEXT("Loaded spawnClass must derive from AActor"), LoadedClass->IsChildOf(AActor::StaticClass()));
 	TestEqual(
-		TEXT("spawnClass package should match GrandPa blueprint package"),
+		TEXT("spawnClass package should match the test-owned blueprint package"),
 		Def->SpawnClass.ToSoftObjectPath().GetLongPackageName(),
-		FString(TEXT("/ProjectObject/Human/GrandPa/BP_GrandPa")));
+		FString(TEXT("/ProjectIntegrationTests/Fixtures/BP_SpawnClassFixture")));
 
 	return true;
 }

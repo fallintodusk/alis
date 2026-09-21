@@ -146,7 +146,7 @@ public:
 		switch (Stage)
 		{
 		case 0: return WaitForPawn();
-		case 1: return MutableSettle();
+		case 1: return AssemblySettle();
 		case 2: return RunPhases();
 		case 3: return WriteSummary();
 		case 4: Test->AddInfo(TEXT("Locomotion timeline complete")); return true;
@@ -176,11 +176,11 @@ private:
 		return false;
 	}
 
-	bool MutableSettle()
+	bool AssemblySettle()
 	{
 		if (Tick < 180) return false;
 		GEngine->Exec(World, TEXT("project.character.debug 1"));
-		Test->AddInfo(TEXT("Mutable settled. Starting definition-driven phases..."));
+		Test->AddInfo(TEXT("Skeletal assembly settled. Starting definition-driven phases..."));
 		ResetPhaseRunner(); NextStage(); return false;
 	}
 

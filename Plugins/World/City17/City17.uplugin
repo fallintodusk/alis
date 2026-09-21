@@ -16,6 +16,9 @@
   ],
   "Plugins": [
     { "Name": "ProjectSinglePlay", "Enabled": true },
-    { "Name": "ProjectOnlinePlay", "Enabled": true }
+    { "Name": "ProjectOnlinePlay", "Enabled": true },
+    { "Name": "ProjectObject", "Enabled": true },
+    { "Name": "ProjectSkeletalCapabilities", "Enabled": true },
+    { "Name": "MotionMatching", "Enabled": true }
   ]
 }

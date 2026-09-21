@@ -98,7 +98,7 @@ public:
 	 * @param OutFailedDlls Receives list of DLLs that failed verification
 	 * @return true if all DLLs verified successfully
 	 *
-	 * TODO: Implement recursive scan of Binaries/Win64/*.dll
+	 * TODO: Implement recursive scan of DLL files under Binaries/Win64
 	 * Verify each DLL and collect results
 	 */
 	static bool VerifyPluginDlls(

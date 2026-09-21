@@ -135,6 +135,17 @@ source runs/cache, the latest L3 run, and the pinned execution environment.
 Each applied cleanup writes a small receipt under
 `Saved/Validation/WorldCleanup/`.
 
+## Packaged fixed-view evidence
+
+For one deterministic packaged-runtime visual check without foreground focus,
+use `test/capture_packaged_fixed_view.ps1`. It enters the requested experience
+through the normal menu and ProjectLoading route, waits for World Partition,
+moves the possessed player to an explicit view, finds the expected subject,
+and emits one screenshot plus a machine-readable component receipt. The
+process runs offscreen with a hidden host window. The caller must supply every
+map, view, subject, executable, and output identity; the script has no
+product-specific defaults.
+
 ## Packaged Kazan playable-tour acceptance
 
 The standing Track P gate packages and tests the real Kazan product route with

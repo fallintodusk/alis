@@ -35,14 +35,15 @@ namespace
 		const TSet<FString>& SupportedFields,
 		const FString& Context)
 	{
-		for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : Object.Values)
+		for (const auto& Pair : Object.Values)
 		{
-			if (!SupportedFields.Contains(Pair.Key))
+			const FString FieldName(Pair.Key);
+			if (!SupportedFields.Contains(FieldName))
 			{
 				UE_LOG(LogProjectSinglePlay, Error,
 					TEXT("ModeRegistry: %s contains unsupported field '%s'"),
 					*Context,
-					*Pair.Key);
+					*FieldName);
 				return false;
 			}
 		}

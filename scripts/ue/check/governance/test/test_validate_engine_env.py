@@ -64,6 +64,21 @@ def make_repo(tmp):
                     "Enabled": True,
                     "TargetAllowList": ["Editor"],
                 },
+                {
+                    "Name": "MetaHumanCharacter",
+                    "Enabled": True,
+                    "TargetAllowList": ["Editor"],
+                },
+                {
+                    "Name": "MetaHumanCoreTech",
+                    "Enabled": True,
+                    "SupportedTargetPlatforms": ["Win64", "Linux"],
+                },
+                {
+                    "Name": "MetaHumanLiveLink",
+                    "Enabled": True,
+                    "TargetAllowList": ["Editor"],
+                },
             ],
         }, fh)
     manifest_dir = os.path.join(
@@ -198,6 +213,44 @@ def test_mcp_editor_boundary_detected():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_metahuman_authoring_boundary_detected():
+    tmp = tempfile.mkdtemp()
+    try:
+        repo, _ = make_repo(tmp)
+        path = os.path.join(repo, "Alis.uproject")
+        with open(path, encoding="utf-8") as fh:
+            project = json.load(fh)
+        plugins = {entry["Name"]: entry for entry in project["Plugins"]}
+        plugins["MetaHumanCharacter"]["TargetAllowList"] = ["Editor", "Game"]
+        plugins["MetaHumanLiveLink"].pop("TargetAllowList")
+        with open(path, "w") as fh:
+            json.dump(project, fh)
+        problems = vee.check_metahuman_authoring_boundary(repo)
+        check("both MetaHuman Shipping boundaries detected", len(problems) == 2)
+        check("MetaHuman boundary is wired into validator", run_main(repo) == 1)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_metahuman_authoring_boundary_allows_absent_plugins():
+    tmp = tempfile.mkdtemp()
+    try:
+        repo, _ = make_repo(tmp)
+        path = os.path.join(repo, "Alis.uproject")
+        with open(path, encoding="utf-8") as fh:
+            project = json.load(fh)
+        project["Plugins"] = [
+            entry for entry in project["Plugins"]
+            if entry["Name"] not in ("MetaHumanCharacter", "MetaHumanLiveLink")
+        ]
+        with open(path, "w") as fh:
+            json.dump(project, fh)
+        problems = vee.check_metahuman_authoring_boundary(repo)
+        check("absent MetaHuman authoring plugins are accepted", not problems)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_placeholders_are_clean():
     tmp = tempfile.mkdtemp()
     try:
@@ -252,6 +305,8 @@ if __name__ == "__main__":
     test_dev_manifest_mismatch_detected()
     test_pin_invariant_detected()
     test_mcp_editor_boundary_detected()
+    test_metahuman_authoring_boundary_detected()
+    test_metahuman_authoring_boundary_allows_absent_plugins()
     test_placeholders_are_clean()
     test_repo_codex_config_rejects_versioned_path()
     if failures:

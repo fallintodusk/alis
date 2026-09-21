@@ -135,12 +135,21 @@ def rebind_release(root: Path, final_public_source: Path, branch: str) -> Path:
         "branch": branch,
         "reviewed_revision": reviewed["revision"],
     }
-    manifest["public_source_rebind"] = {
+    source_binding = {
         "status": "content_identical",
         "reviewed_tree": reviewed["tree"],
         "developer_archive_sha256": payload["archive"]["sha256"],
-        "player_package_tree_sha256": manifest["player_source"]["package_tree_sha256"],
     }
+    if manifest.get("schema") == "alis-release-manifest-v4":
+        source_binding["player_runtime_payload_tree_sha256"] = {
+            platform: source["runtime_payload_tree_sha256"]
+            for platform, source in manifest["player_sources"].items()
+        }
+    else:
+        source_binding["player_package_tree_sha256"] = manifest["player_source"][
+            "package_tree_sha256"
+        ]
+    manifest["public_source_rebind"] = source_binding
     manifest["release_documents"]["notices_artifact"] = notice_path.name
     manifest["artifacts"] = [
         {

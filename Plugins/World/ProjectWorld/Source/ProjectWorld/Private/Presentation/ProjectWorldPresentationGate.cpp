@@ -52,7 +52,7 @@ namespace
 		return ParseValue(Name, Text) && LexTryParseString(OutValue, *Text);
 	}
 
-	bool IsToken(const FString& Value)
+	bool IsPresentationToken(const FString& Value)
 	{
 		if (Value.IsEmpty())
 		{
@@ -188,10 +188,10 @@ bool FProjectWorldPresentationGate::ParseConfig(FString& OutError)
 	CameraRoles.ParseIntoArray(Config.CameraRoles, TEXT(","), true);
 	TSet<FString> UniqueRoles;
 	UniqueRoles.Append(Config.CameraRoles);
-	const bool bTokensValid = IsToken(Config.OperationId) &&
-		IsWorldDataPluginToken(Config.WorldDataPlugin) && IsToken(Config.MachineProfileId) &&
-		IsToken(Config.PresentationProfileId) && IsToken(Config.RuntimeProfileId) &&
-		Algo::AllOf(Config.CameraRoles, [](const FString& Role) { return IsToken(Role); });
+	const bool bTokensValid = IsPresentationToken(Config.OperationId) &&
+		IsWorldDataPluginToken(Config.WorldDataPlugin) && IsPresentationToken(Config.MachineProfileId) &&
+		IsPresentationToken(Config.PresentationProfileId) && IsPresentationToken(Config.RuntimeProfileId) &&
+		Algo::AllOf(Config.CameraRoles, [](const FString& Role) { return IsPresentationToken(Role); });
 	if (!bTokensValid || !IsSha256(Config.PresentationProfileHash) || !IsSha256(Config.RuntimeProfileHash) ||
 		Config.CameraRoles.IsEmpty() || UniqueRoles.Num() != Config.CameraRoles.Num())
 	{

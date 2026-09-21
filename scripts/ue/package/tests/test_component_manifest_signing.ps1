@@ -152,8 +152,8 @@ try {
     $ReleaseManifest = @{
         schema = "alis-release-manifest-v3"
         status = "pending_owner_approval"
-        release_version = "fixture"
-        release_tag = "fixture"
+        release_version = "2.0.0"
+        release_tag = "v2.0.0"
         unresolved_count = 0
         product_review = @{ status = "pending_owner_approval" }
         rights_review = @{ status = "pending_owner_approval" }
@@ -224,11 +224,11 @@ try {
         Copy-Item -LiteralPath $_.FullName -Destination $CoordinatedGitHub
     }
     Remove-Item -LiteralPath (Join-Path $CoordinatedGitHub "ALIS_Win64_fixture.zip")
-    "unsigned player archive" | Set-Content -LiteralPath (Join-Path $CoordinatedGitHub "ALIS_Win64_v9.8.9.zip.001") -Encoding Ascii
+    "unsigned player archive" | Set-Content -LiteralPath (Join-Path $CoordinatedGitHub "ALIS_Win64_v2.0.89.zip.001") -Encoding Ascii
     $CoordinatedManifestPath = Join-Path $CoordinatedGitHub "release_manifest.json"
     $CoordinatedManifest = Get-Content -LiteralPath $CoordinatedManifestPath -Raw | ConvertFrom-Json
-    $CoordinatedManifest.release_version = "9.8.9"
-    $CoordinatedManifest.release_tag = "v9.8.9"
+    $CoordinatedManifest.release_version = "2.0.89"
+    $CoordinatedManifest.release_tag = "v2.0.89"
     $CoordinatedManifest.artifacts = @(Get-ChildItem -LiteralPath $CoordinatedGitHub -File |
         Where-Object Name -ne "release_manifest.json" |
         ForEach-Object {
@@ -250,8 +250,8 @@ try {
     @{
         schema = "alis-release-workspace-v1"
         status = "complete"
-        release_version = "9.8.9"
-        release_tag = "v9.8.9"
+        release_version = "2.0.89"
+        release_tag = "v2.0.89"
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $CoordinatedWorkspace "release-workspace.json") -Encoding Ascii
 
     $PendingFullWorkspace = Join-Path $TestRoot "pending-full-workspace"
@@ -261,8 +261,8 @@ try {
     $PendingFullManifestPath = Join-Path $PendingFullGitHub "release_manifest.json"
     $PendingFullManifest = Get-Content -LiteralPath $PendingFullManifestPath -Raw | ConvertFrom-Json
     $PendingFullManifest.status = "pending_owner_approval"
-    $PendingFullManifest.release_version = "9.9.0"
-    $PendingFullManifest.release_tag = "v9.9.0"
+    $PendingFullManifest.release_version = "2.0.90"
+    $PendingFullManifest.release_tag = "v2.0.90"
     $PendingFullManifest.product_review = @{ status = "pending_owner_approval" }
     $PendingFullManifest.rights_review = @{ status = "pending_owner_approval" }
     $PendingFullManifest.PSObject.Properties.Remove("approval_scope")
@@ -293,13 +293,13 @@ try {
     $PendingFullWorkspaceManifest = Get-Content `
         -LiteralPath (Join-Path $PendingFullWorkspace "release-workspace.json") -Raw |
         ConvertFrom-Json
-    $PendingFullWorkspaceManifest.release_version = "9.9.0"
-    $PendingFullWorkspaceManifest.release_tag = "v9.9.0"
+    $PendingFullWorkspaceManifest.release_version = "2.0.90"
+    $PendingFullWorkspaceManifest.release_tag = "v2.0.90"
     $PendingFullWorkspaceManifest | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath (Join-Path $PendingFullWorkspace "release-workspace.json") -Encoding Ascii
 
     & $ReleaseScript `
-        -ReleaseVersion "9.9.0" `
+        -ReleaseVersion "2.0.90" `
         -ReleaseDir $PendingFullWorkspace `
         -FinalPublicSourceRoot $PendingFullSource `
         -GpgPath $GpgPath `
@@ -337,7 +337,7 @@ try {
     Remove-Item -LiteralPath $UnexpectedVerification
 
     & $ReleaseScript `
-        -ReleaseVersion "9.8.9" `
+        -ReleaseVersion "2.0.89" `
         -ReleaseDir $CoordinatedWorkspace `
         -Target Game `
         -PublicRemoteUrl (Join-Path $TestRoot "must-not-be-read-public-remote") `
@@ -349,12 +349,12 @@ try {
     }
     if (-not (Test-Path -LiteralPath (Join-Path $CoordinatedGame "Verification\SHA256SUMS.txt.asc")) -or
         (Test-Path -LiteralPath (Join-Path $CoordinatedGitHub "SHA256SUMS.txt.asc")) -or
-        @(Get-ChildItem -LiteralPath $CoordinatedGitHub -Filter "ALIS_Win64_v9.8.9.zip*").Count -ne 1) {
+        @(Get-ChildItem -LiteralPath $CoordinatedGitHub -Filter "ALIS_Win64_v2.0.89.zip*").Count -ne 1) {
         throw "Game-only finalization did not remain isolated from GitHub signing and archive refresh"
     }
 
     & $ReleaseScript `
-        -ReleaseVersion "9.8.9" `
+        -ReleaseVersion "2.0.89" `
         -ReleaseDir $CoordinatedWorkspace `
         -GpgPath $GpgPath `
         -GpgHome $GpgHome `
@@ -364,8 +364,140 @@ try {
     }
     if (-not (Test-Path -LiteralPath (Join-Path $CoordinatedGame "Verification\SHA256SUMS.txt.asc")) -or
         -not (Test-Path -LiteralPath (Join-Path $CoordinatedGitHub "SHA256SUMS.txt.asc")) -or
-        @(Get-ChildItem -LiteralPath $CoordinatedGitHub -Filter "ALIS_Win64_v9.8.9.zip*").Count -lt 1) {
+        @(Get-ChildItem -LiteralPath $CoordinatedGitHub -Filter "ALIS_Win64_v2.0.89.zip*").Count -lt 1) {
         throw "Coordinated finalization did not produce both signatures and the refreshed Player archive"
+    }
+
+    $MultiWorkspace = Join-Path $TestRoot "multi-workspace"
+    $MultiWindows = Join-Path $MultiWorkspace "game\windows-x86_64"
+    $MultiLinux = Join-Path $MultiWorkspace "game\linux-x86_64"
+    $MultiGitHub = Join-Path $MultiWorkspace "github"
+    New-Item -ItemType Directory -Path `
+        (Join-Path $MultiWindows "Alis\Binaries\Win64"), `
+        (Join-Path $MultiLinux "Alis\Binaries\Linux"), `
+        $MultiGitHub -Force | Out-Null
+    "launcher" | Set-Content -LiteralPath (Join-Path $MultiWindows "Alis.exe") -Encoding Ascii
+    "windows" | Set-Content -LiteralPath (Join-Path $MultiWindows "Alis\Binaries\Win64\Alis-Win64-Shipping.exe") -Encoding Ascii
+    "#!/bin/sh" | Set-Content -LiteralPath (Join-Path $MultiLinux "Alis.sh") -Encoding Ascii
+    [IO.File]::WriteAllBytes(
+        (Join-Path $MultiLinux "Alis\Binaries\Linux\Alis-Linux-Shipping"),
+        [byte[]](0x7f, 0x45, 0x4c, 0x46, 0x01)
+    )
+    Get-ChildItem -LiteralPath $ReleaseDir -File | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $MultiGitHub
+    }
+    $MultiManifestPath = Join-Path $MultiGitHub "release_manifest.json"
+    $MultiManifest = Get-Content -LiteralPath $MultiManifestPath -Raw | ConvertFrom-Json
+    $MultiManifest.schema = "alis-release-manifest-v4"
+    $MultiManifest.release_version = "9.9.1"
+    $MultiManifest.release_tag = "v9.9.1"
+    $MultiManifest.status = "pending_owner_approval"
+    $MultiManifest.product_review = @{ status = "pending_owner_approval" }
+    $MultiManifest.rights_review = @{ status = "pending_owner_approval" }
+    $MultiManifest | Add-Member -NotePropertyName public_source -NotePropertyValue @{
+        revision = "cccccccccccccccccccccccccccccccccccccccc"
+        tree = "dddddddddddddddddddddddddddddddddddddddd"
+    } -Force
+    $MultiManifest.PSObject.Properties.Remove("approval_scope")
+    $MultiManifest.artifacts = @($MultiManifest.artifacts | Where-Object {
+            $_.name -ne "release-rights-review.json"
+        })
+    Remove-Item -LiteralPath (Join-Path $MultiGitHub "release-rights-review.json")
+    $MultiManifest.PSObject.Properties.Remove("player_source")
+    $env:ALIS_TEST_PACKAGE_DIR = $PackageDir
+    $env:ALIS_TEST_WINDOWS_GAME = $MultiWindows
+    $env:ALIS_TEST_LINUX_GAME = $MultiLinux
+    try {
+        $MultiDigests = & python -c "import os,sys; from pathlib import Path; sys.path.insert(0,os.environ['ALIS_TEST_PACKAGE_DIR']); import release_workspace as w; print(w.platform_game_tree_digest(Path(os.environ['ALIS_TEST_WINDOWS_GAME']),'windows-x86_64')); print(w.platform_game_tree_digest(Path(os.environ['ALIS_TEST_LINUX_GAME']),'linux-x86_64'))"
+        Assert-CommandSucceeded -Action "Multi-platform game identities"
+    }
+    finally {
+        Remove-Item Env:ALIS_TEST_PACKAGE_DIR, Env:ALIS_TEST_WINDOWS_GAME, Env:ALIS_TEST_LINUX_GAME -ErrorAction SilentlyContinue
+    }
+    $MultiManifest | Add-Member -NotePropertyName player_sources -NotePropertyValue @{
+        "windows-x86_64" = @{
+            revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            source_state_sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            runtime_payload_tree_sha256 = [string]$MultiDigests[0]
+            shipping_executable = "Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
+            shipping_executable_sha256 = (Get-FileHash -LiteralPath (Join-Path $MultiWindows "Alis\Binaries\Win64\Alis-Win64-Shipping.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        "linux-x86_64" = @{
+            revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            source_state_sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            runtime_payload_tree_sha256 = [string]$MultiDigests[1]
+            shipping_executable = "Alis/Binaries/Linux/Alis-Linux-Shipping"
+            shipping_executable_sha256 = (Get-FileHash -LiteralPath (Join-Path $MultiLinux "Alis\Binaries\Linux\Alis-Linux-Shipping") -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    } -Force
+    $MultiManifest | ConvertTo-Json -Depth 10 |
+        Set-Content -LiteralPath $MultiManifestPath -Encoding Ascii
+    @{
+        schema = "alis-release-workspace-v2"
+        status = "complete"
+        release_version = "9.9.1"
+        release_tag = "v9.9.1"
+        platforms = @("windows-x86_64", "linux-x86_64")
+    } | ConvertTo-Json -Depth 4 |
+        Set-Content -LiteralPath (Join-Path $MultiWorkspace "release-workspace.json") -Encoding Ascii
+
+    & $ReleaseScript `
+        -ReleaseVersion "9.9.1" `
+        -ReleaseDir $MultiWorkspace `
+        -Target Game `
+        -PublicRemoteUrl (Join-Path $TestRoot "must-not-be-read-multi-public-remote") `
+        -GpgPath $GpgPath `
+        -GpgHome $GpgHome `
+        -SigningKeyFingerprint $Fingerprint
+    if (-not $? -or
+        -not (Test-Path -LiteralPath (Join-Path $MultiLinux "VERIFY_ALIS.sh")) -or
+        -not (Test-Path -LiteralPath (Join-Path $MultiWindows "VERIFY_ALIS.bat")) -or
+        -not (Test-Path -LiteralPath (Join-Path $MultiWindows "Verification\SHA256SUMS.txt.asc")) -or
+        -not (Test-Path -LiteralPath (Join-Path $MultiLinux "Verification\SHA256SUMS.txt.asc")) -or
+        (Test-Path -LiteralPath (Join-Path $MultiGitHub "SHA256SUMS.txt.asc")) -or
+        (Test-Path -LiteralPath (Join-Path $MultiLinux "VERIFY_ALIS.bat"))) {
+        throw "Workspace-v2 game finalization did not sign both platform projections only"
+    }
+    $MultiApproved = Get-Content -LiteralPath $MultiManifestPath -Raw | ConvertFrom-Json
+    if ($MultiApproved.approval_scope -ne "game") {
+        throw "Workspace-v2 game finalization did not record bounded game approval"
+    }
+    & python $WorkspaceTool verify --workspace-root $MultiWorkspace
+    Assert-CommandSucceeded -Action "Signed multi-platform workspace verification"
+    $Wsl = Get-Command "wsl.exe" -ErrorAction SilentlyContinue
+    if ($Wsl) {
+        $ShellVerifierFixture = Join-Path $TestRoot "verify_release_test_key.sh"
+        $ShellVerifierText = Get-Content -LiteralPath (Join-Path $PackageDir "verify_release.sh") -Raw
+        $ProductionFingerprint = "3B9885F0C2D8D927C27FAB58F61A530034CFB5E7"
+        if (-not $ShellVerifierText.Contains($ProductionFingerprint)) {
+            throw "Linux verifier does not bind the production release-key fingerprint"
+        }
+        $ShellVerifierText = $ShellVerifierText.Replace($ProductionFingerprint, $Fingerprint)
+        [IO.File]::WriteAllText(
+            $ShellVerifierFixture,
+            $ShellVerifierText,
+            [Text.UTF8Encoding]::new($false)
+        )
+        $WslRoot = "/mnt/" + $MultiLinux.Substring(0, 1).ToLowerInvariant() +
+            $MultiLinux.Substring(2).Replace('\', '/')
+        $WslVerifier = "/mnt/" + $ShellVerifierFixture.Substring(0, 1).ToLowerInvariant() +
+            $ShellVerifierFixture.Substring(2).Replace('\', '/')
+        & $Wsl.Source sh $WslVerifier $WslRoot
+        Assert-CommandSucceeded -Action "Linux shell consumer verification"
+        "unexpected" | Set-Content -LiteralPath (Join-Path $MultiLinux "unexpected.bin") -Encoding Ascii
+        $PreviousErrorAction = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $RejectedShellOutput = @(& $Wsl.Source sh $WslVerifier $WslRoot 2>&1)
+            $RejectedShellExit = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $PreviousErrorAction
+        }
+        if ($RejectedShellExit -eq 0 -or -not ($RejectedShellOutput -match "inventory differs")) {
+            throw "Linux shell verifier accepted an unsigned extra file"
+        }
+        Remove-Item -LiteralPath (Join-Path $MultiLinux "unexpected.bin")
     }
 
     New-Item -ItemType Directory -Path (Join-Path $GameDir "Alis\Content"), (Join-Path $GameDir "Engine\Content") -Force | Out-Null
@@ -482,6 +614,12 @@ try {
         -PublicKeyUrl ""
     if (-not $?) {
         throw "verify_release.ps1 failed"
+    }
+    if ($Wsl) {
+        $WslFlatRoot = "/mnt/" + $ReleaseDir.Substring(0, 1).ToLowerInvariant() +
+            $ReleaseDir.Substring(2).Replace('\', '/')
+        & $Wsl.Source sh $WslVerifier $WslFlatRoot
+        Assert-CommandSucceeded -Action "Flat GitHub shell consumer verification"
     }
 
     $DeveloperSubsetDir = Join-Path $TestRoot "developer-subset"

@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectObjectCapabilitiesModule.h"
+#include "Registry/RegisteredClassProviderRegistry.h"
 
 DEFINE_LOG_CATEGORY(LogProjectObjectCapabilities);
 
@@ -9,6 +10,9 @@ DEFINE_LOG_CATEGORY(LogProjectObjectCapabilities);
 
 void FProjectObjectCapabilitiesModule::StartupModule()
 {
+	FRegisteredClassProviderRegistry::RegisterProviderModule(
+		FPrimaryAssetType(TEXT("CapabilityComponent")),
+		TEXT("ProjectObjectCapabilities"));
 }
 
 void FProjectObjectCapabilitiesModule::ShutdownModule()

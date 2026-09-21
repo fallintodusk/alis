@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "DefinitionValidator.h"
+#include "Data/ObjectCapabilityPropertyResolver.h"
 
 #include "CapabilityRegistry.h"
 #include "CapabilityValidationRegistry.h"
@@ -317,6 +318,19 @@ void FDefinitionValidator::ValidateObjectCapabilities(
 	for (int32 CapIndex = 0; CapIndex < ObjectDef->Capabilities.Num(); ++CapIndex)
 	{
 		const FObjectCapabilityEntry& Cap = ObjectDef->Capabilities[CapIndex];
+
+		FString CapabilityError;
+		if (!ProjectObjectCapabilityProperties::ValidateEntry(Cap, CapabilityError))
+		{
+			AddCapabilityError(
+				OutErrors,
+				AssetId,
+				CapIndex,
+				Cap.Type.ToString(),
+				TEXT("Properties"),
+				CapabilityError,
+				/*bIsWarning=*/false);
+		}
 
 		// Validate scope is not empty
 		if (Cap.Scope.Num() == 0)

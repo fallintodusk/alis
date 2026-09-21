@@ -22,6 +22,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Misc/Paths.h"
+#include "UObject/StrongObjectPtr.h"
 
 struct FCleanPathMode
 {
@@ -487,14 +488,6 @@ USkeletalMeshComponent* FindWorldVisibleMesh(AActor* Owner)
 		}
 	}
 
-	if (USkeletalMeshComponent* Mesh = FindMeshByRole(Owner, TEXT("BodyCustomization")))
-	{
-		if (!Mesh->bHiddenInGame && !Mesh->bOnlyOwnerSee && Mesh->GetSkeletalMeshAsset())
-		{
-			return Mesh;
-		}
-	}
-
 	return FindMeshByNameSubstring(Owner, TEXT("WorldBody"));
 }
 
@@ -503,14 +496,6 @@ USkeletalMeshComponent* FindOwnerVisibleMesh(AActor* Owner)
 	if (!Owner)
 	{
 		return nullptr;
-	}
-
-	if (USkeletalMeshComponent* Mesh = FindMeshByRole(Owner, TEXT("LocalBodyCustomization")))
-	{
-		if (!Mesh->bHiddenInGame && Mesh->GetSkeletalMeshAsset())
-		{
-			return Mesh;
-		}
 	}
 
 	if (USkeletalMeshComponent* Mesh = FindMeshByRole(Owner, TEXT("LocalBody")))
@@ -670,8 +655,8 @@ TSharedPtr<FJsonObject> MeshSampleToJson(const FMeshSample& Mesh)
 struct FMeshRestoreState
 {
 	TWeakObjectPtr<USkeletalMeshComponent> Mesh;
-	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
-	TObjectPtr<UClass> AnimClass = nullptr;
+	TStrongObjectPtr<USkeletalMesh> SkeletalMesh;
+	TStrongObjectPtr<UClass> AnimClass;
 	EAnimationMode::Type AnimationMode = EAnimationMode::AnimationBlueprint;
 	bool bHiddenInGame = false;
 	bool bOnlyOwnerSee = false;
@@ -689,8 +674,8 @@ FMeshRestoreState CaptureRestoreState(USkeletalMeshComponent* Mesh)
 		return State;
 	}
 
-	State.SkeletalMesh = Mesh->GetSkeletalMeshAsset();
-	State.AnimClass = Mesh->GetAnimClass();
+	State.SkeletalMesh.Reset(Mesh->GetSkeletalMeshAsset());
+	State.AnimClass.Reset(Mesh->GetAnimClass());
 	State.AnimationMode = Mesh->GetAnimationMode();
 	State.bHiddenInGame = Mesh->bHiddenInGame;
 	State.bOnlyOwnerSee = Mesh->bOnlyOwnerSee;
@@ -708,7 +693,7 @@ void RestoreMeshState(const FMeshRestoreState& State)
 		return;
 	}
 
-	Mesh->SetSkeletalMeshAsset(State.SkeletalMesh);
+	Mesh->SetSkeletalMeshAsset(State.SkeletalMesh.Get());
 	Mesh->SetAnimationMode(State.AnimationMode);
 	Mesh->SetAnimInstanceClass(State.AnimClass.Get());
 	Mesh->SetHiddenInGame(State.bHiddenInGame);
@@ -716,7 +701,7 @@ void RestoreMeshState(const FMeshRestoreState& State)
 	Mesh->SetOwnerNoSee(State.bOwnerNoSee);
 	Mesh->SetCastHiddenShadow(State.bCastHiddenShadow);
 	Mesh->SetLeaderPoseComponent(State.LeaderPose.Get());
-	if (State.AnimationMode == EAnimationMode::AnimationBlueprint && State.AnimClass)
+	if (State.AnimationMode == EAnimationMode::AnimationBlueprint && State.AnimClass.IsValid())
 	{
 		Mesh->InitAnim(true);
 	}
@@ -1219,16 +1204,11 @@ private:
 				WorldMesh = FindMeshByRole(Character, TEXT("WorldBody"));
 				LocalMesh = FindMeshByRole(Character, TEXT("LocalBody"));
 				HeadMesh = FindMeshByRole(Character, TEXT("Head"));
-				BodyCustomizationMesh = FindMeshByRole(Character, TEXT("BodyCustomization"));
-				HeadCustomizationMesh = FindMeshByRole(Character, TEXT("HeadCustomization"));
-				LocalBodyCustomizationMesh = FindMeshByRole(Character, TEXT("LocalBodyCustomization"));
-
 				const bool bReady =
 					DriverMesh && DriverMesh->GetSkeletalMeshAsset() &&
 					WorldMesh && WorldMesh->GetSkeletalMeshAsset() &&
-					LocalMesh &&
-					BodyCustomizationMesh && BodyCustomizationMesh->GetSkeletalMeshAsset() &&
-					LocalBodyCustomizationMesh && LocalBodyCustomizationMesh->GetSkeletalMeshAsset();
+					LocalMesh && LocalMesh->GetSkeletalMeshAsset() &&
+					HeadMesh && HeadMesh->GetSkeletalMeshAsset();
 
 				if (bReady)
 				{
@@ -1743,7 +1723,7 @@ private:
 					 !Summary.bCheckedVisibleWorldSource || !Summary.bVisibleUsesWorldSource))
 				{
 					Test->AddError(FString::Printf(
-						TEXT("[CleanPath] %s failed at Layer4_LocalCustomizationPropagation: world changed but owner-visible layer diverged"),
+						TEXT("[CleanPath] %s failed at Layer4_LocalBodyPropagation: world changed but owner-visible layer diverged"),
 						*Summary.PhaseName));
 					break;
 				}
@@ -1780,9 +1760,6 @@ private:
 		OriginalWorldState = CaptureRestoreState(WorldMesh);
 		OriginalLocalState = CaptureRestoreState(LocalMesh);
 		OriginalHeadState = CaptureRestoreState(HeadMesh);
-		OriginalBodyCustomizationState = CaptureRestoreState(BodyCustomizationMesh);
-		OriginalHeadCustomizationState = CaptureRestoreState(HeadCustomizationMesh);
-		OriginalLocalBodyCustomizationState = CaptureRestoreState(LocalBodyCustomizationMesh);
 	}
 
 	void RestoreOriginalStates()
@@ -1791,9 +1768,6 @@ private:
 		RestoreMeshState(OriginalWorldState);
 		RestoreMeshState(OriginalLocalState);
 		RestoreMeshState(OriginalHeadState);
-		RestoreMeshState(OriginalBodyCustomizationState);
-		RestoreMeshState(OriginalHeadCustomizationState);
-		RestoreMeshState(OriginalLocalBodyCustomizationState);
 	}
 
 	void ApplyIsolationMode(const FCleanPathMode& Mode)
@@ -1809,9 +1783,6 @@ private:
 		SetMeshVisibility(WorldMesh, true, false, true);
 		SetMeshVisibility(LocalMesh, true, true, false);
 		SetMeshVisibility(HeadMesh, true, false, true);
-		SetMeshVisibility(BodyCustomizationMesh, true, false, true);
-		SetMeshVisibility(HeadCustomizationMesh, true, false, true);
-		SetMeshVisibility(LocalBodyCustomizationMesh, true, true, false);
 
 		if (Mode.Name == TEXT("ModeA_DriverOnly"))
 		{
@@ -1838,11 +1809,7 @@ private:
 		{
 			LocalMesh->SetSkeletalMeshAsset(DriverAsset);
 			LocalMesh->SetLeaderPoseComponent(nullptr);
-			UClass* LocalAnimClass = OriginalLocalBodyCustomizationState.AnimClass.Get();
-			if (!LocalAnimClass)
-			{
-				LocalAnimClass = OriginalLocalState.AnimClass.Get();
-			}
+			UClass* LocalAnimClass = OriginalLocalState.AnimClass.Get();
 			LocalMesh->SetAnimInstanceClass(LocalAnimClass);
 			if (WorldMesh)
 			{
@@ -1942,16 +1909,10 @@ private:
 	USkeletalMeshComponent* WorldMesh = nullptr;
 	USkeletalMeshComponent* LocalMesh = nullptr;
 	USkeletalMeshComponent* HeadMesh = nullptr;
-	USkeletalMeshComponent* BodyCustomizationMesh = nullptr;
-	USkeletalMeshComponent* HeadCustomizationMesh = nullptr;
-	USkeletalMeshComponent* LocalBodyCustomizationMesh = nullptr;
 	FMeshRestoreState OriginalDriverState;
 	FMeshRestoreState OriginalWorldState;
 	FMeshRestoreState OriginalLocalState;
 	FMeshRestoreState OriginalHeadState;
-	FMeshRestoreState OriginalBodyCustomizationState;
-	FMeshRestoreState OriginalHeadCustomizationState;
-	FMeshRestoreState OriginalLocalBodyCustomizationState;
 
 	TArray<FString> TimelineLines;
 	TArray<FCleanPathPhaseSummary> CurrentSummaries;

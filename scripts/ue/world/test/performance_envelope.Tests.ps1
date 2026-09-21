@@ -40,6 +40,14 @@ Describe 'Packaged performance measurement envelope' {
         }
     }
 
+    It 'keeps every packaged performance owner offscreen and out of the foreground' {
+        foreach ($scriptPath in $scriptPaths) {
+            $source = Get-Content -LiteralPath $scriptPath -Raw
+            $source | Should -Match "'-RenderOffScreen'"
+            $source | Should -Match '-WindowStyle Hidden'
+        }
+    }
+
     It 'routes every consumer through strict shared envelope authentication' {
         $source = Get-Content -LiteralPath $scriptPaths[0] -Raw
         $source | Should -Match 'Test-ProjectWorldPerformanceEnvelopeReceipt'

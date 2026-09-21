@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -52,6 +53,7 @@ GENERATED_SIGNING_FILES = {
     "SHA256SUMS.txt.asc",
     "VERIFY_RELEASE.bat",
     "VERIFY_RELEASE.ps1",
+    "VERIFY_RELEASE.sh",
     "sign_release_summary.txt",
     "verify_release_summary.txt",
 }
@@ -744,7 +746,55 @@ def verify_artifacts(root: Path, manifest: dict[str, Any]) -> None:
 
 def verify_release_manifest(root: Path, require_ready: bool = False) -> dict[str, Any]:
     manifest = read_json(root / "release_manifest.json")
-    require_equal(manifest.get("schema"), "alis-release-manifest-v3", "release manifest schema")
+    schema = manifest.get("schema")
+    if schema not in {"alis-release-manifest-v3", "alis-release-manifest-v4"}:
+        raise ReleaseError(f"Unsupported release manifest schema: {schema!r}")
+    version = str(manifest.get("release_version", ""))
+    if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
+        raise ReleaseError(f"Invalid release manifest version: {version!r}")
+    required_schema = "alis-release-manifest-v4" if tuple(map(int, version.split("."))) >= (2, 1, 0) else "alis-release-manifest-v3"
+    require_equal(schema, required_schema, f"release {version} manifest schema")
+    if schema == "alis-release-manifest-v4":
+        player_sources = manifest.get("player_sources")
+        required_platforms = ("windows-x86_64", "linux-x86_64")
+        if not isinstance(player_sources, dict) or set(player_sources) != set(required_platforms):
+            raise ReleaseError("Release manifest platform map is incomplete or open-ended")
+        identities = []
+        for platform in required_platforms:
+            source = player_sources[platform]
+            if not isinstance(source, dict):
+                raise ReleaseError(f"Release manifest player source is invalid for {platform}")
+            for field, length in (("revision", 40), ("source_state_sha256", 64),
+                                  ("runtime_payload_tree_sha256", 64),
+                                  ("shipping_executable_sha256", 64)):
+                if not re.fullmatch(rf"[0-9a-f]{{{length}}}", str(source.get(field, ""))):
+                    raise ReleaseError(f"Release manifest {platform} source has invalid {field}")
+            if not source.get("shipping_executable"):
+                raise ReleaseError(f"Release manifest {platform} source is missing shipping_executable")
+            identities.append((source["revision"], source["source_state_sha256"]))
+        require_equal(identities[1][0], identities[0][0], "cross-platform source revision")
+        require_equal(identities[1][1], identities[0][1], "cross-platform source state")
+        distribution = manifest.get("player_distribution")
+        if distribution is not None:
+            if not isinstance(distribution, dict) or set(distribution) != set(required_platforms):
+                raise ReleaseError("Release manifest player distribution is incomplete or open-ended")
+            for platform in required_platforms:
+                item = distribution.get(platform)
+                if not isinstance(item, dict):
+                    raise ReleaseError(f"Release manifest player distribution is invalid for {platform}")
+                require_equal(
+                    item.get("runtime_payload_tree_sha256"),
+                    player_sources[platform]["runtime_payload_tree_sha256"],
+                    f"{platform} distributed runtime payload tree",
+                )
+                for field in ("game_tree_sha256", "signature_manifest_sha256", "signature_sha256"):
+                    if not re.fullmatch(r"[0-9a-f]{64}", str(item.get(field, ""))):
+                        raise ReleaseError(f"Release manifest {platform} distribution has invalid {field}")
+                if platform == "linux-x86_64":
+                    if not re.fullmatch(r"[0-9a-f]{64}", str(item.get("archive_sha256", ""))):
+                        raise ReleaseError("Release manifest Linux distribution has invalid archive_sha256")
+                    if not isinstance(item.get("archive_byte_size"), int) or item["archive_byte_size"] < 1:
+                        raise ReleaseError("Release manifest Linux distribution has invalid archive_byte_size")
     expected = "ready_for_signature" if require_ready else manifest.get("status")
     if expected not in {"pending_owner_approval", "ready_for_signature"}:
         raise ReleaseError(f"Unsupported release manifest status: {expected!r}")

@@ -13,6 +13,8 @@ param(
     [string]$PublicSourceRoot,
     [string]$PlayerPackageRoot,
     [string]$PlayerEvidence,
+    [string]$LinuxPackageRoot,
+    [string]$LinuxAcceptance,
     [string]$DeveloperReleaseDir,
     [string]$ComponentManifest,
     [string]$DependencyReport,
@@ -162,9 +164,26 @@ function Remove-AbandonedReleaseScratch {
 $ReleaseTag = "v$ReleaseVersion"
 $ResolvedInputRoot = Resolve-ProjectPath -Path $InputRoot -DefaultPath "tmp\release\inputs\$ReleaseTag"
 $ResolvedReleaseDir = Resolve-ProjectPath -Path $ReleaseDir -DefaultPath "tmp\release\$ReleaseTag"
+$ExistingWorkspaceStatePath = Join-Path $ResolvedReleaseDir "release-workspace.json"
+$UseMultiPlatformSchema = [version]$ReleaseVersion -ge [version]"2.1.0"
+$RequiredWorkspaceSchema = if ($UseMultiPlatformSchema) { "alis-release-workspace-v2" }
+else { "alis-release-workspace-v1" }
+if (Test-Path -LiteralPath $ExistingWorkspaceStatePath -PathType Leaf) {
+    $ExistingWorkspaceState = Get-Content -LiteralPath $ExistingWorkspaceStatePath -Raw | ConvertFrom-Json
+    if ([string]$ExistingWorkspaceState.schema -ne $RequiredWorkspaceSchema) {
+        throw "Release $ReleaseVersion requires workspace schema $RequiredWorkspaceSchema; found $($ExistingWorkspaceState.schema)."
+    }
+}
 $ResolvedGameDir = Join-Path $ResolvedReleaseDir "game"
 $ResolvedGitHubDir = Join-Path $ResolvedReleaseDir "github"
 $ResolvedPlayerPackageRoot = Resolve-ProjectPath -Path $PlayerPackageRoot -DefaultPath "Saved\PackageRelease\KazanPlayableTour\Candidate"
+$ResolvedLinuxPackageRoot = Resolve-ProjectPath -Path $LinuxPackageRoot -DefaultPath (Join-Path $ResolvedInputRoot "linux-package")
+$ResolvedLinuxAcceptance = if ([string]::IsNullOrWhiteSpace($LinuxAcceptance)) {
+    $null
+}
+else {
+    Resolve-ProjectPath -Path $LinuxAcceptance -DefaultPath ""
+}
 $WorkspaceTool = Join-Path $ScriptDir "release_workspace.py"
 $ProjectTmpRoot = Join-Path $ProjectRoot "tmp"
 $ReleaseRoot = Join-Path $ProjectTmpRoot "release"
@@ -179,6 +198,8 @@ Remove-AbandonedReleaseScratch -ReleaseRoot $ReleaseRoot
 $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerPackageRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerEvidence) -or
+    -not [string]::IsNullOrWhiteSpace($LinuxPackageRoot) -or
+    -not [string]::IsNullOrWhiteSpace($LinuxAcceptance) -or
     -not [string]::IsNullOrWhiteSpace($DeveloperReleaseDir) -or
     -not [string]::IsNullOrWhiteSpace($ComponentManifest) -or
     -not [string]::IsNullOrWhiteSpace($DependencyReport) -or
@@ -186,24 +207,42 @@ $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($MapLoadReport)
 $SigningManifest = Join-Path $ResolvedGitHubDir "SHA256SUMS.txt"
 $Signature = Join-Path $ResolvedGitHubDir "SHA256SUMS.txt.asc"
-$GameSigningManifest = Join-Path $ResolvedGameDir "Verification\SHA256SUMS.txt"
-$GameSignature = Join-Path $ResolvedGameDir "Verification\SHA256SUMS.txt.asc"
 $GitHubVerifyArguments = @{ ReleaseDir = $ResolvedGitHubDir }
-$GameVerifyArguments = @{
-    ReleaseDir = $ResolvedGameDir
-    ManifestRelativePath = "Verification\SHA256SUMS.txt"
-    SignatureRelativePath = "Verification\SHA256SUMS.txt.asc"
-    BundledPublicKeyName = "Verification\ALIS_PUBLIC_KEY.asc"
-    AllowRelativeAssetPaths = $true
-    RequireExactInventory = $true
+$GameProjections = @(if ($UseMultiPlatformSchema) {
+    @(
+        [PSCustomObject]@{ Platform = "windows-x86_64"; Directory = (Join-Path $ResolvedGameDir "windows-x86_64") },
+        [PSCustomObject]@{ Platform = "linux-x86_64"; Directory = (Join-Path $ResolvedGameDir "linux-x86_64") }
+    )
+}
+else {
+    @([PSCustomObject]@{ Platform = $null; Directory = $ResolvedGameDir })
+})
+foreach ($GameProjection in $GameProjections) {
+    $GameProjection | Add-Member -NotePropertyName Manifest -NotePropertyValue `
+        (Join-Path $GameProjection.Directory "Verification\SHA256SUMS.txt")
+    $GameProjection | Add-Member -NotePropertyName Signature -NotePropertyValue `
+        (Join-Path $GameProjection.Directory "Verification\SHA256SUMS.txt.asc")
+    $VerifyArguments = @{
+        ReleaseDir = $GameProjection.Directory
+        ManifestRelativePath = "Verification\SHA256SUMS.txt"
+        SignatureRelativePath = "Verification\SHA256SUMS.txt.asc"
+        BundledPublicKeyName = "Verification\ALIS_PUBLIC_KEY.asc"
+        AllowRelativeAssetPaths = $true
+        RequireExactInventory = $true
+    }
+    $GameProjection | Add-Member -NotePropertyName VerifyArguments -NotePropertyValue $VerifyArguments
 }
 if ($GpgPath) {
     $GitHubVerifyArguments.GpgPath = $GpgPath
-    $GameVerifyArguments.GpgPath = $GpgPath
+    foreach ($GameProjection in $GameProjections) {
+        $GameProjection.VerifyArguments.GpgPath = $GpgPath
+    }
 }
 if ($SigningKeyFingerprint) {
     $GitHubVerifyArguments.ExpectedFingerprint = $SigningKeyFingerprint
-    $GameVerifyArguments.ExpectedFingerprint = $SigningKeyFingerprint
+    foreach ($GameProjection in $GameProjections) {
+        $GameProjection.VerifyArguments.ExpectedFingerprint = $SigningKeyFingerprint
+    }
 }
 $PreparedThisRun = $false
 $AutomaticPlayerEvidence = $null
@@ -216,9 +255,18 @@ if (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container) {
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to recover an interrupted GitHub projection replacement."
         }
-        & $Python.Source $WorkspaceTool adopt `
-            --workspace-root $ResolvedReleaseDir `
-            --candidate-root $ResolvedPlayerPackageRoot
+        $ExistingWorkspace = Get-Content -LiteralPath $WorkspaceState -Raw | ConvertFrom-Json
+        if ($ExistingWorkspace.schema -eq "alis-release-workspace-v2") {
+            & $Python.Source $WorkspaceTool adopt-v2 `
+                --workspace-root $ResolvedReleaseDir `
+                --windows-candidate-root (Join-Path $ResolvedPlayerPackageRoot "Windows") `
+                --linux-candidate-root $ResolvedLinuxPackageRoot
+        }
+        else {
+            & $Python.Source $WorkspaceTool adopt `
+                --workspace-root $ResolvedReleaseDir `
+                --candidate-root $ResolvedPlayerPackageRoot
+        }
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to resume the release workspace game adoption."
         }
@@ -292,6 +340,22 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         if ($LASTEXITCODE -ne 0) {
             throw "Automatic release input preparation failed."
         }
+        if ($UseMultiPlatformSchema) {
+            . (Join-Path $ProjectRoot "scripts\config\Resolve-UEConfig.ps1")
+            $ReleaseConfig = Resolve-UEConfig -ConfigDir (Join-Path $ProjectRoot "scripts\config")
+            if ([string]::IsNullOrWhiteSpace([string]$ReleaseConfig.UE_SOURCE_PATH)) {
+                throw "UE_SOURCE_PATH is required for the Linux public-release package."
+            }
+            Write-Host "[Release] Building and verifying the Linux x86-64 player package."
+            & (Join-Path $ScriptDir "package_release.ps1") `
+                -OutputDir $ResolvedLinuxPackageRoot `
+                -Platform Linux `
+                -EngineRoot $ReleaseConfig.UE_SOURCE_PATH `
+                -SourceRelease
+            if ($LASTEXITCODE -ne 0) {
+                throw "Linux player package preparation failed."
+            }
+        }
     }
 
     $ResolvedPublicSourceRoot = Resolve-ProjectPath -Path $PublicSourceRoot -DefaultPath (Join-Path $ResolvedInputRoot "public-source")
@@ -309,6 +373,9 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
     $ResolvedProductTerms = Resolve-ProjectPath -Path $ProductTerms -DefaultPath "PRODUCT_TERMS.txt"
 
     $RequiredDirectories = @($ResolvedPublicSourceRoot, $ResolvedPlayerPackageRoot, $ResolvedDeveloperReleaseDir)
+    if ($UseMultiPlatformSchema) {
+        $RequiredDirectories += $ResolvedLinuxPackageRoot
+    }
     foreach ($RequiredDirectory in $RequiredDirectories) {
         if (-not (Test-Path -LiteralPath $RequiredDirectory -PathType Container)) {
             throw "Required release input directory is missing: $RequiredDirectory"
@@ -341,6 +408,12 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         "-ReleaseVersion", $ReleaseVersion,
         "-ReleaseTag", $ReleaseTag
     )
+    if ($UseMultiPlatformSchema) {
+        $PrepareArguments += @("-LinuxPackageRoot", $ResolvedLinuxPackageRoot)
+        if ($ResolvedLinuxAcceptance) {
+            $PrepareArguments += @("-LinuxAcceptance", $ResolvedLinuxAcceptance)
+        }
+    }
     & powershell.exe @PrepareArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Release preparation failed."
@@ -349,8 +422,11 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
 }
 
 $Manifest = Read-ReleaseManifest -Directory $ResolvedGitHubDir
-if ($Manifest.schema -ne "alis-release-manifest-v3") {
+if ($Manifest.schema -notin @("alis-release-manifest-v3", "alis-release-manifest-v4")) {
     throw "Release directory uses an unsupported manifest schema."
+}
+if ($UseMultiPlatformSchema -ne ($Manifest.schema -eq "alis-release-manifest-v4")) {
+    throw "Release manifest generation does not match release version $ReleaseVersion."
 }
 if ($Manifest.release_version -ne $ReleaseVersion -or $Manifest.release_tag -ne $ReleaseTag) {
     throw "Release directory identity does not match requested version $ReleaseVersion."
@@ -368,29 +444,43 @@ if ($Target -eq "All" -and $Manifest.status -eq "ready_for_signature" -and $Appr
 
 $HasSigningManifest = Test-Path -LiteralPath $SigningManifest -PathType Leaf
 $HasSignature = Test-Path -LiteralPath $Signature -PathType Leaf
-$HasGameSigningManifest = Test-Path -LiteralPath $GameSigningManifest -PathType Leaf
-$HasGameSignature = Test-Path -LiteralPath $GameSignature -PathType Leaf
 if ($HasSigningManifest -ne $HasSignature) {
     throw "Release directory contains an incomplete signing result; inspect it before retrying."
 }
-if ($HasGameSigningManifest -ne $HasGameSignature) {
-    throw "Game directory contains an incomplete signing result; inspect it before retrying."
+$SignedGameProjectionCount = 0
+foreach ($GameProjection in $GameProjections) {
+    $HasProjectionManifest = Test-Path -LiteralPath $GameProjection.Manifest -PathType Leaf
+    $HasProjectionSignature = Test-Path -LiteralPath $GameProjection.Signature -PathType Leaf
+    if ($HasProjectionManifest -ne $HasProjectionSignature) {
+        throw "Game projection contains an incomplete signing result: $($GameProjection.Directory)"
+    }
+    if ($HasProjectionManifest) {
+        $SignedGameProjectionCount++
+    }
+}
+$AllGameProjectionsSigned = $SignedGameProjectionCount -eq $GameProjections.Count
+$AnyGameProjectionSigned = $SignedGameProjectionCount -gt 0
+if ($AnyGameProjectionSigned -and -not $AllGameProjectionsSigned) {
+    throw "Release workspace contains only a partially signed platform set."
 }
 
 if ($HasSigningManifest) {
     if ($SkipSigning) {
         throw "Unsigned rehearsal requires an unsigned release directory: $ResolvedReleaseDir"
     }
-    if (-not $HasGameSigningManifest) {
+    if (-not $AllGameProjectionsSigned) {
         throw "Signed GitHub projection is missing the signed game projection."
     }
     & (Join-Path $ScriptDir "verify_release.ps1") @GitHubVerifyArguments
     if (-not $?) {
         throw "Consumer-side release verification failed."
     }
-    & (Join-Path $ScriptDir "verify_release.ps1") @GameVerifyArguments
-    if (-not $?) {
-        throw "Game projection verification failed."
+    foreach ($GameProjection in $GameProjections) {
+        $ProjectionVerifyArguments = $GameProjection.VerifyArguments
+        & (Join-Path $ScriptDir "verify_release.ps1") @ProjectionVerifyArguments
+        if (-not $?) {
+            throw "Game projection verification failed: $($GameProjection.Platform)"
+        }
     }
     Remove-AutomaticReleaseInputs `
         -InputRoot $ResolvedInputRoot `
@@ -469,23 +559,29 @@ try {
     }
 
     Invoke-PythonReleaseTool -Arguments @("verify", "--release-dir", $ResolvedGitHubDir, "--require-ready")
-    if (-not $HasGameSigningManifest) {
-        $GameSignArguments = @{
-            ReleaseDir = $ResolvedGameDir
-            ApprovalDir = $ResolvedGitHubDir
-            Projection = "Game"
-        }
-        if ($GpgPath) { $GameSignArguments.GpgPath = $GpgPath }
-        if ($GpgHome) { $GameSignArguments.GpgHome = $GpgHome }
-        if ($SigningKeyFingerprint) { $GameSignArguments.SigningKeyFingerprint = $SigningKeyFingerprint }
-        & (Join-Path $ScriptDir "sign_release.ps1") @GameSignArguments
-        if (-not $?) {
-            throw "Game projection signing failed."
+    if (-not $AllGameProjectionsSigned) {
+        foreach ($GameProjection in $GameProjections) {
+            $GameSignArguments = @{
+                ReleaseDir = $GameProjection.Directory
+                ApprovalDir = $ResolvedGitHubDir
+                Projection = "Game"
+            }
+            if ($GameProjection.Platform) { $GameSignArguments.GamePlatform = $GameProjection.Platform }
+            if ($GpgPath) { $GameSignArguments.GpgPath = $GpgPath }
+            if ($GpgHome) { $GameSignArguments.GpgHome = $GpgHome }
+            if ($SigningKeyFingerprint) { $GameSignArguments.SigningKeyFingerprint = $SigningKeyFingerprint }
+            & (Join-Path $ScriptDir "sign_release.ps1") @GameSignArguments
+            if (-not $?) {
+                throw "Game projection signing failed: $($GameProjection.Platform)"
+            }
         }
     }
-    & (Join-Path $ScriptDir "verify_release.ps1") @GameVerifyArguments
-    if (-not $?) {
-        throw "Game projection verification failed."
+    foreach ($GameProjection in $GameProjections) {
+        $ProjectionVerifyArguments = $GameProjection.VerifyArguments
+        & (Join-Path $ScriptDir "verify_release.ps1") @ProjectionVerifyArguments
+        if (-not $?) {
+            throw "Game projection verification failed: $($GameProjection.Platform)"
+        }
     }
 
     if ($Target -eq "Game") {
@@ -499,22 +595,51 @@ try {
     }
 
     $RefreshWork = Join-Path $ReleaseRoot ("work\{0}-signed-{1}" -f $ReleaseTag, [Guid]::NewGuid().ToString("N"))
-    $ArchiveOutput = Join-Path $RefreshWork "archive"
+    $ArchiveOutput = Join-Path $RefreshWork "windows-archive"
+    $LinuxArchiveOutput = Join-Path $RefreshWork "linux-archive"
     $RefreshedGitHub = Join-Path $RefreshWork "github"
     $PreviousGitHub = Join-Path $ResolvedReleaseDir ("github-previous-" + [Guid]::NewGuid().ToString("N"))
     try {
+        $WindowsGameDir = if ($UseMultiPlatformSchema) {
+            Join-Path $ResolvedGameDir "windows-x86_64"
+        }
+        else {
+            $ResolvedGameDir
+        }
         & $Python.Source (Join-Path $ScriptDir "prepare_release.py") archive-game `
-            --game-root $ResolvedGameDir `
+            --game-root $WindowsGameDir `
             --output-dir $ArchiveOutput `
             --release-version $ReleaseVersion
         if ($LASTEXITCODE -ne 0) {
             throw "Signed game archive preparation failed."
         }
-        & $Python.Source (Join-Path $ScriptDir "refresh_github_release.py") `
-            --source-github $ResolvedGitHubDir `
-            --output-github $RefreshedGitHub `
-            --game-root $ResolvedGameDir `
-            --archive-report (Join-Path $ArchiveOutput "player-archive.json")
+        if ($UseMultiPlatformSchema) {
+            $LinuxGameDir = Join-Path $ResolvedGameDir "linux-x86_64"
+            $LinuxSource = $Manifest.player_sources.PSObject.Properties["linux-x86_64"].Value
+            & $Python.Source (Join-Path $ScriptDir "release_platforms.py") archive-linux `
+                --game-root $LinuxGameDir `
+                --output-dir $LinuxArchiveOutput `
+                --release-version $ReleaseVersion `
+                --source-revision ([string]$LinuxSource.revision) `
+                --source-state-sha256 ([string]$LinuxSource.source_state_sha256)
+            if ($LASTEXITCODE -ne 0) {
+                throw "Signed Linux game archive preparation failed."
+            }
+            & $Python.Source (Join-Path $ScriptDir "refresh_github_release_v4.py") `
+                --source-github $ResolvedGitHubDir `
+                --output-github $RefreshedGitHub `
+                --windows-game-root $WindowsGameDir `
+                --windows-archive-report (Join-Path $ArchiveOutput "player-archive.json") `
+                --linux-game-root $LinuxGameDir `
+                --linux-archive-report (Join-Path $LinuxArchiveOutput "linux-player-archive.json")
+        }
+        else {
+            & $Python.Source (Join-Path $ScriptDir "refresh_github_release.py") `
+                --source-github $ResolvedGitHubDir `
+                --output-github $RefreshedGitHub `
+                --game-root $ResolvedGameDir `
+                --archive-report (Join-Path $ArchiveOutput "player-archive.json")
+        }
         if ($LASTEXITCODE -ne 0) {
             throw "GitHub projection refresh failed."
         }
@@ -546,9 +671,12 @@ try {
     if (-not $?) {
         throw "Consumer-side release verification failed."
     }
-    & (Join-Path $ScriptDir "verify_release.ps1") @GameVerifyArguments
-    if (-not $?) {
-        throw "Game projection verification failed."
+    foreach ($GameProjection in $GameProjections) {
+        $ProjectionVerifyArguments = $GameProjection.VerifyArguments
+        & (Join-Path $ScriptDir "verify_release.ps1") @ProjectionVerifyArguments
+        if (-not $?) {
+            throw "Game projection verification failed: $($GameProjection.Platform)"
+        }
     }
 }
 finally {

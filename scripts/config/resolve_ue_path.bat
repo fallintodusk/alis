@@ -11,7 +11,7 @@ REM Usage from any batch script:
 REM   call "%~dp0..\..\config\resolve_ue_path.bat"
 REM   if errorlevel 1 exit /b 1
 REM
-REM Sets: UE_PATH (and UE_SOURCE_PATH when declared) in caller's env.
+REM Sets engine and toolchain paths declared by the config in caller's env.
 REM Note: does NOT use setlocal so results propagate to caller.
 REM Note: sequential label-based flow on purpose - parenthesized blocks
 REM would expand %vars% at parse time and read stale values.
@@ -21,6 +21,7 @@ set "_R_ENV_UEPATH=%UE_PATH%"
 set "_R_ERR="
 set "UE_PATH="
 set "UE_SOURCE_PATH="
+set "LINUX_MULTIARCH_ROOT="
 
 if exist "%_R_DIR%ue_path.conf" call :parse_file "%_R_DIR%ue_path.conf"
 if defined _R_ERR goto :fail
@@ -54,6 +55,7 @@ goto :cleanup_ok
 set "_P_FILE=%~1"
 set "_S_UE_PATH="
 set "_S_UE_SOURCE_PATH="
+set "_S_LINUX_MULTIARCH_ROOT="
 set "_S_BUILD_TARGET="
 set "_S_BUILD_CONFIG="
 set "_S_BUILD_PLATFORM="
@@ -67,6 +69,7 @@ set "_L_VAL=%~2"
 if "%_L_KEY%"=="" exit /b 0
 if "%_L_KEY%"=="UE_PATH"        goto :known_key
 if "%_L_KEY%"=="UE_SOURCE_PATH" goto :known_key
+if "%_L_KEY%"=="LINUX_MULTIARCH_ROOT" goto :known_key
 if "%_L_KEY%"=="BUILD_TARGET"   goto :known_key
 if "%_L_KEY%"=="BUILD_CONFIG"   goto :known_key
 if "%_L_KEY%"=="BUILD_PLATFORM" goto :known_key
@@ -114,6 +117,7 @@ set "_L_KEY="
 set "_L_VAL="
 set "_S_UE_PATH="
 set "_S_UE_SOURCE_PATH="
+set "_S_LINUX_MULTIARCH_ROOT="
 set "_S_BUILD_TARGET="
 set "_S_BUILD_CONFIG="
 set "_S_BUILD_PLATFORM="

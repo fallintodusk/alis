@@ -173,7 +173,7 @@ struct PROJECTOBJECT_API FObjectMeshEntry
 	 * Optional component type override.
 	 * When omitted, auto-detects from asset (StaticMesh or SkeletalMesh).
 	 * Required for types that cannot be auto-detected from asset alone.
-	 * Valid values: "SkeletalMesh", "StaticMesh", "CustomizableSkeletalMesh", "Groom".
+	 * Valid values: "SkeletalMesh", "StaticMesh", "Groom".
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
 	FName Kind;
@@ -182,8 +182,7 @@ struct PROJECTOBJECT_API FObjectMeshEntry
 	 * Optional semantic role for assembly orchestration.
 	 * Only valid when SkeletalAssembly capability is present on the definition.
 	 * The assembly component reads roles to build the component graph.
-	 * Valid values: "DriverBody", "WorldBody", "LocalBody", "Head",
-	 * "BodyCustomization", "HeadCustomization", "LocalBodyCustomization".
+	 * Valid values: "DriverBody", "WorldBody", "LocalBody", "Head".
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh")
 	FName Role;
@@ -591,17 +590,6 @@ struct PROJECTOBJECT_API FAnimationSection
 	FName TraversalProfile;
 };
 
-/** Customization config for skeletal assembly definitions. */
-USTRUCT(BlueprintType)
-struct PROJECTOBJECT_API FCustomizationSection
-{
-	GENERATED_BODY()
-
-	/** Mutable CustomizableObject asset path. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Customization")
-	TSoftObjectPtr<UObject> MutableSource;
-};
-
 /** View/camera config for skeletal assembly definitions. */
 USTRUCT(BlueprintType)
 struct PROJECTOBJECT_API FViewSection
@@ -623,6 +611,10 @@ struct PROJECTOBJECT_API FViewSection
 	/** Camera relative offset from attach point. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "View")
 	FVector RelativeOffset = FVector::ZeroVector;
+
+	/** Neck target offset from the camera for owner-visible body correction. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "View")
+	FVector NeckOffset = FVector::ZeroVector;
 };
 
 /** Section ID constants for type-safe access. */
@@ -631,7 +623,6 @@ namespace ObjectSectionIds
 	inline const FName Item = TEXT("Item");
 	inline const FName Storage = TEXT("Storage");
 	inline const FName Animation = TEXT("Animation");
-	inline const FName Customization = TEXT("Customization");
 	inline const FName View = TEXT("View");
 }
 

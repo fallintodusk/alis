@@ -12,6 +12,7 @@
 
 # Captured BEFORE includes: file assignments override env-origin vars.
 UE_PATH_FROM_ENV := $(UE_PATH)
+LINUX_MULTIARCH_ROOT :=
 
 -include $(CURDIR)/scripts/config/ue_path.conf
 -include $(CURDIR)/scripts/config/ue_path.local.conf
@@ -44,3 +45,4 @@ endif
 # Export for subprocesses (UE_SOURCE_PATH may be empty when the conf does
 # not declare it; only source-release targets require it - they guard).
 export UE_SOURCE_PATH
+export LINUX_MULTIARCH_ROOT

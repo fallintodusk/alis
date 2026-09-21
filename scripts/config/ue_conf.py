@@ -16,6 +16,7 @@ import re
 KNOWN_KEYS = (
     "UE_PATH",
     "UE_SOURCE_PATH",
+    "LINUX_MULTIARCH_ROOT",
     "BUILD_TARGET",
     "BUILD_CONFIG",
     "BUILD_PLATFORM",

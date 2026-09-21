@@ -27,8 +27,7 @@ ObjectDefinition (JSON SOT)
         - item           (identity + rules + behavior refs)
         - storage        (container data for world storage and loot places)
         - animation      (locomotionProfile, traversalProfile)
-        - customization  (mutableSource)
-        - view           (defaultMode, cameraParent, relativeOffset)
+        - view           (defaultMode, cameraParent, relativeOffset, neckOffset)
         - quest          (future)
 ```
 
@@ -38,8 +37,8 @@ Optional fields on `FObjectMeshEntry` for skeletal assembly:
 
 | Field | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `kind` | FName | auto-detect | Component type: `SkeletalMesh`, `StaticMesh`, `CustomizableSkeletalMesh` |
-| `role` | FName | none | Semantic role: `DriverBody`, `WorldBody`, `LocalBody`, `Head`, `BodyCustomization`, etc. |
+| `kind` | FName | auto-detect | Component type: `SkeletalMesh`, `StaticMesh` |
+| `role` | FName | none | Semantic role: `DriverBody`, `WorldBody`, `LocalBody`, `Head`, etc. |
 | `visibility` | FName | default | `Hidden`, `OwnerOnly`, `SkipOwner` |
 
 **Validation:** if any mesh has `role`/`visibility` but no `SkeletalAssembly` capability, validation fails.
@@ -55,7 +54,7 @@ Optional fields on `FObjectMeshEntry` for skeletal assembly:
 - `FirstPersonPrimitiveType=FirstPerson` for OwnerOnly meshes and Head role
 - `NoCollision` profile (visual-only layers)
 
-**Empty-mesh creation:** entries with Kind/Role but no asset create empty skeletal mesh components. Used for meshes populated at runtime (Mutable-driven, leader-pose copies).
+**Empty-mesh creation:** entries with Kind/Role but no asset create empty skeletal mesh components for runtime-owned assembly layers.
 
 ## What Makes Something an "Item"?
 
@@ -88,6 +87,16 @@ A **door** is an ObjectDefinition that:
 | `Sliding` | OpenOffset, Speed, TargetMesh | Slides open/closed |
 
 **Hard contract:** Capability properties MUST be world-interaction fields.
+
+Capability identity and properties have one validation/application contract:
+
+- provider modules self-register generically; consumers do not hard-code provider names
+- `FCapabilityRegistry` is the single identity authority
+- `FObjectCapabilityPropertyResolver` resolves reflected properties and imports values
+- generation rejects unknown capabilities, unknown properties, and invalid values before saving
+- spawn and definition reapply return failure for the same defects
+- semicolon-delimited soft-object and soft-class arrays remain supported input
+- `UpdateAssetBundleData()` derives cook references from data that already passed validation
 
 **Violations:**
 - DisplayName in Pickup (that's for UI, not world)
@@ -262,8 +271,14 @@ ProjectInventory / ProjectGAS
 ```
 
 **Schema vs authoring:**
+- every object JSON declares `$schema` as its first field
 - `object.schema.json` validates **canonical form only** (`sections.item`)
 - Generator accepts **sugar** (top-level `"item": {...}`) and maps it to `sections.item`
+
+The JSON file is the authoring source. Generation produces the
+`UObjectDefinition` asset consumed at runtime and included in the Shipping cook.
+Runtime code does not read source JSON. View configuration, including
+`neckOffset`, follows this same path.
 
 ---
 

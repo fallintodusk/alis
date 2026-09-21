@@ -88,7 +88,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "FirstPerson")
 	ELocalBodyUpperChainMode UpperChainMode = ELocalBodyUpperChainMode::ChainIK;
 
-	FVector NeckOffsetFromCamera = FVector(-8.f, 0.f, -10.f);
+	FVector NeckOffsetFromCamera = FVector(-23.f, -1.f, -23.f);
 
 	// Per-mode settings (only the active mode's settings are used)
 	UPROPERTY(EditAnywhere, Category = "FirstPerson|TransitionGuard")

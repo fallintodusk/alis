@@ -99,9 +99,17 @@ function Run-Session {
     }
     # Shipping uses the per-user saved directory by default. Force each gate's
     # log into its caller-owned evidence root so analysis cannot read stale data.
-    $launchArgs += @("-log", ('-abslog="{0}"' -f $logFile))
+    $launchArgs += @(
+        "-log",
+        ('-abslog="{0}"' -f $logFile),
+        "-RenderOffScreen",
+        "-unattended",
+        "-nosplash",
+        "-NoSound"
+    )
 
-    $process = Start-Process -FilePath $launchExe -ArgumentList $launchArgs -PassThru
+    $process = Start-Process -FilePath $launchExe -ArgumentList $launchArgs `
+        -WindowStyle Hidden -PassThru
 
     Write-Host "[2/4] Waiting ${Timeout}s for boot and gameplay..."
     $elapsed = 0

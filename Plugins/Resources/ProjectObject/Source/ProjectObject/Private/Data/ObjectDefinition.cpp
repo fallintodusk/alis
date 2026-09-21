@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "Data/ObjectDefinition.h"
+#include "Data/ObjectCapabilityPropertyResolver.h"
 #include "ProjectObjectModule.h"
 #include "UObject/AssetRegistryTagsContext.h"
 #include "Engine/AssetManager.h"
@@ -126,12 +127,16 @@ void UObjectDefinition::UpdateAssetBundleData()
 		}
 	}
 
-	// Customization section: mutable source
-	if (const FCustomizationSection* CustomData = GetSection<FCustomizationSection>(ObjectSectionIds::Customization))
+	for (const FObjectCapabilityEntry& Capability : Capabilities)
 	{
-		if (!CustomData->MutableSource.IsNull())
+		FString BundleError;
+		if (!ProjectObjectCapabilityProperties::CollectSoftReferences(
+			Capability, ReferencedAssets, BundleError))
 		{
-			ReferencedAssets.Add(CustomData->MutableSource.ToSoftObjectPath().GetAssetPath());
+			UE_LOG(LogProjectObject, Error,
+				TEXT("ObjectDefinition '%s' cannot derive capability bundle references: %s"),
+				*ObjectId.ToString(),
+				*BundleError);
 		}
 	}
 
@@ -145,6 +150,32 @@ void UObjectDefinition::UpdateAssetBundleData()
 void UObjectDefinition::GetAssetRegistryTags(FAssetRegistryTagsContext Context) const
 {
 	Super::GetAssetRegistryTags(Context);
+
+#if WITH_EDITORONLY_DATA
+	TArray<FTopLevelAssetPath> CapabilityReferences;
+	FString CapabilityReferenceError;
+	for (const FObjectCapabilityEntry& Capability : Capabilities)
+	{
+		if (!ProjectObjectCapabilityProperties::CollectSoftReferences(
+			Capability, CapabilityReferences, CapabilityReferenceError))
+		{
+			UE_LOG(LogProjectObject, Error,
+				TEXT("ObjectDefinition '%s' cannot export capability cook references: %s"),
+				*ObjectId.ToString(),
+				*CapabilityReferenceError);
+			CapabilityReferences.Reset();
+			break;
+		}
+	}
+	const FString CapabilityReferenceTag = FString::JoinBy(
+		CapabilityReferences,
+		TEXT(";"),
+		[](const FTopLevelAssetPath& Path) { return Path.ToString(); });
+	Context.AddTag(FAssetRegistryTag(
+		TEXT("CapabilityCookReferences"),
+		CapabilityReferenceTag,
+		FAssetRegistryTag::TT_Alphabetical));
+#endif
 
 	// -------------------------------------------------------------------------
 	// Layer 1: Capability tags (world interactions)

@@ -1,6 +1,6 @@
 # Accept Kazan Grounded Walkthrough
 
-Status: parked
+Status: backlog
 
 ## Current gap
 

@@ -1,0 +1,50 @@
+name: Player bug
+description: Report a reproducible problem in a published ALIS player build.
+title: "[Player bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ALIS. For questions and ideas, use Discussions. For security vulnerabilities, follow the private route in the security policy.
+  - type: input
+    id: release
+    attributes:
+      label: ALIS release
+      description: Enter the release version shown on the download page or in README.txt.
+      placeholder: 2.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you were doing when it occurred.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      description: Give the shortest reliable sequence of actions.
+      placeholder: |
+        1. Start ALIS...
+        2. Open...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Windows and hardware
+      description: Include your Windows version, GPU, CPU, and memory when relevant.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Add non-sensitive logs, screenshots, or video that make the problem observable.

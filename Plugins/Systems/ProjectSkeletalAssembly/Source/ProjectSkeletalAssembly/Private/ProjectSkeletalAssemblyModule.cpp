@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Registry/RegisteredClassProviderRegistry.h"
 
 DEFINE_LOG_CATEGORY(LogSkeletalAssembly);
 
@@ -80,6 +81,9 @@ namespace
 
 void FProjectSkeletalAssemblyModule::StartupModule()
 {
+	FRegisteredClassProviderRegistry::RegisterProviderModule(
+		FPrimaryAssetType(TEXT("CapabilityComponent")),
+		TEXT("ProjectSkeletalAssembly"));
 	UE_LOG(LogSkeletalAssembly, Log, TEXT("ProjectSkeletalAssembly module started."));
 }
 

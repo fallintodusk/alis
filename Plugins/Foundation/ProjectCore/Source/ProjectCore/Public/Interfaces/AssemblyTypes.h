@@ -42,4 +42,8 @@ struct PROJECTCORE_API FAssemblyViewConfig
 	/** Camera relative offset from attach point. */
 	UPROPERTY(BlueprintReadOnly, Category = "View")
 	FVector RelativeOffset = FVector::ZeroVector;
+
+	/** Neck target offset from the camera for owner-visible body correction. */
+	UPROPERTY(BlueprintReadOnly, Category = "View")
+	FVector NeckOffsetFromCamera = FVector::ZeroVector;
 };

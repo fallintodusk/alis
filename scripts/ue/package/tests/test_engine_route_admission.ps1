@@ -48,6 +48,31 @@ try {
         throw "Source-engine rejection happened after UAT was launched."
     }
 
+    $PreviousErrorAction = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $LinuxArchiveOutput = & powershell.exe `
+            -NoProfile `
+            -ExecutionPolicy Bypass `
+            -File $PackageScript `
+            -EngineRoot $FakeEngine `
+            -OutputDir $OutputDir `
+            -Platform Linux `
+            -CreateReleaseArchive `
+            -SkipBuild 2>&1 | Out-String
+        $LinuxArchiveExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorAction
+    }
+    if ($LinuxArchiveExitCode -eq 0 -or
+        $LinuxArchiveOutput -notmatch "POSIX executable modes") {
+        throw "Linux ZIP transport was not rejected before packaging."
+    }
+    if ($LinuxArchiveOutput -match "FAKE_UAT_REACHED") {
+        throw "Linux ZIP transport rejection happened after UAT was launched."
+    }
+
     $WrapperText = Get-Content -LiteralPath $SourceWrapper -Raw
     if ($WrapperText -notmatch '(?i)package_release\.ps1" -EngineRoot "%UE_SOURCE_PATH%" -SourceRelease') {
         throw "Source release wrapper does not supply -SourceRelease."

@@ -5,12 +5,13 @@
 # contract): KEY=VALUE, no spaces around '=', no quotes, no '$', no
 # inline comments; duplicate/unknown/empty keys are errors.
 #
-# Known keys: UE_PATH, UE_SOURCE_PATH, BUILD_TARGET, BUILD_CONFIG,
-#             BUILD_PLATFORM
+# Known keys: UE_PATH, UE_SOURCE_PATH, LINUX_MULTIARCH_ROOT, BUILD_TARGET,
+#             BUILD_CONFIG, BUILD_PLATFORM
 #
 # You may declare any SUBSET - e.g. only UE_PATH to point this machine
 # at a different launcher install:
 # UE_PATH=D:/Engines/CustomInstall
+# LINUX_MULTIARCH_ROOT=C:/UnrealToolchains/v26_clang-20.1.8-rockylinux8
 #
 # Engine VERSION updates: never edit paths by hand - run
 #   scripts/ue/update/update_engine.ps1

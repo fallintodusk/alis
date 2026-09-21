@@ -10,7 +10,7 @@
  * ProjectCore Module - ABSTRACTION LAYER (SOLID Compliance)
  *
  * Foundation module providing:
- * - Interface definitions (Interfaces/*.h) for cross-module communication
+ * - Interface definitions under Interfaces for cross-module communication
  * - Shared data types and structures
  * - Service locator / dependency injection framework
  * - Logging and configuration utilities

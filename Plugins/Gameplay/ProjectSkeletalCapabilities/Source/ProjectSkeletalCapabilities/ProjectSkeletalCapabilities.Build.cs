@@ -22,7 +22,6 @@ public class ProjectSkeletalCapabilities : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"ProjectObjectCapabilities",
-			"CustomizableObject",
 			"AnimGraphRuntime",
 			"AnimationCore",
 			"Json",

@@ -9,7 +9,7 @@ Use this doc when an agent needs to investigate:
 - Hero spawn and runtime wiring
 - definition-driven `DefinitionCharacter` spawn and behavior
 - SkeletalAssembly lifecycle
-- Motion Matching and Mutable integration
+- Motion Matching and fixed-mesh assembly integration
 - first-person body behavior and clipping
 - parity captures and saved runtime dumps
 - Blueprint CDO defaults and saved inspection artifacts
@@ -50,7 +50,7 @@ Preflight:
 | Test | Filter | Duration | What |
 |------|--------|----------|------|
 | IdleSnapshot | `...Parity.IdleSnapshot` | ~15s | Capture the definition-driven hero at rest |
-| CleanPathIsolationMatrix | `...Parity.CleanPathIsolationMatrix` | ~180s | Definition-driven 4-mode fault-line isolation: driver -> retarget -> local -> full Mutable |
+| CleanPathIsolationMatrix | `...Parity.CleanPathIsolationMatrix` | ~180s | Definition-driven 4-mode fault-line isolation: driver -> retarget -> local -> full chain |
 | CameraYawTimeline | `...Parity.CameraYawTimeline` | ~80s | Definition-driven scripted camera yaw sweep, bridge fields, visible mesh propagation |
 | LocomotionTimeline | `...Parity.LocomotionTimeline` | ~68s | 15-phase movement matrix, JSONL + summary |
 | SimpleAnimSanity | `...Parity.SimpleAnimSanity` | ~12s | Bypass ABP, play AnimSequence on DriverBody |
@@ -62,7 +62,7 @@ Use the same spawned definition-driven hero in this order:
 1. Mode A - `DriverBody` only
 2. Mode B - `DriverBody -> WorldBody`
 3. Mode C - `DriverBody -> WorldBody -> LocalBody`
-4. Mode D - full Mutable chain
+4. Mode D - full owner-visible chain
 
 The first mode that breaks is the real fault line.
 
@@ -94,7 +94,7 @@ Failure layers:
 - Layer 1 - MM contract
 - Layer 2 - raw driver pose
 - Layer 3 - retarget propagation
-- Layer 4 - local/customization propagation
+- Layer 4 - owner-visible full-chain propagation
 
 ### CameraYawTimeline Matrix (13 phases)
 
@@ -183,7 +183,7 @@ Three-layer sampling every 0.25s: Movement ground truth, ABP semantic state, com
 
 1. boots the game with `-ProjectSkipFrontEnd`
 2. verifies the possessed pawn is `DefinitionCharacter`
-3. waits for Mutable rebuild
+3. waits for assembly and animation readiness
 4. captures the definition-driven character
 5. verifies the JSON sidecar exists
 
@@ -198,7 +198,7 @@ Read these in order before making conclusions from runtime data.
 | `Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json` | Hero runtime definition SOT |
 | `Plugins/Resources/ProjectObject/docs/layer_contract.md` | JSON `meshes`, `capabilities`, `sections`, Kind/Role/Visibility |
 | `Plugins/Systems/ProjectSkeletalAssembly/docs/architecture.md` | Assembly lifecycle, registry, debug capture ownership |
-| `Plugins/Gameplay/ProjectSkeletalCapabilities/docs/architecture.md` | Mutable, Motion Matching, LocalFirstPerson boundaries |
+| `Plugins/Gameplay/ProjectSkeletalCapabilities/docs/architecture.md` | Motion Matching and LocalFirstPerson boundaries |
 | `Plugins/Gameplay/ProjectCharacter/docs/design.md` | Definition-driven character responsibilities |
 | `Plugins/Gameplay/ProjectSinglePlay/README.md` | Definition selection and spawn policy |
 | `docs/animation/README.md` | High-level animation layering only |
@@ -213,7 +213,7 @@ Treat the runtime path like this:
 Hero.json
   -> meshes[]
   -> capabilities[]
-  -> sections.animation / customization / view
+  -> sections.animation / view
   -> ObjectSpawnUtility
   -> DefinitionCharacter + capability components
   -> runtime captures in Saved/Validation/CharacterDebug
@@ -221,11 +221,12 @@ Hero.json
 
 Key current hero facts:
 - `Hero.json` spawns `/Script/ProjectCharacter.DefinitionCharacter`
-- hero capabilities currently include `SkeletalAssembly`, `MotionMatching`, `MutableCustomization`, `LocalFirstPerson`, `DebugCapture`
+- hero capabilities currently include `SkeletalAssembly`, `MotionMatching`, `LocalFirstPerson`, `DebugCapture`
 - hero sections currently include:
   - `animation` -> `locomotionProfile`, `traversalProfile`
-  - `customization` -> `mutableSource`
-  - `view` -> `defaultMode`, `cameraParent`, `attachmentPolicy`, `relativeOffset`
+  - `view` -> `defaultMode`, `cameraParent`, `attachmentPolicy`, `relativeOffset`, `neckOffset`
+- fixed `WorldBody`, `LocalBody`, and `Head` assets are declared directly in the definition
+- generated `Hero.uasset` is the runtime authority; packaged code does not read `Hero.json`
 
 ---
 
@@ -237,14 +238,14 @@ Key current hero facts:
 2. Boot bypass in `UProjectLoadingSubsystem::StartInitialExperience()` skips menu travel
 3. `FCharacterParityIdleTest` runs as a latent command:
    - Stage 0: Wait for and verify a possessed `DefinitionCharacter`
-   - Stage 1: Wait for Mutable rebuild and capture definition-driven state
+   - Stage 1: Wait for assembly readiness and capture definition-driven state
    - Stage 2: Verify the JSON sidecar exists
 4. `FCharacterParityLocomotionTest` runs the 15-phase movement matrix on the
    same definition-driven pawn and writes a definition timeline and summary.
 5. `FCharacterParityCameraYawTest` validates the definition-driven camera/body path:
    - Stage 0: Wait for possessed pawn in any game world
    - Stage 1: Ensure `DefinitionCharacter` is active
-   - Stage 2: Wait for Mutable rebuild and retargeted visual chain
+   - Stage 2: Wait for assembly readiness and the retargeted visual chain
    - Stage 3: Settle streaming and animation state
    - Stage 4: Run the 13-phase yaw timeline
    - Stage 5: Write the definition summary and validate turn-state/root-catch-up evidence
@@ -342,9 +343,6 @@ Important definition-driven expectations:
   - `WorldBody`
   - `LocalBody`
   - `Head`
-  - `BodyCustomization`
-  - `HeadCustomization`
-  - `LocalBodyCustomization`
 
 ---
 
@@ -353,7 +351,6 @@ Important definition-driven expectations:
 Search logs for:
 - `LogSkeletalAssembly`
 - `CharacterDebugCapture`
-- `MutableCustomization`
 - `MotionMatching`
 - `DefinitionCharacter`
 - `Timed out`
@@ -376,7 +373,7 @@ Only affects standalone `-game` mode with the flag. Editor (PIE) and normal game
 Do not file these as regressions without stronger evidence:
 - some movement defaults were seeded from the historical Blueprint baseline and may intentionally differ from older dynamic gait/strafe behavior
 - bone transform differences are expected when capture timing or movement state differs
-- parent role meshes may be empty while Mutable output lives on child customization meshes
+- an intentionally empty role mesh is valid only when a runtime assembly owner supplies it
 - visibility-driven defaults only apply when a mesh entry explicitly sets `visibility`
 
 ---

@@ -167,6 +167,10 @@
       "Enabled": true
     },
     {
+      "Name": "MutableSample",
+      "Enabled": false
+    },
+    {
       "Name": "ProjectAnimation",
       "Enabled": true
     },
@@ -283,7 +287,10 @@
     },
     {
       "Name": "MetaHumanCharacter",
-      "Enabled": true
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
     },
     {
       "Name": "MetaHumanCoreTech",
@@ -414,7 +421,10 @@
     },
     {
       "Name": "MetaHumanLiveLink",
-      "Enabled": true
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
     },
     {
       "Name": "MovieRenderPipeline",

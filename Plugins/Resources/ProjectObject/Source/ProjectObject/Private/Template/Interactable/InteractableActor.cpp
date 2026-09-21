@@ -2,149 +2,21 @@
 // License terms: see repository root LICENSE.
 
 #include "Template/Interactable/InteractableActor.h"
+#include "Data/ObjectCapabilityPropertyResolver.h"
 #include "Data/ObjectDefinition.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "GameplayTagContainer.h"
 #include "CapabilityRegistry.h"
 #include "CapabilityHierarchyHelpers.h"
 #include "Interfaces/IInteractableTarget.h"
-#include "UObject/UnrealType.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInteractableActor, Log, All);
 
 namespace
 {
-	// Helper to set property by name (string value version)
-	// Supports: FVector "(X,Y,Z)", FRotator "(P,Y,R)", FGameplayTag "Tag.Name", generic ImportText
-	bool ImportPropertyValue(UObject* Object, FProperty* Property, void* PropertyAddr, const FString& Value)
-	{
-		if (!Object || !Property || !PropertyAddr)
-		{
-			return false;
-		}
-
-		// Special case: FGameplayTag (ImportText may not accept "Tag.Name" format)
-		if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
-		{
-			if (StructProp->Struct == FGameplayTag::StaticStruct())
-			{
-				FGameplayTag* TagPtr = static_cast<FGameplayTag*>(PropertyAddr);
-				*TagPtr = FGameplayTag::RequestGameplayTag(FName(*Value), false);
-				if (!TagPtr->IsValid() && !Value.IsEmpty())
-				{
-					UE_LOG(LogInteractableActor, Error,
-						TEXT("Invalid gameplay tag '%s' for %s.%s"),
-						*Value,
-						*GetNameSafe(Object),
-						*Property->GetName());
-				}
-				return TagPtr->IsValid() || Value.IsEmpty();
-			}
-
-			// Special case: FVector (allow "(0,0,0)" and UE ImportText formats)
-			if (StructProp->Struct == TBaseStructure<FVector>::Get())
-			{
-				FVector* VecPtr = static_cast<FVector*>(PropertyAddr);
-				FString CleanValue = Value;
-				CleanValue.RemoveFromStart(TEXT("("));
-				CleanValue.RemoveFromEnd(TEXT(")"));
-				TArray<FString> Components;
-				CleanValue.ParseIntoArray(Components, TEXT(","));
-				if (Components.Num() >= 3)
-				{
-					VecPtr->X = FCString::Atof(*Components[0]);
-					VecPtr->Y = FCString::Atof(*Components[1]);
-					VecPtr->Z = FCString::Atof(*Components[2]);
-					return true;
-				}
-			}
-
-			if (StructProp->Struct == TBaseStructure<FRotator>::Get())
-			{
-				FRotator* RotPtr = static_cast<FRotator*>(PropertyAddr);
-				FString CleanValue = Value;
-				CleanValue.RemoveFromStart(TEXT("("));
-				CleanValue.RemoveFromEnd(TEXT(")"));
-				TArray<FString> Components;
-				CleanValue.ParseIntoArray(Components, TEXT(","));
-				if (Components.Num() >= 3)
-				{
-					RotPtr->Pitch = FCString::Atof(*Components[0]);
-					RotPtr->Yaw = FCString::Atof(*Components[1]);
-					RotPtr->Roll = FCString::Atof(*Components[2]);
-					return true;
-				}
-			}
-		}
-
-		// Generic case: use ImportText
-		const TCHAR* ImportResult = Property->ImportText_Direct(*Value, PropertyAddr, Object, PPF_None);
-		return ImportResult != nullptr;
-	}
-
-	// Helper to set property by name (string value version)
-	// Supports: FVector "(X,Y,Z)", FRotator "(P,Y,R)", FGameplayTag "Tag.Name", generic ImportText
-	// Also supports nested struct fields by name (one level deep).
-	bool SetPropertyByName(UObject* Object, FName PropertyName, const FString& Value)
-	{
-		if (!Object)
-		{
-			return false;
-		}
-
-		FProperty* Property = Object->GetClass()->FindPropertyByName(PropertyName);
-		if (Property)
-		{
-			void* PropertyAddr = Property->ContainerPtrToValuePtr<void>(Object);
-			return ImportPropertyValue(Object, Property, PropertyAddr, Value);
-		}
-
-		// Fallback: allow setting nested struct fields by name (for config grouping).
-		for (TFieldIterator<FStructProperty> It(Object->GetClass()); It; ++It)
-		{
-			FStructProperty* StructProp = *It;
-			FProperty* InnerProp = StructProp->Struct->FindPropertyByName(PropertyName);
-			if (!InnerProp)
-			{
-				continue;
-			}
-
-			void* StructAddr = StructProp->ContainerPtrToValuePtr<void>(Object);
-			void* InnerAddr = InnerProp->ContainerPtrToValuePtr<void>(StructAddr);
-			return ImportPropertyValue(Object, InnerProp, InnerAddr, Value);
-		}
-
-		return false;
-	}
-
-	// Helper to set object property by name
-	bool SetPropertyByName(UObject* Object, FName PropertyName, UObject* ObjectValue)
-	{
-		if (!Object)
-		{
-			return false;
-		}
-
-		FProperty* Property = Object->GetClass()->FindPropertyByName(PropertyName);
-		if (!Property)
-		{
-			return false;
-		}
-
-		if (FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>(Property))
-		{
-			void* PropertyAddr = Property->ContainerPtrToValuePtr<void>(Object);
-			ObjProp->SetObjectPropertyValue(PropertyAddr, ObjectValue);
-			return true;
-		}
-
-		return false;
-	}
-
 	// Select exactly one capability for a given hit context.
 	// Semantics match focus resolution: mesh-scoped match wins; otherwise actor-scoped fallback.
 	UActorComponent* SelectBestInteractableComponentForHit(
@@ -332,6 +204,17 @@ bool AInteractableActor::ApplyDefinition_Implementation(UPrimaryDataAsset* Defin
 	{
 		UE_LOG(LogInteractableActor, Log, TEXT("[%s] Structural changes detected, cannot update in-place. ActorSync should auto-replace when definition regenerated. (Hash: %s -> %s)"),
 			*GetNameSafe(this), *AppliedStructureHash, *ObjDef->DefinitionStructureHash);
+		return false;
+	}
+
+	FString CapabilityValidationError;
+	if (!ProjectObjectCapabilityProperties::ValidateDefinition(
+		ObjDef, CapabilityValidationError))
+	{
+		UE_LOG(LogInteractableActor, Error,
+			TEXT("[%s] ApplyDefinition rejected invalid capability data: %s"),
+			*GetNameSafe(this),
+			*CapabilityValidationError);
 		return false;
 	}
 
@@ -558,9 +441,9 @@ bool AInteractableActor::ApplyDefinition_Implementation(UPrimaryDataAsset* Defin
 		UClass* CapClass = FCapabilityRegistry::GetCapabilityClass(CapEntry.Type);
 		if (!CapClass)
 		{
-			UE_LOG(LogInteractableActor, Warning,
+			UE_LOG(LogInteractableActor, Error,
 				TEXT("  Unknown capability type: %s"), *CapEntry.Type.ToString());
-			continue;
+			return false;
 		}
 
 		// Build unique tag for this capability (Type:Scope or Type:actor)
@@ -645,18 +528,15 @@ bool AInteractableActor::ApplyDefinition_Implementation(UPrimaryDataAsset* Defin
 		}
 
 		// Apply property values from definition
-		for (const auto& Prop : CapEntry.Properties)
+		FString PropertyError;
+		if (!ProjectObjectCapabilityProperties::ApplyEntryProperties(
+			Comp, CapEntry, PropertyError))
 		{
-			if (SetPropertyByName(Comp, Prop.Key, Prop.Value))
-			{
-				UE_LOG(LogInteractableActor, Verbose, TEXT("  Set %s.%s = %s"),
-					*CapClass->GetName(), *Prop.Key.ToString(), *Prop.Value);
-			}
-			else
-			{
-				UE_LOG(LogInteractableActor, Warning, TEXT("  Failed to set %s.%s = %s"),
-					*CapClass->GetName(), *Prop.Key.ToString(), *Prop.Value);
-			}
+			UE_LOG(LogInteractableActor, Error,
+				TEXT("  Failed to apply capability %s: %s"),
+				*CapClass->GetName(),
+				*PropertyError);
+			return false;
 		}
 
 		// Motion mode opt-in (explicit): MotionMode = "Chaos"

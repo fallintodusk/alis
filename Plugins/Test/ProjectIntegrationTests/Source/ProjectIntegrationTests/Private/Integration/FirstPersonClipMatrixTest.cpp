@@ -35,7 +35,7 @@ class FClipMatrixCommand : public IAutomationLatentCommand
 {
 public:
 	// UpperChainModeOverride: INDEX_NONE = leave runtime default,
-	// 0 = force Disabled (baseline), 1 = force FilterV1.
+	// 0 = Disabled, 1 = TransitionGuard, 2 = AngleClamp, 3 = ChainIK.
 	explicit FClipMatrixCommand(
 		FAutomationTestBase* InTest,
 		EClipMatrixLayerMode InMode = EClipMatrixLayerMode::LocalBody_Corrected,
@@ -596,14 +596,12 @@ private:
 			break;
 		}
 
-		// UpperChainMode override is deferred to RunMeasurementPhases because
-		// the LocalBodyCustomization anim instance may not exist yet at this
-		// stage (Mutable build is still in progress).
+		// The mode override waits for the LocalBody animation instance.
 		bUpperChainModeApplied = (UpperChainModeOverride == INDEX_NONE);
 
-		const FString ChainModeStr = UpperChainModeOverride == 0 ? TEXT("Baseline")
-			: UpperChainModeOverride == 1 ? TEXT("FilterV1")
-			: TEXT("Default");
+		static const TCHAR* ChainModeLabels[] = { TEXT("Disabled"), TEXT("TransitionGuard"), TEXT("AngleClamp"), TEXT("ChainIK") };
+		const FString ChainModeStr = UpperChainModeOverride >= 0 && UpperChainModeOverride < UE_ARRAY_COUNT(ChainModeLabels)
+			? ChainModeLabels[UpperChainModeOverride] : TEXT("Default");
 		RunId += FString::Printf(TEXT("_%s_%s_%s"), *ModeStr, *ScenarioStr, *ChainModeStr);
 		InitialCharacterTransform = Character ? Character->GetActorTransform() : FTransform::Identity;
 		InitialControlRotation = PC ? PC->GetControlRotation() : FRotator::ZeroRotator;
@@ -625,7 +623,7 @@ private:
 	}
 
 	// Try to apply the deferred UpperChainMode override.
-	// The LocalBodyCustomization anim instance may appear after Mutable rebuild.
+	// The LocalBody animation instance may initialize after the component.
 	void TryApplyUpperChainModeOverride()
 	{
 		if (bUpperChainModeApplied || UpperChainModeOverride == INDEX_NONE || !Character)
@@ -1165,9 +1163,7 @@ bool FFirstPersonClipMatrixSprintStopOnlyTest::RunTest(const FString& Parameters
 	return true;
 }
 
-// Explicit A/B comparison tests: same scenario, different UpperChainMode.
-// Baseline: CopyPose + spine yaw + exact neck target, NO upper-chain filter.
-// FilterV1: full guard-driven upper-chain follow + pitch constraint.
+// Full-matrix correction comparisons: same acceptance, different UpperChainMode.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FFirstPersonClipMatrixBaselineTest,
 	"ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.Baseline",
@@ -1178,7 +1174,7 @@ bool FFirstPersonClipMatrixBaselineTest::RunTest(const FString& Parameters)
 	ADD_LATENT_AUTOMATION_COMMAND(ClipMatrixHelpers::FClipMatrixCommand(
 		this,
 		ClipMatrixHelpers::EClipMatrixLayerMode::LocalBody_Corrected,
-		ClipMatrixHelpers::EClipMatrixScenario::SprintStopLoop,
+		ClipMatrixHelpers::EClipMatrixScenario::FullMatrix,
 		0));
 	return true;
 }
@@ -1193,11 +1189,41 @@ bool FFirstPersonClipMatrixFilterV1Test::RunTest(const FString& Parameters)
 	ADD_LATENT_AUTOMATION_COMMAND(ClipMatrixHelpers::FClipMatrixCommand(
 		this,
 		ClipMatrixHelpers::EClipMatrixLayerMode::LocalBody_Corrected,
-		ClipMatrixHelpers::EClipMatrixScenario::SprintStopLoop,
+		ClipMatrixHelpers::EClipMatrixScenario::FullMatrix,
 		1));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstPersonClipMatrixAngleClampTest,
+	"ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.AngleClamp",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+bool FFirstPersonClipMatrixAngleClampTest::RunTest(const FString& Parameters)
+{
+	AutomationOpenMap(GClipMatrixMapPath);
+	ADD_LATENT_AUTOMATION_COMMAND(ClipMatrixHelpers::FClipMatrixCommand(
+		this,
+		ClipMatrixHelpers::EClipMatrixLayerMode::LocalBody_Corrected,
+		ClipMatrixHelpers::EClipMatrixScenario::FullMatrix,
+		2));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FFirstPersonClipMatrixChainIKTest,
+	"ProjectIntegrationTests.Character.FirstPerson.ClipMatrix.ChainIK",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+bool FFirstPersonClipMatrixChainIKTest::RunTest(const FString& Parameters)
+{
+	AutomationOpenMap(GClipMatrixMapPath);
+	ADD_LATENT_AUTOMATION_COMMAND(ClipMatrixHelpers::FClipMatrixCommand(
+		this,
+		ClipMatrixHelpers::EClipMatrixLayerMode::LocalBody_Corrected,
+		ClipMatrixHelpers::EClipMatrixScenario::FullMatrix,
+		3));
 	return true;
 }
 
 // Layer isolation modes (DriverBody/WorldBody/LocalRaw) remain in the enum
 // for diagnostic use but are not registered as automated tests.
-// The focused SprintStopOnly run is for strict repro of the stop overshoot bug.
+// SprintStopOnly remains the focused repro for the stop overshoot bug.

@@ -460,8 +460,15 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 		HashProp->SetPropertyValue_InContainer(Asset, FileHash);
 	}
 
-	// Validate asset (shows 30-sec notification popup for errors)
-	FDefinitionValidator::ValidateAndNotify(*TypeInfo, Asset, Result.AssetId, TypeName);
+	// Validation owns source-data acceptance; invalid assets never reach SaveAsset.
+	if (!FDefinitionValidator::ValidateAndNotify(
+		*TypeInfo, Asset, Result.AssetId, TypeName))
+	{
+		Result.ErrorMessage = FString::Printf(
+			TEXT("Validation failed for: %s"), *Result.AssetId);
+		UE_LOG(LogDefinitionGenerator, Error, TEXT("%s"), *Result.ErrorMessage);
+		return Result;
+	}
 
 	// Save asset
 	if (!FDefinitionAssetManager::SaveAsset(Asset))

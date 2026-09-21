@@ -248,6 +248,30 @@ def check_mcp_editor_boundary(repo_root):
     return problems
 
 
+def check_metahuman_authoring_boundary(repo_root):
+    """Keep MetaHuman authoring and capture plugins out of game targets."""
+    problems = []
+    uproject = os.path.join(repo_root, "Alis.uproject")
+    try:
+        with open(uproject, encoding="utf-8") as fh:
+            project = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        return ["cannot validate MetaHuman target boundary: %s" % exc]
+
+    plugins = {
+        entry.get("Name"): entry for entry in project.get("Plugins", [])
+    }
+    for name in ("MetaHumanCharacter", "MetaHumanLiveLink"):
+        entry = plugins.get(name)
+        if not entry or entry.get("Enabled") is not True:
+            continue
+        if entry.get("TargetAllowList") != ["Editor"]:
+            problems.append(
+                "Alis.uproject: %s TargetAllowList must equal [Editor]" % name
+            )
+    return problems
+
+
 def check_repo_codex_config(repo_root):
     """The tracked project Codex config must carry NO engine version.
 
@@ -292,6 +316,7 @@ def main(argv=None):
     violations += check_hardcoded_paths(repo_root)
     violations += check_plugin_pins(repo_root)
     violations += check_mcp_editor_boundary(repo_root)
+    violations += check_metahuman_authoring_boundary(repo_root)
     violations += check_repo_codex_config(repo_root)
 
     if violations:

@@ -13,7 +13,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/Environment/Hazard/GasCloud.uasset",
-      "artifact_sha256": "7d4cf1d1830c62f50f3a513d72293202cdeaaa47d42ba5a630d9417896465521",
+      "artifact_sha256": "c8abb246a6a20ff4bc970e57edeff5627ea891d81b22e04bc5976d0740e68cde",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/Environment/Hazard/GasCloud",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -23,7 +23,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/Environment/Hazard/SniperZone.uasset",
-      "artifact_sha256": "5618d0d57814d24e1474d9be6d615ec5d06757caf52b9730f7abf66639275255",
+      "artifact_sha256": "10b768132668af69a0d7d7d93279f2ace3734073d1857ba9169adb31d972f450",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/Environment/Hazard/SniperZone",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -33,7 +33,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/Human/DeadJunky/Loot_DeadJunky.uasset",
-      "artifact_sha256": "c6e739044a75de459dd7e6c93623788c3a9721788c21e5bf6a9d8ca605c41e73",
+      "artifact_sha256": "aebd361986185634dea1a942c85a3ed3b07b163833e6187d4102f076c09c2dfa",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/Human/DeadJunky/Loot_DeadJunky",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -83,7 +83,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/Human/GrandPa/GrandPa.uasset",
-      "artifact_sha256": "718fb529878a8c6e07e1e1a6041f43e230ccbf647b87965693f82900b5e9aeda",
+      "artifact_sha256": "df6c3dde898be030e827e38c95dc0df7b06fa7428bea8aa93e397881ebff4b7b",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/Human/GrandPa/GrandPa",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -93,17 +93,17 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.uasset",
-      "artifact_sha256": "37b32d17a190442cd07b4c7fc82d404332f8838d7552bdf7043aa4cf10bbc839",
+      "artifact_sha256": "5cd199e3bf8db7c8173344a9208d80b1a768aa10b0d945508fd3f961c3260b4b",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/Human/Hero/Hero",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "2985d67896a59123e3b21d2f9a4d1a15",
+      "source_json_hash_md5": "32faf58117dcd3b06f6d144b6481dca3",
       "source_path": "Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json",
-      "source_sha256": "f34d666086366b2adb5048c7be5221528deda9d67c05032ebd98e066432c1852"
+      "source_sha256": "69d5807a0a454af5795ce9dc84df977844b824527905e373029d7ca6ae938958"
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/EngineeringSystem/ElectricalInfrastructure/DistributionPanel/ElectricPanel_Entrance.uasset",
-      "artifact_sha256": "5291d08a40e19619f61e4c5808394ae9f409b4b7df66ef74e6eb1bf7965994d4",
+      "artifact_sha256": "ee39a75b460a0e6b83aef0f3ee22f2ee07614e2787268e6540a42a31ccaeee3a",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/EngineeringSystem/ElectricalInfrastructure/DistributionPanel/ElectricPanel_Entrance",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -113,7 +113,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Accessory/Key/KeyLuxuryApartment.uasset",
-      "artifact_sha256": "624adcf25c3b6530369e550ae964f09991b690606d749a4d011f09d803168932",
+      "artifact_sha256": "c57fca67be8e6d5094d9161bb96770b0db957bc2985a72685154e32578258c38",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Accessory/Key/KeyLuxuryApartment",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -123,7 +123,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Accessory/Key/KeyPlayerApartment.uasset",
-      "artifact_sha256": "15d1150007af43ec372b523646ec0d9b014fe344025b00f2903fdd3cdd742bff",
+      "artifact_sha256": "bad307c0a51e62c98b38ce6fd9392be765e00022586bb875dc103fe055cae0ef",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Accessory/Key/KeyPlayerApartment",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -133,7 +133,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_1/ComplexDoor_Inner_Beige.uasset",
-      "artifact_sha256": "fd7960cae37a1dc670332af0acf727e76284afb37fa39174d2cf6fe29f35ddc6",
+      "artifact_sha256": "dc79609fe788fd03384627a5fe0a8d5d5de62e2facfb61d031110feabd2f8eac",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_1/ComplexDoor_Inner_Beige",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -143,7 +143,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_2/ComplexDoor_Inner_Brown.uasset",
-      "artifact_sha256": "95f616719bcfb1904a71f0bf346fff392ee009b499fa8df067ec47277a731f71",
+      "artifact_sha256": "6d7b7ac31f5de6478ec05c0121b2721f7fc49b86373f70b393466da982480c68",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_2/ComplexDoor_Inner_Brown",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -152,18 +152,8 @@
       "source_sha256": "99749446ba703e985562073535bf2a61ecf598475befbd0ea8af63b91856f3b7"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_2/ComplexDoor_Inner_White.uasset",
-      "artifact_sha256": "adda42e03bcc2fb6c3fc437738e830920a34f9805fbd55a3f8c74677e9075926",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_2/ComplexDoor_Inner_White",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "a2daf223588ad1736720b147f87e237a",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Complex/ComplexDoor_Inner_2/ComplexDoor_Inner_White.json",
-      "source_sha256": "dce81679b41bb1137883e6853ff09f10d911381c976523896ca5c0cf5c6a00db"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/Door_Slide.uasset",
-      "artifact_sha256": "3fd2896362b56a82265edf12c9b5bd316dac64142bd98437efa62250f70a89bc",
+      "artifact_sha256": "1295aff3127a45fa2a743050e5066bf886641df462d503229e99eabe3dd8a943",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Frame/ComplexFrame_Inner_4_Slide/Door_Slide",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -172,18 +162,8 @@
       "source_sha256": "22a845d40f1d9f35e8b9c39acd72bd7b3419b6ee17b9b99b0963fc7fdbc4d3c4"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Plain/Plain_Door_1_Shop.uasset",
-      "artifact_sha256": "55766d9057758dbacea3da9319ffea9d3cd1cb90eedda9c8fff79a2738299dce",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Indoor/Inner/Plain/Plain_Door_1_Shop",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "5a3d96f2a4c4a56bb3fa3ad26c9a11a7",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Indoor/Inner/Plain/Plain_Door_1_Shop.json",
-      "source_sha256": "047a77049de5fb64c20c95362ab9b86f77190476b9c3a5fd3617327825c5480f"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_1/Door_Shop.uasset",
-      "artifact_sha256": "397d2c6d4dfcd698638b3d4eda64a43fa1ca9060f5814f370ee7246e02ecc183",
+      "artifact_sha256": "a19603ada5f2812706c743af95c1eda76bb42a2acaaf1ea19c8cac0a602c389a",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_1/Door_Shop",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -193,7 +173,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_Intercom/Entrance_Intercom.uasset",
-      "artifact_sha256": "8ee6cabcc822500bbd4edde6b7df1bfdc9b925e3aee0759574d8b1b45502d9b4",
+      "artifact_sha256": "f6e6195e2761be09b36d8484b99e6b927dd0804a11661d789c635ca107ff8ada",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Outdoor/Entrance_Intercom/Entrance_Intercom",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -233,7 +213,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Scenario/Door_FamilyApartment.uasset",
-      "artifact_sha256": "4b7c102bff64a00fb5ad62691f772147077ef4d5d9b10fe2421367a4134f1eb0",
+      "artifact_sha256": "b11f818522bf48e9ee23b7605be405a28c658a7d8e34a8c929d1ce9ed25227d7",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Scenario/Door_FamilyApartment",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -243,7 +223,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Scenario/Door_GrandPa.uasset",
-      "artifact_sha256": "19d537baea0ae35d7ba64f6c3b9986c542921a0877bb3287c90a9e33504b0d34",
+      "artifact_sha256": "fd40adb19ea93392391f254e41509bc4c17a52bab261815d8d8284ad72cde25b",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Scenario/Door_GrandPa",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -253,7 +233,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Scenario/Door_Handyman.uasset",
-      "artifact_sha256": "7e7486f7e680a284872b8d1180c653a7a34091ef5ffe3eefe5da8383c4c2c4a3",
+      "artifact_sha256": "d45bdef75f1027d1daa91627104df507239460afe2e2f2f61c3b06abf40912be",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Scenario/Door_Handyman",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -263,7 +243,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Door/Scenario/Door_LuxuryApartment.uasset",
-      "artifact_sha256": "1b238be5fdc6f757ffe215bcff74d1d8e45d3ebf1e0b99e59a8a1c55499c3cf0",
+      "artifact_sha256": "7766f74e879beeb9ead713970388f82dbad9a49e8e041d2fdebf6cdc3dc16ece",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Door/Scenario/Door_LuxuryApartment",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -273,7 +253,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Window/BalconyFrame/Complex/Complex_1/BalconyFrame_Complex_Plastic.uasset",
-      "artifact_sha256": "ad957194bbd466c84f27c8c95bc1b2e7165bd827ac9a1698f65a85977094e394",
+      "artifact_sha256": "58c7cd6eb409b157c41ca9bbb62930130966b356c48e920ad50e42d0987502c9",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Complex/Complex_1/BalconyFrame_Complex_Plastic",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -283,7 +263,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_1/BalconyFrame_DoubleGlazed_Left.uasset",
-      "artifact_sha256": "1e14a707aea8341294c63429d343e70533d1c24678e0b915b31444a7bf8d6806",
+      "artifact_sha256": "6640943d0b85f7a19dc80db380e25ef42684c358d3e8ffb512d6c77306eecfe2",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_1/BalconyFrame_DoubleGlazed_Left",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -293,7 +273,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/BalconyFrame_DoubleGlazed_Wooden_Left.uasset",
-      "artifact_sha256": "db664db8bb157fedf812b779bf8afd54edd3a381e216b7831f5c357d1a5d5188",
+      "artifact_sha256": "e075a8dd7eb7987fa9c759daaf8c0766c0e032f9749e69237d7a9206c673edbc",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Window/BalconyFrame/Simple/BalconyFrame_Plastic/BalconyFrame_DoubleGlazed_Wooden_1_Left/BalconyFrame_DoubleGlazed_Wooden_Left",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -303,7 +283,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/Window_Plastic_Large/Window_Plastic_Large.uasset",
-      "artifact_sha256": "9d850a2d5c5bdaccbfa0c7fe7551da4f560124eb6c4ed76a67c95ad471df6908",
+      "artifact_sha256": "96211d94c2b7f5d1d2b0904c7f7acfe26e2d7e6c72cb33fb126b67fdeb95318c",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/Window_Plastic_Large/Window_Plastic_Large",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -313,7 +293,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/Window_Plastic_Small/Window_Plastic_Small.uasset",
-      "artifact_sha256": "8b5bceadedef42de634bb1873175a9584559211480045313981ab44f0a82669a",
+      "artifact_sha256": "2eb3bd4dfe32b289a576e05a0c69200c4ae4921fd336059adc7ab9b482dd06f1",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Plastic/Window_Plastic_Small/Window_Plastic_Small",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -323,7 +303,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/Window_Wooden_Small_Left.uasset",
-      "artifact_sha256": "3b2f9f7d93567ea285b66d3072261b6927e038ac8fbfad8effc775d7ab6f2083",
+      "artifact_sha256": "b7b25ecc0e6f12d7704d7f4cd0daff9e9ebb0a01242166212456796277d5cc28",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Fenestration/Window/SimpleFrame/Window_Wooden_Left/Window_Wooden_Small_Left",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -333,7 +313,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Building/Sanitation_Hygiene/SanitaryWare/Toilet/Toilet_4/Toilet_Base.uasset",
-      "artifact_sha256": "f181cefa04459a2aa4d884dc980bae0880d66c87d86463aa2042f42084e984af",
+      "artifact_sha256": "79bac7061d68aeded6cf768c6c7445a67506043a87d90c6e4ec37e60be0f2929",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Building/Sanitation_Hygiene/SanitaryWare/Toilet/Toilet_4/Toilet_Base",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -343,7 +323,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Clothes/Head/Cap.uasset",
-      "artifact_sha256": "e3fcf0cad2b829b469aa7c2908eaca85a58afbeed1801c0aec2d18ab64c6db9e",
+      "artifact_sha256": "7c197336bc1629776596aea6a87108e5a1b9233cf0566ea4b96fb3c3a831a907",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Clothes/Head/Cap",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -353,7 +333,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Relax/Cigarette/Cigarette.uasset",
-      "artifact_sha256": "81f2691f9f07d7f420a29aad9f5e0a33c40939105e6fee3f8bb6f5b77664fbf6",
+      "artifact_sha256": "3d2a3d71ee93cf2737a54e561b3354c828b7dbe9f65146ee2497d0508660c5ba",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Relax/Cigarette/Cigarette",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -363,7 +343,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Relax/Cigarette/CigarettePacket.uasset",
-      "artifact_sha256": "3d752df275940116c6fb8fda45667a6d4f3bf2e41859a293ef4b1cdfd73e8892",
+      "artifact_sha256": "d62854eebf5d09d36bdbdbcf321e3bc17931bdff946fbb4c7813bdbbac6cc190",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Relax/Cigarette/CigarettePacket",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -373,7 +353,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Health/Medical/EmergencyMedkit/EmergencyMedkit.uasset",
-      "artifact_sha256": "eea37e57af02baf202ff82ea5cfb93500bfb2676b7cd135040e175688b582f56",
+      "artifact_sha256": "3cac0d9511548d2dd790f0716a919e68146c1560f5020a103e40761043d12593",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Health/Medical/EmergencyMedkit/EmergencyMedkit",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -383,7 +363,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Health/Medical/Medkit/Medkit.uasset",
-      "artifact_sha256": "4e7727664747b117952fe484ada4a754130cb743b82d50f01e9209f0acb27d29",
+      "artifact_sha256": "2c05c35bebcfc950c08b90c4971af31979168bcc086642a3afc92c91784a7017",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Health/Medical/Medkit/Medkit",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -393,7 +373,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/EmergencyWater/EmergencyWater.uasset",
-      "artifact_sha256": "93bf814ac90729d49542c666e9cec9453adbd06fe6d93d8da89bf4d5d6f40e99",
+      "artifact_sha256": "0872746e919e20099e34a0d3aab89400efd09323cb4fdd3f6fe612e6eac3a0ab",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/EmergencyWater/EmergencyWater",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -403,7 +383,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottle.uasset",
-      "artifact_sha256": "fd8cf8e19a53d874f983ea2b44c711f05514f6f00b128140c8b48c5401c57313",
+      "artifact_sha256": "e176398a3966c6c65ae3f53b1fff9d8b5de3258337ea5f211a96486389b4b7e9",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottle",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -413,7 +393,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleBig/WaterBottleBig.uasset",
-      "artifact_sha256": "949c6eb4f6c04e1103d544539ceb12ec7797e24fb50b197c3e2399cf9e0ce1f1",
+      "artifact_sha256": "19da54a21a5a8f20e7cc6e013f8c2ae16f254e07f065e5f9c91a0889ec6262d3",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleBig/WaterBottleBig",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -423,7 +403,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleMedium.uasset",
-      "artifact_sha256": "5abe7eae6513bdb3c97b194101844065cd2dc2462a25aefdffd850847ff5166d",
+      "artifact_sha256": "21f7afe54d2d6f1dee29281b4b04f27ae5cc23018c01fced8c51791b1095787e",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleMedium",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -433,7 +413,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleSmall.uasset",
-      "artifact_sha256": "117fb73f97a64b187227f3d7a0ce44d45e2dc23d6c0e8175c6a2582c4cee1599",
+      "artifact_sha256": "7f548e07212ae662f1d415956e81dbe04206a47da74a8c029260542b994e6b95",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Drink/WaterBottle/WaterBottleSmall",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -442,18 +422,8 @@
       "source_sha256": "e10a0a87f89f18ded5f2e3ff57f2b6c5d4c778f192390ced88499adaba847454"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Bread/BreadBig.uasset",
-      "artifact_sha256": "cdb949a07dc0383b1776aaf90907f3f2b71953448e2f7270501fb3259d9ea9a3",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Bread/BreadBig",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "36f59b0f5155760d96112b3a07815564",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Bread/BreadBig.json",
-      "source_sha256": "29317c950ad123457ebd1db8adb3eab714995a3819036c63085229c0e8040a8d"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Bread/BreadBlackQuarters.uasset",
-      "artifact_sha256": "501ad6f5bb2227bf7db8ad8cb3fa7d775a642f59d0f6b83217bf3690a43eb2da",
+      "artifact_sha256": "fbf66a1fc5146e5c1001c33d63e42365ece443f19f4476698f00704d08ac873c",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Bread/BreadBlackQuarters",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -463,7 +433,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Bread/Bread_Slice/BreadSlice.uasset",
-      "artifact_sha256": "9a56dd8b49f3064e74580405e18245f77ab7dbc27f38adb48f918e68f1fb6cdb",
+      "artifact_sha256": "c67c4e2cb1c19c3470a36b59c4bc02397ff1ad6223602c413672723028416a9b",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Bread/Bread_Slice/BreadSlice",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -473,7 +443,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/FishPaste/FishPaste.uasset",
-      "artifact_sha256": "dffa83089fd3196dd65cefd4cb5dcb822ea520e27da89dd312384cbe362a30b4",
+      "artifact_sha256": "45afb6e2ca79aded4a07aa88d2caf33d0a778228b1e8391b101831774f272cc1",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/FishPaste/FishPaste",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -483,7 +453,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/BraisedBeans.uasset",
-      "artifact_sha256": "1c4be5509cef5a5e8fdb4fe55a8071b7a35c4277c0f3345cf85e65e11432e4ad",
+      "artifact_sha256": "a1869e60ce64d29b290a6d516cb065c6eb6fb532fe61d3ce3574b68b347ccfed",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/BraisedBeans",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -493,7 +463,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/ChiliConCarne.uasset",
-      "artifact_sha256": "5cb823dc9f0e3785c57cde3fce9b3f8e8f1aece334f8aabe3cef95fe1919cc3d",
+      "artifact_sha256": "d4abb66bb369e5d7ad414bf83ec93c701070dba0873588a9a94929eb5a41e320",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/ChiliConCarne",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -502,28 +472,8 @@
       "source_sha256": "0a836414a31b7c5e35a52fcfb93ccbcb0975e79527fcd057560cbd7bb481d1ab"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/PeasStew.uasset",
-      "artifact_sha256": "c6f7515fac17e09e557de8300ca431a0d46cb564c6f6619d577fc4c78933791d",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/PeasStew",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "5a593619015927f2e69e3703f9e88d2b",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/Set_1/PeasStew.json",
-      "source_sha256": "e4f03f7589a3432d9682071883de3f570e13738430316f4197e84b64448d8658"
-    },
-    {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/StewedBeef/StewedBeef.uasset",
-      "artifact_sha256": "fd69843cdc95380e518390e8deaa844fdc95f92212f2c77533dc048ea6d45b74",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Can/StewedBeef/StewedBeef",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "f1f5e9697e5718a1e552a68880f78006",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Can/StewedBeef/StewedBeef.json",
-      "source_sha256": "c96eb698a0cf471405316854a86044939695843430075fa95974af9942b3ecb6"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Consumables/Vital/Nutrition/Food/Ration/EmergencyRation/EmergencyRation.uasset",
-      "artifact_sha256": "9095432d1e9cbbd344370cda74a4ebb9be844a66e0c2eac4b993501d5871ef98",
+      "artifact_sha256": "502272251b08ef67b4b132275051f229c4239f203a30a64f4a45fee5974f61cf",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Consumables/Vital/Nutrition/Food/Ration/EmergencyRation/EmergencyRation",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -533,7 +483,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Backpack/Backpack_Leather/Backpack.uasset",
-      "artifact_sha256": "cbcf96e55f4bef5672c353078da6638c57daebebcf7ac9f6f3cbb4b838e2aa27",
+      "artifact_sha256": "d4f75ca951308378897a0efe74b7d179899adecd0fe7eeae17e0c01b85cbe971",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Container/Bags/Backpack/Backpack_Leather/Backpack",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -543,7 +493,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Bag/EmergencySupplyCache.uasset",
-      "artifact_sha256": "6601c8a563a2b38c34e985e8ec3daee0818cfce9d069f91962e862feb21d7743",
+      "artifact_sha256": "451cba315f1b861d6903cb0419d170fbf7b49bdb5e8ded90ee5f9239aee226ef",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Container/Bags/Bag/EmergencySupplyCache",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -553,7 +503,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Bag/Loot_DuffleBag.uasset",
-      "artifact_sha256": "31ef27bdd88f1328f5dc68c2e969d8b4cb61274835784a3a9e005ace7c07e4a6",
+      "artifact_sha256": "83f2bee72bd91360b076b4d5355453e4e74deea3a4b26c13cb94c87dbf29ff62",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Container/Bags/Bag/Loot_DuffleBag",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -563,7 +513,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Bags/Pouch/EmergencyPouch/EmergencyPouch.uasset",
-      "artifact_sha256": "b68254e390cbeccd8bffedd714a3c72316d9e1030de84fc6d26fa02b3a1c73ee",
+      "artifact_sha256": "da80315c1aff2da474d6d7a2e8dfa716a3890ac51ee9e009e523fb2e10c1db55",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Container/Bags/Pouch/EmergencyPouch/EmergencyPouch",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -573,7 +523,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Locker/Locker_Steel.uasset",
-      "artifact_sha256": "ff2df8690ec522cee05a65cca760bea87aeb1e707b85c040574853ba3c0e7292",
+      "artifact_sha256": "a7db7739e4382d1988422a7557a53990612d762875560419aeefcc10f146ab78",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Container/Locker/Locker_Steel",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -583,7 +533,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Container/Store/Mailcase/Loot_Postbox.uasset",
-      "artifact_sha256": "6536d483856e57fe68e25bfb26fd282ee899f48d22e049d5a39b89a3634da4b8",
+      "artifact_sha256": "0d19e51ce72c6309b6cf420e02c781eeb4bffae96c60745dde2f096d5e176910",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Container/Store/Mailcase/Loot_Postbox",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -593,7 +543,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Cook/Stove/GasCooker/GasCooker_2/GasCooker_Stove.uasset",
-      "artifact_sha256": "f3c6759eb0577573a5a1bc9b42dc062df03a77bedbfd369eed6f53e345e8b9aa",
+      "artifact_sha256": "07430d5ff9f63a74cd11adb906ad8dece8d9a69ebecc1fbe53c1cf881f9724ca",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Device/Cook/Stove/GasCooker/GasCooker_2/GasCooker_Stove",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -603,7 +553,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Cool/Refrigerator/Refrigerator_2/Refrigerator_2_Modern_TwoDoor.uasset",
-      "artifact_sha256": "9aed60fb3c1e232947db227a27912cadf8821b4eedca5f36449976db75bbacef",
+      "artifact_sha256": "b56aaa71d9b6d77a3aafb50000f6c00c25360ac1f55ef48d411293699b28282e",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Device/Cool/Refrigerator/Refrigerator_2/Refrigerator_2_Modern_TwoDoor",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -613,7 +563,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Lighting/Lighter/Lighter_Zippo/Lighter_Zippo_1/Lighter.uasset",
-      "artifact_sha256": "352ea7d6a43a25e668a7de728979d375351d0a8c4b1e7b934db5405a5f30a364",
+      "artifact_sha256": "6f33b6dc3cdac314529a5a79948c9df1db69d60c39c00cd25c80db1b5c50e104",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Device/Lighting/Lighter/Lighter_Zippo/Lighter_Zippo_1/Lighter",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -643,7 +593,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Music/Rarity/Gramophone.uasset",
-      "artifact_sha256": "1ce9bbd14028b6e02b61eb34e3623726cee2efc911738d985b204c4b9ea10f7a",
+      "artifact_sha256": "a628c23db75a1af5d87c03f4fba7f33839ff434baf7cbc840c995ad2c0538219",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Device/Music/Rarity/Gramophone",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -653,7 +603,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Worktool/Fasteners_Installation/Crowbar/Crowbar_1/Crowbar.uasset",
-      "artifact_sha256": "2f5663ed0ecca6e182c8a6626b46888d5e324cd1dc94c79073c28bb551019fde",
+      "artifact_sha256": "09f56c59702c2c8ffd85c9d44a88d9d1c5895a66d939c0996bf39fec237f0d4f",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Device/Worktool/Fasteners_Installation/Crowbar/Crowbar_1/Crowbar",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -663,7 +613,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Device/Worktool/Fasteners_Installation/PryBar/CompactPryBar/CompactPryBar.uasset",
-      "artifact_sha256": "9895370d8490e08e02c3799b5d35bec8a23e29ee883a549a9f00eccbeb96792d",
+      "artifact_sha256": "21dc031248a01bffde17f869cedf044420fd9ae5e093c2369c5cd28e9f899188",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Device/Worktool/Fasteners_Installation/PryBar/CompactPryBar/CompactPryBar",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -672,18 +622,8 @@
       "source_sha256": "4c0bf23f9469dfb882889f95eacd7560993c9ad0bd2d2ec8643042d3c7dd08ed"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Lay/Bed/DoubleBed/DoubleBed_2_Wooden/DoubleBed_2_Wooden.uasset",
-      "artifact_sha256": "8047dd400ac64a2efec9dc6b62ac8b138b7197aebf6a1361bda0e9418d0f07ff",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Furniture/Lay/Bed/DoubleBed/DoubleBed_2_Wooden/DoubleBed_2_Wooden",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "1e7585487479604d74a25f6fd3c45db7",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Lay/Bed/DoubleBed/DoubleBed_2_Wooden/DoubleBed_2_Wooden.json",
-      "source_sha256": "4e6a940a364db8192a073d27b0fb0273189073215b32807d419ed9a439898b15"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Lay/Bed/SingleBed/BedBaby/BedBaby.uasset",
-      "artifact_sha256": "b2850ada5f2ba57c406a52ae0392afdaf65ba71e078a595d2675aa4a6a138ac0",
+      "artifact_sha256": "77ab1a8132c8e4a4db9f50826ad90fb7ed4a15060e091dee3b0b60045fbac6b6",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Lay/Bed/SingleBed/BedBaby/BedBaby",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -693,7 +633,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_1/KitchenCabinet_Base_Sink_Set_1.uasset",
-      "artifact_sha256": "9ec8719bb66dfa3e0f2ee1a31d6e71fc644d0a0240b75be22019528e0e2a0fa4",
+      "artifact_sha256": "bf937d0e64da3319961d7194de8f2c83e0e574ad020eb1f1d381c13e26219fce",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_1/KitchenCabinet_Base_Sink_Set_1",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -703,7 +643,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_2/KitchenCabinet_Base_TwoDoor_Set_1.uasset",
-      "artifact_sha256": "72ed6b26af3c643fbfba015555f66885b4f44cb0caef584780cb7231f558db95",
+      "artifact_sha256": "906b7591f5db817baecaa7c7165905dfab83b07a92bce46cc1402a148ed0ccb9",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_2/KitchenCabinet_Base_TwoDoor_Set_1",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -713,7 +653,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_3/KitchenCabinet_Base_OneDoor_Drawer_Set_1.uasset",
-      "artifact_sha256": "6e021ed171bc82e641fc8fc215ecfda95fe74c4dadde8b291797cc7264dec2de",
+      "artifact_sha256": "26a6d3844c92dbf447842cfc71dbd52d539ee637792fdd65efe6affdfc951dcd",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_3/KitchenCabinet_Base_OneDoor_Drawer_Set_1",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -723,7 +663,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_4/KitchenCabinet_Base_OneDoor_Set_1.uasset",
-      "artifact_sha256": "bd9cc124e848f2c32eff6a1373386d2aa68d02ae908a0c5ac437207b420a42bc",
+      "artifact_sha256": "88ca80509453ec78707d40984cb6247d773e652fa06a6f7b8c9506611438fafe",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_4/KitchenCabinet_Base_OneDoor_Set_1",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -733,7 +673,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_5/KitchenCabinet_Wall_OneDoor_Corner.uasset",
-      "artifact_sha256": "2d52891de8dc1c9759a9a4bf9116524e65b62c59b5d873efc9bf9e044e478ae9",
+      "artifact_sha256": "7ad9cb335879b3032b1a0953cbd33b6dbd335e83bcabaad09178bf36cf9541a5",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_5/KitchenCabinet_Wall_OneDoor_Corner",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -743,7 +683,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_6/KitchenCabinet_Wall_TwoDoor_Set_1.uasset",
-      "artifact_sha256": "e394d56d4aa0eec50558fde5ae08c1f28b7e1b827f5fd8ae742f3988b597ff62",
+      "artifact_sha256": "34bfca11fbcca0da08a3e5a84fd8987e3e3bb3348102f9beeee326a83316a76b",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_6/KitchenCabinet_Wall_TwoDoor_Set_1",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -753,7 +693,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_7/KitchenCabinet_Wall_OneDoor.uasset",
-      "artifact_sha256": "9fbc3e02c96e3b57fd7522f386548087b72c5d2cf5f42b82f49c540382d13a3c",
+      "artifact_sha256": "0acf7d01e6c25195a00c9406d4c699d244ad15b3cf4822f1e5af0e4431b9bf30",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_7/KitchenCabinet_Wall_OneDoor",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -763,7 +703,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_8/KitchenCabinet_Base_TwoDoor_B_Set_1.uasset",
-      "artifact_sha256": "418e5aae293a3748bb33505fd4331de01f44d93d3a4fb16546feec5f36152c2a",
+      "artifact_sha256": "e256ad3d9cdf78c25e010d78e09adad22a4d6946bc8c59feaa9039be5f87550d",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/ReadySet/Kitchen_Set_1/Table_8/KitchenCabinet_Base_TwoDoor_B_Set_1",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -772,18 +712,8 @@
       "source_sha256": "d676c14fa720969372271d8711ef9e3616a7c1ac24eff3d655d0dd6bc8c4a678"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_1/Dresser_Classic.uasset",
-      "artifact_sha256": "0604c14a24b32cc3cafd154945ef79f6804e9715900499437c985a487df85a04",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_1/Dresser_Classic",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "6cb6d208d597b6a15cda5ed0fd0bb58e",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_1/Dresser_Classic.json",
-      "source_sha256": "f07eef125b463727a44b2bcba7f1e2c2cc4d8758a9fd8d9dea3c076c70073e44"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/Dresser_Classic_Wide.uasset",
-      "artifact_sha256": "3dc11bd1f0f907398ea5a524fbe339a198353faa546fb653300821ca7fdecb71",
+      "artifact_sha256": "57824508cb3736008664575a752dc9f7e9268cefdbda445965af192ac1e3d642",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_1_Classic/Dresser_Classic_1_2/Dresser_Classic_Wide",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -793,7 +723,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Dresser/Dresser_Kid/ChangingDresser_Kid.uasset",
-      "artifact_sha256": "1081fa75ea647976b253ef3033bbc2270155611fb4394accaf650b7e6abb53f8",
+      "artifact_sha256": "165e962965a4fb013be036d0927790dc12f99864b9eaf7e45a8e837607773b5c",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Store/Dresser/Dresser_Kid/ChangingDresser_Kid",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -803,7 +733,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Wardrobe/Hutch_Cabinet/WardrobeSlider2.uasset",
-      "artifact_sha256": "14f5b6ceea631d9e8d4047db8e4d266ace761a10ca46bdb66b9b0a7060bd8065",
+      "artifact_sha256": "20f32c270ade23a2a8fd7fb8f484add9b2cd5c8faf9068032041f154134c229b",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Store/Wardrobe/Hutch_Cabinet/WardrobeSlider2",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -812,18 +742,8 @@
       "source_sha256": "d181ca26be58ecdd835f18e6e544cb6edd7f88e7d228649742cbc05bd7698197"
     },
     {
-      "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Wardrobe/Wardrobe_3/Wardrobe_Classic.uasset",
-      "artifact_sha256": "2e3936f7264f4e222ecb89494959f354bcab7f05fb86dbbccfc947b78fc3f152",
-      "asset_class": "ObjectDefinition",
-      "package_name": "/ProjectObject/HumanMade/Furniture/Store/Wardrobe/Wardrobe_3/Wardrobe_Classic",
-      "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
-      "source_json_hash_md5": "584dbc465a1f731287d41c1f812e6491",
-      "source_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Store/Wardrobe/Wardrobe_3/Wardrobe_Classic.json",
-      "source_sha256": "71a8033ceb2342ec275b3656c079be64552565a9d830be6d99905db5cff8f9f6"
-    },
-    {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Table/Dining/Occasional/BedsideTable/BedsideTable.uasset",
-      "artifact_sha256": "6d7a627a1ded36bdc28e43ae87081cb216f4be1e126daf5e05ac7242927d65c2",
+      "artifact_sha256": "c04d84b480515eb9221657fb80e19f9e6701dc19a64090e16b796f8704364ed5",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Table/Dining/Occasional/BedsideTable/BedsideTable",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -833,7 +753,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Table/Toilet/BathRoom_Table/BathRoom_Table.uasset",
-      "artifact_sha256": "62196360eb7a9d28b61239390e584ceb7bee1717d7bc85e0e96f2b467fc9e65b",
+      "artifact_sha256": "779d9036a5b275506133dcf194dbf8e04e744fad2e6cbd742489d6cf8f068cd6",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Table/Toilet/BathRoom_Table/BathRoom_Table",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -843,7 +763,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Furniture/Table/Toilet/ToiletTable/ToiletTable.uasset",
-      "artifact_sha256": "0f7e5a817f9e999d9de3eace95ea81945c24a3deb6ca43508da1bb4539589802",
+      "artifact_sha256": "a6bf0faaa7476cb8ecedcced105b504aaa97395580796ce890775dcf8db8bef6",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Furniture/Table/Toilet/ToiletTable/ToiletTable",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -853,7 +773,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/HumanMade/Trash/Packaging/Cardboard/Set_1/Loot_CardboardBox.uasset",
-      "artifact_sha256": "4ceb0fd3c72b2742d373005a8388faed755d536b01e8dbb4499ffd20488ec3dd",
+      "artifact_sha256": "f41cfc9d8e0accfec5cbb723fd1a9d1d3de644d89b3b3368480e17d3cdb68721",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/HumanMade/Trash/Packaging/Cardboard/Set_1/Loot_CardboardBox",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",
@@ -873,7 +793,7 @@
     },
     {
       "artifact_path": "Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Mushroom/Mushrooms.uasset",
-      "artifact_sha256": "89366e9da409d33745eda8142f89ccb5bfd33a59cebac415fddd26a286904ca5",
+      "artifact_sha256": "1b7f59bb3772d4777b182351ffed054ec3727847c002ba360bb5f6030238e00c",
       "asset_class": "ObjectDefinition",
       "package_name": "/ProjectObject/Nature/ExteriorPlant/Mushroom/Mushrooms",
       "schema_path": "Plugins/Resources/ProjectObject/Data/Schemas/object.schema.json",

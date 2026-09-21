@@ -73,6 +73,91 @@ function Write-ReleaseWorkspace {
     return $Workspace
 }
 
+function Write-MultiPlatformReleaseWorkspace {
+    param(
+        [string]$Version
+    )
+
+    $Workspace = Join-Path $ReleaseRoot "v$Version"
+    $WindowsGame = Join-Path $Workspace "game\windows-x86_64"
+    $LinuxGame = Join-Path $Workspace "game\linux-x86_64"
+    $GitHub = Join-Path $Workspace "github"
+    New-Item -ItemType Directory -Path `
+        (Join-Path $WindowsGame "Alis\Binaries\Win64"), `
+        (Join-Path $WindowsGame "Verification"), `
+        (Join-Path $LinuxGame "Alis\Binaries\Linux"), `
+        (Join-Path $LinuxGame "Verification"), `
+        $GitHub -Force | Out-Null
+    "launcher" | Set-Content -LiteralPath (Join-Path $WindowsGame "Alis.exe") -Encoding Ascii
+    "shipping" | Set-Content -LiteralPath (Join-Path $WindowsGame "Alis\Binaries\Win64\Alis-Win64-Shipping.exe") -Encoding Ascii
+    [IO.File]::WriteAllBytes((Join-Path $LinuxGame "Alis\Binaries\Linux\Alis-Linux-Shipping"), [byte[]](0x7f, 0x45, 0x4c, 0x46, 0x01))
+    "#!/bin/sh" | Set-Content -LiteralPath (Join-Path $LinuxGame "Alis.sh") -Encoding Ascii
+    foreach ($Game in @($WindowsGame, $LinuxGame)) {
+        "verify" | Set-Content -LiteralPath (Join-Path $Game "Verification\VERIFY_ALIS.ps1") -Encoding Ascii
+        "key" | Set-Content -LiteralPath (Join-Path $Game "Verification\ALIS_PUBLIC_KEY.asc") -Encoding Ascii
+        "manifest" | Set-Content -LiteralPath (Join-Path $Game "Verification\SHA256SUMS.txt") -Encoding Ascii
+        "signature" | Set-Content -LiteralPath (Join-Path $Game "Verification\SHA256SUMS.txt.asc") -Encoding Ascii
+    }
+    "verify" | Set-Content -LiteralPath (Join-Path $WindowsGame "VERIFY_ALIS.bat") -Encoding Ascii
+    "verify" | Set-Content -LiteralPath (Join-Path $LinuxGame "VERIFY_ALIS.sh") -Encoding Ascii
+    "release" | Set-Content -LiteralPath (Join-Path $GitHub "README.txt") -Encoding Ascii
+
+    $env:ALIS_TEST_PACKAGE_DIR = $PackageDir
+    $env:ALIS_TEST_WINDOWS_GAME = $WindowsGame
+    $env:ALIS_TEST_LINUX_GAME = $LinuxGame
+    try {
+        $Digests = & python -c "import os,sys; from pathlib import Path; sys.path.insert(0,os.environ['ALIS_TEST_PACKAGE_DIR']); import release_workspace as w; print(w.platform_game_tree_digest(Path(os.environ['ALIS_TEST_WINDOWS_GAME']),'windows-x86_64')); print(w.platform_game_tree_digest(Path(os.environ['ALIS_TEST_LINUX_GAME']),'linux-x86_64'))"
+        if ($LASTEXITCODE -ne 0 -or @($Digests).Count -ne 2) {
+            throw "Unable to create multi-platform workspace identities"
+        }
+    }
+    finally {
+        Remove-Item Env:ALIS_TEST_PACKAGE_DIR, Env:ALIS_TEST_WINDOWS_GAME, Env:ALIS_TEST_LINUX_GAME -ErrorAction SilentlyContinue
+    }
+    $WindowsShipping = Join-Path $WindowsGame "Alis\Binaries\Win64\Alis-Win64-Shipping.exe"
+    $LinuxShipping = Join-Path $LinuxGame "Alis\Binaries\Linux\Alis-Linux-Shipping"
+    $Readme = Join-Path $GitHub "README.txt"
+    @{
+        schema = "alis-release-manifest-v4"
+        status = "ready_for_signature"
+        approval_scope = "game"
+        release_version = $Version
+        release_tag = "v$Version"
+        unresolved_count = 0
+        product_review = @{ status = "accepted" }
+        rights_review = @{ status = "accepted" }
+        player_sources = @{
+            "windows-x86_64" = @{
+                revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                source_state_sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                runtime_payload_tree_sha256 = [string]$Digests[0]
+                shipping_executable = "Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
+                shipping_executable_sha256 = (Get-FileHash -LiteralPath $WindowsShipping -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+            "linux-x86_64" = @{
+                revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                source_state_sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                runtime_payload_tree_sha256 = [string]$Digests[1]
+                shipping_executable = "Alis/Binaries/Linux/Alis-Linux-Shipping"
+                shipping_executable_sha256 = (Get-FileHash -LiteralPath $LinuxShipping -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+        }
+        artifacts = @(@{
+            name = "README.txt"
+            byte_size = (Get-Item -LiteralPath $Readme).Length
+            sha256 = (Get-FileHash -LiteralPath $Readme -Algorithm SHA256).Hash.ToLowerInvariant()
+        })
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $GitHub "release_manifest.json") -Encoding Ascii
+    @{
+        schema = "alis-release-workspace-v2"
+        status = "complete"
+        release_version = $Version
+        release_tag = "v$Version"
+        platforms = @("windows-x86_64", "linux-x86_64")
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Workspace "release-workspace.json") -Encoding Ascii
+    return $Workspace
+}
+
 function Reset-FakeState {
     Remove-Item -LiteralPath $ButlerLog, $VerifierLog, $StatusCount -Force -ErrorAction SilentlyContinue
     $env:FAKE_BUTLER_STATUS_BEFORE = '{"time":1789635167,"type":"result","value":{"channels":[],"target":"example/game"}}'
@@ -253,6 +338,17 @@ try {
     }
     if (-not $RejectedPush -or @((Get-Content -LiteralPath $ButlerLog) -match '^status\|').Count -ne 1) {
         throw "Publisher did not propagate Butler push failure without a false read-back"
+    }
+
+    $MultiPlatformWorkspace = Write-MultiPlatformReleaseWorkspace -Version "2.1.0"
+    Reset-FakeState
+    $env:FAKE_BUTLER_STATUS_AFTER = '{"type":"result","value":{"target":"example/game","channels":[{"name":"windows","head":{"id":13,"state":"completed","userVersion":"2.1.0"}}]}}'
+    Invoke-Publisher -Version "2.1.0"
+    if (-not ((Get-Content -LiteralPath $VerifierLog -Raw) -like "*$MultiPlatformWorkspace\game\windows-x86_64|Verification\SHA256SUMS.txt*")) {
+        throw "Publisher did not select the Windows game projection from workspace v2"
+    }
+    if (-not ((Get-Content -LiteralPath $ButlerLog -Raw) -like "*push|$MultiPlatformWorkspace\game\windows-x86_64|*")) {
+        throw "Publisher did not upload the Windows game projection from workspace v2"
     }
 
     $DryRun = & make -n publish itch PUBLISH_VERSION=2.0.0 2>&1

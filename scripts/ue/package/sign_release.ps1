@@ -12,6 +12,7 @@
 param(
     [string]$ReleaseDir,
     [ValidateSet("GitHub", "Game")][string]$Projection = "GitHub",
+    [ValidateSet("windows-x86_64", "linux-x86_64")][string]$GamePlatform,
     [string]$ApprovalDir,
     [string]$GpgPath,
     [string]$GpgHome,
@@ -314,13 +315,19 @@ function Write-ReleaseVerifyHelpers {
     param(
         [string]$Directory,
         [string]$ProjectRoot,
-        [string]$ReleaseProjection
+        [string]$ReleaseProjection,
+        [string]$GamePlatform
     )
 
     $SourcePs1 = Join-Path $ProjectRoot "scripts\ue\package\verify_release.ps1"
     if ($ReleaseProjection -eq "Game") {
         $VerificationDir = Join-Path $Directory "Verification"
         New-Item -ItemType Directory -Path $VerificationDir -Force | Out-Null
+        if ($GamePlatform -eq "linux-x86_64") {
+            Copy-Item (Join-Path $ProjectRoot "scripts\ue\package\verify_release.sh") `
+                (Join-Path $Directory "VERIFY_ALIS.sh") -Force
+            return
+        }
         $TargetPs1 = Join-Path $VerificationDir "VERIFY_ALIS.ps1"
         $TargetBat = Join-Path $Directory "VERIFY_ALIS.bat"
         Copy-Item $SourcePs1 $TargetPs1 -Force
@@ -336,6 +343,8 @@ function Write-ReleaseVerifyHelpers {
 
     $TargetPs1 = Join-Path $Directory "VERIFY_RELEASE.ps1"
     Copy-Item $SourcePs1 $TargetPs1 -Force
+    Copy-Item (Join-Path $ProjectRoot "scripts\ue\package\verify_release.sh") `
+        (Join-Path $Directory "VERIFY_RELEASE.sh") -Force
 
     $TargetBat = Join-Path $Directory "VERIFY_RELEASE.bat"
     @(
@@ -401,15 +410,30 @@ $ReadinessDir = if ($Projection -eq "Game") {
     }
     $ResolvedApprovalDir = (Resolve-Path -LiteralPath $ApprovalDir).Path
     $WorkspaceRoot = Split-Path -Parent $ResolvedApprovalDir
-    $ExpectedGameDir = Get-NormalizedPathForComparison -Path (Join-Path $WorkspaceRoot "game")
     $ExpectedApprovalDir = Get-NormalizedPathForComparison -Path (Join-Path $WorkspaceRoot "github")
+    if (-not [string]::Equals(
+            (Get-NormalizedPathForComparison -Path $ResolvedApprovalDir),
+            $ExpectedApprovalDir,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Game and approval directories must belong to the same release workspace as game/ and github/."
+    }
+    $WorkspaceState = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "release-workspace.json") `
+        -Raw | ConvertFrom-Json
+    $ExpectedGameDir = if ($WorkspaceState.schema -eq "alis-release-workspace-v2") {
+        if ([string]::IsNullOrWhiteSpace($GamePlatform)) {
+            throw "Workspace v2 game signing requires -GamePlatform."
+        }
+        Get-NormalizedPathForComparison -Path (Join-Path $WorkspaceRoot "game\$GamePlatform")
+    }
+    else {
+        if (-not [string]::IsNullOrWhiteSpace($GamePlatform)) {
+            throw "Historical workspace game signing does not accept -GamePlatform."
+        }
+        Get-NormalizedPathForComparison -Path (Join-Path $WorkspaceRoot "game")
+    }
     if (-not [string]::Equals(
             (Get-NormalizedPathForComparison -Path $ResolvedReleaseDir),
             $ExpectedGameDir,
-            [System.StringComparison]::OrdinalIgnoreCase) -or
-        -not [string]::Equals(
-            (Get-NormalizedPathForComparison -Path $ResolvedApprovalDir),
-            $ExpectedApprovalDir,
             [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Game and approval directories must belong to the same release workspace as game/ and github/."
     }
@@ -451,17 +475,24 @@ $PublicKeyAssetName = if ($Projection -eq "Game") { "Verification\ALIS_PUBLIC_KE
 $PublicKeyAssetPath = Join-Path $ResolvedReleaseDir $PublicKeyAssetName
 if ($Projection -eq "Game") {
     New-Item -ItemType Directory -Path (Split-Path -Parent $PublicKeyAssetPath) -Force | Out-Null
-    Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_ALIS.bat"), (Join-Path $ResolvedReleaseDir "Verification\VERIFY_ALIS.ps1") -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_ALIS.bat"), `
+        (Join-Path $ResolvedReleaseDir "VERIFY_ALIS.sh"), `
+        (Join-Path $ResolvedReleaseDir "Verification\VERIFY_ALIS.ps1") `
+        -Force -ErrorAction SilentlyContinue
 }
 else {
-    Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.ps1"), (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.bat") -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.ps1"), `
+        (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.sh"), `
+        (Join-Path $ResolvedReleaseDir "VERIFY_RELEASE.bat") `
+        -Force -ErrorAction SilentlyContinue
 }
 Remove-Item $PublicKeyAssetPath -Force -ErrorAction SilentlyContinue
 
 Assert-SecretKeyAvailable -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgHomeArgument -Fingerprint $SigningKeyFingerprint
 Export-ReleasePublicKey -ResolvedGpgPath $ResolvedGpgPath -GpgHomeArgument $GpgHomeArgument -Fingerprint $SigningKeyFingerprint -TargetPath $PublicKeyAssetPath
 
-Write-ReleaseVerifyHelpers -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot -ReleaseProjection $Projection
+Write-ReleaseVerifyHelpers -Directory $ResolvedReleaseDir -ProjectRoot $ProjectRoot `
+    -ReleaseProjection $Projection -GamePlatform $GamePlatform
 
 $Assets = Get-ReleaseAssets -Directory $ResolvedReleaseDir -ReleaseProjection $Projection
 
@@ -492,7 +523,11 @@ $HashLines = foreach ($Asset in $Assets) {
     "{0} *{1}" -f $Hash, $AssetName
 }
 
-$HashLines | Set-Content -Encoding Ascii $ManifestPath
+[IO.File]::WriteAllText(
+    $ManifestPath,
+    (($HashLines -join "`n") + "`n"),
+    [Text.Encoding]::ASCII
+)
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan

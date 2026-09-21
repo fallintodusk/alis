@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/fallintodusk/alis/discussions
+    about: Ask for help or discuss an idea before proposing a tracked change.
+  - name: Security vulnerability
+    url: https://github.com/fallintodusk/alis/security/policy
+    about: Follow the private reporting instructions. Do not open a public issue.

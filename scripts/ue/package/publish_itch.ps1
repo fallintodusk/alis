@@ -234,7 +234,13 @@ if ($WorkspaceExitCode -ne 0) {
 }
 $WorkspaceVerification | ForEach-Object { Write-Host $_ }
 
-$GameRoot = Join-Path $WorkspaceRoot "game"
+$WorkspaceState = Get-Content -LiteralPath (Join-Path $WorkspaceRoot "release-workspace.json") -Raw |
+    ConvertFrom-Json
+$GameRoot = switch ([string]$WorkspaceState.schema) {
+    "alis-release-workspace-v1" { Join-Path $WorkspaceRoot "game" }
+    "alis-release-workspace-v2" { Join-Path $WorkspaceRoot "game\windows-x86_64" }
+    default { throw "Unsupported release workspace schema: $($WorkspaceState.schema)" }
+}
 $RequiredGameFiles = @(
     "Alis.exe",
     "Alis\Binaries\Win64\Alis-Win64-Shipping.exe",

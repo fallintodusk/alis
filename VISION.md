@@ -20,7 +20,7 @@ Open source under a boundary-specific [component license policy](LICENSE). Signe
 
 ## Continuity
 
-The architecture is modular, the code is open, the governance is designed to evolve. ALIS is built so that stewardship can pass to those who carry the work forward. No single person, platform, or server is required for the world to continue.
+The architecture is modular, the code is open, and the governance is designed to evolve. ALIS is designed so stewardship can pass beyond any one person, platform, or server. The [Public Survivability Floor](ALIS_PACT.md#public-survivability-floor) defines what must exist before that independence is considered delivered.
 
 ---
 
@@ -34,6 +34,5 @@ ALIS is in early development. The foundation is real - modular plugin architectu
 
 - [README.md](README.md) - project structure and entry points
 - [ALIS_PACT.md](ALIS_PACT.md) - the social contract that governs how ALIS behaves
-- [docs/style/root_document_law.md](docs/style/root_document_law.md) - the style law for ALIS root documents
 - Site: https://fall.is/
 - Trust: https://fall.is/trust/

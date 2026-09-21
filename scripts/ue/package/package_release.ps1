@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Package a Win64 ALIS release build via RunUAT BuildCookRun.
+    Package an ALIS player release build via RunUAT BuildCookRun.
 
 .DESCRIPTION
     Reads UE_PATH from scripts/config/ue_path.conf by default.
@@ -11,7 +11,7 @@
     - -nodebuginfo to keep staged PDBs out of the distributable payload
     - -skipencryption by default because current ALIS Shipping uses modular linking
       and encrypted startup containers fail before the game module can register the key
-    - GitHub-safe split zip transport by default when creating release archives
+    - GitHub-safe split ZIP transport for Win64 when creating release archives
 
     Release signing is deliberately separate. The combined release transaction
     must validate and approve every player/developer/legal input before
@@ -21,6 +21,7 @@
 param(
     [string]$OutputDir,
     [string]$ClientConfig = "Shipping",
+    [ValidateSet("Win64", "Linux")]
     [string]$Platform = "Win64",
     [string]$EngineRoot,
     [switch]$SourceRelease,
@@ -34,6 +35,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ($Platform -eq "Linux" -and $CreateReleaseArchive) {
+    throw "Linux release transport must use release_platforms.py archive-linux so POSIX executable modes are preserved."
+}
 
 function Format-Bytes {
     param(
@@ -44,14 +48,45 @@ function Format-Bytes {
     return "{0} bytes ({1:N3} GiB)" -f $Bytes, ($Bytes / 1GB)
 }
 
+function Get-PackageSourceIdentity {
+    param(
+        [string]$Root,
+        [string]$SourceStateTool,
+        [string]$PythonPath
+    )
+
+    $Revision = (& git -C $Root rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or $Revision -notmatch '^[0-9a-fA-F]{40}$') {
+        throw "Unable to resolve the package source revision."
+    }
+    $State = (& $PythonPath $SourceStateTool source-state --source-root $Root).Trim()
+    if ($LASTEXITCODE -ne 0 -or $State -notmatch '^[0-9a-f]{64}$') {
+        throw "Unable to resolve the package source state."
+    }
+    return [PSCustomObject]@{
+        Revision = $Revision.ToLowerInvariant()
+        State = $State
+    }
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $ConfigDir = Join-Path $ProjectRoot "scripts\config"
 $ProjectFile = Join-Path $ProjectRoot "Alis.uproject"
+$SourceStateTool = Join-Path $ScriptDir "prepare_release.py"
+$Python = Get-Command python -ErrorAction SilentlyContinue
+if (-not $Python -or -not (Test-Path -LiteralPath $SourceStateTool -PathType Leaf)) {
+    throw "Python and prepare_release.py are required to bind package source identity."
+}
+$InitialSource = Get-PackageSourceIdentity `
+    -Root $ProjectRoot `
+    -SourceStateTool $SourceStateTool `
+    -PythonPath $Python.Source
+
+. (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
+$config = Resolve-UEConfig -ConfigDir $ConfigDir
 
 if (-not $EngineRoot) {
-    . (Join-Path $ConfigDir "Resolve-UEConfig.ps1")
-    $config = Resolve-UEConfig -ConfigDir $ConfigDir
     $EngineRoot = $config.UE_PATH
 }
 
@@ -82,6 +117,18 @@ if (-not (Test-Path $ProjectFile)) {
     throw "Project file not found: $ProjectFile"
 }
 
+$PlatformDirName = if ($Platform -eq "Linux") { "Linux" } else { "Windows" }
+$LinuxToolchain = $null
+if ($Platform -eq "Linux") {
+    if (-not $config.LINUX_MULTIARCH_ROOT) {
+        throw "LINUX_MULTIARCH_ROOT is not configured in scripts/config/ue_path.conf."
+    }
+    . (Join-Path $ScriptDir "linux_toolchain.ps1")
+    $LinuxToolchain = Test-LinuxToolchain `
+        -EngineRoot $EngineRoot `
+        -ToolchainRoot $config.LINUX_MULTIARCH_ROOT
+}
+
 if (-not $OutputDir) {
     $Stamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $OutputDir = Join-Path $ProjectRoot "Saved\PackageRelease\ALIS_$Stamp"
@@ -92,7 +139,7 @@ $LogDir = Join-Path $ProjectRoot "Saved\Logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $LogFile = Join-Path $LogDir ("package_release_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 
-$Args = @(
+$UatArguments = @(
     "BuildCookRun",
     "-project=$ProjectFile",
     "-platform=$Platform",
@@ -109,19 +156,19 @@ $Args = @(
     "-unattended",
     # Generated World Partition actors can replace external packages between
     # cooks. A release cook must scan the current tree, not a prior AR cache.
-    '-AdditionalCookerOptions="-NoAssetRegistryCache"'
+    '-AdditionalCookerOptions="-NoAssetRegistryCache -DisablePlugins=ModelContextProtocol"'
 )
 
 if (-not $SkipBuild) {
-    $Args += "-build"
+    $UatArguments += "-build"
 }
 
 if (-not $IncludeStagedDebugFiles) {
-    $Args += "-nodebuginfo"
+    $UatArguments += "-nodebuginfo"
 }
 
 if (-not $EncryptContent) {
-    $Args += "-skipencryption"
+    $UatArguments += "-skipencryption"
 }
 
 if ($RequiredCookMap) {
@@ -147,7 +194,7 @@ if ($RequiredCookMap) {
     # AutomationTool ProjectParams.cs: -MapsToCook=<A>+<B> is parsed and
     # split into ProjectParams.MapsToCook; -map is the run-map parameter
     # and must not carry the cook list.
-    $Args += "-MapsToCook=$($CookMaps -join '+')"
+    $UatArguments += "-MapsToCook=$($CookMaps -join '+')"
 }
 
 Write-Host ""
@@ -158,6 +205,10 @@ Write-Host "UE_PATH      = $EngineRoot"
 Write-Host "ENGINE_KIND  = $(if ($IsInstalledEngine) { 'installed' } else { 'source-release' })"
 Write-Host "PROJECT_FILE = $ProjectFile"
 Write-Host "PLATFORM     = $Platform"
+if ($LinuxToolchain) {
+    Write-Host "LINUX_SDK    = $($LinuxToolchain.Version)"
+    Write-Host "LINUX_ROOT   = $($LinuxToolchain.Root)"
+}
 Write-Host "CONFIG       = $ClientConfig"
 Write-Host "OUTPUT_DIR   = $OutputDir"
 Write-Host "LOG_FILE     = $LogFile"
@@ -222,6 +273,36 @@ if (Test-Path $StagingCheckScript) {
 Write-Host "Pre-package validation passed." -ForegroundColor Green
 Write-Host ""
 
+$ObjectCookContract = $null
+if ($Platform -eq 'Win64') {
+    $Editor = Join-Path $EngineRoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+    $ContractExporter = Join-Path $ProjectRoot `
+        "scripts\ue\check\assets\export_generated_asset_inventory.py"
+    if (-not (Test-Path -LiteralPath $Editor -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $ContractExporter -PathType Leaf)) {
+        throw "Generated ObjectDefinition cook-contract export is unavailable."
+    }
+    $ObjectCookContract = Join-Path $ProjectRoot `
+        "tmp\package\object-definition-cook-contract.json"
+    $PreviousContractOutput = [Environment]::GetEnvironmentVariable(
+        "ALIS_GENERATED_ASSET_INVENTORY_OUTPUT", "Process")
+    try {
+        [Environment]::SetEnvironmentVariable(
+            "ALIS_GENERATED_ASSET_INVENTORY_OUTPUT", $ObjectCookContract, "Process")
+        & $Editor $ProjectFile -run=pythonscript "-script=$ContractExporter" `
+            -unattended -nop4 -NoSound -NullRHI `
+            -DisablePlugins=ModelContextProtocol `
+            *> (Join-Path $LogDir "object_cook_contract.log")
+        if ($LASTEXITCODE -ne 0 -or
+            -not (Test-Path -LiteralPath $ObjectCookContract -PathType Leaf)) {
+            throw "Generated ObjectDefinition cook-contract export failed."
+        }
+    } finally {
+        [Environment]::SetEnvironmentVariable(
+            "ALIS_GENERATED_ASSET_INVENTORY_OUTPUT", $PreviousContractOutput, "Process")
+    }
+}
+
 # UE otherwise ties Common Zen to the cook process, which exits before stage.
 # Scope the supported lifetime override to this UAT process tree only.
 $PreviousZenLifetime = [Environment]::GetEnvironmentVariable("UE-ZenLimitProcessLifetime", "Process")
@@ -238,8 +319,26 @@ try {
     [Environment]::SetEnvironmentVariable("UE-ZenLimitProcessLifetime", "false", "Process")
     # .NET proxy matching requires brackets for Zen's IPv6 loopback URL.
     [Environment]::SetEnvironmentVariable("NO_PROXY", $UatNoProxy, "Process")
-    & $RunUAT @Args 2>&1 | Tee-Object -FilePath $LogFile
-    $ExitCode = $LASTEXITCODE
+    $UatContext = [PSCustomObject]@{
+        Command = $RunUAT
+        Arguments = $UatArguments
+        LogFile = $LogFile
+        ExitCode = $null
+    }
+    $InvokeUat = {
+        param($Context)
+        $CommandArguments = @($Context.Arguments)
+        & $Context.Command @CommandArguments 2>&1 |
+            Tee-Object -FilePath $Context.LogFile
+        $Context.ExitCode = $LASTEXITCODE
+    }
+    if ($LinuxToolchain) {
+        Invoke-WithLinuxToolchain -ToolchainRoot $LinuxToolchain.Root `
+            -Context $UatContext -Action $InvokeUat
+    } else {
+        & $InvokeUat $UatContext
+    }
+    $ExitCode = $UatContext.ExitCode
 } finally {
     [Environment]::SetEnvironmentVariable("UE-ZenLimitProcessLifetime", $PreviousZenLifetime, "Process")
     [Environment]::SetEnvironmentVariable("NO_PROXY", $PreviousNoProxy, "Process")
@@ -252,19 +351,23 @@ if ($ExitCode -ne 0) {
     exit $ExitCode
 }
 
-$WindowsDir = Join-Path $OutputDir "Windows"
-if (-not (Test-Path $WindowsDir)) {
-    throw "Packaging succeeded but output folder was not found: $WindowsDir"
+$PlatformDir = if ($Platform -eq "Linux") {
+    $OutputDir
+} else {
+    Join-Path $OutputDir $PlatformDirName
+}
+if (-not (Test-Path $PlatformDir)) {
+    throw "Packaging succeeded but output folder was not found: $PlatformDir"
 }
 
 # UAT can return success after SafeCopyFile exhausts its retries. Prove the
 # archive contains every staged byte before any content-specific checks run.
 $ArchiveIntegrityScript = Join-Path $ScriptDir "verify_staged_archive.py"
-$StagedWindowsDir = Join-Path $ProjectRoot "Saved\StagedBuilds\Windows"
+$StagedPlatformDir = Join-Path $ProjectRoot "Saved\StagedBuilds\$PlatformDirName"
 if (-not $pythonExe -or -not (Test-Path $ArchiveIntegrityScript)) {
     throw "Post-package archive integrity verification is unavailable."
 }
-& $pythonExe $ArchiveIntegrityScript --staged-root $StagedWindowsDir --archive-root $WindowsDir
+& $pythonExe $ArchiveIntegrityScript --staged-root $StagedPlatformDir --archive-root $PlatformDir
 if ($LASTEXITCODE -ne 0) {
     throw "Post-package archive integrity verification failed."
 }
@@ -283,7 +386,27 @@ if (Test-Path $StagingCheckScript) {
     }
 }
 
-$AllFiles = @(Get-ChildItem $WindowsDir -Recurse -File)
+if ($Platform -eq 'Win64') {
+    $IoStoreInspectionScript = Join-Path $ScriptDir 'inspect_iostore.ps1'
+    $IoStoreInspectionRoot = Join-Path $OutputDir 'debug\iostore'
+    $IoStoreInspectionResult = Join-Path $IoStoreInspectionRoot 'inspection.json'
+    if (-not (Test-Path -LiteralPath $IoStoreInspectionScript -PathType Leaf)) {
+        throw "Shipping IoStore inspection is unavailable."
+    }
+    $inspectionOutput = @(& $IoStoreInspectionScript `
+        -PackageRoot $PlatformDir `
+        -RequiredPackage $RequiredCookMap `
+        -ResultPath $IoStoreInspectionResult `
+        -ObjectContractPath $ObjectCookContract `
+        -EngineRoot $EngineRoot)
+    if ($LASTEXITCODE -ne 0) {
+        $inspectionOutput | Write-Host
+        throw "Shipping IoStore content policy failed."
+    }
+    Write-Host "Shipping IoStore content policy passed." -ForegroundColor Green
+}
+
+$AllFiles = @(Get-ChildItem $PlatformDir -Recurse -File)
 $ReleaseFiles = @(if ($IncludeStagedDebugFiles) {
     $AllFiles
 } else {
@@ -293,11 +416,22 @@ $ReleaseFiles = @(if ($IncludeStagedDebugFiles) {
 $LargestFile = $ReleaseFiles | Sort-Object Length -Descending | Select-Object -First 1
 $TotalBytes = ($ReleaseFiles | Measure-Object Length -Sum).Sum
 $OverLimitFiles = @($ReleaseFiles | Where-Object { $_.Length -ge 2GB })
+$FinalSource = Get-PackageSourceIdentity `
+    -Root $ProjectRoot `
+    -SourceStateTool $SourceStateTool `
+    -PythonPath $Python.Source
+if ($FinalSource.Revision -cne $InitialSource.Revision -or
+    $FinalSource.State -cne $InitialSource.State) {
+    throw "Source state changed during $Platform release packaging. Discard this package and rerun."
+}
 
 $SummaryLines = @(
     "ALIS Release Packaging Summary",
     "OutputDir=$OutputDir",
-    "WindowsDir=$WindowsDir",
+    "Platform=$Platform",
+    "PlatformDir=$PlatformDir",
+    "SourceRevision=$($InitialSource.Revision)",
+    "SourceStateSha256=$($InitialSource.State)",
     "EncryptContent=$EncryptContent",
     "FileCount=$($ReleaseFiles.Count)",
     "Total=$([string](Format-Bytes -Bytes $TotalBytes))",
@@ -325,7 +459,7 @@ if ($CreateReleaseArchive) {
     }
 
     $ArchiveBase = Join-Path $OutputDir ("ALIS_Win64_{0}.zip" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
-    $ArchiveInput = Join-Path $WindowsDir "*"
+    $ArchiveInput = Join-Path $PlatformDir "*"
     $ZipArgs = @("a", "-tzip", $ArchiveBase, $ArchiveInput)
 
     & $SevenZip.Source @ZipArgs

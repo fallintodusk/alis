@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "Spawning/ObjectSpawnUtility.h"
+#include "Data/ObjectCapabilityPropertyResolver.h"
 #include "Data/ObjectDefinition.h"
 #include "Data/LootProfileDefinition.h"
 #include "Template/Interactable/InteractableActor.h"
@@ -26,7 +27,6 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/WorldSettings.h"
 #include "Interfaces/IInteractableTarget.h"
-#include "Modules/ModuleManager.h"
 #include "Types/WorldContainerKey.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Engine/AssetManager.h"
@@ -44,49 +44,6 @@ namespace
 			*OutError = Msg;
 		}
 		UE_LOG(LogProjectObject, Error, TEXT("ObjectSpawn: %s"), *Msg.ToString());
-	}
-
-	// Ensure capability modules loaded before CDO scan (required for cooked builds)
-	// Returns false and sets OutError if modules fail to load
-	bool EnsureCapabilityModulesLoaded(FText* OutError)
-	{
-		static bool bDone = false;
-		static bool bSuccess = true;
-		static FText CachedError;
-
-		if (bDone)
-		{
-			// Re-set error on subsequent calls if first call failed
-			if (!bSuccess && OutError)
-			{
-				*OutError = CachedError;
-			}
-			return bSuccess;
-		}
-		bDone = true;
-
-		// Use LoadModule with bIsRequired=false to avoid hard crash
-		IModuleInterface* CapModule = FModuleManager::Get().LoadModule(TEXT("ProjectObjectCapabilities"));
-		if (!CapModule)
-		{
-			CachedError = NSLOCTEXT("ObjectSpawn", "ModuleLoadFailed",
-				"Failed to load ProjectObjectCapabilities module");
-			SetError(OutError, CachedError);
-			bSuccess = false;
-			return false;
-		}
-
-		IModuleInterface* MotionModule = FModuleManager::Get().LoadModule(TEXT("ProjectMotionSystem"));
-		if (!MotionModule)
-		{
-			CachedError = NSLOCTEXT("ObjectSpawn", "ModuleLoadFailed2",
-				"Failed to load ProjectMotionSystem module");
-			SetError(OutError, CachedError);
-			bSuccess = false;
-			return false;
-		}
-
-		return true;
 	}
 
 	bool ValidateSpawnClass(UClass* ActorClass, FString& OutReason)
@@ -398,210 +355,8 @@ uint32 ComputeStructureHash(const UObjectDefinition* Def)
 
 bool SetPropertyByName(UObject* Object, FName PropertyName, const FString& Value)
 {
-	if (!Object)
-	{
-		return false;
-	}
-
-	// Find property - try exact name first
-	FProperty* Property = Object->GetClass()->FindPropertyByName(PropertyName);
-
-	// Fallback: try with 'b' prefix for booleans (JSON "CanBeDropped" -> UPROPERTY "bCanBeDropped")
-	if (!Property)
-	{
-		FString PrefixedName = FString::Printf(TEXT("b%s"), *PropertyName.ToString());
-		Property = Object->GetClass()->FindPropertyByName(FName(*PrefixedName));
-	}
-
-	if (!Property)
-	{
-		return false;
-	}
-
-	void* PropertyAddr = Property->ContainerPtrToValuePtr<void>(Object);
-
-	// -------------------------------------------------------------------------
-	// FText special case (FText is not a USTRUCT, uses FTextProperty)
-	// -------------------------------------------------------------------------
-	if (FTextProperty* TextProp = CastField<FTextProperty>(Property))
-	{
-		FText* TextPtr = TextProp->GetPropertyValuePtr(PropertyAddr);
-		*TextPtr = FText::FromString(Value);
-		return true;
-	}
-
-	// -------------------------------------------------------------------------
-	// Struct property special cases
-	// -------------------------------------------------------------------------
-	if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
-	{
-		// FGameplayTag: "Tag.Name" format
-		if (StructProp->Struct == FGameplayTag::StaticStruct())
-		{
-			FGameplayTag* TagPtr = static_cast<FGameplayTag*>(PropertyAddr);
-			*TagPtr = FGameplayTag::RequestGameplayTag(FName(*Value), false);
-			if (!TagPtr->IsValid() && !Value.IsEmpty())
-			{
-				UE_LOG(LogProjectObject, Error,
-					TEXT("Invalid gameplay tag '%s' for %s.%s"),
-					*Value,
-					*GetNameSafe(Object),
-					*PropertyName.ToString());
-			}
-			return TagPtr->IsValid() || Value.IsEmpty();
-		}
-
-		// FGameplayTagContainer: comma-separated "Tag.A,Tag.B,Tag.C"
-		// Fails if any tag is invalid (strict validation - bad JSON should not spawn)
-		if (StructProp->Struct == FGameplayTagContainer::StaticStruct())
-		{
-			FGameplayTagContainer* Container = static_cast<FGameplayTagContainer*>(PropertyAddr);
-			Container->Reset();
-
-			if (!Value.IsEmpty())
-			{
-				TArray<FString> TagStrings;
-				Value.ParseIntoArray(TagStrings, TEXT(","));
-				for (const FString& TagStr : TagStrings)
-				{
-					FString Trimmed = TagStr.TrimStartAndEnd();
-					if (!Trimmed.IsEmpty())
-					{
-						FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*Trimmed), false);
-						if (Tag.IsValid())
-						{
-							Container->AddTag(Tag);
-						}
-						else
-						{
-							UE_LOG(LogProjectObject, Error, TEXT("Invalid gameplay tag: '%s'"), *Trimmed);
-							return false;
-						}
-					}
-				}
-			}
-			return true;
-		}
-
-		// FVector: "(X=0 Y=0 Z=0)" or "(0,0,0)" format
-		if (StructProp->Struct == TBaseStructure<FVector>::Get())
-		{
-			FVector* VecPtr = static_cast<FVector*>(PropertyAddr);
-			return VecPtr->InitFromString(Value);
-		}
-
-		// FRotator: "(P=0 Y=0 R=0)" or "(0,0,0)" format
-		if (StructProp->Struct == TBaseStructure<FRotator>::Get())
-		{
-			FRotator* RotPtr = static_cast<FRotator*>(PropertyAddr);
-			return RotPtr->InitFromString(Value);
-		}
-
-		// FIntPoint: "X,Y" format (for GridSize)
-		if (StructProp->Struct == TBaseStructure<FIntPoint>::Get())
-		{
-			FIntPoint* PointPtr = static_cast<FIntPoint*>(PropertyAddr);
-			FString CleanValue = Value;
-			CleanValue.RemoveFromStart(TEXT("("));
-			CleanValue.RemoveFromEnd(TEXT(")"));
-			TArray<FString> Components;
-			CleanValue.ParseIntoArray(Components, TEXT(","));
-			if (Components.Num() >= 2)
-			{
-				PointPtr->X = FCString::Atoi(*Components[0].TrimStartAndEnd());
-				PointPtr->Y = FCString::Atoi(*Components[1].TrimStartAndEnd());
-				return true;
-			}
-			return false;
-		}
-	}
-
-	// -------------------------------------------------------------------------
-	// Array property special cases
-	// -------------------------------------------------------------------------
-	if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Property))
-	{
-		// TArray<TSoftObjectPtr<...>>: semicolon-separated "/Game/Path1;/Game/Path2"
-		if (FSoftObjectProperty* InnerSoftProp = CastField<FSoftObjectProperty>(ArrayProp->Inner))
-		{
-			FScriptArrayHelper ArrayHelper(ArrayProp, PropertyAddr);
-			ArrayHelper.EmptyValues();
-
-			if (!Value.IsEmpty())
-			{
-				TArray<FString> Paths;
-				Value.ParseIntoArray(Paths, TEXT(";"));
-
-				for (const FString& Path : Paths)
-				{
-					FString Trimmed = Path.TrimStartAndEnd();
-					if (!Trimmed.IsEmpty())
-					{
-						int32 Index = ArrayHelper.AddValue();
-						FSoftObjectPtr* SoftPtr = reinterpret_cast<FSoftObjectPtr*>(ArrayHelper.GetRawPtr(Index));
-						*SoftPtr = FSoftObjectPath(Trimmed);
-					}
-				}
-			}
-			return true;
-		}
-	}
-
-	// -------------------------------------------------------------------------
-	// Map property special cases
-	// -------------------------------------------------------------------------
-	if (FMapProperty* MapProp = CastField<FMapProperty>(Property))
-	{
-		// TMap<FGameplayTag, float>: "Tag1=1.0;Tag2=2.5" format
-		// Fails if any tag key is invalid (strict validation - bad JSON should not spawn)
-		FStructProperty* KeyStructProp = CastField<FStructProperty>(MapProp->KeyProp);
-		FFloatProperty* ValueFloatProp = CastField<FFloatProperty>(MapProp->ValueProp);
-
-		if (KeyStructProp && KeyStructProp->Struct == FGameplayTag::StaticStruct() && ValueFloatProp)
-		{
-			FScriptMapHelper MapHelper(MapProp, PropertyAddr);
-			MapHelper.EmptyValues();
-
-			if (!Value.IsEmpty())
-			{
-				TArray<FString> Pairs;
-				Value.ParseIntoArray(Pairs, TEXT(";"));
-
-				for (const FString& Pair : Pairs)
-				{
-					FString Trimmed = Pair.TrimStartAndEnd();
-					FString TagStr, ValueStr;
-					if (Trimmed.Split(TEXT("="), &TagStr, &ValueStr))
-					{
-						FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagStr.TrimStartAndEnd()), false);
-						float FloatValue = FCString::Atof(*ValueStr.TrimStartAndEnd());
-
-						if (Tag.IsValid())
-						{
-							int32 Index = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
-							FGameplayTag* KeyPtr = reinterpret_cast<FGameplayTag*>(MapHelper.GetKeyPtr(Index));
-							float* ValPtr = reinterpret_cast<float*>(MapHelper.GetValuePtr(Index));
-							*KeyPtr = Tag;
-							*ValPtr = FloatValue;
-						}
-						else
-						{
-							UE_LOG(LogProjectObject, Error, TEXT("Invalid gameplay tag in map: '%s'"), *TagStr);
-							return false;
-						}
-					}
-				}
-				MapHelper.Rehash();
-			}
-			return true;
-		}
-	}
-
-	// -------------------------------------------------------------------------
-	// Generic case: use ImportText for universal parsing
-	// -------------------------------------------------------------------------
-	const TCHAR* ImportResult = Property->ImportText_Direct(*Value, PropertyAddr, Object, PPF_None);
-	return ImportResult != nullptr;
+	return ProjectObjectCapabilityProperties::ApplyProperty(
+		Object, PropertyName, Value);
 }
 
 bool SetPropertyByName(UObject* Object, FName PropertyName, UObject* ObjectValue)
@@ -658,9 +413,15 @@ AActor* SpawnFromDefinition(
 		return nullptr;
 	}
 
-	// Ensure capability modules loaded (required for cooked builds)
-	if (!EnsureCapabilityModulesLoaded(OutError))
+	FString CapabilityValidationError;
+	if (!ProjectObjectCapabilityProperties::ValidateDefinition(
+		Def, CapabilityValidationError))
 	{
+		SetError(OutError, FText::Format(
+			NSLOCTEXT("ObjectSpawn", "InvalidCapabilityDefinition",
+				"Invalid capability definition for '{0}': {1}"),
+			FText::FromName(Def->ObjectId),
+			FText::FromString(CapabilityValidationError)));
 		return nullptr;
 	}
 
@@ -834,8 +595,7 @@ AActor* SpawnFromDefinition(
 
 		// Branch on loaded asset type to create the correct component.
 		// If Kind is specified, it overrides auto-detection for component type selection.
-		// Entries with Kind or Role but no asset create empty components (Mutable-driven or runtime-populated).
-		static const FName KindCustomizable(TEXT("CustomizableSkeletalMesh"));
+		// Entries with Kind or Role but no asset create empty runtime-populated components.
 
 		UMeshComponent* MeshComp = FindReusableMeshComponent(
 			SpawnedActor,
@@ -927,36 +687,6 @@ AActor* SpawnFromDefinition(
 			// Grooms are not UMeshComponent -- skip MeshMap registration but continue loop
 			continue;
 		}
-		else if (Entry.Kind == KindCustomizable)
-		{
-			// CustomizableSkeletalMesh: create standard skeletal mesh component.
-			// Mutable runtime (MutableCustomization capability) will convert it
-			// to a customizable component during assembly lifecycle.
-			USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(LoadedAsset);
-			USkeletalMeshComponent* SKC = bReusedExistingComponent
-				? Cast<USkeletalMeshComponent>(MeshComp)
-				: NewObject<USkeletalMeshComponent>(SpawnedActor);
-			if (!SKC)
-			{
-				SKC = NewObject<USkeletalMeshComponent>(SpawnedActor);
-				bReusedExistingComponent = false;
-			}
-			if (SkeletalMesh)
-			{
-				SKC->SetSkeletalMesh(SkeletalMesh);
-			}
-
-			if (!Entry.AnimClass.IsNull())
-			{
-				if (UClass* AnimBPClass = Entry.AnimClass.LoadSynchronous())
-				{
-					SKC->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-					SKC->SetAnimInstanceClass(AnimBPClass);
-				}
-			}
-
-			MeshComp = SKC;
-		}
 		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(LoadedAsset))
 		{
 			UStaticMeshComponent* SMC = bReusedExistingComponent
@@ -1003,11 +733,11 @@ AActor* SpawnFromDefinition(
 		else if (!LoadedAsset && !Entry.Kind.IsNone())
 		{
 			// No asset but Kind is specified -- create empty component of the right type.
-			// Used for meshes populated at runtime (Mutable-driven, leader-pose copies).
+			// Used for meshes populated by another runtime owner.
 			static const FName KindSkeletal(TEXT("SkeletalMesh"));
 			static const FName KindStatic(TEXT("StaticMesh"));
 
-			if (Entry.Kind == KindSkeletal || Entry.Kind == KindCustomizable)
+			if (Entry.Kind == KindSkeletal)
 			{
 				USkeletalMeshComponent* SKC = bReusedExistingComponent
 					? Cast<USkeletalMeshComponent>(MeshComp)
@@ -1384,11 +1114,18 @@ AActor* SpawnFromDefinition(
 		UClass* CapClass = FCapabilityRegistry::GetCapabilityClass(CapEntry.Type);
 		if (!CapClass)
 		{
+			bCapabilityPropertyFailure = true;
+			if (FirstCapabilityPropertyFailure.IsEmpty())
+			{
+				FirstCapabilityPropertyFailure = FString::Printf(
+					TEXT("Unknown capability '%s'"),
+					*CapEntry.Type.ToString());
+			}
 			UE_LOG(LogProjectObject, Error,
 				TEXT("Unknown capability type '%s' in ObjectDefinition '%s'"),
 				*CapEntry.Type.ToString(),
 				*Def->ObjectId.ToString());
-			continue; // Skip unknown capability, don't crash
+			continue;
 		}
 
 		// Expand scope (always array: ["actor"], ["panel"], ["left", "right"])
@@ -1444,27 +1181,20 @@ AActor* SpawnFromDefinition(
 			}
 
 			// Apply properties from JSON (override CDO defaults)
-			for (const auto& Prop : CapEntry.Properties)
+			FString PropertyError;
+			if (!ProjectObjectCapabilityProperties::ApplyEntryProperties(
+				Comp, CapEntry, PropertyError))
 			{
-				if (!SetPropertyByName(Comp, Prop.Key, Prop.Value))
+				bCapabilityPropertyFailure = true;
+				if (FirstCapabilityPropertyFailure.IsEmpty())
 				{
-					bCapabilityPropertyFailure = true;
-					if (FirstCapabilityPropertyFailure.IsEmpty())
-					{
-						FirstCapabilityPropertyFailure = FString::Printf(
-							TEXT("%s.%s='%s'"),
-							*CapEntry.Type.ToString(),
-							*Prop.Key.ToString(),
-							*Prop.Value);
-					}
-
-					UE_LOG(LogProjectObject, Warning,
-						TEXT("Failed to set property '%s' = '%s' on capability '%s' (ObjectDefinition '%s')"),
-						*Prop.Key.ToString(),
-						*Prop.Value,
-						*CapEntry.Type.ToString(),
-						*Def->ObjectId.ToString());
+					FirstCapabilityPropertyFailure = PropertyError;
 				}
+				UE_LOG(LogProjectObject, Error,
+					TEXT("Failed to apply capability '%s' for ObjectDefinition '%s': %s"),
+					*CapEntry.Type.ToString(),
+					*Def->ObjectId.ToString(),
+					*PropertyError);
 			}
 
 			// Special handling: LootContainer gets InstanceLoot from canonical
@@ -1686,6 +1416,7 @@ AActor* SpawnFromDefinition(
 			{
 				FAssemblyViewConfig ViewConfig;
 				ViewConfig.RelativeOffset = View->RelativeOffset;
+				ViewConfig.NeckOffsetFromCamera = View->NeckOffset;
 				AssemblyData->SetViewConfig(ViewConfig);
 			}
 		}

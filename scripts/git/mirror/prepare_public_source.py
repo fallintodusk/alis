@@ -45,6 +45,12 @@ PUBLIC_DISABLED_DEFAULT_PLUGINS = (
     "ProjectPlacementEditor",
 )
 PUBLIC_GITHUB_ROOT = "https://github.com/fallintodusk/alis"
+REQUIRED_PUBLIC_COMMUNITY_PATHS = (
+    ".github/ISSUE_TEMPLATE/config.yml",
+    ".github/ISSUE_TEMPLATE/developer_issue.yml",
+    ".github/ISSUE_TEMPLATE/player_bug.yml",
+    ".github/workflows/source-checks.yml",
+)
 
 
 def write_text_preserving_newlines(path: Path, original: str, text: str) -> None:
@@ -259,9 +265,16 @@ def verify(root: Path) -> None:
     if ignore_text.count(expected_block) != 1:
         raise ProjectionError("Public binary payload ignore policy is absent or duplicated")
     readme = (root / "README.md").read_text(encoding="utf-8-sig")
-    for suffix in (".git", "/releases/latest", "/security/advisories/new"):
+    for suffix in (".git", "/releases/latest"):
         if PUBLIC_GITHUB_ROOT + suffix not in readme:
             raise ProjectionError(f"Required public GitHub route is absent: {suffix}")
+    if "[Security Policy](SECURITY.md)" not in readme:
+        raise ProjectionError("Required public security policy route is absent")
+    if not (root / "SECURITY.md").is_file():
+        raise ProjectionError("Public security policy is absent")
+    for relative_path in REQUIRED_PUBLIC_COMMUNITY_PATHS:
+        if not (root / relative_path).is_file():
+            raise ProjectionError(f"Required public community file is absent: {relative_path}")
     if "https://github.com/<user>/alis" in readme:
         raise ProjectionError("Placeholder GitHub route remains in the public README")
 

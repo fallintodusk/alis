@@ -13,11 +13,17 @@ Default config-dir: <repo_root>/Config
 from __future__ import annotations
 
 import argparse
-import configparser
-import os
 import re
-import sys
 from pathlib import Path
+
+
+PACKAGING_SECTION = "/Script/UnrealEd.ProjectPackagingSettings"
+REQUIRED_NEVER_COOK_PATHS = {
+    "/MetaHuman/GenericTracker",
+    "/MetaHuman/Solver",
+    "/MetaHumanCoreTech/GenericTracker",
+    "/MetaHumanCoreTech/RealtimeMono",
+}
 
 
 class ErrorCollector:
@@ -166,6 +172,58 @@ def parse_ini_loose(path: Path) -> dict[str, dict[str, str]]:
     return sections
 
 
+def parse_ue_array_paths(path: Path, section: str, key: str) -> set[str]:
+    """Return Path values from UE +Key=(Path="...") array entries."""
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
+        return set()
+
+    current_section = ""
+    values: set[str] = set()
+    pattern = re.compile(
+        rf'^\+{re.escape(key)}=\(Path="(?P<path>/[A-Za-z0-9_/-]+)"\)\s*$'
+    )
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        section_match = re.match(r"^\[(.+)\]$", line)
+        if section_match:
+            current_section = section_match.group(1)
+            continue
+        if current_section != section:
+            continue
+        value_match = pattern.match(line)
+        if value_match:
+            values.add(value_match.group("path"))
+    return values
+
+
+def validate_cook_policy(config_dir: Path, errors: ErrorCollector) -> None:
+    game_ini = config_dir / "DefaultGame.ini"
+    always_cook = parse_ue_array_paths(
+        game_ini, PACKAGING_SECTION, "DirectoriesToAlwaysCook"
+    )
+    never_cook = parse_ue_array_paths(
+        game_ini, PACKAGING_SECTION, "DirectoriesToNeverCook"
+    )
+
+    if "/ProjectObject" in always_cook:
+        errors.error(
+            "DefaultGame.ini",
+            "DirectoriesToAlwaysCook",
+            "must not force the whole /ProjectObject mount; definitions own their cook closure",
+        )
+
+    missing_exclusions = sorted(REQUIRED_NEVER_COOK_PATHS - never_cook)
+    if missing_exclusions:
+        errors.error(
+            "DefaultGame.ini",
+            "DirectoriesToNeverCook",
+            "missing Shipping-only MetaHuman authoring exclusions: "
+            + ", ".join(missing_exclusions),
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate shipping ini config")
     parser.add_argument(
@@ -212,6 +270,8 @@ def main() -> int:
                 errors.error(ini_name, key, msg)
             else:
                 errors.warn(ini_name, key, msg)
+
+    validate_cook_policy(config_dir, errors)
 
     return errors.print_summary("Shipping ini validation")
 

@@ -33,6 +33,7 @@ Describe "Resolve-UEConfig" {
             $result = Resolve-UEConfig -ConfigDir $TempDir
             $result.UE_PATH | Should -BeNullOrEmpty
             $result.UE_SOURCE_PATH | Should -BeNullOrEmpty
+            $result.LINUX_MULTIARCH_ROOT | Should -BeNullOrEmpty
             $result.BUILD_TARGET | Should -Be "AlisEditor"
             $result.BUILD_CONFIG | Should -Be "Development"
             $result.BUILD_PLATFORM | Should -Be "Win64"
@@ -61,11 +62,15 @@ Describe "Resolve-UEConfig" {
 
         It "Should merge key subsets across both files" {
             Set-Content (Join-Path $TempDir "ue_path.conf") "UE_PATH=C:/Default"
-            Set-Content (Join-Path $TempDir "ue_path.local.conf") "UE_SOURCE_PATH=G:/SourceEngine"
+            Set-Content (Join-Path $TempDir "ue_path.local.conf") @(
+                "UE_SOURCE_PATH=G:/SourceEngine",
+                "LINUX_MULTIARCH_ROOT=C:/UnrealToolchains/v26_clang-20.1.8-rockylinux8"
+            )
 
             $result = Resolve-UEConfig -ConfigDir $TempDir
             $result.UE_PATH | Should -Be "C:/Default"
             $result.UE_SOURCE_PATH | Should -Be "G:/SourceEngine"
+            $result.LINUX_MULTIARCH_ROOT | Should -Be "C:/UnrealToolchains/v26_clang-20.1.8-rockylinux8"
         }
     }
 
@@ -117,6 +122,7 @@ Describe "Resolve-UEConfig" {
             $result = Resolve-UEConfig -ConfigDir $Script:ConfigDir
             $result.UE_PATH | Should -Not -BeNullOrEmpty
             $result.UE_SOURCE_PATH | Should -Not -BeNullOrEmpty
+            $result.LINUX_MULTIARCH_ROOT | Should -Not -BeNullOrEmpty
         }
     }
 }

@@ -22,7 +22,6 @@ class UStatusAttributeSet;
 class UProjectAbilitySet;
 struct FProjectAbilitySetHandles;
 class UProjectVitalsComponent;
-class UCustomizableObjectInstance;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogProjectCharacter, Log, All);
 
@@ -147,9 +146,6 @@ class PROJECTCHARACTER_API AProjectCharacter : public ACharacter, public IAbilit
 	/** Guard against double-binding to attribute delegate */
 	bool bMovementSpeedBound = false;
 
-	// Deferred re-apply visibility after Mutable update — Groom components appear asynchronously
-	FTimerHandle GroomRetryTimerHandle;
-
 public:
 	AProjectCharacter();
 
@@ -213,11 +209,8 @@ private:
 	void CreateDefaultInputAssets();
 	void RemoveDefaultInputMappingContext();
 
-	// Re-applies visibility flags (Mutable resets them on mesh regeneration)
+	// Applies the first-person mesh visibility and animation policy.
 	void ApplyFirstPersonVisibility();
-
-	/** Mutable callback — re-apply visibility after mesh rebuild */
-	void OnMutableMeshUpdated(UCustomizableObjectInstance* Instance);
 
 	/** Grant all startup ability sets to ASC (called on server in PossessedBy) */
 	void GiveStartupAbilitySets();

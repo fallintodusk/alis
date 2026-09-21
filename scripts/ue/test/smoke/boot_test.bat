@@ -54,8 +54,8 @@ echo.
 
 rem ---------- Launch ----------
 echo [2/5] Launching Boot map...
-echo   %UE_EDITOR% "%PROJECT_FILE%" %BOOT_MAP% -game -windowed -ResX=1280 -ResY=720 -log -abslog="%LOG_FILE%"
-for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$absLogArg = '-abslog=' + '%LOG_FILE_ARG%'; $argsList = @('%PROJECT_FILE%','%BOOT_MAP%','-game','-windowed','-ResX=1280','-ResY=720','-log',$absLogArg); $p = Start-Process -FilePath '%UE_EDITOR%' -ArgumentList $argsList -PassThru; $p.Id"`) do (
+echo   %UE_EDITOR% "%PROJECT_FILE%" %BOOT_MAP% -game -windowed -ResX=1280 -ResY=720 -RenderOffScreen -unattended -nosplash -NoSound -log -abslog="%LOG_FILE%"
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$absLogArg = '-abslog=' + '%LOG_FILE_ARG%'; $argsList = @('%PROJECT_FILE%','%BOOT_MAP%','-game','-windowed','-ResX=1280','-ResY=720','-RenderOffScreen','-unattended','-nosplash','-NoSound','-log',$absLogArg); $p = Start-Process -FilePath '%UE_EDITOR%' -ArgumentList $argsList -WindowStyle Hidden -PassThru; $p.Id"`) do (
   set "GAME_PID=%%P"
 )
 if not defined GAME_PID (echo ERROR: failed to start UnrealEditor & exit /b 1)

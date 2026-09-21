@@ -1,6 +1,6 @@
 # Split ProjectInventory Component Responsibilities
 
-Status: parked
+Status: backlog
 
 ## Current gap
 

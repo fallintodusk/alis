@@ -322,19 +322,17 @@ TSharedPtr<FJsonObject> UCharacterDebugCaptureComponent::CollectDiagnosticState(
 		CollectBoneTransforms(Root, Character->GetMesh());
 	}
 
-	// Per-role bone transforms for animation chain diagnostics.
-	// Comparing DriverBody vs BodyCustomization bones tells us whether
-	// LeaderPose is propagating animation from driver to visible mesh.
+	// Per-role bone transforms for the fixed assembly animation chain.
 	{
 		static const FName RoleTags[] = {
 			FName(TEXT("AssemblyRole=DriverBody")),
-			FName(TEXT("AssemblyRole=BodyCustomization")),
-			FName(TEXT("AssemblyRole=HeadCustomization")),
-			FName(TEXT("AssemblyRole=LocalBodyCustomization"))
+			FName(TEXT("AssemblyRole=WorldBody")),
+			FName(TEXT("AssemblyRole=LocalBody")),
+			FName(TEXT("AssemblyRole=Head"))
 		};
 		static const TCHAR* RoleNames[] = {
-			TEXT("driverBodyBones"), TEXT("bodyCustomizationBones"),
-			TEXT("headCustomizationBones"), TEXT("localBodyCustomizationBones")
+			TEXT("driverBodyBones"), TEXT("worldBodyBones"),
+			TEXT("localBodyBones"), TEXT("headBones")
 		};
 
 		for (int32 i = 0; i < UE_ARRAY_COUNT(RoleTags); ++i)

@@ -33,17 +33,6 @@ class PROJECTOBJECTCAPABILITIES_API FCapabilityRegistry
 {
 public:
 	/**
-	 * Register a module that contains capability classes.
-	 *
-	 * External plugins (skeletal adapters, future capability packs) call this
-	 * in their StartupModule() so the registry loads their module before scanning.
-	 *
-	 * If called after the registry has already been built, it auto-invalidates
-	 * so the next lookup rescans with the new module.
-	 */
-	static void RegisterCapabilityModule(FName ModuleName);
-
-	/**
 	 * Get component class by capability ID.
 	 * Builds registry on first call (lazy initialization).
 	 *
@@ -56,6 +45,9 @@ public:
 	 * Check if capability ID exists.
 	 */
 	static bool HasCapability(FName CapabilityId);
+
+	/** True once every enabled provider has completed normal plugin startup. */
+	static bool IsReady(FString* OutReason = nullptr);
 
 	/**
 	 * Force registry rebuild (call on hot reload / module load).
@@ -77,10 +69,10 @@ public:
 	static int32 Num();
 
 private:
-	static void EnsureBuilt();
-	static void Build();
+	static bool EnsureBuilt();
+	static bool Build();
 
 	static TMap<FName, UClass*> Registry;
-	static TArray<FName> ExternalCapabilityModules;
 	static bool bIsBuilt;
+	static uint32 BuiltProviderGeneration;
 };

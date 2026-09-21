@@ -209,7 +209,8 @@ LockComponent->GetLockTag();
 
 **Pattern:** JSON describes complete object (meshes + capabilities + optional item data), factory builds dynamically on `spawnClass` (or falls back to [AInteractableActor](Source/ProjectObject/Public/Template/Interactable/InteractableActor.h)).
 
-**Note:** Do not add a "$schema" field to object JSON files under `Plugins/Resources/ProjectObject/Content/`. The generator does not use it, and the schema does not allow it.
+**Schema:** Every object JSON file declares `$schema` as its first field and
+points to `Data/Schemas/object.schema.json` by a relative path.
 
 **Architecture:** See [Layer Contract](docs/layer_contract.md) for the 3-layer separation (Capabilities / Item Data / GAS Profiles).
 
@@ -262,6 +263,11 @@ Each mesh entry in `Meshes` array supports:
 ### Capabilities
 
 Capabilities are C++ components with stable IDs via `GetPrimaryAssetId()`:
+
+Provider modules register generically with the capability registry. Definition
+generation, spawn, and reapply share ProjectObject's reflected-property
+resolver. Unknown identities, properties, or invalid values fail the operation;
+the generated asset bundle only derives cook references from valid data.
 
 | ID | Component | Scope |
 |----|-----------|-------|

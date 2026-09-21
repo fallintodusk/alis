@@ -1,0 +1,32 @@
+# License terms: see repository root LICENSE.
+name: Source checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # actions/setup-python v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Validate public source governance
+        run: |
+          python scripts/ue/check/governance/validate_licensing.py
+          python scripts/ue/check/governance/validate_no_alis_prefix.py
+          python scripts/ue/check/governance/validate_plugin_data_staging.py
+          python scripts/ue/check/governance/validate_text_format.py --no-paths
+      - name: Run public source tests
+        run: |
+          python -m unittest discover -s scripts/git/tests -p 'test_*.py'
+          python -m unittest discover -s scripts/ue/check/governance/tests -p 'test_*.py'
+          python -m unittest scripts/git/mirror/tests/test_public_source_projection.py

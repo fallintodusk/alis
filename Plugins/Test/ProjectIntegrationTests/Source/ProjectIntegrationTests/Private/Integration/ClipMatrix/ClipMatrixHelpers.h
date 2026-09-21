@@ -138,24 +138,9 @@ inline USkeletalMeshComponent* FindOwnerVisibleMesh(AActor* Actor)
 	if (!Actor) return nullptr;
 
 	USkeletalMeshComponent* LocalBody = FindMeshByRole(Actor, TEXT("LocalBody"));
-	if (LocalBody)
+	if (LocalBody && LocalBody->GetSkeletalMeshAsset())
 	{
-		TArray<USceneComponent*> Children;
-		LocalBody->GetChildrenComponents(false, Children);
-		for (USceneComponent* Child : Children)
-		{
-			USkeletalMeshComponent* SKC = Cast<USkeletalMeshComponent>(Child);
-			if (SKC && SKC->ComponentTags.Contains(
-				FName(TEXT("AssemblyRole=LocalBodyCustomization"))) &&
-				SKC->GetSkeletalMeshAsset())
-			{
-				return SKC;
-			}
-		}
-		if (LocalBody->GetSkeletalMeshAsset())
-		{
-			return LocalBody;
-		}
+		return LocalBody;
 	}
 	return nullptr;
 }

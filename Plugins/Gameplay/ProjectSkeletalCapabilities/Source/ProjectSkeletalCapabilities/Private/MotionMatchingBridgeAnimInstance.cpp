@@ -138,7 +138,7 @@ void UMotionMatchingBridgeAnimInstance::NativeUpdateAnimation(float DeltaSeconds
 		return;
 	}
 
-	// Re-cache if primary instance was recreated (e.g. after Mutable rebuild)
+	// Re-cache if the primary animation instance was recreated.
 	if (!bCacheResolved || !CachedPrimaryInstance.IsValid() || CachedPrimaryInstance.Get() != Primary)
 	{
 		if (!CachePropertyPointers(Primary))

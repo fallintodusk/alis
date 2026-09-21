@@ -133,11 +133,12 @@ $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $editorCmdPath
 $mapArg = if ($Map) { " `"$Map`"" } else { "" }
 $rhiArg = if ($NoRHI) { " -NullRHI" } else { "" }
+$offscreenArg = if ($NoRHI) { "" } else { " -RenderOffScreen" }
 $gameArg = if ($Game) { " -game" } else { "" }
 $extraArg = if ($ExtraArgs) { " $ExtraArgs" } else { "" }
 $automationCmds = if ($UseTestExitOnly) { "Automation RunTests $TestFilter" } else { "Automation RunTests $TestFilter; Quit" }
 $execCmds = if ($PreExecCmds) { "$PreExecCmds, $automationCmds" } else { $automationCmds }
-$psi.Arguments = "`"$projectPath`"$mapArg$gameArg -ExecCmds=`"$execCmds`" -unattended -nopause$rhiArg -nosplash -nosound -log -stdout -FullStdOutLogOutput -testexit=`"Automation Test Queue Empty`"$extraArg"
+$psi.Arguments = "`"$projectPath`"$mapArg$gameArg -ExecCmds=`"$execCmds`" -unattended -nopause$rhiArg$offscreenArg -nosplash -nosound -log -stdout -FullStdOutLogOutput -testexit=`"Automation Test Queue Empty`"$extraArg"
 $psi.UseShellExecute = $false
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true
