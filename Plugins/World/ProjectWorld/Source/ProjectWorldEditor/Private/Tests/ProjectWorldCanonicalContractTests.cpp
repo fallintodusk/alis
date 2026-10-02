@@ -63,7 +63,7 @@ namespace ProjectWorldCanonicalContractTests
 			? TEXT("[2,1]")
 			: TEXT("[1,1]");
 		return FString::Printf(
-			LR"({"$schema":"https://alis.world/schemas/world-compiler/terrain-cell-v1.json","schema_version":1,"grid_id":"grid_0123456789abcdef","cell_id":"%s","bounds":%s,"sample_spacing":%s,"vertical_provenance":{"source_ref":"fixture_terrain","vertical_datum":"EPSG:3855","source_accuracy_m":0.5,"confidence":"fixture_exact","sampling_quantization_residual_m":0.05},"core_samples":[[0,0],[0,0]]})",
+			LR"({"$schema":"https://alis.world/schemas/world-compiler/terrain-cell-v2.json","schema_version":2,"grid_id":"grid_0123456789abcdef","cell_id":"%s","bounds":%s,"sample_spacing":%s,"vertical_provenance":{"source_ref":"fixture_terrain","vertical_datum":"EPSG:3855","source_accuracy_m":0.5,"confidence":"fixture_exact","sampling_quantization_residual_m":0.05},"core_samples":[[0,0],[0,0]],"surface_semantics":{"contract_id":"terrain_surface_semantics","contract_version":1,"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000","roles":["ground","hydro_transition"],"core_samples":{"ground":[[1,1],[1,1]],"hydro_transition":[[0,0],[0,0]]}}})",
 			*CellId,
 			*Bounds,
 			*Spacing);

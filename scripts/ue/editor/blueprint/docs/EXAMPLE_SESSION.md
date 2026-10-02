@@ -16,7 +16,7 @@ Game designer wants to rebalance all enemy Blueprints:
 
 ```python
 import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
+sys.path.append("<repo>/scripts/ue/editor/blueprint_json_converter/scripts")
 
 from export_blueprint import export_blueprint_to_json, save_json
 

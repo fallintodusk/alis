@@ -1,0 +1,11 @@
+# Build Service cargo configuration
+# Fixes Windows linker issues with git2/libgit2-sys
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-args=/DEFAULTLIB:advapi32.lib"]
+
+# Environment variables for aws-lc-sys build
+# Use prebuilt NASM objects to avoid requiring CMake + NASM installation
+# This enables autonomous builds in CI and development environments without system dependencies
+[env]
+AWS_LC_SYS_PREBUILT_NASM = "1"

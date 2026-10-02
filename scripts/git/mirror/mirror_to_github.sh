@@ -201,16 +201,18 @@ from fnmatch import fnmatchcase
 
 exclude_file, tracked_paths_file, allowed_paths_file = sys.argv[1:4]
 patterns = []
+kept = []
 
 with open(exclude_file, "r", encoding="utf-8") as handle:
     for raw_line in handle:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        line = line.replace("\\", "/")
+        keep = line.startswith("!")
+        line = (line[1:] if keep else line).replace("\\", "/")
         if line.endswith("/"):
             line += "**"
-        patterns.append(line)
+        (kept if keep else patterns).append(line)
 
 raw_paths = open(tracked_paths_file, "rb").read().split(b"\0")
 allowed = []
@@ -218,7 +220,9 @@ for raw_path in raw_paths:
     if not raw_path:
         continue
     rel_path = raw_path.decode("utf-8", errors="surrogateescape").replace("\\", "/")
-    if any(fnmatchcase(rel_path, pattern) for pattern in patterns):
+    if any(fnmatchcase(rel_path, pattern) for pattern in patterns) and not any(
+        fnmatchcase(rel_path, pattern) for pattern in kept
+    ):
         continue
     if not (pathlib.Path(sys.argv[4]) / rel_path).exists() and sys.argv[5] == "1":
         continue
@@ -242,130 +246,7 @@ PY
 }
 
 sanitize_filtered_tree() {
-  local filtered_dir="$1"
-
-  python3 - "$filtered_dir" <<'PY'
-import pathlib
-import re
-import sys
-
-root = pathlib.Path(sys.argv[1])
-text_suffixes = {
-    ".md",
-    ".txt",
-    ".json",
-    ".ini",
-    ".cs",
-    ".cpp",
-    ".c",
-    ".h",
-    ".hpp",
-    ".inl",
-    ".ps1",
-    ".bat",
-    ".sh",
-    ".py",
-    ".yml",
-    ".yaml",
-    ".dsl",
-    ".uplugin",
-    ".uproject",
-    ".disabled",
-}
-
-text_replacements = [
-    (re.compile(r"[A-Za-z]:\\+Repos_Alis\\+site"), r"<site-root>"),
-    (re.compile(r"[A-Za-z]:/Repos_Alis/site"), r"<site-root>"),
-    (re.compile(r"[A-Za-z]:\\+Repos_Alis\\+Alis"), r"<project-root>"),
-    (re.compile(r"[A-Za-z]:/Repos_Alis/Alis"), r"<project-root>"),
-    (re.compile(r"/mnt/[A-Za-z]/Repos_Alis/site"), r"<site-root>"),
-    (re.compile(r"/mnt/[A-Za-z]/Repos_Alis/Alis"), r"<project-root>"),
-    (re.compile(r"\\\\wsl\.localhost\\[^\\]+\\home\\[^\\]+\\repos_alis\\cdn"), r"<cdn-repo>"),
-    (re.compile(r"/home/[^/]+/repos_alis/cdn"), r"<cdn-repo>"),
-    (re.compile(r"~/repos_alis/cdn"), r"<cdn-repo>"),
-    (re.compile(r"~/repos_alis/site"), r"<site-root>"),
-    (re.compile(r"~/repos_alis/Alis"), r"<project-root>"),
-    (re.compile(r"~/repos_alis/"), r"$HOME/repos_alis/"),
-    (re.compile(r"[A-Za-z]:\\UnrealEngine(?:-[0-9.]+|\\UE_[0-9.]+)"), r"<ue-path>"),
-    (re.compile(r"[A-Za-z]:/UnrealEngine(?:-[0-9.]+|/UE_[0-9.]+)"), r"<ue-path>"),
-    (re.compile(r"[A-Za-z]:\\Program Files(?: \\(x86\\))?\\Epic Games\\UE_[0-9.]+"), r"<ue-path>"),
-    (re.compile(r"[A-Za-z]:/Program Files(?: \\(x86\\))?/Epic Games/UE_[0-9.]+"), r"<ue-path>"),
-    (re.compile(r"[A-Za-z]:\\Program Files\\Python[0-9]+\\python\.exe"), r"python"),
-    (re.compile(r"[A-Za-z]:/Program Files/Python[0-9]+/python\.exe"), r"python"),
-    (re.compile(r"[A-Za-z]:\\Program Files(?: \\(x86\\))?\\Windows Kits\\10\\Debuggers\\x64\\cdb\.exe"), r"<debugger-path>"),
-    (re.compile(r"[A-Za-z]:/Program Files(?: \\(x86\\))?/Windows Kits/10/Debuggers/x64/cdb\.exe"), r"<debugger-path>"),
-    (re.compile(r"[A-Za-z]:\\Symbols"), r"<symbols-dir>"),
-    (re.compile(r"[A-Za-z]:/Symbols"), r"<symbols-dir>"),
-    (re.compile(r"[A-Za-z]:\\Builds\\[A-Za-z0-9_.-]+"), r"<build-dir>"),
-    (re.compile(r"[A-Za-z]:/Builds/[A-Za-z0-9_.-]+"), r"<build-dir>"),
-    (re.compile(r"[A-Za-z]:\\Games\\Alis"), r"<install-root>"),
-    (re.compile(r"[A-Za-z]:/Games/Alis"), r"<install-root>"),
-    (re.compile(r"[A-Za-z]:\\Users\\[^\\]+\\AppData\\Local\\Temp\\"), r"%TEMP%\\"),
-    (re.compile(r"[A-Za-z]:/Users/[^/]+/AppData/Local/Temp/"), r"%TEMP%/"),
-    (re.compile(r"[A-Za-z]:\\Users\\[^\\]+\\AppData\\Local\\"), r"%LOCALAPPDATA%\\"),
-    (re.compile(r"[A-Za-z]:/Users/[^/]+/AppData/Local/"), r"%LOCALAPPDATA%/"),
-    (re.compile(r"[A-Za-z]:\\Users\\[^\\]+\\Documents\\"), r"%USERPROFILE%\\Documents\\"),
-    (re.compile(r"[A-Za-z]:/Users/[^/]+/Documents/"), r"%USERPROFILE%/Documents/"),
-    (re.compile(r"[A-Za-z]:\\Users\\[^\\]+\\"), r"%USERPROFILE%\\"),
-    (re.compile(r"[A-Za-z]:/Users/[^/]+/"), r"%USERPROFILE%/"),
-    (re.compile(r"\\\\wsl\.localhost\\[^\\]+\\home\\[^\\]+\\"), r"%WSL_HOME%\\"),
-    (re.compile(r"/home/[^/]+/"), r"$HOME/"),
-    (re.compile(r"%USERPROFILE%"), r"<user-home>"),
-    (re.compile(r"%LOCALAPPDATA%"), r"<local-app-data>"),
-    (re.compile(r"%TEMP%"), r"<temp-dir>"),
-    (re.compile(r"%WSL_HOME%"), r"<wsl-home>"),
-    (re.compile(r"\$HOME"), r"<home>"),
-    (re.compile(r"<wsl-home>[\\/]+repos_alis[\\/]+cdn"), r"<cdn-repo>"),
-    (re.compile(r"<home>[\\/]+repos_alis[\\/]+cdn"), r"<cdn-repo>"),
-]
-
-identity_replacements = [
-    (re.compile(r"\bAlis Team\b"), "ALIS"),
-    (re.compile(r"\bvslvg\b"), "<user>"),
-    (re.compile(r"\bKATANA\b"), "<user>"),
-]
-
-uplugin_replacements = [
-    (re.compile(r'("CreatedBy"\s*:\s*)".*?"'), r'\1"ALIS"'),
-    (re.compile(r'("CreatedByURL"\s*:\s*)".*?"'), r'\1""'),
-    (re.compile(r'("SupportURL"\s*:\s*)".*?"'), r'\1""'),
-]
-
-for path in root.rglob("*"):
-    if not path.is_file():
-        continue
-
-    rel_path_posix = path.relative_to(root).as_posix()
-    if rel_path_posix.startswith("scripts/git/mirror/"):
-        continue
-
-    name_lc = path.name.lower()
-    suffix_lc = path.suffix.lower()
-    if suffix_lc not in text_suffixes and not name_lc.startswith("readme"):
-        continue
-
-    try:
-        original = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        continue
-
-    text = original
-    for pattern, replacement in text_replacements:
-        text = pattern.sub(replacement, text)
-    for pattern, replacement in identity_replacements:
-        text = pattern.sub(replacement, text)
-
-    if suffix_lc == ".uplugin":
-        for pattern, replacement in uplugin_replacements:
-            text = pattern.sub(replacement, text)
-
-    if text == original:
-        continue
-
-    newline = "\r\n" if "\r\n" in original else "\n"
-    with open(path, "w", encoding="utf-8", newline=newline) as handle:
-        handle.write(text)
-PY
+  python3 "$SCRIPT_DIR/sanitize_public_text.py" "$1"
 }
 
 neutralize_lfs_attributes() {
@@ -502,6 +383,8 @@ validate_filtered_tree() {
     if [[ -f "$PRIVATE_FORBIDDEN_PATTERNS_FILE" ]]; then
       grep -Ev '^[[:space:]]*(#|$)' "$PRIVATE_FORBIDDEN_PATTERNS_FILE" >> "$text_patterns_compiled"
     fi
+    # Every surviving file is scanned: the binary guard above keeps the tree
+    # text-only, so a file extension can never carry a private value past here.
     while IFS= read -r -d '' item; do
       rel_path="${item#$filtered_dir/}"
       rel_path_lc="$(printf '%s' "$rel_path" | tr '[:upper:]' '[:lower:]')"
@@ -515,9 +398,14 @@ validate_filtered_tree() {
         cat "$TEMP_ROOT/mirror_forbidden_matches.txt" >&2
         fail_flag=1
       fi
-    done < <(find "$filtered_dir" -type f \
-      \( -iname '*.md' -o -iname '*.txt' -o -iname '*.json' -o -iname '*.ini' -o -iname '*.cs' -o -iname '*.cpp' -o -iname '*.c' -o -iname '*.h' -o -iname '*.hpp' -o -iname '*.inl' -o -iname '*.ps1' -o -iname '*.bat' -o -iname '*.sh' -o -iname '*.py' -o -iname '*.yml' -o -iname '*.yaml' -o -iname '*.dsl' -o -iname '*.uplugin' -o -iname '*.uproject' -o -iname 'readme*' \) -print0)
+    done < <(find "$filtered_dir" -type f -print0)
     rm -f "$text_patterns_compiled" "$TEMP_ROOT/mirror_forbidden_matches.txt"
+  fi
+
+  # Machine-local paths: the governance definition, applied to the final tree so
+  # projected files and files of any type are covered, not only rewritten docs.
+  if ! python3 "$SCRIPT_DIR/sanitize_public_text.py" --check "$filtered_dir"; then
+    fail_flag=1
   fi
 
   # Hard guard: a Git LFS pointer that leaked into the snapshot (object not

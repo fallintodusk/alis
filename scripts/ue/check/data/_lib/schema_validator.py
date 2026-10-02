@@ -1,6 +1,6 @@
 """Inline-$schema validation for plugin Data JSON files.
 
-Rule (from AGENTS.md):
+Rule:
     Every JSON data file MUST include `$schema` with relative path to its
     schema file. No IDE-specific config -- validation is universal via
     inline `$schema`.

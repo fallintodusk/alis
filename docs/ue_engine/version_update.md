@@ -12,7 +12,9 @@ grammar + authority model in the file header). Second pin:
 `Alis.uproject` `EngineAssociation` - derived by the orchestrator from
 the target engine's `Engine/Build/Build.version`, never typed by hand.
 The Orchestrator development manifest `engine_build_id` is another
-derived pin; the same command rewrites and validates it from Build.version.
+derived provenance pin; the same command rewrites it from Build.version.
+Development compatibility, like the Orchestrator runtime check, requires the
+same engine Major.Minor line and does not reject a compatible patch changelist.
 Launcher and source roots must share Major.Minor. A source patch difference is
 allowed only through the source child because its actual Build.version is
 recorded and the candidate must pass the full Shipping package and boot gates.

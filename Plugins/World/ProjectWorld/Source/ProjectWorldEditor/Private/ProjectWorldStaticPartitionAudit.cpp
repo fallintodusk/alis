@@ -6,12 +6,11 @@
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldRuntimeProfile.h"
+#include "ProjectWorldTerrainRuntimeRole.h"
 
 #include "Dom/JsonObject.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
-#include "Landscape.h"
-#include "LandscapeStreamingProxy.h"
 #include "Misc/PackageName.h"
 #include "WorldPartition/ActorDescContainerInstance.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -24,8 +23,11 @@ namespace ProjectWorldStaticPartitionAudit
 	{
 		constexpr double MinimumLoadingRangeCells = 3.0;
 		constexpr double ExpectedCellBoundsToleranceMeters = 0.1;
-		const FName LandscapeTag(TEXT("ProjectWorld.Landscape.v1"));
+		const FName MeshTerrainAuthoringTag(TEXT("ProjectWorld.MeshTerrain.Authoring.v1"));
+		const FName MeshTerrainPartitionTag(TEXT("ProjectWorld.MeshTerrain.Partition.v1"));
+		const FString MeshTerrainCellPrefix(TEXT("ProjectWorld.MeshTerrain.Cell="));
 		const TArray<FName> CellOwnedLayerTags{
+			MeshTerrainAuthoringTag,
 			TEXT("ProjectWorld.Water.v1"),
 			TEXT("ProjectWorld.Road.v1"),
 			TEXT("ProjectWorld.Vegetation=v1"),
@@ -58,8 +60,8 @@ namespace ProjectWorldStaticPartitionAudit
 			int64 PackageBytes = 0;
 			int32 DataLayerCount = 0;
 			bool bSpatial = false;
-			bool bLandscape = false;
-			bool bLandscapeProxy = false;
+			bool bProjectGenerated = false;
+			bool bTerrain = false;
 			bool bExternalPackage = false;
 			bool bMissingPackage = false;
 		};
@@ -68,7 +70,7 @@ namespace ProjectWorldStaticPartitionAudit
 		{
 			FBox Bounds = FBox(ForceInit);
 			int32 ActorCount = 0;
-			bool bLandscape = false;
+			bool bTerrain = false;
 		};
 
 		bool TryCellRange(const FBox& Bounds, int32 CellSizeMeters, FCellRange& OutRange)
@@ -125,11 +127,20 @@ namespace ProjectWorldStaticPartitionAudit
 			return Actor->Tags.ContainsByPredicate([](const FName& Tag)
 			{
 				const FString Value = Tag.ToString();
-				return Value.StartsWith(TEXT("ProjectWorld.Cell=")) ||
+				return Value.StartsWith(MeshTerrainCellPrefix) ||
+					Value.StartsWith(TEXT("ProjectWorld.Cell=")) ||
 					Value.StartsWith(TEXT("ProjectWorld.WaterCell=")) ||
 					Value.StartsWith(TEXT("ProjectWorld.RoadCell=")) ||
 					Value.StartsWith(TEXT("ProjectWorld.VegetationCell=")) ||
 					Value.StartsWith(TEXT("ProjectWorld.BuildingCell="));
+			});
+		}
+
+		bool HasMeshTerrainCellIdentity(const AActor* Actor)
+		{
+			return Actor->Tags.ContainsByPredicate([](const FName& Tag)
+			{
+				return Tag.ToString().StartsWith(MeshTerrainCellPrefix);
 			});
 		}
 
@@ -172,37 +183,41 @@ namespace ProjectWorldStaticPartitionAudit
 
 		TArray<FActorEntry> Entries;
 		TMap<FGuid, int32> IndexByGuid;
-		TArray<ALandscape*> Landscapes;
-		TArray<ALandscapeStreamingProxy*> LandscapeProxies;
+		int32 MeshTerrainPartitionCount = 0;
+		int32 MeshTerrainAuthoringCellCount = 0;
+		int32 TerrainSectionCount = 0;
 		int32 HlodProxyActorCount = 0;
 		int32 HlodEligibleGeneratedActorCount = 0;
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{
 			AActor* Actor = *It;
 			HlodProxyActorCount += Actor->IsA<AWorldPartitionHLOD>() ? 1 : 0;
-			if (!Actor->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag))
+			const bool bProjectGenerated = Actor->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag);
+			const bool bMeshTerrainAuthoring = Actor->Tags.Contains(MeshTerrainAuthoringTag);
+			const bool bTerrainSection = ProjectWorldTerrainRuntimeRole::HasRole(*Actor);
+			if (!bProjectGenerated && !bMeshTerrainAuthoring && !bTerrainSection)
 			{
 				continue;
 			}
 			HlodEligibleGeneratedActorCount +=
-				Actor->bEnableAutoLODGeneration || Actor->GetHLODLayer() != nullptr ? 1 : 0;
-			if (ALandscape* Landscape = Cast<ALandscape>(Actor))
-			{
-				Landscapes.Add(Landscape);
-			}
-			if (ALandscapeStreamingProxy* Proxy = Cast<ALandscapeStreamingProxy>(Actor))
-			{
-				LandscapeProxies.Add(Proxy);
-			}
+				bProjectGenerated &&
+				(Actor->bEnableAutoLODGeneration || Actor->GetHLODLayer() != nullptr) ? 1 : 0;
+			MeshTerrainPartitionCount += Actor->Tags.Contains(MeshTerrainPartitionTag) ? 1 : 0;
+			MeshTerrainAuthoringCellCount += HasMeshTerrainCellIdentity(Actor) ? 1 : 0;
+			TerrainSectionCount += bTerrainSection ? 1 : 0;
 
 			FActorEntry& Entry = Entries.AddDefaulted_GetRef();
 			Entry.Actor = Actor;
 			Entry.Guid = Actor->GetActorGuid();
 			Entry.bSpatial = Actor->GetIsSpatiallyLoaded();
-			Entry.bLandscape = Actor->IsA<ALandscapeProxy>();
-			Entry.bLandscapeProxy = Actor->IsA<ALandscapeStreamingProxy>();
+			Entry.bProjectGenerated = bProjectGenerated;
+			Entry.bTerrain = bMeshTerrainAuthoring || bTerrainSection;
 			Entry.bExternalPackage = Actor->IsPackageExternal();
-			if (const FWorldPartitionActorDescInstance* Desc = Container->GetActorDescInstance(Entry.Guid))
+			if (bMeshTerrainAuthoring)
+			{
+				Entry.Bounds = Actor->GetComponentsBoundingBox(true);
+			}
+			else if (const FWorldPartitionActorDescInstance* Desc = Container->GetActorDescInstance(Entry.Guid))
 			{
 				Entry.Bounds = Desc->GetRuntimeBounds();
 				Entry.PackageName = Desc->GetActorPackage();
@@ -233,34 +248,15 @@ namespace ProjectWorldStaticPartitionAudit
 			IndexByGuid.Add(Entry.Guid, Entries.Num() - 1);
 		}
 
-		int32 LandscapeOwnershipFailureCount = Landscapes.Num() == 1 ? 0 : 1;
-		ALandscape* LandscapeOwner = Landscapes.Num() == 1 ? Landscapes[0] : nullptr;
-		if (LandscapeOwner != nullptr && LandscapeOwner->GetIsSpatiallyLoaded())
-		{
-			++LandscapeOwnershipFailureCount;
-		}
-		for (ALandscapeStreamingProxy* Proxy : LandscapeProxies)
-		{
-			if (!Proxy->GetIsSpatiallyLoaded() || !Proxy->IsPackageExternal() ||
-				Proxy->GetLandscapeActor() != LandscapeOwner ||
-				!Proxy->Tags.Contains(LandscapeTag))
-			{
-				++LandscapeOwnershipFailureCount;
-			}
-		}
 		FVector2D ExpectedCanonicalCellSizeMeters = FVector2D::ZeroVector;
 		for (const FActorEntry& Entry : Entries)
 		{
-			if (Entry.bLandscapeProxy && Entry.Bounds.IsValid)
+			if (HasMeshTerrainCellIdentity(Entry.Actor) && Entry.Bounds.IsValid)
 			{
 				const FVector SizeMeters = Entry.Bounds.GetSize() * 0.01;
 				ExpectedCanonicalCellSizeMeters.X = FMath::Max(ExpectedCanonicalCellSizeMeters.X, SizeMeters.X);
 				ExpectedCanonicalCellSizeMeters.Y = FMath::Max(ExpectedCanonicalCellSizeMeters.Y, SizeMeters.Y);
 			}
-		}
-		if (ExpectedCanonicalCellSizeMeters.X <= 0.0 || ExpectedCanonicalCellSizeMeters.Y <= 0.0)
-		{
-			++LandscapeOwnershipFailureCount;
 		}
 
 		TArray<int32> Parents;
@@ -297,7 +293,7 @@ namespace ProjectWorldStaticPartitionAudit
 			FReferenceBundle& Bundle = Bundles.FindOrAdd(FindRoot(Parents, Index));
 			Bundle.Bounds += Entry.Bounds;
 			++Bundle.ActorCount;
-			Bundle.bLandscape |= Entry.bLandscape;
+			Bundle.bTerrain |= Entry.bTerrain;
 		}
 
 		TArray<TSharedPtr<FJsonValue>> ProfileValues;
@@ -320,15 +316,15 @@ namespace ProjectWorldStaticPartitionAudit
 			FString FirstMissingIdentityActorName;
 			TArray<FName> FirstMissingIdentityActorTags;
 			int32 MaximumActorCellSpan = 0;
-			int32 MaximumNonLandscapeActorCellSpan = 0;
-			FString MaximumNonLandscapeActorName;
-			FString MaximumNonLandscapeActorClass;
-			FVector MaximumNonLandscapeActorSize = FVector::ZeroVector;
-			TArray<FName> MaximumNonLandscapeActorTags;
+			int32 MaximumNonTerrainActorCellSpan = 0;
+			FString MaximumNonTerrainActorName;
+			FString MaximumNonTerrainActorClass;
+			FVector MaximumNonTerrainActorSize = FVector::ZeroVector;
+			TArray<FName> MaximumNonTerrainActorTags;
 			int32 SpatialActorCellAssignments = 0;
 			for (const FActorEntry& Entry : Entries)
 			{
-				DataLayerMembershipCount += Entry.DataLayerCount;
+				DataLayerMembershipCount += Entry.bProjectGenerated ? Entry.DataLayerCount : 0;
 				MissingPackageCount += Entry.bMissingPackage ? 1 : 0;
 				if (Entry.bExternalPackage && Entry.PackageBytes >= 0)
 				{
@@ -346,15 +342,15 @@ namespace ProjectWorldStaticPartitionAudit
 				}
 				const int32 Span = Range.Count();
 				MaximumActorCellSpan = FMath::Max(MaximumActorCellSpan, Span);
-				if (!Entry.bLandscape)
+				if (!Entry.bTerrain)
 				{
-					if (Span > MaximumNonLandscapeActorCellSpan)
+					if (Span > MaximumNonTerrainActorCellSpan)
 					{
-						MaximumNonLandscapeActorCellSpan = Span;
-						MaximumNonLandscapeActorName = Entry.Actor->GetName();
-						MaximumNonLandscapeActorClass = Entry.Actor->GetClass()->GetPathName();
-						MaximumNonLandscapeActorSize = Entry.Bounds.GetSize() * 0.01;
-						MaximumNonLandscapeActorTags = Entry.Actor->Tags;
+						MaximumNonTerrainActorCellSpan = Span;
+						MaximumNonTerrainActorName = Entry.Actor->GetName();
+						MaximumNonTerrainActorClass = Entry.Actor->GetClass()->GetPathName();
+						MaximumNonTerrainActorSize = Entry.Bounds.GetSize() * 0.01;
+						MaximumNonTerrainActorTags = Entry.Actor->Tags;
 					}
 					if (IsCellOwnedLayerActor(Entry.Actor))
 					{
@@ -398,11 +394,11 @@ namespace ProjectWorldStaticPartitionAudit
 			}
 
 			int32 ReferenceBundleCount = 0;
-			int32 NonLandscapeReferenceBundleCount = 0;
-			int32 LandscapeReferenceBundleCount = 0;
+			int32 NonTerrainReferenceBundleCount = 0;
+			int32 TerrainReferenceBundleCount = 0;
 			int32 MaximumReferenceBundleActorCount = 0;
-			int32 MaximumNonLandscapeReferenceBundleCellSpan = 0;
-			int32 MaximumLandscapeReferenceBundleCellSpan = 0;
+			int32 MaximumNonTerrainReferenceBundleCellSpan = 0;
+			int32 MaximumTerrainReferenceBundleCellSpan = 0;
 			for (const TPair<int32, FReferenceBundle>& Pair : Bundles)
 			{
 				const FReferenceBundle& Bundle = Pair.Value;
@@ -413,16 +409,16 @@ namespace ProjectWorldStaticPartitionAudit
 				++ReferenceBundleCount;
 				MaximumReferenceBundleActorCount = FMath::Max(MaximumReferenceBundleActorCount, Bundle.ActorCount);
 				const int32 Span = CountIntersectedCells(Bundle.Bounds, Profile.RuntimeCellSizeMeters);
-				if (Bundle.bLandscape)
+				if (Bundle.bTerrain)
 				{
-					++LandscapeReferenceBundleCount;
-					MaximumLandscapeReferenceBundleCellSpan = FMath::Max(MaximumLandscapeReferenceBundleCellSpan, Span);
+					++TerrainReferenceBundleCount;
+					MaximumTerrainReferenceBundleCellSpan = FMath::Max(MaximumTerrainReferenceBundleCellSpan, Span);
 				}
 				else
 				{
-					++NonLandscapeReferenceBundleCount;
-					MaximumNonLandscapeReferenceBundleCellSpan =
-						FMath::Max(MaximumNonLandscapeReferenceBundleCellSpan, Span);
+					++NonTerrainReferenceBundleCount;
+					MaximumNonTerrainReferenceBundleCellSpan =
+						FMath::Max(MaximumNonTerrainReferenceBundleCellSpan, Span);
 				}
 			}
 
@@ -457,11 +453,11 @@ namespace ProjectWorldStaticPartitionAudit
 					TEXT("%d generated layer actors have no canonical-cell identity."),
 					CellOwnedActorMissingIdentityCount));
 			}
-			if (NonLandscapeReferenceBundleCount > 0)
+			if (NonTerrainReferenceBundleCount > 0)
 			{
 				AddFailure(Errors, FString::Printf(
-					TEXT("%d non-Landscape generated actor reference bundles violate cell-local ownership."),
-					NonLandscapeReferenceBundleCount));
+					TEXT("%d non-terrain generated actor reference bundles violate cell-local ownership."),
+					NonTerrainReferenceBundleCount));
 			}
 			if (MissingPackageCount > 0)
 			{
@@ -473,11 +469,16 @@ namespace ProjectWorldStaticPartitionAudit
 					TEXT("Current no-Data-Layer candidates contain %d generated actor memberships."),
 					DataLayerMembershipCount));
 			}
-			if (LandscapeOwnershipFailureCount > 0 || LandscapeProxies.IsEmpty())
+			if (MeshTerrainPartitionCount != 1 || MeshTerrainAuthoringCellCount == 0 || TerrainSectionCount == 0 ||
+				ExpectedCanonicalCellSizeMeters.X <= 0.0 || ExpectedCanonicalCellSizeMeters.Y <= 0.0)
 			{
 				AddFailure(Errors, FString::Printf(
-					TEXT("Landscape ownership failed: failures=%d roots=%d proxies=%d."),
-					LandscapeOwnershipFailureCount, Landscapes.Num(), LandscapeProxies.Num()));
+					TEXT("Mesh Terrain ownership failed: partitions=%d authoring_cells=%d compiled_sections=%d cell_size=%.3fx%.3f."),
+					MeshTerrainPartitionCount,
+					MeshTerrainAuthoringCellCount,
+					TerrainSectionCount,
+					ExpectedCanonicalCellSizeMeters.X,
+					ExpectedCanonicalCellSizeMeters.Y));
 			}
 			if (HlodProxyActorCount > 0 || HlodLayerReferenceCount > 0 || HlodEligibleGeneratedActorCount > 0)
 			{
@@ -531,43 +532,43 @@ namespace ProjectWorldStaticPartitionAudit
 				TEXT("first_missing_identity_actor_tags"), MissingIdentityActorTags);
 			ProfileObject->SetNumberField(TEXT("maximum_actor_cell_span"), MaximumActorCellSpan);
 			ProfileObject->SetNumberField(
-				TEXT("maximum_non_landscape_actor_cell_span"), MaximumNonLandscapeActorCellSpan);
+				TEXT("maximum_non_terrain_actor_cell_span"), MaximumNonTerrainActorCellSpan);
 			ProfileObject->SetStringField(
-				TEXT("maximum_non_landscape_actor_name"), MaximumNonLandscapeActorName);
+				TEXT("maximum_non_terrain_actor_name"), MaximumNonTerrainActorName);
 			ProfileObject->SetStringField(
-				TEXT("maximum_non_landscape_actor_class"), MaximumNonLandscapeActorClass);
-			ProfileObject->SetArrayField(TEXT("maximum_non_landscape_actor_size_m"), {
-				MakeShared<FJsonValueNumber>(MaximumNonLandscapeActorSize.X),
-				MakeShared<FJsonValueNumber>(MaximumNonLandscapeActorSize.Y),
-				MakeShared<FJsonValueNumber>(MaximumNonLandscapeActorSize.Z)});
+				TEXT("maximum_non_terrain_actor_class"), MaximumNonTerrainActorClass);
+			ProfileObject->SetArrayField(TEXT("maximum_non_terrain_actor_size_m"), {
+				MakeShared<FJsonValueNumber>(MaximumNonTerrainActorSize.X),
+				MakeShared<FJsonValueNumber>(MaximumNonTerrainActorSize.Y),
+				MakeShared<FJsonValueNumber>(MaximumNonTerrainActorSize.Z)});
 			TArray<TSharedPtr<FJsonValue>> MaximumActorTags;
-			for (const FName Tag : MaximumNonLandscapeActorTags)
+			for (const FName Tag : MaximumNonTerrainActorTags)
 			{
 				MaximumActorTags.Add(MakeShared<FJsonValueString>(Tag.ToString()));
 			}
-			ProfileObject->SetArrayField(TEXT("maximum_non_landscape_actor_tags"), MaximumActorTags);
+			ProfileObject->SetArrayField(TEXT("maximum_non_terrain_actor_tags"), MaximumActorTags);
 			ProfileObject->SetNumberField(TEXT("generated_reference_count"), GeneratedReferenceCount);
 			ProfileObject->SetNumberField(TEXT("reference_bundle_count"), ReferenceBundleCount);
 			ProfileObject->SetNumberField(
-				TEXT("non_landscape_reference_bundle_count"), NonLandscapeReferenceBundleCount);
+				TEXT("non_terrain_reference_bundle_count"), NonTerrainReferenceBundleCount);
 			ProfileObject->SetNumberField(
-				TEXT("landscape_reference_bundle_count"), LandscapeReferenceBundleCount);
+				TEXT("terrain_reference_bundle_count"), TerrainReferenceBundleCount);
 			ProfileObject->SetNumberField(
 				TEXT("maximum_reference_bundle_actor_count"), MaximumReferenceBundleActorCount);
 			ProfileObject->SetNumberField(
-				TEXT("maximum_non_landscape_reference_bundle_cell_span"),
-				MaximumNonLandscapeReferenceBundleCellSpan);
+				TEXT("maximum_non_terrain_reference_bundle_cell_span"),
+				MaximumNonTerrainReferenceBundleCellSpan);
 			ProfileObject->SetNumberField(
-				TEXT("maximum_landscape_reference_bundle_cell_span"), MaximumLandscapeReferenceBundleCellSpan);
+				TEXT("maximum_terrain_reference_bundle_cell_span"), MaximumTerrainReferenceBundleCellSpan);
 			ProfileObject->SetNumberField(TEXT("external_actor_package_count"), UniquePackageBytes.Num());
 			ProfileObject->SetNumberField(TEXT("external_actor_package_bytes"), TotalExternalPackageBytes);
 			ProfileObject->SetNumberField(TEXT("maximum_external_actor_package_bytes"), MaximumExternalPackageBytes);
 			ProfileObject->SetNumberField(TEXT("runtime_cells_with_packages"), CellPackages.Num());
 			ProfileObject->SetNumberField(TEXT("maximum_runtime_cell_package_bytes"), MaximumCellPackageBytes);
 			ProfileObject->SetNumberField(TEXT("generated_data_layer_membership_count"), DataLayerMembershipCount);
-			ProfileObject->SetNumberField(TEXT("landscape_root_count"), Landscapes.Num());
-			ProfileObject->SetNumberField(TEXT("landscape_proxy_count"), LandscapeProxies.Num());
-			ProfileObject->SetNumberField(TEXT("landscape_ownership_failure_count"), LandscapeOwnershipFailureCount);
+			ProfileObject->SetNumberField(TEXT("mesh_terrain_partition_count"), MeshTerrainPartitionCount);
+			ProfileObject->SetNumberField(TEXT("mesh_terrain_authoring_cell_count"), MeshTerrainAuthoringCellCount);
+			ProfileObject->SetNumberField(TEXT("terrain_section_count"), TerrainSectionCount);
 			ProfileObject->SetNumberField(TEXT("hlod_proxy_actor_count"), HlodProxyActorCount);
 			ProfileObject->SetNumberField(TEXT("hlod_layer_reference_count"), HlodLayerReferenceCount);
 			ProfileObject->SetNumberField(
@@ -589,8 +590,8 @@ namespace ProjectWorldStaticPartitionAudit
 		}
 		OutReceipt = MakeShared<FJsonObject>();
 		OutReceipt->SetStringField(
-			TEXT("$schema"), TEXT("https://alis.world/schemas/world-static-partition-audit/result-v1.json"));
-		OutReceipt->SetNumberField(TEXT("schema_version"), 1);
+			TEXT("$schema"), TEXT("https://alis.world/schemas/world-static-partition-audit/result-v2.json"));
+		OutReceipt->SetNumberField(TEXT("schema_version"), 2);
 		OutReceipt->SetStringField(TEXT("status"), bSelectedProfileAccepted ? TEXT("accepted") : TEXT("rejected"));
 		OutReceipt->SetStringField(TEXT("map_package"), World->GetPackage()->GetName());
 		OutReceipt->SetStringField(TEXT("selected_profile_id"), SelectedProfileId);

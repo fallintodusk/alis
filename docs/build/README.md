@@ -90,12 +90,10 @@ Canonical guide:
 
 ### Build client or server targets
 
-Examples:
-
-```powershell
-.\scripts\ue\build\build.bat AlisClient Win64 Shipping
-.\scripts\ue\build\build.bat AlisServer Win64 Development
-```
+The launcher-installed engine cannot build `AlisClient` or `AlisServer` targets.
+These are source-engine release checks; use the `UE_SOURCE_PATH` procedure in
+[workflow.md](workflow.md). `build.bat` remains the launcher-engine entrypoint
+for Editor and Game targets.
 
 Related docs:
 - [workflow.md](workflow.md)

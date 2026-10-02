@@ -277,7 +277,7 @@ bool FProjectWorldGeneratedActorRefreshTest::RunTest(const FString& Parameters)
 	TestTrue(
 		TEXT("Current generated identity survives stale-actor cleanup."),
 		ProjectWorldGeneratedGeometry::RemoveStaleOwnedActorsForApply(
-			World, Bundle, FString(), false, SecondResult));
+			World, Bundle, FString(), SecondResult));
 	TestTrue(
 		TEXT("Existing generated actor payload is rebuilt in place."),
 		ProjectWorldGeneratedGeometry::CreateOwnedActors(

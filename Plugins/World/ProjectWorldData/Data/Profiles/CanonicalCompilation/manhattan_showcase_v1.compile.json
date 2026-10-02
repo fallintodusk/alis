@@ -92,6 +92,13 @@
       "flowing": {"function_id": "rolling_quantile_l1_isotonic", "function_version": 1, "sample_spacing_m": 30.0, "quantile": 0.5, "rolling_radius": 2, "direction": "non_increasing_by_source_direction", "loss": "l1", "tie_break": "lower_elevation"}
     }
   },
+  "terrain_surface": {
+    "contract_id": "terrain_surface_semantics",
+    "contract_version": 1,
+    "roles": ["ground", "hydro_transition"],
+    "hydro_transition_radius_m": 60.0,
+    "water_clearance_m": 0.0
+  },
   "target_cell_range": {"min_x": -6, "max_x": 8, "min_y": -6, "max_y": 7},
   "quality_cells": [
     {"role": "dense_urban", "cells": [{"x": 2, "y": 1}]},

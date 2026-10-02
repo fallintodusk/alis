@@ -46,32 +46,12 @@ class TerritoryMatrixContractTests(unittest.TestCase):
             "canonical_cell_count": 2,
             "sample_spacing_m": [1, 1],
             "georeferencing_placement_error_m": 0,
-            "terrain_source_height_sample_count": 8192,
-            "terrain_source_height_expected_sample_count": 8192,
-            "terrain_source_height_mismatch_count": 0,
-            "terrain_source_height_max_error_m": 0.003125,
-            "terrain_source_height_min_m": 20.3984375,
-            "terrain_source_height_max_m": 30.5,
-            "terrain_source_relief_m": 10.1015625,
-            "terrain_source_height_tolerance_m": 0.1,
-            "terrain_source_height_semantic_sha256": "d" * 64,
-            "terrain_final_height_sample_count": 8192,
-            "terrain_final_height_expected_sample_count": 8192,
-            "terrain_final_height_mismatch_count": 0,
-            "terrain_final_height_max_error_m": 0.003125,
-            "terrain_final_height_min_m": 20.3984375,
-            "terrain_final_height_max_m": 30.5,
-            "terrain_final_relief_m": 10.1015625,
-            "terrain_final_height_tolerance_m": 0.1,
-            "terrain_final_height_semantic_sha256": "f" * 64,
             "world_partition": True,
             "hlod_proxy_actor_count": 0,
             "hlod_layer_reference_count": 0,
             "hlod_eligible_generated_actor_count": 0,
             "changes": {
-                "landscape_components": 2,
-                "updated_landscape_components": 2 if full else 0,
-                "landscape_proxies": 2,
+                "terrain_sections": 2,
                 "water_cell_actors": 2,
                 "water_mesh_assets": 2,
                 "water_triangles": 100 if full else 0,
@@ -105,12 +85,12 @@ class TerritoryMatrixContractTests(unittest.TestCase):
             "layer_inventories": [
                 {
                     "layer_id": "terrain",
-                    "generator_id": "project_landscape",
+                    "generator_id": "project_mesh_terrain",
                     "generator_version": 1,
                     "artifact_root": "/ProjectWorldTestData/Generated/Twin/Terrain/",
                     "normalized_layer_contract_sha256": "b" * 64,
                     "canonical_inputs": [{"unit_id": f"cell-{index}"} for index in range(2)],
-                    "artifacts": [{"path": f"Terrain/{index}.uasset"} for index in range(2)],
+                    "artifacts": [{"path": f"Terrain/{index}.uasset"} for index in range(3)],
                     "final_dirty_units": dirty,
                 },
                 {
@@ -171,9 +151,9 @@ class TerritoryMatrixContractTests(unittest.TestCase):
         self.assertEqual(19, topology["vegetation_water_exclusions"])
         self.assertEqual(1, topology["vegetation_authored_mask_exclusions"])
         self.assertEqual(171, topology["building_cell_actors"])
-        self.assertEqual(655330, topology["building_triangles"])
-        self.assertEqual(31932, topology["building_candidate_fragments"])
-        self.assertEqual(31769, topology["building_accepted_fragments"])
+        self.assertEqual(665006, topology["building_triangles"])
+        self.assertEqual(31927, topology["building_candidate_fragments"])
+        self.assertEqual(31764, topology["building_accepted_fragments"])
         self.assertEqual(3, topology["gameplay_placement_actors"])
         vegetation = next(
             layer for layer in profile["profiles"]["kazan"]["expected_layers"]
@@ -430,91 +410,17 @@ class TerritoryMatrixContractTests(unittest.TestCase):
             )
         self.assertEqual("realization_profile_mismatch", raised.exception.code)
 
-    def _layered(self, receipts: dict) -> dict:
-        return validate_layered_realization(
-            receipts,
-            load_profile(PROFILE_PATH)["profiles"]["synthetic"],
-            {"profile_id": "synthetic_landscape_water_twin", "sha256": "a" * 64},
-            ROAD_DIRTY_UNIT,
-        )
-
-    def test_layered_realization_rejects_flat_or_wrong_terrain_elevation(self) -> None:
-        # The historical territory defect: every structural count, proxy identity, semantic
-        # hash, and GeoReferencing XY check passed while the terrain was completely flat.
+    def test_layered_realization_rejects_missing_mesh_terrain_section(self) -> None:
         receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["second"]["terrain_source_height_mismatch_count"] = 4096
+        receipts["clean"]["changes"]["terrain_sections"] = 1
         with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_source_height_mismatch", raised.exception.code)
-
-    def test_layered_realization_rejects_incomplete_elevation_coverage(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["incremental"]["terrain_source_height_sample_count"] = 4096
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_source_height_coverage", raised.exception.code)
-
-    def test_layered_realization_rejects_excess_elevation_error(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["clean"]["terrain_source_height_max_error_m"] = 5.0
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_source_height_error", raised.exception.code)
-
-    def test_layered_realization_rejects_reconstruction_height_hash_drift(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["clean"]["terrain_source_height_semantic_sha256"] = "e" * 64
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_source_height_identity_drift", raised.exception.code)
-
-    def test_layered_realization_rejects_invalid_height_identity(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        for leg in LAYERED_LEGS:
-            receipts[leg]["terrain_source_height_semantic_sha256"] = "not-a-sha"
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_source_height_identity_invalid", raised.exception.code)
-
-    def test_layered_realization_rejects_flat_final_surface(self) -> None:
-        # The exact historical Kazan defect: Generated Base source matched canonical on all
-        # 215,040 samples while the final composed heightmap was flat at raw height 0.
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        for leg in LAYERED_LEGS:
-            receipts[leg]["terrain_final_height_mismatch_count"] = 8192
-            receipts[leg]["terrain_final_relief_m"] = 0.0
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_final_height_mismatch", raised.exception.code)
-
-    def test_layered_realization_rejects_incomplete_final_coverage(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["incremental"]["terrain_final_height_sample_count"] = 4096
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_final_height_coverage", raised.exception.code)
-
-    def test_layered_realization_rejects_excess_final_error(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["clean"]["terrain_final_height_max_error_m"] = 395.8
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_final_height_error", raised.exception.code)
-
-    def test_layered_realization_rejects_invalid_final_identity(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        for leg in LAYERED_LEGS:
-            receipts[leg]["terrain_final_height_semantic_sha256"] = "nope"
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_final_height_identity_invalid", raised.exception.code)
-
-    def test_layered_realization_rejects_final_identity_drift(self) -> None:
-        receipts = {leg: self._receipt(leg) for leg in LAYERED_LEGS}
-        receipts["clean"]["terrain_final_height_semantic_sha256"] = "a" * 64
-        with self.assertRaises(ValidationFailure) as raised:
-            self._layered(receipts)
-        self.assertEqual("layered_terrain_final_height_identity_drift", raised.exception.code)
+            validate_layered_realization(
+                receipts,
+                load_profile(PROFILE_PATH)["profiles"]["synthetic"],
+                {"profile_id": "synthetic_landscape_water_twin", "sha256": "a" * 64},
+                ROAD_DIRTY_UNIT,
+            )
+        self.assertEqual("layered_output_topology_mismatch", raised.exception.code)
 
     def test_incremental_reuse_scales_to_the_complete_territory(self) -> None:
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:

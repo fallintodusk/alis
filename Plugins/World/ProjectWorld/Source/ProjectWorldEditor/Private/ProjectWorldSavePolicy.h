@@ -15,11 +15,11 @@ namespace ProjectWorldSavePolicy
 		const int32 ActorMutationCount = Result.CreatedActorCount +
 			Result.UpdatedActorCount + Result.RemovedActorCount;
 		const bool bGeneratedWorldChanged = bPartitionHlodPolicyChanged ||
-			ActorMutationCount > 0 || Result.UpdatedLandscapeComponentCount > 0;
+			ActorMutationCount > 0;
 		const bool bOnlySelfSavedActorsChanged = bExistingMap &&
 			Result.SelfSavedActorMutationCount > 0 &&
 			Result.SelfSavedActorMutationCount == ActorMutationCount &&
-			Result.UpdatedLandscapeComponentCount == 0 && !bPartitionHlodPolicyChanged;
+			!bPartitionHlodPolicyChanged;
 		return bGeneratedWorldChanged && !bOnlySelfSavedActorsChanged;
 	}
 }

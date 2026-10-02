@@ -1,0 +1,29 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "4",
+  "material_id": "MI_ProjectTerrain_Default",
+  "artifact_kind": "instance",
+  "binding_id": "terrain.default",
+  "family": "surface_substrate",
+  "archetype": "terrain_metric",
+  "compiler_version": "5",
+  "parent": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain",
+  "projection_frame": "world_metric_triplanar_2d",
+  "pattern": {
+    "pattern_id": "project_terrain_structure"
+  },
+  "semantic_bindings": ["ground", "hydro_transition"],
+  "scalars": {
+    "BaseRoughness": 0.9,
+    "PatternScaleMeters": 96.0,
+    "MacroStrength": 0.12,
+    "DetailStrength": 0.12,
+    "HydroDarkening": 0.24,
+    "SlopeContrast": 1.35
+  },
+  "vectors": {
+    "GroundColor": [0.05, 0.13, 0.025, 1.0],
+    "SteepGroundColor": [0.16, 0.075, 0.02, 1.0],
+    "HydroTint": [0.02, 0.05, 0.035, 1.0]
+  }
+}

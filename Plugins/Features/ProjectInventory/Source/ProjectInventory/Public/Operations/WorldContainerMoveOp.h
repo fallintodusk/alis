@@ -12,7 +12,7 @@
  * ownership, no network code, no UI. Callable from any authority-side
  * service -- today the session subsystem, long-term a server-gated
  * UWorldSubsystem (authority callspace layer per the FILE SIZE GUARDRAIL
- * + callspace split in AGENTS.md CRITICAL Rules).
+ * + callspace split in docs/agents/canonical.md section 10).
  */
 struct PROJECTINVENTORY_API FWorldContainerMoveOp
 {

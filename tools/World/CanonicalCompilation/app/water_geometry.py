@@ -32,10 +32,13 @@ class TerrainSampler:
         for cell in terrain.values():
             west, _, _, north = (float(value) for value in cell["bounds"])
             spacing_x, spacing_y = (float(value) for value in cell["sample_spacing"])
-            core = cell["core_samples"]
+            water_fit = cell.get("water_fit", {})
+            core = water_fit.get("core_samples", cell["core_samples"])
             core_x_values.update(west + column * spacing_x for column in range(len(core[0])))
             core_y_values.update(north - row * spacing_y for row in range(len(core)))
-            samples = cell.get("halo_window", {}).get("samples", core)
+            samples = water_fit.get("halo_window", {}).get(
+                "samples", cell.get("halo_window", {}).get("samples", core)
+            )
             core_rows = len(core)
             core_columns = len(core[0])
             row_count = len(samples)

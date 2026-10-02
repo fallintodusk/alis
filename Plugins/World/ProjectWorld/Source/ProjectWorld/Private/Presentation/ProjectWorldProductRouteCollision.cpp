@@ -4,6 +4,7 @@
 #include "Presentation/ProjectWorldProductRouteCollision.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
 namespace ProjectWorldProductRouteCollision
@@ -22,5 +23,41 @@ namespace ProjectWorldProductRouteCollision
 			}
 		}
 		return Count;
+	}
+
+	bool SelectFirstBlockingGroundLocation(
+		const TArray<FHitResult>& OrderedHits,
+		float CapsuleHalfHeight,
+		FVector& OutGroundLocation)
+	{
+		const FHitResult* FirstBlocker = OrderedHits.FindByPredicate(
+			[](const FHitResult& Hit)
+			{
+				return Hit.bBlockingHit;
+			});
+		if (FirstBlocker == nullptr)
+		{
+			return false;
+		}
+		OutGroundLocation = FirstBlocker->ImpactPoint +
+			FVector(0.0f, 0.0f, CapsuleHalfHeight + 10.0f);
+		return true;
+	}
+
+	bool FindFirstBlockingGroundLocation(
+		UWorld& World,
+		const AActor& IgnoredActor,
+		const FVector& Location,
+		float CapsuleHalfHeight,
+		FVector& OutGroundLocation)
+	{
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(ProjectWorldProductRouteGround), false);
+		Params.AddIgnoredActor(&IgnoredActor);
+		const FVector Start(Location.X, Location.Y, Location.Z + 100000.0f);
+		const FVector End(Location.X, Location.Y, Location.Z - 100000.0f);
+		TArray<FHitResult> OrderedHits;
+		World.LineTraceMultiByChannel(OrderedHits, Start, End, ECC_Pawn, Params);
+		return SelectFirstBlockingGroundLocation(
+			OrderedHits, CapsuleHalfHeight, OutGroundLocation);
 	}
 }

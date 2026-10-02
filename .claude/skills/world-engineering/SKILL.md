@@ -5,14 +5,15 @@ description: >-
   decomposition, architecture, implementation, debugging, performance
   diagnosis, or independent review involving world data, canonical
   compilation, Unreal realization, generated layers, persistence/rollback,
-  World Partition/streaming, or visual/operator evidence. Before changing
-  behavior, identify the owning black box and contract, declare expected
-  changed/untouched components, route to current SOTs, and stop on unexpected
-  cross-boundary propagation. Do not use for unrelated ALIS systems or simple
-  read-only questions that need no World-specific workflow.
+  World Partition/streaming, generated texture or material resources that World
+  consumes, or visual/operator evidence. Before changing behavior, identify the
+  owning black box and contract, declare expected changed/untouched components,
+  route to current SOTs, and stop on unexpected cross-boundary propagation. Do
+  not use for unrelated ALIS systems or simple read-only questions that need no
+  World-specific workflow.
 metadata:
   author: alis-team
-  version: "1.0"
+  version: "1.1"
 ---
 
 # World Engineering
@@ -84,7 +85,9 @@ expected components UNTOUCHED:
 
 The names must come from current repository ownership, not from memory.
 
-If implementation unexpectedly requires editing an owner declared UNTOUCHED, treat that as ARCHITECTURAL RED. Stop expanding the diff and review the boundary first.
+If implementation unexpectedly requires editing an owner declared UNTOUCHED, or regenerating its outputs, treat that as ARCHITECTURAL RED. Stop expanding the diff and review the boundary first.
+
+An owner may run its own gates for changes to its own inputs or implementation. A consumer regenerates, and its integration is re-proved, only when an input or public contract it actually consumes changed; information it uses only as provenance never triggers that (`docs/architecture/principles.md`, Component Ownership). If focused evidence shows a consumer depends on something its contract does not declare, that is also ARCHITECTURAL RED: fix the boundary so the consumer's corrected identity triggers its regeneration; do not cover the gap with a manual or broader regeneration.
 
 A local feature requiring unrelated generators, persistence, validation, or runtime owners to change is not automatically "more implementation". It may show the extension point or ownership boundary is wrong.
 
@@ -109,7 +112,7 @@ When the boundary is already accepted:
 
 - revalidate the owner and contract; do not redesign by default;
 - touch only the smallest coherent set of expected owners;
-- preserve declared UNTOUCHED owners;
+- preserve declared UNTOUCHED owners and their generated outputs;
 - prefer existing project helpers and native engine APIs over bespoke wrappers;
 - keep production policy out of reusable logic when a profile/data owner already exists;
 - keep generated authority, authored overlays, runtime state, and test data in their existing ownership domains;
@@ -202,7 +205,7 @@ Use the same skill for architecture/implementation review, but the reviewer must
 The reviewer should reconstruct the boundary independently from current SOTs, then inspect the plan/diff/evidence for:
 
 - correct owner and public contract;
-- expected CHANGED versus UNTOUCHED locality;
+- expected CHANGED versus UNTOUCHED locality, including regenerated outputs;
 - unnecessary coupling or parallel machinery;
 - native/current capability reuse;
 - invariant-to-proof traceability;

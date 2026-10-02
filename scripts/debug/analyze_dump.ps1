@@ -52,16 +52,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Find cdb.exe - check SDK paths first, then WinDbg Preview (Store)
-$cdbPaths = @(
-    "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe",
-    "<debugger-path>",
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
-)
+# Find cdb.exe without assuming an install drive: PATH first, then the Windows
+# SDK root its installer records, then the standard Program Files locations,
+# then WinDbg Preview (Store).
+$cdbPaths = @()
+$cdbOnPath = Get-Command cdb.exe -ErrorAction SilentlyContinue
+if ($cdbOnPath) { $cdbPaths += $cdbOnPath.Source }
+$kitsRoot = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots" `
+    -Name KitsRoot10 -ErrorAction SilentlyContinue).KitsRoot10
+if ($kitsRoot) { $cdbPaths += Join-Path $kitsRoot "Debuggers\x64\cdb.exe" }
+$cdbPaths += "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+$cdbPaths += "$env:ProgramFiles\Windows Kits\10\Debuggers\x64\cdb.exe"
 
 $cdb = $null
 foreach ($path in $cdbPaths) {
-    if (Test-Path $path) {
+    if ($path -and (Test-Path $path)) {
         $cdb = $path
         break
     }
@@ -115,22 +120,29 @@ if (-not $uePath) {
     exit 1
 }
 
+# Symbol cache: the debugger's standard _NT_SYMBOL_PATH when the user set one,
+# otherwise a cache under the user's local app data.
+$symbolCache = Join-Path $env:LOCALAPPDATA "Symbols"
+$userSymbolPath = $env:_NT_SYMBOL_PATH
+
 # Build symbol paths based on mode
 if ($Quick) {
     # Quick mode: local symbols only (UE + project), no MS symbol server
-    $symbolPaths = @(
-        "<symbols-dir>",                              # Use cached symbols if available
+    $symbolPaths = (@(
+        $userSymbolPath,
+        $symbolCache,                                 # Use cached symbols if available
         "$uePath\Engine\Binaries\Win64",
         "$projectRoot\Binaries\Win64"
-    ) -join ";"
+    ) | Where-Object { $_ }) -join ";"
     Write-Host "Mode: QUICK (local symbols only)"
 } else {
     # Full mode: includes MS symbol server (slow first run, cached after)
-    $symbolPaths = @(
-        "srv*<symbols-dir>*https://msdl.microsoft.com/download/symbols",
+    $symbolPaths = (@(
+        $userSymbolPath,
+        "srv*$symbolCache*https://msdl.microsoft.com/download/symbols",
         "$uePath\Engine\Binaries\Win64",
         "$projectRoot\Binaries\Win64"
-    ) -join ";"
+    ) | Where-Object { $_ }) -join ";"
     Write-Host "Mode: FULL (with MS symbol server - may be slow first run)"
 }
 
@@ -146,7 +158,7 @@ if ($Quick) {
     )
 } else {
     $setupCommands = @(
-        ".symfix+ <symbols-dir>",           # Add MS symbol server
+        ".symfix+ $symbolCache",          # Add MS symbol server
         ".reload /f"                     # Force full reload
     )
 }

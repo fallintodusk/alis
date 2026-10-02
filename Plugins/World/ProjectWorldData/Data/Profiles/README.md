@@ -10,23 +10,16 @@ validation entry, source profile, and compiler profile must all resolve under
 this plugin's descriptor-derived `Data/` root; their IDs, owner, and declared
 source path must agree before execution.
 
-`require_landscape` means Landscape presence and structure, not terrain correctness.
-It asserts that a content-identical incremental leg rewrites no Landscape components,
-that the Authored Corrections layer survives, and that GeoReferencing placement error is
-zero - all of which a completely flat Landscape satisfies. Elevation correctness is a
-separate contract carried by the `terrain_source_height_*` and
-`terrain_final_height_*` receipt fields and authenticated by layered validation; see the
-[terrain elevation acceptance contract](../../../ProjectWorld/docs/territory_contract.md#terrain-elevation-acceptance).
-`p0` and `representative_v1` set `require_landscape` with an empty
-`expected_topology` and own no realization profile, so they never execute the terrain
-generator and must never be read as evidence that terrain elevation is correct. A profile
-that wants terrain correctness must declare explicit topology and run the layered
-realization path.
+`p0` and `representative_v1` remain compiler-focused regression profiles. They
+do not own a realization profile and are not evidence for generated terrain.
+Full Unreal realization requires a typed realization profile, explicit topology,
+and expected layer inventory. The active production acceptance owner is
+`kazan_territory_v1.validation.json`.
 
 `kazan_territory_v1` now owns the admitted source profile, compact 210-cell
 compiler selection, control network, pre-realization budget, Unreal realization
 profile, and executable EndToEndValidation profile. The Matrix profile binds a
-Landscape-compatible synthetic twin to the production 210-cell topology and
-layer inventory. Durable Unreal enrollment remains a separate intentional L3
+Mesh Terrain synthetic twin to the production 210-cell topology and layer
+inventory. Durable Unreal enrollment remains a separate intentional L3
 operation after that Matrix accepts. The obsolete 36-cell profiles must not be
 restored or used as production authority.

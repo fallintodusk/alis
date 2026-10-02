@@ -5,12 +5,19 @@
 
 [CmdletBinding()]
 param(
+    [ValidateSet('Surface', 'Texture')]
+    [string]$Domain = 'Surface',
+
     [ValidateSet('Validate', 'Regenerate')]
     [string]$Mode = 'Validate',
 
     [string]$TestRoot = '',
 
     [string]$EvidencePath = '',
+
+    [string]$LayoutReceipt = '',
+
+    [string]$PatternTestRoot = '',
 
     [switch]$CleanupOrphans,
 
@@ -81,8 +88,39 @@ function Assert-NoSameProjectEditor {
         })
     if ($matches.Count -gt 0) {
         $ids = ($matches | ForEach-Object { [string]$_.ProcessId }) -join ','
-        throw "ProjectMaterial mutation refused while this project's Editor is running: pid=$ids"
+        throw "$Domain mutation refused while this project's Editor is running: pid=$ids"
     }
+}
+
+function Get-PendingRestoreSources {
+    # Each result can still restore packages that reference an orphan this host would otherwise
+    # delete; references held in a snapshot are invisible to the Asset Registry. World transactions
+    # keep their snapshots under one folder whatever the manifest root, World test harnesses keep
+    # outer snapshots named 'snapshot' or 'outer-snapshot' under tmp/world, and each is removed once
+    # its content is restored or committed.
+    $pending = @()
+    $worldScratch = Join-Path $projectRoot 'tmp\world'
+    $worldSnapshots = Join-Path $worldScratch 'world_realization\transactions'
+    if (Test-Path -LiteralPath $worldSnapshots -PathType Container) {
+        $pending += @(Get-ChildItem -LiteralPath $worldSnapshots -Force | Select-Object -ExpandProperty FullName)
+    }
+    if (Test-Path -LiteralPath $worldScratch -PathType Container) {
+        $pending += @(Get-ChildItem -LiteralPath $worldScratch -Recurse -Directory |
+            Where-Object { $_.Name -in @('snapshot', 'outer-snapshot') } |
+            Select-Object -ExpandProperty FullName)
+    }
+    $releaseWork = Join-Path $projectRoot 'tmp\release\work'
+    if (Test-Path -LiteralPath $releaseWork -PathType Container) {
+        $pending += @(Get-ChildItem -LiteralPath $releaseWork -Directory |
+            ForEach-Object { Join-Path $_.FullName 'world-projection-rollback' } |
+            Where-Object { Test-Path -LiteralPath $_ })
+    }
+    $siblingDomain = if ($Domain -eq 'Texture') { 'material' } else { 'texture' }
+    $siblingJournal = Join-Path $projectRoot "tmp\$siblingDomain\generation\transactions\journal.json"
+    if (Test-Path -LiteralPath $siblingJournal -PathType Leaf) {
+        $pending += $siblingJournal
+    }
+    return $pending
 }
 
 function Copy-DirectorySnapshot {
@@ -168,22 +206,42 @@ if ($Mode -eq 'Validate' -and (-not [string]::IsNullOrWhiteSpace($InjectFailure)
     throw 'Cleanup and failure injection are valid only for Regenerate.'
 }
 
+$isTexture = $Domain -eq 'Texture'
+$domainName = if ($isTexture) { 'ProjectTexture' } else { 'ProjectMaterial' }
+$commandletName = if ($isTexture) {
+    'ProjectTextureGenerate'
+}
+else {
+    'ProjectMaterialSurfaceGenerate'
+}
+$scratchDomain = if ($isTexture) { 'texture' } else { 'material' }
+$contentFolder = if ($isTexture) { 'Patterns' } else { 'Surfaces' }
+$manifestFolder = if ($isTexture) { 'Patterns' } else { 'Surfaces' }
+$validationFolder = if ($isTexture) {
+    'TexturePatternGeneration'
+}
+else {
+    'MaterialSurfaceGeneration'
+}
 $isTest = -not [string]::IsNullOrWhiteSpace($TestRoot)
+if (-not [string]::IsNullOrWhiteSpace($PatternTestRoot) -and ($isTexture -or -not $isTest)) {
+    throw 'A pattern test root is valid only for a Surface test run.'
+}
 if ($isTest) {
     $testOwnerRoot = Assert-PathWithin `
         -Path $TestRoot `
-        -Root (Join-Path $projectRoot 'tmp\material\generation') `
+        -Root (Join-Path $projectRoot "tmp\$scratchDomain\generation") `
         -Label 'Test root'
-    $outputRoot = Join-Path $testOwnerRoot 'content\Generated'
+    $outputRoot = Join-Path $testOwnerRoot "content\$contentFolder"
     $manifestRoot = Join-Path $testOwnerRoot 'manifests'
     $transactionRoot = Join-Path $testOwnerRoot 'transaction'
     $allowedTargetRoot = $testOwnerRoot
 }
 else {
-    $pluginRoot = Join-Path $projectRoot 'Plugins\Resources\ProjectMaterial'
-    $outputRoot = Join-Path $pluginRoot 'Content\Generated'
-    $manifestRoot = Join-Path $pluginRoot 'Data\Manifests\Materials'
-    $transactionRoot = Join-Path $projectRoot 'tmp\material\generation\transactions'
+    $pluginRoot = Join-Path $projectRoot "Plugins\Resources\$domainName"
+    $outputRoot = Join-Path $pluginRoot "Content\$contentFolder"
+    $manifestRoot = Join-Path $pluginRoot "Data\Manifests\$manifestFolder"
+    $transactionRoot = Join-Path $projectRoot "tmp\$scratchDomain\generation\transactions"
     $allowedTargetRoot = $pluginRoot
 }
 $operationId = [System.Guid]::NewGuid().ToString('N')
@@ -197,7 +255,7 @@ $evidenceRoot = if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
         Join-Path $testOwnerRoot 'evidence'
     }
     else {
-        Join-Path $projectRoot 'Saved\Validation\MaterialGeneration'
+        Join-Path $projectRoot "Saved\Validation\$validationFolder"
     }
 }
 else {
@@ -212,6 +270,12 @@ try {
         -ProjectRoot $projectRoot `
         -OwnerName 'project generated-content'
     Assert-NoSameProjectEditor
+    if ($CleanupOrphans) {
+        $pendingRestore = @(Get-PendingRestoreSources)
+        if ($pendingRestore.Count -gt 0) {
+            throw "Orphan cleanup refused while an unrecovered transaction can still restore content; recover it first: $($pendingRestore[0])"
+        }
+    }
 
     if (Test-Path -LiteralPath $journalPath -PathType Leaf) {
         $pending = Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json
@@ -239,7 +303,7 @@ try {
 
     $arguments = @(
         "`"$projectFile`"",
-        '-run=ProjectMaterialGenerate',
+        "-run=$commandletName",
         "-operation=$operationId",
         "-hosttransaction=$operationId",
         "-receipt=`"$receiptPath`"",
@@ -254,6 +318,20 @@ try {
     )
     if ($isTest) {
         $arguments += "-testroot=`"$testOwnerRoot`""
+    }
+    if (-not [string]::IsNullOrWhiteSpace($LayoutReceipt)) {
+        $layoutReceiptPath = Assert-PathWithin `
+            -Path $LayoutReceipt `
+            -Root $projectRoot `
+            -Label 'Layout receipt'
+        $arguments += "-layoutreceipt=`"$layoutReceiptPath`""
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PatternTestRoot)) {
+        $patternTestRootPath = Assert-PathWithin `
+            -Path $PatternTestRoot `
+            -Root (Join-Path $projectRoot 'tmp\texture\generation') `
+            -Label 'Pattern test root'
+        $arguments += "-patterntestroot=`"$patternTestRootPath`""
     }
     if ($CleanupOrphans) {
         $arguments += '-cleanup'
@@ -316,11 +394,12 @@ try {
         generated = [int]$receipt.generated
         skipped = [int]$receipt.skipped
         shader_compiles = [int]$receipt.shader_compiles
+        retained_orphans = @($receipt.retained_orphans)
         accepted_at_utc = [DateTime]::UtcNow.ToString('o')
     }
     Write-JsonAtomic -Document $summary -Path (Join-Path $currentEvidence 'host.receipt.json')
     if (-not $isTest -and $Mode -eq 'Regenerate') {
-        $rollbackRoot = Join-Path $projectRoot 'Saved\Validation\MaterialGeneration\RollbackPrevious'
+        $rollbackRoot = Join-Path $projectRoot "Saved\Validation\$validationFolder\RollbackPrevious"
         if (Test-Path -LiteralPath $rollbackRoot) {
             Remove-Item -LiteralPath $rollbackRoot -Recurse -Force
         }
@@ -342,6 +421,7 @@ try {
     Write-Output ($summary | ConvertTo-Json -Compress)
 }
 catch {
+    $rejection = $_.Exception.Message
     $rejectedEvidence = Join-Path $evidenceRoot 'Rejected'
     if (Test-Path -LiteralPath $rejectedEvidence) {
         Remove-Item -LiteralPath $rejectedEvidence -Recurse -Force
@@ -356,11 +436,16 @@ catch {
     Set-Content -LiteralPath (Join-Path $rejectedEvidence 'host.error.txt') -Value $_.Exception.Message -Encoding UTF8
     if (Test-Path -LiteralPath $journalPath -PathType Leaf) {
         $pending = Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json
-        Restore-MaterialSnapshot `
-            -Journal $pending `
-            -JournalPath $journalPath `
-            -AllowedTargetRoot $allowedTargetRoot `
-            -AllowedSnapshotRoot $transactionRoot
+        try {
+            Restore-MaterialSnapshot `
+                -Journal $pending `
+                -JournalPath $journalPath `
+                -AllowedTargetRoot $allowedTargetRoot `
+                -AllowedSnapshotRoot $transactionRoot
+        }
+        catch {
+            throw "$Domain transaction was rejected and its rollback failed; the journal and its snapshot are kept, and the next run restores them first. Rejection: $rejection Rollback: $($_.Exception.Message)"
+        }
     }
     throw
 }
@@ -371,7 +456,8 @@ finally {
     if ($null -ne $contentLock) {
         $contentLock.Dispose()
     }
-    if (Test-Path -LiteralPath $operationRoot) {
+    # A journal that survives a failed rollback still names the snapshot in this operation folder.
+    if ((Test-Path -LiteralPath $operationRoot) -and -not (Test-Path -LiteralPath $journalPath -PathType Leaf)) {
         Remove-Item -LiteralPath $operationRoot -Recurse -Force
     }
     if (Test-Path -LiteralPath $transactionRoot) {
@@ -382,8 +468,8 @@ finally {
     }
     if (-not $isTest) {
         foreach ($emptyRoot in @(
-                (Join-Path $projectRoot 'tmp\material\generation'),
-                (Join-Path $projectRoot 'tmp\material'))) {
+                (Join-Path $projectRoot "tmp\$scratchDomain\generation"),
+                (Join-Path $projectRoot "tmp\$scratchDomain"))) {
             if ((Test-Path -LiteralPath $emptyRoot) -and
                 @(Get-ChildItem -LiteralPath $emptyRoot -Force).Count -eq 0) {
                 Remove-Item -LiteralPath $emptyRoot -Force

@@ -4,6 +4,7 @@
 #include "ProjectWorldRealizationGeneratorRegistry.h"
 
 #include "ProjectWorldRealizationProfile.h"
+#include "ProjectWorldTerrainProducerRegistry.h"
 
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
@@ -37,13 +38,6 @@ namespace ProjectWorldRealizationGeneratorRegistry
 		bool HasSingleSelector(const FProjectWorldRealizationLayer& Layer, const TCHAR* Selector)
 		{
 			return Layer.CanonicalSelectors.Num() == 1 && Layer.CanonicalSelectors[0] == Selector;
-		}
-
-		bool HasTerrainAndWaterSelectors(const FProjectWorldRealizationLayer& Layer)
-		{
-			return Layer.CanonicalSelectors.Num() == 2 &&
-				Layer.CanonicalSelectors[0] == TEXT("terrain") &&
-				Layer.CanonicalSelectors[1] == TEXT("water");
 		}
 
 		bool HasUniqueStringArray(const TSharedPtr<FJsonObject>& Settings, const TCHAR* Field)
@@ -90,19 +84,6 @@ namespace ProjectWorldRealizationGeneratorRegistry
 		bool IsWholeNumber(double Value, double Minimum, double Maximum)
 		{
 			return FMath::IsFinite(Value) && Value >= Minimum && Value <= Maximum && FMath::Floor(Value) == Value;
-		}
-
-		bool ValidateLandscape(const FProjectWorldRealizationLayer& Layer, const TSharedPtr<FJsonObject>& Settings, FString& OutError)
-		{
-			double ComponentsPerProxy = 0.0;
-			return Layer.LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
-				HasTerrainAndWaterSelectors(Layer) &&
-				Layer.SpatialOwnership == TEXT("logical_landscape_with_cell_proxies") &&
-				Layer.DirtyGranularity == EProjectWorldDirtyGranularity::CanonicalCell &&
-				Layer.RuntimeMapping == TEXT("world_partition_owner") &&
-				HasOnlyFields(Settings, {TEXT("components_per_proxy")}, OutError) &&
-				Settings->TryGetNumberField(TEXT("components_per_proxy"), ComponentsPerProxy) &&
-				ComponentsPerProxy == 1.0;
 		}
 
 		bool ValidateWater(const FProjectWorldRealizationLayer& Layer, const TSharedPtr<FJsonObject>& Settings, FString& OutError)
@@ -250,10 +231,15 @@ namespace ProjectWorldRealizationGeneratorRegistry
 
 	bool IsRegistered(const FString& GeneratorId, int32 GeneratorVersion, EProjectWorldLayerKind LayerKind)
 	{
+		if (LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
+			ProjectWorldTerrainProducerRegistry::IsRegistered(GeneratorId, GeneratorVersion))
+		{
+			return true;
+		}
 		const bool bRegisteredBuildingV2 = GeneratorId == TEXT("project_building_massing") &&
 			GeneratorVersion == 2 && LayerKind == EProjectWorldLayerKind::GeneratedGeography;
 		return bRegisteredBuildingV2 || (GeneratorVersion == 1 && ((LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
-			(GeneratorId == TEXT("project_landscape") || GeneratorId == TEXT("project_water_mesh") ||
+			(GeneratorId == TEXT("project_water_mesh") ||
 			 GeneratorId == TEXT("project_road_mesh") || GeneratorId == TEXT("project_vegetation_instances") ||
 			 GeneratorId == TEXT("project_building_massing"))) ||
 			(LayerKind == EProjectWorldLayerKind::GeneratedGameplayPlacement &&
@@ -269,7 +255,15 @@ namespace ProjectWorldRealizationGeneratorRegistry
 			return false;
 		}
 		bool bValid = false;
-		if (Layer.GeneratorId == TEXT("project_landscape")) bValid = ValidateLandscape(Layer, Settings, OutError);
+		if (ProjectWorldTerrainProducerRegistry::IsRegistered(Layer.GeneratorId, Layer.GeneratorVersion))
+		{
+			bValid = Layer.LayerKind == EProjectWorldLayerKind::GeneratedGeography &&
+				Layer.DirtyGranularity == EProjectWorldDirtyGranularity::CanonicalCell &&
+				ProjectWorldTerrainProducerRegistry::ValidateLayer(
+					Layer.GeneratorId, Layer.GeneratorVersion, Layer.CanonicalSelectors,
+					Layer.SpatialOwnership, Layer.RuntimeMapping, Layer.DependencyHaloCells,
+					Layer.NormalizedSettings, OutError);
+		}
 		else if (Layer.GeneratorId == TEXT("project_water_mesh")) bValid = ValidateWater(Layer, Settings, OutError);
 		else if (Layer.GeneratorId == TEXT("project_road_mesh")) bValid = ValidateRoads(Layer, Settings, OutError);
 		else if (Layer.GeneratorId == TEXT("project_vegetation_instances")) bValid = ValidateVegetation(Layer, Settings, OutError);

@@ -9,10 +9,10 @@ active milestone todo. A fact stated here is not restated there.
 
 ## Purpose
 
-ProjectWorld expands trustworthy generated geography before it imports or
-polishes legacy map content. The next territory milestone must establish the
-large-scale world skeleton first: terrain, water, land cover, vegetation,
-roads, and blockout buildings.
+ProjectWorld turns authenticated canonical geography into replaceable Unreal
+world layers: terrain, water, land cover, vegetation, roads, blockout
+buildings, and admitted gameplay placement. Separately authored content is not
+an implicit compiler input.
 
 The order is fixed:
 
@@ -21,7 +21,7 @@ accepted source coverage
   -> canonical territory cells
   -> generated Unreal geography
   -> measured World Partition optimization
-  -> legacy-content or regenerative-polish decision
+  -> separately accepted authored-content integration
 ```
 
 This prevents existing props and hand-authored scenes from becoming hidden
@@ -79,29 +79,23 @@ Official basis: [Epic GeoReferencing a Level](https://dev.epicgames.com/document
 
 ### Terrain elevation acceptance
 
-Landscape presence, component topology, package hashes, and edit-layer identity
-do not prove that the rendered terrain matches canonical elevation. A flat
-Landscape can satisfy every one of those structural checks.
+MeshPartition actor presence, section counts, package hashes, and channel
+identity do not prove that rendered terrain matches canonical elevation. A flat
+or stale compiled section can satisfy structural checks.
 
-The Apply route therefore emits two independent evidence families:
-
-- `terrain_source_height_*` compares canonical samples with the realized
-  Generated Base edit-layer input.
-- `terrain_final_height_*` compares canonical samples with the final composed
-  Landscape heightmap that Unreal renders.
-
-Both evidence families must cover the complete expected sample set, report zero
-mismatches, stay within their recorded tolerance, carry a valid semantic
-SHA-256 identity, and remain stable across the first, incremental, and clean
-Matrix legs. Source-layer success cannot substitute for final-surface success.
-Final-surface reads use `ULandscapeComponent::GetHeightmap(FGuid())`;
-`FLandscapeEditDataInterface` with an invalid layer GUID is not a documented
-final-heightmap accessor.
+Acceptance therefore keeps independent input and realized-output evidence. The
+producer authenticates the canonical compile result and cell input identities.
+The Mesh Terrain audit compares every expected canonical height sample with the
+compiled Nanite and fallback surfaces, requires zero mismatches within the
+recorded quantization tolerance, pairs the two render surfaces by bounds, and
+verifies the declared section variants. Runtime collision evidence separately
+proves the collision sections used by gameplay and navigation. Canonical-input
+success cannot substitute for compiled-surface or collision success.
 
 Static profile validation does not load a World and therefore produces no
 terrain-height acceptance evidence. Profiles without explicit topology and a
-realization route may assert Landscape structure only. GeoReferencing placement
-error is separate XY evidence and cannot establish terrain elevation.
+realization route may assert contract shape only. GeoReferencing placement error
+is separate XY evidence and cannot establish terrain elevation.
 
 The executable acceptance rules live in
 [layered validation](../../../../tools/World/EndToEndValidation/app/layered_validation.py),
@@ -188,7 +182,7 @@ scale fidelity but is not added again to an anchor's absolute-position budget.
 Vertical error is independent. A source without a qualified vertical datum
 cannot authorize absolute Z. Terrain-relative placements use `surface_snap`
 against the accepted canonical terrain samples in the compilation bundle,
-never a generated Landscape actor lookup. Each canonical terrain cell freezes
+never a generated runtime-terrain actor lookup. Each canonical terrain cell freezes
 its raster snapshot identity, vertical datum, source accuracy/confidence, and
 the height sampling/quantization residual. A seam point must resolve to equal
 terrain provenance on every participating cell or fail closed. The current
@@ -262,14 +256,12 @@ before its canonical output can be consumed.
 
 Canonical Terrain and Water may legitimately disagree vertically because the
 current DEM is a sampled DSM while Water is a fitted flat or monotonic surface.
-Realization resolves that representation seam without changing either canonical
-authority: the Landscape projection consumes both `terrain` and `water`, and for
-each Landscape sample inside the exact canonical Water footprint applies
-`min(canonical_terrain_z, canonical_water_surface_z)`. Samples outside Water are
-unchanged. The Water mesh independently stays at canonical Water Z plus the
-profile-owned positive surface offset. This is a deterministic hydro-conditioned
-rendering projection, not a new elevation source, Water drape, material mask, or
-Kazan-specific override.
+Canonical Compilation owns that seam. It preserves the sampled terrain under
+`water_fit`, derives the final hydro-conditioned terrain with the configured
+clearance, then applies authored terrain patches and emits final named surface
+weights. The Mesh Terrain adapter realizes that immutable final surface; it does
+not clamp or classify terrain. The Water mesh independently stays at canonical
+Water Z plus the profile-owned positive surface offset.
 
 Ribbon cell membership derives from the final quantized buffered surface
 footprint, not only its centerline. A footprint-only cell stores an explicit
@@ -364,7 +356,7 @@ Layer stack, bottom to top:
 
 | Layer | Ownership | Regeneration behavior |
 |---|---|---|
-| Terrain (Landscape) | Generated, profile-owned | Fully replaceable |
+| Terrain (selected producer) | Generated, profile-owned | Fully replaceable |
 | Water | Generated, profile-owned | Fully replaceable |
 | Roads | Generated, profile-owned | Fully replaceable |
 | Vegetation and foliage | Generated, profile-owned | Fully replaceable |
@@ -400,8 +392,9 @@ Concrete profiles live under the owning data plugin's
 `Data/Profiles/Realization/` directory. The loader verifies that the profile,
 map package, protected roots, runtime exclusions, and every layer artifact root
 belong to that same data plugin. Generator settings are typed by the registered
-ID/version pair. The v1 terrain contract requires one component per proxy and
-ordered canonical selectors `terrain`, `water`. The
+ID/version pair. The Mesh Terrain v1 contract consumes the final canonical
+terrain surface and its named semantic weights. A parallel terrain identity
+or producer tuple is invalid. The
 current v1 Water blockout requires a non-Nanite, opaque solid-blue surface with
 a bounded positive realization offset above canonical Water Z. The offset is a
 replaceable presentation separation, never a change to canonical Water elevation.
@@ -414,13 +407,19 @@ It currently admits only these complete tuples:
 
 | Generator | Kind | Selector | Spatial ownership | Dirty unit | Runtime mapping |
 |---|---|---|---|---|---|
-| `project_landscape:v1` | generated geography | terrain + water | logical Landscape with cell proxies | canonical cell | World Partition owner |
+| `project_mesh_terrain:v1` | generated geography | terrain | MeshPartition compiled sections derived from canonical cells | canonical cell | World Partition spatial |
 | `project_water_mesh:v1` | generated geography | water | cell local | canonical cell | World Partition spatial |
 | `project_road_mesh:v1` | generated geography | roads | cell local | canonical cell | World Partition spatial |
 | `project_vegetation_instances:v1` | generated geography | vegetation | cell-local HISM actors | canonical cell | World Partition spatial |
 | `project_building_massing:v1` | generated geography | buildings | cell-local StaticMesh actors | canonical cell | World Partition spatial |
 | `project_building_massing:v2` | generated geography | logical buildings with effective volumes | cell-local StaticMesh actors | canonical cell | World Partition spatial |
 | `project_gameplay_placement:v1` | generated gameplay placement | gameplay placements | object-local ObjectDefinition actors | stable object ID | World Partition spatial |
+
+The Kazan and Manhattan production profiles select `project_mesh_terrain:v1`
+through their existing production map identities. `ProjectWorldMeshTerrain`
+alone owns the Epic MeshPartition dependency and maps canonical semantic channel
+names to its private channel layout. ProjectWorld owns the producer-neutral
+registry, manifests, World Partition policy, and runtime acceptance contract.
 
 A layer artifact root must be a strict descendant of the owner's `Generated/`
 root; no layer may claim that complete root.
@@ -434,8 +433,7 @@ dependants; reordering display metadata alone does not regenerate output.
 
 Every normalized layer contract includes a semantic profile-execution hash.
 That hash covers the owner, canonical profile, map package, runtime profile,
-logical Landscape identity, partition setting, protected roots, and excluded
-runtime roots. The layer identity additionally covers dirty granularity and
+protected roots, and excluded runtime roots. The layer identity additionally covers dirty granularity and
 the complete registered tuple. Changing any generator-consumed behavior
 therefore produces a contract mismatch and a full dirty layer; JSON whitespace
 alone does not.
@@ -454,11 +452,10 @@ or toggle realized actors, but do not establish generation ownership by
 themselves.
 
 Terrain cell input identity is the deterministic composite of the authenticated
-canonical terrain artifact and the Water cell semantic hash consumed by the
-hydro-conditioned Landscape projection. A Water geometry or surface-Z change
-therefore dirties only affected Landscape cells and their declared dependants.
-A same-path Water material change is not part of this identity and dirties no
-Landscape geography.
+final canonical terrain surface, including its canonical Water fit and surface
+semantics. A Water geometry or surface-Z change therefore dirties only affected
+Mesh Terrain cells and their declared dependants. A same-path material content
+change is not part of this geography identity and dirties no terrain geography.
 Water cell input identity is a deterministic hash of only water semantics
 consumed by that cell: membership, geometry, width, surface function/version,
 surface Z, cell bounds, and relevant coordinate quantization. The enclosing
@@ -499,7 +496,7 @@ layer no-op retains its accepted layer manifest; map or presentation scopes
 remain byte-authoritative and may republish if UE rewrites their packages.
 Generators that explicitly save their own persistent external actors do not
 trigger a broad dirty-package save when they are the only mutation. New maps,
-Landscape changes, partition-policy changes, and mixed-owner mutations still
+map-root changes, partition-policy changes, and mixed-owner mutations still
 use the broad save path. A cell-owned producer that transitions to no output
 must destroy the actor and explicitly delete its external package file before
 claiming a self-saved mutation; in-memory destruction alone is not persistent.
@@ -540,7 +537,7 @@ Invariants:
    Git status.
 
 Every mutating operator route previews the exact map and scopes it will
-replace, the Authored root and Landscape correction layer it protects, and
+replace, the Authored root and anchored overlays it protects, and
 the scopes it will not touch. Interactive mutation requires an exact `yes`;
 automation must opt in explicitly. The generation-history view is derived
 from immutable active and archived manifests and is read-only - it never
@@ -781,9 +778,14 @@ cannot stale terrain, water, vegetation, presentation, or map scopes. The
 normalized layer contract remains the data-defined behavior authority and is
 not duplicated into the source set. Pure tuple catalog, profile-schema,
 validation, and dispatch additions are not byte-producing inputs and therefore
-do not move existing producer fingerprints. The read-only auditor and tests
-are also excluded because they cannot change generated bytes or manifest
-documents.
+do not move existing producer fingerprints. Admission-only regions in the
+realization wrapper are explicitly scoped out. Such a region may only refuse
+inputs before the wrapper's first write, and nothing it computes may be read
+after the region; producing logic placed inside it would escape invalidation.
+Any region marker that does not delimit a well-formed region refuses
+fingerprinting. The wrapper's byte- and manifest-producing behavior remains a
+shared input. The read-only auditor and tests are also excluded because they
+cannot change generated bytes or manifest documents.
 
 The enrollment pre-audit has one narrow transition exception: generator
 fingerprint drift may exist only on map/layer scopes for the exact Matrix-
@@ -1005,11 +1007,10 @@ adapter evidence live under `ProjectWorldTestData`.
 - Allowed authored dependencies: engine content, art assets, canonical
   feature IDs as data, and other authored packages. Forbidden: any hard or
   soft reference from an authored package to a generated package or actor.
-- In-asset authored channels: the Landscape "Authored Corrections" edit
-  layer is the single sanctioned authored channel inside a generated
-  asset; it is identity-tracked (GUID + hash) and must survive
-  regeneration unchanged. No new in-asset authored channels are added
-  without extending this contract.
+- In-asset authored channels are forbidden. Hand-authored terrain corrections
+  enter CanonicalCompilation as authored overlay input and are frozen into the
+  final canonical terrain projection before Unreal realization. Runtime terrain
+  packages remain fully generated and replaceable.
 
 ### Manifest authority location
 
@@ -1051,8 +1052,8 @@ adapter evidence live under `ProjectWorldTestData`.
 
 ### Proof split (execution order)
 
-Proven today (representative scale): the authored Landscape correction
-layer, presentation and hero overlays, rejected-Apply restoration, and
+Proven today (representative scale): authored terrain patches,
+presentation and hero overlays, rejected-Apply restoration, and
 unchanged-import fingerprint equality.
 
 - Generic isolation gate (scale-out precondition): authored storage roots
@@ -1075,7 +1076,7 @@ unchanged-import fingerprint equality.
   the geography-realization exit gate requires the matrix complete for
   every generated layer ENABLED in the territory profile, with
   later-slice generators (such as modular assembly) recorded as
-  "not enabled", never as accepted; the legacy/assembly integration stage
+  "not enabled", never as accepted; the selected-feature assembly stage
   extends the matrix with each newly admitted layer before its first use;
   the release gate requires the matrix complete for every generated layer
   PRESENT in the released package. Within any stage: every enabled layer
@@ -1196,7 +1197,7 @@ lattice and coordinate authority, not a competing v1 option.
 
 ### 3. Generated Unreal geography
 
-- Realize Landscape and water first, then roads, scalable foliage, and
+- Realize Mesh Terrain and water first, then roads, scalable foliage, and
   blockout building massing.
 - The vegetation v1 producer consumes accepted `vegetation_area` and
   `foliage_point` records. It retains explicit points and uses one globally
@@ -1247,16 +1248,16 @@ lattice and coordinate authority, not a competing v1 option.
 - Nanite is the only geometry-detail reduction path for compatible generated
   static meshes. UE 5.8 rejects Single Layer Water as a Nanite shading model,
   so primary water is a persistent cell-local non-Nanite StaticMesh with no
-  authored LOD chain. Landscape keeps its component/proxy streaming contract
-  and builds its Nanite representation; foliage remains instance-owned and
-  uses Nanite-enabled static meshes. None of these paths authorizes HLOD.
+  authored LOD chain. Mesh Terrain uses its accepted collision, Nanite, and
+  fallback section variants; foliage remains instance-owned and uses
+  Nanite-enabled static meshes. None of these paths authorizes HLOD.
 - Keep generated content profile-owned, persistent, and transactionally
   replaceable.
 - Protect authored overlays during Apply and clean reconstruction.
-- Do not migrate legacy buildings, trees, or props into the generated base at
-  this stage.
+- Separately authored buildings, trees, and props remain outside the generated
+  base until their own content-class migration is accepted.
 
-Active P0 and representative maps contain no HLOD companions or serialized
+Production Kazan and Manhattan maps contain no HLOD companions or serialized
 HLOD layer references. Older immutable manifest generations retain their
 historical HLOD inventory for provenance and recovery only. Generic lifecycle
 code must continue to recognize that history, but no active or future

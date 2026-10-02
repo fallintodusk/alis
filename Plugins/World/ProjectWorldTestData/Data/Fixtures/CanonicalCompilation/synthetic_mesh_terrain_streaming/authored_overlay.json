@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../../../tools/World/CanonicalCompilation/contracts/authored-overlay.schema.json",
+  "schema_version": 2,
+  "overlay_id": "synthetic_mesh_terrain_streaming_overlay_v1",
+  "grid_id": "grid_59f7c349811628ae",
+  "provenance": [
+    {"provenance_id": "synthetic_fixture_author", "authority": "authored_fixture"}
+  ],
+  "terrain_patches": [
+    {"patch_id": "boundary_height_correction", "provenance_ref": "synthetic_fixture_author", "center": [0.0, 500.0], "radius_m": 250.0, "delta_m": 1.0}
+  ],
+  "feature_overrides": [],
+  "missing_target_policy": "reject_and_require_rebase"
+}

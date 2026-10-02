@@ -5,31 +5,10 @@ BEGIN OPENSSH PRIVATE KEY
 BEGIN RSA PRIVATE KEY
 BEGIN EC PRIVATE KEY
 
-# Personal machine path markers and personal contact domains
-C:\\Users\\
-C:/Users/
-\\\\wsl\.localhost\\
-/home/[A-Za-z0-9._-]+/repos_alis/
-~/repos_alis/
-@[A-Za-z0-9.-]+\.(yandex\.ru|outlook\.com|proton\.me)
-%USERPROFILE%
-%LOCALAPPDATA%
-%TEMP%
-%WSL_HOME%
-[A-Za-z]:\\Repos_Alis\\Alis
-[A-Za-z]:[\\]+Repos_Alis[\\]+Alis
-[A-Za-z]:/Repos_Alis/Alis
-[A-Za-z]:\\Repos_Alis\\site
-[A-Za-z]:[\\]+Repos_Alis[\\]+site
-[A-Za-z]:/Repos_Alis/site
-/mnt/[A-Za-z]/Repos_Alis/Alis
-/mnt/[A-Za-z]/Repos_Alis/site
-[A-Za-z]:\\UnrealEngine(?:-[0-9.]+|\\UE_[0-9.]+)
-[A-Za-z]:/UnrealEngine(?:-[0-9.]+|/UE_[0-9.]+)
-[A-Za-z]:\\Program Files(?: \(x86\))?\\Epic Games\\UE_[0-9.]+
-[A-Za-z]:/Program Files(?: \(x86\))?/Epic Games/UE_[0-9.]+
-<wsl-home>[\\/]+repos_alis[\\/]+cdn
-<home>[\\/]+repos_alis[\\/]+cdn
+# Not listed here: machine-local paths, which the governance definition in
+# scripts/ue/check/governance/machine_local_paths.py owns and the mirror
+# applies to every published file, and maintainer identities, which live only
+# in the private pattern file.
 
 # Credential-shaped environment assignments
 ^[[:space:]]*(export[[:space:]]+)?(\$env:)?[A-Z0-9_]*(PASSWORD|PASS|SECRET|SECRET_KEY|ACCESS_KEY|API_KEY|TOKEN)[[:space:]]*=[[:space:]]*["']?[A-Za-z0-9._@+=:/-]{8,}["']?[[:space:]]*(#.*)?$

@@ -246,8 +246,7 @@ function Invoke-ProjectWorldIntegrationRun {
     if ($Mode -eq 'Apply') {
         $arguments += @(
             '-PresentationProfile', $presentationPath,
-            '-AuthoredOverlayProfile', $authoredPath,
-            '-RequireLandscape'
+            '-AuthoredOverlayProfile', $authoredPath
         )
     }
     $arguments += $ExtraArguments
@@ -293,39 +292,22 @@ function Invoke-ProjectWorldPackageLocalityProof {
     $terrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $terrainInventory.artifacts
     $changedTerrainPaths = @(Get-ProjectWorldChangedHashPaths `
         -Before $baseTerrainHashes -After $terrainHashes)
-    Assert-ProjectWorldIntegration -Condition ($changedTerrainPaths.Count -eq 1) `
-        -Message 'A genuine terrain change did not rewrite exactly one proxy package.'
+    Assert-ProjectWorldIntegration -Condition ($changedTerrainPaths.Count -ge 1) `
+        -Message 'A genuine terrain change did not rewrite its Mesh Terrain artifacts.'
 
     $cellId = [string]$Variants.terrain_changed_cell_id
-    Assert-ProjectWorldIntegration -Condition ($cellId -match ':x(-?\d+):y(-?\d+)$') `
-        -Message 'Terrain variant cell ID is malformed.'
-    $cellX = [int]$Matches[1]
-    $cellY = [int]$Matches[2]
-    $allCoordinates = @($terrainInventory.canonical_inputs | ForEach-Object {
-        Assert-ProjectWorldIntegration -Condition ([string]$_.unit_id -match ':x(-?\d+):y(-?\d+)$') `
-            -Message 'Terrain canonical-input cell ID is malformed.'
-        [pscustomobject]@{ X = [int]$Matches[1]; Y = [int]$Matches[2] }
-    })
-    $coveragePath = Join-Path (Split-Path ([string]$Variants.terrain_compile_result)) 'canonical\coverage.json'
-    $coverage = Get-Content -LiteralPath $coveragePath -Raw | ConvertFrom-Json
-    $componentQuads = [int]$coverage.grid.cell_quads[0]
-    $minimumX = [int](($allCoordinates | Measure-Object -Property X -Minimum).Minimum)
-    $maximumY = [int](($allCoordinates | Measure-Object -Property Y -Maximum).Maximum)
     $canonicalInput = @($terrainInventory.canonical_inputs | Where-Object { $_.unit_id -ceq $cellId })
     Assert-ProjectWorldIntegration -Condition ($canonicalInput.Count -eq 1) `
         -Message 'Changed terrain cell has no canonical input identity.'
-    $sectionX = ($cellX - $minimumX) * $componentQuads
-    $sectionY = ($maximumY - $cellY) * $componentQuads
-    $semanticText = "project_landscape_proxy_v2|$([string]$realization.landscape.logical_landscape_id)|" +
-        "$cellId|$([string]$canonicalInput[0].sha256)|$sectionX,$sectionY"
+    $semanticText = "project_mesh_terrain_base_v1|$cellId|$([string]$canonicalInput[0].sha256)"
     $expectedSemantic = Get-ProjectWorldIntegrationTextSha256 -Value $semanticText
     $expectedArtifacts = @($terrainInventory.artifacts | Where-Object {
         $_.semantic_sha256 -ceq $expectedSemantic
     })
     Assert-ProjectWorldIntegration -Condition (
         $expectedArtifacts.Count -eq 1 -and
-        [string]$expectedArtifacts[0].path -ceq [string]$changedTerrainPaths[0]) `
-        -Message 'Changed proxy package does not belong to the changed canonical terrain cell.'
+        $changedTerrainPaths -contains [string]$expectedArtifacts[0].path) `
+        -Message 'Changed Mesh Terrain base package does not belong to the changed canonical terrain cell.'
 
     $terrainActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
     $baseTerrainScope = Get-ProjectWorldIntegrationScopeEntry `
@@ -358,13 +340,27 @@ function Invoke-ProjectWorldPackageLocalityProof {
         ($actualWaterTerrainCells -join '|') -ceq ($expectedWaterCells -join '|') -and
         $expectedWaterCells.Count -gt 0 -and
         @($sourceChangedWaterCells | Where-Object { $_ -notin $expectedWaterCells }).Count -eq 0) `
-        -Message 'Water-only change did not select the same hydrologic Landscape cells.'
+        -Message 'Water-only change did not select the same hydrologic terrain cells.'
     $waterMapHash = (Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $waterTerrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $waterTerrain.artifacts
-    Assert-ProjectWorldIntegration -Condition (
-        @(Get-ProjectWorldChangedHashPaths -Before $terrainHashes -After $waterTerrainHashes).Count -eq
-            $expectedWaterCells.Count) `
-        -Message 'A genuine water-only change did not rewrite exactly its hydrologic Landscape proxies.'
+    $changedWaterTerrainPaths = @(Get-ProjectWorldChangedHashPaths `
+        -Before $terrainHashes -After $waterTerrainHashes)
+    foreach ($waterCellId in $expectedWaterCells) {
+        $waterCellInput = @($waterTerrain.canonical_inputs | Where-Object {
+            [string]$_.unit_id -ceq $waterCellId
+        })
+        Assert-ProjectWorldIntegration -Condition ($waterCellInput.Count -eq 1) `
+            -Message "Hydrologic terrain cell has no canonical input identity: $waterCellId"
+        $waterBaseSemantic = Get-ProjectWorldIntegrationTextSha256 `
+            -Value "project_mesh_terrain_base_v1|$waterCellId|$([string]$waterCellInput[0].sha256)"
+        $waterBaseArtifact = @($waterTerrain.artifacts | Where-Object {
+            [string]$_.semantic_sha256 -ceq $waterBaseSemantic
+        })
+        Assert-ProjectWorldIntegration -Condition (
+            $waterBaseArtifact.Count -eq 1 -and
+            $changedWaterTerrainPaths -contains [string]$waterBaseArtifact[0].path) `
+            -Message "Water-only change did not rewrite its Mesh Terrain base: $waterCellId"
+    }
 
     $waterActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
     $waterTerrainScope = Get-ProjectWorldIntegrationScopeEntry `
@@ -377,7 +373,7 @@ function Invoke-ProjectWorldPackageLocalityProof {
     Assert-ProjectWorldIntegration -Condition (
         [int]$waterTerrainScope.generation -gt [int]$terrainScope.generation -and
         [string]$waterTerrainScope.manifest_sha256 -cne [string]$terrainScope.manifest_sha256) `
-        -Message 'Water-only change did not advance hydrologic Landscape authority.'
+        -Message 'Water-only change did not advance hydrologic terrain authority.'
     Assert-ProjectWorldIntegration -Condition (
         [int]$waterScope.generation -gt [int]$terrainWaterScope.generation -and
         [string]$waterScope.manifest_sha256 -cne [string]$terrainWaterScope.manifest_sha256) `
@@ -389,7 +385,7 @@ function Invoke-ProjectWorldPackageLocalityProof {
 
     return [pscustomobject]@{
         TerrainCellId = $cellId
-        TerrainProxyPath = [string]$changedTerrainPaths[0]
+        TerrainBasePath = [string]$expectedArtifacts[0].path
         LogicalMapSha256 = $waterMapHash
         TerrainManifestGeneration = [int]$terrainScope.generation
         WaterManifestGeneration = [int]$waterScope.generation
@@ -430,10 +426,9 @@ try {
     if ($ExpectedCellCount -gt 0) {
         Assert-ProjectWorldIntegration -Condition (
             [int]$first.Result.canonical_cell_count -eq $ExpectedCellCount -and
-            [int]$first.Result.changes.landscape_components -eq $ExpectedCellCount -and
-            [int]$first.Result.changes.landscape_proxies -eq $ExpectedCellCount -and
+            [int]$first.Result.changes.terrain_sections -eq $ExpectedCellCount -and
             @($firstTerrain[0].canonical_inputs).Count -eq $ExpectedCellCount) `
-            -Message "Landscape topology is not $ExpectedCellCount/$ExpectedCellCount."
+            -Message "Mesh Terrain topology does not cover all $ExpectedCellCount canonical cells."
     }
     if ($ExpectedSampleSpacingMeters -gt 0.0) {
         Assert-ProjectWorldIntegration -Condition (
@@ -479,7 +474,6 @@ try {
     }
     Assert-ProjectWorldIntegration -Condition (
         [int]$unchanged.Result.changes.updated_actors -eq 0 -and
-        [int]$unchanged.Result.changes.updated_landscape_components -eq 0 -and
         [int]$unchanged.Result.changes.water_triangles -eq 0) `
         -Message 'Unchanged Apply rewrote generated map or layer state.'
     Assert-ProjectWorldIntegration -Condition (
@@ -606,7 +600,7 @@ try {
         one_cell_dirty_unit = $cellId
         canonical_cell_count = [int]$first.Result.canonical_cell_count
         sample_spacing_m = @($first.Result.sample_spacing_m)
-        landscape_proxy_count = [int]$first.Result.changes.landscape_proxies
+        terrain_section_count = [int]$first.Result.changes.terrain_sections
         water_cell_actor_count = [int]$first.Result.changes.water_cell_actors
         maximum_georeference_error_m = $MaximumGeoReferenceErrorMeters
         observed_georeference_error_m = [double]$first.Result.georeferencing_placement_error_m

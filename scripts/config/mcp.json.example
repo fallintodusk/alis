@@ -1,5 +1,6 @@
 {
-  "_comment_setup": "Copy to .mcp.json at project root. Replace ${...} with absolute paths. .mcp.json is gitignored.",
+  "_comment_setup": "Copy to .mcp.json at project root and replace each ${...} placeholder with an absolute path. .mcp.json is gitignored.",
+  "_comment_placeholders": "${PROJECT_ROOT}: this checkout. ${UE_PATH}: the launcher engine root from scripts/config/ue_path.conf. ${NODE_PATH}: node.exe of Node 20 or newer (Node 18 fetch to localhost is broken). ${UE_MCP_ENTRY}: dist/cli.js in a clone of the ue-mcp fork named below.",
   "_comment_servers": "Agent decides which server to use based on task. Servers can run simultaneously, but mutating editor operations must be serialized across all agents and routes.",
 
   "mcpServers": {

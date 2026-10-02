@@ -124,6 +124,13 @@
       }
     }
   },
+  "terrain_surface": {
+    "contract_id": "terrain_surface_semantics",
+    "contract_version": 1,
+    "roles": ["ground", "hydro_transition"],
+    "hydro_transition_radius_m": 60.0,
+    "water_clearance_m": 0.0
+  },
   "target_cell_range": {"min_x": -6, "max_x": 8, "min_y": -6, "max_y": 7},
   "quality_cells": [
     {"role": "dense_urban", "cells": [{"x": 2, "y": 0}]},

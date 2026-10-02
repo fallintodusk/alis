@@ -1,16 +1,16 @@
 {
   "$schema": "../../../../../../tools/World/CanonicalCompilation/contracts/canonical-authority.schema.json",
   "schema_version": 1,
-  "authority_id": "kazan_territory_v1:a312a9a98086f7895a10bb2edd1d97974745d80683d7395a7784b60dda012f0b",
+  "authority_id": "kazan_territory_v1:75b8eefd6a99e53ff0db65ad9efaccf029759bd098dbe5e4b8e8651565a287b8",
   "world_data_plugin": "ProjectWorldData",
   "profile_id": "kazan_territory_v1",
-  "inputs_hash": "11cf1c13c1792afa88a0013c5b0950ced0e3678c8bb653ffad81d2a15433823e",
-  "profile_sha256": "302c246270e1aa4c7461ab15467df48d3660c5ada46316cee1a39003b67f4c6a",
+  "inputs_hash": "de53fbfb56815566259832b9f8456d8085361e44d3f06ed28e33523e10563141",
+  "profile_sha256": "5a6c304c7f0d4185b37c4bc1f28099280f6c2d4dad6242a5bef7169ee2aa9f57",
   "external_inputs": {
     "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json",
     "source_profile_sha256": "9d29f1d9a572366d6bf52d1f0bc4ea64befa116403c4394c53e5f9c064b31add",
     "authored_overlay_path": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
-    "authored_overlay_sha256": "a1dceda2b459b6e9279dda4ca6c140b719795bc3e0310443e2ee790d9ecbeb59",
+    "authored_overlay_sha256": "1414183693f1754f4cd482759fc4489f1de624c5b40e5028712d28a9692343f5",
     "fixture_features_path": null,
     "fixture_features_sha256": null,
     "budget_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/Budgets/kazan_territory_v1.budget.json",
@@ -19,12 +19,12 @@
     "control_profile_sha256": "8794798bd7058c7a36525fe0026ac9dc94ebe1cfb0b062767f6faf497b5fffdd",
     "source_run_inputs_hash": "b6673ba45606563806f0fceab27db32246a54a4c3ea955c11d2b2e9a29f2ef6d"
   },
-  "admission_receipt_sha256": "7a4cb7ff3b0db220cfbd20d22073cccbb269961cae90a46f9e56209c3d8fedb1",
+  "admission_receipt_sha256": "6952dd48037a84ebec706e4dfc04e2688b7cd74148083c1557c005c8866cb4f2",
   "admission_artifacts": [
     {
-      "path": "admission/territory_admission_receipt.json",
-      "sha256": "7a4cb7ff3b0db220cfbd20d22073cccbb269961cae90a46f9e56209c3d8fedb1",
-      "byte_size": 2307
+      "path": "admission/control_network_receipt.json",
+      "sha256": "650273ac6aa096ad2ee638fb72f203d7f5335c8a2eb1ea7cf16391403c1862fc",
+      "byte_size": 2550
     },
     {
       "path": "admission/source_plan.json",
@@ -32,17 +32,17 @@
       "byte_size": 7089
     },
     {
-      "path": "admission/control_network_receipt.json",
-      "sha256": "650273ac6aa096ad2ee638fb72f203d7f5335c8a2eb1ea7cf16391403c1862fc",
-      "byte_size": 2550
+      "path": "admission/territory_admission_receipt.json",
+      "sha256": "6952dd48037a84ebec706e4dfc04e2688b7cd74148083c1557c005c8866cb4f2",
+      "byte_size": 2307
     }
   ],
-  "compile_result_sha256": "b2fc42dbe6260a1dd129db1184cb4448a3cc68a7aca34ca970c1f16f81854c0b",
-  "output_count": 637,
+  "compile_result_sha256": "482036eee48050095686129a069e3fff00b99a8ffd0e45916e00f3c645b89c68",
+  "output_count": 638,
   "bundle": {
     "format": "deterministic_zip_v1",
-    "path": "bundles/a312a9a98086f7895a10bb2edd1d97974745d80683d7395a7784b60dda012f0b.zip",
-    "byte_size": 12867283,
-    "sha256": "8570e482aafbc2cf4ddf1acc1027905f5f2a8d72acfe0545cd40c394f48bee46"
+    "path": "bundles/75b8eefd6a99e53ff0db65ad9efaccf029759bd098dbe5e4b8e8651565a287b8.zip",
+    "byte_size": 13980898,
+    "sha256": "995fb0fb1d6550925efaf55111a6936e600658d0b9cb3938461a3e6cac47b8dc"
   }
 }

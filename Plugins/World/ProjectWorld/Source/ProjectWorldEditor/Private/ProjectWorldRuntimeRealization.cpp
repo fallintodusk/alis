@@ -11,9 +11,6 @@
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldTerritoryRuntimeAcceptance.h"
 
-#include "ActorFactories/ActorFactory.h"
-#include "Builders/CubeBuilder.h"
-#include "Components/BrushComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/TargetPoint.h"
@@ -22,11 +19,9 @@
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "NavigationData.h"
-#include "NavigationInvokerComponent.h"
 #include "NavigationSystem.h"
 #include "ProceduralMeshComponent.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/UnrealType.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 
 namespace ProjectWorldRuntimeRealization
@@ -129,6 +124,55 @@ namespace ProjectWorldRuntimeRealization
 				PlayerStart->GetActorRotation().Equals(ExpectedRotation, 0.01) &&
 				!PlayerStart->GetIsSpatiallyLoaded() && !PlayerStart->bEnableAutoLODGeneration
 				? PlayerStart
+				: nullptr;
+		}
+
+		ANavMeshBoundsVolume* FindCurrentTerritoryNavigation(
+			UWorld* World,
+			const FProjectWorldCanonicalBundle& Bundle,
+			const FProjectWorldRuntimeProfile& Profile,
+			const FBox& ExpectedBounds)
+		{
+			const FString Role(TEXT("TerritoryNavigation"));
+			const FGuid ExpectedGuid = ProjectWorldGeneratedGeometry::StableGuid(
+				Bundle.GridId + TEXT("|runtime|") + Role);
+			const FName ExpectedName(TEXT("ProjectWorld_TerritoryNavigation"));
+			TSet<AActor*> IdentityActors;
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (RuntimeRole(**It) == Role || It->GetActorGuid() == ExpectedGuid ||
+					It->GetFName() == ExpectedName)
+				{
+					IdentityActors.Add(*It);
+				}
+			}
+			if (UObject* NamedObject = StaticFindObjectFast(nullptr, World->PersistentLevel, ExpectedName))
+			{
+				if (AActor* NamedActor = Cast<AActor>(NamedObject))
+				{
+					IdentityActors.Add(NamedActor);
+				}
+			}
+			if (IdentityActors.Num() != 1)
+			{
+				return nullptr;
+			}
+			ANavMeshBoundsVolume* NavBounds = Cast<ANavMeshBoundsVolume>(*IdentityActors.CreateConstIterator());
+			const FBox ActualBounds = NavBounds != nullptr
+				? NavBounds->GetComponentsBoundingBox(true)
+				: FBox(ForceInit);
+			return NavBounds != nullptr && NavBounds->GetClass() == ANavMeshBoundsVolume::StaticClass() &&
+				NavBounds->GetActorGuid() == ExpectedGuid && NavBounds->GetFName() == ExpectedName &&
+				NavBounds->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag) &&
+				HasSingleTagValue(*NavBounds, RuntimeRolePrefix, Role) &&
+				HasSingleTagValue(*NavBounds, RuntimeProfilePrefix, Profile.ProfileId) &&
+				HasSingleTagValue(*NavBounds, RuntimeProfileHashPrefix, Profile.ProfileHash) &&
+				HasSingleTagValue(*NavBounds, GridPrefix, Bundle.GridId) &&
+				HasSingleTagValue(*NavBounds, RoutePrefix, Profile.RouteId) &&
+				ActualBounds.IsValid && ActualBounds.Min.Equals(ExpectedBounds.Min, 1.0) &&
+				ActualBounds.Max.Equals(ExpectedBounds.Max, 1.0) &&
+				!NavBounds->GetIsSpatiallyLoaded() && !NavBounds->bEnableAutoLODGeneration
+				? NavBounds
 				: nullptr;
 		}
 
@@ -661,21 +705,61 @@ namespace ProjectWorldRuntimeRealization
 			if (FindCurrentProductPlayerStart(World, Bundle, Profile, ProductLocation) != nullptr)
 			{
 				++OutResult.PreservedActorCount;
-				return true;
 			}
-			APlayerStart* PlayerStart = Cast<APlayerStart>(ReuseOrSpawn(
-				World, APlayerStart::StaticClass(), TEXT("PlayerStart"), Bundle, Profile, OutResult));
-			if (PlayerStart == nullptr)
+			else
 			{
-				OutError = TEXT("Cannot create the unique territory PlayerStart.");
+				APlayerStart* PlayerStart = Cast<APlayerStart>(ReuseOrSpawn(
+					World, APlayerStart::StaticClass(), TEXT("PlayerStart"), Bundle, Profile, OutResult));
+				if (PlayerStart == nullptr)
+				{
+					OutError = TEXT("Cannot create the unique territory PlayerStart.");
+					return false;
+				}
+				PlayerStart->SetActorLocation(ProductLocation);
+				PlayerStart->SetActorRotation(FRotator(
+					Profile.ProductSpawnPitchDegrees,
+					Profile.ProductSpawnYawDegrees,
+					0.0));
+				SetIdentity(*PlayerStart, TEXT("PlayerStart"), Bundle, Profile, false);
+			}
+
+			FBox TerritoryNavigationBounds;
+			if (!ProjectWorldRuntimeNavigation::GetTerritoryDomainBounds(
+				Bundle, Profile, TerritoryNavigationBounds, OutError))
+			{
 				return false;
 			}
-			PlayerStart->SetActorLocation(ProductLocation);
-			PlayerStart->SetActorRotation(FRotator(
-				Profile.ProductSpawnPitchDegrees,
-				Profile.ProductSpawnYawDegrees,
-				0.0));
-			SetIdentity(*PlayerStart, TEXT("PlayerStart"), Bundle, Profile, false);
+			ARecastNavMesh* Recast = nullptr;
+			if (ANavMeshBoundsVolume* CurrentNavigation = FindCurrentTerritoryNavigation(
+				World, Bundle, Profile, TerritoryNavigationBounds))
+			{
+				++OutResult.PreservedActorCount;
+				if (!ProjectWorldRuntimeNavigation::EnsureTerritoryDomain(
+					World, CurrentNavigation, Recast, OutError))
+				{
+					return false;
+				}
+			}
+			else
+			{
+				ANavMeshBoundsVolume* NavBounds = Cast<ANavMeshBoundsVolume>(ReuseOrSpawn(
+					World,
+					ANavMeshBoundsVolume::StaticClass(),
+					TEXT("TerritoryNavigation"),
+					Bundle,
+					Profile,
+					OutResult));
+				if (NavBounds == nullptr || !ProjectWorldRuntimeNavigation::ConfigureTerritoryDomain(
+					World, NavBounds, TerritoryNavigationBounds, Recast, OutError))
+				{
+					if (OutError.IsEmpty())
+					{
+						OutError = TEXT("Cannot create the unique territory navigation domain.");
+					}
+					return false;
+				}
+				SetIdentity(*NavBounds, TEXT("TerritoryNavigation"), Bundle, Profile, false);
+			}
 			return true;
 		}
 
@@ -695,126 +779,15 @@ namespace ProjectWorldRuntimeRealization
 		EndActor->SetActorLocation(End + FVector(0.0, 0.0, 100.0));
 		SetIdentity(*StartActor, TEXT("RouteStart"), Bundle, Profile, true);
 		SetIdentity(*EndActor, TEXT("RouteEnd"), Bundle, Profile, true);
-		UNavigationInvokerComponent* Invoker = StartActor->FindComponentByClass<UNavigationInvokerComponent>();
-		if (Invoker == nullptr)
-		{
-			Invoker = NewObject<UNavigationInvokerComponent>(StartActor, TEXT("RouteNavigationInvoker"), RF_Transactional);
-			StartActor->AddInstanceComponent(Invoker);
-			Invoker->RegisterComponent();
-		}
-		const float GenerationRadius = FVector::Distance(Start, End) + Profile.NavigationPaddingMeters * 100.0;
-		Invoker->SetGenerationRadii(GenerationRadius, GenerationRadius + Profile.NavigationPaddingMeters * 100.0);
-
-		// The volume brush is built in actor space along X, so yawing the actor onto the
-		// route direction keeps the box route-local instead of an axis-aligned diagonal hull.
-		const FVector RouteCenter = (Start + End) * 0.5;
-		const FVector2D RouteDelta(End.X - Start.X, End.Y - Start.Y);
-		const double RouteYawDegrees = FMath::RadiansToDegrees(FMath::Atan2(RouteDelta.Y, RouteDelta.X));
-		const FVector RouteExtent(
-			RouteDelta.Size() * 0.5 + Profile.NavigationPaddingMeters * 100.0,
-			Profile.NavigationPaddingMeters * 100.0,
-			Profile.NavigationHeightMeters * 50.0);
-		NavBounds->SetActorLocation(RouteCenter);
-		NavBounds->SetActorRotation(FRotator(0.0, RouteYawDegrees, 0.0));
-		OutResult.RuntimeRouteVolumeYawDegrees = RouteYawDegrees;
-		UCubeBuilder* Builder = NewObject<UCubeBuilder>();
-		Builder->X = RouteExtent.X * 2.0;
-		Builder->Y = RouteExtent.Y * 2.0;
-		Builder->Z = RouteExtent.Z * 2.0;
-		Builder->Hollow = false;
-		Builder->Tessellated = false;
-		UActorFactory::CreateBrushForVolumeActor(NavBounds, Builder);
 		SetIdentity(*NavBounds, TEXT("RouteNavigation"), Bundle, Profile, false);
-		if (UBrushComponent* Brush = NavBounds->GetBrushComponent())
+		ANavigationData* NavigationData = nullptr;
+		if (!ProjectWorldRuntimeNavigation::ConfigureRouteDomain(
+			World, StartActor, NavBounds, Start, End, Profile, OutResult, NavigationData, OutError))
 		{
-			Brush->UpdateBounds();
-		}
-		NavBounds->ReregisterAllComponents();
-		const FBox NavigationBox = NavBounds->GetComponentsBoundingBox(true);
-		if (!NavigationBox.IsValid)
-		{
-			OutError = TEXT("Generated route navigation volume has invalid bounds.");
 			return false;
 		}
-
 		UNavigationSystemV1* Navigation = Cast<UNavigationSystemV1>(World->GetNavigationSystem());
-		if (Navigation == nullptr)
-		{
-			OutError = TEXT("World has no NavigationSystemV1 for the accepted route.");
-			return false;
-		}
-		if (Navigation->IsNavigationBuildingLocked(ENavigationBuildLock::AsyncLoadLock))
-		{
-			Navigation->RemoveNavigationBuildLock(
-				ENavigationBuildLock::AsyncLoadLock,
-				UNavigationSystemV1::ELockRemovalRebuildAction::NoRebuild);
-		}
-		Invoker->RegisterWithNavigationSystem(*Navigation);
-		Navigation->OnNavigationBoundsUpdated(NavBounds);
-		Navigation->InitializeLevelCollisions();
-		for (TActorIterator<AActor> It(World); It; ++It)
-		{
-			if (*It != NavBounds && It->GetComponentsBoundingBox(true).Intersect(NavigationBox))
-			{
-				UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(**It);
-			}
-		}
-		Navigation->Tick(0.0f);
-		FBoolProperty* InvokerOnlyProperty = FindFProperty<FBoolProperty>(
-			UNavigationSystemV1::StaticClass(),
-			TEXT("bGenerateNavigationOnlyAroundNavigationInvokers"));
-		if (InvokerOnlyProperty == nullptr)
-		{
-			OutError = TEXT("Cannot access the UE invoker-only navigation setting.");
-			return false;
-		}
-		const bool bInvokerOnly = Navigation->IsActiveTilesGenerationEnabled();
-		if (bInvokerOnly)
-		{
-			// Empty Recast data cannot derive active tiles, so bootstrap only the bounded route volume.
-			InvokerOnlyProperty->SetPropertyValue_InContainer(Navigation, false);
-		}
-		const auto RestoreInvokerOnly = [&]()
-		{
-			if (bInvokerOnly)
-			{
-				InvokerOnlyProperty->SetPropertyValue_InContainer(Navigation, true);
-			}
-		};
-		ARecastNavMesh* Recast = nullptr;
-		if (!ProjectWorldRuntimeNavigation::EnsureInternalData(
-			World,
-			Navigation,
-			Recast,
-			OutError))
-		{
-			RestoreInvokerOnly();
-			return false;
-		}
-		ANavigationData* NavigationData = Recast;
-		TArray<FBox> RegisteredNavigationBounds;
-		Navigation->GetNavigationBoundsForNavData(*Recast, RegisteredNavigationBounds);
-		if (RegisteredNavigationBounds.IsEmpty())
-		{
-			RestoreInvokerOnly();
-			OutError = FString::Printf(
-				TEXT("Navigation did not register the generated route volume (volume_bounds=%s)."),
-				*NavigationBox.ToString());
-			return false;
-		}
-		if (Navigation->GetInvokerLocations().IsEmpty())
-		{
-			RestoreInvokerOnly();
-			OutError = TEXT("Navigation did not retain the accepted route invoker.");
-			return false;
-		}
-		Navigation->Build();
-		NavigationData->EnsureBuildCompletion();
-		RestoreInvokerOnly();
-		if (bInvokerOnly)
-		{
-			Recast->UpdateActiveTiles(Navigation->GetInvokerLocations());
-		}
+		ARecastNavMesh* Recast = Cast<ARecastNavMesh>(NavigationData);
 
 		if (!ProbeRouteCollision(World, Bundle, Profile, *Feature, OutResult, OutError))
 		{

@@ -9,6 +9,7 @@
 #include "ProjectWorldGameplayPlacement.h"
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldRealizationProfile.h"
+#include "ProjectWorldTerrainProducerRegistry.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRoadRealization.h"
 #include "ProjectWorldVegetationRealization.h"
@@ -20,8 +21,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "EngineUtils.h"
-#include "Landscape.h"
-#include "LandscapeStreamingProxy.h"
 #include "MaterialShared.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -220,22 +219,6 @@ namespace ProjectWorldLayerInventory
 			Inventory.Artifacts.Add({Relative, Kind, Digest, SemanticHash});
 			return true;
 		}
-	}
-
-	bool HashTerrainWaterCellInput(
-		const FProjectWorldCanonicalBundle& Bundle,
-		const FProjectWorldCanonicalCell& Cell,
-		FString& OutHash)
-	{
-		FString WaterHash;
-		if (!HashWaterCell(Bundle, Cell, WaterHash))
-		{
-			return false;
-		}
-		TMap<FString, FString> Inputs;
-		Inputs.Add(TEXT("terrain"), Cell.Terrain.ArtifactHash);
-		Inputs.Add(TEXT("water"), MoveTemp(WaterHash));
-		return HashCompositeCanonicalInput(Cell.CellId, Inputs, OutHash);
 	}
 
 	bool Build(
@@ -458,7 +441,10 @@ namespace ProjectWorldLayerInventory
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError)
 	{
-		FProjectWorldLayerInventory* Terrain = FindInventory(OutResult, TEXT("project_landscape"));
+		FProjectWorldLayerInventory* Terrain = OutResult.LayerInventories.FindByPredicate([](const auto& Inventory)
+		{
+			return Inventory.LayerId == TEXT("terrain");
+		});
 		FProjectWorldLayerInventory* Water = FindInventory(OutResult, TEXT("project_water_mesh"));
 		FProjectWorldLayerInventory* Roads = FindInventory(OutResult, TEXT("project_road_mesh"));
 		FProjectWorldLayerInventory* Vegetation = FindInventory(OutResult, TEXT("project_vegetation_instances"));
@@ -488,56 +474,22 @@ namespace ProjectWorldLayerInventory
 			Gameplay->Artifacts.Reset();
 		}
 
-		TMap<FString, const FProjectWorldCanonicalCell*> CellsById;
-		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+		if (!ProjectWorldTerrainProducerRegistry::CaptureArtifacts(
+			Terrain->GeneratorId,
+			Terrain->GeneratorVersion,
+			World,
+			Bundle,
+			*Terrain,
+			OutResult,
+			OutError))
 		{
-			CellsById.Add(Cell.CellId, &Cell);
-		}
-		TSet<FString> TerrainCells;
-		for (TActorIterator<ALandscapeStreamingProxy> It(World); It; ++It)
-		{
-			FString CellId;
-			if (!ReadTag(*It, TEXT("ProjectWorld.TerrainCell="), CellId))
-			{
-				continue;
-			}
-			const FProjectWorldCanonicalCell* const* Cell = CellsById.Find(CellId);
-			if (Cell == nullptr || TerrainCells.Contains(CellId) || It->LandscapeComponents.Num() != 1 ||
-				!It->GetIsSpatiallyLoaded() || It->bEnableAutoLODGeneration || It->GetHLODLayer() != nullptr)
-			{
-				OutError = FString::Printf(TEXT("Landscape proxy ownership is invalid for cell: %s"), *CellId);
-				return false;
-			}
-			TerrainCells.Add(CellId);
-			const FProjectWorldLayerInputInventory* Input = Terrain->CanonicalInputs.FindByPredicate(
-				[&CellId](const FProjectWorldLayerInputInventory& Candidate)
-				{
-					return Candidate.UnitId == CellId;
-				});
-			if (Input == nullptr)
-			{
-				OutError = FString::Printf(TEXT("Landscape proxy has no canonical input: %s"), *CellId);
-				return false;
-			}
-			FString Semantic;
-			if (!HashText(FString::Printf(
-				TEXT("project_landscape_proxy_v2|%s|%s|%s|%d,%d"),
-				*Profile.LogicalLandscapeId,
-				*CellId,
-				*Input->Hash,
-				It->GetSectionBase().X,
-				It->GetSectionBase().Y), Semantic) ||
-				!AddPackageArtifact(It->GetPackage()->GetName(), TEXT("external_actor"), Semantic, *Terrain, OutError))
-			{
-				return false;
-			}
-		}
-		if (TerrainCells.Num() != Bundle.Cells.Num())
-		{
-			OutError = TEXT("Landscape proxy inventory does not exactly cover canonical cells.");
 			return false;
 		}
-		OutResult.LandscapeProxyCount = TerrainCells.Num();
+		TSet<FString> CanonicalCellIds;
+		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
+		{
+			CanonicalCellIds.Add(Cell.CellId);
+		}
 
 		FString MaterialSemantic;
 		if (!HashText(TEXT("project_water_material_v3|") + Water->NormalizedLayerContractHash, MaterialSemantic) ||
@@ -562,7 +514,7 @@ namespace ProjectWorldLayerInventory
 			UStaticMeshComponent* Component = It->GetStaticMeshComponent();
 			UStaticMesh* Mesh = Component != nullptr ? Component->GetStaticMesh() : nullptr;
 			FString OwnershipFailure;
-			if (!CellsById.Contains(CellId)) OwnershipFailure = TEXT("cell is outside the canonical target");
+			if (!CanonicalCellIds.Contains(CellId)) OwnershipFailure = TEXT("cell is outside the canonical target");
 			else if (WaterCells.Contains(CellId)) OwnershipFailure = TEXT("cell actor is duplicated");
 			else if (Mesh == nullptr) OwnershipFailure = TEXT("StaticMesh is missing");
 			else if (Mesh->GetNaniteSettings().bEnabled) OwnershipFailure = TEXT("water mesh has Nanite enabled");

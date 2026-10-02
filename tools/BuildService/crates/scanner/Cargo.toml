@@ -1,0 +1,21 @@
+[package]
+name = "build_service_scanner"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace dependencies
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+sha2.workspace = true
+walkdir.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true

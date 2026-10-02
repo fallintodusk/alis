@@ -11,7 +11,7 @@
  */
 struct PROJECTCORE_API FBootContext
 {
-	/** Local application data root (e.g., <local-app-data>/Alis) */
+	/** Local application data root (e.g., %LOCALAPPDATA%/Alis) */
 	FString LocalRoot;
 
 	/** Engine build identifier (must match manifest) */

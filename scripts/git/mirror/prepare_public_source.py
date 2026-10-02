@@ -37,6 +37,9 @@ PUBLIC_BINARY_IGNORE_LINES = (
     "/Plugins/World/ProjectWorldData/Data/Canonical/*/bundles/*.zip",
 )
 PUBLIC_DISABLED_PLUGINS = (
+    # City17 is full-checkout-only: its content and its MotionMatching
+    # dependency are not public, so a public build cannot resolve it.
+    "City17",
     "InstanceArrayTool",
     "ProjectIntegrationTests",
     "ProjectOpenableTemplates",
@@ -110,16 +113,6 @@ def public_documentation(root: Path) -> None:
             original,
         )
         write_text_preserving_newlines(render_path, original, text)
-
-    automation_path = root / "docs" / "testing" / "automation.md"
-    if automation_path.is_file():
-        original = automation_path.read_text(encoding="utf-8-sig")
-        text = re.sub(
-            r"[A-Za-z]:(?:\\\\|\\)Repos_Alis(?:\\\\|\\)Alis",
-            "<repo>",
-            original,
-        )
-        write_text_preserving_newlines(automation_path, original, text)
 
 
 def default_engine(root: Path) -> None:

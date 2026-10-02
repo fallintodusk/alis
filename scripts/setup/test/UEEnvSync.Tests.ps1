@@ -6,10 +6,10 @@ BeforeAll {
     $script:RepoRoot = (Resolve-Path (Join-Path $script:SetupDir "..\..")).Path
     Import-Module (Join-Path $script:SetupDir "UEEnvSync.psm1") -Force
 
-    $script:NewL = "<ue-path>"
-    $script:NewS = "<ue-path>"
-    $script:PreviousL = "<ue-path>"
-    $script:PreviousS = "<ue-path>"
+    $script:NewL = "C:/Engines/UnrealEngine/UE_5.8"
+    $script:NewS = "G:/Engines/UnrealEngine-5.8"
+    $script:PreviousL = "C:/Engines/UnrealEngine/UE_5.7"
+    $script:PreviousS = "G:/Engines/UnrealEngine-5.7"
 
     function Invoke-Rewrite([string]$Text) {
         Update-EngineRootsInString -Text $Text `
@@ -29,51 +29,51 @@ BeforeAll {
 
 Describe "Convert-EngineRootStyle" {
     It "renders forward, backslash, msys and double-slash styles" {
-        Convert-EngineRootStyle "<ue-path>" "C:/X" |
-            Should -Be "<ue-path>"
-        Convert-EngineRootStyle "<ue-path>" "C:\X\Y" |
-            Should -Be "<ue-path>"
-        Convert-EngineRootStyle "<ue-path>" "/c/x" |
-            Should -Be "/c/UnrealEngine/UE_5.8"
-        Convert-EngineRootStyle "<ue-path>" "//G/x" |
-            Should -Be "//G/UnrealEngine-5.8"
+        Convert-EngineRootStyle "C:/Engines/UnrealEngine/UE_5.8" "C:/X" |
+            Should -Be "C:/Engines/UnrealEngine/UE_5.8"
+        Convert-EngineRootStyle "C:/Engines/UnrealEngine/UE_5.8" "C:\X\Y" |
+            Should -Be "C:\Engines\UnrealEngine\UE_5.8"
+        Convert-EngineRootStyle "C:/Engines/UnrealEngine/UE_5.8" "/c/x" |
+            Should -Be "/c/Engines/UnrealEngine/UE_5.8"
+        Convert-EngineRootStyle "G:/Engines/UnrealEngine-5.8" "//G/x" |
+            Should -Be "//G/Engines/UnrealEngine-5.8"
     }
 }
 
 Describe "Update-EngineRootsInString" {
     It "rewrites a grant EQUAL to the root (not only descendants)" {
-        (Invoke-Rewrite "<ue-path>").Text |
-            Should -Be "<ue-path>"
+        (Invoke-Rewrite "C:/Engines/UnrealEngine/UE_5.7").Text |
+            Should -Be "C:/Engines/UnrealEngine/UE_5.8"
     }
 
     It "rewrites beneath the root, preserving the suffix" {
-        (Invoke-Rewrite "<ue-path>/Engine/Binaries/Win64").Text |
-            Should -Be "<ue-path>/Engine/Binaries/Win64"
+        (Invoke-Rewrite "C:/Engines/UnrealEngine/UE_5.7/Engine/Binaries/Win64").Text |
+            Should -Be "C:/Engines/UnrealEngine/UE_5.8/Engine/Binaries/Win64"
     }
 
     It "preserves backslash style" {
-        (Invoke-Rewrite "<ue-path>\Engine").Text |
-            Should -Be "<ue-path>\Engine"
+        (Invoke-Rewrite "C:\Engines\UnrealEngine\UE_5.7\Engine").Text |
+            Should -Be "C:\Engines\UnrealEngine\UE_5.8\Engine"
     }
 
     It "preserves msys style (PATH entries)" {
-        (Invoke-Rewrite "/c/UnrealEngine/UE_5.7/Engine/Binaries/ThirdParty/Python3/Win64").Text |
-            Should -Be "/c/UnrealEngine/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64"
+        (Invoke-Rewrite "/c/Engines/UnrealEngine/UE_5.7/Engine/Binaries/ThirdParty/Python3/Win64").Text |
+            Should -Be "/c/Engines/UnrealEngine/UE_5.8/Engine/Binaries/ThirdParty/Python3/Win64"
     }
 
     It "rewrites source roots inside permission strings (double-slash style)" {
-        (Invoke-Rewrite 'Read(//G/UnrealEngine-5.7/Engine/Source/**)').Text |
-            Should -Be 'Read(//G/UnrealEngine-5.8/Engine/Source/**)'
+        (Invoke-Rewrite 'Read(//G/Engines/UnrealEngine-5.7/Engine/Source/**)').Text |
+            Should -Be 'Read(//G/Engines/UnrealEngine-5.8/Engine/Source/**)'
     }
 
     It "preserves an unrelated recognized launcher root" {
-        (Invoke-Rewrite "<ue-path>/Engine").Text |
-            Should -Be "<ue-path>/Engine"
+        (Invoke-Rewrite "C:/Apps/Epic Games/UE_5.7/Engine").Text |
+            Should -Be "C:/Apps/Epic Games/UE_5.7/Engine"
     }
 
     It "never touches a sibling like UE_5.70-other and does not block on it" {
-        $r = Invoke-Rewrite "<ue-path>-other/bin"
-        $r.Text | Should -Be "<ue-path>-other/bin"
+        $r = Invoke-Rewrite "C:/Engines/UnrealEngine/UE_5.70-other/bin"
+        $r.Text | Should -Be "C:/Engines/UnrealEngine/UE_5.70-other/bin"
         $r.Blockers.Count | Should -Be 0
     }
 
@@ -85,14 +85,14 @@ Describe "Update-EngineRootsInString" {
 
     It "moves selected 5.7 while retaining an intentional 5.5 grant" {
         $r = Invoke-Rewrite (
-            "<ue-path>/Engine;<ue-path>/Engine")
+            "C:/Engines/UnrealEngine/UE_5.7/Engine;C:/Engines/UnrealEngine/UE_5.5/Engine")
         $r.Text | Should -Be (
-            "<ue-path>/Engine;<ue-path>/Engine")
+            "C:/Engines/UnrealEngine/UE_5.8/Engine;C:/Engines/UnrealEngine/UE_5.5/Engine")
     }
 
     It "is idempotent on already-new values" {
-        $r = Invoke-Rewrite "<ue-path>/Engine"
-        $r.Text | Should -Be "<ue-path>/Engine"
+        $r = Invoke-Rewrite "C:/Engines/UnrealEngine/UE_5.8/Engine"
+        $r.Text | Should -Be "C:/Engines/UnrealEngine/UE_5.8/Engine"
         $r.Blockers.Count | Should -Be 0
     }
 }
@@ -107,13 +107,13 @@ Describe "Sync-UEMachineLocalJson" {
         Set-Content $script:SettingsPath -Value @'
 {
   "env": {
-    "UE_INSTALL_LOCATION": "C:\\UnrealEngine\\UE_5.7",
-    "PATH": "${PATH}:/c/UnrealEngine/UE_5.7/Engine/Binaries/ThirdParty/Python3/Win64",
+    "UE_INSTALL_LOCATION": "C:\\Engines\\UnrealEngine\\UE_5.7",
+    "PATH": "${PATH}:/c/Engines/UnrealEngine/UE_5.7/Engine/Binaries/ThirdParty/Python3/Win64",
     "CUSTOM_KEEP": "untouched"
   },
   "permissions": {
-    "allow": ["Read(//G/UnrealEngine-5.7/Engine/Source/**)"],
-    "additionalDirectories": ["<project-root>", "<ue-path>"]
+    "allow": ["Read(//G/Engines/UnrealEngine-5.7/Engine/Source/**)"],
+    "additionalDirectories": ["E:/Projects/Alis", "C:/Engines/UnrealEngine/UE_5.7"]
   },
   "unknownTopLevel": { "keep": true }
 }
@@ -126,7 +126,7 @@ Describe "Sync-UEMachineLocalJson" {
       "env": {
         "UE_PROJECT_DIR": ".",
         "UE_PORT": "9847",
-        "UE_EDITOR_CMD": "<ue-path>/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
+        "UE_EDITOR_CMD": "C:/Engines/UnrealEngine/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
       }
     }
   }
@@ -141,11 +141,11 @@ Describe "Sync-UEMachineLocalJson" {
 
         $s = Get-Content $script:SettingsPath -Raw | ConvertFrom-Json
         $s.env.PSObject.Properties["UE_INSTALL_LOCATION"] | Should -BeNullOrEmpty
-        $s.env.UE_PATH | Should -Be "<ue-path>"
-        $s.env.PATH | Should -Match "/c/UnrealEngine/UE_5.8/"
+        $s.env.UE_PATH | Should -Be "C:\Engines\UnrealEngine\UE_5.8"
+        $s.env.PATH | Should -Match "/c/Engines/UnrealEngine/UE_5.8/"
         $s.env.CUSTOM_KEEP | Should -Be "untouched"
-        $s.permissions.allow[0] | Should -Be 'Read(//G/UnrealEngine-5.8/Engine/Source/**)'
-        $s.permissions.additionalDirectories -contains "<ue-path>" |
+        $s.permissions.allow[0] | Should -Be 'Read(//G/Engines/UnrealEngine-5.8/Engine/Source/**)'
+        $s.permissions.additionalDirectories -contains "C:/Engines/UnrealEngine/UE_5.8" |
             Should -BeTrue
         $s.unknownTopLevel.keep | Should -BeTrue
 
@@ -205,10 +205,10 @@ Describe "combined machine-local transaction" {
         $settings = Join-Path $root "settings.local.json"
         $mcp = Join-Path $root "mcp.json"
         $launch = Join-Path $vsCodeDir "launch.json"
-        Set-Content $settings '{"env":{"UE_PATH":"<ue-path>"}}'
+        Set-Content $settings '{"env":{"UE_PATH":"C:/Engines/UnrealEngine/UE_5.7"}}'
         Set-Content $mcp '{"mcpServers":{}}'
         Set-Content $launch `
-            '{"configurations":[{"program":"<ue-path>/Editor.exe"}]}'
+            '{"configurations":[{"program":"C:/Engines/UnrealEngine/UE_5.7/Editor.exe"}]}'
         $settingsBefore = Get-Content $settings -Raw
         (Get-Item $launch).IsReadOnly = $true
         $previousErrorAction = $ErrorActionPreference
@@ -280,7 +280,7 @@ Describe "Sync-UEUserEnv derives UE_EDITOR_CMD (C10 engine parity)" {
     It "derives UE_EDITOR_CMD from the launcher root" {
         Sync-UEUserEnv -NewLauncherRoot $script:NewL -Scope Process | Out-Null
         $Env:UE_EDITOR_CMD | Should -Be `
-            "<ue-path>\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+            "C:\Engines\UnrealEngine\UE_5.8\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
     }
 
     It "keeps UE_EDITOR_CMD under the same root as UE_PATH" {

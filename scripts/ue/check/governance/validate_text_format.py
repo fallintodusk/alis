@@ -3,7 +3,7 @@
 
 Background
 ----------
-ALIS is an English/ASCII codebase (CLAUDE.md "ASCII-ONLY DOCUMENTATION").
+ALIS is an English/ASCII codebase.
 Foreign-script characters cause two problems:
 
   1. In file CONTENT -- a Cyrillic homoglyph (e.g. Cyrillic 'Es' U+0421,

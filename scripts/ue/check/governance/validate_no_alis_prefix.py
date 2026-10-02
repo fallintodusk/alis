@@ -183,7 +183,7 @@ def main() -> int:
     print("=" * 72)
     print("[X] FAIL: `Alis*` prefix forbidden in reusable code.")
     print("SOT: docs/architecture/principles.md 'Universal Naming Convention'")
-    print("Use `Project*` instead. AGENTS.md 'NO Alis* IN REUSABLE CODE'.")
+    print("Use `Project*` instead.")
     print("=" * 72)
 
     if decl_violations:

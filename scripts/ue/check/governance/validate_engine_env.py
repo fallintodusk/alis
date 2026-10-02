@@ -3,9 +3,12 @@
 Four jobs:
   A. Engine identity: resolved UE_PATH is a real engine root whose
      Build.version Major.Minor matches Alis.uproject EngineAssociation.
-  B. Hardcoded-path governance: no tracked text file outside the
-     allowlist may contain a versioned engine path (UnrealEngine-5.x /
-     UE_5.x). Also asserts the conf grammar (one line per key) via the
+  B. Hardcoded-path governance: no tracked text file, whatever its type,
+     may contain a versioned engine path (UnrealEngine-5.x / UE_5.x) or a
+     machine-local path literal (repo roots, tool installs, user homes - as
+     defined by machine_local_paths.py, which the public mirror applies too),
+     each outside its reason list. Machine-local values belong to the user
+     settings SOT. Also asserts the conf grammar (one line per key) via the
      shared strict parser.
   C. Unreal MCP boundary: the official server and toolsets remain enabled
      only for Editor targets.
@@ -21,6 +24,7 @@ Self-tests: scripts/ue/check/governance/test/test_validate_engine_env.py
 
 Usage:
   python validate_engine_env.py [--repo-root <path>] [--skip-identity]
+  python validate_engine_env.py --paths-only   # job B only (public CI)
 Exit codes: 0 = pass, 1 = violations, 2 = usage/internal error.
 """
 from __future__ import annotations
@@ -32,14 +36,16 @@ import re
 import subprocess
 import sys
 
+import machine_local_paths
+
 ENGINE_PATH_RE = re.compile(r"UnrealEngine-\d+\.\d+|UE_\d+\.\d+")
 
-# Reason-based allowlist (path prefixes or exact files, forward slashes):
+# Reason-based allowlists, forward slashes. An entry ending in "/" covers its
+# directory; any other entry covers exactly one file, so a template or backup
+# beside an exempt file is still checked.
 ALLOWLIST = (
-    # The SOT itself + its machine-local sibling and examples
+    # The SOT itself
     "scripts/config/ue_path.conf",
-    # Transient execution artifacts (explicitly out of governance scope)
-    "todo/",
     # Test fixtures encode versioned paths on purpose
     "scripts/config/test/fixtures/",
     # This validator + its tests name the patterns they hunt
@@ -55,10 +61,26 @@ ALLOWLIST = (
     "tools/BuildService/crates/engine_config/",
 )
 
-TEXT_EXTS = {
-    ".md", ".txt", ".ps1", ".psm1", ".bat", ".sh", ".py", ".mk", ".conf",
-    ".cs", ".cpp", ".h", ".rs", ".toml", ".json", ".yaml", ".yml", ".ini",
-    ".uproject", ".uplugin", ".slnx", ".dsl",
+# Reason-based exemptions from the machine-local literal check:
+MACHINE_PATH_ALLOWLIST = (
+    # Third-party trees keep their upstream text
+    "Plugins/ThirdParty/",
+    "Plugins/InstanceArrayTool/",
+    # The machine-local settings SOT itself (never published)
+    "scripts/config/ue_path.conf",
+    # Agent adapter symlinks: their link target stays machine-bound by
+    # operator decision
+    "CLAUDE.md",
+    "CODEX.md",
+)
+
+# Skipped without reading; anything else is sniffed for NUL bytes, so no
+# text type can slip past the scan by its extension.
+BINARY_EXTS = {
+    ".uasset", ".umap", ".ubulk", ".uexp", ".png", ".jpg", ".jpeg", ".tga",
+    ".bmp", ".exr", ".hdr", ".ico", ".psd", ".wav", ".mp3", ".ogg", ".fbx",
+    ".ttf", ".otf", ".woff", ".woff2", ".dll", ".exe", ".pdb", ".lib", ".zip",
+    ".mp4", ".mov", ".bin",
 }
 
 
@@ -70,29 +92,56 @@ def repo_files(repo_root):
     return [l for l in out.splitlines() if l]
 
 
+def matches_entry(path, entries):
+    return any(
+        path.startswith(entry) if entry.endswith("/") else path == entry
+        for entry in entries
+    )
+
+
 def is_allowlisted(path):
-    return any(path == a or path.startswith(a) for a in ALLOWLIST)
+    return matches_entry(path, ALLOWLIST)
+
+
+def is_machine_path_exempt(path):
+    return matches_entry(path, MACHINE_PATH_ALLOWLIST) or "/ThirdParty/" in path
+
+
+def read_text_file(full):
+    """File text, or None for binary content and unreadable files."""
+    try:
+        with open(full, "rb") as fh:
+            raw = fh.read()
+    except OSError:
+        return None
+    if b"\0" in raw[:8192]:
+        return None
+    return raw.decode("utf-8", errors="ignore")
 
 
 def check_hardcoded_paths(repo_root):
     violations = []
     for rel in repo_files(repo_root):
-        ext = os.path.splitext(rel)[1].lower()
-        if ext not in TEXT_EXTS:
+        if os.path.splitext(rel)[1].lower() in BINARY_EXTS:
             continue
-        if is_allowlisted(rel):
+        text = read_text_file(os.path.join(repo_root, rel))
+        if text is None:
             continue
-        full = os.path.join(repo_root, rel)
-        try:
-            with open(full, "r", encoding="utf-8", errors="ignore") as fh:
-                for lineno, line in enumerate(fh, 1):
-                    if ENGINE_PATH_RE.search(line):
-                        violations.append(
-                            "%s:%d: hardcoded versioned engine path: %s"
-                            % (rel, lineno, line.strip()[:100])
-                        )
-        except OSError:
-            continue
+        lines = text.splitlines()
+        if not is_allowlisted(rel):
+            for lineno, line in enumerate(lines, 1):
+                if ENGINE_PATH_RE.search(line):
+                    violations.append(
+                        "%s:%d: hardcoded versioned engine path: %s"
+                        % (rel, lineno, line.strip()[:100])
+                    )
+        if not is_machine_path_exempt(rel):
+            for lineno in machine_local_paths.machine_path_lines(text):
+                violations.append(
+                    "%s:%d: machine-local path (resolve it at runtime; see "
+                    "docs/architecture/principles.md): %s"
+                    % (rel, lineno, lines[lineno - 1].strip()[:100])
+                )
     return violations
 
 
@@ -118,6 +167,11 @@ def build_id_from_version(build_version):
         build_version["MajorVersion"], build_version["MinorVersion"],
         changelist,
     )
+
+
+def engine_line_from_build_id(build_id):
+    match = re.search(r"(?:Release-|^)(\d+)\.(\d+)(?:[.-]|$)", str(build_id))
+    return "%s.%s" % match.groups() if match else None
 
 
 def check_engine_identity(repo_root, values):
@@ -154,13 +208,14 @@ def check_engine_identity(repo_root, values):
     try:
         with open(manifest_path, encoding="utf-8") as fh:
             manifest_build_id = json.load(fh).get("engine_build_id")
-        expected_build_id = build_id_from_version(bv)
-        if manifest_build_id != expected_build_id:
+        expected_line = "%s.%s" % (bv["MajorVersion"], bv["MinorVersion"])
+        manifest_line = engine_line_from_build_id(manifest_build_id)
+        if manifest_line != expected_line:
             problems.append(
-                "dev manifest engine mismatch: expected %s from UE_PATH "
+                "dev manifest engine line mismatch: expected %s from UE_PATH "
                 "Build.version but found %s - run "
                 "scripts/ue/update/update_engine.ps1"
-                % (expected_build_id, manifest_build_id)
+                % (expected_line, manifest_build_id)
             )
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         problems.append("invalid dev manifest engine pin: %s" % exc)
@@ -303,8 +358,21 @@ def main(argv=None):
                         help="skip live engine checks (CI without engines)")
     parser.add_argument("--require-source-identity", action="store_true",
                         help="require a built matching source engine")
+    parser.add_argument("--paths-only", action="store_true",
+                        help="run only the hardcoded-path job (public CI has "
+                             "no engine and no private project state)")
     args = parser.parse_args(argv)
     repo_root = os.path.abspath(args.repo_root)
+
+    if args.paths_only:
+        violations = check_hardcoded_paths(repo_root)
+        if violations:
+            print("[validate_engine_env] FAILED: %d violation(s)" % len(violations))
+            for v in violations:
+                print("  " + v)
+            return 1
+        print("[validate_engine_env] OK (hardcoded-path invariants)")
+        return 0
 
     violations = []
     grammar_problems, values = check_conf_grammar(repo_root)

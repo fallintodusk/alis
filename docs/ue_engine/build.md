@@ -98,7 +98,7 @@ through the release-specific entry points described above.
 
 These don't prevent full rebuilds but may speed them up slightly.
 
-Create `<user-home>\Documents\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml`:
+Create `%USERPROFILE%\Documents\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml`:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -136,7 +136,7 @@ Create `<user-home>\Documents\Unreal Engine\UnrealBuildTool\BuildConfiguration.x
 
 ```powershell
 # Just let it complete - don't cancel
-Build.bat AlisEditor Win64 Development -project="<project-root>\Alis.uproject"
+Build.bat AlisEditor Win64 Development -project="<repo>\Alis.uproject"
 ```
 
 Future incremental builds will be fast again until next Build.cs change.

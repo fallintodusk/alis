@@ -139,5 +139,5 @@ SoundSub->PlayMusic(MusicTrack);
 ## Related Documentation
 
 - [ProjectAudio README](../README.md) - Plugin overview
-- [ProjectSoundSystem](../../Systems/ProjectSoundSystem/README.md) - Audio logic
-- [GameplayCue Architecture](../../Gameplay/ProjectGAS/docs/gameplay_cue.md) - GAS integration
+- [ProjectSoundSystem](../../../Systems/ProjectSoundSystem/README.md) - Audio logic
+- [GameplayCue Architecture](../../../Gameplay/ProjectGAS/docs/gameplay_cue.md) - GAS integration

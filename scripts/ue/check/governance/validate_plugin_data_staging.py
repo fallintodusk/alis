@@ -19,7 +19,11 @@ What this check does
    Build.cs in that plugin stages a Data/ directory through one of:
      - StageDataDir(Target) helper (canonical pattern -- see ProjectUI)
      - RuntimeDependencies.Add(... "Data" ... ) per-file form
-3. Print a structured report and return non-zero on missing staging.
+3. Reject plugin Config/Default*.ini files other than Default<PluginName>.ini.
+   The engine takes a plugin config file's branch from its name, so any other
+   Default*.ini matches no branch and is skipped without an error; a plugin
+   patches an engine config through Config/<Branch>.ini, such as Engine.ini.
+4. Print a structured report and return non-zero on any failure.
 
 Usage
 -----
@@ -83,6 +87,25 @@ def find_plugin_data_readers(plugins_dir: Path) -> dict[str, list[Path]]:
                     name = match.group(1)
                     result.setdefault(name, []).append(source_file)
     return result
+
+
+def find_never_loaded_plugin_configs(plugins_dir: Path) -> list[Path]:
+    """Return plugin Config/Default*.ini files other than Default<PluginName>.ini."""
+    found: list[Path] = []
+    for descriptor_path in plugins_dir.rglob("*.uplugin"):
+        config_dir = descriptor_path.parent / "Config"
+        if not config_dir.is_dir():
+            continue
+        own_config = f"default{descriptor_path.stem}.ini".lower()
+        found.extend(
+            path
+            for path in config_dir.iterdir()
+            if path.is_file()
+            and path.name.lower().startswith("default")
+            and path.suffix.lower() == ".ini"
+            and path.name.lower() != own_config
+        )
+    return sorted(found)
 
 
 def find_plugin_dir(plugins_dir: Path, plugin_name: str) -> Path | None:
@@ -237,6 +260,16 @@ def verify_archive(plugins_dir: Path, repo_root: Path, archive_root: Path,
     return 0
 
 
+def report_config_errors(config_errors: list[str]) -> int:
+    """Print never-loaded plugin config files last; return 1 when there are any."""
+    if not config_errors:
+        return 0
+    print(f"\nPlugin config names FAILED ({len(config_errors)} errors):")
+    for e in config_errors:
+        print(f"  [X] {e}")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -260,12 +293,22 @@ def main() -> int:
         return 1
 
     readers = find_plugin_data_readers(plugins_dir)
+    if args.archive_root is not None:
+        if not readers:
+            print("Plugin data staging passed (no GetPluginDataDir runtime readers found).")
+            return 0
+        return verify_archive(plugins_dir, args.repo_root, args.archive_root, readers)
+
+    config_errors = [
+        f"{path.relative_to(args.repo_root).as_posix()}: the engine never loads this file "
+        f"(a plugin's own config is Default<PluginName>.ini; it patches an engine config "
+        f"through Config/<Branch>.ini, such as Config/Engine.ini)"
+        for path in find_never_loaded_plugin_configs(plugins_dir)
+    ]
+
     if not readers:
         print("Plugin data staging passed (no GetPluginDataDir runtime readers found).")
-        return 0
-
-    if args.archive_root is not None:
-        return verify_archive(plugins_dir, args.repo_root, args.archive_root, readers)
+        return report_config_errors(config_errors)
 
     errors: list[str] = []
     audited = sorted(readers.keys())
@@ -309,10 +352,11 @@ def main() -> int:
             "silently falls back to defaults (e.g. Mind journal lost the Grandpa "
             "mappings in the 2026-04 Shipping build for this exact reason)."
         )
+        report_config_errors(config_errors)
         return 1
 
     print(f"Plugin data staging passed ({len(audited)} plugins audited: {', '.join(audited)}).")
-    return 0
+    return report_config_errors(config_errors)
 
 
 if __name__ == "__main__":

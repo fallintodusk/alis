@@ -177,7 +177,7 @@ bool FProjectWorldPersistentWaterLayerTest::RunTest(const FString& Parameters)
 	TestTrue(
 		TEXT("The shared Apply lifecycle preserves a current water-layer actor."),
 		ProjectWorldGeneratedGeometry::RemoveStaleOwnedActorsForApply(
-			World, Bundle, FString(), false, LifecycleResult));
+			World, Bundle, FString(), LifecycleResult));
 	TestEqual(
 		TEXT("Current water-layer actors are not retired before the layer update."),
 		LifecycleResult.RemovedActorCount,

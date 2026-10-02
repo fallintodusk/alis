@@ -254,5 +254,5 @@ Music state changes during loading:
 ## Related Documentation
 
 - [ProjectSoundSystem README](../README.md) - Plugin overview
-- [ProjectAudio](../../Resources/ProjectAudio/README.md) - Sound assets
-- [Audio Assets Guide](../../Resources/ProjectAudio/docs/audio_assets.md) - Asset creation
+- [ProjectAudio](../../../Resources/ProjectAudio/README.md) - Sound assets
+- [Audio Assets Guide](../../../Resources/ProjectAudio/docs/audio_assets.md) - Asset creation

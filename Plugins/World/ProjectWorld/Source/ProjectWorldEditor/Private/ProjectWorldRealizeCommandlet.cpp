@@ -95,10 +95,6 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	Request.MapPackagePath = *MapPath;
 	Request.Mode = ParsedMode;
 
-	Request.bRequireLandscapeCompatible = Switches.ContainsByPredicate([](const FString& Switch)
-	{
-		return Switch.Equals(TEXT("RequireLandscape"), ESearchCase::IgnoreCase);
-	});
 	Request.bFirstLayerApply = Switches.ContainsByPredicate([](const FString& Switch)
 	{
 		return Switch.Equals(TEXT("FirstLayerApply"), ESearchCase::IgnoreCase);

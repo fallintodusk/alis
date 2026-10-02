@@ -80,7 +80,9 @@ retain explicit outline/part roles. Relation membership is normalized provider
 evidence; association and fallback decisions belong to Canonical Compilation.
 The concrete source profile owns its boundary selector and projected CRS. The
 generic adapter contains no territory, administrative-area, or projection
-constant.
+constant. Reference-complete OSM export may include a selected relation's
+member ways as independent features, so boundary normalization reapplies the
+profile's exact object-type and tag selector before requiring one result.
 
 Generated inputs, normalized snapshots, and receipts remain ignored under
 `tmp/world/source_ingestion/`. An accepted result is written last as the

@@ -1,41 +1,28 @@
 # Copyright ALIS. All Rights Reserved.
 # License terms: see repository root LICENSE.
-
 #Requires -Version 5.1
 
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$CompileResult,
-
     [ValidateSet("Validate", "Apply", "Delete")]
     [string]$Mode = "Validate",
-
     [string]$Map = "",
-
     [string]$WorldDataPlugin = "",
-
     [string]$PresentationProfile = "",
-
 	[string]$RuntimeProfile = "",
-
     [string]$AuthoredOverlayProfile = "",
-
     [string]$RealizationProfile = "",
-
     # Test-only realization SOT copies may live under a caller-owned tmp/world
     # root when the manifest authority is confined to that same sandbox.
     [string]$TransientRealizationProfileRoot = "",
-
     [string]$EvidencePath = "",
-
 	[ValidateRange(0, 1000)]
 	[int]$MaxRoads = 1,
 
 	[ValidateRange(0, 1000)]
 	[int]$MaxBuildings = 4,
-
-    [switch]$RequireLandscape,
 
     [AllowEmptyCollection()]
     [string[]]$DirtyUnit = @(),
@@ -253,6 +240,13 @@ if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath)) {
         [string]$realizationDocument.map_package -cne $Map) {
         throw 'Realization profile owner, canonical profile, or map does not match this operation.'
     }
+    # Admission-only policy does not shape any accepted producer output.
+    # PROJECTWORLD_PRODUCER_BEGIN preflight_only
+    $requestedRuntimeProfileId = if ($runtimeProfilePath) { [string](Get-Content -LiteralPath $runtimeProfilePath -Raw | ConvertFrom-Json).profile_id } else { 'none' }
+    if ([string]$realizationDocument.runtime_profile_id -cne $requestedRuntimeProfileId) {
+        throw "Realization profile requires runtime profile '$($realizationDocument.runtime_profile_id)'; got '$requestedRuntimeProfileId'."
+    }
+    # PROJECTWORLD_PRODUCER_END preflight_only
     $resolvedLayers = Resolve-ProjectWorldRealizationLayers `
         -RealizationDocument $realizationDocument `
         -WorldDataRoots $worldDataRoots
@@ -270,7 +264,6 @@ if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
         map = $Map
         max_roads = $MaxRoads
         max_buildings = $MaxBuildings
-        require_landscape = [bool]$RequireLandscape
         dirty_units = @($DirtyUnit | Sort-Object -Unique)
     }
     $identityBytes = [System.Text.Encoding]::UTF8.GetBytes(($identity | ConvertTo-Json -Compress))
@@ -584,8 +577,7 @@ $unrealArguments = @(
     "-nosplash"
     "-FullStdOutLogOutput"
 )
-# ProjectWorldRealize composes Landscape edit layers through UE's RDG merge, so it is a
-# render-required step. The envelope helper owns the flags; see execution_envelope.ps1.
+# Mesh Terrain channel compilation requires a rendering-capable commandlet envelope.
 $projectWorldRealizeRendering = 'Required'
 $unrealArguments += Get-ProjectWorldExecutionEnvelopeArguments -Rendering $projectWorldRealizeRendering
 if ($modeName -ne "delete") {
@@ -607,10 +599,6 @@ if (-not [string]::IsNullOrWhiteSpace($layerDirtyInputPath)) {
 if ($firstLayerApply) {
     $unrealArguments += "-FirstLayerApply"
 }
-if ($RequireLandscape) {
-    $unrealArguments += "-RequireLandscape"
-}
-
 # Contradictory envelopes fail before the editor launches, not after a flat map is written.
 Assert-ProjectWorldExecutionEnvelope -Rendering $projectWorldRealizeRendering -Arguments $unrealArguments
 Write-Host "[WorldRealization] rendering=$projectWorldRealizeRendering"
@@ -648,7 +636,17 @@ elseif ($null -eq $invocationFailure) {
     $invocationFailure = [System.InvalidOperationException]::new(
         "World realization emitted no structured result. See $logPath")
 }
-
+if ($engineExitCode -eq 0 -and $childStatus -eq 'accepted' -and
+    (Test-ProjectWorldMeshTerrainBuildRequired -Mode $modeName -Result $result)) {
+    try {
+		Invoke-ProjectWorldMeshTerrainBuildIfRequired -EditorCommand $editorCommand -ProjectFile $projectFile -ProjectRoot $projectRoot -MapPackage $Map -CompileResult $compileResultPath -EvidenceDirectory $evidenceDirectory -Result $result
+    }
+    catch {
+        $invocationFailure = $_
+        $engineExitCode = 8
+        $childStatus = 'rejected'
+    }
+}
 if ($TestFailAfterSelfSavedActor -and $engineExitCode -eq 0 -and $childStatus -eq 'accepted') {
     $selfSaved = [int]$result.changes.self_saved_actor_mutations
     $result.status = 'rejected'
@@ -736,6 +734,10 @@ if ($transactionActive) {
                     Contract = $contract
                 }
             }
+        }
+        foreach ($scopeId in $layerCandidatesByScope.Keys) {
+            $priorLayer = if ($null -ne $activeSet) { $activeSet.Manifests[$scopeId] } else { $null }
+            Remove-ProjectWorldSupersededLayerArtifacts -ProjectRoot $projectRoot -PriorManifest $priorLayer -CandidateRecords $layerCandidatesByScope[$scopeId].Records | Out-Null
         }
         # The commandlet removes generated actors but can leave an empty map,
         # HLOD assets, or external-package directories. Delete owns complete

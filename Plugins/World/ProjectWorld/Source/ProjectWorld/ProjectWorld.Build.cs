@@ -19,6 +19,7 @@ public class ProjectWorld : ModuleRules
 			"ImageCore",
 			"InputCore",
 			"Json",
+			"NavigationSystem",
 			"RenderCore",
 			"RHI"
 		});

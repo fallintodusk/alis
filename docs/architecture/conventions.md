@@ -45,6 +45,10 @@ without a current external consumer.
 
 - JSON runtime data declares its schema and is staged by the plugin that reads
   it.
+- A plugin's own config is `Config/Default<PluginName>.ini`, and it patches an
+  engine config through `Config/<Branch>.ini`, for example `Config/Engine.ini`.
+  The engine takes a plugin config file's branch from its name, so any other
+  `Config/Default*.ini` is never loaded.
 - Agents edit text authority and use the owning generator/editor route for
   binary assets.
 - Moving a reflected class with real serialized consumers uses the procedure in

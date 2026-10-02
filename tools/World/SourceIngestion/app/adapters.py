@@ -6,7 +6,7 @@ from typing import Any
 from .contracts import IngestionError, canonical_hash, file_hash, read_json, validate_document, write_json
 from .osm_building_relations import extract_building_relation_memberships
 from .profiles import resolved_area
-from .osm_selection import select_complete_geometries
+from .osm_selection import _matches_filters, select_complete_geometries
 from .raster_mosaic import decode_raster_mosaic
 from .tool_io import data_artifact as _data_artifact
 from .tool_io import portable_metadata as _portable_metadata
@@ -164,6 +164,7 @@ def _convert_osmium_geojson(
     area: dict[str, Any],
     admitted_classes: set[str] | None = None,
     required_properties: dict[str, Any] | None = None,
+    required_filters: list[str] | None = None,
 ) -> dict[str, Any]:
     raw = read_json(geojson_path)
     features_by_id: dict[str, dict[str, Any]] = {}
@@ -178,6 +179,11 @@ def _convert_osmium_geojson(
         geometry = feature.get("geometry")
         if not provider_id or not geometry:
             raise IngestionError("invalid_feature", "OSM export contains a feature without identity or geometry")
+        object_type = {"node": "n", "way": "w", "relation": "r"}.get(str(provider_type))
+        if required_filters is not None and (
+            object_type is None or not _matches_filters(properties, object_type, required_filters)
+        ):
+            continue
         provider_class = _classify_osm_feature(properties)
         if admitted_classes is not None and provider_class not in admitted_classes:
             continue
@@ -231,6 +237,7 @@ def _convert_demonstration_boundary(
         source,
         boundary_area,
         admitted_classes={"administrative_boundary"},
+        required_filters=[boundary_area["selection"]],
     )
 
 

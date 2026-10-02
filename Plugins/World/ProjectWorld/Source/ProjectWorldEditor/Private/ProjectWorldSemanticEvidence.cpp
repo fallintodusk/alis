@@ -8,11 +8,6 @@
 
 #include "Components/ActorComponent.h"
 #include "EngineUtils.h"
-#include "Landscape.h"
-#include "LandscapeEdit.h"
-#include "LandscapeEditLayer.h"
-#include "LandscapeInfo.h"
-#include "LandscapeStreamingProxy.h"
 #include "Misc/PackageName.h"
 #include "ProceduralMeshComponent.h"
 
@@ -41,83 +36,7 @@ namespace ProjectWorldSemanticEvidence
 
 	FString SemanticActorIdentity(const AActor* Actor)
 	{
-		if (Actor->IsA<ALandscapeStreamingProxy>())
-		{
-			for (const FName& Tag : Actor->Tags)
-			{
-				const FString Value = Tag.ToString();
-				if (Value.StartsWith(TEXT("ProjectWorld.TerrainCell=")))
-				{
-					return TEXT("landscape_proxy|") + Value;
-				}
-			}
-		}
 		return Actor->GetActorGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
-	}
-
-	bool HashBytes(const void* Data, int32 ByteCount, FString& OutHash)
-	{
-		TArray<uint8> Bytes;
-		Bytes.Append(static_cast<const uint8*>(Data), ByteCount);
-		return FProjectSha256::HashBuffer(Bytes, OutHash);
-	}
-
-	bool AppendLandscape(
-		ALandscape* Landscape,
-		FProjectWorldRealizationResult& OutResult,
-		TArray<FString>& Records,
-		FString& OutError)
-	{
-		Records.Add(FString::Printf(
-			TEXT("landscape|components=%d|component_quads=%d|subsections=%d|section_quads=%d"),
-			Landscape->LandscapeComponents.Num(),
-			Landscape->ComponentSizeQuads,
-			Landscape->NumSubsections,
-			Landscape->SubsectionSizeQuads));
-		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-		int32 MinimumX = 0;
-		int32 MinimumY = 0;
-		int32 MaximumX = 0;
-		int32 MaximumY = 0;
-		if (LandscapeInfo == nullptr ||
-			!LandscapeInfo->GetLandscapeExtent(MinimumX, MinimumY, MaximumX, MaximumY))
-		{
-			OutError = TEXT("Cannot read generated Landscape extent for semantic evidence.");
-			return false;
-		}
-		const int32 Width = MaximumX - MinimumX + 1;
-		const int32 Height = MaximumY - MinimumY + 1;
-		for (const ULandscapeEditLayerBase* Layer : Landscape->GetEditLayersConst())
-		{
-			TArray<uint16> LayerHeights;
-			LayerHeights.SetNumUninitialized(Width * Height);
-			FLandscapeEditDataInterface LayerData(LandscapeInfo, Layer->GetGuid(), false);
-			LayerData.GetHeightDataFast(
-				MinimumX,
-				MinimumY,
-				MaximumX,
-				MaximumY,
-				LayerHeights.GetData(),
-				Width);
-			FString LayerHash;
-			if (!HashBytes(
-				LayerHeights.GetData(),
-				LayerHeights.Num() * sizeof(uint16),
-				LayerHash))
-			{
-				OutError = TEXT("Cannot hash generated Landscape edit-layer heights.");
-				return false;
-			}
-			Records.Add(FString::Printf(
-				TEXT("layer|%s|%s"),
-				*Layer->GetName().ToString(),
-				*LayerHash));
-			if (Layer->GetName() == FName(TEXT("Authored Corrections")))
-			{
-				OutResult.AuthoredCorrectionLayerHash = LayerHash;
-			}
-		}
-		return true;
 	}
 
 	void AppendProceduralMesh(
@@ -222,14 +141,6 @@ namespace ProjectWorldSemanticEvidence
 				if (ProceduralMesh != nullptr)
 				{
 					AppendProceduralMesh(ActorIdentity, ProceduralMesh, Records);
-				}
-			}
-
-			if (ALandscape* Landscape = Cast<ALandscape>(Actor))
-			{
-				if (!AppendLandscape(Landscape, OutResult, Records, OutError))
-				{
-					return false;
 				}
 			}
 		}

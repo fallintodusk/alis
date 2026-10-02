@@ -1,5 +1,7 @@
+import contextlib
 import importlib.util
 import hashlib
+import io
 import json
 import re
 import shutil
@@ -9,6 +11,7 @@ import tempfile
 import unittest
 from fnmatch import fnmatchcase
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -18,6 +21,83 @@ MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+SANITIZER_PATH = REPO_ROOT / "scripts" / "git" / "mirror" / "sanitize_public_text.py"
+SANITIZER_SPEC = importlib.util.spec_from_file_location("sanitize_public_text", SANITIZER_PATH)
+SANITIZER = importlib.util.module_from_spec(SANITIZER_SPEC)
+assert SANITIZER_SPEC.loader is not None
+SANITIZER_SPEC.loader.exec_module(SANITIZER)
+# The definition the sanitizer consumes; its file is asserted to be governance's.
+GOVERNANCE = SANITIZER.machine_local_paths
+GOVERNANCE_PATH = REPO_ROOT / "scripts" / "ue" / "check" / "governance" / "machine_local_paths.py"
+
+
+def machine_path_samples() -> list[str]:
+    """One machine-local path per governance rule, assembled at runtime so this
+    file carries no literal for the path checks to find."""
+    b = "\\"
+
+    def win(*parts: str) -> str:
+        return "E" + ":" + b + b.join(parts)
+
+    def fwd(*parts: str) -> str:
+        return "E" + ":" + "/" + "/".join(parts)
+
+    version = "UE_" + "5.8"
+    home = "/" + "home" + "/someone"
+    wsl = b + b + "wsl.localhost" + b + "Ubuntu" + b + "home" + b + "someone"
+    tilde = "~" + "/repos_alis/"
+    return [
+        win("Repos_Alis", "site"), fwd("Repos_Alis", "site"),
+        win("Repos_Alis", "Alis"), fwd("Repos_Alis", "Alis"),
+        "/mnt/e/Repos_Alis" + "/site", "/mnt/e/Repos_Alis" + "/Alis",
+        wsl + b + "repos_alis" + b + "cdn", home + "/repos_alis/cdn",
+        tilde + "cdn", tilde + "site", tilde + "Alis", tilde + "notes",
+        win("UnrealEngine-" + "5.8"), fwd("UnrealEngine", version),
+        win("Program Files (x86)", "Epic Games", version), fwd("Program Files", "Epic Games", version),
+        win("Program Files", "Python311", "python.exe"), fwd("Program Files", "Python311", "python.exe"),
+        win("Program Files (x86)", "Windows Kits", "10", "Debuggers", "x64", "cdb.exe"),
+        fwd("Program Files", "Windows Kits", "10", "Debuggers", "x64", "cdb.exe"),
+        win("Symbols"), fwd("Symbols"), win("Builds", "Alis-3.0.0"), fwd("Builds", "Alis-3.0.0"),
+        win("Games", "Alis"), fwd("Games", "Alis"),
+        win("Users", "someone", "AppData", "Local", "Temp", "x.log"),
+        fwd("Users", "someone", "AppData", "Local", "Temp", "x.log"),
+        win("Users", "someone", "AppData", "Local", "Alis"),
+        fwd("Users", "someone", "AppData", "Local", "Alis"),
+        win("Users", "someone"), fwd("Users", "someone"),
+        wsl + b + "tools", home + "/tools",
+        "%WSL_HOME%" + b + "repos_alis" + b + "cdn", "$HOME" + "/repos_alis/cdn",
+    ]
+
+# Markdown the mirror keeps out of public source, and why. Every other tracked
+# .md file must survive mirror.exclude: documentation is public by default, and
+# private values inside it are fixed at the source instead of excluded.
+PRIVATE_MARKDOWN = {
+    "AGENTS.md": "agent instructions, maintained apart from the documentation",
+    "CLAUDE.md": "agent instructions adapter",
+    "CODEX.md": "agent instructions adapter",
+    "Plugins/ThirdParty/": "third-party components excluded by their license declaration",
+}
+
+
+def mirror_exclude_rules() -> tuple[list[str], list[str]]:
+    # Same parsing as build_filtered_snapshot() in mirror_to_github.sh:
+    # fnmatch rules over repo-relative POSIX paths; "!rule" re-includes.
+    excluded, kept = [], []
+    for raw_line in (REPO_ROOT / "scripts/git/mirror/mirror.exclude").read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        keep = line.startswith("!")
+        line = (line[1:] if keep else line).replace("\\", "/")
+        (kept if keep else excluded).append(line + "**" if line.endswith("/") else line)
+    return excluded, kept
+
+
+def mirror_excluded(path: str, rules: tuple[list[str], list[str]]) -> bool:
+    excluded, kept = rules
+    return any(fnmatchcase(path, rule) for rule in excluded) and not any(
+        fnmatchcase(path, rule) for rule in kept
+    )
 
 
 class PublicSourceProjectionTests(unittest.TestCase):
@@ -129,6 +209,7 @@ class PublicSourceProjectionTests(unittest.TestCase):
 
         descriptor = json.loads((self.root / "Alis.uproject").read_text(encoding="utf-8"))
         for plugin_name in (
+            "City17",
             "InstanceArrayTool",
             "ProjectIntegrationTests",
             "ProjectOpenableTemplates",
@@ -136,6 +217,9 @@ class PublicSourceProjectionTests(unittest.TestCase):
         ):
             plugin = next(item for item in descriptor["Plugins"] if item["Name"] == plugin_name)
             self.assertFalse(plugin["Enabled"])
+        # The public worlds are realized by Mesh Terrain; the projection never disables it.
+        terrain = next(item for item in descriptor["Plugins"] if item["Name"] == "ProjectWorldMeshTerrain")
+        self.assertTrue(terrain["Enabled"])
         config = (self.root / "Config" / "DefaultEngine.ini").read_text(encoding="utf-8")
         config += (self.root / "Config" / "DefaultGame.ini").read_text(encoding="utf-8")
         self.assertIn(MODULE.KAZAN_MAP, config)
@@ -191,19 +275,12 @@ class PublicSourceProjectionTests(unittest.TestCase):
 
     def test_projection_redacts_private_documentation_examples(self):
         render = self.root / "docs/config/render/render.md"
-        automation = self.root / "docs/testing/automation.md"
         render.parent.mkdir(parents=True)
-        automation.parent.mkdir(parents=True)
         render.write_text("SecurityToken=dummy_private_value\n", encoding="utf-8")
-        automation.write_text(
-            r"-Project=E:\\Repos_Alis\\Alis\\Alis.uproject" + "\n",
-            encoding="utf-8",
-        )
 
         MODULE.project(self.root)
 
         self.assertEqual("SecurityToken=<redacted>\n", render.read_text(encoding="utf-8"))
-        self.assertEqual("-Project=<repo>\\\\Alis.uproject\n", automation.read_text(encoding="utf-8"))
 
     def test_projection_is_idempotent(self):
         MODULE.project(self.root)
@@ -306,14 +383,10 @@ class PublicSourceProjectionTests(unittest.TestCase):
         )
 
     def test_mirror_keeps_project_skills_and_excludes_claude_local_state(self):
-        patterns = []
-        for raw_line in (REPO_ROOT / "scripts/git/mirror/mirror.exclude").read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if line and not line.startswith("#"):
-                patterns.append(line + "**" if line.endswith("/") else line)
+        rules = mirror_exclude_rules()
 
         def excluded(path: str) -> bool:
-            return any(fnmatchcase(path, pattern) for pattern in patterns)
+            return mirror_excluded(path, rules)
 
         self.assertFalse(excluded(".claude/skills/world-engineering/SKILL.md"))
         self.assertFalse(excluded(".claude/skills/world-engineering/agents/openai.yaml"))
@@ -332,7 +405,121 @@ class PublicSourceProjectionTests(unittest.TestCase):
         self.assertFalse(
             excluded("Plugins/Resources/ProjectObject/Content/Human/Hero/Hero.json")
         )
+        self.assertTrue(excluded("scripts/config/ue_path.local.conf"))
+        self.assertTrue(excluded("scripts/config/other.local.conf"))
+        self.assertFalse(excluded("scripts/config/ue_path.conf.example"))
+        self.assertFalse(
+            excluded("scripts/config/test/fixtures/02_local_override/ue_path.local.conf")
+        )
 
+    def test_mirror_keeps_first_party_markdown_public(self):
+        rules = mirror_exclude_rules()
+        tracked = subprocess.run(
+            ["git", "ls-files", "-z", "--", "*.md"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout.decode("utf-8").split("\0")
+        hidden = [
+            path
+            for path in tracked
+            if path
+            and not path.startswith(tuple(PRIVATE_MARKDOWN))
+            and mirror_excluded(path, rules)
+        ]
+        self.assertEqual([], hidden)
+
+    def test_anonymizer_keeps_generic_environment_variables_in_scripts(self):
+        published = {
+            "tools/install.bat": "curl -o %TEMP%\\rustup-init.exe\r\necho %%LOCALAPPDATA%%\\Alis\r\n",
+            "tools/build.ps1": '$cargoHome = Join-Path $HOME ".cargo"\n',
+            "tools/setup.sh": 'export PATH="$HOME/.cargo/bin:$PATH"\n',
+            "docs/setup.md": "Add `%USERPROFILE%\\.cargo\\bin` and `%WSL_HOME%\\tools` to PATH.\n",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for relative, content in published.items():
+                (root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (root / relative).write_bytes(content.encode("utf-8"))
+            SANITIZER.sanitize_tree(root)
+            for relative, content in published.items():
+                self.assertEqual(content.encode("utf-8"), (root / relative).read_bytes(), relative)
+            self.assertEqual([], SANITIZER.residual_machine_paths(root))
+
+    def test_publication_rewrites_docs_and_refuses_code_with_machine_paths(self):
+        literal = "E" + ":/Repos_Alis/Alis"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "tools" / "run.bat"
+            guide = root / "docs" / "guide.md"
+            script.parent.mkdir(parents=True)
+            guide.parent.mkdir(parents=True)
+            script.write_text("set PROJ=" + literal + "/Alis.uproject\n", encoding="utf-8")
+            guide.write_text("see " + literal + "/docs\n", encoding="utf-8")
+            SANITIZER.sanitize_tree(root)
+            self.assertEqual(
+                "set PROJ=" + literal + "/Alis.uproject\n", script.read_text(encoding="utf-8")
+            )
+            self.assertEqual("see <repo>/docs\n", guide.read_text(encoding="utf-8"))
+            self.assertEqual([("tools/run.bat", [1])], SANITIZER.residual_machine_paths(root))
+            with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                status = SANITIZER.main(["sanitize_public_text.py", "--check", str(root)])
+            self.assertEqual(1, status)
+            self.assertIn("tools/run.bat", stderr.getvalue())
+
+    def test_publication_refuses_every_path_governance_flags(self):
+        samples = machine_path_samples()
+        # A new governance rule fails here until it has a sample.
+        for pattern, _ in GOVERNANCE.RULES:
+            self.assertTrue(any(pattern.search(sample) for sample in samples), pattern.pattern)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tools").mkdir()
+            (root / "docs").mkdir()
+            for index, sample in enumerate(samples):
+                code = "x = '" + sample + "'\n"
+                self.assertEqual([1], GOVERNANCE.machine_path_lines(code), sample)
+                (root / "tools" / f"s{index}.py").write_text(code, encoding="utf-8")
+                (root / "docs" / f"s{index}.md").write_text("see " + sample + " here\n", encoding="utf-8")
+            SANITIZER.sanitize_tree(root)
+            refused = {path for path, _ in SANITIZER.residual_machine_paths(root)}
+        self.assertEqual({f"tools/s{index}.py" for index in range(len(samples))}, refused)
+
+    def test_publication_follows_the_governance_definition(self):
+        self.assertEqual(GOVERNANCE_PATH.resolve(), Path(GOVERNANCE.__file__).resolve())
+        probe = "Q" + ":/ParityProbe"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tools").mkdir()
+            (root / "tools" / "probe.ps1").write_text("$x = '" + probe + "'\n", encoding="utf-8")
+            self.assertEqual([], SANITIZER.residual_machine_paths(root))
+            extended = GOVERNANCE.RULES + [(re.compile(re.escape(probe)), "<probe>")]
+            with mock.patch.object(GOVERNANCE, "RULES", extended):
+                self.assertEqual([("tools/probe.ps1", [1])], SANITIZER.residual_machine_paths(root))
+                self.assertEqual("see <probe>\n", SANITIZER.sanitize_text("see " + probe + "\n", ".md"))
+
+    def test_anonymizer_never_rewrites_across_lines(self):
+        b = "\\"
+        text = (
+            "Mount points live under /" + "home/ on Linux.\nSee docs/build.md\n"
+            "Profiles live in C:" + b + "Users" + b + " on Windows.\nRun scripts" + b + "x.bat\n"
+        )
+        self.assertEqual(text, SANITIZER.sanitize_text(text, ".md"))
+
+    def test_anonymizer_replaces_concrete_machine_paths(self):
+        b = "\\"
+        user = "C:" + b + "Users" + b + "someone"
+        cases = {
+            user + b + "AppData" + b + "Local" + b + "Temp" + b + "x.log": "%TEMP%" + b + "x.log",
+            user + b + ".cargo" + b + "bin": "%USERPROFILE%" + b + ".cargo" + b + "bin",
+            "cd " + user: "cd %USERPROFILE%",
+            "/" + "home/someone/tools": "$HOME/tools",
+            "E:" + b + "Repos_Alis" + b + "Alis" + b + "Saved": "<repo>" + b + "Saved",
+            "$HOME" + "/repos_alis/cdn/schema.json": "<cdn-repo>/schema.json",
+            "by Alis Team": "by ALIS",
+        }
+        for text, expected in cases.items():
+            self.assertEqual(expected, SANITIZER.sanitize_text(text, ".md"))
 
 if __name__ == "__main__":
     unittest.main()

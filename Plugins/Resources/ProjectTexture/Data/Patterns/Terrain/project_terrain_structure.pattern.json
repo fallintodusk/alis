@@ -1,0 +1,32 @@
+{
+  "$schema": "../../Schemas/pattern-recipe.schema.json",
+  "schema_version": "3",
+  "pattern_id": "project_terrain_structure",
+  "catalog_id": "DA_ProjectTerrainStructureCatalog",
+  "family": "surface_structure",
+  "compiler_version": "5",
+  "output_contract": "surface_structure_rgb_v1",
+  "seed": 1847,
+  "resolution_class": "medium",
+  "nodes": [
+    {
+      "node_id": "natural_noise_basis",
+      "algorithm": "natural_noise_basis_native",
+      "parents": [],
+      "output_layout": "natural_noise_basis_rgb_v1"
+    },
+    {
+      "node_id": "natural_ground_structure",
+      "algorithm": "natural_ground_structure_native",
+      "parents": ["natural_noise_basis"],
+      "output_layout": "surface_structure_rgb_v1"
+    }
+  ],
+  "exports": [
+    {
+      "slot": "Structure",
+      "node_id": "natural_ground_structure",
+      "descriptor_id": "RT_ProjectTerrainStructure"
+    }
+  ]
+}

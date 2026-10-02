@@ -1,0 +1,17 @@
+#!/bin/bash
+# post-merge: runs after git merge/pull
+# Git sets ORIG_HEAD=pre-merge, HEAD=post-merge - we diff these for C++ changes
+# Install: scripts/setup/install_hooks.sh
+
+set -euo pipefail
+
+# Prefer repo's script (auto-updates); fallback to .git/hooks/ copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+CORE_SCRIPT="$PROJECT_ROOT/scripts/git/hooks/invalidate_ubt_cache.sh"
+
+if [ ! -f "$CORE_SCRIPT" ]; then
+    HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CORE_SCRIPT="$HOOK_DIR/invalidate_ubt_cache.sh"
+fi
+
+[ -f "$CORE_SCRIPT" ] && bash "$CORE_SCRIPT" ORIG_HEAD HEAD

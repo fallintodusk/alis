@@ -1,0 +1,85 @@
+{
+    "$schema":  "../../../../ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "layer_kazan_territory_v1_gameplay",
+    "generation":  17,
+    "owning_layer":  "gameplay",
+    "accepted_operation_id":  "7d0b729c39e64f94970309e6ee854e3e",
+    "accepted_at_utc":  "2026-09-26T09:53:27.8138931+00:00",
+    "generator_fingerprint":  "30cab9e203b9c2cae111ed601800f7b7333c95cf7873529d5c3a4488cbdcca39",
+    "input_identity":  {
+                           "map_package":  "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
+                           "runtime_profile_sha256":  "none",
+                           "authored_overlay_profile_sha256":  "e2fae4e6e95d79fa2568279ffd6365fd6d2bd52a861dc77d8feef2f8a841870d",
+                           "compile_result_sha256":  "cebad191550bf4b7177514ca960787b5dfc1095a5771efefff81d96bb89f2d70",
+                           "presentation_profile_sha256":  "de1a92306f3ce383b5ac04f82e5892d100460b286690b86d9cb93ac4da108a36"
+                       },
+    "artifacts":  [
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/E/F0/ZX81E2ZR7TCHBKAQA58X0C.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "74c90e5a9d34e2930c1cef06bdd6df6ae55cbfcd15f56443db3aa92314c7c095"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/8/BL/3LN7N2GXHKGIG3RP8XSCPT.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "550cf6f6836eb7da9019320d6b058e0caebdd98d3ad8cd34f96c8b45a891e6fc"
+                      },
+                      {
+                          "path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/5/6A/8NR90SKLY5T1QRTV64R28M.uasset",
+                          "kind":  "external_actor",
+                          "digest_kind":  "sha256",
+                          "digest":  "2f29e5c823da2f55cadc95222363ec21cfae7f93142859fe817763c1e697ce4c"
+                      }
+                  ],
+    "consumer_references":  [
+                                "map_territory_l_projectworldkazanterritory"
+                            ],
+    "layer_contract":  {
+                           "realization_profile_id":  "kazan_territory_v1",
+                           "realization_profile_sha256":  "87f4c30a1acb8a71e34f5975a9818ddd3d24d0059d47aac0a63223f6bf08cbd6",
+                           "normalized_layer_contract_sha256":  "39ecd6af20c2bc5ab7725a3ca4ef85eb7729382735905420695304b988091374",
+                           "generator_id":  "project_gameplay_placement",
+                           "generator_version":  1,
+                           "artifact_root":  "/ProjectWorldData/Generated/Territory/Gameplay/",
+                           "canonical_inputs":  [
+                                                    {
+                                                        "unit_id":  "kazan_water_cache_01",
+                                                        "sha256":  "17cf38cd6093b6249188d5934ce355167c198b9c9e50afd4429e24c698b50ad8"
+                                                    },
+                                                    {
+                                                        "unit_id":  "kazan_water_cache_02",
+                                                        "sha256":  "599fccba04dc350fedb4b534fa96e296ac516bb8b9587b53e6e2bfeb653bfec4"
+                                                    },
+                                                    {
+                                                        "unit_id":  "kazan_water_cache_03",
+                                                        "sha256":  "d9357c293d7b62ac6989c0bc3db7773ebea453c180c51eac5d04ede505779f00"
+                                                    }
+                                                ],
+                           "dependency_inputs":  [
+                                                     {
+                                                         "unit_id":  "layer:terrain:contract",
+                                                         "sha256":  "eda8628877931f177aee1854db5f82d208a6ee852c88b34b4690eaa212ee2b5a"
+                                                     }
+                                                 ],
+                           "final_dirty_units":  [
+                                                     "*"
+                                                 ],
+                           "semantic_outputs":  [
+                                                    {
+                                                        "artifact_path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/5/6A/8NR90SKLY5T1QRTV64R28M.uasset",
+                                                        "semantic_sha256":  "17cf38cd6093b6249188d5934ce355167c198b9c9e50afd4429e24c698b50ad8"
+                                                    },
+                                                    {
+                                                        "artifact_path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/8/BL/3LN7N2GXHKGIG3RP8XSCPT.uasset",
+                                                        "semantic_sha256":  "599fccba04dc350fedb4b534fa96e296ac516bb8b9587b53e6e2bfeb653bfec4"
+                                                    },
+                                                    {
+                                                        "artifact_path":  "Plugins/World/ProjectWorldData/Content/__ExternalActors__/Generated/Territory/L_ProjectWorldKazanTerritory/E/F0/ZX81E2ZR7TCHBKAQA58X0C.uasset",
+                                                        "semantic_sha256":  "d9357c293d7b62ac6989c0bc3db7773ebea453c180c51eac5d04ede505779f00"
+                                                    }
+                                                ]
+                       }
+}

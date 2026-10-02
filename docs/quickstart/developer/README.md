@@ -26,6 +26,17 @@ the matching payload, and delegates installation to the trusted script in that
 checkout. It does not install Unreal Engine, Visual Studio, or other
 machine-wide dependencies.
 
+## Character animation
+
+The default player character animates through Epic's Game Animation Sample,
+which ALIS cannot redistribute. Create the sample project from Fab for the
+Unreal Engine version this release uses. ALIS expects the sample content it
+uses in a content plugin named `MotionMatching`
+(`Plugins/ThirdParty/MotionMatching`, mounted at `/MotionMatching/`). Fab
+provides a project, not that plugin, so moving the content is manual for now.
+If this step does not work for you, open an
+[issue](https://github.com/fallintodusk/alis/issues).
+
 ## World generation
 
 Start with the [World Generation Quick Start](world-generation.md). It identifies

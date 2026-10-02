@@ -265,7 +265,7 @@ if (Test-Path $StagingCheckScript) {
     if ($pythonExe) {
         & $pythonExe $StagingCheckScript
         if ($LASTEXITCODE -ne 0) {
-            throw "Pre-package validation failed: plugin data staging gap. Fix before packaging."
+            throw "Pre-package validation failed: plugin data staging or config-name gap. Fix before packaging."
         }
     }
 }
@@ -422,6 +422,10 @@ $FinalSource = Get-PackageSourceIdentity `
     -PythonPath $Python.Source
 if ($FinalSource.Revision -cne $InitialSource.Revision -or
     $FinalSource.State -cne $InitialSource.State) {
+    Write-Host "Initial source revision: $($InitialSource.Revision)" -ForegroundColor Red
+    Write-Host "Final source revision:   $($FinalSource.Revision)" -ForegroundColor Red
+    Write-Host "Initial source state:    $($InitialSource.State)" -ForegroundColor Red
+    Write-Host "Final source state:      $($FinalSource.State)" -ForegroundColor Red
     throw "Source state changed during $Platform release packaging. Discard this package and rerun."
 }
 

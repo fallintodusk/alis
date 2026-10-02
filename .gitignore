@@ -20,7 +20,6 @@ __pycache__
 # --- env secrets ---
 .env
 .env.*
-!.env.*.example
 /secrets/
 
 # --- agentic ---
@@ -32,7 +31,6 @@ __pycache__
 .claude/settings.local.json
 .claude/settings.local.json.backup
 .claude/*.lock
-scripts/config/tools.conf
 
 # --- tmp / logs ---
 tmp/
@@ -124,8 +122,6 @@ cmake-build-*/
 utility/check/reports/
 utility/config/ue_path.conf
 scripts/config/ue_path.local.conf
-scripts/config/tools.conf
-scripts/config/tools.local.conf
 
 # --- Third-party handling ---
 # By default, Binaries/** rules ignore everything;

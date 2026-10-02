@@ -3,7 +3,6 @@ setlocal
 
 rem Verify that no first-party reusable code uses the forbidden `Alis*` prefix.
 rem SOT: docs/architecture/principles.md "Universal Naming Convention".
-rem AGENTS.md: "NO Alis* IN REUSABLE CODE (CRITICAL!)".
 
 set SCRIPT_DIR=%~dp0
 

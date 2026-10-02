@@ -67,8 +67,6 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp',
@@ -93,15 +91,26 @@ function Get-ProjectWorldProducerSourcePaths {
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
             'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
         ) }
-        'project_landscape:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldTerrainVerification.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainVerification.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.h'
+        'project_mesh_terrain:v1' { @(
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldTerrainProducerRegistry.h',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainProducerRegistry.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerInventory.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationGeneratorRegistry.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationService.cpp',
+            'Plugins/World/ProjectWorldMeshTerrain/ProjectWorldMeshTerrain.uplugin',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/ProjectWorldMeshTerrain.Build.cs',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Public/ProjectWorldMeshTerrainPartition.h',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Public/ProjectWorldMeshTerrainTransformer.h',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainPartition.cpp',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainTransformer.cpp',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/ProjectWorldMeshTerrainEditor.Build.cs',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Public/ProjectWorldMeshTerrainLayoutReceipt.h',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainLayoutReceipt.cpp',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainBuildPipeline.h',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.h',
+            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp',
+            'Plugins/World/ProjectWorldMeshTerrain/Data/Schemas/mesh-terrain-layout-receipt.schema.json',
+            'Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset'
         ) }
         'project_water_mesh:v1' { @(
             'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterContractParsing.cpp',
@@ -190,7 +199,7 @@ function Get-ProjectWorldProducerSourceDigest {
 
     $text = [System.IO.File]::ReadAllText($Path)
     $text = $text.Replace("`r`n", "`n").Replace("`r", "`n")
-    if ($text -notmatch 'PROJECTWORLD_PRODUCER_BEGIN') {
+    if ($text -notmatch 'PROJECTWORLD_PRODUCER_(BEGIN|END)') {
         $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($text)
         $sha = [System.Security.Cryptography.SHA256]::Create()
         try {
@@ -199,7 +208,14 @@ function Get-ProjectWorldProducerSourceDigest {
         finally { $sha.Dispose() }
     }
 
-    $pattern = '(?ms)^[ \t]*// PROJECTWORLD_PRODUCER_BEGIN (?<owner>[A-Za-z0-9_.-]+)\r?\n(?<body>.*?)^[ \t]*// PROJECTWORLD_PRODUCER_END \k<owner>\r?\n'
+    $pattern = '(?ms)^[ \t]*(?://|#) PROJECTWORLD_PRODUCER_BEGIN (?<owner>[A-Za-z0-9_.-]+)\r?\n(?<body>.*?)^[ \t]*(?://|#) PROJECTWORLD_PRODUCER_END \k<owner>\r?\n'
+    # Every marker token must delimit a well-formed region. A stray token inside
+    # a region body would otherwise extend that region over producing code.
+    $markers = [regex]::Matches($text, 'PROJECTWORLD_PRODUCER_(?:BEGIN|END)')
+    $regions = [regex]::Matches($text, $pattern)
+    if ($markers.Count -ne 2 * $regions.Count) {
+        throw "Malformed or unmatched producer-scoped source region: $Path"
+    }
     $scoped = [System.Text.RegularExpressions.Regex]::Replace(
         $text,
         $pattern,
@@ -211,9 +227,6 @@ function Get-ProjectWorldProducerSourceDigest {
             }
             return ''
         })
-    if ($scoped -match 'PROJECTWORLD_PRODUCER_(BEGIN|END)') {
-        throw "Malformed or unmatched producer-scoped source region: $Path"
-    }
 
     $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($scoped)
     $sha = [System.Security.Cryptography.SHA256]::Create()
@@ -221,6 +234,33 @@ function Get-ProjectWorldProducerSourceDigest {
         return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
     }
     finally { $sha.Dispose() }
+}
+
+function Get-ProjectWorldEngineBuildIdentity {
+    param([Parameter(Mandatory = $true)][string]$ProjectRoot)
+
+    if (-not [string]::IsNullOrWhiteSpace($env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE)) {
+        return "override:$($env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE)"
+    }
+    $configRoot = Join-Path $ProjectRoot 'scripts\config'
+    $engineRoot = ''
+    foreach ($configName in @('ue_path.local.conf', 'ue_path.conf')) {
+        $configPath = Join-Path $configRoot $configName
+        if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { continue }
+        $match = Select-String -LiteralPath $configPath -Pattern '^UE_PATH=(?<value>.+)$' | Select-Object -First 1
+        if ($null -ne $match) {
+            $engineRoot = $match.Matches[0].Groups['value'].Value
+            break
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($engineRoot)) {
+        return 'unavailable'
+    }
+    $buildVersion = Join-Path $engineRoot 'Engine\Build\Build.version'
+    if (-not (Test-Path -LiteralPath $buildVersion -PathType Leaf)) {
+        return 'missing'
+    }
+    return (Get-FileHash -LiteralPath $buildVersion -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
 function Get-ProjectWorldGeneratorFingerprint {
@@ -231,6 +271,7 @@ function Get-ProjectWorldGeneratorFingerprint {
 
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add("project_world_producer_fingerprint_v3`0$ProducerId")
+    $lines.Add("engine_build_identity`0$(Get-ProjectWorldEngineBuildIdentity -ProjectRoot $ProjectRoot)")
     foreach ($relative in Get-ProjectWorldProducerSourcePaths -ProducerId $ProducerId) {
         $full = Join-Path $ProjectRoot $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
         $digest = Get-ProjectWorldProducerSourceDigest -Path $full -ProducerId $ProducerId

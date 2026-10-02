@@ -18,7 +18,7 @@
 | [UE Built-in Debug Tools](#ue-built-in-debug-tools) | Widget Reflector, Slate Insights, Automation Driver |
 
 **Related:**
-- [AGENTS.md](../../AGENTS.md) - Project commands and PowerShell patterns
+- [Scripts router](../../scripts/README.md) - Project script entry points
 - [UI Guide](../ui/guide.md) - UI architecture
 - [Integration Tests](integration_tests.md) - Cross-plugin testing
 
@@ -44,7 +44,7 @@ Dumps persist between sessions. If stale, ask user to regenerate in PIE.
 
 ### CI/Headless (Automation)
 
-> See [AGENTS.md](../../AGENTS.md#windows-powershell-commands-primary-environment) for PowerShell patterns.
+> See the [test scripts router](../../scripts/ue/test/README.md) for test entry points.
 
 ```powershell
 .\scripts\ue\test\unit\run_cpp_tests_safe.ps1 -TestFilter "..." -Game -Map "/Path/To/Map"

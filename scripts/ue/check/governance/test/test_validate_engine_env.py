@@ -18,6 +18,11 @@ import validate_engine_env as vee  # noqa: E402
 
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", ".."))
 
+# Machine-local samples are assembled at runtime so this file itself carries
+# no literal for the job under test to find.
+REPO_LITERAL = "E" + ":/Repos_Alis/Alis"
+USER_LITERAL = "C" + ":" + "\\" + "Users" + "\\" + "someone" + "\\" + "tools"
+
 failures = []
 
 
@@ -117,7 +122,7 @@ def test_hardcoded_path_detected():
     try:
         repo, _ = make_repo(tmp)
         with open(os.path.join(repo, "bad_doc.md"), "w") as fh:
-            fh.write("build with <ue-path>/Engine/Build/Build.bat\n")
+            fh.write("build with X:/Engines/UnrealEngine-5.7/Engine/Build/Build.bat\n")
         subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
         check("hardcoded versioned path detected", run_main(repo) == 1)
     finally:
@@ -129,7 +134,7 @@ def test_generated_slnx_path_detected():
     try:
         repo, _ = make_repo(tmp)
         with open(os.path.join(repo, "Alis.slnx"), "w") as fh:
-            fh.write('<Project Path="<ue-path>/Engine/X.csproj" />\n')
+            fh.write('<Project Path="X:/Engines/UE_5.8/Engine/X.csproj" />\n')
         subprocess.run(["git", "-C", repo, "add", "-f", "Alis.slnx"],
                        check=True)
         check("tracked generated slnx path detected", run_main(repo) == 1)
@@ -171,13 +176,19 @@ def test_source_identity_gate():
 def test_dev_manifest_mismatch_detected():
     tmp = tempfile.mkdtemp()
     try:
-        repo, _ = make_repo(tmp)
+        repo, eng = make_repo(tmp)
         manifest = os.path.join(
             repo, "Plugins", "Boot", "Orchestrator", "Data",
             "dev_manifest.json")
+        with open(os.path.join(eng, "Engine", "Build", "Build.version"), "w") as fh:
+            json.dump({
+                "MajorVersion": 5, "MinorVersion": 8, "PatchVersion": 3,
+                "Changelist": 58210709, "BranchName": "++UE5+Release-5.8",
+            }, fh)
+        check("same engine line with a different changelist passes", run_main(repo) == 0)
         with open(manifest, "w") as fh:
             json.dump({"engine_build_id": "++UE5+Release-5.7-CL-1"}, fh)
-        check("dev manifest engine mismatch detected", run_main(repo) == 1)
+        check("dev manifest engine line mismatch detected", run_main(repo) == 1)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -257,9 +268,110 @@ def test_placeholders_are_clean():
         repo, _ = make_repo(tmp)
         with open(os.path.join(repo, "good_doc.md"), "w") as fh:
             fh.write("build with %UE_PATH%/Engine and package with "
-                     "%UE_SOURCE_PATH% (resolve via scripts/config/ue_path.conf)\n")
+                     "%UE_SOURCE_PATH% (resolve via scripts/config/ue_path.conf); "
+                     "run <repo>/scripts/x.py, cache in %TEMP%\\x and $HOME/.cargo\n")
         subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
         check("placeholder docs pass", run_main(repo) == 0)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_machine_local_path_detected():
+    tmp = tempfile.mkdtemp()
+    try:
+        repo, _ = make_repo(tmp)
+        with open(os.path.join(repo, "run.bat"), "w") as fh:
+            fh.write("set PROJ=%s/Alis.uproject\n" % REPO_LITERAL)
+        subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+        check("machine-local path in a script detected", run_main(repo) == 1)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_machine_local_path_in_any_text_type_detected():
+    tmp = tempfile.mkdtemp()
+    try:
+        repo, _ = make_repo(tmp)
+        os.makedirs(os.path.join(repo, "hooks"))
+        with open(os.path.join(repo, "hooks", "post-merge"), "w") as fh:
+            fh.write("cd %s\n" % USER_LITERAL)
+        subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+        check("machine-local path in an extensionless file detected",
+              run_main(repo, ["--paths-only"]) == 1)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_machine_local_path_reasons_are_exempt():
+    tmp = tempfile.mkdtemp()
+    try:
+        repo, _ = make_repo(tmp)
+        upstream = os.path.join(repo, "Plugins", "ThirdParty", "Lib")
+        os.makedirs(upstream)
+        with open(os.path.join(upstream, "README.md"), "w") as fh:
+            fh.write("built in %s\n" % REPO_LITERAL)
+        subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+        check("third-party upstream text is exempt",
+              run_main(repo, ["--paths-only"]) == 0)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_exemptions_name_exact_files():
+    # A file entry exempts that file only: the SOT conf stays exempt, while
+    # the template beside it is checked by both path families.
+    for kind, line in (
+        ("machine-local", "# UE_PATH=%s/Engine\n" % REPO_LITERAL),
+        ("versioned engine", "# UE_PATH=X:/Engines/UnrealEngine-5.7\n"),
+    ):
+        tmp = tempfile.mkdtemp()
+        try:
+            repo, _ = make_repo(tmp)
+            cfg = os.path.join(repo, "scripts", "config")
+            with open(os.path.join(cfg, "ue_path.conf"), "a") as fh:
+                fh.write(line)
+            subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+            check("%s path in the SOT conf stays exempt" % kind,
+                  run_main(repo, ["--paths-only"]) == 0)
+            with open(os.path.join(cfg, "ue_path.conf.example"), "w") as fh:
+                fh.write(line)
+            subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+            check("%s path in ue_path.conf.example detected" % kind,
+                  run_main(repo, ["--paths-only"]) == 1)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_task_files_are_checked():
+    # Fresh agents execute task files, so no todo folder is exempt.
+    lines = (
+        ("machine-local", "run %s/scripts/x.bat\n" % REPO_LITERAL),
+        ("versioned engine", "use X:/Engines/UnrealEngine-5.7/Engine\n"),
+    )
+    for folder in ("00_current", "01_done", "02_backlog", "03_parked", "04_cancelled"):
+        for kind, line in lines:
+            tmp = tempfile.mkdtemp()
+            try:
+                repo, _ = make_repo(tmp)
+                os.makedirs(os.path.join(repo, "todo", folder))
+                with open(os.path.join(repo, "todo", folder, "task.md"), "w") as fh:
+                    fh.write(line)
+                subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+                check("%s path in todo/%s detected" % (kind, folder),
+                      run_main(repo, ["--paths-only"]) == 1)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_paths_only_needs_no_private_state():
+    tmp = tempfile.mkdtemp()
+    try:
+        repo, _ = make_repo(tmp)
+        os.remove(os.path.join(repo, "Alis.uproject"))
+        os.remove(os.path.join(repo, "scripts", "config", "ue_path.conf"))
+        subprocess.run(["git", "-C", repo, "add", "-A"], check=True)
+        check("paths-only passes without project or engine state",
+              run_main(repo, ["--paths-only"]) == 0)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -280,7 +392,7 @@ def test_repo_codex_config_rejects_versioned_path():
     cfg = os.path.join(tmp, ".codex", "config.toml")
     try:
         with open(cfg, "w", encoding="utf-8") as fh:
-            fh.write('UE_EDITOR_CMD = "<ue-path>/x.exe"')
+            fh.write('UE_EDITOR_CMD = "X:/Engines/UE_5.8/x.exe"')
         check("tracked codex versioned path rejected",
               len(vee.check_repo_codex_config(tmp)) == 1)
 
@@ -308,6 +420,12 @@ if __name__ == "__main__":
     test_metahuman_authoring_boundary_detected()
     test_metahuman_authoring_boundary_allows_absent_plugins()
     test_placeholders_are_clean()
+    test_machine_local_path_detected()
+    test_machine_local_path_in_any_text_type_detected()
+    test_machine_local_path_reasons_are_exempt()
+    test_exemptions_name_exact_files()
+    test_task_files_are_checked()
+    test_paths_only_needs_no_private_state()
     test_repo_codex_config_rejects_versioned_path()
     if failures:
         print("FAILED: %d" % len(failures))

@@ -661,8 +661,6 @@ def _run_profile(
         str(sandbox_manifest_root),
         "-NonInteractive",
     ]
-    if settings["require_landscape"]:
-        command.append("-RequireLandscape")
     if runtime is not None:
         command.extend(["-RuntimeProfile", str(REPO_ROOT / runtime["path"])])
     if realization is not None:

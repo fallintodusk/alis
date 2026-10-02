@@ -5,6 +5,7 @@ from typing import Any
 
 from .contracts import CompilerError, canonical_hash, read_json, validate_document
 from .source import SourceBundle
+from .terrain_surface import validate_surface_contract
 
 
 def _snapshot_contracts(
@@ -85,6 +86,8 @@ def build_lineages(
         "profile_contract_sha256": canonical_hash({
             "grid": profile["grid"],
             "raster_sampling": profile.get("raster_sampling"),
+            "water_semantics": profile.get("water_semantics"),
+            "terrain_surface": validate_surface_contract(profile),
         }),
         "source_ingestion_contract_sha256": canonical_hash({
             "kind": "terrain", "raster_contract": raster_contract,

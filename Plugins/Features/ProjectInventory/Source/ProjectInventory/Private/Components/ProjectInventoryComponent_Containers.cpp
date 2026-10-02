@@ -4,7 +4,7 @@
 // ProjectInventoryComponent container + grid resolution helpers.
 //
 // Split out of ProjectInventoryComponent.cpp on 2026-04-23 under the
-// FILE SIZE GUARDRAIL rule (AGENTS.md). The class declaration is unchanged;
+// FILE SIZE GUARDRAIL rule. The class declaration is unchanged;
 // this TU defines the subset responsible for mapping between the
 // component's configured storage (hands/pockets/backpack/grants) and the
 // grid math that the mutation paths need:

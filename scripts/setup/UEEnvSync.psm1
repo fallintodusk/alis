@@ -17,7 +17,7 @@
 # launcher/source roots may move. Other engine grants stay untouched.
 
 function Convert-EngineRootStyle {
-    # Render canonical root (e.g. C:/UnrealEngine/UE_5.8) in the slash
+    # Render canonical root (e.g. D:/Engines/UE_5.8) in the slash
     # style of a sample occurrence.
     param(
         [Parameter(Mandatory)][string]$CanonRoot,

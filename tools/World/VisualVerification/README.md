@@ -113,6 +113,15 @@ Do not collapse that wait into the startup frame: all actors can be present
 while Landscape render state is still incomplete, producing authenticated but
 visually false checkerboard frames.
 
+That wait does not cover Mesh Terrain section rendering. On Kazan, a capture taken by this
+command alone can show buildings and water with no terrain at all and still return an
+accepted receipt, while a session that loads the same bounds and lets the editor run longer
+first renders the terrain. Check that the subject is actually drawn before using a frame, and
+compare a change only against a control session that loads and settles the same way. Editor
+worlds also never generate ProjectTexture's runtime pattern pixels, so appearance driven by
+those signals is not visible in these captures
+([pattern generation](../../../Plugins/Resources/ProjectTexture/docs/pattern_generation.md)).
+
 It is NOT a commandlet. That envelope was tried and abandoned on measured
 evidence - see ProjectWorld pitfall 15 for the full list of things that were
 verified true while the frames stayed black.
@@ -178,8 +187,7 @@ see the screenshot entry in
 
 ## Output locations
 
-All scratch output goes under the project `tmp/` tree per the AGENTS.md rule
-"SCRATCH FILES LIVE IN PROJECT `tmp/` ONLY":
+All scratch output goes under the project `tmp/` tree:
 
 ```
 tmp/world/visual_verification/

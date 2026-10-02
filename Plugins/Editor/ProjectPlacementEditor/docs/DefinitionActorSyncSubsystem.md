@@ -110,8 +110,8 @@ If structure matches, Reapply is safe. Otherwise, Replace.
 
 - [ProjectEditorCore/DefinitionEvents.h](../../ProjectEditorCore/Source/ProjectEditorCore/Public/DefinitionEvents.h) - Shared delegate
 - [ProjectObjectActorFactory.h](../Source/ProjectPlacementEditor/Public/ProjectObjectActorFactory.h) - Sets tracking properties
-- [AInteractableActor](../../../Resources/ProjectObject/Source/ProjectObject/Public/InteractableActor.h) - Pure runtime container (metadata only)
+- [AInteractableActor](../../../Resources/ProjectObject/Source/ProjectObject/Public/Template/Interactable/InteractableActor.h) - Pure runtime container (metadata only)
 
 ## See Also
 
-- [ProjectObject README](../../../Plugins/Resources/ProjectObject/README.md#definition-update-system-auto-update-when-json-changes)
+- [ProjectObject README](../../../Resources/ProjectObject/README.md#definition-update-system-auto-update-when-json-changes)

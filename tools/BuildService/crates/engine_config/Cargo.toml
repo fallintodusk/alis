@@ -1,0 +1,17 @@
+[package]
+name = "engine_config"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Engine-root resolution from the repo SOT (scripts/config/ue_path.conf) + source-release receipt gate"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -242,14 +242,8 @@ def build_terrain_cells(
     source_provenance = bundle.raster.get("vertical_provenance")
     if not isinstance(source_provenance, dict):
         raise CompilerError("vertical_provenance_missing", "Canonical terrain requires qualified source provenance")
-    for (x_index, y_index), source_height in list(values.items()):
-        world_x = origin_x + x_index * spacing_x
-        world_y = origin_y + y_index * spacing_y
-        height = source_height
-        for patch in overlay["terrain_patches"]:
-            if math.hypot(world_x - patch["center"][0], world_y - patch["center"][1]) <= patch["radius_m"]:
-                height += patch["delta_m"]
-        values[(x_index, y_index)] = quantize(height, height_step)
+    for sample, source_height in list(values.items()):
+        values[sample] = quantize(source_height, height_step)
     quads_x, quads_y = (int(value) for value in grid["cell_quads"])
     halo = int(grid["halo_samples"])
     result: dict[str, dict[str, Any]] = {}
@@ -277,8 +271,8 @@ def build_terrain_cells(
         bounds = cell_bounds(grid, cell_x, cell_y)
         current_id = cell_id(grid_identifier, cell_x, cell_y)
         result[current_id] = {
-            "$schema": "https://alis.world/schemas/world-compiler/terrain-cell-v1.json",
-            "schema_version": 1,
+            "$schema": "https://alis.world/schemas/world-compiler/terrain-cell-v2.json",
+            "schema_version": 2,
             "grid_id": grid_identifier,
             "cell_id": current_id,
             "bounds": list(bounds),
@@ -303,6 +297,13 @@ def build_terrain_cells(
             "halo_window": {
                 "index_bounds": [start_x - halo, start_y - halo, end_x + halo, end_y + halo],
                 "samples": halo_matrix,
+            },
+            "water_fit": {
+                "core_samples": core,
+                "halo_window": {
+                    "index_bounds": [start_x - halo, start_y - halo, end_x + halo, end_y + halo],
+                    "samples": halo_matrix,
+                },
             },
             "height_edges": {side: f"sha256:{canonical_hash(value)}" for side, value in edges.items()},
             "height_border_bands": {side: f"sha256:{canonical_hash(value)}" for side, value in bands.items()},

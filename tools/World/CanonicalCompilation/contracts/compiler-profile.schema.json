@@ -3,7 +3,7 @@
   "$id": "https://alis.world/schemas/world-compiler/compiler-profile-v1.json",
   "title": "World Compiler Profile",
   "type": "object",
-  "required": ["$schema", "schema_version", "profile_id", "source_profile_id", "source_profile", "world_data_plugin", "engine_georeference_origin", "identity_namespace", "grid", "authored_overlay"],
+  "required": ["$schema", "schema_version", "profile_id", "source_profile_id", "source_profile", "world_data_plugin", "engine_georeference_origin", "identity_namespace", "grid", "terrain_surface", "authored_overlay"],
   "properties": {
     "$schema": {"type": "string"},
     "schema_version": {"const": 1},
@@ -49,6 +49,24 @@
       "required": ["bilinear_warp_scale"],
       "properties": {
         "bilinear_warp_scale": {"type": "array", "items": {"const": 1.0}, "minItems": 2, "maxItems": 2}
+      },
+      "additionalProperties": false
+    },
+    "terrain_surface": {
+      "type": "object",
+      "required": ["contract_id", "contract_version", "roles", "hydro_transition_radius_m", "water_clearance_m"],
+      "properties": {
+        "contract_id": {"const": "terrain_surface_semantics"},
+        "contract_version": {"const": 1},
+        "roles": {
+          "type": "array",
+          "prefixItems": [{"const": "ground"}, {"const": "hydro_transition"}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "hydro_transition_radius_m": {"type": "number", "exclusiveMinimum": 0},
+        "water_clearance_m": {"type": "number", "minimum": 0}
       },
       "additionalProperties": false
     },

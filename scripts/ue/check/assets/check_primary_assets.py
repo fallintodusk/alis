@@ -1,13 +1,15 @@
 """Verify primary asset type directories contain assets.
 
-Parses DefaultGame.ini for PrimaryAssetTypesToScan entries and checks that
+Parses the Game config files the engine loads (the project DefaultGame.ini and
+plugin Game.ini files) for PrimaryAssetTypesToScan entries and checks that
 each configured scan directory has .uasset files. This is a presence check --
 it proves content exists where the Asset Manager expects to find it.
 
 Does NOT require the editor. Uses the project Content/ structure directly.
 
 Types listed in OPTIONAL_EMPTY_TYPES are allowed to have 0 assets without
-causing a FAIL (they report as warnings instead).
+causing a FAIL (they report as warnings instead). A type configured without
+directories names nothing to check and is only reported.
 """
 
 from __future__ import annotations
@@ -105,6 +107,33 @@ def count_uassets(directory: Path) -> int:
     return len(list(directory.rglob("*.uasset")))
 
 
+def read_directories(entry: str) -> list[str] | None:
+    """Return an entry's scan directories: [] when it names none, None when unreadable."""
+    if re.search(r"(?i)directories", entry) is None:
+        return []
+    # The engine matches property names without case and allows spaces around '='.
+    key = re.search(r"(?i)\bDirectories\s*=\s*", entry)
+    if key is None:
+        return None
+    value, depth = "", 0
+    for char in entry[key.end():]:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            if depth == 0:
+                break
+            depth -= 1
+        elif char == "," and depth == 0:
+            break
+        value += char
+    if not value.strip("() \t"):
+        return []
+    # The engine imports a bare string inside a struct as empty, so only quoted paths count.
+    if re.search(r'(?i)\bPath\s*=\s*[^"\s]', value):
+        return None
+    return re.findall(r'(?i)\bPath\s*=\s*"([^"]*)"', value) or None
+
+
 def parse_primary_asset_types(ini_path: Path) -> list[dict]:
     """Parse PrimaryAssetTypesToScan entries from DefaultGame.ini."""
     types = []
@@ -120,9 +149,6 @@ def parse_primary_asset_types(ini_path: Path) -> list[dict]:
 
         # Extract fields
         type_match = re.search(r'PrimaryAssetType="([^"]+)"', entry)
-        # Directories have nested parens: Directories=((Path="..."),(Path="..."))
-        # Use a greedy match balanced by the trailing comma or end-of-entry
-        dirs_match = re.search(r'Directories=\((\(.+?\))\)', entry)
         editor_match = re.search(r'bIsEditorOnly=(\w+)', entry)
 
         if not type_match:
@@ -135,37 +161,35 @@ def parse_primary_asset_types(ini_path: Path) -> list[dict]:
         if is_editor:
             continue
 
-        # Extract directory paths
-        directories = []
-        if dirs_match:
-            for path_match in re.finditer(r'Path="([^"]+)"', dirs_match.group(1)):
-                directories.append(path_match.group(1))
-
         types.append({
             "type": asset_type,
-            "directories": directories,
+            "directories": read_directories(entry),
         })
 
     return types
 
 
 def collect_ini_files(project_root: Path) -> list[Path]:
-    """Collect all DefaultGame.ini files: root + plugins."""
+    """Collect the Game config files the engine loads: root + plugins.
+
+    A plugin patches the Game config only through Config/Game.ini; the engine
+    never loads a plugin's Config/DefaultGame.ini.
+    """
     ini_files = []
     root_ini = project_root / "Config" / "DefaultGame.ini"
     if root_ini.is_file():
         ini_files.append(root_ini)
     plugins_dir = project_root / "Plugins"
     if plugins_dir.is_dir():
-        for plugin_ini in plugins_dir.rglob("Config/DefaultGame.ini"):
+        for plugin_ini in plugins_dir.rglob("Config/Game.ini"):
             ini_files.append(plugin_ini)
     return ini_files
 
 
-def main() -> int:
-    # Find project root (script is at scripts/ue/check/assets/)
-    script_dir = Path(__file__).resolve().parent
-    project_root = script_dir.parent.parent.parent.parent
+def main(project_root: Path | None = None) -> int:
+    if project_root is None:
+        # Find project root (script is at scripts/ue/check/assets/)
+        project_root = Path(__file__).resolve().parents[4]
 
     ini_files = collect_ini_files(project_root)
     if not ini_files:
@@ -183,10 +207,12 @@ def main() -> int:
         for t in parse_primary_asset_types(ini_path):
             key = t["type"]
             if key in all_types:
-                # Merge directories, deduplicate
-                existing = set(all_types[key]["directories"])
-                existing.update(t["directories"])
-                all_types[key]["directories"] = sorted(existing)
+                # Merge directories, deduplicate; an unreadable list stays unreadable
+                previous, current = all_types[key]["directories"], t["directories"]
+                all_types[key]["directories"] = (
+                    None if previous is None or current is None
+                    else sorted(set(previous) | set(current))
+                )
             else:
                 all_types[key] = t
 
@@ -200,6 +226,14 @@ def main() -> int:
     print(f"Checking {len(types)} primary asset types...")
     for t in types:
         asset_type = t["type"]
+        if t["directories"] is None:
+            errors.error(f"{asset_type}: Directories value could not be read")
+            continue
+        if not t["directories"]:
+            # A rule without directories, such as the GameFeatureData rule the
+            # GameFeatures editor module requires, names no directory to check.
+            print(f"  {asset_type}: no scan directories configured (nothing to check)")
+            continue
         total_assets = 0
 
         resolved_any = False

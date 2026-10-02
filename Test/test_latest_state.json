@@ -1,0 +1,43 @@
+{
+  "manifest_version": "1.0.0",
+  "engine_build_id": "5.5.0",
+  "applied_at": "2025-10-30T12:00:00Z",
+  "plugins": {
+    "Orchestrator": {
+      "name": "Orchestrator",
+      "version": "1.0.0",
+      "module": "OrchestratorCore",
+      "code_hash": "abc123",
+      "content_hash": "def456",
+      "installed_path": "Plugins/Orchestrator",
+      "channel": "stable"
+    },
+    "ProjectCore": {
+      "name": "ProjectCore",
+      "version": "1.0.0",
+      "module": "ProjectCore",
+      "code_hash": "core123",
+      "content_hash": "core456",
+      "installed_path": "Plugins/Core/ProjectCore",
+      "channel": "stable"
+    },
+    "ProjectData": {
+      "name": "ProjectData",
+      "version": "1.0.0",
+      "module": "ProjectData",
+      "code_hash": "data123",
+      "content_hash": "OLD_CONTENT_456",
+      "installed_path": "Plugins/Core/ProjectData",
+      "channel": "stable"
+    },
+    "ProjectUI": {
+      "name": "ProjectUI",
+      "version": "0.9.0",
+      "module": "ProjectUI",
+      "code_hash": "OLD_CODE_123",
+      "content_hash": "OLD_CONTENT_456",
+      "installed_path": "Plugins/Core/ProjectUI",
+      "channel": "stable"
+    }
+  }
+}

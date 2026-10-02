@@ -1,0 +1,49 @@
+# Build Service Configuration
+
+[paths]
+# NO ue_root KEY - ONE SOT, no drift: the SOURCE engine root is resolved
+# from <project_root>/scripts/config/ue_path.conf (UE_SOURCE_PATH key) by
+# the engine_config crate. A committed toml override would recreate a
+# second SOT; a process-local env UE_SOURCE_PATH is the only override.
+# (Shipping modular targets still REQUIRE a source engine - the conf's
+# UE_SOURCE_PATH is exactly that engine; identity-gated before any cook.)
+
+# Project root directory (contains .uproject file)
+project_root = "../.."
+
+# Staging directory for build artifacts
+staging_dir = "staging"
+
+# Manifest file path
+manifest_file = "../../manifest.json"
+
+# Build workspace directories (isolated per phase)
+plugin_build_root = "workspace/build"
+cook_root = "workspace/cook"
+iostore_root = "workspace/iostore"
+
+# Build state file (tracks build history for incremental DLC builds)
+build_state_file = "build_state.json"
+
+# NO [ue] tool-path section - RunUAT / UnrealEditor-Cmd / UnrealPak are
+# derived from the resolved source engine root by the executor (UePaths);
+# committed absolute tool paths were redundant copies of the engine root.
+
+[cdn]
+# CDN Control API endpoint (primary ingress via nginx)
+# Build Service communicates ONLY with this API, never directly with S3/MinIO
+control_api_url = "http://localhost:28080/api"
+control_api_token_env = "CDN_CONTROL_API_TOKEN"
+
+[build]
+# Default platform (Win64, Linux, Mac)
+platform = "Win64"
+
+# Default configuration (Development, Shipping, Debug)
+configuration = "Development"
+
+# Default channel (dev, test, prod)
+channel = "dev"
+
+# Parallel builds (number of concurrent builds, 0 = sequential)
+parallel_builds = 0

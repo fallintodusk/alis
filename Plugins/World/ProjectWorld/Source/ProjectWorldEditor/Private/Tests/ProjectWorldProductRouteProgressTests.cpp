@@ -3,6 +3,9 @@
 
 #include "Misc/AutomationTest.h"
 #include "Presentation/ProjectWorldProductRouteProgress.h"
+#include "ProjectWorldTerrainRuntimeRole.h"
+
+#include "GameFramework/Actor.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -40,6 +43,22 @@ bool FProjectWorldProductRouteProgressTest::RunTest(const FString& Parameters)
 	Progress.bCenterReloaded = true;
 	TestTrue(TEXT("The complete product route is accepted."), Progress.IsAccepted());
 	TestTrue(TEXT("Complete evidence has no missing gate."), Progress.FirstMissingGate().IsEmpty());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldTerrainRuntimeRoleTest,
+	"Project.World.Runtime.TerrainRole",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FProjectWorldTerrainRuntimeRoleTest::RunTest(const FString& Parameters)
+{
+	AActor* Actor = NewObject<AActor>();
+	TestFalse(TEXT("An untagged actor has no terrain role"),
+		ProjectWorldTerrainRuntimeRole::HasRole(*Actor));
+	Actor->Tags.Add(ProjectWorldTerrainRuntimeRole::RoleTag());
+	TestTrue(TEXT("The representation-neutral tag supplies the terrain role"),
+		ProjectWorldTerrainRuntimeRole::HasRole(*Actor));
 	return true;
 }
 

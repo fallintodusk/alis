@@ -16,6 +16,7 @@ MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+RECIPE_OWNERS = ("ProjectTexture", "ProjectMaterial")
 
 
 class DeveloperPayloadTests(unittest.TestCase):
@@ -99,9 +100,20 @@ class DeveloperPayloadTests(unittest.TestCase):
         authorities = MODULE.collect_public_asset_authority(REPO_ROOT, entries)
 
         counts = {item["owner"]: item["asset_count"] for item in authorities}
-        self.assertEqual({"ProjectObject": 88, "ProjectExperienceData": 2, "ProjectMaterial": 2}, counts)
-        self.assertEqual(90, sum(entry.kind == "generated_definition_asset" for entry in entries.values()))
-        self.assertEqual(2, sum(entry.kind == "generated_material_asset" for entry in entries.values()))
+        contract = json.loads((REPO_ROOT / MODULE.ASSET_RELEASE_CONTRACT).read_text(encoding="utf-8"))
+        expected = {}
+        for authority in contract["asset_authorities"]:
+            manifest = json.loads((REPO_ROOT / authority["manifest_path"]).read_text(encoding="utf-8-sig"))
+            items = "assets" if authority["authority_kind"] == "generated_definition_manifest" else "records"
+            expected[authority["owner"]] = (authority["authority_kind"], len(manifest[items]))
+        self.assertEqual({owner: count for owner, (_, count) in expected.items()}, counts)
+        for kind, entry_kind in (
+            ("generated_definition_manifest", "generated_definition_asset"),
+            ("generated_recipe_manifest", "generated_recipe_asset"),
+        ):
+            self.assertEqual(
+                sum(count for owner_kind, count in expected.values() if owner_kind == kind),
+                sum(entry.kind == entry_kind for entry in entries.values()))
         self.assertEqual(0, sum(entry.kind == "generated_definition_source" for entry in entries.values()))
         self.assertTrue(all(Path(entry.path).suffix.lower() in {".uasset", ".umap"} for entry in entries.values()))
         self.assertTrue(all("thirdparty" not in path.lower() for path in entries))
@@ -121,26 +133,98 @@ class DeveloperPayloadTests(unittest.TestCase):
             with self.assertRaises(MODULE.PayloadError):
                 MODULE.collect_public_asset_authority(REPO_ROOT, {})
 
-    def test_public_asset_authority_rejects_material_recipe_semantic_drift(self):
-        contract = json.loads((REPO_ROOT / "scripts/git/mirror/developer_asset_release.json").read_text())
-        authority = next(
-            item for item in contract["asset_authorities"] if item["owner"] == "ProjectMaterial"
+    @staticmethod
+    def _recipe_authority(owner):
+        contract = json.loads((REPO_ROOT / MODULE.ASSET_RELEASE_CONTRACT).read_text(encoding="utf-8"))
+        return next(
+            item for item in contract["asset_authorities"]
+            if item["owner"] == owner and item["authority_kind"] == "generated_recipe_manifest"
         )
+
+    def _write_recipe_fixture(self, root, owners=RECIPE_OWNERS):
+        # Copies each owner's accepted manifest, recipe tree, and selected packages into an
+        # isolated repository root whose release contract declares only those owners.
+        authorities = [self._recipe_authority(owner) for owner in owners]
+        for authority in authorities:
+            manifest_path = REPO_ROOT / authority["manifest_path"]
+            (root / authority["manifest_path"]).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(manifest_path, root / authority["manifest_path"])
+            shutil.copytree(REPO_ROOT / authority["recipe_root"], root / authority["recipe_root"])
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+            for record in manifest["records"]:
+                package = record["output_object_path"].partition(".")[0]
+                artifact = f'{authority["artifact_root"]}/{package[len(authority["package_root"]) + 1:]}.uasset'
+                (root / artifact).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(REPO_ROOT / artifact, root / artifact)
+        contract_path = root / MODULE.ASSET_RELEASE_CONTRACT
+        contract_path.parent.mkdir(parents=True, exist_ok=True)
+        contract_path.write_text(json.dumps({"asset_authorities": authorities}), encoding="utf-8")
+        return {authority["owner"]: authority for authority in authorities}
+
+    def test_recipe_authorities_select_every_accepted_record(self):
         with tempfile.TemporaryDirectory() as temp_value:
             root = Path(temp_value)
-            source = REPO_ROOT / "Plugins/Resources/ProjectMaterial"
-            target = root / "Plugins/Resources/ProjectMaterial"
-            shutil.copytree(source / "Data", target / "Data")
-            shutil.copytree(source / "Content", target / "Content")
-            shutil.copytree(source / "Tools", target / "Tools")
-            recipe = target / "Data/Materials/Terrain/M_ProjectTerrain.material.json"
-            value = json.loads(recipe.read_text())
-            value["scalars"]["Roughness"] = 0.5
-            recipe.write_text(json.dumps(value), encoding="utf-8")
-            manifest = json.loads((target / "Data/Manifests/Materials/accepted.material-manifest.json").read_text())
+            authorities = self._write_recipe_fixture(root)
+            entries = {}
 
-            with self.assertRaisesRegex(MODULE.PayloadError, "semantic authority rejected"):
-                MODULE.collect_material_authority(root, {}, authority, manifest)
+            selected = MODULE.collect_public_asset_authority(root, entries)
+
+            for item in selected:
+                manifest = json.loads((root / authorities[item["owner"]]["manifest_path"]).read_text())
+                self.assertEqual(len(manifest["records"]), item["asset_count"])
+            self.assertEqual(
+                sum(item["asset_count"] for item in selected),
+                sum(entry.kind == "generated_recipe_asset" for entry in entries.values()))
+
+    def test_recipe_source_digest_ignores_line_endings_and_bom(self):
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            authorities = self._write_recipe_fixture(root)
+            recipes = root / authorities["ProjectMaterial"]["recipe_root"]
+            recipe = next(recipes.rglob("*" + authorities["ProjectMaterial"]["recipe_suffix"]))
+            text = recipe.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+            recipe.write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
+
+            MODULE.collect_public_asset_authority(root, {})
+
+    def test_recipe_authority_rejects_each_drift(self):
+        def edit_recipe(root, authorities):
+            recipe = next((root / authorities["ProjectMaterial"]["recipe_root"]).rglob("*.surface.json"))
+            recipe.write_text(recipe.read_text(encoding="utf-8").replace('"compiler_version"', '"compiler_version" '))
+
+        def add_unrecorded_recipe(root, authorities):
+            recipe = next((root / authorities["ProjectMaterial"]["recipe_root"]).rglob("*.surface.json"))
+            shutil.copy2(recipe, recipe.with_name("Unrecorded" + recipe.name))
+
+        def remove_recorded_recipe(root, authorities):
+            next((root / authorities["ProjectTexture"]["recipe_root"]).rglob("*.pattern.json")).unlink()
+
+        def change_package(root, authorities):
+            package = next((root / authorities["ProjectMaterial"]["artifact_root"]).rglob("*.uasset"))
+            package.write_bytes(package.read_bytes() + b"\0")
+
+        def change_pattern_hash(root, authorities):
+            path = root / authorities["ProjectMaterial"]["manifest_path"]
+            manifest = json.loads(path.read_text(encoding="utf-8-sig"))
+            manifest["records"][0]["pattern_package_sha256"] = "0" * 64
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        cases = (
+            ("recipe content", edit_recipe, RECIPE_OWNERS, "differs from its accepted source digest"),
+            ("unrecorded recipe", add_unrecorded_recipe, RECIPE_OWNERS, "recipe authority is incomplete"),
+            ("missing recipe", remove_recorded_recipe, RECIPE_OWNERS, r"Required payload file is missing: .*\.pattern\.json"),
+            ("output package", change_package, RECIPE_OWNERS, "Generated recipe asset hash mismatch"),
+            ("missing ProjectTexture authority", None, ("ProjectMaterial",), "not a selected payload package"),
+            ("pattern package hash", change_pattern_hash, RECIPE_OWNERS, "not a selected payload package"),
+        )
+        for name, mutate, owners, message in cases:
+            with self.subTest(name), tempfile.TemporaryDirectory() as temp_value:
+                root = Path(temp_value)
+                authorities = self._write_recipe_fixture(root, owners)
+                if mutate is not None:
+                    mutate(root, authorities)
+                with self.assertRaisesRegex(MODULE.PayloadError, message):
+                    MODULE.collect_public_asset_authority(root, {})
 
     def test_archive_split_is_bounded_and_byte_exact(self):
         with tempfile.TemporaryDirectory() as temp_value:
@@ -197,16 +281,21 @@ class DeveloperPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_value:
             pattern_file = Path(temp_value) / "patterns.regex"
             pattern_file.write_text(patterns + "\n", encoding="utf-8")
+
+            # A non-login shell keeps the result independent of the caller's profile.
+            def grep_patterns(value):
+                return subprocess.run(
+                    [bash, "-c", 'grep -E -f "$1"', "bash", pattern_file.as_posix()],
+                    input=value + "\n", text=True, capture_output=True, check=False, timeout=30,
+                )
+
             for value in (
                 "SECURITY_TOKEN=abcdefgh",
                 'SecurityToken = "dummy_private_value"',
                 "$env:API_KEY='12345678'",
             ):
                 with self.subTest(match=value):
-                    result = subprocess.run(
-                        [bash, "-lc", 'grep -E -f "$1"', "bash", pattern_file.as_posix()],
-                        input=value + "\n", text=True, capture_output=True, check=False,
-                    )
+                    result = grep_patterns(value)
                     self.assertEqual(0, result.returncode, result.stderr)
             for value in (
                 "token = uuid.uuid4().hex",
@@ -214,10 +303,7 @@ class DeveloperPayloadTests(unittest.TestCase):
                 'CONTENT_LOCK_TOKEN_ENV = "ALIS_WORLD_CONTENT_LOCK_TOKEN"',
             ):
                 with self.subTest(no_match=value):
-                    result = subprocess.run(
-                        [bash, "-lc", 'grep -E -f "$1"', "bash", pattern_file.as_posix()],
-                        input=value + "\n", text=True, capture_output=True, check=False,
-                    )
+                    result = grep_patterns(value)
                     self.assertEqual(1, result.returncode, result.stderr)
 
     @unittest.skipUnless(shutil.which("powershell.exe") or shutil.which("pwsh"), "PowerShell is required")
@@ -416,7 +502,7 @@ class DeveloperPayloadTests(unittest.TestCase):
             REPO_ROOT / "Plugins" / "Resources" / "ProjectObject" / "ProjectObject.uplugin",
             object_plugin / "ProjectObject.uplugin",
         )
-        for owner in ("ProjectExperienceData", "ProjectMaterial"):
+        for owner in ("ProjectExperienceData", *RECIPE_OWNERS):
             owner_plugin = project / "Plugins" / "Resources" / owner
             owner_plugin.mkdir(parents=True)
             shutil.copy2(

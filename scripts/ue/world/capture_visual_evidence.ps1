@@ -65,7 +65,7 @@ if (-not (Test-Path -LiteralPath $vantagePlanPath -PathType Leaf)) {
     throw "Vantage plan does not exist: $VantagePlan"
 }
 
-# Scratch output lives under the project tmp/ tree per the AGENTS.md rule.
+# Scratch output lives under the project tmp/ tree.
 $captureRoot = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     Join-Path $projectRoot "tmp\world\visual_verification\screenshots"
 }

@@ -1,15 +1,8 @@
 # Execution envelope for World pipeline commandlets.
 #
-# The execution mode is part of the input to correctness, not a launch detail. UE 5.8 gates
-# Landscape edit-layer composition on FApp::CanEverRender():
-#
-#   LandscapeEditLayers.cpp  ALandscape::PrepareTextureResources
-#     if (Info == nullptr || !FApp::CanEverRender()) { return false; }
-#
-# Under -NullRHI that guard fails, the RDG batched merge never runs, and the final Landscape
-# heightmap silently keeps its initialized flat contents (raw height 0 = -256 m) while the
-# Generated Base edit layer looks perfect. Every structural gate passes; the shipped terrain
-# is flat. See docs/agents/scientific_debugging.md rule 6.
+# The execution mode is part of correctness, not a launch detail. Mesh Terrain realization
+# invokes Epic's builder and material-backed section compilation, so the production Apply route
+# declares rendering Required. Read-only structural commands may explicitly declare Disabled.
 #
 # Each pipeline step therefore DECLARES its requirement and this helper owns the flags:
 #
@@ -34,19 +27,9 @@ function Get-ProjectWorldExecutionEnvelopeArguments {
     if ($Rendering -eq 'Disabled') {
         return , @('-NullRHI')
     }
-    # Epic's own rendering-dependent commandlets (e.g. World Partition builders) opt in this
-    # way; it makes FApp::CanEverRender() true inside a commandlet.
-    #
-    # r.VolumetricFog=0 is an envelope setting, not terrain behavior. The Landscape edit-layer
-    # merge creates a scene view (FMergeRenderContext::RenderComponentIds ->
-    # FRendererModule::CreateAndInitSingleView), which reaches volumetric fog setup and
-    # crashes in a commandlet at territory scale:
-    #   EXCEPTION_ACCESS_VIOLATION in ShouldRenderVolumetricFog (VolumetricFog.cpp:1355)
-    # That predicate short-circuits on GVolumetricFog (the r.VolumetricFog CVar) BEFORE it
-    # dereferences Scene->ExponentialFogs, so disabling the feature avoids the faulting path.
-    # Volumetric fog contributes nothing to heightmap composition. Disable only this one
-    # proven-crashing feature - do not speculatively strip renderer features.
-    return , @('-AllowCommandletRendering', '-ini:Engine:[SystemSettings]:r.VolumetricFog=0')
+    # Epic's rendering-dependent commandlets opt in this way; it makes
+    # FApp::CanEverRender() true inside a commandlet.
+    return , @('-AllowCommandletRendering')
 }
 
 function Assert-ProjectWorldExecutionEnvelope {
@@ -70,7 +53,7 @@ function Assert-ProjectWorldExecutionEnvelope {
 
     if ($Rendering -eq 'Required') {
         if ($hasNullRhi) {
-            throw 'Execution envelope violation: a render-required World step cannot run with -NullRHI. UE skips Landscape edit-layer composition when FApp::CanEverRender() is false, which silently produces flat terrain.'
+            throw 'Execution envelope violation: a render-required World step cannot run with -NullRHI.'
         }
         if (-not $hasAllowRendering) {
             throw 'Execution envelope violation: a render-required World step must pass -AllowCommandletRendering.'

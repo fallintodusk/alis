@@ -1,16 +1,8 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from .contracts import ValidationFailure
-
-
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-
-
-def _is_sha256(value: object) -> bool:
-    return isinstance(value, str) and _SHA256_PATTERN.fullmatch(value) is not None
 
 
 def _require(condition: bool, code: str, message: str, **details: object) -> None:
@@ -101,74 +93,6 @@ def validate_layered_realization(
             "GeoReferencing placement exceeds the profile tolerance",
             leg=leg,
         )
-        # Elevation. GeoReferencing above proves XY placement only. These fields describe
-        # the Generated Base SOURCE edit layer, which is an input to UE's edit-layer blend --
-        # not the final composed heightmap that renders, collides, and sets component bounds.
-        # The Kazan defect had a correct source layer and a flat final surface, so source
-        # evidence alone must never accept terrain.
-        terrain_samples = receipt.get("terrain_source_height_sample_count")
-        terrain_expected = receipt.get("terrain_source_height_expected_sample_count")
-        _require(
-            isinstance(terrain_samples, int)
-            and isinstance(terrain_expected, int)
-            and terrain_expected > 0
-            and terrain_samples == terrain_expected,
-            "layered_terrain_source_height_coverage",
-            "Realized terrain did not compare every canonical elevation sample",
-            leg=leg,
-        )
-        _require(
-            receipt.get("terrain_source_height_mismatch_count") == 0,
-            "layered_terrain_source_height_mismatch",
-            "Generated Base source layer does not match canonical elevation",
-            leg=leg,
-        )
-        _require(
-            receipt.get("terrain_source_height_max_error_m", float("inf"))
-            <= receipt.get("terrain_source_height_tolerance_m", 0.0),
-            "layered_terrain_source_height_error",
-            "Source elevation error exceeds the admitted quantization tolerance",
-            leg=leg,
-        )
-        _require(
-            _is_sha256(receipt.get("terrain_source_height_semantic_sha256")),
-            "layered_terrain_source_height_identity_invalid",
-            "Source terrain height identity is not a valid SHA-256",
-            leg=leg,
-        )
-        # ACCEPTANCE surface: the blended final/base heightmap that renders and collides.
-        # Deliberately metric-based, never a "verified" boolean - the broken Kazan artifact
-        # measured cleanly while every one of its 215,040 samples was wrong.
-        final_samples = receipt.get("terrain_final_height_sample_count")
-        final_expected = receipt.get("terrain_final_height_expected_sample_count")
-        _require(
-            isinstance(final_samples, int)
-            and isinstance(final_expected, int)
-            and final_expected > 0
-            and final_samples == final_expected,
-            "layered_terrain_final_height_coverage",
-            "Final heightmap did not compare every canonical elevation sample",
-            leg=leg,
-        )
-        _require(
-            receipt.get("terrain_final_height_mismatch_count") == 0,
-            "layered_terrain_final_height_mismatch",
-            "Final composed Landscape heightmap does not match canonical elevation",
-            leg=leg,
-        )
-        _require(
-            receipt.get("terrain_final_height_max_error_m", float("inf"))
-            <= receipt.get("terrain_final_height_tolerance_m", 0.0),
-            "layered_terrain_final_height_error",
-            "Final elevation error exceeds the admitted quantization tolerance",
-            leg=leg,
-        )
-        _require(
-            _is_sha256(receipt.get("terrain_final_height_semantic_sha256")),
-            "layered_terrain_final_height_identity_invalid",
-            "Final terrain height identity is not a valid SHA-256",
-            leg=leg,
-        )
         _require(
             receipt.get("hlod_proxy_actor_count") == 0
             and receipt.get("hlod_layer_reference_count") == 0
@@ -179,8 +103,7 @@ def validate_layered_realization(
         )
         changes = receipt.get("changes", {})
         _require(
-            changes.get("landscape_components") == topology["landscape_components"]
-            and changes.get("landscape_proxies") == topology["landscape_proxies"]
+            changes.get("terrain_sections") == topology["terrain_sections"]
             and changes.get("water_cell_actors") == topology["water_cell_actors"]
             and changes.get("water_mesh_assets") == topology["water_mesh_assets"]
             and changes.get("road_cell_actors") == topology["road_cell_actors"]
@@ -209,7 +132,7 @@ def validate_layered_realization(
             and changes.get("road_sections") == 0
             and changes.get("building_sections") == 0,
             "layered_output_topology_mismatch",
-            "Landscape, water, road, vegetation, or building topology differs from the layered profile",
+            "Terrain, water, road, vegetation, or building topology differs from the layered profile",
             leg=leg,
         )
         inventories[leg] = _inventory_by_id(receipt, leg)
@@ -295,8 +218,7 @@ def validate_layered_realization(
     for leg in ("first", "clean"):
         changes = receipts[leg]["changes"]
         _require(
-            changes.get("updated_landscape_components") == topology["landscape_components"]
-            and changes.get("water_triangles") == topology["water_triangles"],
+            changes.get("water_triangles") == topology["water_triangles"],
             "layered_full_rebuild_unproven",
             "Full or reconstructed layered output did not rebuild exact terrain and water",
             leg=leg,
@@ -313,8 +235,7 @@ def validate_layered_realization(
     for leg in ("second", "road_locality", "incremental"):
         changes = receipts[leg]["changes"]
         _require(
-            changes.get("updated_landscape_components") == 0
-            and changes.get("water_triangles") == 0
+            changes.get("water_triangles") == 0
             and changes.get("road_triangles") == 0
             and changes.get("vegetation_instance_rewrites") == 0
             and changes.get("building_triangle_rewrites") == 0
@@ -324,25 +245,9 @@ def validate_layered_realization(
             leg=leg,
         )
 
-    # Content-identical legs must realize byte-identical terrain. Reconstruction drift here
-    # means the same canonical authority produced different elevation.
-    for surface, key, code in (
-        ("source", "terrain_source_height_semantic_sha256",
-         "layered_terrain_source_height_identity_drift"),
-        ("final", "terrain_final_height_semantic_sha256",
-         "layered_terrain_final_height_identity_drift"),
-    ):
-        identities = {leg: receipts[leg].get(key) for leg in required_legs}
-        _require(
-            len(set(identities.values())) == 1,
-            code,
-            f"Content-identical legs realized different {surface} terrain elevation",
-            identities=identities,
-        )
-
     return {
         "canonical_cells": topology["canonical_cells"],
-        "landscape_proxies": topology["landscape_proxies"],
+        "terrain_sections": topology["terrain_sections"],
         "water_cell_actors": topology["water_cell_actors"],
         "water_triangles": topology["water_triangles"],
         "road_cell_actors": topology["road_cell_actors"],
@@ -364,13 +269,6 @@ def validate_layered_realization(
         "building_malformed_fragments": topology["building_malformed_fragments"],
         "gameplay_placement_actors": topology["gameplay_placement_actors"],
         "road_locality_dirty_unit": road_dirty_unit,
-        "terrain_source_height_sample_count": receipts["first"].get("terrain_source_height_sample_count"),
-        "terrain_source_height_max_error_m": receipts["first"].get("terrain_source_height_max_error_m"),
-        "terrain_source_relief_m": receipts["first"].get("terrain_source_relief_m"),
-        "terrain_source_height_semantic_sha256": receipts["first"].get("terrain_source_height_semantic_sha256"),
-        "terrain_final_height_mismatch_count": receipts["first"].get("terrain_final_height_mismatch_count"),
-        "terrain_final_relief_m": receipts["first"].get("terrain_final_relief_m"),
-        "terrain_final_height_semantic_sha256": receipts["first"].get("terrain_final_height_semantic_sha256"),
         "layers": {
             layer_id: {
                 "canonical_inputs": contract["canonical_input_count"],

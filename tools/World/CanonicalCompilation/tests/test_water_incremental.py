@@ -120,6 +120,18 @@ class WaterIncrementalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:
             root = Path(directory)
             profile_path = root / "synthetic_water_incremental.compile.json"
+            overlay_path = root / "empty_overlay.json"
+            overlay_path.write_text(json.dumps({
+                "$schema": "https://alis.world/schemas/world-compiler/authored-overlay-v2.json",
+                "schema_version": 2,
+                "overlay_id": "synthetic_water_incremental_empty",
+                "grid_id": grid_id(profile["grid"]),
+                "provenance": [],
+                "terrain_patches": [],
+                "feature_overrides": [],
+                "missing_target_policy": "reject_and_require_rebase",
+            }), encoding="utf-8")
+            profile["authored_overlay"] = overlay_path.relative_to(REPO_ROOT).as_posix()
             profile_path.write_text(json.dumps(profile), encoding="utf-8")
             roots = {name: root / name for name in (
                 "base", "unrelated", "grouped", "standing", "widened", "narrowed", "noop"

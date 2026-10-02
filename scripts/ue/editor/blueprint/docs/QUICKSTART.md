@@ -12,8 +12,8 @@ Open UE Python Console (Window → Developer Tools → Output Log → Cmd tab)
 
 ```python
 import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
-exec(open("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts/export_blueprint.py").read())
+sys.path.append("<repo>/scripts/ue/editor/blueprint_json_converter/scripts")
+exec(open("<repo>/scripts/ue/editor/blueprint_json_converter/scripts/export_blueprint.py").read())
 ```
 
 **Output:** JSON file saved to `Saved/AI_Snapshots/blueprint_YYYYMMDD_HHMMSS.json`
@@ -34,8 +34,8 @@ Send the JSON file to Claude with your desired changes:
 
 ```python
 import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
-exec(open("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts/import_blueprint.py").read())
+sys.path.append("<repo>/scripts/ue/editor/blueprint_json_converter/scripts")
+exec(open("<repo>/scripts/ue/editor/blueprint_json_converter/scripts/import_blueprint.py").read())
 
 # List available snapshots
 from import_blueprint import list_available_snapshots, import_from_file

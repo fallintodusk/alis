@@ -155,7 +155,7 @@ function Invoke-WithProjectWorldPublicProjection {
                 -WorldDataPlugin ProjectWorldData -PresentationProfile $presentation `
                 -AuthoredOverlayProfile $world.Authored -RealizationProfile $world.Realization `
                 -ManifestRoot $manifestRoot -EnrollManifests -NonInteractive `
-                -RequireLandscape -EvidencePath $receipt
+                -EvidencePath $receipt
             if ($LASTEXITCODE -ne 0) {
                 throw "Public World realization failed for $($world.Name)."
             }

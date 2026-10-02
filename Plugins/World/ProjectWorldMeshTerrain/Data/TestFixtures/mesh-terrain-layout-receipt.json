@@ -1,0 +1,35 @@
+{
+  "$schema": "../../Data/Schemas/mesh-terrain-layout-receipt.schema.json",
+  "schema_version": 1,
+  "receipt_id": "project_mesh_terrain_layout",
+  "canonical_surface_contract_id": "terrain_surface_semantics",
+  "canonical_surface_contract_version": 1,
+  "canonical_surface_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "adapter_id": "project_mesh_terrain",
+  "adapter_version": 1,
+  "adapter_compiler_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "engine_identity": "5.8-test|changelist=1",
+  "layout_id": "project_mesh_terrain_channels",
+  "layout_version": 1,
+  "layout_sha256": "7c31e7bcd47733212be88b4a221356a9b2f9ed6eda209e11177b99b7dce8a27d",
+  "channels": [
+    {
+      "semantic_name": "ground",
+      "private_channel_index": 0
+    },
+    {
+      "semantic_name": "hydro_transition",
+      "private_channel_index": 1
+    }
+  ],
+  "source_encoding": "float32_vertex_weight",
+  "compiled_encoding": "unorm8_texture2d_array",
+  "channel_texel_size_cm": 3000,
+  "channel_texture_max_dimension": 4096,
+  "uv_set": 0,
+  "shared_definition_object_path": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1",
+  "shared_definition_package_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "build_policy_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "receipt_payload": "project_mesh_terrain_receipt_v1|surface=terrain_surface_semantics:1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|adapter=project_mesh_terrain:1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb|engine=5.8-test|changelist=1|layout=project_mesh_terrain_channels:1:7c31e7bcd47733212be88b4a221356a9b2f9ed6eda209e11177b99b7dce8a27d|definition=/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc|build=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "receipt_sha256": "9092457e817aae64f83007ce297c86685b410dde2bb47430df57e5e9263d5d5c"
+}

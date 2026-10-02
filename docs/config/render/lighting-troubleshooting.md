@@ -439,9 +439,6 @@ r.AmbientOcclusionLevels 1
    - [BP_SunSky_Child Guide](./lighting-bp-sunsky.md)
    - [Post Process Guide](./lighting-postprocess.md)
 
-4. Check plan:
-   - `<user-home>\.claude\plans\silly-brewing-panda.md`
-
 ---
 
 ## Back to Index

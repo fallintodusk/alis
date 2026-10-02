@@ -61,9 +61,9 @@ python --version
 ```
 
 Common locations:
-- PowerShell: `python`
+- PowerShell: `%ProgramFiles%\Python311\python.exe`
 - Git Bash: `/c/Program Files/Python311/python.exe`
-- User install: `<local-app-data>\Programs\Python\Python3xx\python.exe`
+- User install: `%LOCALAPPDATA%\Programs\Python\Python3xx\python.exe`
 
 ---
 
@@ -209,7 +209,7 @@ REM Clean + full rebuild (slow, use when needed)
 python scripts/ue/standalone/test.py --clean
 
 REM Using full Python path if not in PATH
-"python" scripts/ue/standalone/test.py
+"%ProgramFiles%\Python311\python.exe" scripts/ue/standalone/test.py
 ```
 
 ### test.py Flags
@@ -268,7 +268,7 @@ REM Using full Python path if not in PATH
 ```bash
 # Launch with debugger attached
 devenv /debugexe "%UE_PATH%\Engine\Binaries\Win64\UnrealEditor.exe" ^
-  "<project-root>\Alis.uproject" ^
+  "<repo>\Alis.uproject" ^
   "L_Boot" -game -windowed
 ```
 

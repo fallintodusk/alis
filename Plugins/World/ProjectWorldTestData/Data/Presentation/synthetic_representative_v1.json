@@ -3,8 +3,8 @@
   "schema_version": 1,
   "profile_id": "synthetic_representative_v1",
   "materials": {
-    "road": "/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial",
-    "building": "/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial",
+    "road": "/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial",
+    "building": "/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial",
     "cloud": "/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst"
   },
   "outdoor_environment": {

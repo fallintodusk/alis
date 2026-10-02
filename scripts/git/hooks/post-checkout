@@ -1,0 +1,25 @@
+#!/bin/bash
+# post-checkout: runs after git checkout/switch
+# Args: $1=old-ref, $2=new-ref, $3=flag (1=branch, 0=file checkout)
+# Install: scripts/setup/install_hooks.sh
+
+set -euo pipefail
+
+OLD_REF="$1"
+NEW_REF="$2"
+CHECKOUT_TYPE="${3:-0}"
+
+# Skip file checkouts and same-ref checkouts (no code change)
+[ "$CHECKOUT_TYPE" != "1" ] && exit 0
+[ "$OLD_REF" = "$NEW_REF" ] && exit 0
+
+# Prefer repo's script (auto-updates); fallback to .git/hooks/ copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+CORE_SCRIPT="$PROJECT_ROOT/scripts/git/hooks/invalidate_ubt_cache.sh"
+
+if [ ! -f "$CORE_SCRIPT" ]; then
+    HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CORE_SCRIPT="$HOOK_DIR/invalidate_ubt_cache.sh"
+fi
+
+[ -f "$CORE_SCRIPT" ] && bash "$CORE_SCRIPT" "$OLD_REF" "$NEW_REF"

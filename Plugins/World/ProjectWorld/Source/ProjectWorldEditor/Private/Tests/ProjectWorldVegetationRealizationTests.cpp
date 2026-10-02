@@ -49,7 +49,7 @@ namespace ProjectWorldVegetationRealizationTests
 		FProjectWorldRealizationProfile Profile;
 		FProjectWorldRealizationLayer Terrain;
 		Terrain.LayerId = TEXT("terrain");
-		Terrain.GeneratorId = TEXT("project_landscape");
+		Terrain.GeneratorId = TEXT("project_mesh_terrain");
 		Terrain.GeneratorVersion = 1;
 		FProjectWorldRealizationLayer Water;
 		Water.LayerId = TEXT("water");

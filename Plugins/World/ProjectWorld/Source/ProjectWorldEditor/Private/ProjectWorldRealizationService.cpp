@@ -10,7 +10,6 @@
 #include "ProjectWorldDataRoots.h"
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldGameplayPlacement.h"
-#include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldLayerInventory.h"
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldPartitionPolicy.h"
@@ -32,8 +31,7 @@
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "Landscape.h"
-#include "ProjectWorldTerrainVerification.h"
+#include "ProjectWorldTerrainProducerRegistry.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -221,8 +219,17 @@ int32 FProjectWorldRealizationService::Run(
 	FString PresentationError;
 	const bool bNeedsPresentation = Request.Mode != EProjectWorldRealizationMode::Delete;
 	const bool bNeedsRuntime = bNeedsPresentation && !Request.RuntimeProfilePath.IsEmpty();
-	const bool bNeedsLayerPlan = bNeedsPresentation && !Request.RealizationProfilePath.IsEmpty();
+	const bool bNeedsLayerPlan = !Request.RealizationProfilePath.IsEmpty();
 	const bool bNeedsDirtyInput = bNeedsLayerPlan && !Request.LayerDirtyInputPath.IsEmpty();
+	if (!bNeedsLayerPlan && Request.Mode != EProjectWorldRealizationMode::Delete)
+	{
+		Reject(
+			OutResult,
+			TEXT("realization-profile-required"),
+			TEXT("World realization requires one typed realization profile."));
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
 	if (bNeedsLayerPlan &&
 		(!ProjectWorldRealizationProfile::Load(
 			Request.RealizationProfilePath,
@@ -383,17 +390,6 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 
-	const FProjectWorldLandscapeLayout Layout =
-		FProjectWorldCanonicalLoader::SelectLandscapeLayout(Bundle);
-	OutResult.bLandscapeCompatible = Layout.bCompatible;
-	OutResult.LandscapeReason = Layout.Reason;
-	if (Request.bRequireLandscapeCompatible && !Layout.bCompatible)
-	{
-		Reject(OutResult, TEXT("landscape-layout"), TEXT("Canonical grid is not Landscape-compatible."), Layout.Reason);
-		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-		return OutResult.ExitCode();
-	}
-
 	const FVector Canonical(
 		Bundle.EngineGeoreferenceOriginMeters.X,
 		Bundle.EngineGeoreferenceOriginMeters.Y,
@@ -473,6 +469,11 @@ int32 FProjectWorldRealizationService::Run(
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
+	const FProjectWorldRealizationLayer* TerrainLayer =
+		RealizationProfile.Layers.FindByPredicate([](const FProjectWorldRealizationLayer& Layer)
+			{ return Layer.LayerId == TEXT("terrain"); });
+	const bool bUsesExternalTerrain = TerrainLayer != nullptr &&
+		ProjectWorldTerrainProducerRegistry::IsRegistered(TerrainLayer->GeneratorId, TerrainLayer->GeneratorVersion);
 	bool bRuntimePartitionChanged = false;
 	if (bNeedsRuntime && !ProjectWorldRuntimePartitionRealization::ApplyAndCapture(
 		World, RuntimeProfile, OutResult, bRuntimePartitionChanged, EditorError))
@@ -494,17 +495,14 @@ int32 FProjectWorldRealizationService::Run(
 			LoadedActorReferences.Num(),
 			*Request.MapPackagePath);
 	}
-	const bool bPreserveLandscape = Layout.bCompatible;
 	const bool bOwnedActorsPrepared = Request.Mode == EProjectWorldRealizationMode::Apply
 		? ProjectWorldGeneratedGeometry::RemoveStaleOwnedActorsForApply(
 			World,
 			Bundle,
 			bNeedsRuntime ? RuntimeProfile.ProfileId : FString(),
-			bPreserveLandscape,
 			OutResult)
 		: ProjectWorldGeneratedGeometry::RemoveOwnedActors(
 			World,
-			bPreserveLandscape,
 			OutResult);
 	if (!bOwnedActorsPrepared)
 	{
@@ -521,10 +519,6 @@ int32 FProjectWorldRealizationService::Run(
 
 	if (Request.Mode == EProjectWorldRealizationMode::Apply)
 	{
-		const FProjectWorldGeometryPresentation GeometryPresentation{
-			PresentationResources.TerrainMaterial,
-			PresentationResources.RoadMaterial,
-			PresentationResources.BuildingMaterial};
 		OutResult.CoordinateRoundTripErrorMeters =
 			ProjectWorldGeneratedGeometry::MeasureCoordinateRoundTrip(
 				World,
@@ -538,34 +532,11 @@ int32 FProjectWorldRealizationService::Run(
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
-		if (Layout.bCompatible &&
-			!ProjectWorldLandscapeRealization::CreateOrUpdate(
-				World,
-				Bundle,
-				Layout,
-				bNeedsLayerPlan ? RealizationProfile.LogicalLandscapeId : FString(),
-				bNeedsLayerPlan ? RealizationProfile.ComponentsPerProxy : 1,
-				OutResult,
-				EditorError,
-				PresentationResources.TerrainMaterial))
+		if (bUsesExternalTerrain && !ProjectWorldTerrainProducerRegistry::Apply(
+			TerrainLayer->GeneratorId, TerrainLayer->GeneratorVersion, World, Bundle,
+			TerrainLayer->NormalizedSettings, PresentationResources.TerrainMaterial, OutResult, EditorError))
 		{
-			Reject(OutResult, TEXT("geometry-landscape"), TEXT("Cannot realize canonical terrain as a Landscape."), EditorError);
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-			return OutResult.ExitCode();
-		}
-		if (!bNeedsLayerPlan && !ProjectWorldGeneratedGeometry::CreateOwnedActors(
-			World,
-			Bundle,
-			!Layout.bCompatible,
-			Request.MaxRoadFeatures,
-			Request.MaxBuildingFeatures,
-			OutResult,
-			EditorError,
-			&GeometryPresentation,
-			bNeedsRuntime ? RuntimeProfile.RouteFeatureId : FString()))
-		{
-			Reject(OutResult, TEXT("geometry-create"), TEXT("Cannot realize canonical geometry."), EditorError);
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			Reject(OutResult, TEXT("geometry-terrain"), TEXT("Cannot realize canonical terrain."), EditorError);
 			return OutResult.ExitCode();
 		}
 		if (bNeedsLayerPlan && !ProjectWorldWaterRealization::Apply(
@@ -647,115 +618,11 @@ int32 FProjectWorldRealizationService::Run(
 			return OutResult.ExitCode();
 		}
 	}
-	else if (Layout.bCompatible &&
-		!ProjectWorldLandscapeRealization::ClearGeneratedLayers(
-			World,
-			Bundle,
-			OutResult,
-			EditorError))
+	else if (bUsesExternalTerrain && !ProjectWorldTerrainProducerRegistry::Delete(
+		TerrainLayer->GeneratorId, TerrainLayer->GeneratorVersion, World, Bundle, OutResult, EditorError))
 	{
-		Reject(OutResult, TEXT("geometry-delete"), TEXT("Cannot clear generated Landscape layers."), EditorError);
-		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		Reject(OutResult, TEXT("geometry-delete"), TEXT("Cannot delete generated terrain."), EditorError);
 		return OutResult.ExitCode();
-	}
-
-	// Terrain correctness, deliberately BEFORE SaveGeneratedWorld: a wrong acceptance surface
-	// must never reach disk and then be rejected. Semantic evidence hashes whatever Unreal
-	// produced, which makes a completely flat Landscape perfectly deterministic - it answers
-	// "same terrain again", not "the terrain canonical specified". Save/reload remains the
-	// separate persistence proof.
-	if (Layout.bCompatible && Request.Mode != EProjectWorldRealizationMode::Delete)
-	{
-		// Fail closed. A Landscape-compatible canonical grid that produced no generated
-		// Landscape, or more than one, must reject rather than silently skip verification or
-		// arbitrarily pick a logical Landscape to verify.
-		ALandscape* GeneratedLandscape = nullptr;
-		int32 GeneratedLandscapeCount = 0;
-		for (TActorIterator<ALandscape> It(World); It; ++It)
-		{
-			if (ProjectWorldLandscapeRealization::IsGeneratedLandscape(*It))
-			{
-				++GeneratedLandscapeCount;
-				if (GeneratedLandscape == nullptr)
-				{
-					GeneratedLandscape = *It;
-				}
-			}
-		}
-		if (GeneratedLandscapeCount != 1)
-		{
-			Reject(
-				OutResult,
-				TEXT("terrain-height"),
-				TEXT("Terrain verification requires exactly one generated logical Landscape."),
-				FString::Printf(
-					TEXT("Landscape-compatible canonical grid resolved %d generated Landscapes."),
-					GeneratedLandscapeCount));
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-			return OutResult.ExitCode();
-		}
-		{
-			FString TerrainError;
-			if (!FProjectWorldTerrainVerification::CompareGeneratedBaseToCanonical(
-					GeneratedLandscape, Bundle, OutResult.TerrainHeight, TerrainError))
-			{
-				Reject(
-					OutResult,
-					TEXT("terrain-height"),
-					TEXT("Cannot verify realized terrain against canonical elevation."),
-					TerrainError);
-				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-				return OutResult.ExitCode();
-			}
-			// Measure the FINAL/base heightmap too. Source is only an input to UE's blend;
-			// the final surface is what renders, collides, and sets cached bounds, so it is
-			// the acceptance authority. Both are measured before any rejection so the receipt
-			// always records what the artifact actually contains.
-			if (!FProjectWorldTerrainVerification::CompareFinalHeightmapToCanonical(
-					GeneratedLandscape, Bundle, OutResult.TerrainFinalHeight, TerrainError))
-			{
-				Reject(
-					OutResult,
-					TEXT("terrain-final-height"),
-					TEXT("Cannot verify the final Landscape heightmap against canonical elevation."),
-					TerrainError);
-				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-				return OutResult.ExitCode();
-			}
-			if (OutResult.TerrainHeight.MismatchCount > 0 ||
-				OutResult.TerrainHeight.SampleCount != OutResult.TerrainHeight.ExpectedSampleCount)
-			{
-				Reject(
-					OutResult,
-					TEXT("terrain-source-height"),
-					TEXT("Generated Base source layer does not match canonical elevation."),
-					OutResult.TerrainHeight.FirstMismatch.IsEmpty()
-						? FString::Printf(
-							TEXT("compared %d of %d canonical samples"),
-							OutResult.TerrainHeight.SampleCount,
-							OutResult.TerrainHeight.ExpectedSampleCount)
-						: OutResult.TerrainHeight.FirstMismatch);
-				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-				return OutResult.ExitCode();
-			}
-			if (OutResult.TerrainFinalHeight.MismatchCount > 0 ||
-				OutResult.TerrainFinalHeight.SampleCount
-					!= OutResult.TerrainFinalHeight.ExpectedSampleCount)
-			{
-				Reject(
-					OutResult,
-					TEXT("terrain-final-height"),
-					TEXT("Final composed Landscape heightmap does not match canonical elevation."),
-					OutResult.TerrainFinalHeight.FirstMismatch.IsEmpty()
-						? FString::Printf(
-							TEXT("compared %d of %d canonical samples"),
-							OutResult.TerrainFinalHeight.SampleCount,
-							OutResult.TerrainFinalHeight.ExpectedSampleCount)
-						: OutResult.TerrainFinalHeight.FirstMismatch);
-				OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-				return OutResult.ExitCode();
-			}
-		}
 	}
 	OutResult.UpdatedActorCount += ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
 	if (ProjectWorldSavePolicy::RequiresBroadWorldSave(
@@ -811,7 +678,7 @@ int32 FProjectWorldRealizationService::Run(
 
 	OutResult.Status = TEXT("accepted");
 	OutResult.Message = Request.Mode == EProjectWorldRealizationMode::Delete
-		? TEXT("Generated actors and Landscape layers were cleared; authored content was preserved.")
+		? TEXT("Generated actors were cleared; authored content was preserved.")
 		: TEXT("Canonical inputs were realized into owned World Partition actors.");
 	return 0;
 }
@@ -953,9 +820,7 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetNumberField(TEXT("georeferencing_probe_points"), Result.GeoReferencingProbePointCount);
 	Root->SetNumberField(TEXT("duration_seconds"), Result.DurationSeconds);
 	Root->SetBoolField(TEXT("world_partition"), Result.bWorldPartition);
-	Root->SetBoolField(TEXT("landscape_compatible"), Result.bLandscapeCompatible);
 	Root->SetBoolField(TEXT("georeferencing_probed"), Result.bGeoReferencingProbed);
-	Root->SetStringField(TEXT("landscape_reason"), Result.LandscapeReason);
 	Root->SetStringField(TEXT("semantic_fingerprint"), Result.SemanticFingerprint);
 	Root->SetNumberField(TEXT("generated_source_bytes"), Result.GeneratedSourceBytes);
 	Root->SetNumberField(TEXT("procedural_mesh_buffer_bytes"), Result.ProceduralMeshBufferBytes);
@@ -987,73 +852,12 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetNumberField(
 		TEXT("runtime_p95_frame_time_budget_ms"),
 		Result.RuntimeP95FrameTimeBudgetMilliseconds);
-	Root->SetStringField(TEXT("authored_correction_layer_guid"), Result.AuthoredCorrectionLayerGuid);
-	Root->SetStringField(TEXT("authored_correction_layer_sha256"), Result.AuthoredCorrectionLayerHash);
-	Root->SetBoolField(
-		TEXT("authored_correction_layer_preserved"),
-		Result.bAuthoredCorrectionLayerPreserved);
-	// SOURCE-layer evidence, diagnostic only. These describe the Generated Base edit layer,
-	// an input to UE's edit-layer blend - NOT the final composed heightmap that renders,
-	// collides, and drives component bounds. The Kazan territory reported zero source
-	// mismatches across 215,040 samples while its final surface was flat. Acceptance belongs
-	// to the terrain_final_height_* fields below.
-	Root->SetNumberField(
-		TEXT("terrain_source_height_sample_count"), Result.TerrainHeight.SampleCount);
-	Root->SetNumberField(
-		TEXT("terrain_source_height_expected_sample_count"),
-		Result.TerrainHeight.ExpectedSampleCount);
-	Root->SetNumberField(
-		TEXT("terrain_source_height_mismatch_count"), Result.TerrainHeight.MismatchCount);
-	Root->SetNumberField(
-		TEXT("terrain_source_height_max_error_m"), Result.TerrainHeight.MaximumErrorMeters);
-	Root->SetNumberField(
-		TEXT("terrain_source_height_min_m"), Result.TerrainHeight.MinimumHeightMeters);
-	Root->SetNumberField(
-		TEXT("terrain_source_height_max_m"), Result.TerrainHeight.MaximumHeightMeters);
-	Root->SetNumberField(
-		TEXT("terrain_source_relief_m"), Result.TerrainHeight.ReliefMeters);
-	Root->SetNumberField(
-		TEXT("terrain_source_height_tolerance_m"), Result.TerrainHeight.ToleranceMeters);
-	Root->SetStringField(
-		TEXT("terrain_source_height_semantic_sha256"),
-		Result.TerrainHeight.RealizedHeightHash);
-	// FINAL surface evidence: the blended heightmap that renders and collides. This is the
-	// acceptance authority; the source fields above stay diagnostic.
-	Root->SetNumberField(
-		TEXT("terrain_final_height_sample_count"), Result.TerrainFinalHeight.SampleCount);
-	Root->SetNumberField(
-		TEXT("terrain_final_height_expected_sample_count"),
-		Result.TerrainFinalHeight.ExpectedSampleCount);
-	Root->SetNumberField(
-		TEXT("terrain_final_height_mismatch_count"), Result.TerrainFinalHeight.MismatchCount);
-	Root->SetNumberField(
-		TEXT("terrain_final_height_max_error_m"), Result.TerrainFinalHeight.MaximumErrorMeters);
-	Root->SetNumberField(
-		TEXT("terrain_final_height_min_m"), Result.TerrainFinalHeight.MinimumHeightMeters);
-	Root->SetNumberField(
-		TEXT("terrain_final_height_max_m"), Result.TerrainFinalHeight.MaximumHeightMeters);
-	Root->SetNumberField(
-		TEXT("terrain_final_relief_m"), Result.TerrainFinalHeight.ReliefMeters);
-	Root->SetNumberField(
-		TEXT("terrain_final_height_tolerance_m"), Result.TerrainFinalHeight.ToleranceMeters);
-	Root->SetStringField(
-		TEXT("terrain_final_height_semantic_sha256"),
-		Result.TerrainFinalHeight.RealizedHeightHash);
-	// Deliberately no "verified" boolean. A boolean cannot distinguish "measured" from
-	// "correct" - the broken Kazan artifact measured cleanly and was 100% wrong. Acceptance
-	// must be derived from the metrics above so it can be independently rejected.
-
 	TSharedRef<FJsonObject> Changes = MakeShared<FJsonObject>();
 	Changes->SetNumberField(TEXT("created_actors"), Result.CreatedActorCount);
 	Changes->SetNumberField(TEXT("updated_actors"), Result.UpdatedActorCount);
 	Changes->SetNumberField(TEXT("removed_actors"), Result.RemovedActorCount);
 	Changes->SetNumberField(TEXT("preserved_actors"), Result.PreservedActorCount);
 	Changes->SetNumberField(TEXT("terrain_sections"), Result.TerrainSectionCount);
-	Changes->SetNumberField(TEXT("landscape_components"), Result.LandscapeComponentCount);
-	Changes->SetNumberField(
-		TEXT("updated_landscape_components"),
-		Result.UpdatedLandscapeComponentCount);
-	Changes->SetNumberField(TEXT("landscape_proxies"), Result.LandscapeProxyCount);
 	Changes->SetNumberField(TEXT("water_cell_actors"), Result.WaterCellActorCount);
 	Changes->SetNumberField(TEXT("water_mesh_assets"), Result.WaterMeshAssetCount);
 	Changes->SetNumberField(TEXT("water_triangles"), Result.WaterTriangleCount);

@@ -52,8 +52,10 @@ valid when one component composes a type or consumes data owned by another;
 4. Executable dependencies are declared in `.uproject`, `.uplugin`, and
    `Build.cs`; prose does not maintain a second component inventory.
 5. Unsupported operations fail explicitly rather than reporting success.
-6. Generated World authority, public release identity, and trust checks remain
-   under their existing owners.
+6. World authority follows the
+   [Canonical World Authority](principles.md#canonical-world-authority)
+   invariant; public release identity and trust checks remain under their
+   existing owners.
 
 ## Accepted decisions
 

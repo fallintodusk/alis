@@ -22,7 +22,7 @@ Owns the periodic vitals simulation on server. **Does NOT own AttributeSets or A
 ## Config
 
 All tuning values: [Data/vitals_config.json](Data/vitals_config.json) (two systems: `condition` + `stamina`).
-Rates derived at runtime from timelines. See `ComputeDerivedRates()` in [VitalsConfig.h](Source/ProjectVitals/Public/VitalsConfig.h).
+Rates derived at runtime from timelines. See `ComputeDerivedRates()` in [VitalsConfig.h](../../Foundation/ProjectCore/Source/ProjectCore/Public/Types/VitalsConfig.h).
 
 ## Design
 

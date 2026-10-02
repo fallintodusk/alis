@@ -5,10 +5,13 @@
 
 #include "Presentation/ProjectWorldPresentationSampling.h"
 #include "Presentation/ProjectWorldProductRouteCollision.h"
+#include "Presentation/ProjectWorldProductRouteConfig.h"
+#include "Presentation/ProjectWorldProductTerrainAcceptance.h"
 #include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
 #include "Presentation/ProjectWorldScreenshotValidation.h"
 #include "Interfaces/IInteractionService.h"
 #include "ProjectServiceLocator.h"
+#include "ProjectWorldTerrainRuntimeRole.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -50,49 +53,11 @@ namespace
 	const FString CellPrefix(TEXT("ProjectWorld.Cell="));
 	const FString GameplayObjectPrefix(TEXT("ProjectWorld.GameplayObject="));
 	const FName GeneratedTag(TEXT("ProjectWorld.Generated.v1"));
-	const FName LandscapeTag(TEXT("ProjectWorld.Landscape.v1"));
 	const FName RoadTag(TEXT("ProjectWorld.Road.v1"));
 	// The generic product route serves every /ProjectWorldData/Generated/ map, so it accepts both
 	// massing generations. Realization, the partition audit, and territory acceptance do the same.
 	const FName BuildingTagV1(TEXT("ProjectWorld.BuildingMassing.v1"));
 	const FName BuildingTagV2(TEXT("ProjectWorld.BuildingMassing.v2"));
-
-	bool ParseProductRouteValue(const TCHAR* Name, FString& OutValue, bool bShouldStopOnSeparator = true)
-	{
-		return FParse::Value(FCommandLine::Get(), Name, OutValue, bShouldStopOnSeparator) && !OutValue.IsEmpty();
-	}
-
-	bool IsProductRouteToken(const FString& Value)
-	{
-		if (Value.IsEmpty())
-		{
-			return false;
-		}
-		for (const TCHAR Character : Value)
-		{
-			if (!FChar::IsAlnum(Character) && Character != TEXT('_') && Character != TEXT('-'))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	bool IsProductRouteSha256(const FString& Value)
-	{
-		if (Value.Len() != 64)
-		{
-			return false;
-		}
-		for (const TCHAR Character : Value)
-		{
-			if (!FChar::IsHexDigit(Character))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
 
 	FString ProductRouteTagValue(const AActor& Actor, const FString& Prefix)
 	{
@@ -125,7 +90,7 @@ void FProjectWorldProductRouteGate::StartIfRequested()
 	}
 
 	FString Error;
-	if (!ParseConfig(Error))
+	if (!ProjectWorldProductRouteConfig::ParseCommandLine(Config, Error))
 	{
 		FinishRejected(TEXT("product_route_config_invalid"), Error);
 		return;
@@ -139,52 +104,6 @@ void FProjectWorldProductRouteGate::StartIfRequested()
 		TEXT("[FProjectWorldProductRouteGate::StartIfRequested] Started - operation=%s map=%s"),
 		*Config.OperationId,
 		*Config.MapPackage);
-}
-
-bool FProjectWorldProductRouteGate::ParseConfig(FString& OutError)
-{
-	Config.bRestorePreviewFlight = FParse::Param(
-		FCommandLine::Get(),
-		TEXT("ProjectWorldProductRouteRestorePreviewFlight"));
-	Config.bRequireGameplayInteraction = !FParse::Param(
-		FCommandLine::Get(),
-		TEXT("ProjectWorldProductRouteSkipInteraction"));
-	FString EdgeText;
-	if (!ParseProductRouteValue(TEXT("ProjectWorldProductOperation="), Config.OperationId) ||
-		!ParseProductRouteValue(TEXT("ProjectWorldProductResult="), Config.ResultPath) ||
-		!ParseProductRouteValue(TEXT("ProjectWorldProductMap="), Config.MapPackage) ||
-		!ParseProductRouteValue(TEXT("ProjectWorldProductRuntime="), Config.RuntimeProfileId) ||
-		!ParseProductRouteValue(TEXT("ProjectWorldProductRuntimeHash="), Config.RuntimeProfileHash) ||
-		!ParseProductRouteValue(TEXT("ProjectWorldProductMachine="), Config.MachineProfileId) ||
-		!ParseProductRouteValue(TEXT("ProjectWorldProductEdge="), EdgeText, false))
-	{
-		OutError = TEXT("A required product-route argument is missing.");
-		return false;
-	}
-
-	TArray<FString> Coordinates;
-	EdgeText.ParseIntoArray(Coordinates, TEXT(","), true);
-	if (Coordinates.Num() != 3 ||
-		!LexTryParseString(Config.EdgeLocation.X, *Coordinates[0]) ||
-		!LexTryParseString(Config.EdgeLocation.Y, *Coordinates[1]) ||
-		!LexTryParseString(Config.EdgeLocation.Z, *Coordinates[2]))
-	{
-		OutError = TEXT("The product-route edge must be X,Y,Z numeric coordinates.");
-		return false;
-	}
-	const bool bIdentityValid = IsProductRouteToken(Config.OperationId) &&
-		IsProductRouteToken(Config.RuntimeProfileId) &&
-		IsProductRouteToken(Config.MachineProfileId) && IsProductRouteSha256(Config.RuntimeProfileHash);
-	const bool bEdgeValid = !Config.EdgeLocation.ContainsNaN() &&
-		!FVector2D(Config.EdgeLocation.X, Config.EdgeLocation.Y).IsNearlyZero();
-	if (!bIdentityValid || !bEdgeValid || FPaths::IsRelative(Config.ResultPath) ||
-		!Config.MapPackage.StartsWith(TEXT("/ProjectWorldData/Generated/")))
-	{
-		OutError = TEXT("The product-route identity, result path, map, or edge is outside the supported contract.");
-		return false;
-	}
-	FPaths::NormalizeFilename(Config.ResultPath);
-	return true;
 }
 
 bool FProjectWorldProductRouteGate::Tick(float DeltaSeconds)
@@ -340,6 +259,25 @@ bool FProjectWorldProductRouteGate::TryAcquireProductWorld()
 	PlayerController = Controller;
 	PlayerCharacter = Character;
 	CharacterMovement = Movement;
+	if (!Config.TerrainAcceptancePath.IsEmpty())
+	{
+		TerrainAcceptance = MakeUnique<FProjectWorldProductTerrainAcceptance>();
+		FString AcceptanceError;
+		if (!TerrainAcceptance->Initialize(
+			*World,
+			*Character,
+			*Controller,
+			Config.TerrainAcceptancePath,
+			Config.TerrainAcceptanceHash,
+			Config.MapPackage,
+			Config.RuntimeProfileHash,
+			Config.bForceFreshVsm,
+			AcceptanceError))
+		{
+			FinishRejected(TEXT("product_terrain_acceptance_invalid"), AcceptanceError);
+			return false;
+		}
+	}
 	CenterLocation = Character->GetActorLocation();
 	SetPhase(EPhase::SettlingAtCenter);
 	return true;
@@ -351,19 +289,41 @@ bool FProjectWorldProductRouteGate::TickCenterSettlement()
 	const bool bStreamingComplete = IsStreamingCompleted();
 	if (Movement != nullptr && bStreamingComplete && PhaseFrameCount >= 3)
 	{
+		if (Config.bRestorePreviewFlight && !bCenterGroundPlacementRequested)
+		{
+			if (MovePlayerTo(CenterLocation, true))
+			{
+				bCenterGroundPlacementRequested = true;
+				Movement->SetMovementMode(MOVE_Walking);
+			}
+			return false;
+		}
 		if (Movement->IsMovingOnGround())
 		{
 			Progress.bGroundedPlayer = true;
 			MovementStart = PlayerCharacter->GetActorLocation();
+			MovementDirection = FVector::ZeroVector;
+			const double ProbeDistance = RequiredMovementCentimeters +
+				PlayerCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius() + 25.0;
+			for (int32 DirectionIndex = 0; DirectionIndex < 8; ++DirectionIndex)
+			{
+				const double Angle = UE_TWO_PI * static_cast<double>(DirectionIndex) / 8.0;
+				const FVector CandidateDirection(FMath::Cos(Angle), FMath::Sin(Angle), 0.0);
+				FVector CandidateGround;
+				if (FindGroundLocation(MovementStart + CandidateDirection * ProbeDistance, CandidateGround) &&
+					FMath::Abs(CandidateGround.Z - MovementStart.Z) <= Movement->MaxStepHeight + 10.0)
+				{
+					MovementDirection = CandidateDirection;
+					break;
+				}
+			}
+			if (MovementDirection.IsNearlyZero())
+			{
+				LastReadinessError = TEXT("Waiting for grounded movement clearance near the center placement.");
+				return false;
+			}
 			SetPhase(EPhase::MovingNormally);
 			return true;
-		}
-		if (Config.bRestorePreviewFlight && !bCenterGroundPlacementRequested &&
-			MovePlayerTo(CenterLocation, true))
-		{
-			bCenterGroundPlacementRequested = true;
-			Movement->SetMovementMode(MOVE_Walking);
-			return false;
 		}
 	}
 	if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
@@ -382,7 +342,7 @@ bool FProjectWorldProductRouteGate::TickNormalMovement()
 	{
 		return false;
 	}
-	Character->AddMovementInput(Character->GetActorForwardVector(), 1.0f, false);
+	Character->AddMovementInput(MovementDirection, 1.0f, false);
 	MovementDistanceCentimeters = FVector::Dist2D(MovementStart, Character->GetActorLocation());
 	if (MovementDistanceCentimeters >= RequiredMovementCentimeters && Movement->IsMovingOnGround())
 	{
@@ -439,6 +399,20 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 			FinishRejected(TEXT("product_route_center_marker_missing"), LastReadinessError);
 		}
 		return false;
+	}
+	if (TerrainAcceptance)
+	{
+		FString AcceptanceError;
+		const auto Status = TerrainAcceptance->ProbeCenter(AcceptanceError);
+		if (Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::Rejected ||
+			(Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::NotReady &&
+				FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds))
+		{
+			FinishRejected(TEXT("product_terrain_center_failed"), AcceptanceError.IsEmpty()
+				? TEXT("Dynamic navigation or center height probes did not become ready.") : AcceptanceError);
+			return false;
+		}
+		if (Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::NotReady) return false;
 	}
 	if (!Config.bRequireGameplayInteraction)
 	{
@@ -507,6 +481,7 @@ void FProjectWorldProductRouteGate::HandleInteraction(AActor* Target, AActor* In
 void FProjectWorldProductRouteGate::BeginEdgeTraversal()
 {
 	ReleaseInteractionSubscription();
+	if (TerrainAcceptance) TerrainAcceptance->BeginStreamingControl();
 	MovePlayerTo(Config.EdgeLocation, false);
 	SetPhase(EPhase::WaitingAtEdge);
 }
@@ -519,6 +494,17 @@ bool FProjectWorldProductRouteGate::TickEdgeSettlement()
 		const bool bCenterAbsent = !HasCellMarker(CenterCellMarker);
 		if (!EdgeCellMarker.IsEmpty() && bCenterAbsent && MovePlayerTo(Config.EdgeLocation, true))
 		{
+			if (TerrainAcceptance)
+			{
+				FString AcceptanceError;
+				const auto Status = TerrainAcceptance->ProbeEdge(AcceptanceError);
+				if (Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::Rejected)
+				{
+					FinishRejected(TEXT("product_terrain_edge_failed"), AcceptanceError);
+					return false;
+				}
+				if (Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::NotReady) return false;
+			}
 			Progress.bCenterUnloadedAtEdge = true;
 			Progress.bEdgeLoaded = true;
 			BeginCenterReturn();
@@ -544,6 +530,18 @@ bool FProjectWorldProductRouteGate::TickCenterReturn()
 	if (PhaseFrameCount >= 3 && IsStreamingCompleted() && HasCellMarker(CenterCellMarker) &&
 		MovePlayerTo(CenterLocation, true))
 	{
+		if (TerrainAcceptance)
+		{
+			FString AcceptanceError;
+			const auto Status = TerrainAcceptance->ProbeAfterReload(AcceptanceError);
+			if (Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::Rejected ||
+				!TerrainAcceptance->CompleteStreamingControl(AcceptanceError))
+			{
+				FinishRejected(TEXT("product_terrain_reload_failed"), AcceptanceError);
+				return false;
+			}
+			if (Status == FProjectWorldProductTerrainAcceptance::EProbeStatus::NotReady) return false;
+		}
 		Progress.bCenterReloaded = true;
 		CharacterMovement->SetMovementMode(
 			Config.bRestorePreviewFlight ? MOVE_Flying : MOVE_Walking);
@@ -642,7 +640,7 @@ bool FProjectWorldProductRouteGate::ProbeTerrainCollision(
 	const FVector End(PlayerLocation.X, PlayerLocation.Y, PlayerLocation.Z - 100000.0f);
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		if (!It->Tags.Contains(LandscapeTag))
+		if (!ProjectWorldTerrainRuntimeRole::HasRole(**It))
 		{
 			continue;
 		}
@@ -826,7 +824,8 @@ bool FProjectWorldProductRouteGate::HasCellMarker(const FString& Marker) const
 	return false;
 }
 
-bool FProjectWorldProductRouteGate::MovePlayerTo(const FVector& Location, bool bPlaceOnGround)
+bool FProjectWorldProductRouteGate::MovePlayerTo(
+	const FVector& Location, bool bPlaceOnGround)
 {
 	ACharacter* Character = PlayerCharacter.Get();
 	UCharacterMovementComponent* Movement = CharacterMovement.Get();
@@ -854,18 +853,9 @@ bool FProjectWorldProductRouteGate::FindGroundLocation(
 	{
 		return false;
 	}
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(ProjectWorldProductRouteGround), false);
-	Params.AddIgnoredActor(Character);
-	const FVector Start(Location.X, Location.Y, Location.Z + 100000.0f);
-	const FVector End(Location.X, Location.Y, Location.Z - 100000.0f);
-	FHitResult Hit;
-	if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_Pawn, Params) && Hit.bBlockingHit)
-	{
-		const float HalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-		OutGroundLocation = Hit.ImpactPoint + FVector(0.0f, 0.0f, HalfHeight + 10.0f);
-		return true;
-	}
-	return false;
+	const float HalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	return ProjectWorldProductRouteCollision::FindFirstBlockingGroundLocation(
+		*World, *Character, Location, HalfHeight, OutGroundLocation);
 }
 
 void FProjectWorldProductRouteGate::RequestScreenshot()
@@ -885,7 +875,8 @@ void FProjectWorldProductRouteGate::RequestScreenshot()
 
 void FProjectWorldProductRouteGate::FinishAccepted()
 {
-	if (!Progress.IsAccepted(Config.bRequireGameplayInteraction))
+	if (!Progress.IsAccepted(Config.bRequireGameplayInteraction) ||
+		(TerrainAcceptance && !TerrainAcceptance->IsAccepted()))
 	{
 		FinishRejected(TEXT("product_route_evidence_incomplete"),
 			FString::Printf(TEXT("The first missing product gate is '%s'."),
@@ -967,6 +958,7 @@ void FProjectWorldProductRouteGate::WriteResult(
 	Root->SetBoolField(TEXT("center_reloaded"), Progress.bCenterReloaded);
 	Root->SetBoolField(TEXT("preview_flight_restored"), bPreviewFlightRestored);
 	Root->SetStringField(TEXT("screenshot"), ScreenshotPath);
+	if (TerrainAcceptance) TerrainAcceptance->AppendReceipt(*Root);
 	TArray<TSharedPtr<FJsonValue>> Roles;
 	for (const FString& Role : ObservedRuntimeRoles)
 	{

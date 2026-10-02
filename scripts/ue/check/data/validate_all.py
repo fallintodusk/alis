@@ -46,7 +46,7 @@ def main() -> int:
 
     xref_rc = errors.print_summary("Cross-reference data validation")
 
-    # Inline $schema presence + shape validation (AGENTS.md mandate).
+    # Inline $schema presence + shape validation.
     print()
     file_count, schema_errors = validate_all_data_files()
     schema_rc = schema_report(schema_errors, "Inline $schema validation", file_count)

@@ -14,6 +14,10 @@ accepted source receipt + compilation profile + authored overlay
     -> deterministic validation and evidence reports
 ```
 
+Every compiler profile declares its terrain-surface policy explicitly. Authored
+overlays use only the current schema and carry their grid and provenance; the
+compiler does not supply legacy defaults or upgrade old inputs.
+
 ## Layout
 
 | Path | Responsibility |
@@ -24,6 +28,7 @@ accepted source receipt + compilation profile + authored overlay
 | `app/projection.py` | Pinned OGR projection and production geometry admission |
 | `app/membership.py` | Exact geometry-to-cell membership and fixture differential seam |
 | `app/terrain.py` | Pinned GDAL alignment plus core-and-halo cell extraction |
+| `app/terrain_surface.py` | Final Terrain -> Water -> hydro -> authored-patch surface projection and named semantic weights |
 | `app/raster_dependencies.py` | Exact bilinear source pixels and cell-local component dependencies |
 | `app/features.py` | Semantic ownership, cell representations, and overlays |
 | `app/buildings.py` | Logical Building association, coverage, and effective massing volumes |
@@ -127,8 +132,11 @@ the source-ledger SOT.
 
 Each terrain cell additionally freezes the raster snapshot used for Z, its
 vertical datum, source accuracy/confidence, and the half-height-quantization
-sampling residual. Surface-anchor resolution consumes this cell-local record,
-not feature/control provenance and not a realized Landscape actor.
+sampling residual. After Water compilation, the compiler preserves the sampled
+terrain as `water_fit`, derives the final hydro-conditioned and authored terrain
+surface, and emits the `ground` and `hydro_transition` semantic weights. Surface-
+anchor resolution and Unreal realization consume this cell-local authority, not
+feature/control provenance and not a realized engine terrain actor.
 
 P0 remains bounded to its original single-raster source. Territory profiles
 use an admitted multi-raster mosaic plus cell-local actual pixel dependencies,

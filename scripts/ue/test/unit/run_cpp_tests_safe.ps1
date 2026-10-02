@@ -24,8 +24,7 @@ $ErrorActionPreference = "Stop"
 # Dev Loop Contract:
 # In Dev mode (default) the wrapper refuses broad filters. Override via
 # -Mode Gate (end-of-slice / CI) or -AllowBroadFilter (one-off). Full
-# contract: docs/agents/canonical.md "Dev Loop Contract" + AGENTS.md
-# "Dev Loop Rule".
+# contract: docs/agents/canonical.md "Dev Loop Contract".
 # --------------------------------------------------------------------------
 . (Join-Path $PSScriptRoot "Test-FilterShape.ps1")
 if ($Mode -eq "Dev" -and -not $AllowBroadFilter) {

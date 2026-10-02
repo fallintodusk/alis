@@ -51,9 +51,8 @@ starting the agent, then confirm `unreal-mcp` is listed by `/mcp` and that
 client shows nothing; note that `GET /mcp` answering `405` is correct, because
 the server is POST-only and offers no SSE channel.
 
-Configuration templates are owned by
-[`scripts/config/mcp.json.example`](../../scripts/config/mcp.json.example) and
-[`scripts/config/tools.conf.example`](../../scripts/config/tools.conf.example).
+The configuration template is owned by
+[`scripts/config/mcp.json.example`](../../scripts/config/mcp.json.example).
 Official plugin activation and its Editor-only target are owned by
 [`Alis.uproject`](../../Alis.uproject). Do not copy machine-local roots or
 credentials into tracked files or duplicate activation state in another doc.

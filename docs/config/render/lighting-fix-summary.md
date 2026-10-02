@@ -186,7 +186,6 @@ Before final testing:
 
 **Technical documentation:**
 - [render.md](./render.md) - Final render config (synchronized with DefaultEngine.ini)
-- `<user-home>\.claude\plans\silly-brewing-panda.md` - Full plan with UE5 games research
 
 **Modified files:**
 - `Config/DefaultEngine.ini` - Section [/Script/Engine.RendererSettings]

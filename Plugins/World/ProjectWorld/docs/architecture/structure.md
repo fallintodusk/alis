@@ -2,9 +2,9 @@
 
 ## Purpose
 
-ProjectWorld defines reusable Unreal runtime and editor behavior for realizing
-canonical geographic authority as streamed Worlds. Concrete Kazan and Manhattan
-data stays outside this component.
+ProjectWorld defines producer-neutral Unreal runtime and editor behavior for
+realizing canonical geographic authority as streamed Worlds. Concrete Kazan and
+Manhattan data and engine-specific terrain adapters stay outside this component.
 
 ## Owns
 
@@ -21,6 +21,10 @@ data stays outside this component.
   [ProjectWorldData](../../../ProjectWorldData/README.md).
 - Synthetic fixtures, owned by
   [ProjectWorldTestData](../../../ProjectWorldTestData/README.md).
+- MeshPartition adaptation, shared MPD policy, and compiled terrain sections,
+  owned by [ProjectWorldMeshTerrain](../../../ProjectWorldMeshTerrain/README.md).
+- Material graph compilation and generated material authority, owned by
+  `ProjectMaterial`; ProjectWorld never depends on ProjectMaterialEditor.
 - World-specific gameplay or presentation.
 
 ## Composition
@@ -28,7 +32,7 @@ data stays outside this component.
 | Part | Responsibility |
 |---|---|
 | `ProjectWorld` | Runtime contracts, services, and reusable actors |
-| `ProjectWorldEditor` | Canonical-input realization and editor validation |
+| `ProjectWorldEditor` | Producer-neutral canonical-input realization, transactions, and editor validation |
 | Territory contracts | Stable authority, identity, and acceptance semantics |
 | World Partition policy | Runtime streaming and cell policy |
 
@@ -39,7 +43,9 @@ Relationships are drawn once in [the main view](diagrams/main.md).
 Through the canonical manifest contract, realization consumes authenticated
 engine-independent inputs. Through generated manifests and package identity,
 runtime code consumes only output produced by the accepted realization
-transaction.
+transaction. The registered terrain producer contract delegates MeshPartition
+details to ProjectWorldMeshTerrain without exposing that dependency to
+ProjectWorld consumers.
 
 ## Invariants
 
@@ -49,7 +55,9 @@ transaction.
 3. Generated state changes only through its owning realization and promotion
    routes and is never repaired by hand.
 4. A receipt or hash proves identity only for the boundary it authenticates.
-5. While compatibility marker `L004` exists, definition-host helpers read and
+5. Generated terrain has one active producer; no fallback writer or parallel
+   generated terrain authority is supported.
+6. While compatibility marker `L004` exists, definition-host helpers read and
    write `AProjectWorldActor` direct metadata before using the generic
    interface/component host route. This preserves placement round trips until
    the compatibility path is removed with its consumers and tests.

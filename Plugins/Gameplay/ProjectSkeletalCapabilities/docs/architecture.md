@@ -52,6 +52,25 @@ Bridge also seeds the nested InputState flags needed by the sample AnimBP:
 This is the current first-person baseline that restored camera/body correlation.
 Long-term, RotationMode and InputState policy should come from view/input policy rather than staying bridge-owned.
 
+### Sample AnimBP Console Variables
+
+`SandboxCharacter_CMC_ABP`, set as `animClass` by the ProjectObject human
+definitions, reads console variables by name through Blueprint
+`GetConsoleVariable*Value` nodes; a missing name logs a warning and reads as 0.
+This plugin supplies those names as part of the sample contract. Names read only
+by sample assets ALIS does not use, such as the sample characters' traversal and
+foley components, are not declared. The `DDCvar.*` names are Data Driven CVars in
+`Config/Engine.ini`, each defaulting to 0, so they silence the warnings without
+changing what a missing name reads. Every build registers them, including builds
+without the sample content, where nothing reads them. The AnimBP also reads one
+engine-owned name, `a.AnimNode.OffsetRootBone.Enable`, from the AnimationWarping
+plugin, which compiles it out of Shipping and Test builds; this module registers
+it there only (`Private/GASPConsoleVariables.cpp`, with the engine's default of
+1), so those builds behave like Development. The regression test checks the
+`DDCvar.*` names in every build and the engine-owned name only when the sample
+content is mounted:
+`Project.Gameplay.SkeletalCapabilities.MotionMatching.SampleConsoleVariablesRegistered`.
+
 ---
 
 ## LocalBodyAnimInstance
@@ -175,7 +194,7 @@ four-mode comparison when correction policy is under review.
 
 ## Cross-References
 
-- [Assembly architecture](../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - one-registry model, lifecycle
-- [Layer contract](../../Resources/ProjectObject/docs/layer_contract.md) - Kind/Role/Visibility on meshes
-- [Character design](../ProjectCharacter/docs/design.md) - definition-driven character
+- [Assembly architecture](../../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - one-registry model, lifecycle
+- [Layer contract](../../../Resources/ProjectObject/docs/layer_contract.md) - Kind/Role/Visibility on meshes
+- [Character design](../../ProjectCharacter/docs/design.md) - definition-driven character
 - [Verified pitfalls](pitfalls.md) - known skeletal capability failures and regression evidence

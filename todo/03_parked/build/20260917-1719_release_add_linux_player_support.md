@@ -86,6 +86,14 @@ operator-approved Ubuntu 22.04 x86-64 acceptance surface before promotion.
   - Reason: the current WSLg host provides GPU-backed OpenGL but only software
     Vulkan, so it cannot satisfy the unchanged release gate.
   - Date/source: operator approval supplied on 2026-09-18
+- **D10** Linux is out of scope now: no Linux build ships until we gain a
+  server, and this task stays parked. Operator's words: "linux now it's out of
+  scope and we don't ship any linux build until we gain server - now it's
+  parked".
+  - Effect: the 2.1.0 target in D1 and D3 is moot until the task resumes; the
+    next release, 3.0.0, is Windows-only.
+  - Reason: not stated.
+  - Date/source: 2026-09-23, operator session.
 
 ### Gates and assumptions
 
@@ -359,3 +367,17 @@ This is an adapter to the existing trust model, not a second trust authority.
   WSLg exposes only software Vulkan despite accelerated RTX OpenGL. D9 selects
   a future local native Ubuntu GPU host, Q1 is closed, and the task is parked
   until that host and its access/transport prerequisites exist.
+- 2026-09-23: the ALIS 3.0.0 investigation found two points this task owns on
+  resume. First, release code still accepts only a WSL2/WSLg receipt
+  (`prepare_release_v4.py:115-116` requires the baseline "Ubuntu 22.04 x86-64
+  under WSL2/WSLg"; `accept_linux_player.py:154-166`), and the multi-platform
+  README highlights hard-code "Linux x86-64 is tested on Ubuntu 22.04 under
+  WSL2/WSLg." (`prepare_release_v4.py:176`); both contradict D9 and A2.
+  Second, the next release is 3.0.0 and does not require Linux: R4 in
+  `todo/00_current/00_release_3.0.0.md` replaces the version-authoritative
+  `>= 2.1.0` selection recorded above with one closed tracked contract per
+  release; the 3.0.0 contract is Windows-only and also owns its highlights. On
+  resume, first replace the WSL receipt baseline with the D9 native-host route,
+  then add or review a future release contract that includes Linux and its
+  highlights. The 2.1.0 label in D1 and D3 is moot until resume under D10; the
+  3.0.0 router's Q4 is closed by the same operator decision.

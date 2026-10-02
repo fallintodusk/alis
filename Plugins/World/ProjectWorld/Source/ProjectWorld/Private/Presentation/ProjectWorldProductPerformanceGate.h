@@ -123,6 +123,7 @@ private:
 	int32 HighQualityLevel = INDEX_NONE;
 	int32 StableReadyFrames = 0;
 	bool bCsvCaptureStarted = false;
+	bool bNativeSteadyRequested = false;
 	bool bPlayableTourRequested = false;
 
 	/**

@@ -46,6 +46,17 @@ bool FProjectSha256::HashFile(const FString& FilePath, FString& OutHash)
 	return FFileHelper::LoadFileToArray(Data, *FilePath) && HashBuffer(Data, OutHash);
 }
 
+bool FProjectSha256::HashNormalizedText(const FString& Text, FString& OutHash)
+{
+	FString Normalized = !Text.IsEmpty() && Text[0] == TCHAR(0xFEFF) ? Text.RightChop(1) : Text;
+	Normalized.ReplaceInline(TEXT("\r\n"), TEXT("\n"), ESearchCase::CaseSensitive);
+	Normalized.ReplaceInline(TEXT("\r"), TEXT("\n"), ESearchCase::CaseSensitive);
+	const FTCHARToUTF8 Utf8(*Normalized);
+	TArray<uint8> Bytes;
+	Bytes.Append(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length());
+	return HashBuffer(Bytes, OutHash);
+}
+
 bool FProjectSha256::HashBuffer(const TArray<uint8>& Data, FString& OutHash)
 {
 	using namespace ProjectSha256;

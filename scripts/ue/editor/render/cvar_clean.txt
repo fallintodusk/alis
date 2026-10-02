@@ -4,7 +4,7 @@
 ; Expected GPU cost vs base: ~0 ms.
 ;
 ; Invoke (PIE console, UE 5.7 syntax):
-;   execfile <project-root>/scripts/ue/editor/render/cvar_clean.txt
+;   execfile <repo>/scripts/ue/editor/render/cvar_clean.txt
 
 r.Lumen.ScreenProbeGather.Quality 2
 r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 32

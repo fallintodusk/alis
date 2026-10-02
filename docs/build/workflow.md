@@ -27,11 +27,8 @@ scripts/ue/build/build.bat AlisEditor Win64 Development
 # Build editor (Debug)
 scripts/ue/build/build.bat AlisEditor Win64 DebugGame
 
-# Build client (Shipping)
-scripts/ue/build/build.bat AlisClient Win64 Shipping
-
-# Build server (Development)
-scripts/ue/build/build.bat AlisServer Win64 Development
+# Build Game (Shipping)
+scripts/ue/build/build.bat Alis Win64 Shipping
 
 # Fast module rebuild (<5 min)
 scripts/ue/build/rebuild_module_safe.ps1 -ModuleName ProjectMenuUI
@@ -39,9 +36,32 @@ scripts/ue/build/rebuild_module_safe.ps1 -ModuleName ProjectMenuUI
 
 ### Engine selection
 
-The project build wrappers resolve the launcher-installed `UE_PATH`. Do not
-invoke UBT directly or point development builds at `UE_SOURCE_PATH`; the source
-engine is reserved for release-only targets and packaging.
+The normal build wrapper resolves the launcher-installed `UE_PATH`. That engine
+distribution rejects Client and Server targets before project compilation. Do
+not point daily Editor/Game builds at `UE_SOURCE_PATH`; the source engine is
+reserved for release-only targets and packaging.
+
+During development, build the affected target incrementally and run its focused
+test. An unchanged cooked content set can be reused for a targeted Development
+runtime check; it does not require a new Shipping cook. Package through the
+release workflow when validating a release candidate or a behavior that cannot
+be proved without a fresh packaged artifact.
+
+For a Client/Server release check, resolve the configured source engine and
+use the same Build.bat argument shape as the project wrapper. Do not replace
+the configured engine path or edit engine installation files:
+
+```powershell
+. .\scripts\config\Resolve-UEConfig.ps1
+. .\scripts\config\Sync-UBTConfig.ps1
+$config = Resolve-UEConfig -ConfigDir .\scripts\config
+if (-not $config.UE_SOURCE_PATH) { throw 'UE_SOURCE_PATH is required.' }
+Sync-UBTConfig -ProjectRoot (Get-Location).Path
+$sourceBuild = Join-Path $config.UE_SOURCE_PATH 'Engine\Build\BatchFiles\Build.bat'
+$project = (Resolve-Path .\Alis.uproject).Path
+& $sourceBuild AlisClient Win64 Shipping $project -NoHotReloadFromIDE
+& $sourceBuild AlisServer Win64 Development $project -NoHotReloadFromIDE
+```
 
 ### Via Visual Studio
 1. Open `Alis.sln`
@@ -249,7 +269,7 @@ Note: Some echoed commands may show a stylized `C:` glyph when printed from WSL;
  Copy-Item scripts/config/ue_path.conf.example scripts/config/ue_path.local.conf
  
  # Edit ue_path.local.conf with an unquoted launcher path, for example:
- # UE_PATH=<ue-path>
+ # UE_PATH=<launcher-engine-root>
  ```
  
  ### GameFeature Plugin Not Compiling

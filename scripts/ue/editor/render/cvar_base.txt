@@ -3,7 +3,7 @@
 ; Use this as the "before" side of the A/B vs cvar_clean.txt and cvar_full.txt.
 ;
 ; Invoke (PIE console, UE 5.7 syntax):
-;   execfile <project-root>/scripts/ue/editor/render/cvar_base.txt
+;   execfile <repo>/scripts/ue/editor/render/cvar_base.txt
 
 r.Lumen.ScreenProbeGather.Quality 2
 r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 16

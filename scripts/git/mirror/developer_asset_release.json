@@ -72,15 +72,28 @@
       ]
     },
     {
-      "authority_kind": "material_manifest",
-      "owner": "ProjectMaterial",
-      "manifest_path": "Plugins/Resources/ProjectMaterial/Data/Manifests/Materials/accepted.material-manifest.json",
+      "authority_kind": "generated_recipe_manifest",
+      "owner": "ProjectTexture",
+      "manifest_path": "Plugins/Resources/ProjectTexture/Data/Manifests/Patterns/accepted.pattern-manifest.json",
       "license_id": "MPL-2.0",
       "distribution_class": "rights_cleared_first_party_generated",
       "dependency_payload_policy": "references_only",
-      "recipe_root": "Plugins/Resources/ProjectMaterial/Data/Materials",
-      "artifact_root": "Plugins/Resources/ProjectMaterial/Content",
-      "package_root": "/ProjectMaterial"
+      "recipe_root": "Plugins/Resources/ProjectTexture/Data/Patterns",
+      "recipe_suffix": ".pattern.json",
+      "artifact_root": "Plugins/Resources/ProjectTexture/Content/Patterns",
+      "package_root": "/ProjectTexture/Patterns"
+    },
+    {
+      "authority_kind": "generated_recipe_manifest",
+      "owner": "ProjectMaterial",
+      "manifest_path": "Plugins/Resources/ProjectMaterial/Data/Manifests/Surfaces/accepted.surface-manifest.json",
+      "license_id": "MPL-2.0",
+      "distribution_class": "rights_cleared_first_party_generated",
+      "dependency_payload_policy": "references_only",
+      "recipe_root": "Plugins/Resources/ProjectMaterial/Data/SurfaceRecipes",
+      "recipe_suffix": ".surface.json",
+      "artifact_root": "Plugins/Resources/ProjectMaterial/Content/Surfaces",
+      "package_root": "/ProjectMaterial/Surfaces"
     }
   ]
 }

@@ -218,7 +218,7 @@ ASC->ExecuteGameplayCue(
 ## Related Documentation
 
 - [ProjectGAS README](../README.md) - GAS wrapper overview
-- [ProjectAudio](../../Resources/ProjectAudio/README.md) - Sound assets
-- [ProjectSoundSystem](../../Systems/ProjectSoundSystem/README.md) - Audio playback
+- [ProjectAudio](../../../Resources/ProjectAudio/README.md) - Sound assets
+- [ProjectSoundSystem](../../../Systems/ProjectSoundSystem/README.md) - Audio playback
 - [GAS Documentation (GitHub)](https://github.com/tranek/GASDocumentation#gameplaycues)
 - [Epic GameplayCue Docs](https://dev.epicgames.com/documentation/en-us/unreal-engine/gameplay-cues-in-unreal-engine)

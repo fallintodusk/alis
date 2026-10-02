@@ -14,7 +14,7 @@
  */
 struct FBootContext
 {
-	/** Local installation root (e.g., <local-app-data>/Alis) */
+	/** Local installation root (e.g., %LOCALAPPDATA%/Alis) */
 	FString LocalRoot;
 
 	/** Engine build identifier - must match manifest.engine_build_id */

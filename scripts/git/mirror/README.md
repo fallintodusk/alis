@@ -11,7 +11,13 @@ Files:
 - `install_developer_payload.ps1`: verifies and installs that complement into
   a matching ALIS source checkout.
 - `mirror.exclude`: blacklist of files and folders removed from the public mirror snapshot.
-- `forbidden_text_patterns.regex`: hard-fail content validation for text files that must never survive filtering.
+  A `!pattern` line re-includes paths that an earlier broad rule would remove.
+- `sanitize_public_text.py`: anonymizes the filtered snapshot before validation
+  and, with `--check`, fails the final tree on any machine-local path. The
+  definition of a machine-local path belongs to governance
+  (`scripts/ue/check/governance/machine_local_paths.py`); this script applies it.
+- `forbidden_text_patterns.regex`: hard-fail content validation for secrets,
+  key material, and credential shapes.
 
 ## Why This Exists
 
@@ -64,7 +70,7 @@ The flow is intentionally isolated:
 1. Reads tracked file paths from `HEAD`.
 2. Applies `mirror.exclude` before export, then checks out only surviving files from a temporary `HEAD` index.
 3. Preserves the canonical `Alis.uproject` in the filtered snapshot so the public mirror shows the real plugin graph.
-4. Runs hard validation against forbidden paths, binary file types, and forbidden text patterns.
+4. Runs hard validation against forbidden paths, binary file types, forbidden text patterns, and machine-local paths.
 5. Creates a temporary git repository.
 6. Commits filtered snapshot in the temp repo.
 7. Pushes to `--remote-url` only if `--push` is provided.
@@ -167,6 +173,10 @@ the plugin-owned authority manifest. JSON source authentication normalizes line
 endings so the same Git bytes remain valid in Windows and Unix checkouts.
 Review and commit source, `.uasset`, and
 manifest changes together. Release composition then requires a clean tree.
+
+Generated surface and pattern recipes need no separate refresh: the owners'
+accepted manifests are the authority, and composition rejects a recipe, package, or
+recorded dependency that differs from them.
 
 Compose the text-only mirror preview and its matching binary developer payload:
 
@@ -397,7 +407,10 @@ ALIS adds a second line of defense:
 - hard-fail if forbidden binary/media/key file types survive
   (executables, `png`/`jpg`/`exr`/`blend`/`fbx`/`wav`/`mp4`..., `pem`/`key`/`p12`/`pfx`);
 - hard-fail if forbidden paths survive;
-- hard-fail if text files still contain patterns from `forbidden_text_patterns.regex`;
+- hard-fail if any surviving file contains a pattern from `forbidden_text_patterns.regex` or the private pattern file; file type is no filter, because the binary guard keeps the tree text-only;
+- hard-fail if any surviving file still carries a machine-local path as the
+  governance definition describes it; published code is never path-rewritten,
+  so it fails here and is fixed at source;
 - hard-fail if published text contains disallowed foreign-script blocks checked
   by `validate_text_format.py` (Cyrillic and CJK by default), or if surviving
   paths contain any non-ASCII character;
@@ -425,9 +438,11 @@ Secret hardening rules:
 The mirror normalizes obvious personal metadata before commit:
 - mirror commits always use `mirror-bot <mirror-bot@localhost>`;
 - `.uplugin` creator/support metadata is rewritten to project-safe values;
-- maintainer-local repo roots, UE/tool install paths, and Windows/WSL home paths are rewritten to neutral placeholders;
+- in published documentation, maintainer-local repo roots and UE/tool install paths are rewritten to neutral placeholders;
+- in published documentation, concrete Windows/WSL home paths are rewritten to generic environment variables (`%USERPROFILE%`, `%LOCALAPPDATA%`, `%TEMP%`, `%WSL_HOME%`, `$HOME`); those variables carry no identity and are never rewritten, so published scripts that use them keep working;
 - sibling local repos referenced from docs are rewritten to neutral placeholders as well;
-- explicit local usernames are rewritten when they appear in public docs/examples.
+- published code is never path-rewritten; a machine-local path in code fails the final check instead;
+- maintainer identities are never rewritten: they are listed only in the private pattern file, so a public file that names one fails validation and is fixed at source.
 
 This is intended to remove maintainer identity leakage and machine-local traces.
 

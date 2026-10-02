@@ -1,0 +1,83 @@
+{
+  "manifest_version": "1.0.0",
+  "engine_build_id": "5.5.0",
+  "signed_at": "2025-10-31T15:00:00Z",
+  "signing_key_id": "dev-key-001",
+  "signature": "dev_signature_placeholder",
+  "plugins": [
+    {
+      "name": "Orchestrator",
+      "version": "1.0.0",
+      "module": "OrchestratorCore",
+      "code_hash": "abc123",
+      "content_hash": "def456",
+      "url_code": "https://cdn.example.com/orchestrator/1.0.0/code.zip",
+      "url_content": "https://cdn.example.com/orchestrator/1.0.0/content.zip",
+      "channel": "stable",
+      "depends_on": []
+    },
+    {
+      "name": "ProjectCore",
+      "version": "1.0.0",
+      "module": "ProjectCore",
+      "code_hash": "core123",
+      "content_hash": "core456",
+      "url_code": "https://cdn.example.com/projectcore/1.0.0/code.zip",
+      "url_content": "https://cdn.example.com/projectcore/1.0.0/content.zip",
+      "channel": "stable",
+      "depends_on": []
+    },
+    {
+      "name": "ProjectData",
+      "version": "1.0.0",
+      "module": "ProjectData",
+      "code_hash": "data123",
+      "content_hash": "data456",
+      "url_code": "https://cdn.example.com/projectdata/1.0.0/code.zip",
+      "url_content": "https://cdn.example.com/projectdata/1.0.0/content.zip",
+      "channel": "stable",
+      "depends_on": [
+        {
+          "name": "ProjectCore",
+          "version": ">=1.0.0"
+        }
+      ]
+    },
+    {
+      "name": "ProjectUI",
+      "version": "1.0.0",
+      "module": "ProjectUI",
+      "code_hash": "ui123",
+      "content_hash": "ui456",
+      "url_code": "https://cdn.example.com/projectui/1.0.0/code.zip",
+      "url_content": "https://cdn.example.com/projectui/1.0.0/content.zip",
+      "channel": "stable",
+      "depends_on": [
+        {
+          "name": "ProjectCore",
+          "version": ">=1.0.0"
+        },
+        {
+          "name": "ProjectData",
+          "version": ">=1.0.0"
+        }
+      ]
+    },
+    {
+      "name": "ProjectCombat",
+      "version": "1.0.0",
+      "module": "ProjectCombat",
+      "code_hash": "combat123",
+      "content_hash": "combat456",
+      "url_code": "https://cdn.example.com/projectcombat/1.0.0/code.zip",
+      "url_content": "https://cdn.example.com/projectcombat/1.0.0/content.zip",
+      "channel": "stable",
+      "depends_on": [
+        {
+          "name": "ProjectCore",
+          "version": ">=1.0.0"
+        }
+      ]
+    }
+  ]
+}

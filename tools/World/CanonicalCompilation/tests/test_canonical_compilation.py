@@ -505,7 +505,7 @@ class CanonicalCompilationTests(unittest.TestCase):
             profile = deepcopy(load_profile(profile_path("synthetic_two_cell")))
             profile["$schema"] = "https://alis.world/schemas/world-compiler/compiler-profile-v1.json"
             overlay = read_json(REPO_ROOT / profile["authored_overlay"])
-            overlay["$schema"] = "https://alis.world/schemas/world-compiler/authored-overlay-v1.json"
+            overlay["$schema"] = "https://alis.world/schemas/world-compiler/authored-overlay-v2.json"
             overlay["terrain_patches"][0]["delta_m"] = 2.0
             overlay["feature_overrides"][0]["set"]["height_m"] = 13.0
             overlay_path = Path(overlay_directory) / "changed_overlay.json"
@@ -729,7 +729,7 @@ class CanonicalCompilationTests(unittest.TestCase):
             feature_decisions = reusable_layers(
                 documents, build_lineages(feature_profile, bundle, contract, overlay), False
             )
-            self.assertTrue(feature_decisions["terrain"][0])
+            self.assertFalse(feature_decisions["terrain"][0])
             self.assertFalse(feature_decisions["feature"][0])
 
             terrain_profile = deepcopy(profile)

@@ -60,9 +60,9 @@ binaries, not project).
 In PIE console:
 
 ```
-execfile <project-root>/scripts/ue/editor/render/cvar_base.txt
-execfile <project-root>/scripts/ue/editor/render/cvar_clean.txt
-execfile <project-root>/scripts/ue/editor/render/cvar_full.txt
+execfile <repo>/scripts/ue/editor/render/cvar_base.txt
+execfile <repo>/scripts/ue/editor/render/cvar_clean.txt
+execfile <repo>/scripts/ue/editor/render/cvar_full.txt
 ```
 
 Look for `Execing file: ...` in the log to confirm a load succeeded.
@@ -76,9 +76,9 @@ editor or in PIE, unlike `F7` (Build) / `F8` (Eject) / `F9` (HighResShot)
 which conflict.
 
 ```
-setbind One   "execfile <project-root>/scripts/ue/editor/render/cvar_base.txt"  Control Alt
-setbind Two   "execfile <project-root>/scripts/ue/editor/render/cvar_clean.txt" Control Alt
-setbind Three "execfile <project-root>/scripts/ue/editor/render/cvar_full.txt"  Control Alt
+setbind One   "execfile <repo>/scripts/ue/editor/render/cvar_base.txt"  Control Alt
+setbind Two   "execfile <repo>/scripts/ue/editor/render/cvar_clean.txt" Control Alt
+setbind Three "execfile <repo>/scripts/ue/editor/render/cvar_full.txt"  Control Alt
 ```
 
 `setbind` is session-only; lost on PIE stop / editor restart. Re-type if
@@ -102,5 +102,4 @@ zero key conflicts.
 - Scripts architecture (SOLID/SoC): [../../../docs/architecture.md](../../../docs/architecture.md)
 - Sibling helpers:
   [../blueprint/README.md](../blueprint/README.md),
-  [../content/](../content/),
   [../level/README.md](../level/README.md)

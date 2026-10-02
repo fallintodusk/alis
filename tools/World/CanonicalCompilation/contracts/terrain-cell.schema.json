@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://alis.world/schemas/world-compiler/terrain-cell-v1.json",
+  "$id": "https://alis.world/schemas/world-compiler/terrain-cell-v2.json",
   "title": "Canonical Terrain Cell",
   "type": "object",
-  "required": ["$schema", "schema_version", "grid_id", "cell_id", "bounds", "sample_spacing", "height_quantization", "vertical_provenance", "raster_alignment", "raster_component_dependencies", "core_samples", "halo_window", "height_edges", "height_border_bands", "weight_mask", "authored_patch_ids"],
+  "required": ["$schema", "schema_version", "grid_id", "cell_id", "bounds", "sample_spacing", "height_quantization", "vertical_provenance", "raster_alignment", "raster_component_dependencies", "core_samples", "halo_window", "water_fit", "surface_semantics", "height_edges", "height_border_bands", "weight_mask", "authored_patch_ids"],
   "properties": {
     "$schema": {"type": "string"},
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "grid_id": {"type": "string"},
     "cell_id": {"type": "string"},
     "bounds": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
@@ -51,6 +51,41 @@
     },
     "core_samples": {"type": "array"},
     "halo_window": {"type": "object"},
+    "water_fit": {
+      "type": "object",
+      "required": ["core_samples", "halo_window"],
+      "properties": {
+        "core_samples": {"type": "array"},
+        "halo_window": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "surface_semantics": {
+      "type": "object",
+      "required": ["contract_id", "contract_version", "roles", "hydro_transition_radius_m", "water_clearance_m", "contract_sha256", "core_samples", "halo_samples", "edge_sha256"],
+      "properties": {
+        "contract_id": {"const": "terrain_surface_semantics"},
+        "contract_version": {"const": 1},
+        "roles": {"const": ["ground", "hydro_transition"]},
+        "hydro_transition_radius_m": {"type": "number", "exclusiveMinimum": 0},
+        "water_clearance_m": {"type": "number", "minimum": 0},
+        "contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "core_samples": {
+          "type": "object",
+          "required": ["ground", "hydro_transition"],
+          "properties": {"ground": {"type": "array"}, "hydro_transition": {"type": "array"}},
+          "additionalProperties": false
+        },
+        "halo_samples": {
+          "type": "object",
+          "required": ["ground", "hydro_transition"],
+          "properties": {"ground": {"type": "array"}, "hydro_transition": {"type": "array"}},
+          "additionalProperties": false
+        },
+        "edge_sha256": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
     "height_edges": {"type": "object"},
     "height_border_bands": {"type": "object"},
     "weight_mask": {"type": "object"},

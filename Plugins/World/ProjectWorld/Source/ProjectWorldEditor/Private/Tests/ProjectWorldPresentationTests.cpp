@@ -93,7 +93,7 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 	TestEqual(
 		TEXT("Terrain resolves through the universal semantic binding."),
 		Resources.TerrainMaterial->GetPathName(),
-		FString(TEXT("/ProjectMaterial/Generated/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default")));
+		FString(TEXT("/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default")));
 	TestEqual(TEXT("Terrain package digest is authenticated."), Resources.TerrainMaterialPackageSha256.Len(), 64);
 	TestEqual(TEXT("Terrain semantic identity is authenticated."), Resources.TerrainMaterialSemanticIdentity.Len(), 64);
 
@@ -175,7 +175,7 @@ bool FProjectWorldPresentationProfileContractTest::RunTest(const FString& Parame
 		TEXT("Backslash schema paths are rejected."),
 		Source.Replace(*ScratchSchema, *ScratchSchema.Replace(TEXT("/"), TEXT("\\\\"))));
 	const FString InvalidMaterial = Source.Replace(
-		TEXT("/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial"),
+		TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"),
 		TEXT("/ProjectObject/Unclassified.Material"),
 		ESearchCase::CaseSensitive);
 	TestTrue(TEXT("Invalid material fixture is writable."), FFileHelper::SaveStringToFile(InvalidMaterial, *InvalidMaterialPath));
@@ -335,7 +335,6 @@ bool FProjectWorldPresentationActorLifecycleTest::RunTest(const FString& Paramet
 			World,
 			Bundle,
 			FString(),
-			false,
 			GenericCleanupResult));
 	TestEqual(TEXT("Generic cleanup removes no current presentation actor."), GenericCleanupResult.RemovedActorCount, 0);
 	PostProcess->bUnbound = false;

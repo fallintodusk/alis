@@ -16,7 +16,7 @@ void FProjectLoadingModule::StartupModule()
 	// Any diagnostic here would just log non-actionable noise.
 	//
 	// Asset registration uses two paths:
-	// - Editor: Config merge via plugin DefaultGame.ini (works reliably, no diagnostic needed)
+	// - Editor: scan entries in the project Config/DefaultGame.ini (no diagnostic needed)
 	// - Cooked builds: Runtime scanning via EnsureAssetScans() in InitialExperienceLoader.cpp
 	//
 	// Diagnostics for runtime scanning are in EnsureAssetScans() where they run AFTER

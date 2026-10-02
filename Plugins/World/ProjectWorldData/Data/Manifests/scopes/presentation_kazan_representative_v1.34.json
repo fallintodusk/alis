@@ -1,0 +1,24 @@
+{
+    "$schema":  "../../../../ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json",
+    "schema_version":  1,
+    "scope_id":  "presentation_kazan_representative_v1",
+    "generation":  34,
+    "owning_layer":  "presentation",
+    "accepted_operation_id":  "c2a5eb438e024e1389ef41b54b528390",
+    "accepted_at_utc":  "2026-09-28T13:49:58.9201616+00:00",
+    "generator_fingerprint":  "5dbc530614a0f6b4c954a6d05d5215395d5b02f5c481a6300f652e590aa157b5",
+    "input_identity":  {
+                           "map_package":  "shared",
+                           "runtime_profile_sha256":  "none",
+                           "authored_overlay_profile_sha256":  "none",
+                           "compile_result_sha256":  "none",
+                           "presentation_profile_sha256":  "de1a92306f3ce383b5ac04f82e5892d100460b286690b86d9cb93ac4da108a36"
+                       },
+    "artifacts":  [
+
+                  ],
+    "consumer_references":  [
+                                "map_showcase_manhattan_l_projectworldmanhattanshowcase",
+                                "map_territory_l_projectworldkazanterritory"
+                            ]
+}

@@ -619,8 +619,8 @@ namespace ProjectWorldCanonical
 			return false;
 		}
 
-		if (Schema != TEXT("https://alis.world/schemas/world-compiler/terrain-cell-v1.json") ||
-			SchemaVersion != 1 || GridId != ExpectedGridId || CellId != ExpectedCellId ||
+		if (Schema != TEXT("https://alis.world/schemas/world-compiler/terrain-cell-v2.json") ||
+			SchemaVersion != 2 || GridId != ExpectedGridId || CellId != ExpectedCellId ||
 			OutTerrain.VerticalProvenanceId.IsEmpty() ||
 			OutTerrain.VerticalDatum.IsEmpty() ||
 			OutTerrain.VerticalConfidence.IsEmpty() ||
@@ -658,6 +658,84 @@ namespace ProjectWorldCanonical
 					return false;
 				}
 				OutTerrain.HeightsMeters.Add(Height);
+			}
+		}
+
+		TSharedPtr<FJsonObject> Surface;
+		const TArray<TSharedPtr<FJsonValue>>* Roles = nullptr;
+		TSharedPtr<FJsonObject> WeightRows;
+		if (!RequireObject(Object, TEXT("surface_semantics"), Surface, Validation) ||
+			!RequireString(Surface, TEXT("contract_id"), OutTerrain.SurfaceContractId, Validation) ||
+			!RequireInt(Surface, TEXT("contract_version"), OutTerrain.SurfaceContractVersion, Validation) ||
+			!RequireString(Surface, TEXT("contract_sha256"), OutTerrain.SurfaceContractHash, Validation) ||
+			!RequireArray(Surface, TEXT("roles"), Roles, Validation) ||
+			!RequireObject(Surface, TEXT("core_samples"), WeightRows, Validation))
+		{
+			return false;
+		}
+		if (OutTerrain.SurfaceContractId != TEXT("terrain_surface_semantics") ||
+			OutTerrain.SurfaceContractVersion != 1 || OutTerrain.SurfaceContractHash.Len() != 64 ||
+			Roles->Num() != 2)
+		{
+			Reject(Validation, TEXT("terrain-surface-contract"), TEXT("Terrain surface contract is unsupported."), CellId);
+			return false;
+		}
+		for (const TSharedPtr<FJsonValue>& RoleValue : *Roles)
+		{
+			FString Role;
+			if (!RoleValue->TryGetString(Role))
+			{
+				Reject(Validation, TEXT("terrain-surface-role"), TEXT("Terrain surface role is invalid."), CellId);
+				return false;
+			}
+			OutTerrain.SurfaceRoles.Add(FName(*Role));
+		}
+		if (OutTerrain.SurfaceRoles != TArray<FName>{TEXT("ground"), TEXT("hydro_transition")})
+		{
+			Reject(Validation, TEXT("terrain-surface-role"), TEXT("Terrain surface roles are not canonical."), CellId);
+			return false;
+		}
+		for (const FName Role : OutTerrain.SurfaceRoles)
+		{
+			const TArray<TSharedPtr<FJsonValue>>* SurfaceRows = nullptr;
+			const FString RoleText = Role.ToString();
+			if (!RequireArray(WeightRows, *RoleText, SurfaceRows, Validation) ||
+				SurfaceRows->Num() != OutTerrain.SamplesY)
+			{
+				Reject(Validation, TEXT("terrain-surface-shape"), TEXT("Terrain surface row count is invalid."), CellId);
+				return false;
+			}
+			TArray<float>& Weights = OutTerrain.SurfaceWeights.Add(Role);
+			for (const TSharedPtr<FJsonValue>& SurfaceRowValue : *SurfaceRows)
+			{
+				const TArray<TSharedPtr<FJsonValue>>* SurfaceRow = nullptr;
+				if (!SurfaceRowValue->TryGetArray(SurfaceRow) || SurfaceRow == nullptr ||
+					SurfaceRow->Num() != OutTerrain.SamplesX)
+				{
+					Reject(Validation, TEXT("terrain-surface-shape"), TEXT("Terrain surface column count is invalid."), CellId);
+					return false;
+				}
+				for (const TSharedPtr<FJsonValue>& Sample : *SurfaceRow)
+				{
+					double Weight = 0.0;
+					if (!Sample->TryGetNumber(Weight) || !FMath::IsFinite(Weight) || Weight < 0.0 || Weight > 1.0)
+					{
+						Reject(Validation, TEXT("terrain-surface-value"), TEXT("Terrain surface weight is not UNorm."), CellId);
+						return false;
+					}
+					Weights.Add(static_cast<float>(Weight));
+				}
+			}
+		}
+		for (int32 Index = 0; Index < OutTerrain.HeightsMeters.Num(); ++Index)
+		{
+			if (!FMath::IsNearlyEqual(
+				OutTerrain.SurfaceWeights.FindChecked(TEXT("ground"))[Index] +
+				OutTerrain.SurfaceWeights.FindChecked(TEXT("hydro_transition"))[Index],
+				1.0f))
+			{
+				Reject(Validation, TEXT("terrain-surface-normalization"), TEXT("Terrain surface weights are not normalized."), CellId);
+				return false;
 			}
 		}
 		return true;

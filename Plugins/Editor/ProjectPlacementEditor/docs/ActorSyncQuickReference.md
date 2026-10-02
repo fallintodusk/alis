@@ -452,7 +452,6 @@ The system has three known limitations:
 2. **Mode 1 ObjectDefinition-specific** - ItemDefinition actors don't get fast-skip (~0.1ms overhead per actor)
 3. **ItemDefinition Replace not implemented** - Manual fix required for structural changes
 
-**For detailed explanations, workarounds, and implementation plans, see [TODO.md](../TODO.md).**
 
 **Quick workarounds:**
 - Capability changes: Mode 0 auto Replace, Mode 1/2 manual fix
@@ -464,13 +463,11 @@ The system has three known limitations:
 
 ### Documentation
 - [ActorSyncArchitecture.md](./ActorSyncArchitecture.md) - Full architecture documentation
-- [TODO.md](../TODO.md) - Outstanding tasks, known limitations, implementation plans
 
 ### Source Files
 - [DefinitionActorSyncSubsystem.h](../Source/ProjectPlacementEditor/Public/DefinitionActorSyncSubsystem.h)
 - [DefinitionActorSyncSubsystem.cpp](../Source/ProjectPlacementEditor/Private/DefinitionActorSyncSubsystem.cpp)
-- [ProjectWorldActor.h](../../World/ProjectWorld/Source/ProjectWorld/Public/ProjectWorldActor.h)
-- [ProjectWorldActor.cpp](../../World/ProjectWorld/Source/ProjectWorld/Private/ProjectWorldActor.cpp)
-- [IDefinitionApplicable.h](../../World/ProjectWorld/Source/ProjectWorld/Public/IDefinitionApplicable.h)
-- [InteractableActor.cpp](../../Resources/ProjectObject/Source/ProjectObject/Private/Template/Interactable/InteractableActor.cpp)
-- [ProjectPickupItemActor.cpp](../../Resources/ProjectItems/Source/ProjectItems/Private/Pickup/ProjectPickupItemActor.cpp)
+- [ProjectWorldActor.h](../../../World/ProjectWorld/Source/ProjectWorld/Public/ProjectWorldActor.h)
+- [ProjectWorldActor.cpp](../../../World/ProjectWorld/Source/ProjectWorld/Private/ProjectWorldActor.cpp)
+- [IDefinitionApplicable.h](../../../World/ProjectWorld/Source/ProjectWorld/Public/IDefinitionApplicable.h)
+- [InteractableActor.cpp](../../../Resources/ProjectObject/Source/ProjectObject/Private/Template/Interactable/InteractableActor.cpp)

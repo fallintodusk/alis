@@ -56,7 +56,7 @@ Production manifests use the **full CDN schema** with nested objects:
 }
 ```
 
-**Schema source of truth:** `<cdn-repo>/docs/manifest.schema.json` (WSL path: `<cdn-repo>/docs/manifest.schema.json`)
+**Schema source of truth:** `docs/manifest.schema.json` in the CDN companion repository
 
 ## Key Fields
 
@@ -72,7 +72,7 @@ Production manifests use the **full CDN schema** with nested objects:
 ### url_code (Dev Mode)
 In dev mode, use `file://` URLs pointing to plugin directories:
 ```json
-"url_code": "file://<project-root>/Plugins/Foundation/ProjectCore"
+"url_code": "file://<repo>/Plugins/Foundation/ProjectCore"
 ```
 
 This allows Orchestrator to find plugins without requiring CDN downloads during development.

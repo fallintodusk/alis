@@ -3,7 +3,7 @@
 ; Expected GPU cost vs base: ~0.5-1.5 ms on RTX 3060.
 ;
 ; Invoke (PIE console, UE 5.7 syntax):
-;   execfile <project-root>/scripts/ue/editor/render/cvar_full.txt
+;   execfile <repo>/scripts/ue/editor/render/cvar_full.txt
 
 r.Lumen.ScreenProbeGather.Quality 3
 r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated 32

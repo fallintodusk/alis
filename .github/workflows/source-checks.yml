@@ -25,8 +25,10 @@ jobs:
           python scripts/ue/check/governance/validate_no_alis_prefix.py
           python scripts/ue/check/governance/validate_plugin_data_staging.py
           python scripts/ue/check/governance/validate_text_format.py --no-paths
+          python scripts/ue/check/governance/validate_engine_env.py --paths-only
       - name: Run public source tests
         run: |
           python -m unittest discover -s scripts/git/tests -p 'test_*.py'
           python -m unittest discover -s scripts/ue/check/governance/tests -p 'test_*.py'
+          python -m unittest discover -s scripts/ue/check/assets/tests -p 'test_*.py'
           python -m unittest scripts/git/mirror/tests/test_public_source_projection.py

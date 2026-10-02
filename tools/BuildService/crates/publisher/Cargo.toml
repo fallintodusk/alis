@@ -1,0 +1,23 @@
+[package]
+name = "build_service_publisher"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace dependencies
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+reqwest.workspace = true
+tracing.workspace = true
+sha2.workspace = true
+engine_config = { path = "../engine_config" }
+
+[dev-dependencies]
+mockall.workspace = true
+tempfile.workspace = true

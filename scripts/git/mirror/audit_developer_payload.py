@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-REQUIRED_OWNERS = {"ProjectWorldData", "ProjectExperienceData", "ProjectMaterial"}
+REQUIRED_OWNERS = {"ProjectWorldData", "ProjectExperienceData", "ProjectMaterial", "ProjectTexture"}
 PUBLIC_ROOTS = {
     "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory",
     "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase",

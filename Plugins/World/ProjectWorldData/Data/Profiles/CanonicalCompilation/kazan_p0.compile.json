@@ -25,6 +25,13 @@
     "operation_halos": {"terrain_resampling": 1, "road_representation": 0, "building_massing": 0}
   },
   "target_cells": [{"x": 0, "y": 0}, {"x": 1, "y": 0}],
+  "terrain_surface": {
+    "contract_id": "terrain_surface_semantics",
+    "contract_version": 1,
+    "roles": ["ground", "hydro_transition"],
+    "hydro_transition_radius_m": 60.0,
+    "water_clearance_m": 0.0
+  },
   "authored_overlay": "Plugins/World/ProjectWorldData/Data/Controls/kazan_p0_empty_overlay_v1.json",
   "fixture_features": null,
   "building_semantics": {

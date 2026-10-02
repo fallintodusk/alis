@@ -71,9 +71,9 @@ You do NOT need to run these for every render. Run them when:
 From inside a running editor (via ue-mcp or the editor's `py` console):
 
 ```
-py <project-root>/scripts/ue/cinematic/apply_prod_preset.py
-py <project-root>/scripts/ue/cinematic/apply_dev_preset.py
-py <project-root>/scripts/ue/cinematic/inspect_mrq_config.py /Game/Cinematics/MP_Config_Dev
+py <repo>/scripts/ue/cinematic/apply_prod_preset.py
+py <repo>/scripts/ue/cinematic/apply_dev_preset.py
+py <repo>/scripts/ue/cinematic/inspect_mrq_config.py /Game/Cinematics/MP_Config_Dev
 ```
 
 Each writes its result to `Saved/cinematic_apply_<flavour>_result.json` (or `cinematic_inspect_<asset>.json` for the inspector).

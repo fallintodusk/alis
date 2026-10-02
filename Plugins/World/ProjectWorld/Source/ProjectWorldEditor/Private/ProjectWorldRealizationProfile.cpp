@@ -318,14 +318,12 @@ namespace ProjectWorldRealizationProfile
 		ProtectedRoots.Sort();
 		RuntimeRoots.Sort();
 		const FString ExecutionIdentity = FString::Printf(
-			TEXT("%s|%s|%s|%s|%s|%s|%d|%s|%s"),
+			TEXT("%s|%s|%s|%s|%s|%s|%s"),
 			*Profile.ProfileId,
 			*Profile.WorldDataPluginName,
 			*Profile.CanonicalProfileId,
 			*Profile.MapPackagePath,
 			*Profile.RuntimeProfileId,
-			*Profile.LogicalLandscapeId,
-			Profile.ComponentsPerProxy,
 			*FString::Join(ProtectedRoots, TEXT(",")),
 			*FString::Join(RuntimeRoots, TEXT(",")));
 		if (!HashString(ExecutionIdentity, Profile.ExecutionHash))
@@ -334,13 +332,11 @@ namespace ProjectWorldRealizationProfile
 			return false;
 		}
 		const FString LayerExecutionIdentity = FString::Printf(
-			TEXT("%s|%s|%s|%s|%s|%d|%s|%s"),
+			TEXT("%s|%s|%s|%s|%s|%s"),
 			*Profile.ProfileId,
 			*Profile.WorldDataPluginName,
 			*Profile.CanonicalProfileId,
 			*Profile.MapPackagePath,
-			*Profile.LogicalLandscapeId,
-			Profile.ComponentsPerProxy,
 			*FString::Join(ProtectedRoots, TEXT(",")),
 			*FString::Join(RuntimeRoots, TEXT(",")));
 		FString LayerExecutionHash;
@@ -500,7 +496,7 @@ namespace ProjectWorldRealizationProfile
 			!HasOnlyFields(Root, {
 				TEXT("$schema"), TEXT("schema_version"), TEXT("profile_id"), TEXT("world_data_plugin"),
 				TEXT("canonical_profile_id"), TEXT("map_package"), TEXT("runtime_profile_id"),
-				TEXT("landscape"), TEXT("protected_authored_roots"),
+				TEXT("protected_authored_roots"),
 				TEXT("excluded_runtime_state_roots"), TEXT("layers")}, OutError))
 		{
 			OutErrorCode = TEXT("realization-profile-json");
@@ -540,20 +536,12 @@ namespace ProjectWorldRealizationProfile
 			}
 			return false;
 		}
-		const TSharedPtr<FJsonObject>* Landscape = nullptr;
-		double ComponentsPerProxy = 0.0;
-		if (!Root->TryGetObjectField(TEXT("landscape"), Landscape) || Landscape == nullptr ||
-			!HasOnlyFields(*Landscape, {TEXT("logical_landscape_id"), TEXT("components_per_proxy")}, OutError) ||
-			!RequireString(*Landscape, TEXT("logical_landscape_id"), OutProfile.LogicalLandscapeId, OutError) ||
-			!IsIdentifier(OutProfile.LogicalLandscapeId) ||
-			!(*Landscape)->TryGetNumberField(TEXT("components_per_proxy"), ComponentsPerProxy) || ComponentsPerProxy != 1.0 ||
-			!ReadStringArray(Root, TEXT("protected_authored_roots"), true, OutProfile.ProtectedAuthoredRoots, OutError) ||
+		if (!ReadStringArray(Root, TEXT("protected_authored_roots"), true, OutProfile.ProtectedAuthoredRoots, OutError) ||
 			!ReadStringArray(Root, TEXT("excluded_runtime_state_roots"), true, OutProfile.ExcludedRuntimeStateRoots, OutError))
 		{
-			OutErrorCode = TEXT("realization-profile-landscape");
+			OutErrorCode = TEXT("realization-profile-roots");
 			return false;
 		}
-		OutProfile.ComponentsPerProxy = 1;
 
 		const TArray<TSharedPtr<FJsonValue>>* Layers = nullptr;
 		if (!Root->TryGetArrayField(TEXT("layers"), Layers) || Layers == nullptr || Layers->IsEmpty())

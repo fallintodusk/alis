@@ -131,8 +131,8 @@ idempotent asset mutation lives in
 From an open editor with `ue-mcp` running, or via the editor's `py` console command:
 
 ```
-py <project-root>/scripts/ue/cinematic/apply_dev_preset.py
-py <project-root>/scripts/ue/cinematic/apply_prod_preset.py
+py <repo>/scripts/ue/cinematic/apply_dev_preset.py
+py <repo>/scripts/ue/cinematic/apply_prod_preset.py
 ```
 
 Each recipe owns one source-controlled preset identity; do not retarget it ad hoc.

@@ -28,14 +28,12 @@ namespace ProjectWorldGeneratedGeometry
 
 	bool RemoveOwnedActors(
 		UWorld* World,
-		bool bPreserveLandscape,
 		FProjectWorldRealizationResult& OutResult);
 
 	bool RemoveStaleOwnedActorsForApply(
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FString& RuntimeProfileId,
-		bool bPreserveLandscape,
 		FProjectWorldRealizationResult& OutResult);
 
 	bool CreateOwnedActors(

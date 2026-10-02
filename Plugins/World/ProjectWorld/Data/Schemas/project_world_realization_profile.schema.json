@@ -12,7 +12,6 @@
     "canonical_profile_id",
     "map_package",
     "runtime_profile_id",
-    "landscape",
     "protected_authored_roots",
     "excluded_runtime_state_roots",
     "layers"
@@ -32,15 +31,6 @@
         {"$ref": "#/$defs/id"},
         {"const": "none"}
       ]
-    },
-    "landscape": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["logical_landscape_id", "components_per_proxy"],
-      "properties": {
-        "logical_landscape_id": {"$ref": "#/$defs/id"},
-        "components_per_proxy": {"const": 1}
-      }
     },
     "protected_authored_roots": {
       "type": "array",
@@ -67,23 +57,49 @@
       "additionalProperties": false,
       "allOf": [
         {
-          "if": {"properties": {"generator_id": {"const": "project_landscape"}}},
+          "if": {"properties": {"generator_id": {"const": "project_mesh_terrain"}}},
           "then": {
             "properties": {
               "layer_kind": {"const": "generated_geography"},
+              "generator_version": {"const": 1},
               "canonical_selectors": {
-                "prefixItems": [{"const": "terrain"}, {"const": "water"}],
-                "minItems": 2,
-                "maxItems": 2
+                "prefixItems": [{"const": "terrain"}],
+                "minItems": 1,
+                "maxItems": 1
               },
-              "spatial_ownership": {"const": "logical_landscape_with_cell_proxies"},
+              "spatial_ownership": {"const": "compiled_sections_from_canonical_cells"},
               "dirty_granularity": {"const": "canonical_cell"},
-              "runtime_mapping": {"const": "world_partition_owner"},
+              "dependency_halo_cells": {"const": 0},
+              "runtime_mapping": {"const": "world_partition_spatial"},
               "settings": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["components_per_proxy"],
-                "properties": {"components_per_proxy": {"const": 1}}
+                "required": [
+                  "shared_definition",
+                  "surface_contract_id",
+                  "surface_contract_version",
+                  "section_max_complexity",
+                  "channel_texel_size_cm",
+                  "channel_texture_max_dimension",
+                  "collision",
+                  "render_variants"
+                ],
+                "properties": {
+                  "shared_definition": {
+                    "const": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1"
+                  },
+                  "surface_contract_id": {"const": "terrain_surface_semantics"},
+                  "surface_contract_version": {"const": 1},
+                  "section_max_complexity": {"const": 2048},
+                  "channel_texel_size_cm": {"const": 3000},
+                  "channel_texture_max_dimension": {"const": 4096},
+                  "collision": {"const": "complex_as_simple"},
+                  "render_variants": {
+                    "prefixItems": [{"const": "nanite"}, {"const": "fallback"}],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
               }
             }
           }
@@ -376,7 +392,16 @@
             "runtime_state_exclusion"
           ]
         },
-        "generator_id": {"$ref": "#/$defs/id"},
+        "generator_id": {
+          "enum": [
+            "project_mesh_terrain",
+            "project_water_mesh",
+            "project_road_mesh",
+            "project_vegetation_instances",
+            "project_building_massing",
+            "project_gameplay_placement"
+          ]
+        },
         "generator_version": {"type": "integer", "minimum": 1},
         "depends_on": {
           "type": "array",
@@ -391,11 +416,11 @@
         },
         "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/(Generated|Authored|Runtime)/[A-Za-z0-9_/]+$"},
         "spatial_ownership": {
-          "enum": ["logical_landscape_with_cell_proxies", "cell_local", "object_local", "protected_root", "excluded_root"]
+          "enum": ["compiled_sections_from_canonical_cells", "cell_local", "object_local", "protected_root", "excluded_root"]
         },
         "dirty_granularity": {"enum": ["whole_layer", "canonical_cell", "source_tile", "object_id", "never"]},
         "dependency_halo_cells": {"type": "integer", "minimum": 0, "maximum": 16},
-        "runtime_mapping": {"enum": ["world_partition_spatial", "world_partition_owner", "protected", "excluded"]},
+        "runtime_mapping": {"enum": ["world_partition_spatial", "protected", "excluded"]},
         "settings": {"type": "object"}
       }
     }

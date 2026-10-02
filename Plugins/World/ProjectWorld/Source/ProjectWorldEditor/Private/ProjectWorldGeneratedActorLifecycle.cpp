@@ -4,7 +4,6 @@
 #include "ProjectWorldGeneratedGeometry.h"
 
 #include "ProjectWorldCanonicalBundle.h"
-#include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRuntimeRealization.h"
 
@@ -38,13 +37,8 @@ namespace ProjectWorldGeneratedGeometry
 		bool IsCurrentGeneratedActor(
 			const AActor& Actor,
 			const FProjectWorldCanonicalBundle& Bundle,
-			const FString& RuntimeProfileId,
-			bool bPreserveLandscape)
+			const FString& RuntimeProfileId)
 		{
-			if (bPreserveLandscape && ProjectWorldLandscapeRealization::IsGeneratedLandscape(&Actor))
-			{
-				return true;
-			}
 			if (Actor.IsA<AGeoReferencingSystem>())
 			{
 				return HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId) ||
@@ -119,14 +113,12 @@ namespace ProjectWorldGeneratedGeometry
 
 	bool RemoveOwnedActors(
 		UWorld* World,
-		bool bPreserveLandscape,
 		FProjectWorldRealizationResult& OutResult)
 	{
 		TArray<AActor*> OwnedActors;
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{
-			if (It->Tags.Contains(GeneratedTag) &&
-				!(bPreserveLandscape && ProjectWorldLandscapeRealization::IsGeneratedLandscape(*It)))
+			if (It->Tags.Contains(GeneratedTag))
 			{
 				OwnedActors.Add(*It);
 			}
@@ -142,7 +134,6 @@ namespace ProjectWorldGeneratedGeometry
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FString& RuntimeProfileId,
-		bool bPreserveLandscape,
 		FProjectWorldRealizationResult& OutResult)
 	{
 		TArray<AActor*> StaleActors;
@@ -153,7 +144,7 @@ namespace ProjectWorldGeneratedGeometry
 				++OutResult.PreservedActorCount;
 				continue;
 			}
-			if (!IsCurrentGeneratedActor(**It, Bundle, RuntimeProfileId, bPreserveLandscape))
+			if (!IsCurrentGeneratedActor(**It, Bundle, RuntimeProfileId))
 			{
 				StaleActors.Add(*It);
 			}

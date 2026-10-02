@@ -25,6 +25,13 @@
     "halo_samples": 1,
     "operation_halos": {"terrain_resampling": 1, "water_surface": 1}
   },
+  "terrain_surface": {
+    "contract_id": "terrain_surface_semantics",
+    "contract_version": 1,
+    "roles": ["ground", "hydro_transition"],
+    "hydro_transition_radius_m": 60.0,
+    "water_clearance_m": 0.0
+  },
   "water_semantics": {
     "policy_id": "synthetic_landscape_water_twin_v1",
     "policy_version": 1,

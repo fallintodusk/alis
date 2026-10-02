@@ -18,6 +18,10 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "NavMesh/RecastNavMesh.h"
+#include "NavigationInvokerComponent.h"
+#include "NavigationSystem.h"
 #include "ProceduralMeshComponent.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -207,7 +211,7 @@ bool FProjectWorldRuntimeStaleIdentityReplacementTest::RunTest(const FString& Pa
 		TEXT("Runtime realization retires and replaces stale persisted identity."),
 		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, Result, Error));
 	TestEqual(TEXT("All competing identity owners are retired."), Result.RemovedActorCount, 3);
-	TestEqual(TEXT("One canonical actor replaces the competing owners."), Result.CreatedActorCount, 1);
+	TestEqual(TEXT("The canonical product actors replace the competing owners."), Result.CreatedActorCount, 2);
 	TestEqual(TEXT("No actor is reused from a competing identity set."), Result.UpdatedActorCount, 0);
 	AActor* Replacement = FindObject<AActor>(World->PersistentLevel, TEXT("ProjectWorld_PlayerStart"));
 	TestNotNull(TEXT("The replacement reclaims the deterministic object name."), Replacement);
@@ -239,10 +243,74 @@ bool FProjectWorldRuntimeStaleIdentityReplacementTest::RunTest(const FString& Pa
 	TestEqual(TEXT("The no-op creates no actor."), NoOpResult.CreatedActorCount, 0);
 	TestEqual(TEXT("The no-op updates no actor."), NoOpResult.UpdatedActorCount, 0);
 	TestEqual(TEXT("The no-op removes no actor."), NoOpResult.RemovedActorCount, 0);
-	TestEqual(TEXT("The no-op preserves the stable PlayerStart."), NoOpResult.PreservedActorCount, 1);
+	TestEqual(TEXT("The no-op preserves the stable product actors."), NoOpResult.PreservedActorCount, 2);
 	TestFalse(
 		TEXT("The no-op leaves the PlayerStart package clean."),
 		Replacement != nullptr && Replacement->GetPackage()->IsDirty());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldProductNavigationDomainTest,
+	"Project.World.Realization.Runtime.ProductNavigationDomain",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldProductNavigationDomainTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldRuntimeTests;
+	FProjectWorldRuntimeProfile Profile;
+	FString ErrorCode;
+	FString Error;
+	if (!ProjectWorldRuntimeProfile::Load(ShippedProfilePath(), Profile, ErrorCode, Error))
+	{
+		AddError(Error);
+		return false;
+	}
+	Profile.ProfileKind = TEXT("territory_product");
+	Profile.ProductSpawnAnchor = TEXT("engine_georeference_origin");
+	Profile.ProductSpawnHeightAboveTerrainMeters = 180.0;
+	Profile.ProductSpawnYawDegrees = 45.0;
+	Profile.ProductSpawnPitchDegrees = -20.0;
+	const FProjectWorldCanonicalBundle Bundle = MakeBundle(Profile);
+	UWorld* World = GEditor->NewMap(false);
+	FProjectWorldRealizationResult Result;
+	if (!TestTrue(
+		TEXT("Product realization creates its neutral navigation domain."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, Result, Error)))
+	{
+		AddError(Error);
+		return false;
+	}
+
+	ANavMeshBoundsVolume* NavigationBounds =
+		FindObject<ANavMeshBoundsVolume>(World->PersistentLevel, TEXT("ProjectWorld_TerritoryNavigation"));
+	TestNotNull(TEXT("The product map owns deterministic territory navigation bounds."), NavigationBounds);
+	if (NavigationBounds != nullptr)
+	{
+		TestTrue(TEXT("Territory navigation bounds are always loaded."),
+			!NavigationBounds->GetIsSpatiallyLoaded());
+		TestTrue(TEXT("Territory navigation owns the generated runtime identity."),
+			NavigationBounds->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag) &&
+			NavigationBounds->Tags.Contains(TEXT("ProjectWorld.RuntimeRole=TerritoryNavigation")));
+		const FBox Bounds = NavigationBounds->GetComponentsBoundingBox(true);
+		TestTrue(TEXT("Territory navigation covers both canonical cells."),
+			Bounds.IsValid && Bounds.Min.X <= 0.0 && Bounds.Max.X >= 20000.0 &&
+			Bounds.Min.Y <= -10000.0 && Bounds.Max.Y >= 0.0);
+		TestNull(TEXT("The map-owned domain is not a world-sized navigation invoker."),
+			NavigationBounds->FindComponentByClass<UNavigationInvokerComponent>());
+	}
+
+	UNavigationSystemV1* Navigation = Cast<UNavigationSystemV1>(World->GetNavigationSystem());
+	TestNotNull(TEXT("The product map has NavigationSystemV1."), Navigation);
+	ARecastNavMesh* Recast = Navigation != nullptr
+		? Cast<ARecastNavMesh>(Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate))
+		: nullptr;
+	TestNotNull(TEXT("The product map owns deterministic Recast data."), Recast);
+	TestTrue(TEXT("Recast data remains in the map package."), Recast != nullptr && !Recast->IsPackageExternal());
+	TestTrue(TEXT("Territory navigation generates only around runtime invokers."),
+		Navigation != nullptr && Navigation->IsActiveTilesGenerationEnabled());
+	TestTrue(TEXT("Territory Recast tiles fit the accepted large-world bounds."),
+		Recast != nullptr && Recast->GetTileSizeUU() >= 4096.0f);
 	return true;
 }
 
@@ -405,7 +473,7 @@ bool FProjectWorldRuntimeProfileSwitchLifecycleTest::RunTest(const FString& Para
 	TestTrue(
 		TEXT("A runtime profile switch accepts the existing grid-owned actor for in-place update."),
 		ProjectWorldGeneratedGeometry::RemoveStaleOwnedActorsForApply(
-			World, Bundle, TEXT("candidate_profile"), false, Result));
+			World, Bundle, TEXT("candidate_profile"), Result));
 	TestEqual(TEXT("A candidate profile does not delete stable runtime identity."), Result.RemovedActorCount, 0);
 	TestTrue(TEXT("The runtime actor remains available to realization."), IsValid(RuntimeActor));
 	return true;
@@ -443,7 +511,7 @@ bool FProjectWorldRuntimeCleanupParityTest::RunTest(const FString& Parameters)
 	TestTrue(
 		TEXT("Applying without a runtime profile removes prior runtime-role actors."),
 		ProjectWorldGeneratedGeometry::RemoveStaleOwnedActorsForApply(
-			TransitionedWorld, Bundle, FString(), false, TransitionedResult));
+			TransitionedWorld, Bundle, FString(), TransitionedResult));
 	TestEqual(TEXT("The stale runtime actor is removed."), TransitionedResult.RemovedActorCount, 1);
 	TestTrue(
 		TEXT("No-runtime Apply rebuilds the retained cell payload without route-only state."),

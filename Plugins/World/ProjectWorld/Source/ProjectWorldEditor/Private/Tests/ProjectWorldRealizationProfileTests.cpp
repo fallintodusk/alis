@@ -24,6 +24,13 @@ namespace ProjectWorldRealizationProfileTests
 			TEXT("World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_landscape_water_twin.realization.json"));
 	}
 
+	FString MeshProfilePath()
+	{
+		return FPaths::Combine(
+			FPaths::ProjectPluginsDir(),
+			TEXT("World/ProjectWorldData/Data/Profiles/Realization/kazan_territory_v1.realization.json"));
+	}
+
 	const FProjectWorldLayerDirtyPlan* FindPlan(
 		const TArray<FProjectWorldLayerDirtyPlan>& Plan,
 		const FString& LayerId)
@@ -33,6 +40,37 @@ namespace ProjectWorldRealizationProfileTests
 			return Entry.LayerId == LayerId;
 		});
 	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldMeshRealizationProfileContractTest,
+	"Project.World.Realization.Layers.MeshProfileOmitsLandscape",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldMeshRealizationProfileContractTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldRealizationProfileTests;
+	FString ProfileJson;
+	if (!TestTrue(TEXT("The shipped Mesh realization profile is readable."),
+		FFileHelper::LoadFileToString(ProfileJson, *MeshProfilePath())))
+	{
+		return false;
+	}
+	TestFalse(TEXT("The Mesh profile does not declare Landscape identity."),
+		ProfileJson.Contains(TEXT("\"landscape\""), ESearchCase::CaseSensitive));
+
+	FProjectWorldRealizationProfile Profile;
+	FString ErrorCode;
+	FString Error;
+	const bool bLoaded = ProjectWorldRealizationProfile::Load(MeshProfilePath(), Profile, ErrorCode, Error);
+	TestTrue(TEXT("A Mesh terrain profile loads without fake Landscape identity."), bLoaded);
+	if (!bLoaded)
+	{
+		AddError(FString::Printf(TEXT("%s: %s"), *ErrorCode, *Error));
+		return false;
+	}
+	TestEqual(TEXT("The production terrain owner is Mesh Terrain."), Profile.Layers[0].GeneratorId, FString(TEXT("project_mesh_terrain")));
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -51,7 +89,6 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 		ProjectWorldRealizationProfile::Load(ProfilePath(), Profile, ErrorCode, Error));
 	TestEqual(TEXT("Profile identity is loaded."), Profile.ProfileId, FString(TEXT("synthetic_landscape_water_twin")));
 	TestEqual(TEXT("Profile owner is data-defined."), Profile.WorldDataPluginName, FString(TEXT("ProjectWorldTestData")));
-	TestEqual(TEXT("Epic partitioning remains one component per proxy."), Profile.ComponentsPerProxy, 1);
 	TestEqual(TEXT("The layer DAG has five nodes."), Profile.TopologicalLayerIds.Num(), 5);
 	TestEqual(TEXT("Terrain executes before dependent layers."), Profile.TopologicalLayerIds[0], FString(TEXT("terrain")));
 	TestEqual(TEXT("Buildings execute after their terrain dependency."), Profile.TopologicalLayerIds[1], FString(TEXT("buildings")));
@@ -76,9 +113,9 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 			Profile.Layers[Index].ContractHash);
 	}
 	TestTrue(
-		TEXT("The exact landscape generator pair is registered."),
+		TEXT("The exact Mesh Terrain generator pair is registered."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
-			TEXT("project_landscape"),
+			TEXT("project_mesh_terrain"),
 			1,
 			EProjectWorldLayerKind::GeneratedGeography));
 	TestTrue(
@@ -114,7 +151,7 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 	TestFalse(
 		TEXT("Unknown generator versions fail closed."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
-			TEXT("project_landscape"),
+			TEXT("project_mesh_terrain"),
 			2,
 			EProjectWorldLayerKind::GeneratedGeography));
 
@@ -160,23 +197,10 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 		TEXT("The registered vegetation tuple joins the existing layer DAG."),
 		ProjectWorldRealizationProfile::ValidateAndFinalize(WithVegetation, Error));
 
-	FProjectWorldRealizationProfile RenamedLandscape = Profile;
-	RenamedLandscape.LogicalLandscapeId = TEXT("synthetic_main_v2");
-	TestTrue(
-		TEXT("A changed logical Landscape identity remains a valid semantic profile."),
-		ProjectWorldRealizationProfile::ValidateAndFinalize(RenamedLandscape, Error));
-	for (int32 Index = 0; Index < Profile.Layers.Num(); ++Index)
-	{
-		TestNotEqual(
-			TEXT("Profile-level execution changes invalidate every generated layer contract."),
-			RenamedLandscape.Layers[Index].ContractHash,
-			Profile.Layers[Index].ContractHash);
-	}
-
 	FProjectWorldRealizationProfile InvalidGranularity = Profile;
 	InvalidGranularity.Layers[0].DirtyGranularity = EProjectWorldDirtyGranularity::WholeLayer;
 	TestFalse(
-		TEXT("The landscape v1 generator cannot silently change dirty granularity."),
+		TEXT("The Mesh Terrain generator cannot silently change dirty granularity."),
 		ProjectWorldRealizationProfile::ValidateAndFinalize(InvalidGranularity, Error));
 
 	FProjectWorldRealizationProfile BroadRoot = Profile;
@@ -391,54 +415,15 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	};
 	for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 	{
-		FString DirectHash;
-		TestTrue(
-			TEXT("The direct Terrain+Water identity accepts the representative cell."),
-			ProjectWorldLayerInventory::HashTerrainWaterCellInput(Bundle, Cell, DirectHash));
 		const FProjectWorldLayerInputInventory* InventoryInput =
 			FindCanonicalInput(*BaselineTerrain, Cell.CellId);
-		TestNotNull(TEXT("The real Terrain inventory contains the representative cell."), InventoryInput);
+		TestNotNull(TEXT("The Terrain inventory contains the final canonical cell."), InventoryInput);
 		if (InventoryInput != nullptr)
 		{
 			TestEqual(
-				Cell.ReferencedFeatureIds.IsEmpty()
-					? TEXT("A dry cell has one Terrain+Water identity owner.")
-					: TEXT("A referenced Water cell has one Terrain+Water identity owner."),
+				TEXT("CanonicalCompilation is the single owner of final Terrain identity."),
 				InventoryInput->Hash,
-				DirectHash);
-		}
-	}
-
-	FProjectWorldCanonicalBundle OwnedWaterBundle = Bundle;
-	OwnedWaterBundle.Cells[0].ReferencedFeatureIds.Remove(TEXT("water/1"));
-	OwnedWaterBundle.Cells[0].OwnedFeatureIds.Add(TEXT("water/1"));
-	FProjectWorldRealizationResult OwnedWaterResult;
-	TestTrue(
-		TEXT("The real Terrain inventory accepts an owned polygon-Water cell."),
-		ProjectWorldLayerInventory::Build(
-			OwnedWaterBundle, Profile, AuthoredOverlaySet, true, nullptr, OwnedWaterResult, Error));
-	const FProjectWorldLayerInventory* OwnedWaterTerrain =
-		OwnedWaterResult.LayerInventories.FindByPredicate([](const auto& Inventory)
-		{
-			return Inventory.LayerId == TEXT("terrain");
-		});
-	TestNotNull(TEXT("The owned polygon-Water Terrain inventory exists."), OwnedWaterTerrain);
-	if (OwnedWaterTerrain != nullptr)
-	{
-		FString DirectHash;
-		TestTrue(
-			TEXT("The direct Terrain+Water identity accepts owned polygon Water."),
-			ProjectWorldLayerInventory::HashTerrainWaterCellInput(
-				OwnedWaterBundle, OwnedWaterBundle.Cells[0], DirectHash));
-		const FProjectWorldLayerInputInventory* InventoryInput =
-			FindCanonicalInput(*OwnedWaterTerrain, OwnedWaterBundle.Cells[0].CellId);
-		TestNotNull(TEXT("The owned polygon-Water inventory contains its cell."), InventoryInput);
-		if (InventoryInput != nullptr)
-		{
-			TestEqual(
-				TEXT("An owned polygon-Water cell has one Terrain+Water identity owner."),
-				InventoryInput->Hash,
-				DirectHash);
+				Cell.Terrain.ArtifactHash);
 		}
 	}
 
@@ -585,12 +570,9 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 			TEXT("The water-owned cell carries the changed water lineage."),
 			ChangedWater->FinalDirtyUnits.Contains(TEXT("gridtwin:x0:y0")));
 		TestEqual(
-			TEXT("Water semantics dirty only the Landscape cell whose hydrologic projection can change."),
+			TEXT("Raw Water changes cannot bypass the final canonical Terrain authority."),
 			WaterConditionedTerrain->FinalDirtyUnits.Num(),
-			1);
-		TestTrue(
-			TEXT("The affected Landscape cell carries the same Water lineage."),
-			WaterConditionedTerrain->FinalDirtyUnits.Contains(TEXT("gridtwin:x0:y0")));
+			0);
 	}
 	IFileManager::Get().Delete(*DirtyInputPath, false, true, true);
 	return true;

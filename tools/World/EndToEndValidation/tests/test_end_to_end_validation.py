@@ -83,7 +83,6 @@ class EndToEndValidationTests(unittest.TestCase):
             "semantic_fingerprint": fingerprint,
             "generated_source_bytes": 100,
             "verified_output_count": 10,
-            "authored_correction_layer_preserved": True,
             "georeferencing_placement_error_m": 0,
             "presentation_profile": self.PRESENTATION["profile_id"],
             "presentation_profile_sha256": self.PRESENTATION["sha256"],
@@ -106,7 +105,7 @@ class EndToEndValidationTests(unittest.TestCase):
                 "road_sections": 2,
                 "building_sections": 4,
                 "cross_cell_road_shared_boundary_points": 1,
-                "updated_landscape_components": 0,
+                "updated_actors": 0,
             },
         })
 
@@ -422,7 +421,7 @@ class EndToEndValidationTests(unittest.TestCase):
                 first,
                 second,
                 clean,
-                {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                {"expected_road_fragments": 2, "expected_buildings": 4},
                 self.PRESENTATION,
                 180.0,
             )
@@ -441,7 +440,7 @@ class EndToEndValidationTests(unittest.TestCase):
                     first,
                     second,
                     clean,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     self.PRESENTATION,
                     180.0,
                 )
@@ -460,7 +459,7 @@ class EndToEndValidationTests(unittest.TestCase):
                     first,
                     second,
                     clean,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     self.PRESENTATION,
                     180.0,
                 )
@@ -480,7 +479,7 @@ class EndToEndValidationTests(unittest.TestCase):
                     first,
                     second,
                     clean,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     self.PRESENTATION,
                     180.0,
                 )
@@ -500,7 +499,7 @@ class EndToEndValidationTests(unittest.TestCase):
                     first,
                     second,
                     clean,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     {"profile_id": "other", "sha256": "other-hash"},
                     180.0,
                 )
@@ -515,7 +514,7 @@ class EndToEndValidationTests(unittest.TestCase):
             with self.assertRaises(ValidationFailure) as raised:
                 _validate_realization(
                     *paths,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     self.PRESENTATION,
                     180.0,
                     {"profile_id": "other", "sha256": "other-hash"},
@@ -534,7 +533,7 @@ class EndToEndValidationTests(unittest.TestCase):
             with self.assertRaises(ValidationFailure) as raised:
                 _validate_realization(
                     *paths,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     self.PRESENTATION,
                     180.0,
                     self.RUNTIME,
@@ -761,7 +760,7 @@ class EndToEndValidationTests(unittest.TestCase):
             with self.assertRaises(ValidationFailure) as raised:
                 _validate_realization(
                     *paths,
-                    {"expected_road_fragments": 2, "expected_buildings": 4, "require_landscape": True},
+                    {"expected_road_fragments": 2, "expected_buildings": 4},
                     self.PRESENTATION,
                     180.0,
                     self.RUNTIME,

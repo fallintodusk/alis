@@ -12,6 +12,9 @@ selected Unreal modules before normal game lifecycles begin.
 - Dependency ordering and cycle rejection.
 - Unreal plugin registration and module activation.
 - Orchestrator-owned activation state and failure reporting.
+- Boot progress and completion events for Blueprint consumers, declared in
+  [`OrchestratorBootLibrary.h`](../../Source/OrchestratorCore/Public/OrchestratorBootLibrary.h);
+  completion is not broadcast when a boot plugin fails to load.
 
 ## Does not own
 

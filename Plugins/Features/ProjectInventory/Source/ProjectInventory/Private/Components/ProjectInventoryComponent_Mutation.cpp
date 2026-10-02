@@ -4,7 +4,7 @@
 // ProjectInventoryComponent add/remove/move mutation methods.
 //
 // Split out of ProjectInventoryComponent.cpp on 2026-04-23 under the
-// FILE SIZE GUARDRAIL rule (AGENTS.md). The class declaration is unchanged;
+// FILE SIZE GUARDRAIL rule. The class declaration is unchanged;
 // this TU defines the server-authority mutation surface:
 //
 //   Exact-position add:

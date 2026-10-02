@@ -134,4 +134,4 @@ These fire once per render and are benign **only when the documented follow-up s
 
 - Engine-side crash/hang archive: [../debugging/cases/](../debugging/cases/)
 - Crash investigation procedure: [../debugging/crash_investigation.md](../debugging/crash_investigation.md)
-- ASCII-only doc rule (affects scripts pasted here): [../../CLAUDE.md](../../CLAUDE.md)
+- Documentation is ASCII-only, including scripts pasted here.

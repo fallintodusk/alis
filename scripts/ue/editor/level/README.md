@@ -30,7 +30,7 @@ exec(open('scripts/ue/editor/level/cleanup_null_and_duplicates.py').read())
 4. Enter:
 
 ```
-py "<project-root>/scripts/ue/editor/level/cleanup_null_and_duplicates.py"
+py "<repo>/scripts/ue/editor/level/cleanup_null_and_duplicates.py"
 ```
 
 ### Safety:

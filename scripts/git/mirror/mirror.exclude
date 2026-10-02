@@ -4,6 +4,7 @@
 #   and Data-named source folders are published as reference; only forbidden file
 #   TYPES (UE assets, binaries, media, key material) are stripped from them
 # - code, docs, schemas, JSON data/config, and build/release scripts are public by default
+# - private content inside a public file is fixed in that file, never hidden by excluding its folder
 # - secrets, restricted assets, and local state are never public
 # - approved active generated outputs use the separate developer release, not Git history
 # - if a future workflow needs secrets, keep them outside the repository and outside the mirror
@@ -160,30 +161,14 @@ Plugins/InstanceArrayTool/**
 Plugins/Local/**
 Plugins/ThirdParty/**
 Plugins/**/ThirdParty/**
-Test/**
-tools/agentic/**
-tools/BuildService/**
-tools/docs/**
-tools/Launcher/**
-Wiki/**
 
-# Internal docs and local automation
-# These are excluded because they are repo-local workflow helpers or internal machine setup,
-# not because ALIS documentation is private by default.
-docs/agents/**
-docs/ci/**
-docs/debugging/**
-docs/integration/**
-docs/loading/**
+# Machine-local configuration and private values (their .example versions stay public)
 scripts/config/ue_path.conf
 scripts/config/*.local.conf
 scripts/config/__sel_probe.tmp
 scripts/git/mirror/forbidden_private_text_patterns.regex
-scripts/ci/**
-scripts/git/hooks/**
-scripts/utils/**
-scripts/scripts_list.txt
+# Tracked test fixtures named like local configs are test data, not machine state.
+!scripts/config/test/fixtures/**
 
 # Internal project files
-Alis_sanitized.uproject
 nul

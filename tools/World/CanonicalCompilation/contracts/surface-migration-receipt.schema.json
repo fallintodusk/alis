@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/surface-migration-receipt-v1.json",
+  "title": "Canonical terrain surface migration receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "operation", "status", "profile_id", "parent_authority_id", "parent_bundle_sha256", "surface_contract_sha256", "migrated_cell_count"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "operation": {"const": "migrate_terrain_surface_v1_to_v2"},
+    "status": {"const": "accepted"},
+    "profile_id": {"type": "string"},
+    "parent_authority_id": {"type": "string", "pattern": "^[a-z0-9_]+:[0-9a-f]{64}$"},
+    "parent_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "surface_contract_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "migrated_cell_count": {"type": "integer", "minimum": 1}
+  }
+}

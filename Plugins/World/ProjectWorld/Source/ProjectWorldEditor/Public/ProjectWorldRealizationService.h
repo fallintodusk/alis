@@ -4,7 +4,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectWorldTerrainVerification.h"
 
 struct FProjectWorldCanonicalBundle;
 
@@ -27,7 +26,6 @@ struct FProjectWorldRealizationRequest
 	FString MapPackagePath;
 	FString ResultPath;
 	EProjectWorldRealizationMode Mode = EProjectWorldRealizationMode::Validate;
-	bool bRequireLandscapeCompatible = false;
 	bool bFirstLayerApply = false;
 	int32 MaxRoadFeatures = 1;
 	int32 MaxBuildingFeatures = 4;
@@ -108,7 +106,6 @@ struct FProjectWorldRealizationResult
 	FString CanonicalCrs;
 	FString CoordinateTransform;
 	FString MapPackagePath;
-	FString LandscapeReason;
 	FString SemanticFingerprint;
 	double CoordinateRoundTripErrorMeters = 0.0;
 	double GeoReferencingPlacementErrorMeters = 0.0;
@@ -126,9 +123,6 @@ struct FProjectWorldRealizationResult
 	int32 RemovedActorCount = 0;
 	int32 PreservedActorCount = 0;
 	int32 TerrainSectionCount = 0;
-	int32 LandscapeComponentCount = 0;
-	int32 UpdatedLandscapeComponentCount = 0;
-	int32 LandscapeProxyCount = 0;
 	int32 WaterCellActorCount = 0;
 	int32 WaterMeshAssetCount = 0;
 	int32 WaterTriangleCount = 0;
@@ -190,16 +184,8 @@ struct FProjectWorldRealizationResult
 	double RuntimeP95FrameTimeBudgetMilliseconds = 0.0;
 	double AuthoredAnchorMaximumDriftMeters = 0.0;
 	FString CrossCellRoadFeatureId;
-	// SOURCE surface: the Generated Base edit layer, one input to UE's edit-layer blend.
-	// Diagnostic only - a correct source layer does not imply correct rendered terrain.
-	FProjectWorldTerrainHeightComparison TerrainHeight;
-	// FINAL surface: the blended final/base heightmap that renders, collides, and drives
-	// cached bounds. This is the acceptance surface.
-	FProjectWorldTerrainHeightComparison TerrainFinalHeight;
 	bool bWorldPartition = false;
-	bool bLandscapeCompatible = false;
 	bool bGeoReferencingProbed = false;
-	bool bAuthoredCorrectionLayerPreserved = false;
 	bool bRuntimeRouteCollisionProbed = false;
 	bool bRuntimeRouteCollisionOrientationProbed = false;
 	bool bRuntimeNavigationProbed = false;
@@ -210,8 +196,6 @@ struct FProjectWorldRealizationResult
 	bool bRuntimePartitionIs2D = false;
 	bool bRuntimeBlockOnSlowStreaming = false;
 	bool bRuntimeStructuralBudgetsPassed = false;
-	FString AuthoredCorrectionLayerGuid;
-	FString AuthoredCorrectionLayerHash;
 	TArray<FProjectWorldAuthoredAnchorEvidence> AuthoredAnchors;
 	TArray<FProjectWorldLayerInventory> LayerInventories;
 

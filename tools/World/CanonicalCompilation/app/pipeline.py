@@ -39,6 +39,11 @@ from .reports import write_reports
 from .source import SourceBundle, load_source_bundle
 from .spatial import cell_id, grid_id
 from .terrain import build_terrain_cells
+from .terrain_surface import (
+    finalize_terrain_cells,
+    validate_surface_contract,
+    water_surface_dirty_cells,
+)
 from .validation import build_validation_report
 from .water import expand_water_change_ids, validate_water_profile
 
@@ -130,6 +135,7 @@ def load_profile(path: Path) -> dict[str, Any]:
     if outside_alignment:
         raise CompilerError("profile_invalid", "Target cell is outside the fixed raster alignment domain")
     validate_water_profile(value)
+    validate_surface_contract(value)
     quality_roles = [item["role"] for item in value.get("quality_cells", [])]
     if len(quality_roles) != len(set(quality_roles)):
         raise CompilerError("profile_invalid", "Quality cell roles must be unique")
@@ -470,6 +476,16 @@ def compile_world(
                     compiled = base_features
                     feature_rebuilt_ids = set()
             feature_rebuilt_ids.update(cell_id(identifier, *item) for item in new_targets)
+        if base_root is not None:
+            terrain_rebuilt_ids.update(
+                water_surface_dirty_cells(
+                    compiled,
+                    load_base_features(base_root, profile, identifier),
+                    terrain,
+                    profile,
+                )
+            )
+        finalize_terrain_cells(terrain, compiled, profile, identifier, overlay)
         rebuilt_ids = terrain_rebuilt_ids | feature_rebuilt_ids
         reused_ids = all_ids - rebuilt_ids
         validation = build_validation_report(profile, bundle.ledger["policy_result"], identifier, terrain, compiled)
@@ -491,6 +507,9 @@ def compile_world(
                 key=lambda item: item["feature_id"],
             ),
             "terrain_core": {key: value["core_samples"] for key, value in sorted(terrain.items())},
+            "terrain_surface": {
+                key: value["surface_semantics"] for key, value in sorted(terrain.items())
+            },
             "references": compiled.references,
             "rejections": compiled.rejections,
         })

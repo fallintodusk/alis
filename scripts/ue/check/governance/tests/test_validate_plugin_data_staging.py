@@ -10,7 +10,7 @@ from pathlib import Path
 GOVERNANCE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(GOVERNANCE_ROOT))
 
-from validate_plugin_data_staging import find_plugin_data_readers
+from validate_plugin_data_staging import find_never_loaded_plugin_configs, find_plugin_data_readers
 
 
 class PluginDataReaderDiscoveryTests(unittest.TestCase):
@@ -40,6 +40,31 @@ class PluginDataReaderDiscoveryTests(unittest.TestCase):
 
             self.assertNotIn("ProjectWorld", readers)
             self.assertEqual(1, len(readers["ProjectRuntime"]))
+
+
+class PluginConfigNameTests(unittest.TestCase):
+    def test_reports_only_config_files_the_engine_never_loads(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            plugin = Path(directory) / "Plugins" / "World" / "Fixture"
+            (plugin / "Config").mkdir(parents=True)
+            (plugin / "Fixture.uplugin").write_text("{}", encoding="utf-8")
+            for name in (
+                "DefaultEngine.ini",
+                "DefaultGame.ini",
+                "DefaultInput.ini",
+                "DefaultFixture.ini",
+                "Engine.ini",
+                "Game.ini",
+                "FilterPlugin.ini",
+            ):
+                (plugin / "Config" / name).write_text("", encoding="utf-8")
+
+            found = find_never_loaded_plugin_configs(Path(directory) / "Plugins")
+
+            self.assertEqual(
+                ["DefaultEngine.ini", "DefaultGame.ini", "DefaultInput.ini"],
+                [path.name for path in found],
+            )
 
 
 if __name__ == "__main__":

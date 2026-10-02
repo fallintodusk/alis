@@ -288,19 +288,36 @@ void FProjectWorldPlayableTourDriver::SendLook(double YawErrorDegrees)
 
 EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickAscending(FString& OutError)
 {
+	UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+	if (Movement == nullptr || !Movement->IsFlying())
+	{
+		return Reject(FString::Printf(
+			TEXT("PreviewFlight left flying movement mode before ascent (mode=%d)."),
+			Movement == nullptr ? INDEX_NONE : static_cast<int32>(Movement->MovementMode)),
+			OutError);
+	}
 	Hold(EKeys::SpaceBar);
 	const FVector Location = Character->GetActorLocation();
+	const double Ascent = Location.Z - Evidence.StartLocation.Z;
+	const double PhaseSeconds = FPlatformTime::Seconds() - PhaseStartedSeconds;
 	if (Location.Z >= Evidence.StartLocation.Z + AscendHeightCentimeters)
 	{
 		Release(EKeys::SpaceBar);
 		Evidence.HighLocation = Location;
-		Evidence.AscentCentimeters = Location.Z - Evidence.StartLocation.Z;
+		Evidence.AscentCentimeters = Ascent;
 		SetPhase(EPhase::Traversing, TEXT("ascend"));
 		return EProjectWorldPlayableTourResult::Running;
 	}
-	if (FPlatformTime::Seconds() - PhaseStartedSeconds > AscendTimeoutSeconds)
+	if (PhaseSeconds > AscendTimeoutSeconds)
 	{
-		return Reject(TEXT("Held Space did not produce the required preview-flight ascent."), OutError);
+		return Reject(FString::Printf(
+			TEXT("Held Space did not produce the required preview-flight ascent: delta_z=%.1f, ")
+			TEXT("velocity=%s, last_input=%s, move_ignored=%d."),
+			Location.Z - Evidence.StartLocation.Z,
+			*Character->GetVelocity().ToCompactString(),
+			*Character->GetLastMovementInputVector().ToCompactString(),
+			Controller->IsMoveInputIgnored() ? 1 : 0),
+			OutError);
 	}
 	return EProjectWorldPlayableTourResult::Running;
 }

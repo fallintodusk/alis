@@ -91,7 +91,6 @@ All settings must be in **Persistent Level**, NOT streaming cells!
 ### Technical Docs
 - [render.md](./render.md) - Render config (synced with DefaultEngine.ini)
 - `Config/DefaultEngine.ini` - Engine settings
-- `<user-home>\.claude\plans\silly-brewing-panda.md` - Full plan with UE5 research
 
 ### Official UE5 Documentation
 - [Lumen Global Illumination](https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-global-illumination-and-reflections-in-unreal-engine)

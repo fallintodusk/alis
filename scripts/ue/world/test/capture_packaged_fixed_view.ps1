@@ -14,7 +14,17 @@ param(
     [Parameter(Mandatory = $true)][string]$SubjectClass,
     [Parameter(Mandatory = $true)][string]$OutputDirectory,
     [int]$TimeoutSeconds = 240,
-    [double]$SubjectToleranceCentimeters = 200.0
+    [double]$SubjectToleranceCentimeters = 200.0,
+    [string]$FixtureMesh = '',
+    [string]$FixtureMaterial = '',
+    [string]$FixtureStartLocation = '',
+    [string]$FixtureScale = '1,1,1',
+    [string]$FixtureStartRotation = '0,0,0',
+    [string]$FixtureFinalRotation = '0,0,0',
+    [string[]]$ScalarOverrides = @(),
+    [string]$ScalarMaterial = '',
+    [double]$ScalarRadiusCentimeters = 20000.0,
+    [switch]$BaseColor
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +35,27 @@ if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf)) {
 }
 if ($outputRoot -match '\s') {
     throw "Fixed-view output path must not contain spaces: $outputRoot"
+}
+$normalizedScalarOverrides = @()
+$scalarNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($override in $ScalarOverrides) {
+    if ($override -notmatch '^([A-Za-z0-9_-]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)$') {
+        throw "Scalar override must be ParameterName:FiniteNumber: $override"
+    }
+    $parameterName = $Matches[1]
+    $scalarValue = [double]::Parse($Matches[2], [System.Globalization.CultureInfo]::InvariantCulture)
+    if ([double]::IsNaN($scalarValue) -or [double]::IsInfinity($scalarValue) -or
+        [math]::Abs($scalarValue) -gt [single]::MaxValue) {
+        throw "Scalar override value is outside the finite float range: $override"
+    }
+    if (-not $scalarNames.Add($parameterName)) {
+        throw "Scalar parameter is specified more than once: $parameterName"
+    }
+    $normalizedScalarOverrides += "${parameterName}:$($Matches[2])"
+}
+if ($ScalarMaterial -and ($normalizedScalarOverrides.Count -eq 0 -or
+    $ScalarMaterial -notmatch '^/' -or $ScalarRadiusCentimeters -le 0)) {
+    throw 'ScalarMaterial requires at least one override, an asset path, and a positive radius.'
 }
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $operationId = 'fixed_view_' + (Get-Date).ToUniversalTime().ToString('yyyyMMdd_HHmmss_fff')
@@ -50,11 +81,33 @@ $arguments = @(
     '-RenderOffScreen', '-unattended', '-nosplash', '-NoSound', '-NoMessaging',
     "-abslog=$logPath"
 )
+if ($BaseColor) {
+    $arguments += '-ProjectWorldFixedViewBaseColor'
+}
+if ($FixtureMesh -or $FixtureMaterial -or $FixtureStartLocation) {
+    if (-not $FixtureMesh -or -not $FixtureMaterial -or -not $FixtureStartLocation) {
+        throw 'FixtureMesh, FixtureMaterial, and FixtureStartLocation must be supplied together.'
+    }
+    $arguments += "-ProjectWorldFixedViewFixtureMesh=$FixtureMesh"
+    $arguments += "-ProjectWorldFixedViewFixtureMaterial=$FixtureMaterial"
+    $arguments += "-ProjectWorldFixedViewFixtureStart=$FixtureStartLocation"
+    $arguments += "-ProjectWorldFixedViewFixtureScale=$FixtureScale"
+    $arguments += "-ProjectWorldFixedViewFixtureStartRotation=$FixtureStartRotation"
+    $arguments += "-ProjectWorldFixedViewFixtureFinalRotation=$FixtureFinalRotation"
+}
+if ($normalizedScalarOverrides.Count -gt 0) {
+    $arguments += "-ProjectWorldFixedViewScalars=$($normalizedScalarOverrides -join ';')"
+    if ($ScalarMaterial) {
+        $arguments += "-ProjectWorldFixedViewScalarMaterial=$ScalarMaterial"
+        $arguments += "-ProjectWorldFixedViewScalarRadius=$ScalarRadiusCentimeters"
+    }
+}
 
 $process = Start-Process -FilePath $executablePath -ArgumentList $arguments `
     -WorkingDirectory (Split-Path -Parent $executablePath) -WindowStyle Hidden -PassThru
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    $process.WaitForExit()
     throw "Packaged fixed-view proof exceeded ${TimeoutSeconds}s. Log: $logPath"
 }
 if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
@@ -65,6 +118,22 @@ if ($process.ExitCode -ne 0 -or [string]$receipt.status -cne 'accepted' -or
     [string]$receipt.operation_id -cne $operationId -or [string]$receipt.map_package -cne $Map -or
     -not (Test-Path -LiteralPath $screenshotPath -PathType Leaf)) {
     throw "Packaged fixed-view proof rejected. Exit=$($process.ExitCode) Code=$($receipt.error_code) Message=$($receipt.error_message) Log=$logPath"
+}
+if ($normalizedScalarOverrides.Count -gt 0) {
+    if (@($receipt.scalar_overrides).Count -ne $normalizedScalarOverrides.Count) {
+        throw "Scalar override receipt count does not match the request. Log=$logPath"
+    }
+    foreach ($override in $normalizedScalarOverrides) {
+        $parts = $override.Split(':', 2)
+        $received = @($receipt.scalar_overrides | Where-Object { [string]$_.parameter -ceq $parts[0] })
+        if ($received.Count -ne 1 -or
+            [math]::Abs([double]$received[0].value - [double]::Parse($parts[1], [System.Globalization.CultureInfo]::InvariantCulture)) -gt 0.00001) {
+            throw "Scalar override receipt does not match the request for $($parts[0]). Log=$logPath"
+        }
+    }
+}
+if ($ScalarMaterial -and [int]$receipt.scalar_override_slot_count -le 0) {
+    throw "Scalar override receipt matched no material slots. Log=$logPath"
 }
 
 Write-Host "[OK] Packaged fixed-view evidence: $resultPath"

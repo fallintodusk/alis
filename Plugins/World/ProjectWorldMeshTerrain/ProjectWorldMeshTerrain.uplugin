@@ -1,0 +1,27 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectWorldMeshTerrain",
+  "Description": "Mesh Partition realization adapter for ProjectWorld terrain.",
+  "Category": "Project.World",
+  "EnabledByDefault": false,
+  "CanContainContent": true,
+  "Modules": [
+    {
+      "Name": "ProjectWorldMeshTerrain",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "ProjectWorldMeshTerrainEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    { "Name": "MeshPartition", "Enabled": true },
+    { "Name": "ProjectMaterial", "Enabled": true },
+    { "Name": "ProjectWorld", "Enabled": true }
+  ]
+}

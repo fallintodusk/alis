@@ -1,16 +1,49 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://alis.world/schemas/world-compiler/authored-overlay-v1.json",
+  "$id": "https://alis.world/schemas/world-compiler/authored-overlay-v2.json",
   "title": "Authored World Overlay",
   "type": "object",
-  "required": ["$schema", "schema_version", "overlay_id", "terrain_patches", "feature_overrides", "missing_target_policy"],
+  "required": ["$schema", "schema_version", "overlay_id", "grid_id", "provenance", "terrain_patches", "feature_overrides", "missing_target_policy"],
   "properties": {
     "$schema": {"type": "string"},
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "overlay_id": {"type": "string", "minLength": 1},
+    "grid_id": {"type": "string", "pattern": "^grid_[0-9a-f]{16}$"},
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provenance_id", "authority"],
+        "properties": {
+          "provenance_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "authority": {"enum": ["authored_fixture", "authored_operator"]}
+        },
+        "additionalProperties": false
+      }
+    },
     "terrain_patches": {
       "type": "array",
-      "items": {"type": "object", "required": ["patch_id", "center", "radius_m", "delta_m"], "properties": {"patch_id": {"type": "string"}, "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}, "radius_m": {"type": "number", "minimum": 0}, "delta_m": {"type": "number"}}, "additionalProperties": false}
+      "items": {
+        "type": "object",
+        "required": ["patch_id", "provenance_ref", "center", "radius_m", "delta_m"],
+        "properties": {
+          "patch_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "provenance_ref": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "center": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+          "radius_m": {"type": "number", "minimum": 0},
+          "delta_m": {"type": "number"},
+          "surface_weights": {
+            "type": "object",
+            "required": ["ground", "hydro_transition"],
+            "properties": {
+              "ground": {"type": "number", "minimum": 0, "maximum": 1},
+              "hydro_transition": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "feature_overrides": {
       "type": "array",

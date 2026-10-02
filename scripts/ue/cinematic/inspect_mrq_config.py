@@ -5,7 +5,7 @@ properties so we can compare Dev vs Prod presets before editing.
 
 Run via ue-mcp console:
 
-    py <project-root>/scripts/ue/cinematic/_inspect_mrq_config.py [/Game/Path/Asset]
+    py <repo>/scripts/ue/cinematic/_inspect_mrq_config.py [/Game/Path/Asset]
 
 Output: Saved/cinematic_inspect_<asset>.json
 """

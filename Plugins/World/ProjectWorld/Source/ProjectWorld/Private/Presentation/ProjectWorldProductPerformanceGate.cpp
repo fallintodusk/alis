@@ -4,6 +4,7 @@
 #include "Presentation/ProjectWorldProductPerformanceGate.h"
 
 #include "Presentation/ProjectWorldPerformanceMetrics.h"
+#include "Presentation/ProjectWorldPerformanceCollector.h"
 #include "Presentation/ProjectWorldPerformanceSampleWriter.h"
 #include "Presentation/ProjectWorldPlayableTourDriver.h"
 #include "Presentation/ProjectWorldPlayableTourResidency.h"
@@ -72,64 +73,6 @@ namespace
 		return MakeShared<FJsonValueArray>(Coordinates);
 	}
 }
-
-class FProjectWorldPerformanceCollector final : public IPerformanceDataConsumer
-{
-public:
-	virtual void StartCharting() override
-	{
-	}
-
-	virtual void ProcessFrame(const FFrameData& FrameData) override
-	{
-		if (ActiveRoute.IsEmpty() || FrameData.TrueDeltaSeconds <= 0.0)
-		{
-			return;
-		}
-		FProjectWorldPerformanceFrame& Frame = FramesByRoute.FindOrAdd(ActiveRoute).AddDefaulted_GetRef();
-		Frame.FrameMilliseconds = FrameData.TrueDeltaSeconds * 1000.0;
-		Frame.GameMilliseconds = FrameData.GameThreadTimeSeconds * 1000.0;
-		Frame.RenderMilliseconds = FrameData.RenderThreadTimeSeconds * 1000.0;
-		Frame.GPUMilliseconds = FrameData.GPUTimeSeconds * 1000.0;
-	}
-
-	virtual void StopCharting() override
-	{
-		ActiveRoute.Reset();
-	}
-
-	void BeginRoute(const FString& RouteName)
-	{
-		ActiveRoute = RouteName;
-		FramesByRoute.FindOrAdd(RouteName);
-	}
-
-	void EndRoute()
-	{
-		ActiveRoute.Reset();
-	}
-
-	const TArray<FProjectWorldPerformanceFrame>& FramesFor(const FString& RouteName) const
-	{
-		const TArray<FProjectWorldPerformanceFrame>* Frames = FramesByRoute.Find(RouteName);
-		return Frames == nullptr ? EmptyFrames : *Frames;
-	}
-
-	TArray<FProjectWorldPerformanceFrame> AllFrames() const
-	{
-		TArray<FProjectWorldPerformanceFrame> Result;
-		for (const TPair<FString, TArray<FProjectWorldPerformanceFrame>>& Pair : FramesByRoute)
-		{
-			Result.Append(Pair.Value);
-		}
-		return Result;
-	}
-
-private:
-	FString ActiveRoute;
-	TMap<FString, TArray<FProjectWorldPerformanceFrame>> FramesByRoute;
-	TArray<FProjectWorldPerformanceFrame> EmptyFrames;
-};
 
 FProjectWorldProductPerformanceGate::~FProjectWorldProductPerformanceGate()
 {
@@ -415,7 +358,10 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 			return false;
 		}
 	}
-
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(RawSamplePath), true);
+	IFileManager::Get().Delete(*RawSamplePath, false, true, true);
+	if (!bNativeSteadyRequested)
+	{
 #if CSV_PROFILER
 	FCsvProfiler* CsvProfiler = FCsvProfiler::Get();
 	if (CsvProfiler == nullptr || CsvProfiler->IsCapturing() || CsvProfiler->IsWritingFile())
@@ -425,8 +371,6 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 	}
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(RequestedCsvPath), true);
 	IFileManager::Get().Delete(*RequestedCsvPath, false, true, true);
-	IFileManager::Get().MakeDirectory(*FPaths::GetPath(RawSamplePath), true);
-	IFileManager::Get().Delete(*RawSamplePath, false, true, true);
 	FCsvProfiler::SetNonPersistentMetadata(TEXT("ProjectWorldProfile"), *RuntimeProfileId);
 	FCsvProfiler::SetNonPersistentMetadata(TEXT("ProjectWorldProfileSha256"), *RuntimeProfileHash);
 	FCsvProfiler::SetNonPersistentMetadata(TEXT("ProjectWorldMachine"), *MachineProfileId);
@@ -439,8 +383,13 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 	OutError = TEXT("This Shipping build does not include UE CSV profiler support.");
 	return false;
 #endif
+	}
 
 	Collector = MakeShared<FProjectWorldPerformanceCollector>();
+	if (bNativeSteadyRequested)
+	{
+		Collector->ReserveRoute(Routes[0].Name, 600);
+	}
 	GEngine->AddPerformanceDataConsumer(Collector);
 	CollectorRegistration.MarkRegistered();
 	LastResidencySampleSeconds = FPlatformTime::Seconds();
@@ -451,6 +400,12 @@ bool FProjectWorldProductPerformanceGate::ConfigureCapture(FString& OutError)
 
 bool FProjectWorldProductPerformanceGate::BuildRoutes(FString& OutError)
 {
+	if (bNativeSteadyRequested)
+	{
+		Routes.Reset();
+		Routes.Add({TEXT("steady_center"), {CenterLocation}, 0.0});
+		return true;
+	}
 	UWorldPartition* Partition = ProductWorld->GetWorldPartition();
 	if (Partition == nullptr || Partition->RuntimeHash == nullptr)
 	{
@@ -517,7 +472,7 @@ bool FProjectWorldProductPerformanceGate::TickWarmup()
 	if (IsStreamingCompleted())
 	{
 		++StableReadyFrames;
-		if (StableReadyFrames >= RequiredReadyFrames)
+		if (StableReadyFrames >= RequiredReadyFrames + (bNativeSteadyRequested ? 60 : 0))
 		{
 			CaptureReadySeconds = FPlatformTime::Seconds() - GateStartedSeconds;
 			if (bPlayableTourRequested)
@@ -570,7 +525,7 @@ void FProjectWorldProductPerformanceGate::BeginRoute()
 	FProjectWorldPerformanceRoute& Route = Routes[CurrentRouteIndex];
 	RouteStartedSeconds = FPlatformTime::Seconds();
 	StableReadyFrames = 0;
-	Collector->BeginRoute(Route.Name);
+	Collector->BeginRoute(Route.Name, bNativeSteadyRequested ? 600 : 0);
 	CSV_EVENT_GLOBAL(TEXT("ProjectWorldRouteBegin:%s"), *Route.Name);
 	SetPhase(EPhase::Traversing);
 }
@@ -578,6 +533,23 @@ void FProjectWorldProductPerformanceGate::BeginRoute()
 void FProjectWorldProductPerformanceGate::TickRoute(float DeltaSeconds)
 {
 	FProjectWorldPerformanceRoute& Route = Routes[CurrentRouteIndex];
+	if (bNativeSteadyRequested)
+	{
+		if (!IsStreamingCompleted())
+		{
+			++TotalStreamingFailures;
+			Finish(TEXT("rejected"), TEXT("performance_steady_streaming"),
+				TEXT("World Partition streamed during the steady measurement window."));
+			return;
+		}
+		if (Collector->FramesFor(Route.Name).Num() >= 600)
+		{
+			Collector->EndRoute();
+			Route.DurationSeconds = FPlatformTime::Seconds() - RouteStartedSeconds;
+			FinishFromMetrics();
+		}
+		return;
+	}
 	if (bPlayableTourRequested)
 	{
 		FString Error;
@@ -751,6 +723,13 @@ void FProjectWorldProductPerformanceGate::TickScreenshot()
 
 void FProjectWorldProductPerformanceGate::FinishFromMetrics()
 {
+	if (bNativeSteadyRequested &&
+		!ProjectWorldPerformanceMetrics::HasValidSteadySamples(
+			Collector->AllFrames(), AcceptanceReason))
+	{
+		Finish(TEXT("rejected"), TEXT("performance_native_samples_invalid"), AcceptanceReason);
+		return;
+	}
 	const FProjectWorldPerformanceStatistics Statistics =
 		ProjectWorldPerformanceMetrics::Calculate(Collector->AllFrames());
 	bool bAccepted = ProjectWorldPerformanceMetrics::IsAccepted(
@@ -840,11 +819,30 @@ void FProjectWorldProductPerformanceGate::Finish(
 		EndCapture();
 		return;
 	}
-	WriteResult(Status, ErrorCode, ErrorMessage);
+	if (bNativeSteadyRequested && Collector.IsValid())
+	{
+		if (GEngine != nullptr && CollectorRegistration.Consume())
+		{
+			Collector->EndRoute();
+			GEngine->RemovePerformanceDataConsumer(Collector);
+		}
+		if (!Collector->AllFrames().IsEmpty())
+		{
+			FString SampleError;
+			if (!ProjectWorldPerformanceSampleWriter::Write(
+				RawSamplePath, Collector->AllFrames(), SampleError))
+			{
+				PendingStatus = TEXT("rejected");
+				PendingErrorCode = TEXT("performance_raw_samples_missing");
+				PendingErrorMessage = MoveTemp(SampleError);
+			}
+		}
+	}
+	WriteResult(PendingStatus, PendingErrorCode, PendingErrorMessage);
 	SetPhase(EPhase::Finished);
 	FPlatformMisc::RequestExitWithStatus(
 		false,
-		Status == TEXT("accepted") ? 0 : 10,
+		PendingStatus == TEXT("accepted") ? 0 : 10,
 		TEXT("ProjectWorldProductPerformanceGate.Finished"));
 }
 
@@ -890,14 +888,27 @@ void FProjectWorldProductPerformanceGate::WriteResult(
 	Root->SetNumberField(TEXT("peak_process_physical_bytes"), static_cast<double>(PeakProcessPhysicalBytes));
 	Root->SetNumberField(TEXT("peak_gpu_local_bytes"), static_cast<double>(PeakGpuLocalBytes));
 	Root->SetStringField(TEXT("csv_capture"), WrittenCsvPath);
+	Root->SetStringField(TEXT("measurement_backend"),
+		bNativeSteadyRequested ? TEXT("native_performance_consumer") : TEXT("csv_and_native_consumer"));
 	Root->SetStringField(TEXT("raw_sample_capture"), RawSamplePath);
 	Root->SetNumberField(TEXT("sample_count"), Overall.SampleCount);
+	Root->SetNumberField(TEXT("frame_p50_ms"), Overall.FrameP50Milliseconds);
 	Root->SetNumberField(TEXT("frame_p95_ms"), Overall.FrameP95Milliseconds);
 	Root->SetNumberField(TEXT("frame_p99_ms"), Overall.FrameP99Milliseconds);
 	Root->SetNumberField(TEXT("frame_max_ms"), Overall.FrameMaxMilliseconds);
+	Root->SetNumberField(TEXT("game_p50_ms"), Overall.GameP50Milliseconds);
 	Root->SetNumberField(TEXT("game_p95_ms"), Overall.GameP95Milliseconds);
+	Root->SetNumberField(TEXT("game_p99_ms"), Overall.GameP99Milliseconds);
+	Root->SetNumberField(TEXT("render_p50_ms"), Overall.RenderP50Milliseconds);
 	Root->SetNumberField(TEXT("render_p95_ms"), Overall.RenderP95Milliseconds);
+	Root->SetNumberField(TEXT("render_p99_ms"), Overall.RenderP99Milliseconds);
+	Root->SetNumberField(TEXT("gpu_p50_ms"), Overall.GPUP50Milliseconds);
 	Root->SetNumberField(TEXT("gpu_p95_ms"), Overall.GPUP95Milliseconds);
+	Root->SetNumberField(TEXT("gpu_p99_ms"), Overall.GPUP99Milliseconds);
+	Root->SetNumberField(TEXT("rhi_p50_ms"), Overall.RHIP50Milliseconds);
+	Root->SetNumberField(TEXT("rhi_p95_ms"), Overall.RHIP95Milliseconds);
+	Root->SetNumberField(TEXT("rhi_p99_ms"), Overall.RHIP99Milliseconds);
+	Root->SetBoolField(TEXT("rhi_timing_available"), Overall.RHIP95Milliseconds > 0.0);
 	Root->SetStringField(TEXT("acceptance_reason"), AcceptanceReason);
 	Root->SetBoolField(TEXT("playable_tour"), bPlayableTourRequested);
 	Root->SetStringField(TEXT("playable_tour_screenshot"), ScreenshotPath);

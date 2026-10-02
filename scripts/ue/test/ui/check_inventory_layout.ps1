@@ -137,7 +137,7 @@ if (-not $pythonCmd) {
 
 if (-not $pythonCmd) {
     Write-Host "  ERROR: Python not found in PATH or UE installation" -ForegroundColor Red
-    Write-Host "  See AGENTS.md for Python configuration" -ForegroundColor Gray
+    Write-Host "  See docs/testing/agent_ue_inspection.md for Python configuration" -ForegroundColor Gray
     exit 2
 }
 

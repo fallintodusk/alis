@@ -5,15 +5,21 @@ and Unreal realization/runtime consumption.
 
 ```mermaid
 flowchart LR
-    Tools[World tools] -->|canonical manifest contract| Canonical[ProjectWorldData authority]
+    Sources[Accepted source evidence] -->|accepted receipts| Compiler[CanonicalCompilation]
+    Compiler -->|provider-neutral compile result| Canonical[ProjectWorldData canonical authority]
     Canonical -->|accepted realization input| Editor[ProjectWorldEditor]
 
     subgraph ProjectWorld[ProjectWorld]
-        Editor -->|generated package and manifest| Runtime[ProjectWorld runtime]
+        Editor -->|producer-neutral transaction| Registry[Terrain producer registry]
+        Editor -->|other generated layers| Runtime[ProjectWorld runtime]
         Contract[World contracts] -->|schema and identity rules| Editor
         Contract -->|runtime interpretation| Runtime
     end
 
+    Registry -->|canonical final terrain| Adapter[Replaceable adapter: ProjectWorldMeshTerrain]
+    Adapter -->|shared MPD and compiled sections| MeshPartition[Epic MeshPartition]
+    Material[ProjectMaterial authority] -->|material object path, saved bytes authenticated| Adapter
+    MeshPartition -->|generated package and manifest| Runtime
     Runtime -->|World Partition and streaming APIs| Unreal[Unreal runtime]
     Fixtures[ProjectWorldTestData] -->|synthetic contract inputs| Editor
 ```

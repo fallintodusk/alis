@@ -37,7 +37,7 @@
         ],
         "properties": {
           "authority_kind": {
-            "enum": ["generated_definition_manifest", "material_manifest"]
+            "enum": ["generated_definition_manifest", "generated_recipe_manifest"]
           },
           "owner": { "type": "string", "minLength": 1 },
           "manifest_path": { "type": "string", "minLength": 1 },
@@ -63,6 +63,7 @@
             }
           },
           "recipe_root": { "type": "string", "minLength": 1 },
+          "recipe_suffix": { "type": "string", "pattern": "^[.][a-z_]+[.]json$" },
           "artifact_root": { "type": "string", "minLength": 1 },
           "package_root": { "type": "string", "pattern": "^/" }
         },
@@ -72,8 +73,8 @@
             "then": { "required": ["manifest_schema_ref", "manifest_id", "collections"] }
           },
           {
-            "if": { "properties": { "authority_kind": { "const": "material_manifest" } } },
-            "then": { "required": ["recipe_root", "artifact_root", "package_root"] }
+            "if": { "properties": { "authority_kind": { "const": "generated_recipe_manifest" } } },
+            "then": { "required": ["recipe_root", "recipe_suffix", "artifact_root", "package_root"] }
           }
         ]
       }

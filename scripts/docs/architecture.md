@@ -25,7 +25,7 @@ small generic helper     -> scripts/utils
 2. Wrappers preserve the underlying command's success and failure status.
 3. PowerShell owns the accepted native Windows release and mirror paths.
 4. Machine configuration comes from `scripts/config/`, never tracked personal
-   paths.
+   paths ([machine-local values](../../docs/architecture/principles.md#machine-local-values)).
 5. Scripts write temporary artifacts under `tmp/<domain>/<component>/` and
    durable outputs only through the destination owner.
 6. A script that changes external state validates identity and refusal paths

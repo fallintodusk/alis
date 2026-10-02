@@ -54,7 +54,7 @@ Describe 'ProjectWorld exact layer manifests' {
                 realization_profile_id = 'synthetic_landscape_water_twin'
                 realization_profile_sha256 = $profileHash
                 normalized_layer_contract_sha256 = $(if ($LayerId -eq 'terrain') { (('d' * 64) -join '') } else { (('e' * 64) -join '') })
-                generator_id = $(if ($LayerId -eq 'terrain') { 'project_landscape' } else { 'project_water_mesh' })
+                generator_id = $(if ($LayerId -eq 'terrain') { 'project_mesh_terrain' } else { 'project_water_mesh' })
                 generator_version = 1
                 artifact_root = $ArtifactRoot
                 canonical_inputs = @([ordered]@{
@@ -105,7 +105,7 @@ Describe 'ProjectWorld exact layer manifests' {
         $definitions = [ordered]@{
             $scopeId = [pscustomobject]@{
                 layer_id = 'terrain'
-                generator_id = 'project_landscape'
+                generator_id = 'project_mesh_terrain'
                 generator_version = 1
             }
         }
@@ -128,6 +128,34 @@ Describe 'ProjectWorld exact layer manifests' {
         @($document.operator_additions).Count | Should -Be 1
         $document.operator_additions[0].layer_id | Should -Be 'terrain'
         @($document.operator_additions[0].units) | Should -Contain '*'
+    }
+
+    It 'removes only prior layer artifacts omitted by the accepted replacement inventory' {
+        $projectRoot = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
+        $oldOnly = 'Plugins/World/Test/Content/Generated/old.uasset'
+        $shared = 'Plugins/World/Test/Content/Generated/shared.uasset'
+        $newOnly = 'Plugins/World/Test/Content/Generated/new.uasset'
+        foreach ($relative in @($oldOnly, $shared, $newOnly)) {
+            $path = Join-Path $projectRoot $relative
+            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force | Out-Null
+            Set-Content -LiteralPath $path -Value $relative -NoNewline
+        }
+        $prior = [pscustomobject]@{ artifacts = @(
+            [pscustomobject]@{ path = $oldOnly },
+            [pscustomobject]@{ path = $shared }
+        ) }
+        $candidate = @(
+            [pscustomobject]@{ path = $shared },
+            [pscustomobject]@{ path = $newOnly }
+        )
+
+        $removed = @(Remove-ProjectWorldSupersededLayerArtifacts `
+            -ProjectRoot $projectRoot -PriorManifest $prior -CandidateRecords $candidate)
+
+        $removed | Should -Be @($oldOnly)
+        Test-Path (Join-Path $projectRoot $oldOnly) | Should -BeFalse
+        Test-Path (Join-Path $projectRoot $shared) | Should -BeTrue
+        Test-Path (Join-Path $projectRoot $newOnly) | Should -BeTrue
     }
 
     It 'keeps all six generated layers stable across a runtime-only profile switch' {
@@ -183,14 +211,24 @@ Describe 'ProjectWorld exact layer manifests' {
             layers = @([pscustomobject]@{
                 layer_id = 'terrain'
                 layer_kind = 'generated_geography'
-                generator_id = 'project_landscape'
+                generator_id = 'project_mesh_terrain'
                 generator_version = 1
-                canonical_selectors = @('terrain', 'water')
+                canonical_selectors = @('terrain')
                 artifact_root = '/ProjectWorldTestData/Generated/Twin/Terrain/'
-                spatial_ownership = 'logical_landscape_with_cell_proxies'
+                spatial_ownership = 'compiled_sections_from_canonical_cells'
                 dirty_granularity = 'canonical_cell'
-                runtime_mapping = 'world_partition_owner'
-                settings = [pscustomobject]@{ components_per_proxy = 1 }
+                dependency_halo_cells = 0
+                runtime_mapping = 'world_partition_spatial'
+                settings = [pscustomobject]@{
+                    shared_definition = '/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1'
+                    surface_contract_id = 'terrain_surface_semantics'
+                    surface_contract_version = 1
+                    section_max_complexity = 2048
+                    channel_texel_size_cm = 3000
+                    channel_texture_max_dimension = 4096
+                    collision = 'complex_as_simple'
+                    render_variants = @('nanite', 'fallback')
+                }
             })
         }
         $resolved = Resolve-ProjectWorldRealizationLayers `
@@ -208,14 +246,24 @@ Describe 'ProjectWorld exact layer manifests' {
         $layer = [pscustomobject]@{
             layer_id = 'terrain'
             layer_kind = 'generated_geography'
-            generator_id = 'project_landscape'
+            generator_id = 'project_mesh_terrain'
             generator_version = 1
-            canonical_selectors = @('terrain', 'water')
+            canonical_selectors = @('terrain')
             artifact_root = '/ProjectWorldTestData/Generated/'
-            spatial_ownership = 'logical_landscape_with_cell_proxies'
+            spatial_ownership = 'compiled_sections_from_canonical_cells'
             dirty_granularity = 'canonical_cell'
-            runtime_mapping = 'world_partition_owner'
-            settings = [pscustomobject]@{ components_per_proxy = 1 }
+            dependency_halo_cells = 0
+            runtime_mapping = 'world_partition_spatial'
+            settings = [pscustomobject]@{
+                shared_definition = '/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1'
+                surface_contract_id = 'terrain_surface_semantics'
+                surface_contract_version = 1
+                section_max_complexity = 2048
+                channel_texel_size_cm = 3000
+                channel_texture_max_dimension = 4096
+                collision = 'complex_as_simple'
+                render_variants = @('nanite', 'fallback')
+            }
         }
         $document = [pscustomobject]@{ profile_id = 'synthetic_two'; layers = @($layer) }
         {
@@ -556,5 +604,100 @@ Describe 'ProjectWorld exact layer manifests' {
             -PriorActiveSet $active
         (Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot).Record.scopes.Count | Should -Be 0
         @(Get-ChildItem -LiteralPath (Join-Path $manifestRoot 'archive') -File).Count | Should -Be 3
+    }
+}
+
+Describe 'ProjectWorld Mesh Terrain audit artifact merge' {
+    It 'runs the Mesh builder only for an accepted Apply result' {
+        $meshResult = [pscustomobject]@{
+            layer_inventories = @([pscustomobject]@{
+                layer_id = 'terrain'
+                generator_id = 'project_mesh_terrain'
+            })
+        }
+        $nonMeshResult = [pscustomobject]@{
+            layer_inventories = @([pscustomobject]@{
+                layer_id = 'terrain'
+                generator_id = 'project_water_mesh'
+            })
+        }
+
+        Test-ProjectWorldMeshTerrainBuildRequired -Mode apply -Result $meshResult |
+            Should -BeTrue
+        Test-ProjectWorldMeshTerrainBuildRequired -Mode validate -Result $meshResult |
+            Should -BeFalse
+        Test-ProjectWorldMeshTerrainBuildRequired -Mode delete -Result $meshResult |
+            Should -BeFalse
+        Test-ProjectWorldMeshTerrainBuildRequired -Mode apply -Result $nonMeshResult |
+            Should -BeFalse
+    }
+
+    It 'accepts a compiled section already present in the terrain inventory' {
+        $projectRoot = Join-Path $TestDrive 'mesh-existing'
+        $relative = 'Plugins/World/ProjectWorldTestData/Content/__ExternalActors__/Generated/Twin/0/00/SECTION.uasset'
+        $artifact = Join-Path $projectRoot $relative.Replace('/', '\')
+        New-Item -ItemType Directory -Path (Split-Path -Parent $artifact) -Force | Out-Null
+        Set-Content -LiteralPath $artifact -Value 'compiled-section' -NoNewline
+        $digest = Get-ProjectWorldFileSha256 -Path $artifact
+        $inventory = @([pscustomobject]@{
+            path = $relative
+            kind = 'external_actor'
+            digest_kind = 'sha256'
+            digest = $digest
+        })
+
+        $merged = @(Merge-ProjectWorldMeshTerrainAuditArtifacts `
+            -TerrainArtifacts $inventory `
+            -Sections @([pscustomobject]@{ artifact_path = $relative }) `
+            -ProjectRoot $projectRoot)
+
+        $merged.Count | Should -Be 1
+        $merged[0].path | Should -Be $relative
+        $merged[0].semantic_sha256 | Should -Be $digest
+    }
+
+    It 'still rejects duplicate section paths emitted by the audit' {
+        $projectRoot = Join-Path $TestDrive 'mesh-duplicate'
+        $relative = 'Plugins/World/ProjectWorldTestData/Content/__ExternalActors__/Generated/Twin/0/00/SECTION.uasset'
+        $artifact = Join-Path $projectRoot $relative.Replace('/', '\')
+        New-Item -ItemType Directory -Path (Split-Path -Parent $artifact) -Force | Out-Null
+        Set-Content -LiteralPath $artifact -Value 'compiled-section' -NoNewline
+        $sections = @(
+            [pscustomobject]@{ artifact_path = $relative },
+            [pscustomobject]@{ artifact_path = $relative }
+        )
+
+        {
+            Merge-ProjectWorldMeshTerrainAuditArtifacts `
+                -TerrainArtifacts @() -Sections $sections -ProjectRoot $projectRoot
+        } | Should -Throw '*invalid or duplicate artifact path*'
+    }
+
+    It 'replaces prior compiled sections but still rejects a missing authoring artifact' {
+        $projectRoot = Join-Path $TestDrive 'mesh-replacement'
+        $oldSection = 'Plugins/World/ProjectWorldTestData/Content/old-section.uasset'
+        $newSection = 'Plugins/World/ProjectWorldTestData/Content/new-section.uasset'
+        $authoring = 'Plugins/World/ProjectWorldTestData/Content/authoring.uasset'
+        foreach ($relative in @($newSection, $authoring)) {
+            $fullPath = Join-Path $projectRoot $relative.Replace('/', '\')
+            New-Item -ItemType Directory -Path (Split-Path -Parent $fullPath) -Force | Out-Null
+            Set-Content -LiteralPath $fullPath -Value $relative -NoNewline
+        }
+        $inventory = @($oldSection, $authoring) | ForEach-Object {
+            [pscustomobject]@{ path = $_; kind = 'external_actor'; digest_kind = 'sha256'; digest = 'prior' }
+        }
+        $arguments = @{
+            TerrainArtifacts = $inventory
+            PriorSections = @([pscustomobject]@{ artifact_path = $oldSection })
+            Sections = @([pscustomobject]@{ artifact_path = $newSection })
+            ProjectRoot = $projectRoot
+        }
+
+        $merged = @(Merge-ProjectWorldMeshTerrainAuditArtifacts @arguments)
+        @($merged.path) | Should -Be @($authoring, $newSection)
+
+        Remove-Item -LiteralPath (Join-Path $projectRoot $authoring.Replace('/', '\')) -Force
+        { Merge-ProjectWorldMeshTerrainAuditArtifacts @arguments } |
+            Should -Throw '*removed a declared terrain artifact*'
     }
 }

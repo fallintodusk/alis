@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import re
 import shutil
@@ -254,69 +253,62 @@ def collect_generated_definition_authority(
         return asset_count
 
 
-def collect_material_authority(
+def collect_recipe_authority(
     repo_root: Path,
     entries: dict[str, Entry],
     authority: dict[str, Any],
     manifest: dict[str, Any],
+    selected_packages: dict[str, str],
+    dependencies: list[tuple[str, str, str]],
 ) -> int:
     owner = str(authority["owner"])
     recipe_root = safe_relative(str(authority.get("recipe_root", ""))).rstrip("/")
+    recipe_suffix = str(authority.get("recipe_suffix", ""))
     artifact_root = safe_relative(str(authority.get("artifact_root", ""))).rstrip("/")
     package_root = str(authority.get("package_root", "")).rstrip("/")
+    if not re.fullmatch(r"\.[a-z_]+\.json", recipe_suffix):
+        raise PayloadError(f"Public recipe authority has an invalid recipe suffix: {owner}")
     records = manifest.get("records", [])
     if not records:
-        raise PayloadError(f"Public material authority is empty: {owner}")
+        raise PayloadError(f"Public recipe authority is empty: {owner}")
 
-    verifier_path = repo_root / "Plugins/Resources/ProjectMaterial/Tools/verify_material_authority.py"
-    spec = importlib.util.spec_from_file_location("project_material_authority_verifier", verifier_path)
-    if spec is None or spec.loader is None:
-        raise PayloadError("ProjectMaterial authority verifier could not be loaded")
-    verifier = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(verifier)
-        verified_recipes = verifier.verify_material_authority(
-            repo_root / Path(*PurePosixPath(recipe_root).parts),
-            repo_root / Path(*PurePosixPath(str(authority["manifest_path"])).parts),
-        )
-    except Exception as error:
-        raise PayloadError(f"ProjectMaterial semantic authority rejected: {error}") from error
-
+    # The owner records each recipe's normalized source bytes, so a published recipe is proved to
+    # be the one its accepted package was generated from without reproducing the owner's parser.
     recorded_recipes: set[str] = set()
-    recorded_packages: dict[str, str] = {}
     for record in records:
         recipe_relative = f"{recipe_root}/{safe_relative(str(record.get('recipe_path', '')))}"
-        resolve_repo_file(repo_root, recipe_relative)
-        recipe_path = safe_relative(str(record.get("recipe_path", "")))
-        if verified_recipes.get(recipe_path) != str(record.get("recipe_sha256", "")):
-            raise PayloadError(f"Material semantic recipe identity is invalid: {recipe_relative}")
-
-        object_path = str(record.get("output_object_path", ""))
-        package_name, separator, object_name = object_path.partition(".")
-        if not separator or not object_name or not package_name.startswith(package_root + "/"):
-            raise PayloadError(f"Material output is outside its declared package root: {object_path}")
-        artifact_relative = f"{artifact_root}/{package_name[len(package_root) + 1:]}.uasset"
-        entry = add_entry(entries, repo_root, artifact_relative, "generated_material_asset", owner)
-        if entry.sha256 != str(record.get("package_sha256", "")).lower():
-            raise PayloadError(f"Generated material hash mismatch: {artifact_relative}")
-        if package_name in recorded_packages:
-            raise PayloadError(f"Duplicate generated material package: {package_name}")
-        recorded_packages[package_name] = entry.sha256
+        if not recipe_relative.endswith(recipe_suffix) or recipe_relative in recorded_recipes:
+            raise PayloadError(f"Recipe path is invalid or duplicated: {recipe_relative}")
+        _, recipe_path = resolve_repo_file(repo_root, recipe_relative)
+        if normalized_json_sha256(recipe_path) != str(record.get("recipe_source_sha256", "")):
+            raise PayloadError(f"Recipe differs from its accepted source digest: {recipe_relative}")
         recorded_recipes.add(recipe_relative)
 
-    for record in records:
-        dependency = record.get("dependency_object_path")
-        if dependency:
-            dependency_package = str(dependency).partition(".")[0]
-            if recorded_packages.get(dependency_package) != str(record.get("dependency_package_sha256", "")).lower():
-                raise PayloadError(f"Generated material dependency is outside accepted authority: {dependency}")
+        package_name = str(record.get("output_object_path", "")).partition(".")[0]
+        if not package_name.startswith(package_root + "/") or ".." in PurePosixPath(package_name).parts:
+            raise PayloadError(f"Generated recipe output is outside its declared package root: {package_name}")
+        if package_name in selected_packages:
+            raise PayloadError(f"Duplicate generated recipe package: {package_name}")
+        artifact_relative = f"{artifact_root}/{package_name[len(package_root) + 1:]}.uasset"
+        entry = add_entry(entries, repo_root, artifact_relative, "generated_recipe_asset", owner)
+        if entry.sha256 != str(record.get("package_sha256", "")).lower():
+            raise PayloadError(f"Generated recipe asset hash mismatch: {artifact_relative}")
+        selected_packages[package_name] = entry.sha256
+        for field, value in record.items():
+            if field.endswith("_object_path") and field != "output_object_path":
+                prefix = field[: -len("_object_path")]
+                dependencies.append((
+                    package_name,
+                    str(value).partition(".")[0],
+                    str(record.get(f"{prefix}_package_sha256", "")).lower(),
+                ))
 
     actual_recipes = {
         path.relative_to(repo_root).as_posix()
-        for path in (repo_root / Path(*PurePosixPath(recipe_root).parts)).rglob("*.material.json")
+        for path in (repo_root / Path(*PurePosixPath(recipe_root).parts)).rglob("*" + recipe_suffix)
     }
     if actual_recipes != recorded_recipes:
-        raise PayloadError(f"Public material recipe authority is incomplete under {recipe_root}")
+        raise PayloadError(f"Public recipe authority is incomplete under {recipe_root}")
     return len(records)
 
 
@@ -325,6 +317,8 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
     contract = read_json(contract_path)
     contract_hash = sha256_file(contract_path)
     selected: list[dict[str, Any]] = []
+    recipe_packages: dict[str, str] = {}
+    recipe_dependencies: list[tuple[str, str, str]] = []
     for authority in contract.get("asset_authorities", []):
         owner = str(authority.get("owner", ""))
         if not owner or "test" in owner.lower():
@@ -343,8 +337,10 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
             asset_count = collect_generated_definition_authority(
                 repo_root, entries, authority, manifest, manifest_relative
             )
-        elif kind == "material_manifest":
-            asset_count = collect_material_authority(repo_root, entries, authority, manifest)
+        elif kind == "generated_recipe_manifest":
+            asset_count = collect_recipe_authority(
+                repo_root, entries, authority, manifest, recipe_packages, recipe_dependencies
+            )
         else:
             raise PayloadError(f"Unsupported public asset authority kind for {owner}: {kind}")
 
@@ -359,6 +355,12 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
                 "asset_count": asset_count,
             }
         )
+    for dependent, package_name, package_sha256 in recipe_dependencies:
+        if recipe_packages.get(package_name) != package_sha256:
+            raise PayloadError(
+                f"Recorded dependency of {dependent} is not a selected payload package with its "
+                f"accepted hash: {package_name}"
+            )
     return selected
 
 

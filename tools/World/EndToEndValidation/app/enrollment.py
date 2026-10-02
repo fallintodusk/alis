@@ -318,8 +318,6 @@ def enroll(run_id: str, profile_value: str) -> dict[str, Any]:
                 # grant production authority by itself.
                 "-EnrollManifests", "-NonInteractive", "-DurableEnrollmentAuthorized",
             ]
-            if settings["require_landscape"]:
-                command.append("-RequireLandscape")
             _run("enrollment_apply", command, logs, timeout=7200)
             shutil.copy2(emitted_wrapper_receipt, wrapper_receipt)
             shutil.copy2(

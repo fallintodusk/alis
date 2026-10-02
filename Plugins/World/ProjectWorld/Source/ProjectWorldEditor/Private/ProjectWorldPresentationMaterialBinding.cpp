@@ -19,10 +19,9 @@ namespace ProjectWorldPresentationMaterialBinding
 {
 	namespace
 	{
-		constexpr TCHAR TerrainObjectPath[] =
-			TEXT("/ProjectMaterial/Generated/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default");
+		constexpr TCHAR TerrainBindingId[] = TEXT("terrain.default");
 		constexpr TCHAR MaterialManifestRelativePath[] =
-			TEXT("Data/Manifests/Materials/accepted.material-manifest.json");
+			TEXT("Data/Manifests/Surfaces/accepted.surface-manifest.json");
 
 		bool IsSha256(const FString& Value)
 		{
@@ -89,7 +88,12 @@ namespace ProjectWorldPresentationMaterialBinding
 		TSharedPtr<FJsonObject> Root;
 		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ManifestText);
 		const TArray<TSharedPtr<FJsonValue>>* Records = nullptr;
+		FString Schema;
+		double SchemaVersion = 0.0;
 		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() ||
+			!Root->TryGetStringField(TEXT("$schema"), Schema) ||
+			Schema != TEXT("../../Schemas/surface-manifest.schema.json") ||
+			!Root->TryGetNumberField(TEXT("schema_version"), SchemaVersion) || SchemaVersion != 3.0 ||
 			!Root->TryGetArrayField(TEXT("records"), Records) || Records == nullptr)
 		{
 			OutError = TEXT("The accepted ProjectMaterial manifest has an invalid envelope.");
@@ -98,11 +102,13 @@ namespace ProjectWorldPresentationMaterialBinding
 
 		TSharedPtr<FJsonObject> TerrainRecord;
 		TSharedPtr<FJsonObject> ParentRecord;
+		FString TerrainObjectPath;
 		FString ParentObjectPath;
 		FString ParentPackageSha256;
 		for (const TSharedPtr<FJsonValue>& Value : *Records)
 		{
 			const TSharedPtr<FJsonObject>* Record = nullptr;
+			FString BindingId;
 			FString OutputObjectPath;
 			if (!Value->TryGetObject(Record) || Record == nullptr ||
 				!ReadRequiredString(*Record, TEXT("output_object_path"), OutputObjectPath))
@@ -110,7 +116,8 @@ namespace ProjectWorldPresentationMaterialBinding
 				OutError = TEXT("The accepted ProjectMaterial manifest contains an invalid record.");
 				return false;
 			}
-			if (OutputObjectPath == TerrainObjectPath)
+			(*Record)->TryGetStringField(TEXT("binding_id"), BindingId);
+			if (BindingId == TerrainBindingId)
 			{
 				if (TerrainRecord.IsValid())
 				{
@@ -118,6 +125,7 @@ namespace ProjectWorldPresentationMaterialBinding
 					return false;
 				}
 				TerrainRecord = *Record;
+				TerrainObjectPath = OutputObjectPath;
 				if (!ReadRequiredString(TerrainRecord, TEXT("dependency_object_path"), ParentObjectPath) ||
 					!ReadRequiredString(TerrainRecord, TEXT("dependency_package_sha256"), ParentPackageSha256))
 				{
@@ -171,7 +179,7 @@ namespace ProjectWorldPresentationMaterialBinding
 		}
 
 		UMaterialInstanceConstant* Terrain =
-			LoadObject<UMaterialInstanceConstant>(nullptr, TerrainObjectPath);
+			LoadObject<UMaterialInstanceConstant>(nullptr, *TerrainObjectPath);
 		if (Terrain == nullptr || Terrain->Parent == nullptr ||
 			Terrain->Parent->GetPathName() != ParentObjectPath)
 		{

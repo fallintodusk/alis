@@ -38,7 +38,7 @@ Idempotent: re-running produces the same asset state. Run when:
 
 Run via ue-mcp or the editor `py` console:
 
-    py <project-root>/scripts/ue/cinematic/apply_prod_preset.py
+    py <repo>/scripts/ue/cinematic/apply_prod_preset.py
 
 Output: Saved/cinematic_apply_prod_result.json
 """

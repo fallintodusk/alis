@@ -126,9 +126,9 @@ GAS, rotation policy, camera, animation, and body ownership remain unchanged.
 
 ## Cross-References
 
-- [Vitals Design Vision](../ProjectVitals/docs/design_vision.md) - Design rationale, timelines, physiology
-- [ProjectVitals README](../ProjectVitals/README.md) - Vitals rules and calculations
-- [ProjectVitalsUI README](../../UI/ProjectVitalsUI/README.md) - Vitals UI display
-- [Assembly architecture](../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - Framework design
-- [Capabilities rationale](../ProjectSkeletalCapabilities/docs/architecture.md) - Adapter dependency isolation
+- [Vitals Design Vision](../../ProjectVitals/docs/design_vision.md) - Design rationale, timelines, physiology
+- [ProjectVitals README](../../ProjectVitals/README.md) - Vitals rules and calculations
+- [ProjectVitalsUI README](../../../UI/ProjectVitalsUI/README.md) - Vitals UI display
+- [Assembly architecture](../../../Systems/ProjectSkeletalAssembly/docs/architecture.md) - Framework design
+- [Capabilities rationale](../../ProjectSkeletalCapabilities/docs/architecture.md) - Adapter dependency isolation
 - [Parity testing](../../../../docs/testing/character_parity.md) - Automated capture test

@@ -10,6 +10,7 @@ from .app.promotion import (
     materialize_canonical,
     validate_canonical_authority,
 )
+from .app.surface_migration import migrate_surface_authority
 
 
 def terrain_impact_cells_for_profile(
@@ -24,6 +25,7 @@ __all__ = (
     "CanonicalCompilationError",
     "canonical_active_path",
     "materialize_canonical",
+    "migrate_surface_authority",
     "terrain_impact_cells_for_profile",
     "validate_canonical_authority",
 )

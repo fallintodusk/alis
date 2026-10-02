@@ -1,0 +1,155 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/scanner",
+    "crates/order_planner",
+    "crates/executor",
+    "crates/packager",
+    "crates/manifest",
+    "crates/publisher",
+    "crates/state",
+    "crates/engine_config",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Alis Build Team"]
+license = "AGPL-3.0-only"
+
+[workspace.dependencies]
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Git operations
+git2 = "0.18"
+
+# CLI
+clap = { version = "4.4", features = ["derive", "cargo"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Hashing
+sha2 = "0.10"
+
+# Archive
+zip = "0.6"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Testing
+mockall = "0.12"
+tempfile = "3.8"
+
+# Path handling
+walkdir = "2.4"
+glob = "0.3"
+
+# YAML parsing
+serde_yaml = "0.9"
+
+# JSON Schema validation
+jsonschema = "0.17"
+
+# Time handling
+chrono = "0.4"
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Internal workspace crates
+build_service_scanner = { path = "crates/scanner" }
+build_service_order_planner = { path = "crates/order_planner" }
+build_service_executor = { path = "crates/executor" }
+build_service_packager = { path = "crates/packager" }
+build_service_manifest = { path = "crates/manifest" }
+build_service_publisher = { path = "crates/publisher" }
+build_service_state = { path = "crates/state" }
+engine_config = { path = "crates/engine_config" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+# CLI binary package
+[package]
+name = "build_service_cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "build_service"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+build_service_scanner.workspace = true
+build_service_order_planner.workspace = true
+build_service_executor.workspace = true
+build_service_packager.workspace = true
+build_service_manifest.workspace = true
+build_service_publisher.workspace = true
+build_service_state.workspace = true
+engine_config.workspace = true
+
+# External dependencies
+anyhow.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+toml.workspace = true
+chrono.workspace = true
+git2.workspace = true
+uuid.workspace = true
+serde_json.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+tempfile = "3.8"
+reqwest.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+# Integration tests
+[[test]]
+name = "manifest_validation"
+path = "tests/integration/manifest_validation_test.rs"
+harness = true
+
+[[test]]
+name = "pin_workflow_test"
+path = "tests/integration/pin_workflow_test.rs"
+harness = true
+
+# Smoke tests
+[[test]]
+name = "e2e_workflow_test"
+path = "tests/smoke/e2e_workflow_test.rs"
+harness = true
+
+# Unit tests

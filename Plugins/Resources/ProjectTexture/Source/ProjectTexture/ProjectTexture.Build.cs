@@ -12,5 +12,7 @@ public class ProjectTexture : ModuleRules
 			"CoreUObject",
 			"Engine"
 		});
+
+		PrivateDependencyModuleNames.Add("RenderCore");
 	}
 }

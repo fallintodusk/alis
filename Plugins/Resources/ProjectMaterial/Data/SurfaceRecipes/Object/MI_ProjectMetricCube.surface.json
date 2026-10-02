@@ -1,0 +1,25 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "4",
+  "material_id": "MI_ProjectMetricCube",
+  "artifact_kind": "instance",
+  "binding_id": "object.metric_cube",
+  "family": "surface_substrate",
+  "archetype": "object_metric",
+  "compiler_version": "5",
+  "parent": "/ProjectMaterial/Surfaces/Object/M_ProjectMetricSurface.M_ProjectMetricSurface",
+  "projection_frame": "object_metric_triplanar_2d",
+  "pattern": {
+    "pattern_id": "project_terrain_structure"
+  },
+  "semantic_bindings": [],
+  "scalars": {
+    "BaseRoughness": 0.76,
+    "PatternScaleMeters": 0.5,
+    "MacroStrength": 0.04,
+    "DetailStrength": 0.05
+  },
+  "vectors": {
+    "BaseColor": [0.11, 0.13, 0.095, 1.0]
+  }
+}

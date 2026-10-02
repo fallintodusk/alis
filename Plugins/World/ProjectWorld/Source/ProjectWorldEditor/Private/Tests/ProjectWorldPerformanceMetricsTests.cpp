@@ -40,6 +40,31 @@ bool FProjectWorldPerformanceMetricsTest::RunTest(const FString& Parameters)
 	Slow.FrameP95Milliseconds = 16.68;
 	TestFalse(TEXT("Frame budget rejects"),
 		ProjectWorldPerformanceMetrics::IsAccepted(Slow, 0, 16.67, Reason));
+
+	TArray<FProjectWorldPerformanceFrame> SteadyFrames;
+	for (int32 Index = 0; Index < 600; ++Index)
+	{
+		FProjectWorldPerformanceFrame& Frame = SteadyFrames.AddDefaulted_GetRef();
+		Frame.FrameMilliseconds = 12.0 + Index / 1000.0;
+		Frame.GameMilliseconds = 5.0;
+		Frame.RenderMilliseconds = 6.0;
+		Frame.GPUMilliseconds = 7.0 + Index / 1000.0;
+	}
+	TestTrue(TEXT("Advancing steady GPU samples pass"),
+		ProjectWorldPerformanceMetrics::HasValidSteadySamples(SteadyFrames, Reason));
+	SteadyFrames[300].GPUMilliseconds = 0.0;
+	TestFalse(TEXT("A missing steady GPU sample rejects"),
+		ProjectWorldPerformanceMetrics::HasValidSteadySamples(SteadyFrames, Reason));
+	SteadyFrames[300].GPUMilliseconds = SteadyFrames[0].GPUMilliseconds;
+	for (FProjectWorldPerformanceFrame& Frame : SteadyFrames)
+	{
+		Frame.GPUMilliseconds = 7.0;
+	}
+	TestFalse(TEXT("Non-discriminating steady GPU samples reject"),
+		ProjectWorldPerformanceMetrics::HasValidSteadySamples(SteadyFrames, Reason));
+	SteadyFrames.RemoveAt(0);
+	TestFalse(TEXT("A short steady window rejects"),
+		ProjectWorldPerformanceMetrics::HasValidSteadySamples(SteadyFrames, Reason));
 	return true;
 }
 

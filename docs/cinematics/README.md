@@ -40,7 +40,7 @@ launcher Editor, binds the receipt to the accepted packaged release, and promote
 
 - Crash / hang case archive: [../debugging/cases/](../debugging/cases/)
 - Engine config: [../../Config/DefaultEngine.ini](../../Config/DefaultEngine.ini)
-- Cinematics content folder: [../../Content/Cinematics/](../../Content/Cinematics/)
+- Cinematics content folder: `Content/Cinematics/`
 - Output location safety rule (do not touch mid-render): [troubleshooting.md#movie-renders-folder-safety](troubleshooting.md#movie-renders-folder-safety)
 
 ## Conventions

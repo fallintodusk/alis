@@ -142,7 +142,7 @@ Cross-plugin integration tests will be added to `ProjectIntegrationTests` plugin
 - Functional: BootMap -> KazanMain workflow
 - Smoke: Subsystem initializes in real GameInstance
 
-See [docs/testing/index.md](../../../../docs/testing/index.md) for complete testing standards.
+See [docs/testing/index.md](../../../../../docs/testing/README.md) for complete testing standards.
 
 ## Adding New Tests
 
@@ -171,6 +171,6 @@ bool FProjectLoadMyFeatureTest::RunTest(const FString& Parameters)
 
 ## Documentation
 
-- **[docs/testing/index.md](../../../../docs/testing/index.md)** - Complete testing standards
-- **[docs/loading_pipeline.md](../../../../docs/loading_pipeline.md)** - Loading system documentation
-- **[docs/testing/README.md](../../../../docs/testing/README.md)** - Testing standards
+- **[docs/testing/index.md](../../../../../docs/testing/README.md)** - Complete testing standards
+- **[docs/loading_pipeline.md](../../../../../docs/loading/README.md)** - Loading system documentation
+- **[docs/testing/README.md](../../../../../docs/testing/README.md)** - Testing standards

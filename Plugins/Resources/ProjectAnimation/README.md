@@ -170,5 +170,5 @@ This plugin is registered via `dev_manifest.json`, NOT `Alis.uproject`.
 
 ## Related Documentation
 
-- [Animation System Overview](../../../docs/systems/animation.md)
+- [Animation System Overview](../../../docs/animation/README.md)
 - [ProjectMotionSystem](../../Systems/ProjectMotionSystem/README.md)

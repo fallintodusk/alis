@@ -66,7 +66,7 @@ Cannot access `GEditor->GetEditorWorldContext().World()` during subsystem `Initi
 
 **Use case:** Bulk resave commandlet (`WorldPartitionResaveActorsBuilder`) updates thousands of actors without manual intervention.
 
-**Implementation:** [ProjectWorldActor.cpp:23-83](../../World/ProjectWorld/Source/ProjectWorld/Private/ProjectWorldActor.cpp#L23-L83)
+**Implementation:** [ProjectWorldActor.cpp:23-83](../../../World/ProjectWorld/Source/ProjectWorld/Private/ProjectWorldActor.cpp#L23-L83)
 
 **Commandlet usage:**
 ```bash
@@ -89,7 +89,6 @@ UnrealEditor-Cmd.exe Alis.uproject -run=WorldPartitionResaveActorsBuilder -Allow
 
 **Where implemented:**
 - [InteractableActor.cpp:164-173](../../../Resources/ProjectObject/Source/ProjectObject/Private/Template/Interactable/InteractableActor.cpp#L164-L173)
-- [ProjectPickupItemActor.cpp:285-294](../../../Resources/ProjectItems/Source/ProjectItems/Private/Pickup/ProjectPickupItemActor.cpp#L285-L294)
 
 **Example:**
 ```cpp
@@ -115,7 +114,6 @@ if (AppliedStructureHash != ObjDef->DefinitionStructureHash)
 
 **Where implemented:**
 - [InteractableActor.cpp:174-179](../../../Resources/ProjectObject/Source/ProjectObject/Private/Template/Interactable/InteractableActor.cpp#L174-L179)
-- [ProjectPickupItemActor.cpp:295-300](../../../Resources/ProjectItems/Source/ProjectItems/Private/Pickup/ProjectPickupItemActor.cpp#L295-L300)
 
 **Example:**
 ```cpp
@@ -531,7 +529,6 @@ The system has three known limitations that don't block core functionality:
 2. **Mode 1 ObjectDefinition-specific** - ItemDefinition actors don't get subsystem-level fast-skip optimization (minimal overhead)
 3. **ItemDefinition Replace not implemented** - Structural changes require manual fix (ObjectDefinition has auto-replace)
 
-**See [TODO.md](../TODO.md) for detailed explanations, workarounds, and implementation plans.**
 
 ---
 
@@ -563,10 +560,9 @@ The system has three known limitations that don't block core functionality:
 
 ## Related Documentation
 
-- [TODO](../TODO.md) - Outstanding tasks and implementation plans
 - [Quick Reference](./ActorSyncQuickReference.md) - Common tasks and troubleshooting
-- [IDefinitionApplicable Interface](../../World/ProjectWorld/Public/IDefinitionApplicable.h)
-- [UDefinitionGeneratorSubsystem](../../Editor/ProjectDefinitionGenerator/docs/DefinitionGenerator.md)
+- [IDefinitionApplicable Interface](../../../World/ProjectWorld/Source/ProjectWorld/Public/IDefinitionApplicable.h)
+- [UDefinitionGeneratorSubsystem](../../ProjectDefinitionGenerator/README.md)
 - [UProjectObjectActorFactory](../Source/ProjectPlacementEditor/Public/ProjectObjectActorFactory.h)
 
 ---
@@ -600,4 +596,3 @@ The Actor Sync system provides multi-mode synchronization of world actors with t
 - Mode 1 hash checking is ObjectDefinition-specific (ItemDefinition works but no fast-skip)
 - ItemDefinition Replace not implemented (manual fix required for structural changes)
 
-See [TODO.md](../TODO.md) for detailed explanations, workarounds, and implementation plans.

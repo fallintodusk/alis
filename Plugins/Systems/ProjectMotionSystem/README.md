@@ -160,6 +160,6 @@ SwayComponent->WindDirection = FVector(1, 0, 0);
 
 ## Related Documentation
 
-- [Animation System Overview](../../../docs/systems/animation.md)
+- [Animation System Overview](../../../docs/animation/README.md)
 - [ProjectAnimation](../../Resources/ProjectAnimation/README.md)
 - [Motion Modes and Chaos Notes](docs/motion_modes.md)

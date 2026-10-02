@@ -1,0 +1,21 @@
+{
+	"$schema": "../../Schemas/pattern-manifest.schema.json",
+	"schema_version": 3,
+	"records": [
+		{
+			"recipe_path": "Terrain/project_terrain_structure.pattern.json",
+			"recipe_sha256": "bc83f9e395c4d8dd0052590ca73956cb44f469fe6114a9f880540d48581a3d33",
+			"recipe_source_sha256": "7fe40d289d805c5185a12caad93a4aca8e4e42586055a9b446b5f14d90f8b698",
+			"pattern_id": "project_terrain_structure",
+			"family": "surface_structure",
+			"algorithm": "runtime_dag_native",
+			"compiler_version": "5",
+			"output_contract": "surface_structure_rgb_v1",
+			"output_object_path": "/ProjectTexture/Patterns/Terrain/DA_ProjectTerrainStructureCatalog.RT_ProjectTerrainStructure",
+			"semantic_identity": "d748edbc40a1ce1f1a872579bc3c10c49b67437ab7c01e29a3a6ae6f274c90e5",
+			"package_sha256": "7e9f63047ba9513790cf42e0622f21c0b1bc5b9fa1189516df5ea80124999e27",
+			"compiler_fingerprint": "8379365a0036dcf6c2bb6b196c8e16410bc0104d37376a54a52d7d51ada5f0a0",
+			"engine_compatibility": "5.8"
+		}
+	]
+}

@@ -12,8 +12,8 @@
 
 ```python
 import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
-exec(open("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts/export_blueprint.py").read())
+sys.path.append("<repo>/scripts/ue/editor/blueprint_json_converter/scripts")
+exec(open("<repo>/scripts/ue/editor/blueprint_json_converter/scripts/export_blueprint.py").read())
 ```
 
 ### Step 3: Edit JSON with Claude
@@ -32,8 +32,8 @@ Send to Claude:
 
 ```python
 import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
-exec(open("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts/import_blueprint.py").read())
+sys.path.append("<repo>/scripts/ue/editor/blueprint_json_converter/scripts")
+exec(open("<repo>/scripts/ue/editor/blueprint_json_converter/scripts/import_blueprint.py").read())
 
 from import_blueprint import import_from_file
 
@@ -52,7 +52,7 @@ import_from_file("blueprint_20250114_120000.json", dry_run=False)
 
 ```python
 import sys
-sys.path.append("<user-home>/Documents/GitHub/Alis/scripts/ue/editor/blueprint_json_converter/scripts")
+sys.path.append("<repo>/scripts/ue/editor/blueprint_json_converter/scripts")
 
 from export_blueprint import export_blueprint_to_json, save_json
 

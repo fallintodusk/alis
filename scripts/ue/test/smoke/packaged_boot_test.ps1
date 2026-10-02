@@ -4,7 +4,7 @@
 #
 # NOTE: This is a smoke test, not a benchmark. "Cold" run only clears the log,
 # not PSO disk caches or other persistent caches. For a true first-run test,
-# manually delete <local-app-data>\Alis\Saved\ before running.
+# manually delete %LOCALAPPDATA%\Alis\Saved\ before running.
 #
 # Usage:
 #   .\packaged_boot_test.ps1 -ExePath "C:\builds\Alis\Alis.exe"

@@ -54,5 +54,5 @@ See [ProjectPlacementEditor README](../../Plugins/Editor/ProjectPlacementEditor/
 
 ## Related Documentation
 
-- [plugins.md](../plugins.md) - Plugin tier system
-- [conventions.md](../conventions.md) - Plugin naming and structure
+- [plugin_rules.md](../architecture/plugin_rules.md) - Plugin tier system
+- [conventions.md](../architecture/conventions.md) - Plugin naming and structure

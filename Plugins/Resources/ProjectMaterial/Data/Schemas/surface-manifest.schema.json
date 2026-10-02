@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.project/schemas/project-material-surface-manifest-v3.json",
+  "title": "ProjectMaterial Accepted Surface Manifest v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "records"],
+  "properties": {
+    "$schema": { "const": "../../Schemas/surface-manifest.schema.json" },
+    "schema_version": { "const": 3 },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recipe_path",
+        "recipe_sha256",
+        "recipe_source_sha256",
+        "family",
+        "archetype",
+        "compiler_version",
+        "pattern_id",
+        "pattern_object_path",
+        "pattern_output_contract",
+        "pattern_semantic_identity",
+        "pattern_package_sha256",
+        "output_object_path",
+        "semantic_identity",
+        "package_sha256",
+        "compiler_fingerprint",
+        "engine_compatibility"
+      ],
+      "properties": {
+        "recipe_path": { "type": "string", "pattern": "^[A-Za-z0-9_/.-]+\\.surface\\.json$" },
+        "recipe_sha256": { "$ref": "#/$defs/sha256" },
+        "recipe_source_sha256": { "$ref": "#/$defs/sha256" },
+        "binding_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+        "family": { "const": "surface_substrate" },
+        "archetype": { "enum": ["terrain_metric", "object_metric"] },
+        "compiler_version": { "const": "5" },
+        "pattern_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "pattern_object_path": {
+          "type": "string",
+          "pattern": "^/ProjectTexture/Patterns/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "pattern_output_contract": { "const": "surface_structure_rgb_v1" },
+        "pattern_semantic_identity": { "$ref": "#/$defs/sha256" },
+        "pattern_package_sha256": { "$ref": "#/$defs/sha256" },
+        "dependency_object_path": { "type": "string" },
+        "dependency_package_sha256": { "$ref": "#/$defs/sha256" },
+        "terrain_layout_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "output_object_path": {
+          "type": "string",
+          "pattern": "^/ProjectMaterial/Surfaces/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "semantic_identity": { "$ref": "#/$defs/sha256" },
+        "package_sha256": { "$ref": "#/$defs/sha256" },
+        "compiler_fingerprint": { "$ref": "#/$defs/sha256" },
+        "engine_compatibility": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" }
+      },
+      "dependentRequired": {
+        "dependency_object_path": ["dependency_package_sha256"],
+        "dependency_package_sha256": ["dependency_object_path"]
+      }
+    }
+  }
+}

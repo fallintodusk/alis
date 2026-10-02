@@ -9,6 +9,7 @@ data, synthetic fixtures, and optional World integrations.
 | Inspect the menu World plugin | [MainMenuWorld](MainMenuWorld/README.md) |
 | Route optional procedural integrations | [PCG](PCG/README.md) |
 | Understand or extend reusable World realization | [ProjectWorld](ProjectWorld/README.md) |
+| Maintain the replaceable MeshPartition terrain adapter | [ProjectWorldMeshTerrain](ProjectWorldMeshTerrain/README.md) |
 | Inspect concrete Kazan and Manhattan source or generated authority | [ProjectWorldData](ProjectWorldData/README.md) |
 | Run deterministic synthetic World fixtures | [ProjectWorldTestData](ProjectWorldTestData/README.md) |
 | Extend building assembly | [ProjectBuildingAssembly](ProjectBuildingAssembly/README.md) |

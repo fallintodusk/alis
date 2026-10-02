@@ -92,6 +92,10 @@
       "Enabled": true
     },
     {
+      "Name": "ProjectWorldMeshTerrain",
+      "Enabled": true
+    },
+    {
       "Name": "ProjectGameplay",
       "Enabled": true
     },
@@ -140,7 +144,7 @@
     },
     {
       "Name": "City17",
-      "Enabled": true
+      "Enabled": false
     },
     {
       "Name": "ProjectInteraction",

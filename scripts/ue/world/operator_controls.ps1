@@ -25,7 +25,7 @@ function Confirm-ProjectWorldMutation {
     }
     Write-Host '  protected:'
     Write-Host "    $AuthoredContentRoot"
-    Write-Host '    Landscape edit layer: Authored Corrections'
+    Write-Host '    canonical authored terrain overlay input'
     Write-Host '  untouched accepted scopes:'
     $untouched = @(if ($null -eq $ActiveSet) {
         @()

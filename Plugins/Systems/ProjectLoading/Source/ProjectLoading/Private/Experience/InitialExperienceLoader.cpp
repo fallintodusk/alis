@@ -317,8 +317,8 @@ void FInitialExperienceLoader::EnsureAssetScans(const UProjectExperienceDescript
 		IsRunningGame() ? TEXT("true") : TEXT("false"),
 		IsRunningCommandlet() ? TEXT("true") : TEXT("false"));
 
-	// In editor, asset types are already registered via DefaultGame.ini/plugin configs.
-	// Runtime scanning is only needed for cooked builds where plugin configs may not merge.
+	// In editor, asset types are already registered by the project Config/DefaultGame.ini.
+	// Cooked builds additionally apply the descriptor's own scan specs below.
 	// Scanning in editor can cause parameter mismatch crashes if specs differ from config.
 	if (GIsEditor)
 	{
@@ -329,7 +329,7 @@ void FInitialExperienceLoader::EnsureAssetScans(const UProjectExperienceDescript
 	// Global types first (ObjectDefinition, LootProfileDefinition, etc.)
 	EnsureGlobalAssetScans();
 
-	// Runtime scan for cooked builds - plugin configs may not merge reliably
+	// Runtime scan for cooked builds from the descriptor's own specs
 	// See: docs/asset_manager_registration.md for architecture details
 	TArray<FExperienceAssetScanSpec> Specs;
 	Descriptor.GetAssetScanSpecs(Specs);

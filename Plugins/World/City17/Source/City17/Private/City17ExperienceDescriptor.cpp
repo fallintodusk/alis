@@ -22,7 +22,6 @@ void UCity17ExperienceDescriptor::BuildLoadRequest(FLoadRequest& OutRequest) con
 void UCity17ExperienceDescriptor::GetAssetScanSpecs(TArray<FExperienceAssetScanSpec>& OutSpecs) const
 {
 	// Scan for City17 maps - this registers them with AssetManager at runtime
-	// Required because plugin Config/DefaultGame.ini may not merge reliably
 	if (LoadAssets.Map.ToSoftObjectPath().IsNull())
 	{
 		return;

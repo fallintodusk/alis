@@ -483,16 +483,27 @@ class SourceIngestionTests(unittest.TestCase):
     def test_demonstration_boundary_is_selected_by_profile_not_one_region_literal(self) -> None:
         raw = {
             "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {"type": "Polygon", "coordinates": []},
-                "properties": {
-                    "@type": "relation",
-                    "@id": 61320,
-                    "boundary": "administrative",
-                    "ISO3166-2": "US-NY",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": []},
+                    "properties": {
+                        "@type": "relation",
+                        "@id": 61320,
+                        "boundary": "administrative",
+                        "ISO3166-2": "US-NY",
+                    },
                 },
-            }],
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "LineString", "coordinates": []},
+                    "properties": {
+                        "@type": "way",
+                        "@id": 61543305,
+                        "boundary": "administrative",
+                    },
+                },
+            ],
         }
         temp_parent = REPO_ROOT / "tmp" / "world" / "source_ingestion" / "tests"
         temp_parent.mkdir(parents=True, exist_ok=True)

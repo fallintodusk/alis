@@ -103,7 +103,7 @@ function Invoke-TournamentApply {
         '-ManifestRoot', $transientManifestRoot,
         '-EvidencePath', $ReceiptPath,
         '-MaxRoads', '1000', '-MaxBuildings', '1000',
-        '-RequireLandscape', '-NonInteractive'
+        '-NonInteractive'
     )
     & $powerShellExe @arguments | Out-Host
     $exitCode = $LASTEXITCODE

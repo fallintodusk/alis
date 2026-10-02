@@ -1,0 +1,33 @@
+{
+  "manifest_version": 1,
+  "engine_build_id": "test-20251115_122940",
+  "plugins": [
+    {
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "ProjectMenuCore",
+      "version": "1.0.0",
+      "platform": "Windows",
+      "code": {
+        "url": "https://cdn.alis.game/units/550e8400-e29b-41d4-a716-446655440000/1.0.0/code.zip",
+        "hash": "220e6a66506e778943e35d9b5f6c176e5153c75a5b546933a151ff68fb121bf8",
+        "size": 524288
+      },
+      "assets": [
+        {
+          "url": "https://cdn.alis.game/units/550e8400-e29b-41d4-a716-446655440000/1.0.0/content.utoc",
+          "hash": "40028adba0e9462b4f7905cca900513ab51fe939697f28e5e566415e44c1e337",
+          "size": 4096,
+          "role": "utoc"
+        },
+        {
+          "url": "https://cdn.alis.game/units/550e8400-e29b-41d4-a716-446655440000/1.0.0/content.ucas",
+          "hash": "8b1ba8f4b43c8e1320a581d13fa854600022429b4ff6b563902f55c3ef8e090d",
+          "size": 2097152,
+          "role": "ucas"
+        }
+      ],
+      "depends_on": [],
+      "channel": "dev"
+    }
+  ]
+}

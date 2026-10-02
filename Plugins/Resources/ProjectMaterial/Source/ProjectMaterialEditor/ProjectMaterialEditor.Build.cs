@@ -28,6 +28,9 @@ public class ProjectMaterialEditor : ModuleRules
 			"Engine",
 			"Json",
 			"MaterialEditor",
+			"MeshPartitionEditor",
+			"ProjectCore",
+			"ProjectTexture",
 			"Projects",
 			"UnrealEd"
 		});

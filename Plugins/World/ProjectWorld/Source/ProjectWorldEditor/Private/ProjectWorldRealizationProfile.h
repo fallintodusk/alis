@@ -54,8 +54,6 @@ struct FProjectWorldRealizationProfile
 	FString CanonicalProfileId;
 	FString MapPackagePath;
 	FString RuntimeProfileId;
-	FString LogicalLandscapeId;
-	int32 ComponentsPerProxy = 0;
 	TArray<FString> ProtectedAuthoredRoots;
 	TArray<FString> ExcludedRuntimeStateRoots;
 	TArray<FProjectWorldRealizationLayer> Layers;

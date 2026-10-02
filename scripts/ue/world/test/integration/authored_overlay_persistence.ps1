@@ -145,7 +145,6 @@ function Invoke-ProjectWorldPersistenceRun {
         '-EvidencePath', $evidencePath,
         '-MaxRoads', '0',
         '-MaxBuildings', '0',
-        '-RequireLandscape',
         '-NonInteractive'
     ) + $ExtraArguments
     & $powerShellExe @arguments | Out-Host

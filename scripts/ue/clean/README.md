@@ -252,7 +252,7 @@ If PowerShell scripts fail, manual clean:
 
 ```cmd
 REM Navigate to project root
-cd <project-root>
+cd <repo>
 
 REM Remove project artifacts
 rmdir /s /q Binaries
@@ -268,6 +268,6 @@ rmdir /s /q Plugins\Systems\ProjectLoading\Intermediate
 ## Related Documentation
 
 - [test.py](../standalone/test.py) - Autonomous test script (uses clean by default)
-- [build_standalone.bat](../standalone/build_standalone.bat) - Build script (uses clean by default)
-- [Build Guide](../../../docs/agents/build.md) - Build system documentation
-- [Helpers Reference](../../../docs/reference/helpers.md) - Scripts SOLID structure
+- [build.ps1](../standalone/build.ps1) - Standalone build script (`-Clean` forces a full rebuild)
+- [Build Guide](../../../docs/build/README.md) - Build system documentation
+- [Script Architecture](../../docs/architecture.md) - Script placement and boundaries

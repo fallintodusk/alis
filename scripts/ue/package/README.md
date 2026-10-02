@@ -415,8 +415,8 @@ Examples:
 
 ```powershell
 .\scripts\ue\package\verify_release.ps1 `
-  -ReleaseDir <build-dir> `
-  -PublicKeyPath <site-root>\assets\security\public-key.asc `
+  -ReleaseDir <release-dir> `
+  -PublicKeyPath <site-repo>\assets\security\public-key.asc `
   -GpgPath "C:\Program Files\Git\usr\bin\gpg.exe"
 ```
 
@@ -444,7 +444,7 @@ Windows wrapper for `verify_release.ps1`.
 Example:
 
 ```bat
-scripts\ue\package\verify_release.bat -ReleaseDir <build-dir>
+scripts\ue\package\verify_release.bat -ReleaseDir <release-dir>
 ```
 
 ### `verify_release.sh`

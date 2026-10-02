@@ -4,7 +4,6 @@ setlocal
 rem Validate text files and paths against the ALIS character-set policy:
 rem no foreign-script symbols/comments in content, and ASCII-only paths.
 rem Content blocks are extensible data in the .py.
-rem SOT: CLAUDE.md "ASCII-ONLY DOCUMENTATION".
 
 set SCRIPT_DIR=%~dp0
 

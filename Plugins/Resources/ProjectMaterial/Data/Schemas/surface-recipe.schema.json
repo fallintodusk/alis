@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.project/schemas/project-material-surface-recipe-v4.json",
+  "title": "ProjectMaterial Surface Recipe v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "material_id",
+    "artifact_kind",
+    "family",
+    "archetype",
+    "compiler_version",
+    "projection_frame",
+    "pattern",
+    "semantic_bindings",
+    "scalars",
+    "vectors"
+  ],
+  "properties": {
+    "$schema": { "const": "../../Schemas/surface-recipe.schema.json" },
+    "schema_version": { "const": "4" },
+    "material_id": { "type": "string", "pattern": "^M(I)?_[A-Za-z0-9_]+$" },
+    "artifact_kind": { "enum": ["parent", "instance"] },
+    "binding_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "family": { "const": "surface_substrate" },
+    "archetype": { "enum": ["terrain_metric", "object_metric"] },
+    "compiler_version": { "const": "5" },
+    "parent": {
+      "type": "string",
+      "pattern": "^/ProjectMaterial/Surfaces/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+    },
+    "projection_frame": { "enum": ["world_metric_triplanar_2d", "object_metric_triplanar_2d"] },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern_id"],
+      "properties": {
+        "pattern_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
+      }
+    },
+    "semantic_bindings": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+      "uniqueItems": true,
+      "maxItems": 2
+    },
+    "scalars": { "type": "object" },
+    "vectors": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "artifact_kind": { "const": "parent" } } },
+      "then": {
+        "properties": { "material_id": { "pattern": "^M_(?!I_)[A-Za-z0-9_]+$" } },
+        "not": { "anyOf": [{ "required": ["parent"] }, { "required": ["binding_id"] }] }
+      },
+      "else": {
+        "required": ["parent", "binding_id"],
+        "properties": { "material_id": { "pattern": "^MI_[A-Za-z0-9_]+$" } }
+      }
+    },
+    {
+      "if": { "properties": { "archetype": { "const": "terrain_metric" } } },
+      "then": {
+        "properties": {
+          "projection_frame": { "const": "world_metric_triplanar_2d" },
+          "semantic_bindings": { "const": ["ground", "hydro_transition"] },
+          "scalars": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "BaseRoughness",
+              "PatternScaleMeters",
+              "MacroStrength",
+              "DetailStrength",
+              "HydroDarkening",
+              "SlopeContrast"
+            ],
+            "properties": {
+              "BaseRoughness": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "PatternScaleMeters": { "type": "number", "minimum": 0.05, "maximum": 100.0 },
+              "MacroStrength": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "DetailStrength": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "HydroDarkening": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "SlopeContrast": { "type": "number", "minimum": 0.01, "maximum": 16.0 }
+            }
+          },
+          "vectors": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["GroundColor", "SteepGroundColor", "HydroTint"],
+            "properties": {
+              "GroundColor": { "$ref": "#/$defs/color" },
+              "SteepGroundColor": { "$ref": "#/$defs/color" },
+              "HydroTint": { "$ref": "#/$defs/color" }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "projection_frame": { "const": "object_metric_triplanar_2d" },
+          "semantic_bindings": { "maxItems": 0 },
+          "scalars": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["BaseRoughness", "PatternScaleMeters", "MacroStrength", "DetailStrength"],
+            "properties": {
+              "BaseRoughness": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "PatternScaleMeters": { "type": "number", "minimum": 0.05, "maximum": 100.0 },
+              "MacroStrength": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "DetailStrength": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+            }
+          },
+          "vectors": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["BaseColor"],
+            "properties": {
+              "BaseColor": { "$ref": "#/$defs/color" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "color": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+    }
+  }
+}

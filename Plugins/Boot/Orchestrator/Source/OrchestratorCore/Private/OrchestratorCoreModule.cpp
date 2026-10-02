@@ -695,7 +695,7 @@ void FOrchestratorCoreModule::ApplyHotUpdates()
 			continue;
 		}
 
-		// Download path: <local-app-data>/Alis/Downloads/<Name>_<Version>_content.zip
+		// Download path: %LOCALAPPDATA%/Alis/Downloads/<Name>_<Version>_content.zip
 		const FString DownloadPath = FPaths::Combine(
 			GetLocalRoot(),
 			TEXT("Downloads"),
@@ -796,7 +796,7 @@ void FOrchestratorCoreModule::StageColdUpdates()
 		UE_LOG(LogOrchestrator, Log, TEXT("    Code URL: %s"), *ManifestEntry->UrlCode);
 		UE_LOG(LogOrchestrator, Log, TEXT("    Expected code_hash: %s"), *ManifestEntry->CodeHash);
 
-		// Stage path: <local-app-data>/Alis/Plugins/<Name>/<Version>/
+		// Stage path: %LOCALAPPDATA%/Alis/Plugins/<Name>/<Version>/
 		const FString StagePath = FPaths::Combine(
 			GetLocalRoot(),
 			TEXT("Plugins"),
@@ -812,7 +812,7 @@ void FOrchestratorCoreModule::StageColdUpdates()
 			continue;
 		}
 
-		// Download path: <local-app-data>/Alis/Downloads/<Name>_<Version>_code.zip
+		// Download path: %LOCALAPPDATA%/Alis/Downloads/<Name>_<Version>_code.zip
 		const FString CodeDownloadPath = FPaths::Combine(
 			GetLocalRoot(),
 			TEXT("Downloads"),
@@ -1291,7 +1291,7 @@ void FOrchestratorCoreModule::LoadFeatureModules()
 
 FString FOrchestratorCoreModule::GetLocalRoot() const
 {
-	// LocalRoot = <local-app-data>/Alis for production (from Launcher)
+	// LocalRoot = %LOCALAPPDATA%/Alis for production (from Launcher)
 	// For dev mode, use ProjectDir/LocalAppData/Alis
 	return FPaths::Combine(LauncherContext.InstallPath, TEXT("LocalAppData/Alis"));
 }

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.project/schemas/project-texture-pattern-recipe-v3.json",
+  "title": "ProjectTexture Runtime Pattern Recipe v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "pattern_id",
+    "catalog_id",
+    "family",
+    "compiler_version",
+    "output_contract",
+    "seed",
+    "resolution_class",
+    "nodes",
+    "exports"
+  ],
+  "properties": {
+    "$schema": { "const": "../../Schemas/pattern-recipe.schema.json" },
+    "schema_version": { "const": "3" },
+    "pattern_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+    "catalog_id": { "type": "string", "pattern": "^DA_[A-Za-z0-9_]+$" },
+    "family": { "const": "surface_structure" },
+    "compiler_version": { "const": "5" },
+    "output_contract": { "const": "surface_structure_rgb_v1" },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "resolution_class": { "enum": ["low", "medium", "high"] },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "algorithm", "parents", "output_layout"],
+        "properties": {
+          "node_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+          "algorithm": {
+            "enum": ["natural_noise_basis_native", "natural_ground_structure_native"]
+          },
+          "parents": {
+            "type": "array",
+            "maxItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" }
+          },
+          "output_layout": {
+            "enum": ["natural_noise_basis_rgb_v1", "surface_structure_rgb_v1"]
+          }
+        }
+      }
+    },
+    "exports": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot", "node_id", "descriptor_id"],
+        "properties": {
+          "slot": { "const": "Structure" },
+          "node_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+          "descriptor_id": { "type": "string", "pattern": "^RT_[A-Za-z0-9_]+$" }
+        }
+      }
+    }
+  }
+}

@@ -4,7 +4,6 @@
 #include "ProjectWorldGeneratedGeometry.h"
 
 #include "ProjectWorldCanonicalBundle.h"
-#include "ProjectWorldLandscapeRealization.h"
 #include "ProjectWorldRealizationService.h"
 
 #include "EngineUtils.h"

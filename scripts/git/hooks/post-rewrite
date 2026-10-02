@@ -1,0 +1,31 @@
+#!/bin/bash
+# post-rewrite: runs after git rebase/amend
+# Args: $1=command ("rebase"|"amend"), stdin=old-sha/new-sha pairs
+# Install: scripts/setup/install_hooks.sh
+
+set -euo pipefail
+
+CMD="${1:-}"
+
+# Prefer repo's script (auto-updates); fallback to .git/hooks/ copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+CORE_SCRIPT="$PROJECT_ROOT/scripts/git/hooks/invalidate_ubt_cache.sh"
+
+if [ ! -f "$CORE_SCRIPT" ]; then
+    HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CORE_SCRIPT="$HOOK_DIR/invalidate_ubt_cache.sh"
+fi
+
+[ -f "$CORE_SCRIPT" ] || exit 0
+
+# Rebase: ORIG_HEAD=pre-rebase tip, captures all rebased commits in one diff
+# Amend: no ORIG_HEAD, read old/new SHA from stdin instead
+if [ "$CMD" = "rebase" ]; then
+    git rev-parse -q --verify ORIG_HEAD >/dev/null || exit 0
+    bash "$CORE_SCRIPT" ORIG_HEAD HEAD
+    exit 0
+fi
+
+read -r OLD_SHA NEW_SHA || exit 0
+[ -n "${OLD_SHA:-}" ] && [ -n "${NEW_SHA:-}" ] || exit 0
+bash "$CORE_SCRIPT" "$OLD_SHA" "$NEW_SHA"

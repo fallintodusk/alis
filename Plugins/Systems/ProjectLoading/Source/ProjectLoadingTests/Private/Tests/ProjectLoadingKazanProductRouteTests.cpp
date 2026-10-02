@@ -1,11 +1,13 @@
 // Copyright ALIS. All Rights Reserved.
 // License terms: see repository root LICENSE.
 
+#include "Engine/AssetManager.h"
 #include "Experience/ProjectExperienceDescriptorBase.h"
 #include "Experience/ProjectExperienceDefinitionRegistrar.h"
 #include "Experience/ProjectExperienceRegistry.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Types/ProjectLoadRequest.h"
 
@@ -157,6 +159,14 @@ bool FProjectLoading_ManhattanShowcaseProductRouteProjection::RunTest(const FStr
 		TEXT("+MapsToCook=(FilePath=\"/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase\")")));
 	TestTrue(TEXT("The Manhattan showcase map has an explicit primary-asset cook rule."), DefaultGame.Contains(
 		TEXT("PrimaryAssetId=\"Map:/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase\"")));
+
+	// That rule, including its chunk, applies only to a scanned primary asset. A public
+	// checkout without the developer payload has no map package to scan.
+	if (FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(MapPath)))
+	{
+		TestTrue(TEXT("The editor registers the Manhattan showcase map as a primary asset."),
+			UAssetManager::Get().GetPrimaryAssetIdForPath(FSoftObjectPath(MapPath)).IsValid());
+	}
 	return true;
 }
 

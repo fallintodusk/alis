@@ -5,7 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
+#include "Presentation/ProjectWorldProductRouteConfig.h"
 #include "Presentation/ProjectWorldProductRouteProgress.h"
+#include "Presentation/ProjectWorldProductTerrainAcceptance.h"
 
 class AActor;
 class ACharacter;
@@ -14,19 +16,6 @@ class IInteractionService;
 class UActorComponent;
 class UCharacterMovementComponent;
 class UWorld;
-
-struct FProjectWorldProductRouteGateConfig
-{
-	FString OperationId;
-	FString ResultPath;
-	FString MapPackage;
-	FString RuntimeProfileId;
-	FString RuntimeProfileHash;
-	FString MachineProfileId;
-	FVector EdgeLocation = FVector::ZeroVector;
-	bool bRestorePreviewFlight = false;
-	bool bRequireGameplayInteraction = true;
-};
 
 class FProjectWorldProductRouteGate
 {
@@ -50,7 +39,6 @@ private:
 		Finished
 	};
 
-	bool ParseConfig(FString& OutError);
 	bool Tick(float DeltaSeconds);
 	bool TryAcquireProductWorld();
 	bool TickCenterSettlement();
@@ -95,10 +83,12 @@ private:
 	TWeakObjectPtr<ACharacter> PlayerCharacter;
 	TWeakObjectPtr<UCharacterMovementComponent> CharacterMovement;
 	TSharedPtr<IInteractionService> InteractionService;
+	TUniquePtr<FProjectWorldProductTerrainAcceptance> TerrainAcceptance;
 	FDelegateHandle InteractionHandle;
 	FTSTicker::FDelegateHandle TickerHandle;
 	FVector CenterLocation = FVector::ZeroVector;
 	FVector MovementStart = FVector::ZeroVector;
+	FVector MovementDirection = FVector::ZeroVector;
 	FString CenterCellMarker;
 	FString EdgeCellMarker;
 	FString InteractionObjectId;

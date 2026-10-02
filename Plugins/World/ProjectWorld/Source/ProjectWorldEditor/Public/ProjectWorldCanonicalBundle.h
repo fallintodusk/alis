@@ -82,6 +82,11 @@ struct FProjectWorldCanonicalTerrain
 	int32 SamplesX = 0;
 	int32 SamplesY = 0;
 	TArray<double> HeightsMeters;
+	FString SurfaceContractId;
+	int32 SurfaceContractVersion = 0;
+	FString SurfaceContractHash;
+	TArray<FName> SurfaceRoles;
+	TMap<FName, TArray<float>> SurfaceWeights;
 };
 
 struct FProjectWorldCanonicalCell
@@ -117,16 +122,6 @@ struct FProjectWorldCanonicalBundle
 	TArray<FProjectWorldCanonicalCell> Cells;
 	TMap<FString, FProjectWorldCanonicalFeature> Features;
 	int32 VerifiedOutputCount = 0;
-};
-
-struct FProjectWorldLandscapeLayout
-{
-	bool bCompatible = false;
-	FIntPoint TotalQuads = FIntPoint::ZeroValue;
-	FIntPoint ComponentCount = FIntPoint::ZeroValue;
-	int32 SectionsPerComponent = 0;
-	int32 QuadsPerSection = 0;
-	FString Reason;
 };
 
 struct FProjectWorldCanonicalValidation
@@ -172,6 +167,4 @@ public:
 		const FProjectWorldCanonicalTerrain& Terrain,
 		double CanonicalNorthing);
 
-	static FProjectWorldLandscapeLayout SelectLandscapeLayout(
-		const FProjectWorldCanonicalBundle& Bundle);
 };

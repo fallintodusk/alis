@@ -123,8 +123,9 @@ once the sources are concatenated.
 (`RuntimeTagValue` / `HasRuntimeTagValue` alongside the presentation-gate
 originals), or hoist one shared implementation.
 
-**File.** `Source/ProjectWorld/Private/Presentation/ProjectWorldPresentationSampling.cpp`
-vs `.../ProjectWorldPresentationGate.cpp`.
+**File.** Presentation implementation files compiled into the same ProjectWorld
+unity translation unit. File-local helper names and constants must remain
+distinct across those files.
 
 **Regression test.** The build itself; no runtime test applies.
 
@@ -249,39 +250,6 @@ bytes that were written, not whether a new write is required.
 
 **Regression test.**
 `Project.World.Realization.NativeTwin.WaterAssetPersistence`.
-
----
-
-## 10. Global identity on the logical Landscape breaks cell-local regeneration
-
-**Symptom.** One changed Terrain or Water cell input dirties the logical map
-package instead of only the affected spatial Landscape package.
-
-**Root cause.** The logical Landscape stored the whole bundle input hash and
-per-cell terrain hashes, and treated any updated component as a reason to dirty
-the root actor. Those identities changed more broadly than the package owner.
-Even after correcting those flags, the outer service unconditionally called
-`SaveLevel()` for cell-local changes and rewrote clean logical-map bytes.
-
-**Fix.** Keep only stable topology, grid, material, edit-layer, and logical
-identity on the root Landscape. Store each cell's composite Terrain-plus-Water
-projection identity on its Landscape component and the cell ID on its streaming
-proxy. Validate the component's actual `SectionBase` and canonical bounds before
-accepting that ownership. Save the persistent level only for a new map or a
-genuinely dirty root package; otherwise save only dirty external packages.
-
-**Files.** `ProjectWorldLandscapeRealization.cpp`,
-`ProjectWorldRealizationService.cpp`, `Tests/ProjectWorldNativeTwinTests.cpp`,
-and `scripts/ue/world/test/integration/realization_layer_lifecycle.ps1`.
-
-**Regression tests.**
-`Project.World.Realization.NativeTwin.LandscapePartitionAndEditLayers` proves
-ownership and dirty flags. The isolated L1 runner's `-ProvePackageLocality`
-mode proves that a genuine one-cell terrain change rewrites exactly its proxy,
-that a Water semantic change rewrites exactly its hydrologically affected
-Landscape proxies, and that both leave the logical `.umap` byte-identical through
-the real wrapper/commandlet save path. Same-path material tuning remains outside
-the geography identity and writes no Landscape package.
 
 ---
 
@@ -752,10 +720,10 @@ road ribbon bounds may also extend slightly beyond the cell rectangle while
 remaining owned by one `RoadCell` identity.
 
 **Fix.** Validate cell-local layer actors against their canonical identity and
-the realized Landscape proxy cell extent. Record runtime-cell intersection and
-package attribution as candidate metrics. Fail invalid bounds, missing cell
-identity/packages, undeclared non-Landscape reference bundles, or broken
-Landscape/Data Layer/HLOD policy; do not invent a universal four-cell limit.
+the realized Mesh Terrain authoring-cell extent. Record runtime-cell intersection
+and package attribution as candidate metrics. Fail invalid bounds, missing cell
+identity/packages, undeclared non-terrain reference bundles, or broken Mesh
+Terrain/Data Layer/HLOD policy; do not invent a universal four-cell limit.
 
 **File.** `ProjectWorldStaticPartitionAudit.cpp` and
 `scripts/ue/world/audit_runtime_partition.ps1`.
@@ -764,30 +732,6 @@ Landscape/Data Layer/HLOD policy; do not invent a universal four-cell limit.
 proves the base-cell counting math. The read-only production audit verifies all
 three Kazan candidates against the same 850 generated actors without saving the
 map.
-
----
-
-## 25. Landscape material migration must dirty every streaming proxy package
-
-**Symptom.** The root Landscape reports the new material in the live Editor, but a
-restart or packaged build still loads the old material on streamed territory cells.
-
-**Root cause.** Refreshing component material instances updates proxy state in memory,
-but does not make each World Partition external-actor package durable. Saving only the
-root Landscape therefore leaves serialized proxy references unchanged.
-
-**Fix.** When the semantic material reference changes, enumerate the complete logical
-Landscape family. Assign the authenticated material to the root and every streaming
-proxy, refresh component material instances, and mark each owning proxy package dirty.
-Same-path ProjectMaterial tuning does not use this migration path and must not dirty
-World packages.
-
-**File.** `Source/ProjectWorldEditor/Private/ProjectWorldLandscapeRealization.cpp`.
-
-**Regression test.**
-`Project.World.Realization.NativeTwin.LandscapePartitionAndEditLayers` proves that a
-material-only migration updates and dirties every proxy package, then proves a later
-single-cell terrain edit still dirties only its owning proxy.
 
 ---
 
@@ -841,10 +785,10 @@ visual evidence must still frame a known water surface from above.
 
 ---
 
-## 28. A visible Water surface can still z-fight with Landscape
+## 28. A visible Water surface can still z-fight with terrain
 
 **Symptom.** Water is blue and front-facing, but broad reservoirs alternate between
-blue and Landscape green in triangular patches. A repeated fixed-camera capture changes
+blue and terrain green in triangular patches. A repeated fixed-camera capture changes
 which pixels classify as Water even though neither camera nor canonical data moved.
 
 **Root cause.** A Water estimator may legitimately produce the same or a lower Z than
@@ -853,24 +797,24 @@ hide Water completely. A reflective Single Layer Water placeholder adds presenta
 noise without solving either vertical-order failure. A constant Water offset only fixes
 the coplanar case and cannot safely cover multi-metre DEM disagreement.
 
-**Fix.** Keep canonical Terrain and Water bytes exact. The generated Landscape
-projection consumes both inputs and lowers only samples inside the exact Water footprint
-to `min(terrain_z, water_z)`. The replaceable Water mesh independently applies the
-profile-owned positive `surface_offset_m`. Use the current time-invariant opaque blue
-placeholder until the universal ProjectMaterial Water family is selected and proven.
-Do not raise Water by the worst DEM error, bend Water to Terrain, paint Water into the
-Landscape material, or enable a second Water authority.
+**Fix.** Canonical Compilation preserves the sampled terrain as `water_fit`, derives
+the final terrain surface below exact Water footprints with the configured clearance,
+then applies authored terrain patches and validates the clearance again. The Mesh
+Terrain adapter consumes that final surface without another clamp. The replaceable
+Water mesh independently applies the profile-owned positive `surface_offset_m`. Do not
+raise Water by the worst DEM error, bend Water to Terrain, encode the correction only
+in material, or enable a second Water authority.
 
 **Files.**
-`Source/ProjectWorldEditor/Private/ProjectWorldTerrainWaterConformance.*`,
-`ProjectWorldLandscapeRealization.*`, `ProjectWorldLayerInventory.cpp`,
-`ProjectWorldWaterMeshBuilder.*`, and the owning realization profile.
+`tools/World/CanonicalCompilation/app/terrain_surface.py`,
+`ProjectWorldLayerInventory.cpp`, `ProjectWorldWaterMeshBuilder.*`, and the owning
+compiler and realization profiles.
 
 **Regression tests.**
-`Project.World.Realization.NativeTwin.TerrainWaterLayerOrder` pins the vertical order
-and dry-Terrain locality;
-`Project.World.Realization.NativeTwin.WaterCanonicalContract` pins the metric offset;
-`Project.World.Realization.Layers.PersistentWater` pins the static opaque material;
+`tools/World/CanonicalCompilation/tests/test_terrain_surface.py` pins the staged
+vertical order, authored-patch order, clearance, and dry-Terrain locality;
+`Project.World.Realization.Layers.PersistentWater` pins the metric offset and
+Water geometry contract;
 `scripts/ue/world/test/water_temporal_stability.ps1` rejects repeated-pose Water pixel
 classification flips and color drift.
 
@@ -1035,3 +979,73 @@ input is semantically identical and every owned artifact remains byte-identical.
 **Regression test.**
 `generator_fingerprint.Tests.ps1` proves CRLF/LF stability and proves a real text edit
 still moves the owning producer fingerprint.
+
+## 34. A terrain-only spawn trace can place the player inside valid geometry
+
+**Symptom.** The packaged product route proves ordinary input and PreviewFlight, but
+the possessed character stops after a short ascent near the center spawn. The failure
+looks like an elevated terrain collision surface.
+
+**Root cause.** Ground placement repeatedly ignored every blocking actor until a
+terrain-tagged actor was found. At the Kazan production center this skipped a
+`ProjectWorld.BuildingMassing.v2` static mesh and placed the capsule on terrain below
+the building. An upward sweep using the possessed character's capsule proved the
+building was the first blocker. The ascent distance alone did not identify its owner.
+
+**Fix.** Ground placement uses the first blocking Pawn trace. Terrain collision remains
+a separate representation-neutral probe. The movement check selects a nearby direction
+whose first-blocking ground stays within the character step-height envelope, so a valid
+roof placement does not immediately step into open air. Do not ignore buildings, roads,
+water, or gameplay actors merely to make the placement actor be terrain.
+
+**Files.**
+`Source/ProjectWorld/Private/Presentation/ProjectWorldProductRouteGate.*`.
+
+**Regression test.**
+`Project.World.Presentation.ProductRouteGroundPlacementPolicy` pins the single
+first-blocking trace and rejects the former actor-ignore loop and terrain-only mode. The
+packaged Kazan product route proves grounded movement, the independent terrain
+probe, road/building collision, traversal, and center -> edge -> center streaming
+together.
+
+## 35. Valid Mesh Terrain data can be invisible because of triangle winding
+
+**Symptom.** Mesh Terrain actors, partitions, channels, bounds, collision, and material
+bindings all exist, but the terrain is absent from a normal one-sided packaged render.
+A temporary two-sided material makes it visible.
+
+**Root cause.** The regular grid triangles were emitted with the opposite winding from
+the renderer-facing convention. Correct vertex positions and authored +Z normals do not
+make a back-facing triangle visible.
+
+**Fix.** Emit each grid quad as `A,C,B` and `B,C,D`. Keep the production material
+one-sided; two-sided rendering is only a diagnostic discriminator.
+
+**File.**
+`Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp`.
+
+**Regression test.**
+`Project.World.Realization.MeshTerrain.RendererFacingWinding` checks the rendered-face
+cross products and includes the former order as a known-bad control.
+
+## 36. Mesh Terrain reuse must include adapter implementation identity
+
+**Symptom.** A Mesh Terrain adapter fix compiles and the canonical input and material
+path are unchanged, but realization reports a no-op and retains stale generated mesh
+packages.
+
+**Root cause.** Base-layer reuse compared only canonical input, engine compatibility,
+and material identity. It omitted the adapter compiler fingerprint, so implementation
+changes could authenticate old geometry.
+
+**Fix.** Include `ProjectWorld.MeshTerrain.AdapterCompiler` in the base actor identity,
+layout receipt, artifact semantic hash, and reuse comparison. A changed adapter
+fingerprint invalidates realization; an unchanged fingerprint remains a no-op.
+
+**Files.**
+`Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp`
+and `ProjectWorldMeshTerrainLayoutReceipt.cpp`.
+
+**Regression test.**
+`Project.World.Realization.MeshTerrain.BaseIdentity` rejects stale material or adapter
+identity while accepting an exact match.

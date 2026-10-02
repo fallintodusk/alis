@@ -417,36 +417,25 @@ def _validate_realization(
             "duration_seconds": second["duration_seconds"],
             "generated_source_bytes": second["generated_source_bytes"],
             "verified_output_count": second["verified_output_count"],
-            "authored_layer_preserved": second["authored_correction_layer_preserved"],
             **layered,
         }
     changes = second["changes"]
     _require(changes["road_sections"] == expected["expected_road_fragments"], "road_realization_mismatch", "Road fragment count differs from the contract")
     _require(changes["building_sections"] == expected["expected_buildings"], "building_realization_mismatch", "Building realization count differs from the contract")
     _require(changes["cross_cell_road_shared_boundary_points"] >= 1, "road_boundary_missing", "Cross-cell road has no shared boundary coordinate")
-    _require(changes["updated_landscape_components"] == 0, "unchanged_landscape_updated", "Unchanged import updated Landscape components")
+    _require(changes["updated_actors"] == 0, "unchanged_generated_actor_updated", "Unchanged import updated generated actors")
     if incremental is not None:
         _require(
             incremental.get("input_sha256") != second.get("input_sha256"),
             "incremental_realization_input_unproven",
             "Incremental realization reused the full compile receipt",
         )
-        if expected["require_landscape"]:
-            _require(
-                incremental["changes"]["updated_landscape_components"] == 0
-                and incremental["changes"]["updated_actors"] >= 1,
-                "incremental_landscape_noop_unproven",
-                "Content-identical incremental terrain rewrote Landscape data or refreshed no generated actors",
-            )
-        else:
-            _require(
-                incremental["changes"]["updated_actors"] >= 1,
-                "incremental_actor_scope_unproven",
-                "Incremental realization did not update a generated actor",
-            )
-    if expected["require_landscape"]:
-        _require(second["authored_correction_layer_preserved"], "authored_layer_lost", "Authored Landscape layer was not preserved")
-        _require(second["georeferencing_placement_error_m"] == 0, "placement_error", "GeoReferencing placement is not exact")
+        _require(
+            incremental["changes"]["updated_actors"] >= 1,
+            "incremental_actor_scope_unproven",
+            "Incremental realization did not update a generated actor",
+        )
+    _require(second["georeferencing_placement_error_m"] == 0, "placement_error", "GeoReferencing placement is not exact")
     return {
         "D3": second["semantic_fingerprint"],
         "manifest_lifecycle": manifest_evidence,
@@ -455,7 +444,6 @@ def _validate_realization(
         "verified_output_count": second["verified_output_count"],
         "road_fragments": changes["road_sections"],
         "building_sections": changes["building_sections"],
-        "authored_layer_preserved": second["authored_correction_layer_preserved"],
         "runtime_route": second.get("runtime_route", ""),
         "runtime_navigation_path_m": second.get("runtime_navigation_path_m", 0),
         "runtime_collision_probe_count": second.get("runtime_collision_probe_count", 0),

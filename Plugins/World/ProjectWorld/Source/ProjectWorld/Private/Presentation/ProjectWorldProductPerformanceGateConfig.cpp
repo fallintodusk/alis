@@ -23,6 +23,12 @@ namespace
 bool FProjectWorldProductPerformanceGate::ParseConfig(FString& OutError)
 {
 	bPlayableTourRequested = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldPlayableTour"));
+	bNativeSteadyRequested = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldNativeSteady"));
+	if (bNativeSteadyRequested && bPlayableTourRequested)
+	{
+		OutError = TEXT("Native steady capture and playable traversal are separate operations.");
+		return false;
+	}
 	// Same flag and same default as the product-route gate: one non-interactive policy per
 	// operation, so both gates agree about what the run is allowed to omit.
 	bRequireGameplayInteraction = !FParse::Param(

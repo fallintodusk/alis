@@ -161,7 +161,7 @@ function Invoke-LocalityApply {
         '-ManifestRoot', $transientManifestRoot,
         '-EvidencePath', $receiptPath,
         '-MaxRoads', '1000', '-MaxBuildings', '1000',
-        '-RequireLandscape', '-NonInteractive')
+        '-NonInteractive')
     & $powerShellExe @arguments | Out-Host
     $exitCode = $LASTEXITCODE
     $result = if (Test-Path -LiteralPath $receiptPath -PathType Leaf) {

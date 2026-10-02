@@ -11,17 +11,28 @@ struct FProjectWorldPerformanceFrame
 	double GameMilliseconds = 0.0;
 	double RenderMilliseconds = 0.0;
 	double GPUMilliseconds = 0.0;
+	double RHIMilliseconds = 0.0;
 };
 
 struct FProjectWorldPerformanceStatistics
 {
 	int32 SampleCount = 0;
+	double FrameP50Milliseconds = 0.0;
 	double FrameP95Milliseconds = 0.0;
 	double FrameP99Milliseconds = 0.0;
 	double FrameMaxMilliseconds = 0.0;
+	double GameP50Milliseconds = 0.0;
 	double GameP95Milliseconds = 0.0;
+	double GameP99Milliseconds = 0.0;
+	double RenderP50Milliseconds = 0.0;
 	double RenderP95Milliseconds = 0.0;
+	double RenderP99Milliseconds = 0.0;
+	double GPUP50Milliseconds = 0.0;
 	double GPUP95Milliseconds = 0.0;
+	double GPUP99Milliseconds = 0.0;
+	double RHIP50Milliseconds = 0.0;
+	double RHIP95Milliseconds = 0.0;
+	double RHIP99Milliseconds = 0.0;
 };
 
 namespace ProjectWorldPerformanceMetrics
@@ -35,5 +46,9 @@ namespace ProjectWorldPerformanceMetrics
 		const FProjectWorldPerformanceStatistics& Statistics,
 		int32 StreamingFailures,
 		double FrameP95BudgetMilliseconds,
+		FString& OutReason);
+
+	PROJECTWORLD_API bool HasValidSteadySamples(
+		const TArray<FProjectWorldPerformanceFrame>& Frames,
 		FString& OutReason);
 }

@@ -8,7 +8,7 @@ configured launcher engine, and writes machine-readable evidence under
 `Saved/Validation/WorldRealization/<invocation-sha256>/`. The invocation
 identity covers the compile receipt, presentation, authored-overlay and
 optional runtime and realization profiles, operator dirty additions, target
-map, realization budgets, and Landscape requirement so distinct runs cannot
+map, realization budgets, and representation-specific requirement so distinct runs cannot
 overwrite each other's evidence.
 
 Every run requires an explicit generated map. Validate and Apply also require
@@ -34,9 +34,8 @@ manifests. `-DirtyUnit <layer_id>=<unit_id>` may add operator work but cannot
 remove computed work or dependency closure. The commandlet emits exact
 per-layer inventories; the wrapper rejects missing, extra, overlapping, or
 out-of-owner artifacts before publishing anything.
-The six executable v1 pairs and the Building v2 pair are complete contracts,
-not ID-only dispatch:
-Landscape owns the Terrain-plus-Water canonical cell projection, Water owns
+The registered generator pairs are complete contracts, not ID-only dispatch.
+Mesh Terrain owns compiled terrain sections derived from the final canonical surface, Water owns
 water-only canonical cell semantics, Roads own terrain-dependent road fragments,
 Vegetation owns terrain-draped instances outside its road, water, and authored-mask
 dependencies, Buildings v1 own outline massing, Buildings v2 own canonical
@@ -61,31 +60,32 @@ invocation identity algorithm without weakening evidence containment.
 ```
 
 Use `-Mode Apply` only for the generated root owned by the compile coverage.
-ProjectWorldTestData owns fixtures; ProjectWorldData owns concrete production territories. Add
-`-RequireLandscape` when validating a real Landscape envelope; incompatible
-canonical dimensions fail rather than resample.
+ProjectWorldTestData owns synthetic fixtures; ProjectWorldData owns concrete
+territories. Kazan and Manhattan use their production map identities and the
+registered `project_mesh_terrain:v1` adapter. Incompatible canonical dimensions
+or surface contracts fail before mutation.
 
 Modes:
 
 - `Validate` verifies the full receipt and runs the real GeoReferencing probe
   for EPSG inputs without saving a map.
-- `Apply` creates or regenerates owned actors and assets. Compatible grids use
-  one stock Landscape; incompatible fixtures retain exact procedural terrain.
+- `Apply` creates or regenerates owned actors and assets through the profile's
+  selected terrain producer. Mesh Terrain profiles invoke the adapter builder
+  only for Apply.
 - `Delete` removes owned feature, presentation, and GeoReferencing actors,
-  clears generated Landscape layers, and preserves the `Authored Corrections`
-  layer. It does not load or require the former presentation profile.
+  removes Mesh Terrain authoring and compiled artifacts, and leaves protected
+  authored roots untouched. It does not load or require the former presentation
+  profile.
 
 `-MaxRoads` and `-MaxBuildings` bound source feature identities, not generated
 mesh fragments. P0 defaults to one road and four buildings so a real provider
 snapshot cannot accidentally expand the prototype content budget.
 
 Each result records verified inputs, the grid-owned vertical origin, coordinate
-error, actor/section/component counts, changed Landscape components, Water-footprint
-and hydro-conditioned Landscape sample counts plus maximum correction, protected
-authored-layer identity, authored-overlay hash, per-anchor resolutions,
+error, actor and terrain-section counts, authored-overlay hash, per-anchor resolutions,
 resolved/refused/placed/mask counts, maximum drift, presentation profile
 identity, generated source bytes, and an actual-world semantic fingerprint. Repeating an unchanged Apply must
-keep the fingerprint stable and update zero Landscape components.
+keep the fingerprint stable and update zero generated actors.
 
 Runtime evidence additionally records the exact profile hash, route identity,
 one collision probe per route-fragment cell, Recast path length, generated
@@ -99,7 +99,7 @@ budget fails.
 generated map. Pass the bounded runtime-profile paths, selected profile ID, and
 an evidence path under `Saved/Validation/WorldRealization`. It measures actor
 bounds, runtime-cell assignments, actor reference bundles, external-package
-weight, canonical-cell identity, Landscape proxy ownership, Data Layers,
+weight, canonical-cell identity, Mesh Terrain partition/authoring/compiled ownership, Data Layers,
 loading-range coverage, and HLOD without calling realization Apply or saving
 the map.
 
@@ -190,7 +190,7 @@ events and accepts travel relative to the actual start-to-target distance and de
 arrival radius. After the character reaches the accepted Water viewpoint, one persistent
 runtime `SceneCapture2D` and render target write both images from an unchanged top-down
 orthographic pose anchored to the canonical Water XY. UE's built-in `SCS_BaseColor`
-capture preserves real Water/Landscape depth while excluding sky and lighting from the
+capture preserves real Water/terrain depth while excluding sky and lighting from the
 blue classifier. No debug material, Water-only actor list, or alternate geometry path is
 used. The existing `water_temporal_stability.ps1` verifier reads base-color BGRA without
 alpha composition and gates that pair with unchanged thresholds. The same Shipping
@@ -234,7 +234,7 @@ not folded into `source_state_sha256`.
 ## Operator mutation controls
 
 Apply, Delete, reconstruction, and enrollment first print the exact operation,
-map, replaced scopes, protected Authored root and Landscape correction layer,
+map, replaced scopes, protected authored-content root and canonical authored terrain input,
 and untouched scopes. An interactive operator must enter `yes`; automation
 must opt in explicitly with `-NonInteractive`. Validate is read-only and does
 not prompt.
@@ -297,7 +297,7 @@ legs; individual matrices do not repeat it.
 
 ## 3-CORE isolated L1 lifecycle
 
-After producing the accepted two-cell Landscape/water compile result, run the
+After producing the accepted two-cell terrain/water compile result, run the
 real wrapper-to-commandlet seam with:
 
 ```powershell
@@ -362,7 +362,7 @@ content lock, snapshots the exact production map, layer, presentation, and
 manifest roots, and restores the outer tree even when a child fails. It proves
 full Apply, manifest-stable no-op, one-cell dependency closure, rejected
 out-of-domain rollback, clean semantic reconstruction, and Delete. The receipt
-also authenticates Landscape proxy count, water-cell actors, georeference
+also authenticates Mesh Terrain partition/authoring/compiled counts, water-cell actors, georeference
 error, protected Authored bytes, zero HLOD, and zero scopes after Delete. This
 is review evidence only; it does not enroll durable authority or replace the
 later Matrix and L3 gates.

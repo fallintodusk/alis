@@ -69,11 +69,12 @@ stays under `tmp/world/end_to_end_validation/`. Each invocation prunes only
 its own evidence kind to five receipts and its own disposable Matrix work to
 two runs. It never sweeps another tool's `tmp/` ownership.
 
-`p0.validation.json` remains the frozen small regression.
-`representative_v1.validation.json` owns the expanded environment semantics
-and separate generated map packages. `kazan_territory_v1.validation.json`
-binds the Landscape-compatible twin to the production 210-cell
-terrain/water/road/vegetation topology and exact generated-layer inventory.
+`p0.validation.json` remains the frozen small compiler regression.
+`representative_v1.validation.json` owns the expanded compiler/environment
+semantics. Neither profile is terrain-realization evidence because neither owns
+a realization profile. `kazan_territory_v1.validation.json` binds the Mesh
+Terrain twin to the production 210-cell terrain/water/road/vegetation topology
+and exact generated-layer inventory.
 `enroll` authenticates its
 accepted Matrix and current transitive profile closure, then executes the one
 recoverable L3 transaction that may persist those exact production packages
