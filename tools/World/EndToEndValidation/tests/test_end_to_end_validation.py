@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -61,7 +60,7 @@ class EndToEndValidationTests(unittest.TestCase):
         manifest_path = f"scopes/map_test.{generation}.json"
         self._write(manifest_root / manifest_path, {
             "scope_id": "map_test",
-            "artifacts": [{"path": value} for value in artifact_paths],
+            "artifacts": [{"path": value, "kind": "external_actor"} for value in artifact_paths],
         })
         self._write(Path(f"{path}.manifests.json"), {
             "manifest_root": str(manifest_root),
@@ -76,8 +75,8 @@ class EndToEndValidationTests(unittest.TestCase):
             }],
         })
         self._write(path, {
-            "$schema": "https://alis.world/schemas/world-realization/realization-result-v1.json",
-            "schema_version": 1,
+            "$schema": "https://alis.world/schemas/world-realization/realization-result-v2.json",
+            "schema_version": 2,
             "status": "accepted",
             "duration_seconds": 1.0,
             "semantic_fingerprint": fingerprint,
@@ -109,12 +108,12 @@ class EndToEndValidationTests(unittest.TestCase):
             },
         })
 
-    def test_p0_profile_is_valid(self) -> None:
-        profile = load_profile(self.PROFILE_ROOT / "p0.validation.json")
-        self.assertEqual("p0", profile["profile_id"])
+    def test_territory_profile_is_valid(self) -> None:
+        profile = load_profile(self.PROFILE_ROOT / "kazan_territory_v1.validation.json")
+        self.assertEqual("kazan_territory_v1", profile["profile_id"])
 
     def test_validation_profile_accepts_an_explicit_repository_path(self) -> None:
-        relative = "Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/p0.validation.json"
+        relative = "Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/kazan_territory_v1.validation.json"
         self.assertEqual((REPO_ROOT / relative).resolve(), profile_path(relative))
 
     def test_common_check_rejects_contract_changes_during_execution(self) -> None:
@@ -131,31 +130,23 @@ class EndToEndValidationTests(unittest.TestCase):
                     checks.execute_checks(root, root / "preflight.json")
         self.assertEqual("common_contract_changed_during_check", raised.exception.code)
 
-    def test_representative_profile_is_separate_from_frozen_p0(self) -> None:
-        root = self.PROFILE_ROOT
-        p0 = load_profile(root / "p0.validation.json")
-        representative = load_profile(root / "representative_v1.validation.json")
-        self.assertEqual(5, p0["profiles"]["synthetic"]["expected_features"])
-        self.assertEqual(1074, p0["profiles"]["kazan"]["expected_features"])
-        self.assertEqual("synthetic_representative_v1", representative["profiles"]["synthetic"]["source_profile"])
-        self.assertEqual("kazan_representative_v1", representative["profiles"]["kazan"]["source_profile"])
-        for profile in (p0, representative):
-            for name, settings in profile["profiles"].items():
-                contract = execution._presentation_profile_contract(
-                    settings["presentation_profile"], settings["world_data_plugin"]
-                )
-                expected_id = "synthetic_representative_v1" if name == "synthetic" else "kazan_representative_v1"
-                self.assertEqual(expected_id, contract["profile_id"])
-                self.assertEqual(64, len(contract["sha256"]))
-        runtime = execution._runtime_profile_contract(
-            representative["profiles"]["kazan"]["runtime_profile"], "ProjectWorldData"
-        )
-        self.assertEqual("kazan_representative_playable_v1", runtime["profile_id"])
-        self.assertEqual(64, len(runtime["sha256"]))
-        self.assertNotIn("runtime_profile", representative["profiles"]["synthetic"])
+    def test_territory_profile_pins_product_runtime_and_presentation(self) -> None:
+        profile = load_profile(self.PROFILE_ROOT / "kazan_territory_v1.validation.json")
+        for name, settings in profile["profiles"].items():
+            owner = settings["world_data_plugin"]
+            presentation = execution._presentation_profile_contract(settings["presentation_profile"], owner)
+            runtime = execution._runtime_profile_contract(settings["runtime_profile"], owner)
+            self.assertEqual(64, len(presentation["sha256"]))
+            self.assertEqual(64, len(runtime["sha256"]))
+            if name == "kazan":
+                self.assertEqual("kazan_representative_v1", presentation["profile_id"])
+                self.assertEqual("kazan_territory_512_1536_v1", runtime["profile_id"])
+            else:
+                self.assertEqual("synthetic_representative_v1", presentation["profile_id"])
+                self.assertEqual("synthetic_territory_twin_v1", runtime["profile_id"])
 
     def test_one_owner_cannot_pin_two_presentation_profiles(self) -> None:
-        source = self.PROFILE_ROOT / "p0.validation.json"
+        source = self.PROFILE_ROOT / "kazan_territory_v1.validation.json"
         profile = json.loads(source.read_text(encoding="utf-8"))
         duplicate = dict(profile["profiles"]["synthetic"])
         duplicate["map_package"] = "/ProjectWorldTestData/Generated/P0/L_SecondSynthetic"
@@ -173,52 +164,15 @@ class EndToEndValidationTests(unittest.TestCase):
         self.assertEqual("presentation_profile_owner_conflict", raised.exception.code)
 
     def test_validation_profile_supports_a_separate_world_data_owner(self) -> None:
-        source = self.PROFILE_ROOT / "representative_v1.validation.json"
-        profile = json.loads(source.read_text(encoding="utf-8"))
-        kazan = profile["profiles"]["kazan"]
-        kazan["world_data_plugin"] = "ProjectWorldData"
-        kazan["map_package"] = "/ProjectWorldData/Generated/Representative/L_Kazan"
-        profile["package"]["required_map"] = kazan["map_package"]
-        data_root = REPO_ROOT / "Plugins" / "World" / "ProjectWorldData" / "Data"
-        with tempfile.TemporaryDirectory(dir=data_root) as directory:
-            owned = Path(directory)
-            presentation = owned / "kazan_v1.presentation.json"
-            runtime = owned / "kazan_v1.runtime.json"
-            source_profile = owned / "kazan_v1.source.json"
-            compiler_profile = owned / "kazan_v1.compile.json"
-            for path in (presentation, runtime):
-                self._write(path, {})
-            self._write(source_profile, {"profile_id": kazan["source_profile"]})
-            # The compiler document is loaded through the real compiler contract, which
-            # requires a resolvable "$schema" and a schema-valid body. Deriving this fixture
-            # from the shipped profile keeps it valid as that contract evolves; a hand-rolled
-            # stub silently rots into a contract_violation the moment a field is added.
-            template_path = (
-                REPO_ROOT / "Plugins" / "World" / "ProjectWorldData" / "Data"
-                / "Profiles" / "CanonicalCompilation" / "kazan_territory_v1.compile.json"
-            )
-            template = json.loads(template_path.read_text(encoding="utf-8"))
-            schema_path = (template_path.parent / template["$schema"]).resolve()
-            template["$schema"] = Path(
-                os.path.relpath(schema_path, compiler_profile.parent)).as_posix()
-            template["profile_id"] = kazan["compiler_profile"]
-            template["world_data_plugin"] = "ProjectWorldData"
-            template["source_profile_id"] = kazan["source_profile"]
-            template["source_profile"] = source_profile.relative_to(REPO_ROOT).as_posix()
-            self._write(compiler_profile, template)
-            kazan["presentation_profile"] = presentation.relative_to(REPO_ROOT).as_posix()
-            kazan["runtime_profile"] = runtime.relative_to(REPO_ROOT).as_posix()
-            kazan["source_profile_path"] = source_profile.relative_to(REPO_ROOT).as_posix()
-            kazan["compiler_profile_path"] = compiler_profile.relative_to(REPO_ROOT).as_posix()
-            path = owned / "production.validation.json"
-            self._write(path, profile)
-            accepted = load_profile(path)
+        accepted = load_profile(self.PROFILE_ROOT / "kazan_territory_v1.validation.json")
+        self.assertEqual("ProjectWorldTestData", accepted["profiles"]["synthetic"]["world_data_plugin"])
         self.assertEqual("ProjectWorldData", accepted["profiles"]["kazan"]["world_data_plugin"])
+        self.assertEqual(accepted["profiles"]["kazan"]["map_package"], accepted["package"]["required_map"])
         roots = execution._world_data_roots("ProjectWorldData")
         self.assertEqual("ProjectWorldData", roots[0].parent.name)
 
     def test_world_profile_requires_real_owned_paths_and_matching_pair(self) -> None:
-        source = self.PROFILE_ROOT / "p0.validation.json"
+        source = self.PROFILE_ROOT / "kazan_territory_v1.validation.json"
         profile = json.loads(source.read_text(encoding="utf-8"))
         settings = profile["profiles"]["kazan"]
         settings["world_data_plugin"] = "ProjectWorldData"
@@ -290,7 +244,7 @@ class EndToEndValidationTests(unittest.TestCase):
         self.assertEqual("rejected", document["status"])
 
     def test_owner_name_substring_cannot_fake_data_root_confinement(self) -> None:
-        source = self.PROFILE_ROOT / "p0.validation.json"
+        source = self.PROFILE_ROOT / "kazan_territory_v1.validation.json"
         profile = json.loads(source.read_text(encoding="utf-8"))
         settings = profile["profiles"]["kazan"]
         settings["world_data_plugin"] = "ProjectWorldData"
@@ -317,7 +271,7 @@ class EndToEndValidationTests(unittest.TestCase):
                 load_profile(validation)
         self.assertEqual("world_data_owner_mismatch", raised.exception.code)
 
-    def test_realization_evidence_and_generated_material_stay_in_owned_lifecycles(self) -> None:
+    def test_realization_evidence_and_generated_map_stay_in_owned_lifecycles(self) -> None:
         evidence = execution._realization_evidence_path("run-identity", "kazan")
         self.assertEqual(
             Path("run-identity/kazan/unreal_emitted.json"),
@@ -329,29 +283,22 @@ class EndToEndValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:
             root = Path(directory)
             content = root / "Content"
-            presentation = content / "Generated" / "Presentation"
             map_path = content / "Generated" / "Representative" / "L_Test.umap"
             map_path.parent.mkdir(parents=True)
-            presentation.mkdir(parents=True)
             map_path.write_bytes(b"original-map")
-            (presentation / "MI_Test.uasset").write_bytes(b"original-material")
             moves = execution._backup_generated(
                 ["/ProjectWorldTestData/Generated/Representative/L_Test"],
-                root / "backup", content, presentation, "ProjectWorldTestData",
+                root / "backup", content, "ProjectWorldTestData",
             )
             map_path.parent.mkdir(parents=True, exist_ok=True)
-            presentation.mkdir(parents=True, exist_ok=True)
             map_path.write_bytes(b"replacement-map")
-            (presentation / "MI_Test.uasset").write_bytes(b"replacement-material")
             execution._restore_generated(
                 moves,
                 ["/ProjectWorldTestData/Generated/Representative/L_Test"],
-                content, presentation, "ProjectWorldTestData",
+                content, "ProjectWorldTestData",
             )
             self.assertEqual(b"original-map", map_path.read_bytes())
-            self.assertEqual(b"original-material", (presentation / "MI_Test.uasset").read_bytes())
             self.assertTrue((root / "backup" / "Generated" / "Representative" / "L_Test.umap").is_file())
-            self.assertTrue((root / "backup" / "Generated" / "Presentation" / "MI_Test.uasset").is_file())
 
     def test_map_backup_preserves_same_prefix_siblings(self) -> None:
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:
@@ -558,6 +505,60 @@ class EndToEndValidationTests(unittest.TestCase):
         with self.assertRaises(ValidationFailure):
             validate_against(accepted, "acceptance-chain.schema.json")
 
+        accepted["e2e_runs"] = {
+            "kazan_territory_v1": {
+                "run_id": "run-20260807T151235Z",
+                "result_path": "Saved/Validation/WorldPipeline/run-20260807T151235Z/result.json",
+                "result_sha256": "a" * 64,
+            }
+        }
+        accepted["environment"] = {
+            "bootstrap_preflight": "tmp/world/bootstrap/preflight.json",
+            "bootstrap_preflight_sha256": "b" * 64,
+        }
+        audit = {"receipt": "audit.json", "receipt_sha256": "c" * 64, "active_set_sha256": "d" * 64}
+        accepted["world_data_plugin"] = "ProjectWorldData"
+        accepted["pre_package_audit"] = audit
+        accepted["post_package_audit"] = audit
+        accepted["package"] = {
+            "operation_id": accepted["operation_id"],
+            "root": "package",
+            "required_map": "/ProjectWorldData/Generated/Territory/L_Kazan",
+            "iostore_receipt": "iostore.json",
+            "iostore_receipt_sha256": "e" * 64,
+            "shipping_executable_sha256": "f" * 64,
+        }
+        accepted["presentation_gate"] = {
+            "operation_id": accepted["operation_id"],
+            "receipt": "presentation.json",
+            "receipt_sha256": "0" * 64,
+        }
+        validate_against(accepted, "acceptance-chain.schema.json")
+        accepted["e2e_runs"] = {"p0": accepted["e2e_runs"]["kazan_territory_v1"]}
+        with self.assertRaises(ValidationFailure):
+            validate_against(accepted, "acceptance-chain.schema.json")
+
+    def test_accept_rejects_another_profile_before_audit_or_package(self) -> None:
+        from World.EndToEndValidation.app import acceptance
+
+        profile = self.PROFILE_ROOT / "kazan_territory_v1.validation.json"
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory, patch.object(
+            acceptance, "ACCEPTANCE_ROOT", Path(directory)
+        ), patch.object(acceptance, "accepted_run_evidence", return_value={
+            "validation_profile": {"path": "wrong.validation.json", "sha256": "a" * 64},
+        }) as read_run, patch.object(acceptance, "_run_audit") as audit, patch.object(
+            acceptance, "package_and_inspect"
+        ) as package:
+            with self.assertRaises(ValidationFailure) as raised:
+                acceptance.accept("run-20260807T151235Z", str(profile))
+            self.assertEqual("acceptance_profile_mismatch", raised.exception.code)
+            read_run.assert_called_once_with("run-20260807T151235Z", "kazan_territory_v1")
+            audit.assert_not_called()
+            package.assert_not_called()
+            receipts = list(Path(directory).glob("accept-*/acceptance_chain.json"))
+            self.assertEqual(1, len(receipts))
+            self.assertEqual("rejected", json.loads(receipts[0].read_text(encoding="utf-8"))["status"])
+
     def test_acceptance_refuses_a_run_supplied_as_the_wrong_profile(self) -> None:
         from World.EndToEndValidation.app import acceptance
 
@@ -565,7 +566,7 @@ class EndToEndValidationTests(unittest.TestCase):
             root = Path(directory)
             run_dir = root / "run-20260101T000000Z"
             common_path = root / "check-20260101T000000Z" / "result.json"
-            validation_path = self.PROFILE_ROOT / "representative_v1.validation.json"
+            validation_path = self.PROFILE_ROOT / "kazan_territory_v1.validation.json"
             contract_hash = acceptance.common_contract_hash()
             self._write(common_path, {
                 "$schema": "https://alis.world/schemas/world-validation/validation-result-v1.json",
@@ -600,14 +601,14 @@ class EndToEndValidationTests(unittest.TestCase):
                         },
                     },
                 }
-            self._write(run_dir / "result.json", matrix_result("representative_v1", validation_path))
+            self._write(run_dir / "result.json", matrix_result("kazan_territory_v1", validation_path))
             wrong_dir = root / "run-20260101T000001Z"
             self._write(wrong_dir / "result.json", matrix_result("p0", common_path))
             wrong_identity_dir = root / "run-20260101T000002Z"
             self._write(wrong_identity_dir / "result.json", matrix_result("p0", validation_path))
             with patch.object(acceptance, "PIPELINE_ROOT", root):
                 # Correctly typed: accepted.
-                evidence = acceptance.accepted_run_evidence("run-20260101T000000Z", "representative_v1")
+                evidence = acceptance.accepted_run_evidence("run-20260101T000000Z", "kazan_territory_v1")
                 self.assertEqual(64, len(evidence["result_sha256"]))
                 # Same run passed as the p0 argument: refused, not relabelled.
                 with self.assertRaises(ValidationFailure) as raised:
@@ -621,7 +622,7 @@ class EndToEndValidationTests(unittest.TestCase):
                 self.assertEqual("validation_profile_identity_mismatch", raised.exception.code)
                 common_path.write_text("{}", encoding="utf-8")
                 with self.assertRaises(ValidationFailure) as raised:
-                    acceptance.accepted_run_evidence("run-20260101T000000Z", "representative_v1")
+                    acceptance.accepted_run_evidence("run-20260101T000000Z", "kazan_territory_v1")
                 self.assertEqual("common_checks_evidence_changed", raised.exception.code)
 
     LEG_RECORDS = {
@@ -727,25 +728,6 @@ class EndToEndValidationTests(unittest.TestCase):
             with self.assertRaises(ValidationFailure) as raised:
                 gated_leg_records([unpinned])
             self.assertEqual("e2e_evidence_unauthenticated", raised.exception.code)
-
-    def test_content_mutation_lock_owns_lifecycle_and_delegates_by_token(self) -> None:
-        import os
-
-        # Point at a private lock file: asserting on the REAL project-global
-        # lock would fail whenever a legitimate world operation is running,
-        # which is a flaky test rather than a real signal.
-        with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:
-            lock_path = Path(directory) / "content_mutation.lock"
-            with patch.object(execution, "CONTENT_LOCK_PATH", lock_path):
-                self.assertNotIn(execution.CONTENT_LOCK_TOKEN_ENV, os.environ)
-                with execution._content_mutation_lock() as token:
-                    self.assertEqual(token, os.environ.get(execution.CONTENT_LOCK_TOKEN_ENV))
-                    self.assertEqual(token, lock_path.read_text(encoding="ascii"))
-                    with self.assertRaises(ValidationFailure) as raised:
-                        with execution._content_mutation_lock():
-                            self.fail("A second owner must never acquire the held content lock")
-                    self.assertEqual("content_lock_unavailable", raised.exception.code)
-                self.assertNotIn(execution.CONTENT_LOCK_TOKEN_ENV, os.environ)
 
     def test_d3_rejects_runtime_evidence_without_collision_orientation_proof(self) -> None:
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:

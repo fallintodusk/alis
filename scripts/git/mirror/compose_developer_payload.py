@@ -110,6 +110,7 @@ def collect_manifest_authority(
     owner: str,
     entries: dict[str, Entry],
     manifest_root: Path | None = None,
+    accepted_generated_paths: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     root = plugin_root(repo_root, owner)
     owned_manifest_root = root / "Data" / "Manifests"
@@ -145,6 +146,8 @@ def collect_manifest_authority(
             entry = add_entry(entries, repo_root, artifact_path, str(artifact.get("kind", "generated_asset")), owner)
             if str(artifact.get("digest_kind", "")) != "sha256" or entry.sha256 != str(artifact.get("digest", "")).lower():
                 raise PayloadError(f"Generated artifact hash mismatch: {artifact_path}")
+            if accepted_generated_paths is not None:
+                accepted_generated_paths.add(artifact_path)
     return selected
 
 
@@ -364,7 +367,9 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
     return selected
 
 
-def ensure_tracked(repo_root: Path, entries: list[Entry]) -> None:
+def ensure_tracked(
+    repo_root: Path, entries: list[Entry], allowed_untracked_paths: set[str] | None = None
+) -> None:
     result = subprocess.run(
         ["git", "-c", "core.fsmonitor=false", "-C", str(repo_root), "ls-files", "-z"],
         capture_output=True,
@@ -375,8 +380,9 @@ def ensure_tracked(repo_root: Path, entries: list[Entry]) -> None:
         for value in result.stdout.split(b"\0")
         if value
     }
+    allowed = allowed_untracked_paths or set()
     for entry in entries:
-        if entry.path not in tracked:
+        if entry.path not in tracked and entry.path not in allowed:
             raise PayloadError(f"Payload authority is not tracked by git: {entry.path}")
 
 
@@ -501,6 +507,7 @@ def compose(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     entries: dict[str, Entry] = {}
+    accepted_generated_paths: set[str] = set()
     manifest_authority: dict[str, Any] = {}
     canonical_authority: dict[str, Any] = {}
     release_contract = read_json(repo_root / ASSET_RELEASE_CONTRACT)
@@ -514,7 +521,9 @@ def compose(
         if not authority:
             raise PayloadError(f"No public World authority selection exists for owner: {owner}")
         manifest_authority[owner] = collect_manifest_authority(
-            repo_root, owner, entries, world_manifest_root if owner == "ProjectWorldData" else None
+            repo_root, owner, entries, world_manifest_root if owner == "ProjectWorldData" else None,
+            accepted_generated_paths=accepted_generated_paths
+            if owner == "ProjectWorldData" and world_manifest_root is not None else None,
         )
         canonical_authority[owner] = collect_canonical_authority(
             repo_root, owner, entries, list(authority.get("canonical_profiles", []))
@@ -528,7 +537,10 @@ def compose(
     ]
     if non_binary_entries:
         raise PayloadError(f"Developer payload contains public-source text: {non_binary_entries}")
-    ensure_tracked(repo_root, ordered)
+    ensure_tracked(
+        repo_root, ordered,
+        allowed_untracked_paths=accepted_generated_paths if allow_dirty else None,
+    )
 
     identity = {
         "release_version": release_version,

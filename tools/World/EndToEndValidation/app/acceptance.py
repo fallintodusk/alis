@@ -76,7 +76,7 @@ def accepted_run_evidence(run_id: str, expected_profile_id: str) -> dict[str, An
     if document.get("status") != "accepted":
         raise ValidationFailure(
             "e2e_run_not_accepted",
-            "The acceptance chain requires accepted P0 and representative runs",
+            "The acceptance chain requires an accepted territory run",
             run_id=run_id,
             status=document.get("status"),
         )
@@ -176,6 +176,11 @@ IDENTITY_FIELDS = (
     "compile_result_sha256",
     "presentation_profile_sha256",
     "runtime_profile_sha256",
+    "authored_overlay_profile_sha256",
+)
+LAYER_IDENTITY_FIELDS = (
+    "compile_result_sha256",
+    "presentation_profile_sha256",
     "authored_overlay_profile_sha256",
 )
 
@@ -332,7 +337,9 @@ def verify_manifest_provenance(
         if record is None:
             problems.append(f"{scope_id} declares map package '{map_package}', which no accepted leg produced")
             continue
-        for field in IDENTITY_FIELDS:
+        if layer != "map" and identity.get("runtime_profile_sha256") != "none":
+            problems.append(f"{scope_id}.runtime_profile_sha256 must be none for a generated layer")
+        for field in (IDENTITY_FIELDS if layer == "map" else LAYER_IDENTITY_FIELDS):
             declared = _digest_or_none(identity.get(field))
             gated = record.get(field)
             if declared != gated:
@@ -360,9 +367,8 @@ def required_map_owner(profile: dict[str, Any]) -> str:
 
 
 def accept(
-    p0_run_id: str,
-    representative_run_id: str,
-    profile_value: str = "representative_v1",
+    run_id: str,
+    profile_value: str = "kazan_territory_v1",
     bootstrap_preflight: str | None = None,
 ) -> dict[str, Any]:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -408,23 +414,15 @@ def accept(
                 "bootstrap_preflight_sha256": file_hash(preflight_path),
             }
 
-        runs = [
-            accepted_run_evidence(p0_run_id, "p0"),
-            accepted_run_evidence(representative_run_id, profile_id),
-        ]
+        run = accepted_run_evidence(run_id, profile_id)
         expected_profile_contract = {
             "path": resolved_profile_path.relative_to(REPO_ROOT).as_posix(),
             "sha256": acceptance_profile_hash,
         }
-        if runs[1]["validation_profile"] != expected_profile_contract:
+        if run["validation_profile"] != expected_profile_contract:
             raise ValidationFailure(
-                "representative_profile_mismatch",
-                "The representative Matrix did not gate the supplied acceptance profile",
-            )
-        if len({run["common_checks_sha256"] for run in runs}) != 1:
-            raise ValidationFailure(
-                "common_checks_inconsistent",
-                "P0 and representative matrices must share one accepted common-check receipt",
+                "acceptance_profile_mismatch",
+                "The territory Matrix did not gate the supplied acceptance profile",
             )
         document["e2e_runs"] = {
             run["profile_id"]: {
@@ -432,9 +430,8 @@ def accept(
                 "result_path": run["result_path"],
                 "result_sha256": run["result_sha256"],
             }
-            for run in runs
         }
-        leg_records = gated_leg_records(runs)
+        leg_records = gated_leg_records([run])
 
         records: dict[str, dict[str, Any]] = {}
         for name, settings in profile["profiles"].items():

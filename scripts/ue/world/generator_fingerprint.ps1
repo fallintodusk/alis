@@ -2,6 +2,7 @@
 # License terms: see repository root LICENSE.
 
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot '..\..\config\Resolve-UEConfig.ps1')
 
 function Get-ProjectWorldManifestProducerId {
     param([Parameter(Mandatory = $true)][object]$Manifest)
@@ -13,274 +14,221 @@ function Get-ProjectWorldManifestProducerId {
         $null -eq $Manifest.layer_contract) {
         throw "Layer manifest has no producer contract: $($Manifest.scope_id)"
     }
-    $generatorId = [string]$Manifest.layer_contract.generator_id
-    $generatorVersion = [int]$Manifest.layer_contract.generator_version
-    return "${generatorId}:v${generatorVersion}"
+    return "$($Manifest.layer_contract.generator_id):v$($Manifest.layer_contract.generator_version)"
 }
 
-function Get-ProjectWorldProducerSourcePaths {
-    param([Parameter(Mandatory = $true)][string]$ProducerId)
+function Assert-ProjectWorldDescriptorFields {
+    param([object]$Descriptor, [string[]]$Required, [string[]]$Optional, [string]$Path)
 
-    # Catalog, validation, and dispatch surfaces admit producers but do not
-    # produce an existing owner's bytes. They are intentionally absent here;
-    # owner-local byte and manifest behavior belongs in the producer branches.
-    $shared = @(
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/ProjectWorldEditor.Build.cs',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldCanonicalBundle.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldRealizeCommandlet.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldCanonicalBundle.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldCanonicalUtilities.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldCoordinateMapping.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldDataRoots.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldDataRoots.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeometryParsing.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeometryParsing.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerDirtyInput.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerDirtyInput.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPartitionPolicy.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPartitionPolicy.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizeCommandlet.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSavePolicy.h',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSchemaReference.cpp',
-        'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSchemaReference.h',
-        'Plugins/World/ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json',
-        'Plugins/World/ProjectWorld/Data/Schemas/project_world_generated_manifest.schema.json',
-        'Plugins/World/ProjectWorld/Data/Schemas/project_world_layer_dirty_input.schema.json',
-        'scripts/ue/world/execution_envelope.ps1',
-        'scripts/ue/world/generated_content_transaction.ps1',
-        'scripts/ue/world/generated_layer_manifest.ps1',
-        'scripts/ue/world/generated_manifest.ps1',
-        'scripts/ue/world/operator_controls.ps1',
-        'scripts/ue/world/realize_canonical_world.ps1',
-        'scripts/ue/world/world_data_roots.ps1'
-    )
-    $producer = switch ($ProducerId) {
-        'map:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAnchorPlacement.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAnchorPlacement.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlayRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlayRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEvidenceCapture.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEvidenceCapture.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeNavigation.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeNavigation.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeProfile.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimeRealization.h',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_runtime_profile.schema.json'
-        ) }
-        'presentation:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
-        ) }
-        'project_mesh_terrain:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldTerrainProducerRegistry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldTerrainProducerRegistry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerInventory.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationGeneratorRegistry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationService.cpp',
-            'Plugins/World/ProjectWorldMeshTerrain/ProjectWorldMeshTerrain.uplugin',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/ProjectWorldMeshTerrain.Build.cs',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Public/ProjectWorldMeshTerrainPartition.h',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Public/ProjectWorldMeshTerrainTransformer.h',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainPartition.cpp',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainTransformer.cpp',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/ProjectWorldMeshTerrainEditor.Build.cs',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Public/ProjectWorldMeshTerrainLayoutReceipt.h',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainLayoutReceipt.cpp',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainBuildPipeline.h',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.h',
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp',
-            'Plugins/World/ProjectWorldMeshTerrain/Data/Schemas/mesh-terrain-layout-receipt.schema.json',
-            'Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset'
-        ) }
-        'project_water_mesh:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterContractParsing.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterContractParsing.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterRealization.h'
-        ) }
-        'project_road_mesh:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRoadRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRoadRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
-        ) }
-        'project_vegetation_instances:v1' { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationExclusions.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationExclusions.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationPlacement.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationRealization.h',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json',
-            'Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.uasset',
-            'Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset'
-        ) }
-        { $_ -in @('project_building_massing:v1', 'project_building_massing:v2') } { @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingInventory.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingInventory.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingMeshBuilder.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingMeshBuilder.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingRealization.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingRealization.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.h',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json'
-        ) }
-        'project_gameplay_placement:v1' { @(
-            'Plugins/Foundation/ProjectCore/Source/ProjectCore/Public/Services/IObjectSpawnService.h',
-            'Plugins/Resources/ProjectObject/Source/ProjectObject/Private/Services/ObjectSpawnServiceImpl.cpp',
-            'Plugins/Resources/ProjectObject/Source/ProjectObject/Private/Services/ObjectSpawnServiceImpl.h',
-            'Plugins/Resources/ProjectObject/Source/ProjectObject/Private/Spawning/ObjectSpawnUtility.cpp',
-            'Plugins/Resources/ProjectObject/Source/ProjectObject/Public/Spawning/ObjectSpawnUtility.h',
-            'Plugins/Gameplay/ProjectObjectCapabilities/Source/ProjectObjectCapabilities/Private/Pickup/PickupCapabilityComponent.cpp',
-            'Plugins/Gameplay/ProjectObjectCapabilities/Source/ProjectObjectCapabilities/Public/Pickup/PickupCapabilityComponent.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGameplayPlacement.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGameplayPlacement.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedActorLifecycle.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.h',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_gameplay_placement.schema.json'
-        ) }
-        default { throw "Unknown ProjectWorld manifest producer: $ProducerId" }
+    $names = @($Descriptor.PSObject.Properties.Name)
+    foreach ($name in $Required) {
+        if ($names -cnotcontains $name) { throw "Producer descriptor missing $name`: $Path" }
     }
-    return @($shared + $producer | Sort-Object -Unique)
-}
-
-function Get-ProjectWorldProducerSourceDigest {
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$ProducerId
-    )
-
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        return 'missing'
-    }
-
-    $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
-    if ($extension -in @('.uasset', '.umap', '.zip')) {
-        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
-    }
-
-    $text = [System.IO.File]::ReadAllText($Path)
-    $text = $text.Replace("`r`n", "`n").Replace("`r", "`n")
-    if ($text -notmatch 'PROJECTWORLD_PRODUCER_(BEGIN|END)') {
-        $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($text)
-        $sha = [System.Security.Cryptography.SHA256]::Create()
-        try {
-            return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    foreach ($name in $names) {
+        if ($Required -cnotcontains $name -and $Optional -cnotcontains $name) {
+            throw "Producer descriptor has unknown field $name`: $Path"
         }
-        finally { $sha.Dispose() }
     }
+}
 
-    $pattern = '(?ms)^[ \t]*(?://|#) PROJECTWORLD_PRODUCER_BEGIN (?<owner>[A-Za-z0-9_.-]+)\r?\n(?<body>.*?)^[ \t]*(?://|#) PROJECTWORLD_PRODUCER_END \k<owner>\r?\n'
-    # Every marker token must delimit a well-formed region. A stray token inside
-    # a region body would otherwise extend that region over producing code.
-    $markers = [regex]::Matches($text, 'PROJECTWORLD_PRODUCER_(?:BEGIN|END)')
-    $regions = [regex]::Matches($text, $pattern)
-    if ($markers.Count -ne 2 * $regions.Count) {
-        throw "Malformed or unmatched producer-scoped source region: $Path"
+function Assert-ProjectWorldRevision {
+    param([object]$Value, [string]$Name, [string]$Path)
+
+    if ($Value -isnot [int] -and $Value -isnot [long]) {
+        throw "Producer descriptor $Name must be an integer: $Path"
     }
-    $scoped = [System.Text.RegularExpressions.Regex]::Replace(
-        $text,
-        $pattern,
-        [System.Text.RegularExpressions.MatchEvaluator]{
-            param($match)
-            $owner = $match.Groups['owner'].Value
-            if ($ProducerId.StartsWith("${owner}:", [System.StringComparison]::Ordinal)) {
-                return $match.Groups['body'].Value
+    if ($Value -lt 1) { throw "Producer descriptor $Name must be positive: $Path" }
+}
+
+function Get-ProjectWorldProducerCatalog {
+    param([Parameter(Mandatory = $true)][string]$ProjectRoot)
+
+    $root = [System.IO.Path]::GetFullPath($ProjectRoot)
+    $schemaPath = [System.IO.Path]::GetFullPath((Join-Path $root 'Plugins\World\ProjectWorld\Data\Schemas\project_world_producer_descriptor.schema.json'))
+    $pluginsRoot = Join-Path $root 'Plugins'
+    if (-not (Test-Path -LiteralPath $schemaPath -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
+        throw "Producer descriptor catalog is incomplete: $root"
+    }
+    $paths = [System.Collections.Generic.List[string]]::new()
+    foreach ($category in Get-ChildItem -LiteralPath $pluginsRoot -Directory) {
+        foreach ($plugin in Get-ChildItem -LiteralPath $category.FullName -Directory) {
+            $directory = Join-Path $plugin.FullName 'Data\Producers'
+            if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
+            foreach ($entry in Get-ChildItem -LiteralPath $directory) {
+                if ($entry.PSIsContainer -or $entry.Extension -cne '.json') {
+                    throw "Invalid producer descriptor entry: $($entry.FullName)"
+                }
+                $paths.Add($entry.FullName)
             }
-            return ''
-        })
-
-    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($scoped)
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+        }
     }
-    finally { $sha.Dispose() }
+    $orderedPaths = $paths.ToArray()
+    [Array]::Sort($orderedPaths, [System.StringComparer]::Ordinal)
+    $producers = [ordered]@{}
+    $generatorIds = @{}
+    $moduleOwners = @{}
+    $pipeline = $null
+    foreach ($path in $orderedPaths) {
+        try {
+            $utf8 = [System.Text.UTF8Encoding]::new($false, $true)
+            $descriptorText = $utf8.GetString([System.IO.File]::ReadAllBytes($path))
+            if ($descriptorText.Length -gt 0 -and [int][char]$descriptorText[0] -eq 0xFEFF) {
+                $descriptorText = $descriptorText.Substring(1)
+            }
+            $document = $descriptorText | ConvertFrom-Json
+        }
+        catch { throw "Invalid producer descriptor JSON: $path`: $_" }
+        if ($null -eq $document -or $document -isnot [pscustomobject]) {
+            throw "Producer descriptor must be an object: $path"
+        }
+        $kind = [string]$document.kind
+        if ($kind -ceq 'pipeline') {
+            Assert-ProjectWorldDescriptorFields $document @('$schema', 'schema_version', 'kind', 'pipeline_revision', 'modules') @() $path
+        }
+        elseif ($kind -ceq 'producer') {
+            Assert-ProjectWorldDescriptorFields $document @('$schema', 'schema_version', 'kind', 'generator_id', 'generator_version', 'output_revision', 'data_inputs', 'modules') @('runtime_acceptance') $path
+        }
+        else { throw "Unknown producer descriptor kind: $path" }
+        if ($document.schema_version -ne 1) { throw "Unsupported producer descriptor schema version: $path" }
+        $resolvedSchema = [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $path) ([string]$document.'$schema')))
+        if (-not $resolvedSchema.Equals($schemaPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Producer descriptor schema path is wrong: $path"
+        }
+        $pluginRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $path))
+        $pluginName = Split-Path -Leaf $pluginRoot
+        $upluginPath = Join-Path $pluginRoot "$pluginName.uplugin"
+        if (-not (Test-Path -LiteralPath $upluginPath -PathType Leaf)) { throw "Missing owning uplugin: $path" }
+        $uplugin = Get-Content -LiteralPath $upluginPath -Raw | ConvertFrom-Json
+        $declaredModules = @($uplugin.Modules | ForEach-Object { [string]$_.Name })
+        $modules = @($document.modules)
+        if ($kind -ceq 'pipeline') { Assert-ProjectWorldRevision $document.pipeline_revision 'pipeline_revision' $path }
+        else {
+            Assert-ProjectWorldRevision $document.generator_version 'generator_version' $path
+            Assert-ProjectWorldRevision $document.output_revision 'output_revision' $path
+        }
+        if ($kind -ceq 'pipeline' -and $modules.Count -eq 0) { throw "Pipeline has no modules: $path" }
+        $seenModules = @{}
+        foreach ($module in $modules) {
+            if ($module -isnot [string] -or $module -cnotmatch '^[A-Z][A-Za-z0-9]*$' -or
+                $declaredModules -cnotcontains $module -or $seenModules.ContainsKey($module) -or
+                $moduleOwners.ContainsKey($module)) {
+                throw "Invalid or duplicate producer module $module`: $path"
+            }
+            $seenModules[$module] = $true
+            $moduleOwners[$module] = $path
+        }
+        if ($kind -ceq 'pipeline') {
+            $expectedPath = Join-Path $root 'Plugins\World\ProjectWorld\Data\Producers\realization_pipeline.json'
+            if ($null -ne $pipeline -or -not $path.Equals($expectedPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Duplicate or misplaced pipeline descriptor: $path"
+            }
+            $pipeline = $document
+            continue
+        }
+        $generatorId = [string]$document.generator_id
+        if ($generatorId -cnotmatch '^[a-z][a-z0-9_]*$' -or $generatorId -ceq 'realization_pipeline' -or
+            [System.IO.Path]::GetFileNameWithoutExtension($path) -cne $generatorId) {
+            throw "Invalid producer id or filename: $path"
+        }
+        if ($generatorIds.ContainsKey($generatorId)) { throw "Duplicate producer id: $path" }
+        $generatorIds[$generatorId] = $true
+        $inputs = @($document.data_inputs)
+        $orderedInputs = [string[]]$inputs
+        [Array]::Sort($orderedInputs, [System.StringComparer]::Ordinal)
+        if (@($inputs | Select-Object -Unique).Count -ne $inputs.Count) { throw "Duplicate producer data input: $path" }
+        foreach ($input in $inputs) {
+            if ($input -isnot [string] -or $input -cnotmatch '^Plugins/[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)+\.(uasset|umap|json)$') {
+                throw "Invalid producer data input $input`: $path"
+            }
+            $full = Join-Path $root $input.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+            if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "Missing producer data input $input`: $path" }
+            $bytes = [System.IO.File]::ReadAllBytes($full)
+            $prefix = [System.Text.Encoding]::ASCII.GetBytes('version https://git-lfs.github.com/spec/v1')
+            if ($bytes.Length -ge $prefix.Length -and
+                [System.Text.Encoding]::ASCII.GetString($bytes, 0, $prefix.Length) -ceq
+                    'version https://git-lfs.github.com/spec/v1') {
+                throw "LFS pointer is not producer data: $input`: $path"
+            }
+        }
+        $id = "${generatorId}:v$($document.generator_version)"
+        $producers[$id] = [pscustomobject]@{
+            Path = $path; GeneratorId = $generatorId; GeneratorVersion = [int]$document.generator_version
+            OutputRevision = [int]$document.output_revision; DataInputs = $orderedInputs; Modules = $modules
+        }
+    }
+    if ($null -eq $pipeline) { throw "Missing pipeline descriptor: $root" }
+    foreach ($entry in $producers.Values) {
+        foreach ($module in $entry.Modules) {
+            if ($pipeline.modules -ccontains $module) { throw "Producer names pipeline module: $($entry.Path)" }
+        }
+    }
+    return [pscustomobject]@{
+        PipelineRevision = [int]$pipeline.pipeline_revision
+        PipelineModules = @($pipeline.modules)
+        Producers = $producers
+    }
 }
 
 function Get-ProjectWorldEngineBuildIdentity {
     param([Parameter(Mandatory = $true)][string]$ProjectRoot)
 
-    if (-not [string]::IsNullOrWhiteSpace($env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE)) {
-        return "override:$($env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE)"
-    }
     $configRoot = Join-Path $ProjectRoot 'scripts\config'
-    $engineRoot = ''
-    foreach ($configName in @('ue_path.local.conf', 'ue_path.conf')) {
-        $configPath = Join-Path $configRoot $configName
-        if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { continue }
-        $match = Select-String -LiteralPath $configPath -Pattern '^UE_PATH=(?<value>.+)$' | Select-Object -First 1
-        if ($null -ne $match) {
-            $engineRoot = $match.Matches[0].Groups['value'].Value
-            break
-        }
-    }
-    if ([string]::IsNullOrWhiteSpace($engineRoot)) {
-        return 'unavailable'
-    }
-    $buildVersion = Join-Path $engineRoot 'Engine\Build\Build.version'
+    try { $config = Resolve-UEConfig -ConfigDir $configRoot }
+    catch { throw "Engine identity is unknown: $_" }
+    $buildVersion = Join-Path $config.UE_PATH 'Engine\Build\Build.version'
     if (-not (Test-Path -LiteralPath $buildVersion -PathType Leaf)) {
-        return 'missing'
+        throw "Engine identity is unknown: missing Build.version at $buildVersion"
     }
     return (Get-FileHash -LiteralPath $buildVersion -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Get-ProjectWorldDataInputDigest {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ([System.IO.Path]::GetExtension($Path).ToLowerInvariant() -eq '.json') {
+        $utf8 = [System.Text.UTF8Encoding]::new($false, $true)
+        $value = $utf8.GetString($bytes)
+        if ($value.Length -gt 0 -and [int][char]$value[0] -eq 0xFEFF) {
+            $value = $value.Substring(1)
+        }
+        $value = $value.Replace("`r`n", "`n").Replace("`r", "`n")
+        $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($value)
+    }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $sha.Dispose() }
 }
 
 function Get-ProjectWorldGeneratorFingerprint {
     param(
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
-        [Parameter(Mandatory = $true)][string]$ProducerId
+        [Parameter(Mandatory = $true)][string]$ProducerId,
+        [object]$Catalog,
+        [string]$EngineIdentity
     )
 
+    if ($null -eq $Catalog) { $Catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $ProjectRoot }
+    if (-not $Catalog.Producers.Contains($ProducerId)) { throw "Unknown ProjectWorld manifest producer: $ProducerId" }
+    if ([string]::IsNullOrEmpty($EngineIdentity)) {
+        $EngineIdentity = Get-ProjectWorldEngineBuildIdentity -ProjectRoot $ProjectRoot
+    }
+    if ($EngineIdentity -cnotmatch '^[a-f0-9]{64}$') { throw "Engine identity is unknown: $EngineIdentity" }
+    $producer = $Catalog.Producers[$ProducerId]
     $lines = [System.Collections.Generic.List[string]]::new()
-    $lines.Add("project_world_producer_fingerprint_v3`0$ProducerId")
-    $lines.Add("engine_build_identity`0$(Get-ProjectWorldEngineBuildIdentity -ProjectRoot $ProjectRoot)")
-    foreach ($relative in Get-ProjectWorldProducerSourcePaths -ProducerId $ProducerId) {
-        $full = Join-Path $ProjectRoot $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
-        $digest = Get-ProjectWorldProducerSourceDigest -Path $full -ProducerId $ProducerId
-        $lines.Add("$relative`0$digest")
+    $lines.Add('project_world_producer_fingerprint_v4')
+    $lines.Add("producer`0$ProducerId")
+    $lines.Add("output_revision`0$($producer.OutputRevision)")
+    $lines.Add("pipeline_revision`0$($Catalog.PipelineRevision)")
+    $lines.Add("engine_build_identity`0$EngineIdentity")
+    foreach ($input in $producer.DataInputs) {
+        $full = Join-Path $ProjectRoot $input.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+        $digest = Get-ProjectWorldDataInputDigest -Path $full
+        $lines.Add("data_input`0$input`0$digest")
     }
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($lines -join "`n"))
+    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes(($lines -join "`n"))
     $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    }
+    try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
     finally { $sha.Dispose() }
 }

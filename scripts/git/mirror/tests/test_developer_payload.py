@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -35,6 +36,9 @@ class DeveloperPayloadTests(unittest.TestCase):
             rejected = MODULE.Entry("untracked.uasset", MODULE.sha256_file(untracked), 9, "asset", "Owner")
             with self.assertRaisesRegex(MODULE.PayloadError, "not tracked by git"):
                 MODULE.ensure_tracked(root, [rejected])
+            with self.assertRaisesRegex(MODULE.PayloadError, "not tracked by git"):
+                MODULE.ensure_tracked(root, [rejected], allowed_untracked_paths={"other.uasset"})
+            MODULE.ensure_tracked(root, [accepted, rejected], allowed_untracked_paths={"untracked.uasset"})
 
     def test_generated_source_sha_is_stable_across_checkout_line_endings(self):
         with tempfile.TemporaryDirectory() as temp_value:
@@ -85,8 +89,10 @@ class DeveloperPayloadTests(unittest.TestCase):
             (manifest_root / "active_set.json").write_text(json.dumps(active), encoding="utf-8")
 
             entries = {}
+            accepted_generated_paths = set()
             selected = MODULE.collect_manifest_authority(
-                REPO_ROOT, "ProjectWorldData", entries, manifest_root
+                REPO_ROOT, "ProjectWorldData", entries, manifest_root,
+                accepted_generated_paths=accepted_generated_paths,
             )
 
             self.assertEqual([selected_scope["scope_id"]], [item["scope_id"] for item in selected])
@@ -94,6 +100,117 @@ class DeveloperPayloadTests(unittest.TestCase):
                 len(json.loads(manifest_path.read_text(encoding="utf-8-sig"))["artifacts"]),
                 len(entries),
             )
+            self.assertEqual(set(entries), accepted_generated_paths)
+
+    def test_compose_accepts_only_digest_verified_untracked_projection(self):
+        parent = REPO_ROOT / "tmp/release/tests/developer-payload"
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent) as temp_value:
+            fixture = Path(temp_value)
+            source = fixture / "source"
+            owner = source / "Plugins/World/ProjectWorldData"
+            artifact_relative = "Plugins/World/ProjectWorldData/Content/Generated/Territory/L_Public.umap"
+            artifact = source / artifact_relative
+            for path, content in (
+                (source / "Alis.uproject", "{}"),
+                (owner / "ProjectWorldData.uplugin", "{}"),
+                (source / MODULE.ASSET_RELEASE_CONTRACT,
+                 json.dumps({"world_authorities": [{"owner": "ProjectWorldData", "canonical_profiles": ["fixture"]}]})),
+                (source / "LICENSE", "fixture"),
+                (source / "LICENSES/MPL-2.0.txt", "fixture"),
+                (source / "scripts/ue/package/verify_release.ps1", "fixture"),
+            ):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+            canonical = owner / "Data/Canonical/fixture"
+            canonical.mkdir(parents=True)
+            bundle = canonical / "bundle.zip"
+            with zipfile.ZipFile(bundle, "w") as archive:
+                archive.writestr("reports/attribution.json", "{}")
+            (canonical / "active.json").write_text(json.dumps({
+                "profile_id": "fixture", "authority_id": "fixture",
+                "bundle": {"path": "bundle.zip", "sha256": MODULE.sha256_file(bundle),
+                           "byte_size": bundle.stat().st_size},
+            }), encoding="utf-8")
+            subprocess.run(["git", "init", "-q", str(source)], check=True)
+            subprocess.run(["git", "-C", str(source), "add", "."], check=True)
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(b"projected-world-package")
+
+            manifests = fixture / "projection"
+            scope = manifests / "scopes/public.json"
+            scope.parent.mkdir(parents=True)
+            scope.write_text(json.dumps({"artifacts": [{
+                "path": artifact_relative, "digest_kind": "sha256",
+                "digest": MODULE.sha256_file(artifact),
+            }]}), encoding="utf-8")
+            (manifests / "active_set.json").write_text(json.dumps({"scopes": [{
+                "scope_id": "public", "manifest_path": "scopes/public.json",
+                "manifest_sha256": MODULE.sha256_file(scope),
+            }]}), encoding="utf-8")
+
+            def compose(output: str):
+                return MODULE.compose(
+                    source, fixture / output, "fixture", "vfixture", ["ProjectWorldData"],
+                    1, True, "a" * 40, "main", manifests,
+                )
+
+            payload = json.loads(compose("accepted").read_text(encoding="utf-8"))
+            self.assertIn(artifact_relative, {entry["path"] for entry in payload["entries"]})
+            archive = fixture / "accepted" / payload["archive"]["logical_name"]
+            with zipfile.ZipFile(archive) as payload_archive:
+                self.assertEqual(artifact.read_bytes(), payload_archive.read(artifact_relative))
+
+            artifact.write_bytes(b"changed-after-projection")
+            with self.assertRaisesRegex(MODULE.PayloadError, "Generated artifact hash mismatch"):
+                compose("wrong-digest")
+            artifact.write_bytes(b"projected-world-package")
+
+            other_relative = "Plugins/World/ProjectWorldData/Content/Generated/Territory/Other.umap"
+            other = source / other_relative
+            other.write_bytes(b"unselected-package")
+
+            def add_other(repo_root, entries):
+                MODULE.add_entry(entries, repo_root, other_relative, "generated_asset", "ProjectWorldData")
+                return []
+
+            with mock.patch.object(MODULE, "collect_public_asset_authority", side_effect=add_other):
+                with self.assertRaisesRegex(MODULE.PayloadError, "Payload authority is not tracked by git"):
+                    compose("unselected")
+
+            if shutil.which("wsl.exe"):
+                subprocess.run(["git", "-C", str(source), "-c", "user.name=fixture",
+                                "-c", "user.email=fixture@localhost", "commit", "-qm", "fixture"], check=True)
+                linked = fixture / "linked"
+                subprocess.run(["git", "-C", str(source), "worktree", "add", "--quiet",
+                                "--detach", str(linked), "HEAD"], check=True)
+                try:
+                    linked_artifact = linked / artifact_relative
+                    linked_artifact.parent.mkdir(parents=True)
+                    linked_artifact.write_bytes(artifact.read_bytes())
+                    git_dir = subprocess.run(["git", "-C", str(linked), "rev-parse", "--absolute-git-dir"],
+                                             check=True, capture_output=True, text=True).stdout.strip()
+
+                    def wsl_path(path: Path | str):
+                        return subprocess.run(["wsl.exe", "wslpath", "-a", "'" + str(path) + "'"],
+                                              check=True, capture_output=True, text=True).stdout.strip()
+
+                    wsl_output = fixture / "linked-output"
+                    result = subprocess.run([
+                        "wsl.exe", "env", f"GIT_DIR={wsl_path(git_dir)}",
+                        f"GIT_WORK_TREE={wsl_path(linked)}", "python3",
+                        wsl_path(MODULE_PATH), "--repo-root", wsl_path(linked),
+                        "--output-dir", wsl_path(wsl_output), "--release-version", "fixture",
+                        "--public-source-tag", "vfixture", "--public-source-revision", "a" * 40,
+                        "--public-source-branch", "main", "--world-manifest-root", wsl_path(manifests),
+                        "--owner", "ProjectWorldData", "--part-size-mib", "1", "--allow-dirty",
+                    ], capture_output=True, text=True, check=False)
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                    linked_payload = json.loads(next(wsl_output.glob("*.developer-payload.json")).read_text())
+                    self.assertIn(artifact_relative, {entry["path"] for entry in linked_payload["entries"]})
+                finally:
+                    subprocess.run(["git", "-C", str(source), "worktree", "remove", "--force",
+                                    str(linked)], check=True)
 
     def test_public_asset_authority_selects_every_generated_definition_pair(self):
         entries = {}
@@ -300,7 +417,7 @@ class DeveloperPayloadTests(unittest.TestCase):
             for value in (
                 "token = uuid.uuid4().hex",
                 "token = widen_token(line, hit)",
-                'CONTENT_LOCK_TOKEN_ENV = "ALIS_WORLD_CONTENT_LOCK_TOKEN"',
+                'CONTENT_LOCK_TOKEN_ENV = "PROJECT_GENERATED_CONTENT_LOCK_TOKEN"',
             ):
                 with self.subTest(no_match=value):
                     result = grep_patterns(value)

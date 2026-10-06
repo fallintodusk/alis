@@ -1,361 +1,217 @@
-# Copyright ALIS. All Rights Reserved.
-# License terms: see repository root LICENSE.
-
 BeforeAll {
-    . (Join-Path $PSScriptRoot '..\generated_manifest.ps1')
+    . (Join-Path $PSScriptRoot '..\..\..\..\scripts\ue\world\generated_manifest.ps1')
+    . (Join-Path $PSScriptRoot '..\..\..\..\scripts\ue\world\test\producer_identity_test_helpers.ps1')
+    $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
 }
 
-Describe 'ProjectWorld producer-local generator fingerprints' {
+Describe 'ProjectWorld descriptor producer fingerprints' {
     BeforeEach {
-        $projectRoot = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
-        $shared = 'scripts/ue/world/generated_manifest.ps1'
-        $wrapper = 'scripts/ue/world/realize_canonical_world.ps1'
-        $canonicalBundle = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldCanonicalBundle.cpp'
-        $map = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlayRealization.cpp'
-        $runtimePartition = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRuntimePartitionPolicy.cpp'
-        $evidenceHost = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldEditorModule.cpp'
-        $semanticEvidence = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldSemanticEvidence.cpp'
-        $staticAuditHost = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldStaticPartitionAudit.cpp'
-        $authoredOverlay = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldAuthoredOverlay.cpp'
-        $presentation = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationMaterialBinding.cpp'
-        $terrain = 'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp'
-        $terrainTransformer = 'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainTransformer.cpp'
-        $water = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterRealization.cpp'
-        $waterMeshBuilder = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldWaterMeshBuilder.cpp'
-        $roads = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRoadRealization.cpp'
-        $surface = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGeneratedGeometry.cpp'
-        $vegetation = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationPlacement.cpp'
-        $vegetationExclusions = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationExclusions.cpp'
-        $buildings = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldBuildingMeshBuilder.cpp'
-        $gameplay = 'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldGameplayPlacement.cpp'
-        $catalogPaths = @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerInventory.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerInventory.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationGeneratorRegistry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationGeneratorRegistry.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationProfile.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationProfile.h',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationService.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Public/ProjectWorldRealizationService.h',
-            'Plugins/World/ProjectWorld/Data/Schemas/project_world_realization_profile.schema.json',
-            'scripts/ue/world/realization_layer_operation.ps1'
-        )
+        $fixtureRoot = Join-Path $TestDrive ([Guid]::NewGuid().ToString('N'))
+        $source = 'Plugins/World/ProjectWorld/Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterRealization.cpp'
+        $fixture = New-ProjectWorldProducerIdentityFixture -RepositoryRoot $repositoryRoot `
+            -ProjectRoot $fixtureRoot -SourcePath @($source)
+        $engine = 'e' * 64
+    }
+
+    It 'keeps every fingerprint when producer source, module, test, or script files change' {
+        $before = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
         foreach ($path in @(
-            $shared, $wrapper, $canonicalBundle, $map, $runtimePartition, $evidenceHost, $semanticEvidence, $staticAuditHost, $authoredOverlay, $presentation, $terrain, $water, $roads, $surface,
-            $terrainTransformer, $waterMeshBuilder, $vegetation, $vegetationExclusions, $buildings, $gameplay) + $catalogPaths) {
-            $full = Join-Path $projectRoot $path
-            New-Item -ItemType Directory -Path (Split-Path -Parent $full) -Force | Out-Null
-            Set-Content -LiteralPath $full -Value "baseline:$path" -NoNewline
-        }
-    }
-
-    It 'moves exactly the declared owners of each producer-local source' {
-        $producers = @(
-            'map:v1', 'presentation:v1', 'project_mesh_terrain:v1',
-            'project_water_mesh:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
-        $cases = @(
-            @{ Path = $map; Owners = @('map:v1') },
-            @{ Path = $runtimePartition; Owners = @('map:v1') },
-            @{ Path = $evidenceHost; Owners = @() },
-            @{ Path = $semanticEvidence; Owners = @() },
-            @{ Path = $staticAuditHost; Owners = @() },
-            @{ Path = $authoredOverlay; Owners = @(
-                'map:v1', 'project_vegetation_instances:v1', 'project_building_massing:v1',
-                'project_building_massing:v2') },
-            @{ Path = $presentation; Owners = @('presentation:v1') },
-            @{ Path = $terrain; Owners = @('project_mesh_terrain:v1') },
-            @{ Path = $terrainTransformer; Owners = @('project_mesh_terrain:v1') },
-            @{ Path = $water; Owners = @('project_water_mesh:v1') },
-            @{ Path = $waterMeshBuilder; Owners = @('project_water_mesh:v1') },
-            @{ Path = $roads; Owners = @('project_road_mesh:v1') },
-            @{ Path = $surface; Owners = @(
-                'map:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-                'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1') },
-            @{ Path = $vegetation; Owners = @('project_vegetation_instances:v1') },
-            @{ Path = $vegetationExclusions; Owners = @('project_vegetation_instances:v1') },
-            @{ Path = $buildings; Owners = @('project_building_massing:v1', 'project_building_massing:v2') },
-            @{ Path = $gameplay; Owners = @('project_gameplay_placement:v1') })
-        foreach ($case in $cases) {
-            $before = @{}
-            foreach ($producer in $producers) {
-                $before[$producer] = Get-ProjectWorldGeneratorFingerprint `
-                    -ProjectRoot $projectRoot -ProducerId $producer
-            }
-            Set-Content -LiteralPath (Join-Path $projectRoot $case.Path) `
-                -Value ([System.Guid]::NewGuid().ToString('N')) -NoNewline
-            foreach ($producer in $producers) {
-                $changed = (Get-ProjectWorldGeneratorFingerprint `
-                    -ProjectRoot $projectRoot -ProducerId $producer) -cne $before[$producer]
-                $changed | Should -Be ($case.Owners -contains $producer)
-            }
-        }
-    }
-
-    It 'moves every producer when a true shared primitive changes' {
-        $before = @{}
-        foreach ($producer in @(
-            'map:v1', 'presentation:v1', 'project_mesh_terrain:v1', 'project_water_mesh:v1',
-            'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')) {
-            $before[$producer] = Get-ProjectWorldGeneratorFingerprint `
-                -ProjectRoot $projectRoot -ProducerId $producer
-        }
-
-        Set-Content -LiteralPath (Join-Path $projectRoot $shared) -Value 'shared-v2' -NoNewline
-
-        foreach ($producer in $before.Keys) {
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot `
-                -ProducerId $producer | Should -Not -Be $before[$producer]
-        }
-    }
-
-    It 'ignores wrapper admission checks but tracks wrapper producer behavior' {
-        $path = Join-Path $projectRoot $wrapper
-        [System.IO.File]::WriteAllText($path, @'
-producer-before
-# PROJECTWORLD_PRODUCER_BEGIN preflight_only
-admission-v1
-# PROJECTWORLD_PRODUCER_END preflight_only
-producer-after
-'@)
-        $producers = @(
-            'map:v1', 'presentation:v1', 'project_mesh_terrain:v1',
-            'project_water_mesh:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
-        $before = @{}
-        foreach ($producer in $producers) {
-            $before[$producer] = Get-ProjectWorldGeneratorFingerprint `
-                -ProjectRoot $projectRoot -ProducerId $producer
-        }
-        [System.IO.File]::WriteAllText($path,
-            ([System.IO.File]::ReadAllText($path)).Replace('admission-v1', 'admission-v2'))
-        foreach ($producer in $producers) {
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot `
-                -ProducerId $producer | Should -Be $before[$producer]
-        }
-        [System.IO.File]::WriteAllText($path,
-            ([System.IO.File]::ReadAllText($path)).Replace('producer-after', 'producer-changed'))
-        foreach ($producer in $producers) {
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot `
-                -ProducerId $producer | Should -Not -Be $before[$producer]
-        }
-    }
-
-    It 'rejects unmatched wrapper source-scope markers' {
-        $path = Join-Path $projectRoot $wrapper
-        [System.IO.File]::WriteAllText($path, @'
-producer-before
-# PROJECTWORLD_PRODUCER_END preflight_only
-producer-after
-'@)
-        {
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId 'map:v1'
-        } | Should -Throw '*Malformed or unmatched producer-scoped source region*'
-    }
-
-    It 'rejects a malformed marker inside a scoped region' {
-        $path = Join-Path $projectRoot $wrapper
-        [System.IO.File]::WriteAllText($path, @'
-producer-before
-# PROJECTWORLD_PRODUCER_BEGIN preflight_only
-admission
-#PROJECTWORLD_PRODUCER_END preflight_only
-producer-hidden
-# PROJECTWORLD_PRODUCER_END preflight_only
-producer-after
-'@)
-        {
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId 'map:v1'
-        } | Should -Throw '*Malformed or unmatched producer-scoped source region*'
-    }
-
-    It 'is stable across text line endings but moves for a semantic edit' {
-        $path = Join-Path $projectRoot $shared
-        [System.IO.File]::WriteAllText($path, "line-one`r`nline-two`r`n")
-        $crlf = Get-ProjectWorldGeneratorFingerprint `
-            -ProjectRoot $projectRoot -ProducerId 'map:v1'
-
-        [System.IO.File]::WriteAllText($path, "line-one`nline-two`n")
-        $lf = Get-ProjectWorldGeneratorFingerprint `
-            -ProjectRoot $projectRoot -ProducerId 'map:v1'
-        $lf | Should -Be $crlf
-
-        [System.IO.File]::WriteAllText($path, "line-one`nline-three`n")
-        Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot `
-            -ProducerId 'map:v1' | Should -Not -Be $lf
-    }
-
-    It 'moves only Building producers for an explicitly scoped shared parser region' {
-        $producerIds = @(
-            'map:v1', 'presentation:v1', 'project_mesh_terrain:v1', 'project_water_mesh:v1',
-            'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
-        Set-Content -LiteralPath (Join-Path $projectRoot $canonicalBundle) -NoNewline -Value @'
-shared-before
-// PROJECTWORLD_PRODUCER_BEGIN project_building_massing
-building-v1
-// PROJECTWORLD_PRODUCER_END project_building_massing
-shared-after
-'@
-        $before = @{}
-        foreach ($producer in $producerIds) {
-            $before[$producer] = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId $producer
-        }
-        (Get-Content -Raw -LiteralPath (Join-Path $projectRoot $canonicalBundle)).Replace('building-v1', 'building-v2') |
-            Set-Content -NoNewline -LiteralPath (Join-Path $projectRoot $canonicalBundle)
-        foreach ($producer in $producerIds) {
-            $changed = (Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId $producer) -cne $before[$producer]
-            $changed | Should -Be $producer.StartsWith('project_building_massing:', [System.StringComparison]::Ordinal)
-        }
-    }
-
-    It 'moves only the producer that owns byte-affecting catalog and dispatch surfaces' {
-        $producers = @(
-            'map:v1', 'presentation:v1', 'project_mesh_terrain:v1',
-            'project_water_mesh:v1', 'project_road_mesh:v1', 'project_vegetation_instances:v1',
-            'project_building_massing:v1', 'project_building_massing:v2', 'project_gameplay_placement:v1')
-        $meshTerrainOwnedCatalogPaths = @(
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldLayerInventory.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationGeneratorRegistry.cpp',
-            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationService.cpp')
-        foreach ($path in $catalogPaths) {
-            $before = @{}
-            foreach ($producer in $producers) {
-                $before[$producer] = Get-ProjectWorldGeneratorFingerprint `
-                    -ProjectRoot $projectRoot -ProducerId $producer
-            }
-            Set-Content -LiteralPath (Join-Path $projectRoot $path) `
-                -Value "new-tuple:$path" -NoNewline
-            foreach ($producer in $producers) {
-                $changed = (Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot `
-                    -ProducerId $producer) -cne $before[$producer]
-                $expected = $producer -ceq 'project_mesh_terrain:v1' -and
-                    $meshTerrainOwnedCatalogPaths -contains $path
-                $changed | Should -Be $expected
-            }
-        }
-    }
-
-    It 'moves every producer fingerprint when the engine build identity changes' {
-        $previous = $env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE
-        try {
-            $env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE = 'engine-a'
-            $before = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId 'map:v1'
-            $env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE = 'engine-b'
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId 'map:v1' |
-                Should -Not -Be $before
-        }
-        finally {
-            $env:PROJECT_WORLD_ENGINE_IDENTITY_OVERRIDE = $previous
-        }
-    }
-
-    It 'derives the producer from manifest ownership and rejects unknown generators' {
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{ owning_layer = 'map' }) |
-            Should -Be 'map:v1'
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{ owning_layer = 'presentation' }) |
-            Should -Be 'presentation:v1'
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
-            owning_layer = 'roads'
-            layer_contract = [pscustomobject]@{
-                generator_id = 'project_road_mesh'
-                generator_version = 1
-            }
-        }) | Should -Be 'project_road_mesh:v1'
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
-            owning_layer = 'vegetation'
-            layer_contract = [pscustomobject]@{
-                generator_id = 'project_vegetation_instances'
-                generator_version = 1
-            }
-        }) | Should -Be 'project_vegetation_instances:v1'
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
-            owning_layer = 'buildings'
-            layer_contract = [pscustomobject]@{
-                generator_id = 'project_building_massing'
-                generator_version = 1
-            }
-        }) | Should -Be 'project_building_massing:v1'
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
-            owning_layer = 'buildings'
-            layer_contract = [pscustomobject]@{
-                generator_id = 'project_building_massing'
-                generator_version = 2
-            }
-        }) | Should -Be 'project_building_massing:v2'
-        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
-            owning_layer = 'gameplay'
-            layer_contract = [pscustomobject]@{
-                generator_id = 'project_gameplay_placement'
-                generator_version = 1
-            }
-        }) | Should -Be 'project_gameplay_placement:v1'
-        {
-            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $projectRoot -ProducerId 'unknown:v1'
-        } | Should -Throw '*Unknown ProjectWorld manifest producer*'
-    }
-}
-
-Describe 'Mesh Terrain adapter compiler fingerprint locality' {
-    It 'includes realization shapers and excludes diagnostic-only sources' {
-        $buildPath = Join-Path $PSScriptRoot `
-            '../../../../Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/ProjectWorldMeshTerrainEditor.Build.cs'
-        $source = Get-Content -LiteralPath $buildPath -Raw
-        $match = [regex]::Match(
             $source,
-            'string\[\] FingerprintRelativePaths\s*=\s*\{(?<paths>.*?)\};',
-            [System.Text.RegularExpressions.RegexOptions]::Singleline)
-        $match.Success | Should -BeTrue
-        $paths = @([regex]::Matches($match.Groups['paths'].Value, '"([^"]+)"') |
-            ForEach-Object { $_.Groups[1].Value })
-        $paths | Should -Contain `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp'
-        $paths | Should -Contain `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainTransformer.cpp'
-        $paths | Should -Contain `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainLayoutReceipt.cpp'
-        $paths | Should -Contain `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/ProjectWorldMeshTerrainEditor.Build.cs'
-        $paths | Should -Not -Contain `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainAuditCommandlet.cpp'
-        $paths | Should -Not -Contain `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainReceiptCommandlet.cpp'
-        $source | Should -Not -Match 'Directory\.GetFiles\(ModuleDirectory'
-
-        $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
-        function Get-AdapterFingerprint([string]$ChangedPath, [byte[]]$ChangedBytes) {
-            $stream = [System.IO.MemoryStream]::new()
-            $writer = [System.IO.BinaryWriter]::new($stream, [System.Text.Encoding]::UTF8, $true)
-            foreach ($path in ($paths | Sort-Object -CaseSensitive)) {
-                $fullPath = Join-Path $repoRoot $path
-                $bytes = if ($path -ceq $ChangedPath) { $ChangedBytes } else {
-                    [System.IO.File]::ReadAllBytes($fullPath)
-                }
-                $writer.Write($path)
-                $writer.Write([int]$bytes.Length)
-                $writer.Write($bytes)
-            }
-            $writer.Flush()
-            $sha = [System.Security.Cryptography.SHA256]::Create()
-            $hash = $sha.ComputeHash($stream.ToArray())
-            $sha.Dispose()
-            $writer.Dispose()
-            $stream.Dispose()
-            return [BitConverter]::ToString($hash).Replace('-', '').ToLowerInvariant()
+            'Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldRealizationService.cpp',
+            'Plugins/World/ProjectWorld/Source/ProjectWorldWaterEditor/ProjectWorldWaterEditor.Build.cs',
+            'scripts/ue/world/realize_canonical_world.ps1',
+            'Plugins/World/ProjectWorld/Data/Schemas/project_world_realization_profile.schema.json'
+        )) {
+            Write-ProjectWorldFixtureFile -Root $fixtureRoot -RelativePath $path -Text ([Guid]::NewGuid().ToString('N')) | Out-Null
         }
-        $baseline = Get-AdapterFingerprint '' @()
-        $diagnostic = Get-AdapterFingerprint `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainAuditCommandlet.cpp' `
-            ([byte[]](1, 2, 3))
-        $producer = Get-AdapterFingerprint `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp' `
-            ([byte[]](1, 2, 3))
-        $transformer = Get-AdapterFingerprint `
-            'Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrain/Private/ProjectWorldMeshTerrainTransformer.cpp' `
-            ([byte[]](1, 2, 3))
-        $diagnostic | Should -BeExactly $baseline
-        $producer | Should -Not -BeExactly $baseline
-        $transformer | Should -Not -BeExactly $baseline
+        $after = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        @(Get-ProjectWorldMovedProducers -Before $before -After $after).Count | Should -Be 0
+    }
+
+    It 'moves only the bumped producer on an output revision bump' {
+        $before = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        Step-ProjectWorldDescriptorOutputRevision -Path $fixture.Descriptors['project_water_mesh:v1']
+        $after = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        @(Get-ProjectWorldMovedProducers -Before $before -After $after) | Should -Be @('project_water_mesh:v1')
+    }
+
+    It 'moves every producer on a pipeline revision bump' {
+        $before = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        $path = Join-Path $fixtureRoot 'Plugins/World/ProjectWorld/Data/Producers/realization_pipeline.json'
+        Edit-ProjectWorldDescriptorText -Path $path -Pattern '"pipeline_revision"\s*:\s*1' `
+            -Replacement '"pipeline_revision": 2'
+        $after = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        @(Get-ProjectWorldMovedProducers -Before $before -After $after).Count | Should -Be $before.Count
+    }
+
+    It 'moves only the declaring producer when a data input changes' {
+        $before = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        $path = Join-Path $fixtureRoot 'Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset'
+        [IO.File]::WriteAllText($path, 'changed binary fixture')
+        $after = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        @(Get-ProjectWorldMovedProducers -Before $before -After $after) | Should -Be @('project_mesh_terrain:v1')
+    }
+
+    It 'ignores descriptor formatting and key order' {
+        $before = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        $path = $fixture.Descriptors['project_water_mesh:v1']
+        $document = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+        $reordered = [ordered]@{
+            modules = $document.modules
+            data_inputs = $document.data_inputs
+            output_revision = $document.output_revision
+            generator_version = $document.generator_version
+            generator_id = $document.generator_id
+            kind = $document.kind
+            schema_version = $document.schema_version
+            '$schema' = $document.'$schema'
+        }
+        [IO.File]::WriteAllText($path, ($reordered | ConvertTo-Json -Depth 5).Replace("`n", "`r`n"))
+        $after = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        @(Get-ProjectWorldMovedProducers -Before $before -After $after).Count | Should -Be 0
+    }
+
+    It 'moves every producer when engine identity changes' {
+        $catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot
+        foreach ($producerId in $catalog.Producers.Keys) {
+            $a = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $fixtureRoot -ProducerId $producerId `
+                -Catalog $catalog -EngineIdentity ('a' * 64)
+            $b = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $fixtureRoot -ProducerId $producerId `
+                -Catalog $catalog -EngineIdentity ('b' * 64)
+            $a | Should -Not -Be $b
+        }
+    }
+
+    It 'resolves engine identity through project config and fails closed when it is unknown' {
+        (Get-ProjectWorldEngineBuildIdentity -ProjectRoot $fixtureRoot) | Should -Match '^[a-f0-9]{64}$'
+        Remove-Item -LiteralPath (Join-Path $fixtureRoot 'engine/Engine/Build/Build.version')
+        { Get-ProjectWorldEngineBuildIdentity -ProjectRoot $fixtureRoot } | Should -Throw '*Engine identity is unknown*'
+    }
+
+    It 'reproduces golden fingerprint vectors' {
+        $catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot
+        Get-ProjectWorldGeneratorFingerprint -ProjectRoot $fixtureRoot -ProducerId project_water_mesh:v1 `
+            -Catalog $catalog -EngineIdentity $engine |
+            Should -BeExactly 'fc7a9a4d5043fa1928c3460a6fb1fab2a88ffa4d18d9ad1d1e880c07e71369f1'
+        Step-ProjectWorldDescriptorOutputRevision -Path $fixture.Descriptors['project_water_mesh:v1']
+        $catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot
+        Get-ProjectWorldGeneratorFingerprint -ProjectRoot $fixtureRoot -ProducerId project_water_mesh:v1 `
+            -Catalog $catalog -EngineIdentity $engine |
+            Should -BeExactly '155d4e8bbbc6a1364cfb16854686098f8c95079f715df36efe3b2b3173150b14'
+    }
+
+    It 'hashes text data inputs independent of line endings and byte order mark' {
+        $path = Join-Path $fixtureRoot 'sample.json'
+        [IO.File]::WriteAllBytes($path, ([Text.UTF8Encoding]::new($true)).GetPreamble() +
+            [Text.Encoding]::UTF8.GetBytes("{  `"a`": 1 }`r`n"))
+        $withBom = Get-ProjectWorldDataInputDigest -Path $path
+        [IO.File]::WriteAllText($path, "{  `"a`": 1 }`n", [Text.UTF8Encoding]::new($false))
+        Get-ProjectWorldDataInputDigest -Path $path | Should -BeExactly $withBom
+    }
+
+    It 'discovers only producer directories and ignores verify fixtures' {
+        $before = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        $path = 'Plugins/World/ProjectWorld/Data/TestFixtures/Verify/fake.json'
+        Write-ProjectWorldFixtureFile -Root $fixtureRoot -RelativePath $path `
+            -Text (Get-Content $fixture.Descriptors['project_water_mesh:v1'] -Raw) | Out-Null
+        $after = Get-ProjectWorldFixtureFingerprints -Fixture $fixture
+        @(Get-ProjectWorldMovedProducers -Before $before -After $after).Count | Should -Be 0
+    }
+
+    It 'rejects malformed descriptors, unknown producers, and missing data' {
+        $catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot
+        { Get-ProjectWorldGeneratorFingerprint -ProjectRoot $fixtureRoot -ProducerId unknown:v1 -Catalog $catalog -EngineIdentity $engine } |
+            Should -Throw '*Unknown ProjectWorld manifest producer*'
+        $path = $fixture.Descriptors['project_water_mesh:v1']
+        Edit-ProjectWorldDescriptorText -Path $path -Pattern '"output_revision"\s*:\s*1' `
+            -Replacement '"output_revision": 0'
+        { Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot } | Should -Throw '*output_revision*'
+    }
+
+    It 'fails closed on invalid producer descriptor fields and paths' {
+        $path = $fixture.Descriptors['project_water_mesh:v1']
+        $original = [IO.File]::ReadAllText($path)
+        $cases = @(
+            @{ Name = 'invalid JSON'; Pattern = '^\{'; Replacement = '[' },
+            @{ Name = 'missing required field'; Pattern = '"output_revision"\s*:\s*1,'; Replacement = '' },
+            @{ Name = 'unknown field'; Pattern = '"output_revision"\s*:\s*1,'; Replacement = '"output_revision": 1, "unknown": 1,' },
+            @{ Name = 'wrong schema'; Pattern = 'project_world_producer_descriptor.schema.json'; Replacement = 'wrong.schema.json' },
+            @{ Name = 'unsupported schema version'; Pattern = '"schema_version"\s*:\s*1'; Replacement = '"schema_version": 2' },
+            @{ Name = 'fractional output revision'; Pattern = '"output_revision"\s*:\s*1'; Replacement = '"output_revision": 1.5' },
+            @{ Name = 'wrong file stem'; Pattern = '"generator_id"\s*:\s*"project_water_mesh"'; Replacement = '"generator_id": "other"' },
+            @{ Name = 'missing data'; Pattern = '"data_inputs"\s*:\s*\[\]'; Replacement = '"data_inputs": ["Plugins/World/ProjectWorld/Data/missing.json"]' },
+            @{ Name = 'unsupported data type'; Pattern = '"data_inputs"\s*:\s*\[\]'; Replacement = '"data_inputs": ["Plugins/World/ProjectWorld/Data/test.png"]' },
+            @{ Name = 'parent escape'; Pattern = '"data_inputs"\s*:\s*\[\]'; Replacement = '"data_inputs": ["Plugins/../other.json"]' },
+            @{ Name = 'absolute data path'; Pattern = '"data_inputs"\s*:\s*\[\]'; Replacement = '"data_inputs": ["C:/other.json"]' },
+            @{ Name = 'undeclared module'; Pattern = '"ProjectWorldWaterEditor"'; Replacement = '"UnlistedEditor"' },
+            @{ Name = 'duplicate module'; Pattern = '"ProjectWorldWaterEditor"'; Replacement = '"ProjectWorldWaterEditor", "ProjectWorldWaterEditor"' },
+            @{ Name = 'pipeline module claimed'; Pattern = '"ProjectWorldWaterEditor"'; Replacement = '"ProjectWorldEditor"' }
+        )
+        foreach ($case in $cases) {
+            $matches = [regex]::Matches($original, $case.Pattern)
+            $matches.Count | Should -Be 1 -Because "fixture anchor for $($case.Name) must be exact"
+            [IO.File]::WriteAllText($path, ([regex]::Replace($original, $case.Pattern, $case.Replacement)))
+            { Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot } |
+                Should -Throw -Because "a $($case.Name) descriptor must fail closed"
+        }
+        [IO.File]::WriteAllText($path, $original)
+        $catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $fixtureRoot
+        $catalog.Producers.Contains('project_water_mesh:v1') | Should -BeTrue
+    }
+
+    It 'derives producer ids from manifest ownership' {
+        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{ owning_layer = 'map' }) |
+            Should -BeExactly 'map:v1'
+        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{ owning_layer = 'presentation' }) |
+            Should -BeExactly 'presentation:v1'
+        Get-ProjectWorldManifestProducerId -Manifest ([pscustomobject]@{
+            owning_layer = 'terrain'; layer_contract = [pscustomobject]@{ generator_id = 'project_mesh_terrain'; generator_version = 1 }
+        }) | Should -BeExactly 'project_mesh_terrain:v1'
+    }
+
+    It 'declares exactly the producers selected by tracked realization profiles' {
+        $catalog = Get-ProjectWorldProducerCatalog -ProjectRoot $repositoryRoot
+        $used = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        $used.Add('map:v1') | Out-Null
+        $used.Add('presentation:v1') | Out-Null
+        $profiles = Get-ChildItem -Path (Join-Path $repositoryRoot 'Plugins/*/*/Data/Profiles/Realization/*.json') -File
+        $profiles.Count | Should -BeGreaterThan 0
+        foreach ($profile in $profiles) {
+            $document = Get-Content -LiteralPath $profile.FullName -Raw | ConvertFrom-Json
+            foreach ($layer in @($document.layers)) {
+                $producerId = "$([string]$layer.generator_id):v$([int]$layer.generator_version)"
+                $catalog.Producers.Contains($producerId) | Should -BeTrue -Because "$($profile.Name):$($layer.layer_id) needs a descriptor"
+                $used.Add($producerId) | Out-Null
+                if ($layer.settings.PSObject.Properties.Name -contains 'shared_definition') {
+                    $objectPath = [string]$layer.settings.shared_definition
+                    $pluginName = ($objectPath -split '/')[1]
+                    $assetParts = ($objectPath -split '/', 3)[2] -split '\.'
+                    $pluginRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $catalog.Producers[$producerId].Path))
+                    (Split-Path -Leaf $pluginRoot) | Should -BeExactly $pluginName
+                    $relative = "$((ConvertTo-ProjectWorldFixtureRelativePath -Root $repositoryRoot -Path $pluginRoot))/Content/$($assetParts[0]).uasset"
+                    $catalog.Producers[$producerId].DataInputs | Should -Contain $relative
+                }
+            }
+        }
+        @($catalog.Producers.Keys | Sort-Object) | Should -Be @($used | Sort-Object)
+        foreach ($producerId in $catalog.Producers.Keys) {
+            Get-ProjectWorldGeneratorFingerprint -ProjectRoot $repositoryRoot -ProducerId $producerId `
+                -Catalog $catalog -EngineIdentity ('e' * 64) | Should -Match '^[a-f0-9]{64}$'
+        }
+    }
+
+    It 'keeps compiler source fingerprints out of World production modules' {
+        $sources = Get-ChildItem -LiteralPath (Join-Path $repositoryRoot 'Plugins/World') -Recurse -File |
+            Where-Object {
+                $_.FullName -match '[\\/]Source[\\/]' -and
+                $_.FullName -notmatch '[\\/](Tests|Verify)[\\/]' -and
+                $_.Extension -in @('.cpp', '.h', '.cs')
+            }
+        $sources.Count | Should -BeGreaterThan 0
+        foreach ($sourceFile in $sources) {
+            $text = [IO.File]::ReadAllText($sourceFile.FullName)
+            $text | Should -Not -Match 'GetAdapterCompilerFingerprint|COMPILER_SOURCE_SHA256|AdapterCompiler' `
+                -Because "$($sourceFile.FullName) cannot own a second producer identity"
+        }
     }
 }

@@ -10,7 +10,7 @@ BeforeAll {
         'Plugins\World\ProjectWorldData\Data\Profiles\Realization\kazan_territory_public_v1.realization.json',
         'Plugins\World\ProjectWorldData\Data\Profiles\Realization\manhattan_showcase_v1.realization.json',
         'Plugins\World\ProjectWorldData\Data\Profiles\Realization\manhattan_showcase_public_v1.realization.json',
-        'Plugins\World\ProjectWorldTestData\Data\Profiles\Realization\synthetic_landscape_water_twin.realization.json'
+        'Plugins\World\ProjectWorldTestData\Data\Profiles\Realization\synthetic_territory_twin.realization.json'
     ) | ForEach-Object { Join-Path $script:ProjectRoot $_ }
     $script:Validator = @'
 import copy
@@ -29,6 +29,11 @@ for profile in profiles:
     validator.validate(profile)
 
 mesh = profiles[0]
+external = copy.deepcopy(mesh)
+external['layers'][0]['generator_id'] = 'project_external_terrain'
+external['layers'][0]['settings'] = {'adapter_owned_setting': True}
+validator.validate(external)
+
 legacy = copy.deepcopy(mesh)
 legacy['layers'][0].update({
     'generator_id': 'project_landscape',
@@ -46,12 +51,12 @@ parallel_identity['landscape'] = {
     'components_per_proxy': 1,
 }
 if not list(validator.iter_errors(parallel_identity)):
-    raise AssertionError('Mesh Terrain accepted a parallel Landscape identity')
+    raise AssertionError('the profile accepted a parallel Landscape identity')
 '@
 }
 
 Describe 'ProjectWorld realization profile schema' {
-    It 'accepts the one Mesh Terrain tuple and rejects the removed Landscape tuple' {
+    It 'accepts generic producer syntax and rejects invalid envelope fields' {
         $arguments = @('-c', $script:Validator, $script:SchemaPath) + $script:ProfilePaths
         & python @arguments
         $LASTEXITCODE | Should -Be 0

@@ -5,12 +5,12 @@
 
 #include "ProjectWorldAuthoredOverlay.h"
 #include "ProjectWorldAuthoredOverlayRealization.h"
-#include "ProjectWorldBuildingRealization.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldDataRoots.h"
 #include "ProjectWorldGeneratedGeometry.h"
-#include "ProjectWorldGameplayPlacement.h"
 #include "ProjectWorldLayerInventory.h"
+#include "ProjectWorldLayerPipeline.h"
+#include "ProjectWorldLayerProducerRegistry.h"
 #include "ProjectWorldLayerDirtyInput.h"
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldPresentationProfile.h"
@@ -19,11 +19,8 @@
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimePartitionRealization.h"
 #include "ProjectWorldRuntimeRealization.h"
-#include "ProjectWorldRoadRealization.h"
 #include "ProjectWorldSavePolicy.h"
 #include "ProjectWorldSemanticEvidence.h"
-#include "ProjectWorldVegetationRealization.h"
-#include "ProjectWorldWaterRealization.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
@@ -31,7 +28,6 @@
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
-#include "ProjectWorldTerrainProducerRegistry.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -469,11 +465,6 @@ int32 FProjectWorldRealizationService::Run(
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
-	const FProjectWorldRealizationLayer* TerrainLayer =
-		RealizationProfile.Layers.FindByPredicate([](const FProjectWorldRealizationLayer& Layer)
-			{ return Layer.LayerId == TEXT("terrain"); });
-	const bool bUsesExternalTerrain = TerrainLayer != nullptr &&
-		ProjectWorldTerrainProducerRegistry::IsRegistered(TerrainLayer->GeneratorId, TerrainLayer->GeneratorVersion);
 	bool bRuntimePartitionChanged = false;
 	if (bNeedsRuntime && !ProjectWorldRuntimePartitionRealization::ApplyAndCapture(
 		World, RuntimeProfile, OutResult, bRuntimePartitionChanged, EditorError))
@@ -500,13 +491,14 @@ int32 FProjectWorldRealizationService::Run(
 			World,
 			Bundle,
 			bNeedsRuntime ? RuntimeProfile.ProfileId : FString(),
-			OutResult)
+			OutResult,
+			&EditorError)
 		: ProjectWorldGeneratedGeometry::RemoveOwnedActors(
 			World,
 			OutResult);
 	if (!bOwnedActorsPrepared)
 	{
-		Reject(OutResult, TEXT("editor-delete"), TEXT("Cannot remove a previously generated actor."));
+		Reject(OutResult, TEXT("editor-delete"), TEXT("Cannot remove a previously generated actor."), EditorError);
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
@@ -532,50 +524,14 @@ int32 FProjectWorldRealizationService::Run(
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
-		if (bUsesExternalTerrain && !ProjectWorldTerrainProducerRegistry::Apply(
-			TerrainLayer->GeneratorId, TerrainLayer->GeneratorVersion, World, Bundle,
-			TerrainLayer->NormalizedSettings, PresentationResources.TerrainMaterial, OutResult, EditorError))
+		const TMap<FName, UMaterialInterface*> Materials{
+			{TEXT("terrain"), PresentationResources.TerrainMaterial},
+			{TEXT("road"), PresentationResources.RoadMaterial},
+			{TEXT("building"), PresentationResources.BuildingMaterial}};
+		if (bNeedsLayerPlan && !ProjectWorldLayerPipeline::ApplyLayers(
+			*World, Bundle, RealizationProfile, AuthoredOverlaySet, Materials, OutResult, EditorError))
 		{
-			Reject(OutResult, TEXT("geometry-terrain"), TEXT("Cannot realize canonical terrain."), EditorError);
-			return OutResult.ExitCode();
-		}
-		if (bNeedsLayerPlan && !ProjectWorldWaterRealization::Apply(
-			World,
-			Bundle,
-			RealizationProfile,
-			OutResult,
-			EditorError))
-		{
-			Reject(OutResult, TEXT("geometry-water"), TEXT("Cannot realize persistent cell-local water."), EditorError);
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-			return OutResult.ExitCode();
-		}
-		if (bNeedsLayerPlan && !ProjectWorldRoadRealization::Apply(
-			World, Bundle, RealizationProfile, PresentationResources.RoadMaterial, OutResult, EditorError))
-		{
-			Reject(OutResult, TEXT("geometry-roads"), TEXT("Cannot realize persistent cell-local roads."), EditorError);
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-			return OutResult.ExitCode();
-		}
-		if (bNeedsLayerPlan && !ProjectWorldVegetationRealization::Apply(
-			World, Bundle, RealizationProfile, AuthoredOverlaySet, OutResult, EditorError))
-		{
-			Reject(OutResult, TEXT("geometry-vegetation"), TEXT("Cannot realize cell-owned vegetation instances."), EditorError);
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-			return OutResult.ExitCode();
-		}
-		if (bNeedsLayerPlan && !ProjectWorldBuildingRealization::Apply(
-			World, Bundle, RealizationProfile, AuthoredOverlaySet,
-			PresentationResources.BuildingMaterial, OutResult, EditorError))
-		{
-			Reject(OutResult, TEXT("geometry-buildings"), TEXT("Cannot realize cell-owned building massing."), EditorError);
-			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
-			return OutResult.ExitCode();
-		}
-		if (bNeedsLayerPlan && !ProjectWorldGameplayPlacement::Apply(
-			World, Bundle, RealizationProfile, OutResult, EditorError))
-		{
-			Reject(OutResult, TEXT("gameplay-placement"), TEXT("Cannot realize ObjectDefinition gameplay placements."), EditorError);
+			Reject(OutResult, TEXT("geometry-layer-apply"), TEXT("Cannot realize a generated layer."), EditorError);
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
@@ -618,10 +574,10 @@ int32 FProjectWorldRealizationService::Run(
 			return OutResult.ExitCode();
 		}
 	}
-	else if (bUsesExternalTerrain && !ProjectWorldTerrainProducerRegistry::Delete(
-		TerrainLayer->GeneratorId, TerrainLayer->GeneratorVersion, World, Bundle, OutResult, EditorError))
+	else if (bNeedsLayerPlan && !ProjectWorldLayerPipeline::DeleteLayers(
+		*World, Bundle, RealizationProfile, AuthoredOverlaySet, OutResult, EditorError))
 	{
-		Reject(OutResult, TEXT("geometry-delete"), TEXT("Cannot delete generated terrain."), EditorError);
+		Reject(OutResult, TEXT("geometry-layer-delete"), TEXT("Cannot delete a generated layer."), EditorError);
 		return OutResult.ExitCode();
 	}
 	OutResult.UpdatedActorCount += ProjectWorldPartitionPolicy::DisableGeneratedActorHLOD(World);
@@ -633,7 +589,8 @@ int32 FProjectWorldRealizationService::Run(
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 		return OutResult.ExitCode();
 	}
-	if (bNeedsLayerPlan && !ProjectWorldLayerInventory::CaptureArtifacts(
+	if (bNeedsLayerPlan && Request.Mode != EProjectWorldRealizationMode::Delete &&
+		!ProjectWorldLayerInventory::CaptureArtifacts(
 		World,
 		Bundle,
 		RealizationProfile,
@@ -654,6 +611,7 @@ int32 FProjectWorldRealizationService::Run(
 	if (bNeedsRuntime && !ProjectWorldRuntimeRealization::CaptureAndCheckStructuralBudgets(
 		World,
 		RuntimeProfile,
+		RealizationProfile.TopologicalLayerIds.Contains(TEXT("vegetation")),
 		OutResult,
 		EditorError))
 	{
@@ -688,8 +646,8 @@ bool FProjectWorldRealizationService::WriteResult(
 	const FProjectWorldRealizationResult& Result)
 {
 	TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
-	Root->SetStringField(TEXT("$schema"), TEXT("https://alis.world/schemas/world-realization/realization-result-v1.json"));
-	Root->SetNumberField(TEXT("schema_version"), 1);
+	Root->SetStringField(TEXT("$schema"), TEXT("https://alis.world/schemas/world-realization/realization-result-v2.json"));
+	Root->SetNumberField(TEXT("schema_version"), 2);
 	Root->SetStringField(TEXT("operation_id"), Result.OperationId);
 	Root->SetStringField(TEXT("operation"), TEXT("unreal_world_realization"));
 	Root->SetStringField(TEXT("status"), Result.Status);
@@ -728,6 +686,7 @@ bool FProjectWorldRealizationService::WriteResult(
 			Inventory.NormalizedLayerContractHash);
 		Layer->SetStringField(TEXT("generator_id"), Inventory.GeneratorId);
 		Layer->SetNumberField(TEXT("generator_version"), Inventory.GeneratorVersion);
+		Layer->SetStringField(TEXT("generator_fingerprint"), Inventory.GeneratorFingerprint);
 		Layer->SetStringField(TEXT("artifact_root"), Inventory.ArtifactRoot);
 		auto StringArray = [](const TArray<FString>& Values)
 		{
@@ -765,6 +724,26 @@ bool FProjectWorldRealizationService::WriteResult(
 			Artifacts.Add(MakeShared<FJsonValueObject>(Artifact));
 		}
 		Layer->SetArrayField(TEXT("artifacts"), Artifacts);
+		if (Inventory.PostApplyBuilder.IsSet())
+		{
+			const FProjectWorldPostApplyBuilder& Builder = Inventory.PostApplyBuilder.GetValue();
+			TSharedRef<FJsonObject> BuilderJson = MakeShared<FJsonObject>();
+			BuilderJson->SetStringField(TEXT("inventory_commandlet"), Builder.InventoryCommandlet);
+			BuilderJson->SetArrayField(TEXT("inventory_arguments"), StringArray(Builder.InventoryArguments));
+			BuilderJson->SetStringField(TEXT("inventory_schema"), Builder.InventorySchema);
+			BuilderJson->SetStringField(TEXT("builder_commandlet"), Builder.BuilderCommandlet);
+			BuilderJson->SetArrayField(TEXT("builder_arguments"), StringArray(Builder.BuilderArguments));
+			Layer->SetObjectField(TEXT("post_apply_builder"), BuilderJson);
+		}
+		TSharedRef<FJsonObject> Metrics = MakeShared<FJsonObject>();
+		TArray<FString> MetricKeys;
+		Inventory.Metrics.GetKeys(MetricKeys);
+		MetricKeys.Sort();
+		for (const FString& Key : MetricKeys)
+		{
+			Metrics->SetNumberField(Key, Inventory.Metrics.FindChecked(Key));
+		}
+		Layer->SetObjectField(TEXT("metrics"), Metrics);
 		LayerInventories.Add(MakeShared<FJsonValueObject>(Layer));
 	}
 	Root->SetArrayField(TEXT("layer_inventories"), LayerInventories);
@@ -857,44 +836,9 @@ bool FProjectWorldRealizationService::WriteResult(
 	Changes->SetNumberField(TEXT("updated_actors"), Result.UpdatedActorCount);
 	Changes->SetNumberField(TEXT("removed_actors"), Result.RemovedActorCount);
 	Changes->SetNumberField(TEXT("preserved_actors"), Result.PreservedActorCount);
-	Changes->SetNumberField(TEXT("terrain_sections"), Result.TerrainSectionCount);
-	Changes->SetNumberField(TEXT("water_cell_actors"), Result.WaterCellActorCount);
-	Changes->SetNumberField(TEXT("water_mesh_assets"), Result.WaterMeshAssetCount);
-	Changes->SetNumberField(TEXT("water_triangles"), Result.WaterTriangleCount);
-	Changes->SetNumberField(
-		TEXT("water_terrain_footprint_samples"), Result.WaterTerrainFootprintSampleCount);
-	Changes->SetNumberField(
-		TEXT("water_terrain_conditioned_samples"), Result.WaterTerrainConditionedSampleCount);
-	Changes->SetNumberField(
-		TEXT("water_terrain_maximum_correction_m"), Result.MaximumWaterTerrainCorrectionMeters);
-	Changes->SetNumberField(TEXT("road_cell_actors"), Result.RoadCellActorCount);
-	Changes->SetNumberField(TEXT("road_mesh_assets"), Result.RoadMeshAssetCount);
-	Changes->SetNumberField(TEXT("road_triangles"), Result.RoadTriangleCount);
 	Changes->SetNumberField(TEXT("road_sections"), Result.RoadSectionCount);
-	Changes->SetNumberField(TEXT("vegetation_cell_actors"), Result.VegetationCellActorCount);
-	Changes->SetNumberField(TEXT("vegetation_components"), Result.VegetationComponentCount);
-	Changes->SetNumberField(TEXT("vegetation_instances"), Result.VegetationInstanceCount);
-	Changes->SetNumberField(TEXT("vegetation_candidates"), Result.VegetationCandidateCount);
-	Changes->SetNumberField(TEXT("vegetation_road_exclusions"), Result.VegetationRoadExcludedCount);
-	Changes->SetNumberField(TEXT("vegetation_water_exclusions"), Result.VegetationWaterExcludedCount);
-	Changes->SetNumberField(TEXT("vegetation_authored_mask_exclusions"), Result.VegetationAuthoredMaskExcludedCount);
-	Changes->SetNumberField(TEXT("vegetation_instance_rewrites"), Result.VegetationInstanceRewriteCount);
-	Changes->SetNumberField(TEXT("building_cell_actors"), Result.BuildingCellActorCount);
-	Changes->SetNumberField(TEXT("building_mesh_assets"), Result.BuildingMeshAssetCount);
-	Changes->SetNumberField(TEXT("building_triangles"), Result.BuildingTriangleCount);
-	Changes->SetNumberField(TEXT("building_triangle_rewrites"), Result.BuildingTriangleRewriteCount);
-	Changes->SetNumberField(TEXT("building_candidate_fragments"), Result.BuildingCandidateFragmentCount);
-	Changes->SetNumberField(TEXT("building_accepted_fragments"), Result.BuildingAcceptedFragmentCount);
-	Changes->SetNumberField(TEXT("building_duplicate_fragments"), Result.BuildingDuplicateFragmentCount);
-	Changes->SetNumberField(TEXT("building_contained_fragments"), Result.BuildingContainedFragmentCount);
-	Changes->SetNumberField(TEXT("building_conflict_fragments"), Result.BuildingConflictFragmentCount);
-	Changes->SetNumberField(TEXT("building_malformed_fragments"), Result.BuildingMalformedFragmentCount);
-	Changes->SetNumberField(
-		TEXT("building_authored_mask_exclusions"), Result.BuildingAuthoredMaskExcludedFragmentCount);
 	Changes->SetNumberField(TEXT("self_saved_actor_mutations"), Result.SelfSavedActorMutationCount);
 	Changes->SetNumberField(TEXT("building_sections"), Result.BuildingSectionCount);
-	Changes->SetNumberField(TEXT("gameplay_placement_actors"), Result.GameplayPlacementActorCount);
-	Changes->SetNumberField(TEXT("gameplay_placement_rewrites"), Result.GameplayPlacementRewriteCount);
 	Changes->SetNumberField(TEXT("presentation_actors"), Result.PresentationActorCount);
 	Changes->SetNumberField(TEXT("capture_viewpoints"), Result.CaptureViewpointCount);
 	Changes->SetStringField(TEXT("cross_cell_road_feature_id"), Result.CrossCellRoadFeatureId);

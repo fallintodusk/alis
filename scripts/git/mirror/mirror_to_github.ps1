@@ -162,6 +162,15 @@ $RepoRootWslQuoted = Convert-ToBashSingleQuoted -Value $RepoRootWsl
 $ScriptPathWslQuoted = Convert-ToBashSingleQuoted -Value $ScriptPathWsl
 $ArgString = ($ForwardArgs | ForEach-Object { Convert-ToBashSingleQuoted -Value $_ }) -join " "
 $Prefix = ""
+if (Test-Path -LiteralPath (Join-Path $RepoRoot '.git') -PathType Leaf) {
+    $GitDir = (& git -C $RepoRoot rev-parse --absolute-git-dir 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $GitDir -PathType Container)) {
+        throw 'Cannot resolve the linked worktree Git directory for WSL.'
+    }
+    $GitDirWsl = Convert-ToWslPath -Path $GitDir
+    $Prefix += "export MIRROR_SOURCE_REPO_ROOT=$RepoRootWslQuoted; "
+    $Prefix += "export MIRROR_SOURCE_GIT_DIR=" + (Convert-ToBashSingleQuoted -Value $GitDirWsl) + "; "
+}
 if (-not $BypassDirtyCheck) {
     # Native Windows git status is much faster and avoids WSL/LFS dirty-check hangs.
     $Prefix += "export MIRROR_CLEAN_PREVALIDATED=1; "

@@ -12,6 +12,7 @@
     "grid_id",
     "runtime_partition",
     "gameplay_route",
+    "product_spawn",
     "optimization_policy",
     "budgets"
   ],
@@ -22,9 +23,7 @@
     },
     "schema_version": { "const": 3 },
     "profile_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
-    "profile_kind": {
-      "enum": ["bounded_procedural_route", "territory_product"]
-    },
+    "profile_kind": { "const": "territory_product" },
     "grid_id": { "type": "string", "pattern": "^grid_[a-z0-9]+$" },
     "runtime_partition": {
       "type": "object",
@@ -78,15 +77,9 @@
       "additionalProperties": false,
       "required": ["nanite", "instancing", "hlod"],
       "properties": {
-        "nanite": {
-          "enum": ["not_applicable_procedural_mesh", "enabled_for_supported_generated_static_meshes"]
-        },
-        "instancing": {
-          "enum": ["not_applicable_unique_geometry", "cell_owned_hism"]
-        },
-        "hlod": {
-          "enum": ["disabled_for_bounded_route", "disabled_for_territory"]
-        }
+        "nanite": { "const": "enabled_for_supported_generated_static_meshes" },
+        "instancing": { "const": "cell_owned_hism" },
+        "hlod": { "const": "disabled_for_territory" }
       }
     },
     "budgets": {
@@ -109,15 +102,5 @@
         "p95_frame_time_ms": { "type": "number", "minimum": 0.1, "maximum": 1000.0 }
       }
     }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": { "profile_kind": { "const": "territory_product" } },
-        "required": ["profile_kind"]
-      },
-      "then": { "required": ["product_spawn"] },
-      "else": { "not": { "required": ["product_spawn"] } }
-    }
-  ]
+  }
 }

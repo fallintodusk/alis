@@ -26,6 +26,7 @@ when evidence contradicts a previously green gate.
 | Missing or detached UI | [ProjectUI troubleshooting](../../Plugins/UI/ProjectUI/docs/troubleshooting.md) |
 | Generated World or streaming failure | [World pitfalls](../../Plugins/World/ProjectWorld/docs/pitfalls.md) |
 | Packaged build differs from Editor | [Packaging](../build/packaging_guide.md) |
+| Release input, public mirror, developer payload, or public map-load failure | [Release preparation triage](../../scripts/ue/package/README.md#preparation-preflight-and-failure-triage) |
 
 ## Evidence Locations
 

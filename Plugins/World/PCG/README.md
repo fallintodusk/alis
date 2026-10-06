@@ -5,4 +5,5 @@ systems.
 
 | Goal | Owner |
 |---|---|
-| Inspect the current PCG integration boundary | [ProjectPCG](ProjectPCG/README.md) |
+| Inspect optional forest biome content | [ProjectForestBiomesPack](ProjectForestBiomesPack/README.md) |
+| Inspect optional urban ruins recipes | [ProjectUrbanRuinsPCGRecipe](ProjectUrbanRuinsPCGRecipe/README.md) |

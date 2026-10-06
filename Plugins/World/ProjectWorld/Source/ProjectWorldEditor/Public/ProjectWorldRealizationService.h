@@ -45,6 +45,15 @@ struct FProjectWorldLayerInputInventory
 	FString Hash;
 };
 
+struct FProjectWorldPostApplyBuilder
+{
+	FString InventoryCommandlet;
+	TArray<FString> InventoryArguments;
+	FString InventorySchema;
+	FString BuilderCommandlet;
+	TArray<FString> BuilderArguments;
+};
+
 struct FProjectWorldLayerInventory
 {
 	FString LayerId;
@@ -52,11 +61,14 @@ struct FProjectWorldLayerInventory
 	FString NormalizedLayerContractHash;
 	FString GeneratorId;
 	int32 GeneratorVersion = 0;
+	FString GeneratorFingerprint;
 	FString ArtifactRoot;
 	TArray<FProjectWorldLayerInputInventory> CanonicalInputs;
 	TArray<FProjectWorldLayerInputInventory> DependencyInputs;
 	TArray<FString> FinalDirtyUnits;
 	TArray<FProjectWorldLayerArtifactInventory> Artifacts;
+	TMap<FString, int64> Metrics;
+	TOptional<FProjectWorldPostApplyBuilder> PostApplyBuilder;
 };
 
 struct FProjectWorldAuthoredAnchorEvidence
@@ -123,37 +135,17 @@ struct FProjectWorldRealizationResult
 	int32 RemovedActorCount = 0;
 	int32 PreservedActorCount = 0;
 	int32 TerrainSectionCount = 0;
-	int32 WaterCellActorCount = 0;
-	int32 WaterMeshAssetCount = 0;
-	int32 WaterTriangleCount = 0;
-	int32 WaterTerrainFootprintSampleCount = 0;
-	int32 WaterTerrainConditionedSampleCount = 0;
-	double MaximumWaterTerrainCorrectionMeters = 0.0;
-	int32 RoadCellActorCount = 0;
-	int32 RoadMeshAssetCount = 0;
-	int32 RoadTriangleCount = 0;
 	int32 RoadSectionCount = 0;
-	int32 VegetationCellActorCount = 0;
-	int32 VegetationComponentCount = 0;
-	int32 VegetationInstanceCount = 0;
-	int32 VegetationCandidateCount = 0;
-	int32 VegetationRoadExcludedCount = 0;
-	int32 VegetationWaterExcludedCount = 0;
-	int32 VegetationAuthoredMaskExcludedCount = 0;
-	int32 VegetationInstanceRewriteCount = 0;
-	int32 BuildingCellActorCount = 0;
-	int32 BuildingMeshAssetCount = 0;
-	int32 BuildingTriangleCount = 0;
-	int32 BuildingTriangleRewriteCount = 0;
-	int32 BuildingCandidateFragmentCount = 0;
-	int32 BuildingAcceptedFragmentCount = 0;
-	int32 BuildingDuplicateFragmentCount = 0;
-	int32 BuildingContainedFragmentCount = 0;
-	int32 BuildingConflictFragmentCount = 0;
-	int32 BuildingMalformedFragmentCount = 0;
-	int32 BuildingAuthoredMaskExcludedFragmentCount = 0;
-	int32 GameplayPlacementActorCount = 0;
-	int32 GameplayPlacementRewriteCount = 0;
+	TMap<FString, TMap<FString, int64>> ProducerMetrics;
+	int64& MutableProducerMetric(const TCHAR* GeneratorId, const TCHAR* Metric)
+	{
+		return ProducerMetrics.FindOrAdd(GeneratorId).FindOrAdd(Metric);
+	}
+	int64 GetProducerMetric(const TCHAR* GeneratorId, const TCHAR* Metric) const
+	{
+		const TMap<FString, int64>* Metrics = ProducerMetrics.Find(GeneratorId);
+		return Metrics != nullptr ? Metrics->FindRef(Metric) : 0;
+	}
 	int32 SelfSavedActorMutationCount = 0;
 	int32 BuildingSectionCount = 0;
 	int32 PresentationActorCount = 0;

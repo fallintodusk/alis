@@ -131,7 +131,13 @@ PROJECT_EMPTY_HOOKS="$(mktemp -d "$PROJECT_TMP_ROOT/project-empty-hooks.XXXXXX")
 trap 'rm -rf "$PROJECT_EMPTY_HOOKS" 2>/dev/null || true' EXIT
 
 git_safe() {
-  git -c core.fsmonitor=false -c core.hooksPath="$PROJECT_EMPTY_HOOKS" -c core.longpaths=true "$@"
+  if [[ -n "${MIRROR_SOURCE_GIT_DIR:-}" && "${1:-}" == "-C" &&
+        "${2:-}" == "${MIRROR_SOURCE_REPO_ROOT:-}" ]]; then
+    GIT_DIR="$MIRROR_SOURCE_GIT_DIR" GIT_WORK_TREE="$MIRROR_SOURCE_REPO_ROOT" \
+      git -c core.fsmonitor=false -c core.hooksPath="$PROJECT_EMPTY_HOOKS" -c core.longpaths=true "$@"
+  else
+    git -c core.fsmonitor=false -c core.hooksPath="$PROJECT_EMPTY_HOOKS" -c core.longpaths=true "$@"
+  fi
 }
 
 compose_developer_payload() {
@@ -151,7 +157,12 @@ compose_developer_payload() {
     compose_args+=(--allow-dirty)
   fi
   info "Composing developer payload for public revision $public_revision"
-  python3 "$SCRIPT_DIR/compose_developer_payload.py" "${compose_args[@]}"
+  if [[ -n "${MIRROR_SOURCE_GIT_DIR:-}" && "$DEVELOPER_ASSET_ROOT" == "$REPO_ROOT" ]]; then
+    GIT_DIR="$MIRROR_SOURCE_GIT_DIR" GIT_WORK_TREE="$REPO_ROOT" \
+      python3 "$SCRIPT_DIR/compose_developer_payload.py" "${compose_args[@]}"
+  else
+    python3 "$SCRIPT_DIR/compose_developer_payload.py" "${compose_args[@]}"
+  fi
 }
 
 resolve_file() {
@@ -318,16 +329,15 @@ PY
 #   line 3: size <integer>
 # Markdown/scripts/docs that merely quote this text (this script, canonical.md
 # section 8.6, the foliage-recovery todo) never match all three lines and pass.
-# CR is stripped so CRLF checkouts on Windows still match; the 'q' in each sed
-# bounds the read so a large file is never slurped whole. A real pointer of ANY
-# extension fails. (Exotic pointers with custom ext-* lines are not matched
+# CR is stripped so CRLF checkouts on Windows still match. The lines are read
+# with the shell's own read, so no process starts per file. A real pointer of
+# ANY extension fails. (Exotic pointers with custom ext-* lines are not matched
 # here; GH008 on push is the backstop for that rare case.)
 is_lfs_pointer_file() {
   local item="$1"
-  local line1 line2 line3
-  line1="$(LC_ALL=C sed -n '1{p;q}' "$item" 2>/dev/null)"; line1="${line1%$'\r'}"
-  line2="$(LC_ALL=C sed -n '2{p;q}' "$item" 2>/dev/null)"; line2="${line2%$'\r'}"
-  line3="$(LC_ALL=C sed -n '3{p;q}' "$item" 2>/dev/null)"; line3="${line3%$'\r'}"
+  local line1="" line2="" line3=""
+  { IFS= read -r line1; IFS= read -r line2; IFS= read -r line3; } 2>/dev/null < "$item" || true
+  line1="${line1%$'\r'}"; line2="${line2%$'\r'}"; line3="${line3%$'\r'}"
 
   [[ "$line1" == "version https://git-lfs.github.com/spec/v1" ]] &&
   [[ "$line2" =~ ^oid[[:space:]]+sha256:[0-9a-f]{64}$ ]] &&
@@ -341,11 +351,20 @@ validate_filtered_tree() {
   local rel_path=""
   local rel_path_lc=""
   local item=""
+  local line=""
+  local current=""
   local text_patterns_compiled=""
+  local binary_list="$TEMP_ROOT/mirror_binary_files.nul"
+  local matches="$TEMP_ROOT/mirror_forbidden_matches.txt"
+  # Content checks run grep once per batch of files, in parallel, never once per
+  # file: under WSL the tree sits on a mounted Windows drive, where every process
+  # start and file access is a slow round trip.
+  local jobs
+  jobs="$(nproc 2>/dev/null || echo 4)"
 
   while IFS= read -r -d '' item; do
     rel_path="${item#$filtered_dir/}"
-    rel_path_lc="$(printf '%s' "$rel_path" | tr '[:upper:]' '[:lower:]')"
+    rel_path_lc="${rel_path,,}"
 
     case "$rel_path_lc" in
       binaries|binaries/*|build|build/*|content|content/*|deriveddatacache|deriveddatacache/*|intermediate|intermediate/*|saved|saved/*|releases|releases/*|artifacts|artifacts/*|localappdata|localappdata/*|langchain_env|langchain_env/*|plugins/*/binaries|plugins/*/binaries/*|plugins/*/intermediate|plugins/*/intermediate/*|plugins/*/resources|plugins/*/resources/*|plugins/*/thirdparty|plugins/*/thirdparty/*)
@@ -361,21 +380,30 @@ validate_filtered_tree() {
           fail_flag=1
           ;;
       esac
-
-      # Generic binary guard: the public mirror is source/docs/text data only.
-      # grep -I treats a NUL-containing file as binary and yields no match, so
-      # this fails ANY non-empty binary file regardless of extension. This is what
-      # makes "text data only" true rather than trusting the extension denylist
-      # alone (an unknown-extension binary under a now-published Data/ dir, etc.).
-      # Empty pattern '' matches every line (incl. blank), so a blank-line-only
-      # text file passes; only NUL/binary content fails. NOTE: UTF-16 files
-      # contain NUL bytes and will fail here by design -- keep mirrored text UTF-8.
-      if [[ -s "$item" ]] && ! LC_ALL=C grep -Iq '' "$item"; then
-        printf '[FAIL] Binary-like file survived filtering: %s\n' "$rel_path" >&2
-        fail_flag=1
-      fi
     fi
   done < <(find "$filtered_dir" -mindepth 1 -print0)
+
+  # Generic binary guard: the public mirror is source/docs/text data only.
+  # grep -I treats a NUL-containing file as binary and yields no match, so -L
+  # lists ANY non-empty binary file regardless of extension. This is what makes
+  # "text data only" true rather than trusting the extension denylist alone (an
+  # unknown-extension binary under a now-published Data/ dir, etc.). Empty
+  # pattern '' matches every line (incl. blank), so a blank-line-only text file
+  # passes; only NUL/binary content fails. NOTE: UTF-16 files contain NUL bytes
+  # and will fail here by design -- keep mirrored text UTF-8. A batch that cannot
+  # read a file (grep status 2) fails the guard.
+  if ! find "$filtered_dir" \( -type f -size +0c -o -type l -xtype f \) -print0 |
+      xargs -0 -r -P "$jobs" -n 256 sh -c 'LC_ALL=C grep -LIZ -e "" -- "$@"; [ $? -le 1 ]' sh \
+        > "$binary_list"; then
+    printf '[FAIL] Binary guard could not read every file.\n' >&2
+    fail_flag=1
+  fi
+  while IFS= read -r -d '' item; do
+    [[ -s "$item" ]] || continue
+    printf '[FAIL] Binary-like file survived filtering: %s\n' "${item#$filtered_dir/}" >&2
+    fail_flag=1
+  done < "$binary_list"
+  rm -f "$binary_list"
 
   if [[ -f "$forbidden_patterns_file" ]] && grep -Eqv '^[[:space:]]*(#|$)' "$forbidden_patterns_file"; then
     text_patterns_compiled="$TEMP_ROOT/mirror-forbidden.regex"
@@ -385,21 +413,30 @@ validate_filtered_tree() {
     fi
     # Every surviving file is scanned: the binary guard above keeps the tree
     # text-only, so a file extension can never carry a private value past here.
-    while IFS= read -r -d '' item; do
-      rel_path="${item#$filtered_dir/}"
-      rel_path_lc="$(printf '%s' "$rel_path" | tr '[:upper:]' '[:lower:]')"
-      if [[ "$rel_path_lc" == scripts/git/mirror/tests/* ||
-            "$rel_path_lc" == scripts/git/mirror/forbidden_text_patterns.regex ||
-            "$rel_path_lc" == scripts/git/mirror/mirror_to_github.sh ]]; then
-        continue
-      fi
-      if LC_ALL=C grep -I -n -H -E -f "$text_patterns_compiled" "$item" >"$TEMP_ROOT/mirror_forbidden_matches.txt" 2>/dev/null; then
-        printf '[FAIL] Forbidden content matched in %s\n' "$rel_path" >&2
-        cat "$TEMP_ROOT/mirror_forbidden_matches.txt" >&2
-        fail_flag=1
-      fi
-    done < <(find "$filtered_dir" -type f -print0)
-    rm -f "$text_patterns_compiled" "$TEMP_ROOT/mirror_forbidden_matches.txt"
+    # The mirror tooling's own pattern carriers are skipped, case-insensitively.
+    # A batch that cannot read a file (grep status 2) fails the scan.
+    if ! find "$filtered_dir" -type f \
+          ! -ipath "$filtered_dir/scripts/git/mirror/tests/*" \
+          ! -ipath "$filtered_dir/scripts/git/mirror/forbidden_text_patterns.regex" \
+          ! -ipath "$filtered_dir/scripts/git/mirror/mirror_to_github.sh" -print0 |
+        xargs -0 -r -P "$jobs" -n 256 sh -c \
+          'LC_ALL=C grep -I -n -H --line-buffered -E -f "$0" -- "$@"; [ $? -le 1 ]' \
+          "$text_patterns_compiled" > "$matches"; then
+      printf '[FAIL] Forbidden-content scan could not read every file.\n' >&2
+      fail_flag=1
+    fi
+    if [[ -s "$matches" ]]; then
+      fail_flag=1
+      while IFS= read -r line; do
+        item="${line%%:*}"
+        if [[ "$item" != "$current" ]]; then
+          current="$item"
+          printf '[FAIL] Forbidden content matched in %s\n' "${item#$filtered_dir/}" >&2
+        fi
+        printf '%s\n' "$line" >&2
+      done < <(LC_ALL=C sort -t: -k1,1 -k2,2n "$matches")
+    fi
+    rm -f "$text_patterns_compiled" "$matches"
   fi
 
   # Machine-local paths: the governance definition, applied to the final tree so
@@ -412,14 +449,16 @@ validate_filtered_tree() {
   # smudged at checkout, or attributes missed) would publish broken pointer
   # text and can trigger GH008 on push. Refuse it explicitly. Detection matches
   # full pointer SHAPE (see is_lfs_pointer_file), never a mention of the
-  # signature, so docs/scripts/todos that quote the format stay public.
+  # signature, so docs/scripts/todos that quote the format stay public. The Git
+  # LFS specification requires pointer files to be smaller than 1024 bytes, so
+  # only those files are read.
   while IFS= read -r -d '' item; do
     if is_lfs_pointer_file "$item"; then
       rel_path="${item#$filtered_dir/}"
       printf '[FAIL] Git LFS pointer survived filtering: %s\n' "$rel_path" >&2
       fail_flag=1
     fi
-  done < <(find "$filtered_dir" -type f -print0)
+  done < <(find "$filtered_dir" -type f -size -1024c -print0)
 
   # Character-set policy: no foreign-script symbols/comments (Cyrillic, CJK) in
   # published docs/text or surviving paths. Reuses the governance validator
@@ -574,7 +613,14 @@ require_cmd find
 require_cmd grep
 require_cmd python3
 
-REPO_ROOT="$(git_safe -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -n "${MIRROR_SOURCE_REPO_ROOT:-}" ]]; then
+  [[ "$SCRIPT_DIR" == "$MIRROR_SOURCE_REPO_ROOT/scripts/git/mirror" &&
+     -d "${MIRROR_SOURCE_GIT_DIR:-}" ]] || fail "Invalid linked worktree Git handoff."
+  REPO_ROOT="$(git_safe -C "$MIRROR_SOURCE_REPO_ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+  [[ "$REPO_ROOT" == "$MIRROR_SOURCE_REPO_ROOT" ]] || fail "Linked worktree Git identity drift."
+else
+  REPO_ROOT="$(git_safe -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+fi
 [[ -n "$REPO_ROOT" ]] || fail "Could not detect repository root from script location"
 DEVELOPER_ASSET_ROOT="${DEVELOPER_ASSET_ROOT:-$REPO_ROOT}"
 if [[ "$ALLOW_DIRTY" -eq 1 ]]; then

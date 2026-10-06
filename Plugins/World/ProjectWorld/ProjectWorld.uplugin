@@ -9,7 +9,12 @@
   "CanContainContent": false,
   "Modules": [
     { "Name": "ProjectWorld", "Type": "Runtime", "LoadingPhase": "Default" },
-    { "Name": "ProjectWorldEditor", "Type": "Editor", "LoadingPhase": "Default" }
+    { "Name": "ProjectWorldEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldGameplayEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldRoadEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldWaterEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldVegetationEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldBuildingEditor", "Type": "Editor", "LoadingPhase": "Default" }
   ],
   "Plugins": [
     { "Name": "GeoReferencing", "Enabled": true },

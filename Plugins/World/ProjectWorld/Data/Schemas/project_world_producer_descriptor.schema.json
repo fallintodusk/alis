@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/producer-descriptor-v1.json",
+  "title": "ProjectWorld Producer Descriptor",
+  "description": "Owner-declared identity of one World producer or of the shared realization pipeline: id, version, output revision, declared data inputs, and implementing modules. A producer is keyed by generator_id plus generator_version and lives at Plugins/<Category>/<Plugin>/Data/Producers/<generator_id>.json in its owning plugin; the pipeline descriptor is Plugins/World/ProjectWorld/Data/Producers/realization_pipeline.json.",
+  "oneOf": [{"$ref": "#/$defs/producer"}, {"$ref": "#/$defs/pipeline"}],
+  "$defs": {
+    "schema_ref": {"type": "string", "pattern": "(^|/)project_world_producer_descriptor\\.schema\\.json$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "module": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"},
+    "data_input": {
+      "description": "Repository-relative file whose bytes shape the producer's output and are not per-unit canonical input.",
+      "type": "string",
+      "pattern": "^Plugins/[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)+\\.(uasset|umap|json)$"
+    },
+    "expectation": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "runtime_acceptance": {
+      "description": "Expectations product acceptance reads for this producer's output; the runtime acceptance parser owns the accepted values. Never part of producer identity.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terrain"],
+      "properties": {
+        "terrain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["collision_components", "non_main_pass_helpers", "route_endpoints"],
+          "properties": {
+            "collision_components": {"$ref": "#/$defs/expectation"},
+            "non_main_pass_helpers": {"$ref": "#/$defs/expectation"},
+            "route_endpoints": {"$ref": "#/$defs/expectation"}
+          }
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema_version", "kind", "generator_id", "generator_version",
+                   "output_revision", "data_inputs", "modules"],
+      "properties": {
+        "$schema": {"$ref": "#/$defs/schema_ref"},
+        "schema_version": {"const": 1},
+        "kind": {"const": "producer"},
+        "generator_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "generator_version": {"type": "integer", "minimum": 1},
+        "output_revision": {
+          "description": "Bumped in the same change as any output change for unchanged inputs.",
+          "$ref": "#/$defs/revision"
+        },
+        "data_inputs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/data_input"}},
+        "modules": {
+          "description": "Modules that implement this producer; used for proof routing, never for identity.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/module"}
+        },
+        "runtime_acceptance": {"$ref": "#/$defs/runtime_acceptance"}
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema_version", "kind", "pipeline_revision", "modules"],
+      "properties": {
+        "$schema": {"$ref": "#/$defs/schema_ref"},
+        "schema_version": {"const": 1},
+        "kind": {"const": "pipeline"},
+        "pipeline_revision": {
+          "description": "Bumped in the same change as any output change of the shared save, inventory, or capture path.",
+          "$ref": "#/$defs/revision"
+        },
+        "modules": {
+          "description": "Generic World modules; used for proof routing, never for identity.",
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/module"}
+        }
+      }
+    }
+  }
+}

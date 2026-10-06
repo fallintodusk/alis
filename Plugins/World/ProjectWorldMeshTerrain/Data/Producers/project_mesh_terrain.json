@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_producer_descriptor.schema.json",
+  "schema_version": 1,
+  "kind": "producer",
+  "generator_id": "project_mesh_terrain",
+  "generator_version": 1,
+  "output_revision": 1,
+  "data_inputs": [
+    "Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset"
+  ],
+  "modules": ["ProjectWorldMeshTerrain", "ProjectWorldMeshTerrainEditor"],
+  "runtime_acceptance": {
+    "terrain": {
+      "collision_components": "navigation_relevant_pawn_blocking",
+      "non_main_pass_helpers": "required_navigation_irrelevant",
+      "route_endpoints": "navigation_relevant_pawn_blocking"
+    }
+  }
+}

@@ -248,7 +248,7 @@ Read at HEAD `81a3b60a4`; the only working-tree change is the new, untracked tas
 
 | File | Lines | Verdict | Action and owner |
 |---|---:|---|---|
-| `ProjectWorldRealizationService.cpp` | 1132 | SPLIT | Here: move `WriteResult` (L819-1132, sole definition of the `realization-result-v1` file) and `ExitCode` into a second .cpp of the same class. Mesh Terrain task: terrain dispatch, Delete clear, and the Landscape-only terrain check move behind its producer seam. |
+| `ProjectWorldRealizationService.cpp` | 879 after World locality refactor | RESOLVED | The layer producer split and retired procedural path reduced this file below the guardrail. No pure-move split remains in G-1. Recheck the final line count when G-1 runs. |
 | `ProjectInventoryComponent_Mutation.cpp` | 1043 | SPLIT | Here: pure move of equipment handling into `ProjectInventoryComponent_Equipment.cpp` (revoke pair L74-194, plus equip/unequip from `ProjectInventoryComponent.cpp`, whose row shrinks). |
 | `ProjectWorldProductRouteGate.cpp` | 1015 | ADMIT | Notes: "Admitted as cohesive: single-scenario packaged product-route driver over shared route state; stateless parts already live in ProjectWorldProductRouteProgress, -Collision, PresentationSampling, RuntimeScreenshotCapture. Split trigger: collision probes move to ProjectWorldProductRouteCollision when terrain identification changes." |
 | `prepare_release.py` | 1030 | SPLIT | R4 of the 3.0.0 release plan, as its first behavior-free step: the manifest contract (L709-864) moves to `release_manifest.py`. |
@@ -349,7 +349,7 @@ file-size guardrail miss files it claims to cover.
 - **N-1** Inventory every referencer of the 30 assets. Assets used only by City17 stay until City17
   is removed (D7). Assets that other content also uses move to concern-named homes (for example by
   material family) in one pass with reference fix-up and resave, with no redirects (A3).
-- **G-1** Apply the verdict table: the two splits owned here as pure moves; admitted rows marked
+- **G-1** Apply the verdict table: the remaining Inventory split as a pure move; admitted rows marked
   "admitted as cohesive" with their split trigger (A6); then replace canonical.md's check command
   with one that covers every file type and category `AGENTS.md` names, and regenerate the table
   from it:
@@ -416,7 +416,7 @@ consumes.
       tests that load the module.
 - [ ] L-3: rename at both sites and update any test expectation.
 - [ ] L-4: prove or refute the hashing consumer, then act per A5.
-- [ ] G-1: the two pure-move splits, the admitted row, the new check command, the regenerated table.
+- [ ] G-1: the remaining Inventory pure-move split, the admitted row, the new check command, the regenerated table. The World row was resolved by the World locality refactor.
 - [ ] L-5: test first, then unify the grant rule.
 - [ ] Final diff review against this task.
 

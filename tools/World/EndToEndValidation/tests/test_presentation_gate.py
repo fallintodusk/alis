@@ -23,7 +23,7 @@ from World.EndToEndValidation.app.validation import _validate_package_map_argume
 
 
 class PresentationGateTests(unittest.TestCase):
-    def test_representative_profile_pins_rendered_gate(self) -> None:
+    def test_territory_profile_pins_rendered_gate(self) -> None:
         profile = load_profile(
             REPO_ROOT
             / "Plugins"
@@ -32,7 +32,7 @@ class PresentationGateTests(unittest.TestCase):
             / "Data"
             / "Profiles"
             / "EndToEndValidation"
-            / "representative_v1.validation.json"
+            / "kazan_territory_v1.validation.json"
         )
         gate = profile["presentation_gate"]
         self.assertEqual("kazan", gate["world_profile"])

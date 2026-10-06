@@ -12,7 +12,7 @@ tests, and README.
 | Reproduce the pinned Python and native tool runtime | [Execution Environment](ExecutionEnvironment/README.md) |
 | Acquire, verify, and normalize provider data | [Source Ingestion](SourceIngestion/README.md) |
 | Compile accepted source receipts into canonical ALIS cells | [Canonical Compilation](CanonicalCompilation/README.md) |
-| Prove the complete source-to-package P0 contract | [End-to-End Validation](EndToEndValidation/README.md) |
+| Prove the complete source-to-package territory contract | [End-to-End Validation](EndToEndValidation/README.md) |
 | Prove a realized territory is present, placed, and plausible on screen | [Visual Verification](VisualVerification/README.md) |
 | Validate cross-component ownership and dependency direction | `python -m unittest discover tools/World/tests` |
 

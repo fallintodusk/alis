@@ -1,0 +1,81 @@
+{
+  "$schema": "../../Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.Water",
+  "identity": {
+    "producer_id": "project_water_mesh:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 1,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "memory:bundle", "sha256": "406403110a1d6b28e65ecf698f25717c1dd55f1c483880ef0744e13521e3a054"},
+      {"name": "memory:profile", "sha256": "47c017be798e91a13d6ad2a42ad3d97f0ccd6b90f77cc53c3ef3aa6234d6e22a"}
+    ],
+    "embedded": []
+  },
+  "projection_sha256": "60c87faca514883a7800d6556aaf32838d0e375d448f2a8f93230067fbb8e934",
+  "records": [
+    {
+      "kind": "actor",
+      "key": "water:persistent_water:x0:y0",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.StaticMeshActor",
+        "component.affects_navigation": "0",
+        "component.class": "/Script/Engine.StaticMeshComponent",
+        "component.collision_enabled": "NoCollision",
+        "component.collision_profile": "NoCollision",
+        "component.mesh": "Cells/SM_ProjectWorldWater_persistent_water_x0_y0.SM_ProjectWorldWater_persistent_water_x0_y0",
+        "component.mobility": "Static",
+        "component.overlap_events": "0",
+        "component.override_materials": "",
+        "component.relative_transform": "t=0,-630000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "external_package": "1",
+        "guid": "220dbb7f-3cd9-3d63-9604-89ac09a0e00e",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Water persistent_water:x0:y0",
+        "name": "ProjectWorld_Water_persistent_water_x0_y0",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=persistent_water_test,ProjectWorld.Water.v1,ProjectWorld.WaterCell=persistent_water:x0:y0,ProjectWorld.WaterSemantic=263923fe0530623c27a86123ed684b3acfee46448ac66f3fe0a8ef57dab9a931",
+        "transform": "t=0,-630000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "material",
+      "key": "M_ProjectWorldWater",
+      "fields": {
+        "blend_mode": "BLEND_Opaque",
+        "expressions": "BaseColor|MaterialExpressionConstant3Vector|0.0149999997,0.180000007,0.649999976,1;Roughness|MaterialExpressionConstant|1;Specular|MaterialExpressionConstant|0",
+        "input.ambient_occlusion": "none",
+        "input.base_color": "BaseColor:0",
+        "input.emissive_color": "none",
+        "input.metallic": "none",
+        "input.normal": "none",
+        "input.opacity": "none",
+        "input.opacity_mask": "none",
+        "input.roughness": "Roughness:0",
+        "input.specular": "Specular:0",
+        "shading_models": "2"
+      }
+    },
+    {
+      "kind": "mesh",
+      "key": "Cells/SM_ProjectWorldWater_persistent_water_x0_y0",
+      "fields": {
+        "body": "present",
+        "body_double_sided": "0",
+        "body_simple_elements": "0",
+        "body_trace": "CTF_UseDefault",
+        "distance_field": "0",
+        "distance_field_resolution_scale": "0",
+        "mesh_description": "15c528597f0395a47da266aadab466bd34797157fad3828041097ce959392306",
+        "nanite": "0",
+        "navigation_data": "0",
+        "render_lod0": "b3cbd7022d0b62714aa420b0fad404f4e55bb783ef3a019c40df0a425ab2b324",
+        "source_models": "1",
+        "static_materials": "Water=M_ProjectWorldWater.M_ProjectWorldWater"
+      }
+    }
+  ]
+}

@@ -4,19 +4,45 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectWorldEvidenceSubject.h"
+
+namespace ProjectWorldEvidenceReadiness
+{
+	/**
+	 * Subjects are drawn when every present subject expects at least one unit, draws all of them,
+	 * and has no pending build. Reports that are not present are ignored, so a world without any
+	 * subject counts as drawn.
+	 */
+	inline bool AreSubjectsDrawn(TConstArrayView<FProjectWorldEvidenceSubjectReport> Reports)
+	{
+		for (const FProjectWorldEvidenceSubjectReport& Report : Reports)
+		{
+			if (!Report.bPresent)
+			{
+				continue;
+			}
+			if (Report.ExpectedUnits <= 0 || Report.DrawnUnits != Report.ExpectedUnits || Report.PendingBuilds != 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
 
 struct FProjectWorldEvidenceReadiness
 {
 	static constexpr int32 RequiredReadyFrames = 3;
 
-	bool Advance(uint64 FrameNumber, int32 RemainingCompilations)
+	// A frame with a pending compilation or an undrawn subject resets the count.
+	bool Advance(uint64 FrameNumber, int32 RemainingCompilations, bool bSubjectsDrawn)
 	{
 		if (FrameNumber == LastFrameNumber)
 		{
 			return false;
 		}
 		LastFrameNumber = FrameNumber;
-		if (RemainingCompilations > 0)
+		if (RemainingCompilations > 0 || !bSubjectsDrawn)
 		{
 			ConsecutiveReadyFrames = 0;
 			return false;

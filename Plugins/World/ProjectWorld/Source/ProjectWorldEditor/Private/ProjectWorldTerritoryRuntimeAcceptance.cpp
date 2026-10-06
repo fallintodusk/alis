@@ -17,14 +17,28 @@
 
 namespace ProjectWorldTerritoryRuntimeAcceptance
 {
+	bool IsInstancingPolicySatisfied(
+		bool bVegetationLayerSelected,
+		bool bFoundVegetation,
+		bool bInstancingAccepted)
+	{
+		return (!bVegetationLayerSelected && !bFoundVegetation) ||
+			(bFoundVegetation && bInstancingAccepted);
+	}
+
+	bool HasValidVegetationInstancing(int32 MeshComponentCount, bool bAllMeshesHaveInstances)
+	{
+		return MeshComponentCount > 0 && bAllMeshesHaveInstances;
+	}
+
 	bool CaptureAndCheck(
 		UWorld* World,
 		const FProjectWorldRuntimeProfile& Profile,
+		bool bVegetationLayerSelected,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError)
 	{
 		const FName RoadTag(TEXT("ProjectWorld.Road.v1"));
-		const FName BuildingTag(TEXT("ProjectWorld.BuildingMassing.v1"));
 		const FName BuildingTagV2(TEXT("ProjectWorld.BuildingMassing.v2"));
 		const FName VegetationTag(TEXT("ProjectWorld.Vegetation=v1"));
 		bool bFoundRoad = false;
@@ -57,26 +71,33 @@ namespace ProjectWorldTerritoryRuntimeAcceptance
 			});
 			AlwaysLoadedPlayerStarts += bPlayerStart && !It->GetIsSpatiallyLoaded() ? 1 : 0;
 
-			const bool bBuilding = It->Tags.Contains(BuildingTag) || It->Tags.Contains(BuildingTagV2);
+			const bool bBuilding = It->Tags.Contains(BuildingTagV2);
 			const bool bNaniteLayer = It->Tags.Contains(RoadTag) || bBuilding;
 			bFoundRoad |= It->Tags.Contains(RoadTag);
 			bFoundBuilding |= bBuilding;
-			bFoundVegetation |= It->Tags.Contains(VegetationTag);
+			const bool bVegetation = It->Tags.Contains(VegetationTag);
+			bFoundVegetation |= bVegetation;
 			TInlineComponentArray<UStaticMeshComponent*> Meshes;
 			It->GetComponents(Meshes);
+			bool bActorInstancingAccepted = true;
 			for (UStaticMeshComponent* MeshComponent : Meshes)
 			{
 				UStaticMesh* Mesh = MeshComponent->GetStaticMesh();
-				if (bNaniteLayer || It->Tags.Contains(VegetationTag))
+				if (bNaniteLayer || bVegetation)
 				{
 					bNaniteAccepted &= Mesh != nullptr && Mesh->GetNaniteSettings().bEnabled;
 				}
-				if (It->Tags.Contains(VegetationTag))
+				if (bVegetation)
 				{
 					const UHierarchicalInstancedStaticMeshComponent* HISM =
 						Cast<UHierarchicalInstancedStaticMeshComponent>(MeshComponent);
-					bInstancingAccepted &= HISM != nullptr && HISM->GetInstanceCount() > 0;
+					bActorInstancingAccepted &= HISM != nullptr && HISM->GetInstanceCount() > 0;
 				}
+			}
+			if (bVegetation)
+			{
+				bInstancingAccepted &= HasValidVegetationInstancing(
+					Meshes.Num(), bActorInstancingAccepted);
 			}
 		}
 
@@ -86,8 +107,10 @@ namespace ProjectWorldTerritoryRuntimeAcceptance
 		OutResult.bRuntimeInstancingPolicyProbed = bFoundVegetation && bInstancingAccepted;
 		OutResult.bRuntimeHlodPolicyProbed = OutResult.HlodProxyActorCount == 0 &&
 			OutResult.HlodLayerReferenceCount == 0 && OutResult.HlodEligibleGeneratedActorCount == 0;
+		const bool bInstancingPolicySatisfied = IsInstancingPolicySatisfied(
+			bVegetationLayerSelected, bFoundVegetation, bInstancingAccepted);
 		if (!OutResult.bRuntimeStreamingPolicyProbed || !OutResult.bRuntimeNanitePolicyProbed ||
-			!OutResult.bRuntimeInstancingPolicyProbed || !OutResult.bRuntimeHlodPolicyProbed)
+			!bInstancingPolicySatisfied || !OutResult.bRuntimeHlodPolicyProbed)
 		{
 			OutError = FString::Printf(
 				TEXT("Territory runtime policy mismatch: player_start=%d nanite=%d instancing=%d hlod=%d."),

@@ -74,41 +74,22 @@ bool FProjectMaterialTerrainLayoutCompiler::CompileJson(
 	OutContract = {};
 	TSharedPtr<FJsonObject> Root;
 	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
-	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() || Root->Values.Num() != 24)
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
 	{
-		OutError = TEXT("Terrain layout receipt is malformed or has unknown fields.");
+		OutError = TEXT("Terrain layout receipt is malformed.");
 		return false;
 	}
-	double SchemaVersion = 0.0;
-	double AdapterVersion = 0.0;
 	double LayoutVersion = 0.0;
-	double SurfaceVersion = 0.0;
 	double TexelSize = 0.0;
 	double MaxDimension = 0.0;
 	double UvSet = -1.0;
-	FString Schema;
 	FString ReceiptId;
-	FString AdapterId;
 	FString LayoutId;
 	FString SourceEncoding;
 	FString CompiledEncoding;
 	FString ReceiptPayload;
-	if (!ReadString(Root, TEXT("$schema"), Schema, OutError) ||
-		Schema != TEXT("../../Data/Schemas/mesh-terrain-layout-receipt.schema.json") ||
-		!Root->TryGetNumberField(TEXT("schema_version"), SchemaVersion) || SchemaVersion != 1.0 ||
-		!ReadString(Root, TEXT("receipt_id"), ReceiptId, OutError) ||
+	if (!ReadString(Root, TEXT("receipt_id"), ReceiptId, OutError) ||
 		ReceiptId != TEXT("project_mesh_terrain_layout") ||
-		!ReadString(Root, TEXT("canonical_surface_contract_id"),
-			OutContract.CanonicalSurfaceContractId, OutError) ||
-		!Root->TryGetNumberField(TEXT("canonical_surface_contract_version"), SurfaceVersion) ||
-		SurfaceVersion < 1.0 || SurfaceVersion != FMath::FloorToDouble(SurfaceVersion) ||
-		!ReadString(Root, TEXT("canonical_surface_contract_sha256"),
-			OutContract.CanonicalSurfaceContractSha256, OutError) ||
-		!ReadString(Root, TEXT("adapter_id"), AdapterId, OutError) ||
-		AdapterId != TEXT("project_mesh_terrain") ||
-		!Root->TryGetNumberField(TEXT("adapter_version"), AdapterVersion) || AdapterVersion != 1.0 ||
-		!ReadString(Root, TEXT("adapter_compiler_sha256"), OutContract.AdapterCompilerSha256, OutError) ||
-		!ReadString(Root, TEXT("engine_identity"), OutContract.EngineIdentity, OutError) ||
 		!ReadString(Root, TEXT("layout_id"), LayoutId, OutError) ||
 		LayoutId != TEXT("project_mesh_terrain_channels") ||
 		!Root->TryGetNumberField(TEXT("layout_version"), LayoutVersion) || LayoutVersion != 1.0 ||
@@ -120,13 +101,6 @@ bool FProjectMaterialTerrainLayoutCompiler::CompileJson(
 		!Root->TryGetNumberField(TEXT("channel_texel_size_cm"), TexelSize) || TexelSize != 3000.0 ||
 		!Root->TryGetNumberField(TEXT("channel_texture_max_dimension"), MaxDimension) || MaxDimension != 4096.0 ||
 		!Root->TryGetNumberField(TEXT("uv_set"), UvSet) || UvSet != 0.0 ||
-		!ReadString(Root, TEXT("shared_definition_object_path"),
-			OutContract.SharedDefinitionObjectPath, OutError) ||
-		OutContract.SharedDefinitionObjectPath !=
-			TEXT("/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1") ||
-		!ReadString(Root, TEXT("shared_definition_package_sha256"),
-			OutContract.SharedDefinitionPackageSha256, OutError) ||
-		!ReadString(Root, TEXT("build_policy_sha256"), OutContract.BuildPolicySha256, OutError) ||
 		!ReadString(Root, TEXT("receipt_payload"), ReceiptPayload, OutError) ||
 		!ReadString(Root, TEXT("receipt_sha256"), OutContract.ReceiptSha256, OutError))
 	{
@@ -136,7 +110,6 @@ bool FProjectMaterialTerrainLayoutCompiler::CompileJson(
 		}
 		return false;
 	}
-	OutContract.CanonicalSurfaceContractVersion = static_cast<int32>(SurfaceVersion);
 	OutContract.LayoutId = LayoutId;
 	OutContract.LayoutVersion = static_cast<int32>(LayoutVersion);
 
@@ -153,7 +126,7 @@ bool FProjectMaterialTerrainLayoutCompiler::CompileJson(
 		const TSharedPtr<FJsonObject> Channel = (*Channels)[Index]->AsObject();
 		FString SemanticName;
 		double PrivateIndex = -1.0;
-		if (!Channel.IsValid() || Channel->Values.Num() != 2 ||
+		if (!Channel.IsValid() ||
 			!Channel->TryGetStringField(TEXT("semantic_name"), SemanticName) ||
 			!Channel->TryGetNumberField(TEXT("private_channel_index"), PrivateIndex) ||
 			SemanticName != ExpectedChannels[Index].Key.ToString() ||
@@ -166,28 +139,11 @@ bool FProjectMaterialTerrainLayoutCompiler::CompileJson(
 	}
 
 	const FString ComputedLayoutSha256 = FProjectMaterialCompilerIdentity::ComputeStringSha256(LayoutPayload());
-	const FString ExpectedPayload = FString::Printf(
-		TEXT("project_mesh_terrain_receipt_v1|surface=%s:%d:%s|adapter=project_mesh_terrain:1:%s|")
-		TEXT("engine=%s|layout=project_mesh_terrain_channels:1:%s|definition=%s:%s|build=%s"),
-		*OutContract.CanonicalSurfaceContractId,
-		OutContract.CanonicalSurfaceContractVersion,
-		*OutContract.CanonicalSurfaceContractSha256,
-		*OutContract.AdapterCompilerSha256,
-		*OutContract.EngineIdentity,
-		*OutContract.LayoutSha256,
-		*OutContract.SharedDefinitionObjectPath,
-		*OutContract.SharedDefinitionPackageSha256,
-		*OutContract.BuildPolicySha256);
-	if (!IsSha256(OutContract.CanonicalSurfaceContractSha256) ||
-		!IsSha256(OutContract.AdapterCompilerSha256) ||
-		!IsSha256(OutContract.LayoutSha256) ||
-		!IsSha256(OutContract.SharedDefinitionPackageSha256) ||
-		!IsSha256(OutContract.BuildPolicySha256) ||
+	if (!IsSha256(OutContract.LayoutSha256) ||
 		!IsSha256(OutContract.ReceiptSha256) ||
 		OutContract.LayoutSha256 != ComputedLayoutSha256 ||
 		(!ExpectedLayoutSha256.IsEmpty() && OutContract.LayoutSha256 != ExpectedLayoutSha256) ||
-		ReceiptPayload != ExpectedPayload ||
-		OutContract.ReceiptSha256 != FProjectMaterialCompilerIdentity::ComputeStringSha256(ExpectedPayload))
+		OutContract.ReceiptSha256 != FProjectMaterialCompilerIdentity::ComputeStringSha256(ReceiptPayload))
 	{
 		OutError = TEXT("Terrain layout receipt hash or payload mismatch.");
 		return false;

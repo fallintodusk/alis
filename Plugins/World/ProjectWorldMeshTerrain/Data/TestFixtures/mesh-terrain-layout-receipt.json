@@ -1,13 +1,12 @@
 {
   "$schema": "../../Data/Schemas/mesh-terrain-layout-receipt.schema.json",
-  "schema_version": 1,
+  "schema_version": 2,
   "receipt_id": "project_mesh_terrain_layout",
   "canonical_surface_contract_id": "terrain_surface_semantics",
   "canonical_surface_contract_version": 1,
   "canonical_surface_contract_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "adapter_id": "project_mesh_terrain",
   "adapter_version": 1,
-  "adapter_compiler_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "engine_identity": "5.8-test|changelist=1",
   "layout_id": "project_mesh_terrain_channels",
   "layout_version": 1,
@@ -30,6 +29,6 @@
   "shared_definition_object_path": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1",
   "shared_definition_package_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
   "build_policy_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-  "receipt_payload": "project_mesh_terrain_receipt_v1|surface=terrain_surface_semantics:1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|adapter=project_mesh_terrain:1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb|engine=5.8-test|changelist=1|layout=project_mesh_terrain_channels:1:7c31e7bcd47733212be88b4a221356a9b2f9ed6eda209e11177b99b7dce8a27d|definition=/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc|build=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-  "receipt_sha256": "9092457e817aae64f83007ce297c86685b410dde2bb47430df57e5e9263d5d5c"
+  "receipt_payload": "project_mesh_terrain_receipt_v2|surface=terrain_surface_semantics:1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|adapter=project_mesh_terrain:1|engine=5.8-test|changelist=1|layout=project_mesh_terrain_channels:1:7c31e7bcd47733212be88b4a221356a9b2f9ed6eda209e11177b99b7dce8a27d|definition=/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc|build=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "receipt_sha256": "84ce2f966683e12dd603902cefa7347d9d3d14b6d58b871025086e6019c71d02"
 }

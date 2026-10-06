@@ -3,7 +3,7 @@
   "$id": "https://alis.world/schemas/world-compiler/compiler-profile-v1.json",
   "title": "World Compiler Profile",
   "type": "object",
-  "required": ["$schema", "schema_version", "profile_id", "source_profile_id", "source_profile", "world_data_plugin", "engine_georeference_origin", "identity_namespace", "grid", "terrain_surface", "authored_overlay"],
+  "required": ["$schema", "schema_version", "profile_id", "source_profile_id", "source_profile", "world_data_plugin", "engine_georeference_origin", "identity_namespace", "grid", "terrain_surface", "authored_overlay", "algorithm_version"],
   "properties": {
     "$schema": {"type": "string"},
     "schema_version": {"const": 1},

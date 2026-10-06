@@ -4,6 +4,7 @@
 #include "ProjectWorldGeneratedGeometry.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldLayerProducerRegistry.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRuntimeRealization.h"
 
@@ -63,33 +64,18 @@ namespace ProjectWorldGeneratedGeometry
 			{
 				return HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId);
 			}
-			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
-				{
-					return Tag.ToString().StartsWith(TEXT("ProjectWorld.WaterCell="));
-				}))
+			const IProjectWorldLayerProducer* Owner = nullptr;
+			FString OwnerError;
+			if (!ProjectWorldLayerProducerRegistry::FindActorOwner(Actor, Owner, OwnerError))
 			{
-				return HasCurrentCellTag(Actor, Bundle, TEXT("ProjectWorld.WaterCell="));
+				return false;
 			}
-			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
-				{
-					return Tag.ToString().StartsWith(TEXT("ProjectWorld.RoadCell="));
-				}))
+			if (Owner != nullptr)
 			{
-				return HasCurrentCellTag(Actor, Bundle, TEXT("ProjectWorld.RoadCell="));
-			}
-			if (Actor.Tags.ContainsByPredicate([](const FName& Tag)
-				{
-					return Tag.ToString().StartsWith(TEXT("ProjectWorld.VegetationCell="));
-				}))
-			{
-				return HasCurrentCellTag(Actor, Bundle, TEXT("ProjectWorld.VegetationCell="));
-			}
-			for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
-			{
-				if (HasTagValue(Actor, TEXT("ProjectWorld.Cell="), Cell.CellId))
-				{
-					return true;
-				}
+				const FString& Prefix = Owner->GetDeclaration().OwnedActors.CellTagPrefix;
+				return Prefix.IsEmpty()
+					? HasTagValue(Actor, TEXT("ProjectWorld.Grid="), Bundle.GridId)
+					: HasCurrentCellTag(Actor, Bundle, Prefix);
 			}
 			return false;
 		}
@@ -109,6 +95,18 @@ namespace ProjectWorldGeneratedGeometry
 			}
 			return true;
 		}
+	}
+
+	bool IsCoreGeneratedActor(const AActor& Actor)
+	{
+		return Actor.IsA<AGeoReferencingSystem>() ||
+			ProjectWorldRuntimeRealization::IsRuntimeRoleActor(Actor) ||
+			Actor.Tags.ContainsByPredicate([](const FName& Tag)
+			{
+				const FString Value = Tag.ToString();
+				return Value.StartsWith(TEXT("ProjectWorld.PresentationRole=")) ||
+					Value.StartsWith(TEXT("ProjectWorld.AuthoredOverlay="));
+			});
 	}
 
 	bool RemoveOwnedActors(
@@ -134,8 +132,22 @@ namespace ProjectWorldGeneratedGeometry
 		UWorld* World,
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FString& RuntimeProfileId,
-		FProjectWorldRealizationResult& OutResult)
+		FProjectWorldRealizationResult& OutResult,
+		FString* OutError)
 	{
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (It->Tags.Contains(GeneratedTag))
+			{
+				const IProjectWorldLayerProducer* Owner = nullptr;
+				FString OwnerError;
+				if (!ProjectWorldLayerProducerRegistry::FindActorOwner(**It, Owner, OwnerError))
+				{
+					if (OutError != nullptr) *OutError = OwnerError;
+					return false;
+				}
+			}
+		}
 		TArray<AActor*> StaleActors;
 		for (TActorIterator<AActor> It(World); It; ++It)
 		{

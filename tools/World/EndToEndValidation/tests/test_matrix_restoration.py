@@ -36,7 +36,7 @@ class MatrixRestorationTests(unittest.TestCase):
             patch.object(execution, "REPO_ROOT", root),
             patch.object(execution, "_powershell", return_value="powershell"),
             patch.object(execution, "_content_mutation_lock", return_value=nullcontext()),
-            patch.object(execution, "_world_data_roots", return_value=(content, presentation, data)),
+            patch.object(execution, "_world_data_roots", return_value=(content, data)),
             patch.object(execution, "_run_profile", side_effect=realize),
             patch.object(execution, "validate_against"),
         ):
@@ -69,7 +69,6 @@ class MatrixRestorationTests(unittest.TestCase):
                 presentation.mkdir(parents=True, exist_ok=True)
                 map_path.write_bytes(b"matrix-map")
                 (map_path.parent / "L_Test_HLODLayer_Merged.uasset").write_bytes(b"matrix-hlod")
-                material.write_bytes(b"matrix-material")
                 return {"status": "accepted"}
 
             result = self._execute(
@@ -198,7 +197,7 @@ class MatrixRestorationTests(unittest.TestCase):
                 if call_count == 1:
                     return original(*args)
                 backup_root = args[1]
-                moves = args[6]
+                moves = args[5]
                 destination = backup_root / second.relative_to(content)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(second), str(destination))

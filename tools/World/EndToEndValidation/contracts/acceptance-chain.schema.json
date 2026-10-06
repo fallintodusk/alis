@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alis.world/schemas/world-validation/acceptance-chain-v1.json",
   "title": "ALIS world acceptance chain",
-  "description": "The single machine-readable record joining the two accepted E2E gates, the durable authority audits taken either side of packaging, the package plus its IoStore inspection, and the packaged Presentation Gate. A rejected chain is written with the same shape so a refusal leaves evidence rather than a console message.",
+  "description": "The single machine-readable record joining the accepted territory Matrix, the durable authority audits taken either side of packaging, the package plus its IoStore inspection, and the packaged Presentation Gate. A rejected chain is written with the same shape so a refusal leaves evidence rather than a console message.",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schema_version", "operation_id", "status", "e2e_runs", "errors"],
@@ -92,11 +92,11 @@
     {
       "if": {"properties": {"status": {"const": "accepted"}}},
       "then": {
-        "description": "An accepted chain must carry every link independently of the code that produced it: both audits, the package, the gate, the pinned bootstrap environment, and genuine two-run evidence including the P0 gate.",
+        "description": "An accepted chain must carry every link independently of the code that produced it: both audits, the package, the gate, the pinned bootstrap environment, and the accepted territory Matrix.",
         "required": ["world_data_plugin", "pre_package_audit", "post_package_audit", "package", "presentation_gate", "environment"],
         "properties": {
           "errors": {"maxItems": 0},
-          "e2e_runs": {"minProperties": 2, "required": ["p0"]}
+          "e2e_runs": {"minProperties": 1, "maxProperties": 1, "required": ["kazan_territory_v1"]}
         }
       }
     }

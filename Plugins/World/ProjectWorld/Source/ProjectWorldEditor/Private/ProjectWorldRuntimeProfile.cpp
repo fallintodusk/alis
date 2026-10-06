@@ -190,8 +190,7 @@ namespace ProjectWorldRuntimeProfile
 			!RequireString(Root, TEXT("profile_id"), OutProfile.ProfileId, OutError) ||
 			!IsIdentifier(OutProfile.ProfileId) ||
 			!RequireString(Root, TEXT("profile_kind"), OutProfile.ProfileKind, OutError) ||
-			(OutProfile.ProfileKind != TEXT("bounded_procedural_route") &&
-				OutProfile.ProfileKind != TEXT("territory_product")) ||
+			OutProfile.ProfileKind != TEXT("territory_product") ||
 			!RequireString(Root, TEXT("grid_id"), OutProfile.GridId, OutError) ||
 			!IsGridIdentifier(OutProfile.GridId))
 		{
@@ -200,29 +199,20 @@ namespace ProjectWorldRuntimeProfile
 		}
 
 		const TSharedPtr<FJsonObject>* ProductSpawn = nullptr;
-		if (OutProfile.ProfileKind == TEXT("territory_product"))
-		{
-			if (!Root->TryGetObjectField(TEXT("product_spawn"), ProductSpawn) || ProductSpawn == nullptr ||
-				!HasOnlyFields(*ProductSpawn, {
-					TEXT("anchor"), TEXT("height_above_terrain_m"),
-					TEXT("yaw_degrees"), TEXT("pitch_degrees")}, OutError) ||
-				!RequireString(*ProductSpawn, TEXT("anchor"), OutProfile.ProductSpawnAnchor, OutError) ||
-				OutProfile.ProductSpawnAnchor != TEXT("engine_georeference_origin") ||
-				!RequireNumber(*ProductSpawn, TEXT("height_above_terrain_m"), 50.0, 1000.0,
-					OutProfile.ProductSpawnHeightAboveTerrainMeters, OutError) ||
-				!RequireNumber(*ProductSpawn, TEXT("yaw_degrees"), -180.0, 180.0,
-					OutProfile.ProductSpawnYawDegrees, OutError) ||
-				!RequireNumber(*ProductSpawn, TEXT("pitch_degrees"), -89.0, 0.0,
-					OutProfile.ProductSpawnPitchDegrees, OutError))
-			{
-				OutErrorCode = TEXT("runtime-profile-product-spawn");
-				return false;
-			}
-		}
-		else if (Root->HasField(TEXT("product_spawn")))
+		if (!Root->TryGetObjectField(TEXT("product_spawn"), ProductSpawn) || ProductSpawn == nullptr ||
+			!HasOnlyFields(*ProductSpawn, {
+				TEXT("anchor"), TEXT("height_above_terrain_m"),
+				TEXT("yaw_degrees"), TEXT("pitch_degrees")}, OutError) ||
+			!RequireString(*ProductSpawn, TEXT("anchor"), OutProfile.ProductSpawnAnchor, OutError) ||
+			OutProfile.ProductSpawnAnchor != TEXT("engine_georeference_origin") ||
+			!RequireNumber(*ProductSpawn, TEXT("height_above_terrain_m"), 50.0, 1000.0,
+				OutProfile.ProductSpawnHeightAboveTerrainMeters, OutError) ||
+			!RequireNumber(*ProductSpawn, TEXT("yaw_degrees"), -180.0, 180.0,
+				OutProfile.ProductSpawnYawDegrees, OutError) ||
+			!RequireNumber(*ProductSpawn, TEXT("pitch_degrees"), -89.0, 0.0,
+				OutProfile.ProductSpawnPitchDegrees, OutError))
 		{
 			OutErrorCode = TEXT("runtime-profile-product-spawn");
-			OutError = TEXT("Bounded runtime profiles cannot own a product overview spawn.");
 			return false;
 		}
 
@@ -275,16 +265,11 @@ namespace ProjectWorldRuntimeProfile
 			OutErrorCode = TEXT("runtime-profile-optimization");
 			return false;
 		}
-		const bool bBoundedRoutePolicies =
-			OutProfile.NanitePolicy == TEXT("not_applicable_procedural_mesh") &&
-			OutProfile.InstancingPolicy == TEXT("not_applicable_unique_geometry") &&
-			OutProfile.HlodPolicy == TEXT("disabled_for_bounded_route");
 		const bool bTerritoryPolicies =
 			OutProfile.NanitePolicy == TEXT("enabled_for_supported_generated_static_meshes") &&
 			OutProfile.InstancingPolicy == TEXT("cell_owned_hism") &&
 			OutProfile.HlodPolicy == TEXT("disabled_for_territory");
-		if ((OutProfile.ProfileKind == TEXT("bounded_procedural_route") && !bBoundedRoutePolicies) ||
-			(OutProfile.ProfileKind == TEXT("territory_product") && !bTerritoryPolicies))
+		if (!bTerritoryPolicies)
 		{
 			OutErrorCode = TEXT("runtime-profile-optimization");
 			OutError = TEXT("Optimization policies do not match the runtime profile kind.");

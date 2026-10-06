@@ -308,7 +308,7 @@ $workRoot = Join-Path $transactionParent $runId
 $snapshotRoot = Join-Path $workRoot 'snapshot'
 $transientManifestRoot = Join-Path $workRoot 'manifests'
 $powerShellExe = (Get-Process -Id $PID).Path
-$priorToken = $env:ALIS_WORLD_CONTENT_LOCK_TOKEN
+$priorDelegation = $null
 $contentLock = $null
 $snapshotRecords = @()
 $roots = $null
@@ -351,10 +351,7 @@ try {
     })
     Assert-Tournament ($layerPaths.Count -eq 6) 'The Kazan tournament requires exactly six generated layers.'
     $contentLock = Enter-ProjectWorldContentLock -ProjectRoot $projectRoot
-    if ([string]::IsNullOrWhiteSpace($priorToken)) {
-        $lockPath = Join-Path $projectRoot 'tmp\world\world_realization\content_mutation.lock'
-        $env:ALIS_WORLD_CONTENT_LOCK_TOKEN = (Get-Content -LiteralPath $lockPath -Raw).Trim()
-    }
+    $priorDelegation = Enable-ProjectGeneratedContentLockDelegation -Lock $contentLock
     $durableActive = Read-ProjectWorldActiveSet `
         -ManifestRoot $roots.ManifestRoot -ProjectRoot $projectRoot
     Initialize-TournamentAuthority -Active $durableActive -DestinationRoot $transientManifestRoot
@@ -449,10 +446,10 @@ finally {
             -GeneratedPackageRoot $roots.GeneratedPackageRoot -Records $snapshotRecords
     }
     Remove-TournamentWorkspace -Path $workRoot
-    if ([string]::IsNullOrWhiteSpace($priorToken)) {
-        Remove-Item Env:ALIS_WORLD_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
+    if ($null -ne $contentLock) {
+        Disable-ProjectGeneratedContentLockDelegation -Prior $priorDelegation
+        $contentLock.Dispose()
     }
-    if ($null -ne $contentLock) { $contentLock.Dispose() }
 }
 
 Write-ProjectWorldJson -Path $summaryPath -Document $summary

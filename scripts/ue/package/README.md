@@ -8,7 +8,7 @@ The operator uses `make release` and `make mirror` for the GitHub release, then
 may publish the same signed game to another authorized channel:
 
 ```powershell
-make release X.Y.Z RELEASE_SIGN=0
+make release X.Y.Z RELEASE_SIGN=0 SOURCE_COMMIT=<40-digit-commit>
 # Review tmp/release/vX.Y.Z/game and tmp/release/vX.Y.Z/github.
 make mirror RTAG=vX.Y.Z
 make release X.Y.Z
@@ -221,21 +221,112 @@ Focused publisher proof:
 
 ### `prepare_release_inputs.ps1`
 
-Internal release step. It regenerates the public-safe Kazan and Manhattan
-projection from current ProjectWorldData canonical authority and the declared
-public realization profiles inside a byte-restored generated-content
-transaction. It never discovers an old projection under `tmp/release`.
+Internal release step. For automatic preparation, `SOURCE_COMMIT` is the full
+commit ID of a clean main checkout. The release entry point checks that identity
+before replacing existing inputs or running the player and Linux routes.
+Preparation creates a detached release-owned worktree at that commit. Developer
+definition assets are selected from the release contract's accepted manifests
+and checked against their hashes; [release definition assets](release_definition_assets.ps1)
+owns that selection. World producer descriptors declare their data inputs.
+Before Unreal starts, preparation verifies the exact committed LFS payloads
+under `Content/` and `Plugins/`, since the Editor asset registry scans mounted
+packages outside the public payload too. It then builds Editor modules in the
+checkout. This materialization is local to the disposable release worktree;
+the public source and developer payload still use their own allowlists.
+
+It generates public Kazan and Manhattan there from canonical authority and the
+declared public profiles. These reduced developer profiles omit vegetation but
+retain their pinned runtime profiles; the packaged player uses its separate
+full-layer territory profiles. Preparation validates and passes each matching
+runtime file before the World snapshot. The existing World
+snapshot and transaction operate only inside that disposable checkout; the
+operator's ProjectWorldData is never their mutation target. No old projection
+under `tmp/release` is selected.
 It then runs the existing mirror/developer-payload owner, installs the payload
 into an isolated exact-tag checkout, builds the Editor, loads Kazan and
 Manhattan, runs the dependency audit, and promotes the complete input tree only
-after every check passes. Failed work trees and isolated verification checkouts
-are removed on success or failure, and the release entry point clears abandoned
-scratch from interrupted runs. Starting a fresh automatic review replaces prior
+after every check passes. The promoted reports record the source commit. Caught
+failures remove only their own worktree and verification checkout. An interrupted
+projection checkout is recovered on the next run only when its receipt, Git
+registration, HEAD, detached state, and dead owner agree; ambiguous or active
+paths are left for inspection. Starting a fresh automatic review replaces prior
 automatic input trees, so only its promoted public-source repository remains.
 That input tree is retained for reviewed mirror publication, then removed after
 the signed release passes consumer verification.
 `-PublicAssetRoot` is an explicit test/diagnostic seam, not normal release
-discovery. Maintainers call `make release X.Y.Z`, not this script.
+discovery. Maintainers call `make release X.Y.Z RELEASE_SIGN=0
+SOURCE_COMMIT=<40-digit-commit>` for a new automatic candidate. Resume/signing
+uses the already reviewed workspace. The World and source-to-canonical test
+route remains in [World pipeline layers](../../../docs/testing/world_pipeline_layers.md).
+
+### Preparation preflight and failure triage
+
+```powershell
+.\scripts\ue\package\run_release_preflight.ps1 -PlanOnly
+.\scripts\ue\package\run_release_preflight.ps1
+```
+
+The command selects focused checks from changed paths against `-Base` (default
+`HEAD`), including staged and untracked source. The shared World collector
+resolves the base to one commit and includes both rename endpoints. `-Owner`
+adds checks to automatic selection; it cannot remove required coverage. Correct
+an overly broad classifier at its owner. The command uses existing fixtures and
+delegates a single incremental Editor build and two-city gameplay admission to
+the World owner when needed, and checks
+syntax and governance. It does not cook, package, regenerate territories,
+prepare official release inputs, or require a commit. Review its plan before
+an expensive runtime probe. [World release impact routing](../world/README.md#release-impact-routing)
+owns profile/schema validation and World consumer selection. The plan and receipt
+record the resolved base, changed paths, and unexecuted World gate requirements.
+A focused preflight PASS does not certify those Matrix or promotion requirements.
+
+Before a frozen release run, inspect the focused evidence for each changed
+preparation owner. Run only missing or invalidated checks in the current
+checkout. After a failure, read the first failed stage and use its row:
+
+| Owner/stage | Focused check before release | Failure evidence |
+|---|---|---|
+| Product gameplay, movement, collision and streaming | [Uncooked World gameplay admission](../world/README.md#uncooked-gameplay-admission) and directly affected policy/receipt fixtures | First native product or traversal error; source/module identity and no-mutation receipt |
+| World profiles and schemas | [World release impact routing](../world/README.md#release-impact-routing) | Inline-schema or affected-consumer validation failure; World plan requirements |
+| Committed inputs and World projection | `test_public_world_projection.ps1` and `test_isolated_source_workspace.ps1` under `scripts/ue/package/tests/` | Isolated LFS/build output or the terminal's structured realizer code and detail; the disposable checkout removes its local receipt and log |
+| Public manifest and source selection | `test_stage_public_world_manifests.py` and `test_public_source_projection.py` under `scripts/git/mirror/tests/` | Manifest hash or public-source privacy report |
+| Windows/WSL mirror handoff | `test_mirror_linked_worktree.ps1` under `scripts/git/mirror/tests/`; source-only dry run when the adapter changes | Mirror report and Git handoff error |
+| Developer payload, installation, and dependency rules | `test_developer_payload.py` and `test_developer_dependency_audit.py` under `scripts/git/mirror/tests/` | Projected manifest SHA-256, installer output, or dependency report |
+| Release entrypoint and workspace assembly | `test_release_entrypoint.ps1`, `test_prepare_release.py`, and `test_prepare_release_v4.py` under `scripts/ue/package/tests/` | First failed release stage and its log |
+| Assembled public Editor build and map loads | Final release preparation only | Build output and `reports/public-world-map-load.json` |
+
+The focused checks prove their individual boundaries. Only release preparation
+can prove the assembled public checkout builds and loads both generated maps.
+
+Use the focused check for the first failed boundary in the current checkout or
+a small fixture. Keep valid earlier receipts; do not create a new full release
+worktree or replay both cities for each mirror, payload, or installer fix. A
+failed automatic preparation is not stage-resumable after rollback, so its
+intermediate files are diagnostic, not release authority. When the candidate is
+ready and committed, run the complete unsigned release from that frozen source
+revision. Outside an explicit package request or release preparation, do not
+start a package build; [World test layers](../../../docs/testing/world_pipeline_layers.md)
+owns the gate choice.
+
+For each fix, record the first failed owner/property, cheapest permanent
+reproducer, invalidated outputs, and reusable evidence in the current task.
+Use this impact table for debugging; it does not change frozen-source authority:
+
+| Changed input | Focused rerun | Candidate bytes/evidence invalidated |
+|---|---|---|
+| Shared game runtime executable | Native policy and two-city uncooked gameplay | Game executable and both packaged runtime proofs; public consumer closure only when affected |
+| One city's harness/receipt wrapper | Its fixture and affected runtime proof when invocation behavior changed | That wrapper's evidence; unchanged game/content bytes remain diagnostic inputs |
+| Shared performance evidence parser | Aggregate/envelope fixtures and affected evidence parsing | Parser/aggregate proof, not unchanged package bytes |
+| Projection, mirror or developer payload composer | Its projection/worktree/manifest/payload fixtures | Its downstream public/payload outputs, not private game correctness |
+| Generated content or runtime profile | Affected producer/authority checks and gameplay consumers | Actual changed cook inputs and their consumer proofs |
+| Release docs/todo | Links, ASCII and diff checks | No runtime or package acceptance property |
+
+The full source-state digest authenticates the frozen checkout, not just game
+code. A failed preparation rolls back and is not stage-resumable. Retained
+bytes/receipts can reproduce a local defect but cannot be relabelled as another
+frozen candidate. Once the corrected candidate is committed, the final release
+route still binds its exact source and promotes the same artifact bytes through
+its downstream gates.
 
 ### `package_release.ps1`
 

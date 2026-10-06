@@ -1,14 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://alis.world/schemas/project-world/layer-dirty-input-v1.json",
+  "$id": "https://alis.world/schemas/project-world/layer-dirty-input-v2.json",
   "title": "ProjectWorld Layer Dirty Operation Input",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schema_version", "realization_profile_id", "base_layers", "operator_additions"],
+  "required": ["$schema", "schema_version", "realization_profile_id", "producer_fingerprints", "base_layers", "identity_dirty_layers", "operator_additions"],
   "properties": {
     "$schema": {"type": "string", "pattern": "project_world_layer_dirty_input\\.schema\\.json$"},
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "realization_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "producer_fingerprints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["layer_id", "generator_fingerprint"],
+        "properties": {
+          "layer_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "generator_fingerprint": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
     "base_layers": {
       "type": "array",
       "items": {
@@ -24,6 +36,11 @@
           }
         }
       }
+    },
+    "identity_dirty_layers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9_]+$"}
     },
     "operator_additions": {
       "type": "array",

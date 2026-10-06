@@ -22,6 +22,7 @@ default session bootstrap.
 | Realization, enrollment, recovery, and audit commands | [Canonical World Realization](../../../../scripts/ue/world/README.md) |
 | Source, compile, validation, and acceptance commands | [World tools](../../../../tools/World/README.md) |
 | Test-layer selection and cadence | [World pipeline layers](../../../../docs/testing/world_pipeline_layers.md) |
+| Full replay versus canonical-authority Matrix selection | [World pipeline layers](../../../../docs/testing/world_pipeline_layers.md#fresh-agent-route) |
 | Verified implementation traps | [Pitfalls](pitfalls.md) |
 
 ## Owner map

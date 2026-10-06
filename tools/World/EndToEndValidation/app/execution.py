@@ -20,6 +20,7 @@ from World.CanonicalCompilation.api import (
 
 from .contracts import ValidationFailure, canonical_hash, file_hash, read_json, tree_size, validate_against
 from .roots import WorldDataRootError, resolve_world_data_roots
+from .saved_projections import capture as capture_saved_projections
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -30,7 +31,15 @@ REALIZATION_EVIDENCE_ROOT = REPO_ROOT / "Saved" / "Validation" / "WorldRealizati
 
 
 CONTENT_LOCK_PATH = REPO_ROOT / "tmp" / "world" / "world_realization" / "content_mutation.lock"
-CONTENT_LOCK_TOKEN_ENV = "ALIS_WORLD_CONTENT_LOCK_TOKEN"
+# The PowerShell lock owner (scripts/ue/generated_content/generated_content_mutation_lock.ps1)
+# owns this name; this is its one cross-language copy, kept equal by test_content_mutation_lock.py.
+CONTENT_LOCK_TOKEN_ENV = "PROJECT_GENERATED_CONTENT_LOCK_TOKEN"
+
+
+def _content_recovery_markers() -> tuple[Path, Path]:
+    # Resolved at call time so a test that redirects CONTENT_LOCK_PATH redirects these too.
+    marker = CONTENT_LOCK_PATH.with_name("outer_recovery.json")
+    return marker, marker.with_name(marker.name + ".tmp")
 
 
 @contextmanager
@@ -40,6 +49,8 @@ def _content_mutation_lock() -> Iterator[str]:
     # file write-exclusive (share Read) and stamps a random owner token; the
     # realization wrapper it spawns verifies that token against the live lock
     # instead of self-acquiring, so parent and child never self-conflict.
+    # A pending outer-recovery marker refuses it, checked while holding the
+    # lock because only a live owner writes the marker.
     if os.name != "nt":
         raise ValidationFailure(
             "content_lock_platform_unsupported",
@@ -48,7 +59,7 @@ def _content_mutation_lock() -> Iterator[str]:
     CONTENT_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     generic_read_write = 0x80000000 | 0x40000000
     file_share_read = 0x00000001
-    create_always = 2
+    open_always = 4
     file_attribute_normal = 0x00000080
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateFileW.argtypes = [
@@ -62,11 +73,13 @@ def _content_mutation_lock() -> Iterator[str]:
     ]
     kernel32.WriteFile.restype = ctypes.c_int
     kernel32.FlushFileBuffers.argtypes = [ctypes.c_void_p]
+    kernel32.SetEndOfFile.argtypes = [ctypes.c_void_p]
+    kernel32.SetEndOfFile.restype = ctypes.c_int
     kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
     invalid_handle = ctypes.c_void_p(-1).value
     handle = kernel32.CreateFileW(
         str(CONTENT_LOCK_PATH), generic_read_write, file_share_read, None,
-        create_always, file_attribute_normal, None,
+        open_always, file_attribute_normal, None,
     )
     if handle == invalid_handle or handle is None:
         raise ValidationFailure(
@@ -74,11 +87,23 @@ def _content_mutation_lock() -> Iterator[str]:
             "Another operation holds the ProjectWorld content mutation lock",
             path=str(CONTENT_LOCK_PATH),
         )
+    pending = [path for path in _content_recovery_markers() if path.exists()]
+    if pending:
+        kernel32.CloseHandle(handle)
+        raise ValidationFailure(
+            "content_recovery_pending",
+            "Generated-content outer recovery is pending; run scripts/ue/generated_content/recover_generated_content.ps1",
+            path=str(pending[0]),
+        )
     token = uuid.uuid4().hex
     try:
         payload = token.encode("ascii")
         written = ctypes.c_uint32(0)
-        if not kernel32.WriteFile(handle, payload, len(payload), ctypes.byref(written), None) or written.value != len(payload):
+        if (
+            not kernel32.WriteFile(handle, payload, len(payload), ctypes.byref(written), None)
+            or written.value != len(payload)
+            or not kernel32.SetEndOfFile(handle)
+        ):
             raise ValidationFailure(
                 "content_lock_token_write_failed",
                 "Cannot stamp the content-lock owner token",
@@ -163,7 +188,7 @@ def _powershell() -> str:
     return executable
 
 
-def _world_data_roots(plugin_name: str) -> tuple[Path, Path, Path]:
+def _world_data_roots(plugin_name: str) -> tuple[Path, Path]:
     try:
         roots = resolve_world_data_roots(plugin_name)
     except WorldDataRootError as error:
@@ -172,7 +197,7 @@ def _world_data_roots(plugin_name: str) -> tuple[Path, Path, Path]:
             str(error),
             plugin=plugin_name,
         ) from error
-    return roots.content_root, roots.presentation_root, roots.data_root
+    return roots.content_root, roots.data_root
 
 
 def _map_paths(
@@ -224,17 +249,12 @@ def _backup_maps(
 
 def _backup_generated(
     map_packages: list[str], backup_root: Path, content_root: Path,
-    presentation_root: Path, plugin_name: str,
+    plugin_name: str,
     realization_artifact_paths: list[Path] | None = None,
     moves: list[tuple[Path, Path]] | None = None,
 ) -> list[tuple[Path, Path]]:
     recorded = moves if moves is not None else []
     _backup_maps(map_packages, backup_root, content_root, plugin_name, recorded)
-    if presentation_root.exists():
-        destination = backup_root / presentation_root.relative_to(content_root)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(presentation_root), str(destination))
-        recorded.append((destination, presentation_root))
     for source in realization_artifact_paths or []:
         if not source.exists():
             continue
@@ -277,11 +297,10 @@ def _restore_recorded_moves(moves: list[tuple[Path, Path]]) -> None:
 
 def _restore_generated(
     moves: list[tuple[Path, Path]], map_packages: list[str], content_root: Path,
-    presentation_root: Path, plugin_name: str,
+    plugin_name: str,
     realization_artifact_paths: list[Path] | None = None,
 ) -> None:
     _remove_maps(map_packages, content_root, plugin_name)
-    _remove_owned_path(presentation_root, content_root)
     for path in realization_artifact_paths or []:
         _remove_owned_path(path, content_root)
     _restore_recorded_moves(moves)
@@ -320,7 +339,7 @@ def _realization_evidence_path(run_name: str, profile_name: str) -> Path:
 def _profile_contract(value: str, plugin_name: str, kind: str) -> dict[str, str]:
     relative = Path(value)
     path = (REPO_ROOT / relative).resolve()
-    owned_root = _world_data_roots(plugin_name)[2]
+    owned_root = _world_data_roots(plugin_name)[1]
     try:
         path.relative_to(owned_root.resolve())
     except ValueError as error:
@@ -415,7 +434,7 @@ def _remove_realization_artifacts(
 def _authored_overlay_profile_contract(value: str, plugin_name: str) -> dict[str, Any]:
     relative = Path(value)
     path = (REPO_ROOT / relative).resolve()
-    data_root = _world_data_roots(plugin_name)[2].resolve()
+    data_root = _world_data_roots(plugin_name)[1].resolve()
     try:
         path.relative_to(data_root / "Authored")
     except ValueError as error:
@@ -555,21 +574,25 @@ def _run_profile(
     work_root: Path,
     logs: Path,
     powershell: str,
+    mode: str = "full",
 ) -> dict[str, Any]:
     root = work_root / name
+    root.mkdir(parents=True, exist_ok=True)
     world_data_plugin = settings["world_data_plugin"]
-    content_root, presentation_root, _ = _world_data_roots(world_data_plugin)
+    content_root, _ = _world_data_roots(world_data_plugin)
     source_profile = settings.get("source_profile_path", settings["source_profile"])
     compiler_profile = settings.get("compiler_profile_path", settings["compiler_profile"])
     source_root = root / "source"
-    source_seconds = _run(
-        f"{name}_source",
-        [sys.executable, str(SOURCE_RUN), "run", "--profile", source_profile, "--output-root", str(source_root)],
-        logs,
-    )
+    source_seconds = 0.0
     source_result = source_root / "run_result.json"
     compile_roots = {key: root / key for key in ("compile_first", "compile_second", "incremental")}
-    for key in ("compile_first", "compile_second"):
+    if mode == "full":
+        source_seconds = _run(
+            f"{name}_source",
+            [sys.executable, str(SOURCE_RUN), "run", "--profile", source_profile, "--output-root", str(source_root)],
+            logs,
+        )
+    for key in (("compile_first", "compile_second") if mode == "full" else ()):
         _run(
             f"{name}_{key}",
             [
@@ -585,26 +608,27 @@ def _run_profile(
             ],
             logs,
         )
-    bounds = ",".join(str(value) for value in settings["incremental_bounds"])
-    _run(
-        f"{name}_incremental",
-        [
-            sys.executable,
-            str(COMPILER_RUN),
-            "run",
-            "--profile",
-            compiler_profile,
-            "--source-result",
-            str(source_result),
-            "--base-result",
-            str(compile_roots["compile_first"] / "compile_result.json"),
-            "--terrain-change-bounds",
-            bounds,
-            "--output-root",
-            str(compile_roots["incremental"]),
-        ],
-        logs,
-    )
+    if mode == "full":
+        bounds = ",".join(str(value) for value in settings["incremental_bounds"])
+        _run(
+            f"{name}_incremental",
+            [
+                sys.executable,
+                str(COMPILER_RUN),
+                "run",
+                "--profile",
+                compiler_profile,
+                "--source-result",
+                str(source_result),
+                "--base-result",
+                str(compile_roots["compile_first"] / "compile_result.json"),
+                "--terrain-change-bounds",
+                bounds,
+                "--output-root",
+                str(compile_roots["incremental"]),
+            ],
+            logs,
+        )
     compile_result = compile_roots["compile_first"] / "compile_result.json"
     realization_compile_result = compile_result
     canonical_authority = None
@@ -621,6 +645,8 @@ def _run_profile(
             "bundle_sha256": authority["bundle"]["sha256"],
             "compile_result_sha256": authority["compile_result_sha256"],
         }
+    elif mode != "full":
+        raise ValidationFailure("canonical_mode_authority_missing", "Canonical Matrix requires promoted authority")
     emitted = _realization_evidence_path(work_root.name, name)
     emitted.parent.mkdir(parents=True, exist_ok=True)
     presentation = _presentation_profile_contract(settings["presentation_profile"], world_data_plugin)
@@ -681,6 +707,10 @@ def _run_profile(
     first_seconds = _run(f"{name}_unreal_first", [*first_command, "-EnrollManifests"], logs)
     first_result = root / "unreal_first.json"
     _copy_realization(first_result)
+    def saved_projections(leg: str) -> tuple[Path | None, Path | None]:
+        return capture_saved_projections(name, leg, settings, emitted, realization_compile_result,
+            realization, world_data_plugin, powershell, logs, REPO_ROOT, _run)
+    terrain_first, world_first = saved_projections("first")
     authored_after_first = _authored_package_hashes(authored, content_root, world_data_plugin)
     second_seconds = _run(f"{name}_unreal_second", first_command, logs)
     second_result = root / "unreal_second.json"
@@ -702,27 +732,31 @@ def _run_profile(
         authored, content_root, world_data_plugin
     )
 
-    incremental_command = _leg_command(
-        compile_roots["incremental"] / "compile_result.json", authored
-    )
-    incremental_seconds = _run(f"{name}_unreal_incremental", incremental_command, logs)
     incremental_result = root / "unreal_incremental.json"
-    _copy_realization(incremental_result)
-    authored_after_incremental = _authored_package_hashes(authored, content_root, world_data_plugin)
+    incremental_seconds = 0.0
+    authored_after_incremental = None
+    if mode == "full":
+        incremental_command = _leg_command(
+            compile_roots["incremental"] / "compile_result.json", authored
+        )
+        incremental_seconds = _run(f"{name}_unreal_incremental", incremental_command, logs)
+        _copy_realization(incremental_result)
+        authored_after_incremental = _authored_package_hashes(authored, content_root, world_data_plugin)
 
     generated_before_rejection = _owned_file_hashes(
-        [*_map_paths(settings["map_package"], content_root, world_data_plugin), presentation_root],
+        _map_paths(settings["map_package"], content_root, world_data_plugin),
         content_root,
     )
     rejected_seconds = _run_expected_rejection(
         f"{name}_unreal_rejected_apply",
-        _leg_command(compile_roots["incremental"] / "compile_result.json", authored_sabotage),
+        _leg_command(realization_compile_result if mode != "full" else
+            compile_roots["incremental"] / "compile_result.json", authored_sabotage),
         logs,
     )
     rejected_result = root / "unreal_rejected_apply.json"
     shutil.copy2(emitted, rejected_result)
     generated_after_rejection = _owned_file_hashes(
-        [*_map_paths(settings["map_package"], content_root, world_data_plugin), presentation_root],
+        _map_paths(settings["map_package"], content_root, world_data_plugin),
         content_root,
     )
     authored_after_rejection = _authored_package_hashes(authored, content_root, world_data_plugin)
@@ -730,15 +764,15 @@ def _run_profile(
     _remove_maps([settings["map_package"]], content_root, world_data_plugin)
     if realization is not None:
         _remove_realization_artifacts(realization, content_root, world_data_plugin)
-    _remove_owned_path(presentation_root, content_root)
     clean_seconds = _run(f"{name}_unreal_clean_rebuild", [*first_command, "-Reconstruct"], logs)
     clean_result = root / "unreal_clean_rebuild.json"
     _copy_realization(clean_result)
+    terrain_clean, world_clean = saved_projections("clean")
     authored_after_clean = _authored_package_hashes(authored, content_root, world_data_plugin)
     return {
-        "source_root": str(source_root),
-        "source_result": str(source_result),
-        "source_seconds": source_seconds,
+        "source_root": str(source_root) if mode == "full" else None,
+        "source_result": str(source_result) if mode == "full" else None,
+        "source_seconds": source_seconds if mode == "full" else None,
         # Freeze the child realization receipts INTO the accepted run. Their
         # paths alone are not evidence: a later reader would trust whatever
         # bytes happen to sit there, while the parent result.json hash still
@@ -746,12 +780,20 @@ def _run_profile(
         "unreal_first_sha256": file_hash(first_result),
         "unreal_second_sha256": file_hash(second_result),
         "unreal_road_locality_sha256": file_hash(road_locality_result),
-        "unreal_incremental_sha256": file_hash(incremental_result),
+        "unreal_incremental_sha256": file_hash(incremental_result) if mode == "full" else None,
         "unreal_rejected_apply_sha256": file_hash(rejected_result),
         "unreal_clean_rebuild_sha256": file_hash(clean_result),
-        "compile_first_root": str(compile_roots["compile_first"]),
-        "compile_second_root": str(compile_roots["compile_second"]),
-        "incremental_root": str(compile_roots["incremental"]),
+        "terrain_projection_first": str(terrain_first) if terrain_first else None,
+        "terrain_projection_first_sha256": file_hash(terrain_first) if terrain_first else None,
+        "terrain_projection_clean": str(terrain_clean) if terrain_clean else None,
+        "terrain_projection_clean_sha256": file_hash(terrain_clean) if terrain_clean else None,
+        "saved_world_projection_first": str(world_first) if world_first else None,
+        "saved_world_projection_first_sha256": file_hash(world_first) if world_first else None,
+        "saved_world_projection_clean": str(world_clean) if world_clean else None,
+        "saved_world_projection_clean_sha256": file_hash(world_clean) if world_clean else None,
+        "compile_first_root": str(compile_roots["compile_first"]) if mode == "full" else None,
+        "compile_second_root": str(compile_roots["compile_second"]) if mode == "full" else None,
+        "incremental_root": str(compile_roots["incremental"]) if mode == "full" else None,
         "realization_compile_result": str(realization_compile_result),
         "realization_compile_result_sha256": file_hash(realization_compile_result),
         "canonical_authority": canonical_authority,
@@ -759,13 +801,13 @@ def _run_profile(
         "unreal_second": str(second_result),
         "unreal_road_locality": str(road_locality_result),
         "road_locality_dirty_unit": road_dirty_unit,
-        "unreal_incremental": str(incremental_result),
+        "unreal_incremental": str(incremental_result) if mode == "full" else None,
         "unreal_rejected_apply": str(rejected_result),
         "unreal_clean_rebuild": str(clean_result),
         "unreal_first_wall_seconds": first_seconds,
         "unreal_second_wall_seconds": second_seconds,
         "unreal_road_locality_wall_seconds": road_locality_seconds,
-        "unreal_incremental_wall_seconds": incremental_seconds,
+        "unreal_incremental_wall_seconds": incremental_seconds if mode == "full" else None,
         "unreal_rejected_apply_wall_seconds": rejected_seconds,
         "unreal_clean_rebuild_wall_seconds": clean_seconds,
         "generated_package_count": _generated_package_count(
@@ -780,7 +822,7 @@ def _run_profile(
             "first": authored_after_first,
             "second": authored_after_second,
             "road_locality": authored_after_road_locality,
-            "incremental": authored_after_incremental,
+            **({"incremental": authored_after_incremental} if mode == "full" else {}),
             "rejected": authored_after_rejection,
             "clean": authored_after_clean,
         },
@@ -797,6 +839,7 @@ def execute(
     evidence_root: Path,
     preflight_path: Path,
     common_checks: dict[str, Any],
+    mode: str = "full",
 ) -> dict[str, Any]:
     powershell = _powershell()
     preflight = read_json(preflight_path)
@@ -805,10 +848,10 @@ def execute(
     logs = evidence_root / "logs"
     work_root.mkdir(parents=True, exist_ok=False)
     cache_root = REPO_ROOT / "tmp" / "world" / "source_ingestion" / "cache"
-    cache_before = tree_size(cache_root)
+    cache_before = tree_size(cache_root) if mode == "full" else None
     ownership = []
     for name, settings in profile["profiles"].items():
-        content_root, presentation_root, _ = _world_data_roots(settings["world_data_plugin"])
+        content_root, _ = _world_data_roots(settings["world_data_plugin"])
         realization_paths: list[Path] = []
         if settings.get("realization_profile"):
             realization = _realization_profile_contract(
@@ -819,15 +862,14 @@ def execute(
             realization_paths = _realization_artifact_paths(
                 realization, content_root, settings["world_data_plugin"]
             )
-        ownership.append((name, settings, content_root, presentation_root, realization_paths))
+        ownership.append((name, settings, content_root, realization_paths))
     with _content_mutation_lock():
         owner_states: dict[str, tuple[Path, dict[str, str]]] = {}
         owner_declared: dict[str, set[str]] = {}
-        for _, settings, content_root, presentation_root, realization_paths in ownership:
+        for _, settings, content_root, realization_paths in ownership:
             owner = settings["world_data_plugin"]
             owner_states.setdefault(owner, (content_root, _generated_tree_hashes(content_root)))
             scope_paths = _map_paths(settings["map_package"], content_root, owner)
-            scope_paths.append(presentation_root)
             scope_paths.extend(realization_paths)
             owner_declared.setdefault(owner, set()).update(
                 _owned_file_hashes(scope_paths, content_root)
@@ -840,7 +882,7 @@ def execute(
             for owner, (_, expected) in owner_states.items()
         }
         backups: list[
-            tuple[str, list[tuple[Path, Path]], dict[str, Any], Path, Path, list[Path]]
+            tuple[str, list[tuple[Path, Path]], dict[str, Any], Path, list[Path]]
         ] = []
         prepared_backups: set[str] = set()
         restoration_owners: dict[str, dict[str, Any]] = {}
@@ -851,19 +893,19 @@ def execute(
                     guarded[owner], work_root / "map_backup" / "owner_guard" / owner,
                     content_root,
                 )
-            for name, settings, content_root, presentation_root, realization_paths in ownership:
+            for name, settings, content_root, realization_paths in ownership:
                 moves: list[tuple[Path, Path]] = []
                 backups.append((
-                    name, moves, settings, content_root, presentation_root, realization_paths,
+                    name, moves, settings, content_root, realization_paths,
                 ))
                 _backup_generated(
                     [settings["map_package"]], work_root / "map_backup" / name,
-                    content_root, presentation_root, settings["world_data_plugin"],
+                    content_root, settings["world_data_plugin"],
                     realization_paths, moves,
                 )
                 prepared_backups.add(name)
             profiles = {
-                name: _run_profile(name, settings, work_root, logs, powershell)
+                name: _run_profile(name, settings, work_root, logs, powershell, mode)
                 for name, settings in profile["profiles"].items()
             }
         except BaseException as error:
@@ -871,12 +913,12 @@ def execute(
             raise
         finally:
             restoration_failures = []
-            for name, moves, settings, content_root, presentation_root, realization_paths in reversed(backups):
+            for name, moves, settings, content_root, realization_paths in reversed(backups):
                 try:
                     if name in prepared_backups:
                         _restore_generated(
                             moves, [settings["map_package"]], content_root,
-                            presentation_root, settings["world_data_plugin"], realization_paths,
+                            settings["world_data_plugin"], realization_paths,
                         )
                     else:
                         _restore_recorded_moves(moves)
@@ -920,6 +962,7 @@ def execute(
                 )
 
     return {
+        "matrix_mode": mode,
         "test_suites": common_checks["test_suites"],
         "common_checks": {
             "receipt": common_checks["receipt"],
@@ -929,9 +972,12 @@ def execute(
         },
         "profiles": profiles,
         "environment": {
-            **common_checks["environment"],
-            "immutable_cache_bytes": tree_size(cache_root),
-            "network_transfer_bytes": max(0, tree_size(cache_root) - cache_before),
+            **({key: value for key, value in common_checks["environment"].items()
+                if key not in {"immutable_cache_bytes", "network_transfer_bytes"}}
+                if mode == "canonical_authority" else common_checks["environment"]),
+            **({"immutable_cache_bytes": tree_size(cache_root),
+                "network_transfer_bytes": max(0, tree_size(cache_root) - cache_before)}
+                if mode == "full" else {}),
             "bootstrap_preflight_path": str(preflight_path),
             "bootstrap_preflight": preflight,
         },

@@ -5,24 +5,16 @@
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedGeometry.h"
-#include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRuntimeNavigation.h"
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldTerritoryRuntimeAcceptance.h"
 
-#include "Components/InstancedStaticMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine/TargetPoint.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "NavMesh/RecastNavMesh.h"
-#include "NavigationData.h"
-#include "NavigationSystem.h"
-#include "ProceduralMeshComponent.h"
 #include "UObject/UObjectGlobals.h"
-#include "WorldPartition/HLOD/HLODActor.h"
 
 namespace ProjectWorldRuntimeRealization
 {
@@ -227,108 +219,6 @@ namespace ProjectWorldRuntimeRealization
 			return nullptr;
 		}
 
-		const FProjectWorldCanonicalCell* CellById(
-			const FProjectWorldCanonicalBundle& Bundle,
-			const FString& CellId)
-		{
-			return Bundle.Cells.FindByPredicate([&CellId](const FProjectWorldCanonicalCell& Cell)
-			{
-				return Cell.CellId == CellId;
-			});
-		}
-
-		bool PolylineInteriorPoint(const TArray<FVector2D>& Points, FVector2D& OutPoint)
-		{
-			double TotalLength = 0.0;
-			for (int32 Index = 0; Index < Points.Num() - 1; ++Index)
-			{
-				TotalLength += FVector2D::Distance(Points[Index], Points[Index + 1]);
-			}
-			if (TotalLength <= UE_DOUBLE_SMALL_NUMBER)
-			{
-				return false;
-			}
-
-			double Remaining = TotalLength * 0.5;
-			for (int32 Index = 0; Index < Points.Num() - 1; ++Index)
-			{
-				const double SegmentLength = FVector2D::Distance(Points[Index], Points[Index + 1]);
-				if (Remaining <= SegmentLength && SegmentLength > UE_DOUBLE_SMALL_NUMBER)
-				{
-					OutPoint = FMath::Lerp(Points[Index], Points[Index + 1], Remaining / SegmentLength);
-					return true;
-				}
-				Remaining -= SegmentLength;
-			}
-			OutPoint = Points.Last();
-			return true;
-		}
-
-		bool RepresentationInteriorPoint(
-			const FProjectWorldCanonicalRepresentation& Representation,
-			FVector2D& OutPoint)
-		{
-			const TArray<FVector2D>* LongestPart = nullptr;
-			double LongestLength = 0.0;
-			for (const TArray<FVector2D>& Part : Representation.Parts)
-			{
-				double Length = 0.0;
-				for (int32 Index = 0; Index < Part.Num() - 1; ++Index)
-				{
-					Length += FVector2D::Distance(Part[Index], Part[Index + 1]);
-				}
-				if (Length > LongestLength)
-				{
-					LongestLength = Length;
-					LongestPart = &Part;
-				}
-			}
-			return LongestPart != nullptr && PolylineInteriorPoint(*LongestPart, OutPoint);
-		}
-
-		bool RepresentationInteriorFrame(
-			const FProjectWorldCanonicalRepresentation& Representation,
-			FVector2D& OutPoint,
-			FVector2D& OutTangent,
-			double& OutPartLength)
-		{
-			const TArray<FVector2D>* LongestPart = nullptr;
-			double LongestLength = 0.0;
-			for (const TArray<FVector2D>& Part : Representation.Parts)
-			{
-				double Length = 0.0;
-				for (int32 Index = 0; Index < Part.Num() - 1; ++Index)
-				{
-					Length += FVector2D::Distance(Part[Index], Part[Index + 1]);
-				}
-				if (Length > LongestLength)
-				{
-					LongestLength = Length;
-					LongestPart = &Part;
-				}
-			}
-			if (LongestPart == nullptr || LongestLength <= UE_DOUBLE_SMALL_NUMBER)
-			{
-				return false;
-			}
-
-			const TArray<FVector2D>& Points = *LongestPart;
-			double Remaining = LongestLength * 0.5;
-			for (int32 Index = 0; Index < Points.Num() - 1; ++Index)
-			{
-				const double SegmentLength = FVector2D::Distance(Points[Index], Points[Index + 1]);
-				if (Remaining <= SegmentLength && SegmentLength > UE_DOUBLE_SMALL_NUMBER)
-				{
-					OutPoint = FMath::Lerp(Points[Index], Points[Index + 1], Remaining / SegmentLength);
-					OutTangent = (Points[Index + 1] - Points[Index]).GetSafeNormal();
-					OutPartLength = LongestLength;
-					return !OutTangent.IsNearlyZero();
-				}
-				Remaining -= SegmentLength;
-			}
-			return false;
-		}
-
 		bool RouteLocations(
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldRuntimeProfile& Profile,
@@ -378,162 +268,6 @@ namespace ProjectWorldRuntimeRealization
 			OutLocation = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
 				FVector(Anchor, TerrainHeight + Profile.ProductSpawnHeightAboveTerrainMeters));
-			return true;
-		}
-
-		enum class ERouteSurfaceExpectation : uint8
-		{
-			OnRoad,
-			OffRoad
-		};
-
-		// The cell actor carries terrain, roads, and buildings in one component, so actor tags
-		// cannot separate a road hit from a terrain hit 0.65 m below it. The road surface height
-		// band is the discriminator; the tolerance stays well under the 0.65 m road lift.
-		bool TraceRouteSurface(
-			UWorld* World,
-			const FProjectWorldCanonicalBundle& Bundle,
-			const FProjectWorldCanonicalCell& Cell,
-			const FVector2D& CanonicalPoint,
-			ERouteSurfaceExpectation Expectation,
-			const FName& FeatureTag,
-			const FName& CellTag,
-			FString& OutError)
-		{
-			constexpr double RoadSurfaceOffsetMeters = 0.65;
-			constexpr double RoadSurfaceBandCentimeters = 35.0;
-			constexpr double MinimumUpwardNormalZ = 0.94;
-			if (CanonicalPoint.X < Cell.Bounds.X || CanonicalPoint.X > Cell.Bounds.Z ||
-				CanonicalPoint.Y < Cell.Bounds.Y || CanonicalPoint.Y > Cell.Bounds.W)
-			{
-				OutError = TEXT("Route orientation probe point left the accepted cell bounds.");
-				return false;
-			}
-
-			const FVector Surface = FProjectWorldCanonicalLoader::CanonicalToUnreal(
-				Bundle,
-				FVector(CanonicalPoint, ProjectWorldGeneratedGeometry::SampleTerrain(
-					Cell, CanonicalPoint.X, CanonicalPoint.Y) + RoadSurfaceOffsetMeters));
-			FHitResult Hit;
-			FCollisionQueryParams Query(TEXT("ProjectWorldRuntimeRouteFragment"), true);
-			const bool bHit = World->LineTraceSingleByChannel(
-				Hit,
-				Surface + FVector(0.0, 0.0, 5000.0),
-				Surface - FVector(0.0, 0.0, 5000.0),
-				ECC_Visibility,
-				Query);
-			const bool bInRoadBand = bHit &&
-				FMath::Abs(Hit.ImpactPoint.Z - Surface.Z) <= RoadSurfaceBandCentimeters;
-
-			if (Expectation == ERouteSurfaceExpectation::OffRoad)
-			{
-				if (bInRoadBand)
-				{
-					OutError = TEXT("Road collision extends beyond the declared half-width.");
-					return false;
-				}
-				return true;
-			}
-
-			if (!bInRoadBand || Hit.GetActor() == nullptr ||
-				!Hit.GetActor()->Tags.Contains(FeatureTag) || !Hit.GetActor()->Tags.Contains(CellTag))
-			{
-				OutError = TEXT("Road-band surface was not hit where the route must provide collision.");
-				return false;
-			}
-			if (Hit.ImpactNormal.Z < MinimumUpwardNormalZ)
-			{
-				OutError = TEXT("Road collision surface does not face upward at the probe point.");
-				return false;
-			}
-			return true;
-		}
-
-		bool ProbeRouteCollision(
-			UWorld* World,
-			const FProjectWorldCanonicalBundle& Bundle,
-			const FProjectWorldRuntimeProfile& Profile,
-			const FProjectWorldCanonicalFeature& Feature,
-			FProjectWorldRealizationResult& OutResult,
-			FString& OutError)
-		{
-			const FName FeatureTag(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Profile.RouteFeatureId));
-			const double HalfWidth = FMath::Max(Feature.WidthMeters * 0.5, 1.0);
-			TSet<FString> ProbedCells;
-			TSet<FString> OrientationProvenCells;
-			for (const FProjectWorldCanonicalRepresentation& Representation : Feature.Representations)
-			{
-				FVector2D CanonicalPoint;
-				FVector2D Tangent;
-				double PartLength = 0.0;
-				if (Representation.Kind != TEXT("road_fragment") ||
-					!RepresentationInteriorFrame(Representation, CanonicalPoint, Tangent, PartLength))
-				{
-					continue;
-				}
-				const FProjectWorldCanonicalCell* Cell = CellById(Bundle, Representation.CellId);
-				if (Cell == nullptr || ProbedCells.Contains(Representation.CellId))
-				{
-					OutError = TEXT("Runtime route representations must map one-to-one to accepted cells.");
-					return false;
-				}
-				const FName CellTag(*FString::Printf(TEXT("ProjectWorld.Cell=%s"), *Representation.CellId));
-
-				const double AlongOffset = FMath::Min(3.0 * HalfWidth, 0.25 * PartLength);
-				if (AlongOffset < 1.0)
-				{
-					OutError = FString::Printf(
-						TEXT("Route fragment in cell %s is too short for the orientation probe."),
-						*Representation.CellId);
-					return false;
-				}
-				const FVector2D Perpendicular(-Tangent.Y, Tangent.X);
-				const double LateralInside = 0.5 * HalfWidth;
-				const double LateralOutside = HalfWidth + FMath::Max(2.0, HalfWidth);
-
-				struct FRouteProbe
-				{
-					FVector2D Point;
-					ERouteSurfaceExpectation Expectation;
-				};
-				const FRouteProbe Probes[] =
-				{
-					{CanonicalPoint, ERouteSurfaceExpectation::OnRoad},
-					{CanonicalPoint + Tangent * AlongOffset, ERouteSurfaceExpectation::OnRoad},
-					{CanonicalPoint - Tangent * AlongOffset, ERouteSurfaceExpectation::OnRoad},
-					{CanonicalPoint + Perpendicular * LateralInside, ERouteSurfaceExpectation::OnRoad},
-					{CanonicalPoint - Perpendicular * LateralInside, ERouteSurfaceExpectation::OnRoad},
-					{CanonicalPoint + Perpendicular * LateralOutside, ERouteSurfaceExpectation::OffRoad},
-					{CanonicalPoint - Perpendicular * LateralOutside, ERouteSurfaceExpectation::OffRoad}
-				};
-				for (const FRouteProbe& Probe : Probes)
-				{
-					FString ProbeError;
-					if (!TraceRouteSurface(
-						World, Bundle, *Cell, Probe.Point, Probe.Expectation, FeatureTag, CellTag, ProbeError))
-					{
-						OutError = FString::Printf(
-							TEXT("Route %s failed the orientation probe in cell %s: %s"),
-							*Profile.RouteFeatureId,
-							*Representation.CellId,
-							*ProbeError);
-						return false;
-					}
-				}
-				ProbedCells.Add(Representation.CellId);
-				OrientationProvenCells.Add(Representation.CellId);
-			}
-			OutResult.RuntimeCollisionProbeCount = ProbedCells.Num();
-			OutResult.bRuntimeRouteCollisionProbed =
-				OutResult.RuntimeCollisionProbeCount == OutResult.CrossCellRoadExpectedFragmentCount;
-			OutResult.RuntimeCollisionOrientationProbeCount = OrientationProvenCells.Num();
-			OutResult.bRuntimeRouteCollisionOrientationProbed =
-				OutResult.RuntimeCollisionOrientationProbeCount == OutResult.CrossCellRoadExpectedFragmentCount;
-			if (!OutResult.bRuntimeRouteCollisionProbed || !OutResult.bRuntimeRouteCollisionOrientationProbed)
-			{
-				OutError = TEXT("Collision and orientation were not proven in every declared route fragment cell.");
-				return false;
-			}
 			return true;
 		}
 
@@ -670,6 +404,11 @@ namespace ProjectWorldRuntimeRealization
 		const FProjectWorldRuntimeProfile& Profile,
 		FString& OutError)
 	{
+		if (Profile.ProfileKind != TEXT("territory_product"))
+		{
+			OutError = TEXT("Only territory product runtime profiles are supported.");
+			return false;
+		}
 		const FProjectWorldCanonicalFeature* Feature = RouteFeature(Bundle, Profile, OutError);
 		FVector Start;
 		FVector End;
@@ -677,8 +416,7 @@ namespace ProjectWorldRuntimeRealization
 		{
 			return false;
 		}
-		return Profile.ProfileKind != TEXT("territory_product") ||
-			ProductSpawnLocation(Bundle, Profile, Start, OutError);
+		return ProductSpawnLocation(Bundle, Profile, Start, OutError);
 	}
 
 	bool Apply(
@@ -688,6 +426,11 @@ namespace ProjectWorldRuntimeRealization
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError)
 	{
+		if (Profile.ProfileKind != TEXT("territory_product"))
+		{
+			OutError = TEXT("Only territory product runtime profiles are supported.");
+			return false;
+		}
 		const FProjectWorldCanonicalFeature* Feature = RouteFeature(Bundle, Profile, OutError);
 		FVector Start;
 		FVector End;
@@ -695,267 +438,86 @@ namespace ProjectWorldRuntimeRealization
 		{
 			return false;
 		}
-		if (Profile.ProfileKind == TEXT("territory_product"))
+
+		FVector ProductLocation;
+		if (!ProductSpawnLocation(Bundle, Profile, ProductLocation, OutError))
 		{
-			FVector ProductLocation;
-			if (!ProductSpawnLocation(Bundle, Profile, ProductLocation, OutError))
+			return false;
+		}
+		if (FindCurrentProductPlayerStart(World, Bundle, Profile, ProductLocation) != nullptr)
+		{
+			++OutResult.PreservedActorCount;
+		}
+		else
+		{
+			APlayerStart* PlayerStart = Cast<APlayerStart>(ReuseOrSpawn(
+				World, APlayerStart::StaticClass(), TEXT("PlayerStart"), Bundle, Profile, OutResult));
+			if (PlayerStart == nullptr)
+			{
+				OutError = TEXT("Cannot create the unique territory PlayerStart.");
+				return false;
+			}
+			PlayerStart->SetActorLocation(ProductLocation);
+			PlayerStart->SetActorRotation(FRotator(
+				Profile.ProductSpawnPitchDegrees,
+				Profile.ProductSpawnYawDegrees,
+				0.0));
+			SetIdentity(*PlayerStart, TEXT("PlayerStart"), Bundle, Profile, false);
+		}
+
+		FBox TerritoryNavigationBounds;
+		if (!ProjectWorldRuntimeNavigation::GetTerritoryDomainBounds(
+			Bundle, Profile, TerritoryNavigationBounds, OutError))
+		{
+			return false;
+		}
+		ARecastNavMesh* Recast = nullptr;
+		if (ANavMeshBoundsVolume* CurrentNavigation = FindCurrentTerritoryNavigation(
+			World, Bundle, Profile, TerritoryNavigationBounds))
+		{
+			++OutResult.PreservedActorCount;
+			if (!ProjectWorldRuntimeNavigation::EnsureTerritoryDomain(
+				World, CurrentNavigation, Recast, OutError))
 			{
 				return false;
 			}
-			if (FindCurrentProductPlayerStart(World, Bundle, Profile, ProductLocation) != nullptr)
+		}
+		else
+		{
+			ANavMeshBoundsVolume* NavBounds = Cast<ANavMeshBoundsVolume>(ReuseOrSpawn(
+				World,
+				ANavMeshBoundsVolume::StaticClass(),
+				TEXT("TerritoryNavigation"),
+				Bundle,
+				Profile,
+				OutResult));
+			if (NavBounds == nullptr || !ProjectWorldRuntimeNavigation::ConfigureTerritoryDomain(
+				World, NavBounds, TerritoryNavigationBounds, Recast, OutError))
 			{
-				++OutResult.PreservedActorCount;
-			}
-			else
-			{
-				APlayerStart* PlayerStart = Cast<APlayerStart>(ReuseOrSpawn(
-					World, APlayerStart::StaticClass(), TEXT("PlayerStart"), Bundle, Profile, OutResult));
-				if (PlayerStart == nullptr)
+				if (OutError.IsEmpty())
 				{
-					OutError = TEXT("Cannot create the unique territory PlayerStart.");
-					return false;
+					OutError = TEXT("Cannot create the unique territory navigation domain.");
 				}
-				PlayerStart->SetActorLocation(ProductLocation);
-				PlayerStart->SetActorRotation(FRotator(
-					Profile.ProductSpawnPitchDegrees,
-					Profile.ProductSpawnYawDegrees,
-					0.0));
-				SetIdentity(*PlayerStart, TEXT("PlayerStart"), Bundle, Profile, false);
-			}
-
-			FBox TerritoryNavigationBounds;
-			if (!ProjectWorldRuntimeNavigation::GetTerritoryDomainBounds(
-				Bundle, Profile, TerritoryNavigationBounds, OutError))
-			{
 				return false;
 			}
-			ARecastNavMesh* Recast = nullptr;
-			if (ANavMeshBoundsVolume* CurrentNavigation = FindCurrentTerritoryNavigation(
-				World, Bundle, Profile, TerritoryNavigationBounds))
-			{
-				++OutResult.PreservedActorCount;
-				if (!ProjectWorldRuntimeNavigation::EnsureTerritoryDomain(
-					World, CurrentNavigation, Recast, OutError))
-				{
-					return false;
-				}
-			}
-			else
-			{
-				ANavMeshBoundsVolume* NavBounds = Cast<ANavMeshBoundsVolume>(ReuseOrSpawn(
-					World,
-					ANavMeshBoundsVolume::StaticClass(),
-					TEXT("TerritoryNavigation"),
-					Bundle,
-					Profile,
-					OutResult));
-				if (NavBounds == nullptr || !ProjectWorldRuntimeNavigation::ConfigureTerritoryDomain(
-					World, NavBounds, TerritoryNavigationBounds, Recast, OutError))
-				{
-					if (OutError.IsEmpty())
-					{
-						OutError = TEXT("Cannot create the unique territory navigation domain.");
-					}
-					return false;
-				}
-				SetIdentity(*NavBounds, TEXT("TerritoryNavigation"), Bundle, Profile, false);
-			}
-			return true;
+			SetIdentity(*NavBounds, TEXT("TerritoryNavigation"), Bundle, Profile, false);
 		}
-
-		ATargetPoint* StartActor = Cast<ATargetPoint>(ReuseOrSpawn(
-			World, ATargetPoint::StaticClass(), TEXT("RouteStart"), Bundle, Profile, OutResult));
-		ATargetPoint* EndActor = Cast<ATargetPoint>(ReuseOrSpawn(
-			World, ATargetPoint::StaticClass(), TEXT("RouteEnd"), Bundle, Profile, OutResult));
-		ANavMeshBoundsVolume* NavBounds = Cast<ANavMeshBoundsVolume>(ReuseOrSpawn(
-			World, ANavMeshBoundsVolume::StaticClass(), TEXT("RouteNavigation"), Bundle, Profile, OutResult));
-		if (StartActor == nullptr || EndActor == nullptr || NavBounds == nullptr)
-		{
-			OutError = TEXT("Cannot create unique runtime-route actors.");
-			return false;
-		}
-
-		StartActor->SetActorLocation(Start + FVector(0.0, 0.0, 100.0));
-		EndActor->SetActorLocation(End + FVector(0.0, 0.0, 100.0));
-		SetIdentity(*StartActor, TEXT("RouteStart"), Bundle, Profile, true);
-		SetIdentity(*EndActor, TEXT("RouteEnd"), Bundle, Profile, true);
-		SetIdentity(*NavBounds, TEXT("RouteNavigation"), Bundle, Profile, false);
-		ANavigationData* NavigationData = nullptr;
-		if (!ProjectWorldRuntimeNavigation::ConfigureRouteDomain(
-			World, StartActor, NavBounds, Start, End, Profile, OutResult, NavigationData, OutError))
-		{
-			return false;
-		}
-		UNavigationSystemV1* Navigation = Cast<UNavigationSystemV1>(World->GetNavigationSystem());
-		ARecastNavMesh* Recast = Cast<ARecastNavMesh>(NavigationData);
-
-		if (!ProbeRouteCollision(World, Bundle, Profile, *Feature, OutResult, OutError))
-		{
-			return false;
-		}
-
-		FNavLocation ProjectedStart;
-		FNavLocation ProjectedEnd;
-		const FVector QueryExtent(500.0, 500.0, 500.0);
-		const bool bProjectedStart = Navigation->ProjectPointToNavigation(
-			Start + FVector(0.0, 0.0, 100.0), ProjectedStart, QueryExtent, NavigationData);
-		const bool bProjectedEnd = Navigation->ProjectPointToNavigation(
-			End + FVector(0.0, 0.0, 100.0), ProjectedEnd, QueryExtent, NavigationData);
-		if (!bProjectedStart || !bProjectedEnd)
-		{
-			OutError = FString::Printf(
-				TEXT("Navigation did not project both accepted route endpoints (start=%d end=%d active_set=%d built_tiles=%d nav_bounds=%s)."),
-				bProjectedStart ? 1 : 0,
-				bProjectedEnd ? 1 : 0,
-				Recast->GetActiveTileSet().Num(),
-				Recast->GetNumActiveTiles(),
-				*Recast->GetNavMeshBounds().ToString());
-			return false;
-		}
-		double PathLengthCentimeters = 0.0;
-		const ENavigationQueryResult::Type PathResult = UNavigationSystemV1::GetPathLength(
-			World,
-			ProjectedStart.Location,
-			ProjectedEnd.Location,
-			PathLengthCentimeters,
-			NavigationData);
-		if (PathResult != ENavigationQueryResult::Success || PathLengthCentimeters <= 0.0)
-		{
-			OutError = TEXT("Navigation cannot traverse the accepted cross-cell gameplay route.");
-			return false;
-		}
-		OutResult.bRuntimeNavigationProbed = true;
-		OutResult.RuntimeNavigationPathMeters = PathLengthCentimeters * 0.01;
 		return true;
 	}
 
 	bool CaptureAndCheckStructuralBudgets(
 		UWorld* World,
 		const FProjectWorldRuntimeProfile& Profile,
+		bool bVegetationLayerSelected,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError)
 	{
-		if (Profile.ProfileKind == TEXT("territory_product"))
+		if (Profile.ProfileKind != TEXT("territory_product"))
 		{
-			return ProjectWorldTerritoryRuntimeAcceptance::CaptureAndCheck(
-				World, Profile, OutResult, OutError);
-		}
-		const FName FeatureTag(*FString::Printf(TEXT("ProjectWorld.Feature=%s"), *Profile.RouteFeatureId));
-		int32 RouteFeatureActorCount = 0;
-		bool bRouteUsesOnlyProceduralGeometry = true;
-		bool bRouteUsesNoInstancing = true;
-		bool bRouteActorsSpatiallyLoaded = true;
-		OutResult.HlodLayerReferenceCount = ProjectWorldPartitionPolicy::CountHLODLayerReferences(World);
-		for (TActorIterator<AActor> It(World); It; ++It)
-		{
-			if (It->IsA<AWorldPartitionHLOD>())
-			{
-				++OutResult.HlodProxyActorCount;
-			}
-			if (!It->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag))
-			{
-				continue;
-			}
-			if (It->bEnableAutoLODGeneration || It->GetHLODLayer() != nullptr)
-			{
-				++OutResult.HlodEligibleGeneratedActorCount;
-			}
-			++OutResult.GeneratedActorCount;
-			if (It->GetIsSpatiallyLoaded())
-			{
-				++OutResult.SpatiallyLoadedActorCount;
-			}
-			const FString Role = RuntimeRole(**It);
-			if (Role == TEXT("RouteStart") || Role == TEXT("RouteEnd"))
-			{
-				OutResult.RuntimeRouteSpatialActorCount += It->GetIsSpatiallyLoaded() ? 1 : 0;
-			}
-			else if (Role == TEXT("RouteNavigation"))
-			{
-				OutResult.RuntimeAlwaysLoadedActorCount += It->GetIsSpatiallyLoaded() ? 0 : 1;
-			}
-			const bool bRouteFeatureActor = It->Tags.Contains(FeatureTag);
-			if (bRouteFeatureActor)
-			{
-				++RouteFeatureActorCount;
-				bRouteActorsSpatiallyLoaded &= It->GetIsSpatiallyLoaded();
-			}
-			bool bHasProceduralMesh = false;
-			TInlineComponentArray<UActorComponent*> Components;
-			It->GetComponents(Components);
-			for (UActorComponent* Component : Components)
-			{
-				if (UProceduralMeshComponent* Mesh = Cast<UProceduralMeshComponent>(Component))
-				{
-					bHasProceduralMesh = true;
-					OutResult.ProceduralMeshSectionDrawCallUpperBound += Mesh->GetNumSections();
-					for (int32 SectionIndex = 0; SectionIndex < Mesh->GetNumSections(); ++SectionIndex)
-					{
-						if (const FProcMeshSection* Section = Mesh->GetProcMeshSection(SectionIndex))
-						{
-							OutResult.ProceduralMeshBufferBytes += Section->ProcVertexBuffer.GetAllocatedSize();
-							OutResult.ProceduralMeshBufferBytes += Section->ProcIndexBuffer.GetAllocatedSize();
-						}
-					}
-				}
-				if (bRouteFeatureActor && Cast<UStaticMeshComponent>(Component) != nullptr)
-				{
-					bRouteUsesOnlyProceduralGeometry = false;
-				}
-				if (bRouteFeatureActor && Cast<UInstancedStaticMeshComponent>(Component) != nullptr)
-				{
-					bRouteUsesNoInstancing = false;
-				}
-			}
-			if (bRouteFeatureActor)
-			{
-				bRouteUsesOnlyProceduralGeometry &= bHasProceduralMesh;
-			}
-		}
-
-		OutResult.bRuntimeStreamingPolicyProbed =
-			OutResult.RuntimeRouteSpatialActorCount == 2 &&
-			OutResult.RuntimeAlwaysLoadedActorCount == 1 &&
-			RouteFeatureActorCount == OutResult.CrossCellRoadExpectedFragmentCount &&
-			bRouteActorsSpatiallyLoaded;
-		OutResult.bRuntimeNanitePolicyProbed =
-			RouteFeatureActorCount > 0 && bRouteUsesOnlyProceduralGeometry;
-		OutResult.bRuntimeInstancingPolicyProbed =
-			RouteFeatureActorCount > 0 && bRouteUsesNoInstancing;
-		OutResult.bRuntimeHlodPolicyProbed =
-			OutResult.HlodProxyActorCount == 0 &&
-			OutResult.HlodLayerReferenceCount == 0 &&
-			OutResult.HlodEligibleGeneratedActorCount == 0;
-		if (!OutResult.bRuntimeStreamingPolicyProbed || !OutResult.bRuntimeNanitePolicyProbed ||
-			!OutResult.bRuntimeInstancingPolicyProbed || !OutResult.bRuntimeHlodPolicyProbed)
-		{
-			OutError = FString::Printf(
-				TEXT("Runtime policy mismatch: streamed_route=%d always_loaded=%d route_cells=%d nanite=%d instancing=%d hlod=%d hlod_layers=%d hlod_eligible=%d."),
-				OutResult.RuntimeRouteSpatialActorCount,
-				OutResult.RuntimeAlwaysLoadedActorCount,
-				RouteFeatureActorCount,
-				OutResult.bRuntimeNanitePolicyProbed ? 1 : 0,
-				OutResult.bRuntimeInstancingPolicyProbed ? 1 : 0,
-				OutResult.bRuntimeHlodPolicyProbed ? 1 : 0,
-				OutResult.HlodLayerReferenceCount,
-				OutResult.HlodEligibleGeneratedActorCount);
+			OutError = TEXT("Only territory product runtime profiles are supported.");
 			return false;
 		}
-
-		if (OutResult.GeneratedSourceBytes > Profile.Budgets.GeneratedSourceBytes ||
-			OutResult.ProceduralMeshBufferBytes > Profile.Budgets.ProceduralMeshBufferBytes ||
-			OutResult.GeneratedActorCount > Profile.Budgets.GeneratedActorCount ||
-			OutResult.ProceduralMeshSectionDrawCallUpperBound > Profile.Budgets.MeshSectionDrawCallUpperBound)
-		{
-			OutError = FString::Printf(
-				TEXT("Runtime structural budget exceeded: source=%lld mesh=%lld actors=%d sections=%d."),
-				OutResult.GeneratedSourceBytes,
-				OutResult.ProceduralMeshBufferBytes,
-				OutResult.GeneratedActorCount,
-				OutResult.ProceduralMeshSectionDrawCallUpperBound);
-			return false;
-		}
-		OutResult.bRuntimeStructuralBudgetsPassed = true;
-		return true;
+		return ProjectWorldTerritoryRuntimeAcceptance::CaptureAndCheck(
+			World, Profile, bVegetationLayerSelected, OutResult, OutError);
 	}
 }

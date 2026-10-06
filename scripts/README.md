@@ -15,6 +15,7 @@ This router focuses on the script categories that are part of the public source 
 - Run helpers: [ue/run/README.md](ue/run/README.md)
 - Canonical world realization: [ue/world/README.md](ue/world/README.md)
 - Universal material generation: [ue/material/README.md](ue/material/README.md)
+- Generated-content lock and outer recovery: [ue/generated_content/README.md](ue/generated_content/README.md)
 - Git and public mirroring: [git/README.md](git/README.md)
 - Environment setup, git hooks, Windows link primitives: [setup/README.md](setup/README.md)
 

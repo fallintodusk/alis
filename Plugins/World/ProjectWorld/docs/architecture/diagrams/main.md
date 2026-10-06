@@ -10,13 +10,15 @@ flowchart LR
     Canonical -->|accepted realization input| Editor[ProjectWorldEditor]
 
     subgraph ProjectWorld[ProjectWorld]
-        Editor -->|producer-neutral transaction| Registry[Terrain producer registry]
-        Editor -->|other generated layers| Runtime[ProjectWorld runtime]
+        Editor -->|producer-neutral transaction| Registry[Layer producer registry]
+        Editor -->|generated output| Runtime[ProjectWorld runtime]
         Contract[World contracts] -->|schema and identity rules| Editor
         Contract -->|runtime interpretation| Runtime
     end
 
-    Registry -->|canonical final terrain| Adapter[Replaceable adapter: ProjectWorldMeshTerrain]
+    Leaves[Road, Water, Vegetation, Building, Gameplay editor modules] -->|register shared editor contract| Registry
+    Adapter[ProjectWorldMeshTerrain editor adapter] -->|register shared editor contract| Registry
+    Leaves -->|generated packages and manifests| Runtime
     Adapter -->|shared MPD and compiled sections| MeshPartition[Epic MeshPartition]
     Material[ProjectMaterial authority] -->|material object path, saved bytes authenticated| Adapter
     MeshPartition -->|generated package and manifest| Runtime

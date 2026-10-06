@@ -23,7 +23,14 @@ namespace
 bool FProjectWorldProductPerformanceGate::ParseConfig(FString& OutError)
 {
 	bPlayableTourRequested = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldPlayableTour"));
+	bPreciseCenterReturnRequested = FParse::Param(
+		FCommandLine::Get(), TEXT("ProjectWorldPlayableTourPreciseCenterReturn"));
 	bNativeSteadyRequested = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldNativeSteady"));
+	if (bPreciseCenterReturnRequested && !bPlayableTourRequested)
+	{
+		OutError = TEXT("Precise center return requires playable traversal.");
+		return false;
+	}
 	if (bNativeSteadyRequested && bPlayableTourRequested)
 	{
 		OutError = TEXT("Native steady capture and playable traversal are separate operations.");

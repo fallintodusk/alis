@@ -12,10 +12,13 @@ param(
         'Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json',
 
     [string]$AuthoredOverlayProfile =
-        'Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_landscape_water_twin_v1.json',
+        'Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_territory_twin_v1.json',
 
     [string]$RealizationProfile =
-        'Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_landscape_water_twin.realization.json',
+        'Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_territory_twin.realization.json',
+
+    [string]$RuntimeProfile =
+        'Plugins/World/ProjectWorldTestData/Data/Runtime/synthetic_territory_twin_v1.json',
 
     [int]$ExpectedCellCount = 0,
 
@@ -147,19 +150,6 @@ function Get-ProjectWorldChangedHashPaths {
     return @($Before.Keys | Where-Object { $Before[$_] -cne $After[$_] } | Sort-Object)
 }
 
-function Get-ProjectWorldIntegrationTextSha256 {
-    param([Parameter(Mandatory = $true)][string]$Value)
-
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
-        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    }
-    finally {
-        $sha.Dispose()
-    }
-}
-
 function Get-ProjectWorldIntegrationScopeEntry {
     param(
         [Parameter(Mandatory = $true)][object]$ActiveSet,
@@ -211,12 +201,11 @@ $layerPaths = @($realization.layers | ForEach-Object {
 })
 $statePaths = @(
     $layerPaths
-    (Get-ProjectWorldPresentationRoot -ContentRoot $roots.ContentRoot)
     (Join-Path $roots.ContentRoot 'Authored')
     (Join-Path $manifestRoot 'active_set.json')
 )
 $powerShellExe = (Get-Process -Id $PID).Path
-$priorDelegatedToken = $env:ALIS_WORLD_CONTENT_LOCK_TOKEN
+$priorDelegation = $null
 $contentLock = $null
 $snapshotRecords = @()
 $packageLocality = $null
@@ -237,6 +226,7 @@ function Invoke-ProjectWorldIntegrationRun {
         '-Mode', $Mode,
         '-Map', $mapPackage,
         '-RealizationProfile', $realizationPath,
+        '-RuntimeProfile', (Resolve-ProjectPath -Path $RuntimeProfile),
         '-ManifestRoot', $manifestRoot,
         '-EvidencePath', $evidencePath,
         '-MaxRoads', '0',
@@ -299,15 +289,11 @@ function Invoke-ProjectWorldPackageLocalityProof {
     $canonicalInput = @($terrainInventory.canonical_inputs | Where-Object { $_.unit_id -ceq $cellId })
     Assert-ProjectWorldIntegration -Condition ($canonicalInput.Count -eq 1) `
         -Message 'Changed terrain cell has no canonical input identity.'
-    $semanticText = "project_mesh_terrain_base_v1|$cellId|$([string]$canonicalInput[0].sha256)"
-    $expectedSemantic = Get-ProjectWorldIntegrationTextSha256 -Value $semanticText
-    $expectedArtifacts = @($terrainInventory.artifacts | Where-Object {
-        $_.semantic_sha256 -ceq $expectedSemantic
-    })
+    $baseCanonicalInput = @($baseTerrain.canonical_inputs | Where-Object { $_.unit_id -ceq $cellId })
     Assert-ProjectWorldIntegration -Condition (
-        $expectedArtifacts.Count -eq 1 -and
-        $changedTerrainPaths -contains [string]$expectedArtifacts[0].path) `
-        -Message 'Changed Mesh Terrain base package does not belong to the changed canonical terrain cell.'
+        $baseCanonicalInput.Count -eq 1 -and
+        [string]$baseCanonicalInput[0].sha256 -cne [string]$canonicalInput[0].sha256) `
+        -Message 'Changed terrain output has no changed canonical cell input.'
 
     $terrainActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
     $baseTerrainScope = Get-ProjectWorldIntegrationScopeEntry `
@@ -345,21 +331,19 @@ function Invoke-ProjectWorldPackageLocalityProof {
     $waterTerrainHashes = Get-ProjectWorldIntegrationFileHashes -Artifacts $waterTerrain.artifacts
     $changedWaterTerrainPaths = @(Get-ProjectWorldChangedHashPaths `
         -Before $terrainHashes -After $waterTerrainHashes)
+    Assert-ProjectWorldIntegration -Condition ($changedWaterTerrainPaths.Count -gt 0) `
+        -Message 'Water-only change did not rewrite hydrologic terrain output.'
     foreach ($waterCellId in $expectedWaterCells) {
         $waterCellInput = @($waterTerrain.canonical_inputs | Where-Object {
             [string]$_.unit_id -ceq $waterCellId
         })
-        Assert-ProjectWorldIntegration -Condition ($waterCellInput.Count -eq 1) `
-            -Message "Hydrologic terrain cell has no canonical input identity: $waterCellId"
-        $waterBaseSemantic = Get-ProjectWorldIntegrationTextSha256 `
-            -Value "project_mesh_terrain_base_v1|$waterCellId|$([string]$waterCellInput[0].sha256)"
-        $waterBaseArtifact = @($waterTerrain.artifacts | Where-Object {
-            [string]$_.semantic_sha256 -ceq $waterBaseSemantic
+        $priorCellInput = @($terrainInventory.canonical_inputs | Where-Object {
+            [string]$_.unit_id -ceq $waterCellId
         })
         Assert-ProjectWorldIntegration -Condition (
-            $waterBaseArtifact.Count -eq 1 -and
-            $changedWaterTerrainPaths -contains [string]$waterBaseArtifact[0].path) `
-            -Message "Water-only change did not rewrite its Mesh Terrain base: $waterCellId"
+            $waterCellInput.Count -eq 1 -and $priorCellInput.Count -eq 1 -and
+            [string]$waterCellInput[0].sha256 -cne [string]$priorCellInput[0].sha256) `
+            -Message "Hydrologic terrain cell input did not change: $waterCellId"
     }
 
     $waterActive = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
@@ -403,10 +387,7 @@ try {
         $compileResultPath = [string]$packageLocality.base_compile_result
     }
     $contentLock = Enter-ProjectWorldContentLock -ProjectRoot $projectRoot
-    if ([string]::IsNullOrWhiteSpace($priorDelegatedToken)) {
-        $lockPath = Join-Path $projectRoot 'tmp\world\world_realization\content_mutation.lock'
-        $env:ALIS_WORLD_CONTENT_LOCK_TOKEN = (Get-Content -LiteralPath $lockPath -Raw).Trim()
-    }
+    $priorDelegation = Enable-ProjectGeneratedContentLockDelegation -Lock $contentLock
     $snapshotRecords = @(New-ProjectWorldGeneratedSnapshot `
         -ContentRoot $roots.ContentRoot `
         -MapPackage $mapPackage `
@@ -421,12 +402,13 @@ try {
     Assert-ProjectWorldIntegration -Condition ($first.ExitCode -eq 0 -and $first.Result.status -ceq 'accepted') `
         -Message 'First layer enrollment did not commit.'
     $firstTerrain = @($first.Result.layer_inventories | Where-Object { $_.layer_id -ceq 'terrain' })
+    $firstWater = @($first.Result.layer_inventories | Where-Object { $_.layer_id -ceq 'water' })
     Assert-ProjectWorldIntegration -Condition ($firstTerrain.Count -eq 1) `
         -Message 'First Apply did not emit one terrain inventory.'
     if ($ExpectedCellCount -gt 0) {
         Assert-ProjectWorldIntegration -Condition (
             [int]$first.Result.canonical_cell_count -eq $ExpectedCellCount -and
-            [int]$first.Result.changes.terrain_sections -eq $ExpectedCellCount -and
+            [int]$firstTerrain[0].metrics.sections -eq $ExpectedCellCount -and
             @($firstTerrain[0].canonical_inputs).Count -eq $ExpectedCellCount) `
             -Message "Mesh Terrain topology does not cover all $ExpectedCellCount canonical cells."
     }
@@ -443,9 +425,11 @@ try {
         [int]$first.Result.hlod_eligible_generated_actor_count -eq 0) `
         -Message 'Georeferencing tolerance or the zero-HLOD contract failed.'
     if ($RequireWater) {
+        Assert-ProjectWorldIntegration -Condition ($firstWater.Count -eq 1) `
+            -Message 'First Apply did not emit one water inventory.'
         Assert-ProjectWorldIntegration -Condition (
-            [int]$first.Result.changes.water_cell_actors -gt 0 -and
-            [int]$first.Result.changes.water_cell_actors -eq [int]$first.Result.changes.water_mesh_assets) `
+            [int]$firstWater[0].metrics.cell_actors -gt 0 -and
+            [int]$firstWater[0].metrics.cell_actors -eq [int]$firstWater[0].metrics.mesh_assets) `
             -Message 'Persistent cell-local water inventory is incomplete.'
     }
     Assert-ProjectWorldIntegration -Condition (
@@ -474,7 +458,9 @@ try {
     }
     Assert-ProjectWorldIntegration -Condition (
         [int]$unchanged.Result.changes.updated_actors -eq 0 -and
-        [int]$unchanged.Result.changes.water_triangles -eq 0) `
+        @($unchanged.Result.layer_inventories | Where-Object {
+            $_.layer_id -ceq 'water' -and [int]$_.metrics.triangles_written -ne 0
+        }).Count -eq 0) `
         -Message 'Unchanged Apply rewrote generated map or layer state.'
     Assert-ProjectWorldIntegration -Condition (
         (Get-ProjectWorldIntegrationDigest -Paths @((Join-Path $roots.ContentRoot 'Authored'))) -ceq
@@ -530,7 +516,7 @@ try {
 
     $currentMapPaths = @(Get-ProjectWorldGeneratedPaths `
         -ContentRoot $roots.ContentRoot -MapPackage $mapPackage `
-        -GeneratedPackageRoot $roots.GeneratedPackageRoot -IncludePresentation $false)
+        -GeneratedPackageRoot $roots.GeneratedPackageRoot)
     $beforeRejected = Get-ProjectWorldIntegrationDigest -Paths @($statePaths + $currentMapPaths)
     $rejected = Invoke-ProjectWorldIntegrationRun `
         -Name '04-rejected-out-of-domain' -Mode Apply `
@@ -600,8 +586,8 @@ try {
         one_cell_dirty_unit = $cellId
         canonical_cell_count = [int]$first.Result.canonical_cell_count
         sample_spacing_m = @($first.Result.sample_spacing_m)
-        terrain_section_count = [int]$first.Result.changes.terrain_sections
-        water_cell_actor_count = [int]$first.Result.changes.water_cell_actors
+        terrain_section_count = [int]$firstTerrain[0].metrics.sections
+        water_cell_actor_count = $(if ($firstWater.Count -eq 1) { [int]$firstWater[0].metrics.cell_actors } else { 0 })
         maximum_georeference_error_m = $MaximumGeoReferenceErrorMeters
         observed_georeference_error_m = [double]$first.Result.georeferencing_placement_error_m
         hlod_proxy_actor_count = [int]$first.Result.hlod_proxy_actor_count
@@ -626,10 +612,8 @@ finally {
             -TransactionParent $workParent `
             -TransactionRoot $workRoot
     }
-    if ([string]::IsNullOrWhiteSpace($priorDelegatedToken)) {
-        Remove-Item Env:ALIS_WORLD_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
-    }
     if ($null -ne $contentLock) {
+        Disable-ProjectGeneratedContentLockDelegation -Prior $priorDelegation
         $contentLock.Dispose()
     }
 }

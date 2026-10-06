@@ -8,12 +8,15 @@ param(
     [string]$ReleaseVersion,
     [Parameter(Mandatory = $true)]
     [string]$InputRoot,
+    [string]$SourceCommit,
     [string]$PublicAssetRoot
 )
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
+$PrivateProjectRoot = $ProjectRoot
+$IsolatedWorkspace = $null
 $ReleaseTag = "v$ReleaseVersion"
 $InputRoot = [IO.Path]::GetFullPath($InputRoot)
 $TmpRoot = [IO.Path]::GetFullPath((Join-Path $ProjectRoot "tmp")).TrimEnd('\', '/')
@@ -25,13 +28,13 @@ if (Test-Path -LiteralPath $InputRoot) {
     throw "Automatic release InputRoot must not exist: $InputRoot"
 }
 
-$WorkParent = Join-Path $ProjectRoot "tmp\release\work\$ReleaseTag"
-$WorkRoot = Join-Path $WorkParent ([guid]::NewGuid().ToString("N"))
-$PublicSource = Join-Path $WorkRoot "public-source"
-$Developer = Join-Path $WorkRoot "developer"
-$Reports = Join-Path $WorkRoot "reports"
-$ManifestProjection = Join-Path $WorkRoot "public-world-manifests"
-$CleanCheckout = Join-Path (Join-Path $ProjectRoot "tmp\release\c") `
+$WorkParent = $null
+$WorkRoot = $null
+$PublicSource = $null
+$Developer = $null
+$Reports = $null
+$ManifestProjection = $null
+$CleanCheckout = Join-Path (Join-Path $PrivateProjectRoot "tmp\release\c") `
     ([guid]::NewGuid().ToString("N"))
 $InputsPromoted = $false
 
@@ -75,6 +78,46 @@ function Invoke-PublicReleaseComposition {
 }
 
 try {
+    if (-not $PublicAssetRoot) {
+        if ($SourceCommit -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'Automatic release inputs require an exact 40-digit SourceCommit.'
+        }
+        . (Join-Path $ScriptDir 'isolated_source_workspace.ps1')
+        . (Join-Path $ScriptDir 'release_definition_assets.ps1')
+        $IsolatedWorkspace = New-ProjectIsolatedCommittedWorkspace `
+            -ProjectRoot $PrivateProjectRoot -SourceCommit $SourceCommit `
+            -RequiredPaths @(
+                'Plugins/World/ProjectWorldData/Data/Canonical',
+                'Plugins/World/ProjectWorldData/Data/Profiles',
+                'Plugins/World/ProjectWorldData/Content',
+                'Plugins/World/ProjectWorldMeshTerrain/Content',
+                'Plugins/Resources/ProjectMaterial/Content',
+                'Plugins/Resources/ProjectTexture/Content'
+            )
+        $ProjectRoot = [string]$IsolatedWorkspace.checkout_root
+        $ScriptDir = Join-Path $ProjectRoot 'scripts\ue\package'
+        $DefinitionAssets = @(Get-ProjectReleaseDefinitionAssets -Root $ProjectRoot)
+        . (Join-Path $ScriptDir 'public_world_projection.ps1')
+        $ProducerInputs = @(Get-ProjectWorldPublicProducerInputs -ProjectRoot $ProjectRoot)
+        $RequiredReleaseAssets = @(
+            @($DefinitionAssets | ForEach-Object path) + $ProducerInputs | Sort-Object -Unique)
+        Initialize-ProjectIsolatedCommittedFiles -CheckoutRoot $ProjectRoot `
+            -SourceCommit $SourceCommit -RequiredPaths $RequiredReleaseAssets
+        # Unreal scans every mounted asset package, including assets outside the
+        # public payload. Verify their exact committed LFS bytes before launch.
+        Initialize-ProjectIsolatedCommittedFiles -CheckoutRoot $ProjectRoot `
+            -SourceCommit $SourceCommit -RequiredPaths @('Content', 'Plugins')
+        Assert-ProjectReleaseDefinitionAssets -Root $ProjectRoot -Assets $DefinitionAssets
+        Invoke-Checked "Isolated World projection Editor build" {
+            & (Join-Path $ProjectRoot 'scripts\ue\standalone\build.ps1')
+        }
+    }
+    $WorkParent = Join-Path $ProjectRoot "tmp\release\work\$ReleaseTag"
+    $WorkRoot = Join-Path $WorkParent ([guid]::NewGuid().ToString("N"))
+    $PublicSource = Join-Path $WorkRoot "public-source"
+    $Developer = Join-Path $WorkRoot "developer"
+    $Reports = Join-Path $WorkRoot "reports"
+    $ManifestProjection = Join-Path $WorkRoot "public-world-manifests"
     New-Item -ItemType Directory -Path $Reports -Force | Out-Null
     if ($PublicAssetRoot) {
         $ResolvedAssetRoot = [IO.Path]::GetFullPath($PublicAssetRoot)
@@ -114,8 +157,8 @@ try {
         & $Installer -ProjectRoot $CleanCheckout -ReleaseDir $Developer
     }
 
-    . (Join-Path $ProjectRoot "scripts\config\Resolve-UEConfig.ps1")
-    $PrivateConfig = Resolve-UEConfig -ConfigDir (Join-Path $ProjectRoot "scripts\config")
+    . (Join-Path $PrivateProjectRoot "scripts\config\Resolve-UEConfig.ps1")
+    $PrivateConfig = Resolve-UEConfig -ConfigDir (Join-Path $PrivateProjectRoot "scripts\config")
     $LocalConfig = Join-Path $CleanCheckout "scripts\config\ue_path.local.conf"
     "UE_PATH=$($PrivateConfig.UE_PATH.Replace('\', '/'))" | Set-Content -LiteralPath $LocalConfig -Encoding Ascii
     Invoke-Checked "Public developer build" {
@@ -153,9 +196,19 @@ try {
         throw "Public verification checkout did not remain clean."
     }
 
+    if ($IsolatedWorkspace) {
+        [ordered]@{
+            schema = 'project-release-input-source:v1'
+            source_commit = [string]$IsolatedWorkspace.source_commit
+            projection_profiles = @('kazan_territory_public_v1', 'manhattan_showcase_public_v1')
+            result = 'accepted'
+        } | ConvertTo-Json -Depth 4 | Set-Content `
+            -LiteralPath (Join-Path $Reports 'source-identity.json') -Encoding Ascii
+    }
+
     Remove-Item -LiteralPath $ManifestProjection -Recurse -Force
     New-Item -ItemType Directory -Path (Split-Path -Parent $InputRoot) -Force | Out-Null
-    Move-Item -LiteralPath $WorkRoot -Destination $InputRoot
+    [IO.Directory]::Move($WorkRoot, $InputRoot)
     $InputsPromoted = $true
     Write-Host "[OK] Release inputs prepared automatically: $InputRoot" -ForegroundColor Green
 }
@@ -163,11 +216,15 @@ finally {
     if (Test-Path -LiteralPath $CleanCheckout) {
         Remove-Item -LiteralPath $CleanCheckout -Recurse -Force
     }
-    if (-not $InputsPromoted -and (Test-Path -LiteralPath $WorkRoot)) {
+    if (-not $InputsPromoted -and $WorkRoot -and (Test-Path -LiteralPath $WorkRoot)) {
         Remove-Item -LiteralPath $WorkRoot -Recurse -Force
     }
-    if ((Test-Path -LiteralPath $WorkParent) -and
+    if ($WorkParent -and (Test-Path -LiteralPath $WorkParent) -and
         @(Get-ChildItem -LiteralPath $WorkParent -Force).Count -eq 0) {
         Remove-Item -LiteralPath $WorkParent -Force
+    }
+    if ($IsolatedWorkspace) {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $PrivateProjectRoot `
+            -WorkspaceRoot ([string]$IsolatedWorkspace.workspace_root)
     }
 }

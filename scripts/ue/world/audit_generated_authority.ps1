@@ -26,6 +26,7 @@ $ErrorActionPreference = 'Stop'
 # -File, so resolve script-relative paths here (same pattern as the realize
 # wrapper).
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'generated_content_transaction.ps1')
 . (Join-Path $scriptDirectory 'generated_manifest.ps1')
 
 if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
@@ -35,14 +36,9 @@ $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
 $worldDataRoots = Resolve-ProjectWorldDataRoots -ProjectRoot $ProjectRoot -PluginName $WorldDataPlugin
 if (-not $ManifestRoot) { $ManifestRoot = $worldDataRoots.ManifestRoot }
 if (-not $GeneratedRoots -or $GeneratedRoots.Count -eq 0) {
-    # Must match every root the transaction helper treats as generated-owned
-    # (Get-ProjectWorldGeneratedPaths), or the unowned scan silently misses a
-    # whole external-package family.
-    $GeneratedRoots = @(
-        (Join-Path $worldDataRoots.ContentRoot 'Generated'),
-        (Join-Path $worldDataRoots.ContentRoot '__ExternalActors__\Generated'),
-        (Join-Path $worldDataRoots.ContentRoot '__ExternalObjects__\Generated')
-    )
+    # The transaction helper owns the generated roots; a root missing here
+    # would let the unowned scan skip a whole external-package family.
+    $GeneratedRoots = Get-ProjectWorldGeneratedRoots -ContentRoot $worldDataRoots.ContentRoot
 }
 if (-not $EvidencePath) {
     $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
@@ -157,13 +153,21 @@ try {
             if ($consumerProblems.Count -eq 0) { 'Every consumer reference resolves to an active scope.' }
             else { Format-AuditProblems -Problems @($consumerProblems) })
 
+        $producerCatalog = Get-ProjectWorldProducerCatalog -ProjectRoot $ProjectRoot
+        $engineIdentity = Get-ProjectWorldEngineBuildIdentity -ProjectRoot $ProjectRoot
         $staleFingerprints = [System.Collections.Generic.List[string]]::new()
         foreach ($scopeId in $activeScopeIds) {
             $manifest = $active.Manifests[$scopeId]
             $producerId = Get-ProjectWorldManifestProducerId -Manifest $manifest
+            if (-not $producerCatalog.Producers.Contains($producerId)) {
+                $currentFingerprints[$producerId] = $null
+                $staleFingerprints.Add("scope $scopeId names $producerId, which no current producer descriptor declares")
+                continue
+            }
             if (-not $currentFingerprints.Contains($producerId)) {
                 $currentFingerprints[$producerId] = Get-ProjectWorldGeneratorFingerprint `
-                    -ProjectRoot $ProjectRoot -ProducerId $producerId
+                    -ProjectRoot $ProjectRoot -ProducerId $producerId `
+                    -Catalog $producerCatalog -EngineIdentity $engineIdentity
             }
             if ([string]$manifest.generator_fingerprint -ne [string]$currentFingerprints[$producerId]) {
                 $staleFingerprints.Add("scope $scopeId was accepted by a different $producerId producer")
@@ -212,7 +216,7 @@ try {
             }
             $manifestEntry = $active.Record.scopes | Where-Object { $_.scope_id -eq $scopeId }
             $producerId = Get-ProjectWorldManifestProducerId -Manifest $manifest
-            $expectedFingerprint = [string]$currentFingerprints[$producerId]
+            $expectedFingerprint = $currentFingerprints[$producerId]
             $scopeSummaries += [ordered]@{
                 scope_id = $scopeId
                 manifest_path = [string]$manifestEntry.manifest_path
@@ -230,7 +234,8 @@ try {
                 producer_id = $producerId
                 generator_fingerprint = [string]$manifest.generator_fingerprint
                 generator_fingerprint_expected = $expectedFingerprint
-                generator_fingerprint_is_current = ([string]$manifest.generator_fingerprint -eq $expectedFingerprint)
+                generator_fingerprint_is_current = ($null -ne $expectedFingerprint -and
+                    [string]$manifest.generator_fingerprint -eq [string]$expectedFingerprint)
             }
         }
         Add-AuditCheck 'artifacts_intact' ($artifactProblems.Count -eq 0) $(

@@ -49,16 +49,19 @@ public:
 		APlayerController& InController,
 		ACharacter& InCharacter,
 		const TArray<FVector>& InWaypoints,
-		FString& OutError);
+		FString& OutError,
+		bool bPreciseCenterReturn = false);
 	EProjectWorldPlayableTourResult Tick(float DeltaSeconds, FString& OutError);
 	void ReleaseInputs();
 	void AppendReceiptFields(FJsonObject& Receipt) const;
 
 	const FProjectWorldPlayableTourEvidence& GetEvidence() const { return Evidence; }
+	double GetFinalCenterArrivalRadiusCentimeters() const { return FinalCenterArrivalRadiusCentimeters; }
 	bool HasReachedEdge() const { return bReachedEdge; }
 	bool HasReturnedToCenter() const { return bReturnedToCenter; }
 
 private:
+	friend class FProjectWorldPlayableTourOverhangRecoveryTest;
 	enum class EPhase : uint8
 	{
 		OpeningMenu,
@@ -79,6 +82,7 @@ private:
 	EProjectWorldPlayableTourResult TickClosingMenu(FString& OutError);
 	EProjectWorldPlayableTourResult TickAscending(FString& OutError);
 	EProjectWorldPlayableTourResult TickTraversing(float DeltaSeconds, FString& OutError);
+	EProjectWorldPlayableTourResult TickObstacleClearance(bool bMadeForwardProgress, FString& OutError);
 	EProjectWorldPlayableTourResult TickDescending(FString& OutError);
 	EProjectWorldPlayableTourResult TickSliding(FString& OutError);
 	EProjectWorldPlayableTourResult Reject(const FString& Error, FString& OutError);
@@ -97,11 +101,15 @@ private:
 	double ConsecutiveStallSeconds = 0.0;
 	double NextDiagnosticSeconds = 0.0;
 	double ObstacleClearanceStartedZ = 0.0;
+	double OverhangRecoveryStartedSeconds = 0.0;
+	double OverhangClearanceZ = 0.0;
 	double StableCollisionSeconds = 0.0;
 	double PriorYawDegrees = 0.0;
+	double FinalCenterArrivalRadiusCentimeters = 0.0;
 	int32 WaypointIndex = 0;
 	int32 EdgeWaypointIndex = INDEX_NONE;
 	bool bClearingObstacle = false;
+	bool bBackingFromOverhang = false;
 	bool bMenuInputSent = false;
 	bool bReachedEdge = false;
 	bool bReturnedToCenter = false;

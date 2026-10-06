@@ -32,7 +32,6 @@ Describe 'Packaged World performance aggregation' {
 
 		Import-RunnerFunction -Name 'Assert-PlayableTour'
 		Import-RunnerFunction -Name 'Measure-PlayableTourHostLoad'
-		Import-RunnerFunction -Name 'Wait-PlayableTourHostIdle'
 
         function Write-TestSamples {
             param([string]$Path, [int]$SlowCount = 0, [double]$SlowFrame = 31.0)
@@ -53,6 +52,7 @@ Describe 'Packaged World performance aggregation' {
             $samplePath = Join-Path $root 'performance.samples.csv'
             $richCsvPath = Join-Path $root 'performance.csv'
             $receiptPath = Join-Path $root 'performance.json'
+            $correctnessPath = Join-Path $root 'product-route.json'
             Write-TestSamples -Path $samplePath -SlowCount $SlowCount -SlowFrame $SlowFrame
             [IO.File]::WriteAllText($richCsvPath, 'diagnostic')
             $samples = @(Import-ProjectWorldPerformanceSamples -Path $samplePath -ExpectedCount 300)
@@ -65,10 +65,14 @@ Describe 'Packaged World performance aggregation' {
             $receipt = [ordered]@{
                 operation_id = "test-run-$Index"
                 status = if ($accepted) { 'accepted' } else { 'rejected' }
+                map_package = '/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase'
+                runtime_profile = 'manhattan_showcase_512_1536_v1'
                 runtime_profile_sha256 = $script:runtimeHash
                 executable = $script:executable
                 build_configuration = 'Development'
                 correctness_status = 'accepted'
+                correctness_receipt = $correctnessPath
+                gameplay_interaction_required = $false
                 machine_profile_id = 'rtx4070_primary'
                 gpu_adapter = 'NVIDIA GeForce RTX 4070'
                 rhi = 'D3D12'
@@ -107,6 +111,7 @@ Describe 'Packaged World performance aggregation' {
                 ExpectedOperationId = "test-run-$Index"
                 ExpectedProcessExitCode = 0
                 ReceiptPath = $receiptPath
+                CorrectnessPath = $correctnessPath
                 SamplePath = $samplePath
                 RichCsvPath = $richCsvPath
             }
@@ -117,8 +122,25 @@ Describe 'Packaged World performance aggregation' {
                 [object[]]$Children,
                 [string]$ExecutableHash = $script:executableHash,
                 [double]$HostCpuLoadPercent = 0.0,
-                [double]$HostGpuLoadPercent = 0.0
+                [double]$HostGpuLoadPercent = 0.0,
+                [object[]]$HostLoadWindows,
+                [string]$ExpectedMapPackage,
+                [string]$ExpectedRuntimeProfile,
+                [switch]$RequireCorrectnessBinding,
+                [switch]$RequireNonInteractivePolicy
             )
+            if (-not $PSBoundParameters.ContainsKey('HostLoadWindows')) {
+                $HostLoadWindows = @(1..3 | ForEach-Object {
+                    $run = $_
+                    @('before', 'after') | ForEach-Object {
+                        [pscustomobject]@{
+                            phase = ('run-{0:D2}-{1}' -f $run, $_)
+                            cpu_percent = $HostCpuLoadPercent
+                            gpu_percent = $HostGpuLoadPercent
+                        }
+                    }
+                })
+            }
             return New-ProjectWorldPerformanceAggregate -Children $Children `
                 -OperationId 'test-operation' -SourceRevision $script:revision `
                 -SourceStateSha256 $script:sourceHash `
@@ -127,8 +149,11 @@ Describe 'Packaged World performance aggregation' {
                 -ExpectedExecutableSha256 $ExecutableHash `
                 -ExpectedPackage $script:package `
                 -ExpectedPackageSha256 $script:packageHash `
-                -HostCpuLoadPercent $HostCpuLoadPercent `
-                -HostGpuLoadPercent $HostGpuLoadPercent
+                -HostLoadWindows $HostLoadWindows `
+                -ExpectedMapPackage $ExpectedMapPackage `
+                -ExpectedRuntimeProfile $ExpectedRuntimeProfile `
+                -RequireCorrectnessBinding:$RequireCorrectnessBinding `
+                -RequireNonInteractivePolicy:$RequireNonInteractivePolicy
         }
     }
 
@@ -171,24 +196,24 @@ Describe 'Packaged World performance aggregation' {
         @($aggregate.children).Count | Should -Be 3
     }
 
-    It 'records host load without relaxing the fixed pooled budget' {
+    It 'accepts a modestly slow aggregate under sustained bounded host load' {
         $children = @(1..3 | ForEach-Object {
-                New-TestChild -Index $_ -SlowCount 300 -SlowFrame 18.0
+                New-TestChild -Index $_ -SlowCount 300 -SlowFrame 17.5
             })
         $aggregate = Invoke-TestAggregate -Children $children `
             -HostCpuLoadPercent 35 -HostGpuLoadPercent 5
-        $aggregate.status | Should -BeExactly 'rejected'
+        $aggregate.status | Should -BeExactly 'accepted'
         $aggregate.base_frame_p95_budget_ms | Should -Be 16.67
         $aggregate.host_cpu_load_percent | Should -Be 35.0
         $aggregate.host_gpu_load_percent | Should -Be 5.0
-        $aggregate.host_load_allowance_percent | Should -Be 0.0
-        $aggregate.frame_p95_budget_ms | Should -Be 16.67
-        $aggregate.frame_p95_ms | Should -Be 18.0
+        $aggregate.host_load_allowance_percent | Should -Be 10.0
+        $aggregate.frame_p95_budget_ms | Should -Be 18.337
+        $aggregate.frame_p95_ms | Should -Be 17.5
         { Invoke-TestAggregate -Children $children -HostCpuLoadPercent 101 } |
             Should -Throw
     }
 
-    It 'keeps the fixed product budget at an idle host load' {
+    It 'keeps the base budget when host load does not exceed the baseline' {
         $children = @(1..3 | ForEach-Object {
                 New-TestChild -Index $_ -SlowCount 300 -SlowFrame 17.0
             })
@@ -199,28 +224,38 @@ Describe 'Packaged World performance aggregation' {
         $aggregate.frame_p95_budget_ms | Should -Be 16.67
     }
 
-	It 'waits for an idle host without changing the product budget' {
-		$script:hostLoads = [Collections.Queue]::new()
-		$script:hostLoads.Enqueue([pscustomobject]@{ cpu_percent = 31.0; gpu_percent = 8.0 })
-		$script:hostLoads.Enqueue([pscustomobject]@{ cpu_percent = 18.0; gpu_percent = 7.0 })
-		Mock Measure-PlayableTourHostLoad { return $script:hostLoads.Dequeue() }
-		Mock Start-Sleep {}
+    It 'samples the same host CPU and GPU load for both territory campaigns' {
+        Mock Get-CimInstance { [pscustomobject]@{ PercentProcessorTime = 34.0 } }
+        Mock nvidia-smi { $global:LASTEXITCODE = 0; '7'; '12' }
+        Mock Start-Sleep {}
+        $load = Measure-ProjectWorldPerformanceHostLoad
+        $load.cpu_percent | Should -Be 34.0
+        $load.gpu_percent | Should -Be 12.0
+        Should -Invoke Get-CimInstance -Times 3
+        Should -Invoke nvidia-smi -Times 3
+    }
 
-		$load = Wait-PlayableTourHostIdle -MaxWaitSeconds 60 -PollSeconds 1
-
-		$load.cpu_percent | Should -Be 18.0
-		$load.gpu_percent | Should -Be 7.0
-		$script:hostLoads.Count | Should -Be 0
-	}
-
-	It 'fails closed when the release host stays busy' {
-		Mock Measure-PlayableTourHostLoad {
-			return [pscustomobject]@{ cpu_percent = 31.0; gpu_percent = 8.0 }
-		}
-		Mock Start-Sleep {}
-
-		{ Wait-PlayableTourHostIdle -MaxWaitSeconds 0 -PollSeconds 1 } |
-			Should -Throw '*remained busy*'
+	It 'uses the least-loaded window and rejects incomplete or invalid load evidence' {
+		$children = @(1..3 | ForEach-Object {
+				New-TestChild -Index $_ -SlowCount 300 -SlowFrame 17.5
+			})
+		$windows = @(1..3 | ForEach-Object {
+			$run = $_
+			@('before', 'after') | ForEach-Object {
+				[pscustomobject]@{ phase = ('run-{0:D2}-{1}' -f $run, $_);
+					cpu_percent = 35.0; gpu_percent = 5.0 }
+			}
+		})
+		$windows[3].cpu_percent = 21.0
+		$aggregate = Invoke-TestAggregate -Children $children -HostLoadWindows $windows
+		$aggregate.host_load_percent | Should -Be 21.0
+		$aggregate.host_load_allowance_percent | Should -Be 1.0
+		$aggregate.status | Should -BeExactly 'rejected'
+		{ Invoke-TestAggregate -Children $children -HostLoadWindows @($windows[0..4]) } |
+			Should -Throw
+		$windows[3].cpu_percent = [double]::NaN
+		{ Invoke-TestAggregate -Children $children -HostLoadWindows $windows } |
+			Should -Throw
 	}
 
     It 'keeps every slow frame and is invariant to child order' {
@@ -270,6 +305,31 @@ Describe 'Packaged World performance aggregation' {
         { Invoke-TestAggregate -Children $children } | Should -Throw
     }
 
+    It 'binds Manhattan map, runtime, correctness receipt, and non-interactive policy' {
+        $children = @(1..3 | ForEach-Object { New-TestChild -Index $_ })
+        $options = @{
+            Children = $children
+            ExpectedMapPackage = '/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase'
+            ExpectedRuntimeProfile = 'manhattan_showcase_512_1536_v1'
+            RequireCorrectnessBinding = $true
+            RequireNonInteractivePolicy = $true
+        }
+        (Invoke-TestAggregate @options).status | Should -BeExactly 'accepted'
+        foreach ($field in @('map_package', 'runtime_profile', 'correctness_receipt',
+                'gameplay_interaction_required')) {
+            $receipt = Get-Content -LiteralPath $children[0].ReceiptPath -Raw | ConvertFrom-Json
+            $original = $receipt.PSObject.Properties[$field].Value
+            $receipt.PSObject.Properties[$field].Value = if ($field -ceq
+                'gameplay_interaction_required') { $true } else { 'wrong' }
+            $receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $children[0].ReceiptPath `
+                -Encoding UTF8
+            { Invoke-TestAggregate @options } | Should -Throw
+            $receipt.PSObject.Properties[$field].Value = $original
+            $receipt | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $children[0].ReceiptPath `
+                -Encoding UTF8
+        }
+    }
+
     It 'rejects non-performance child failures rather than pooling them' {
         $children = @(1..3 | ForEach-Object { New-TestChild -Index $_ })
         $receipt = Get-Content -LiteralPath $children[0].ReceiptPath -Raw | ConvertFrom-Json
@@ -284,10 +344,13 @@ Describe 'Packaged World performance aggregation' {
 		$runner = Get-Content -LiteralPath $script:runner -Raw
         $runner | Should -Match '\$developmentIndex -le 3'
         $runner | Should -Match 'New-ProjectWorldPerformanceAggregate'
-        $runner | Should -Match 'ProjectWorldPerformanceSamples'
+        $arguments = Get-Content -LiteralPath (Join-Path (Split-Path $script:runner) 'project_world_product_route_arguments.ps1') -Raw
+        $arguments | Should -Match 'ProjectWorldPerformanceSamples'
         $runner | Should -Match 'Development pooled performance rejected:'
         $runner | Should -Not -Match 'nvidia-smi\s+--id=0'
-        $runner | Should -Match 'Host load acceptance precondition'
+        $runner | Should -Match '\$beforeLoad = Measure-PlayableTourHostLoad'
+        $runner | Should -Match '\$afterLoad = Measure-PlayableTourHostLoad'
+        $runner | Should -Match '-HostLoadWindows @\(\$hostLoadWindows\)'
     }
 
     It 'hashes immutable package payload while excluding owned runtime state' {

@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../../tools/World/SourceIngestion/contracts/source-profile.schema.json",
+  "schema_version": 1,
+  "profile_id": "synthetic_territory_twin",
+  "network_budget_bytes": 0,
+  "area": {
+    "area_id": "synthetic_territory_twin",
+    "label": "Synthetic territory twin",
+    "bbox": [-0.1, -0.1, 1.4, 0.7],
+    "axis_order": "longitude_latitude",
+    "crs": "EPSG:4326"
+  },
+  "sources": [
+    {
+      "source_id": "synthetic_territory_twin_v1",
+      "adapter": "synthetic_json",
+      "provider": "ALIS synthetic fixture",
+      "dataset": "synthetic-territory-twin",
+      "release": "1",
+      "local_path": "../../Fixtures/Provider/synthetic_territory_twin/synthetic_provider.json",
+      "file_name": "synthetic_provider.json",
+      "expected_bytes": 4632,
+      "hashes": {"sha256": "278c7d95e13240c883eeb83ec589f7bebaf6b28ebed5a59f952a94b81656468a"},
+      "coverage_bbox": [-0.1, -0.1, 1.4, 0.7],
+      "crs": {"horizontal": "EPSG:4326", "axis_order": "longitude_latitude", "vertical": "EPSG:3855", "vertical_unit": "metre"},
+      "accuracy": {"horizontal_accuracy_m": 0.0, "vertical_accuracy_m": 0.0, "confidence": "fixture_exact"},
+      "license": {"id": "CC0-1.0", "attribution": "ALIS"},
+      "admission": {
+        "policy_result": "approved",
+        "commercial_transformation": true,
+        "generated_artifact_publication": "approved",
+        "acquisition": "repository_fixture"
+      }
+    }
+  ]
+}

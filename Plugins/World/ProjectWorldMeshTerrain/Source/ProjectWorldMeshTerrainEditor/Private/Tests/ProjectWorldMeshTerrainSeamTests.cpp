@@ -10,11 +10,10 @@
 #include "Materials/MaterialInterface.h"
 #include "Modifiers/MeshPartitionMeshProvider.h"
 #include "ProjectWorldMeshTerrainProducer.h"
-#include "ProjectWorldMeshTerrainLayoutReceipt.h"
 #include "ProjectWorldMeshTerrainAuditCommandlet.h"
 #include "ProjectWorldMeshTerrainTransformer.h"
 #include "ProjectWorldTerrainRuntimeRole.h"
-#include "ProjectWorldTerrainProducerRegistry.h"
+#include "ProjectWorldLayerProducerRegistry.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -64,26 +63,65 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FProjectWorldMeshTerrainBaseIdentityTest::RunTest(const FString& Parameters)
 {
 	const FString Input(TEXT("terrain-hash"));
-	const FString Engine(TEXT("5.8"));
+	const FString CellId(TEXT("gridtwin:x0:y0"));
 	const FString Material(TEXT("/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default"));
-	const FString AdapterCompiler =
-		FProjectWorldMeshTerrainLayoutReceiptContract::GetAdapterCompilerFingerprint();
-	const TArray<FName> CurrentTags = {
-		FName(*(TEXT("ProjectWorld.MeshTerrain.Input=") + Input)),
-		FName(*(TEXT("ProjectWorld.MeshTerrain.Engine=") + Engine)),
-		FName(*(TEXT("ProjectWorld.MeshTerrain.Material=") + Material)),
-		FName(*(TEXT("ProjectWorld.MeshTerrain.AdapterCompiler=") + AdapterCompiler))};
+	const FString Fingerprint = FString::ChrN(64, TEXT('a'));
+	const TArray<FName> CurrentTags = ProjectWorldMeshTerrainProducer::BuildBaseIdentityTags(
+		CellId, Input, Material, Fingerprint);
+	TestEqual(TEXT("Base identity has the five owned tags."), CurrentTags.Num(), 5);
 	TestTrue(TEXT("An exact base identity is reusable"),
 		ProjectWorldMeshTerrainProducer::MatchesBaseIdentity(
-			CurrentTags, Input, Engine, Material, AdapterCompiler));
+			CurrentTags, CellId, Input, Material, Fingerprint));
 	TestFalse(TEXT("A stale material path is not reusable"),
 		ProjectWorldMeshTerrainProducer::MatchesBaseIdentity(
-			CurrentTags, Input, Engine,
-			TEXT("/ProjectMaterial/Surfaces/Terrain/MI_StaleTerrain.MI_StaleTerrain"), AdapterCompiler));
-	TestFalse(TEXT("A stale adapter compiler is not reusable"),
+			CurrentTags, CellId, Input,
+			TEXT("/ProjectMaterial/Surfaces/Terrain/MI_StaleTerrain.MI_StaleTerrain"), Fingerprint));
+	TestFalse(TEXT("A different producer fingerprint is not reusable"),
 		ProjectWorldMeshTerrainProducer::MatchesBaseIdentity(
-			CurrentTags, Input, Engine, Material,
+			CurrentTags, CellId, Input, Material,
 			TEXT("0000000000000000000000000000000000000000000000000000000000000000")));
+	TArray<FName> LegacyTags = CurrentTags;
+	LegacyTags.Remove(FName(*(TEXT("ProjectWorld.MeshTerrain.Producer=") + Fingerprint)));
+	LegacyTags.Add(FName(TEXT("ProjectWorld.MeshTerrain.Engine=5.8")));
+	LegacyTags.Add(FName(TEXT("ProjectWorld.MeshTerrain.AdapterCompiler=stale")));
+	TestFalse(TEXT("Legacy engine and compiler tags cannot pass reuse."),
+		ProjectWorldMeshTerrainProducer::MatchesBaseIdentity(
+			LegacyTags, CellId, Input, Material, Fingerprint));
+	TArray<FName> ExtraTags = CurrentTags;
+	ExtraTags.Add(FName(TEXT("ProjectWorld.MeshTerrain.Extra=unknown")));
+	TestFalse(TEXT("An extra identity tag cannot pass reuse."),
+		ProjectWorldMeshTerrainProducer::MatchesBaseIdentity(
+			ExtraTags, CellId, Input, Material, Fingerprint));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldMeshTerrainProducerIdentityTagsTest,
+	"Project.World.Realization.MeshTerrain.ProducerIdentityTags",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FProjectWorldMeshTerrainProducerIdentityTagsTest::RunTest(const FString& Parameters)
+{
+	const FString Fingerprint = FString::ChrN(64, TEXT('a'));
+	const TArray<FName> Tags = ProjectWorldMeshTerrainProducer::BuildBaseIdentityTags(
+		TEXT("gridtwin:x0:y0"), TEXT("input"), TEXT("material"), Fingerprint);
+	const TSet<FName> Expected = {
+		FName(TEXT("ProjectWorld.MeshTerrain.Authoring.v1")),
+		FName(TEXT("ProjectWorld.MeshTerrain.Cell=gridtwin:x0:y0")),
+		FName(TEXT("ProjectWorld.MeshTerrain.Input=input")),
+		FName(TEXT("ProjectWorld.MeshTerrain.Material=material")),
+		FName(*(TEXT("ProjectWorld.MeshTerrain.Producer=") + Fingerprint))};
+	TestEqual(TEXT("Exactly five Mesh Terrain identity tags are emitted"), Tags.Num(), Expected.Num());
+	for (const FName Tag : Tags)
+	{
+		TestTrue(*FString::Printf(TEXT("Identity tag %s is owned"), *Tag.ToString()), Expected.Contains(Tag));
+	}
+	TArray<FName> Legacy = Tags;
+	Legacy.Remove(FName(*(TEXT("ProjectWorld.MeshTerrain.Producer=") + Fingerprint)));
+	Legacy.Add(FName(TEXT("ProjectWorld.MeshTerrain.AdapterCompiler=stale")));
+	TestFalse(TEXT("The old compiler tag cannot substitute for producer identity"),
+		ProjectWorldMeshTerrainProducer::MatchesBaseIdentity(
+			Legacy, TEXT("gridtwin:x0:y0"), TEXT("input"), TEXT("material"), Fingerprint));
 	return true;
 }
 
@@ -442,18 +480,21 @@ bool FProjectWorldMeshTerrainProducerSelectionTest::RunTest(const FString& Param
 		"MPD_ProjectTerrain_Shared_v1\",\"surface_contract_id\":\"terrain_surface_semantics\","
 		"\"surface_contract_version\":1}");
 	FString Error;
-	TestTrue(TEXT("Mesh Terrain tuple is registered"),
-		ProjectWorldTerrainProducerRegistry::IsRegistered(TEXT("project_mesh_terrain"), 1));
+	TestNotNull(TEXT("Mesh Terrain tuple is registered"),
+		ProjectWorldLayerProducerRegistry::Find(TEXT("project_mesh_terrain"), 1, Error));
+	FProjectWorldRealizationLayer Layer;
+	Layer.GeneratorId = TEXT("project_mesh_terrain");
+	Layer.GeneratorVersion = 1;
+	Layer.CanonicalSelectors = {TEXT("terrain")};
+	Layer.SpatialOwnership = TEXT("compiled_sections_from_canonical_cells");
+	Layer.DirtyGranularity = EProjectWorldDirtyGranularity::CanonicalCell;
+	Layer.RuntimeMapping = TEXT("world_partition_spatial");
+	Layer.NormalizedSettings = Settings;
 	TestTrue(TEXT("Generator ID selects and validates the Mesh Terrain producer"),
-		ProjectWorldTerrainProducerRegistry::ValidateLayer(
-			TEXT("project_mesh_terrain"), 1, {TEXT("terrain")},
-			TEXT("compiled_sections_from_canonical_cells"), TEXT("world_partition_spatial"),
-			0, Settings, Error));
+		ProjectWorldLayerProducerRegistry::ValidateLayer(Layer, Error));
+	Layer.GeneratorVersion = 2;
 	TestFalse(TEXT("Unknown generator version is rejected"),
-		ProjectWorldTerrainProducerRegistry::ValidateLayer(
-			TEXT("project_mesh_terrain"), 2, {TEXT("terrain")},
-			TEXT("compiled_sections_from_canonical_cells"), TEXT("world_partition_spatial"),
-			0, Settings, Error));
+		ProjectWorldLayerProducerRegistry::ValidateLayer(Layer, Error));
 	return true;
 }
 

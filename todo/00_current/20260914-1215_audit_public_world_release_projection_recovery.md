@@ -1,9 +1,9 @@
 # Make Public World Release Projection Isolated and Recoverable
 
-Status: CURRENT - investigation complete; independent R1 review required before implementation
+Status: CURRENT - focused isolation, pinned-runtime and Manhattan corrections committed; frozen unsigned projection proof pending the admission slice's operator commit and final release gate
 Priority: Required before 3.0.0 release inputs are generated
 Created: 2026-09-14 12:15 Europe/Moscow
-Updated: 2026-09-23 Europe/Moscow
+Updated: 2026-10-06 Europe/Moscow
 
 ## Goal
 
@@ -13,18 +13,40 @@ only its isolated, release-owned checkout. Do not reopen or change the accepted 
 
 ## Current state and next steps
 
-The live-tree failure mode is verified. The smallest safe design is now selected: run the projection
-inside a detached worktree at the frozen release source commit. The existing child World transaction
-continues to protect mutations inside that disposable checkout; the live generated tree is never a
-transaction participant. No production code has been changed.
+The live-tree failure mode is verified. Release input preparation now creates a
+detached worktree at the frozen source commit. The existing child World
+transaction and projection snapshot operate inside that disposable checkout;
+the live generated tree is not a transaction participant. Focused helper,
+projection, and release-entrypoint tests pass. The implementation is in commit
+`bc5b3c0926a0583503419a5876a1655510a119f2`. The first unsigned release
+run stopped in the Kazan playable-tour Candidate prerequisite before release
+input preparation. The CSV producer is identified and its project-wide fix passed
+one exact packaged Development repro on 2026-10-05. Its committed version then
+passed the full player Candidate, but the isolated projection stopped at an
+obsolete helper parameter. Its committed fix and the host-load cap passed the
+frozen Candidate at `09b7b6532`. The next projection attempt refused an omitted
+pinned runtime profile. Commit `76ed07763` forwarded a runtime only after changing
+both public profiles to `none`; that invalidated the intended public map contract.
+Commit `fa645902cf7d1c7572d6117b651583eabf178c7f` restores the pinned IDs. A real isolated Kazan run
+then exposed an unconditional vegetation-instancing acceptance check even though
+the public profile deliberately omits vegetation. The narrow runtime-owner fix
+passed a focused isolated Kazan and Manhattan projection with both pinned runtime
+hashes and byte-for-byte restoration. This was an uncommitted overlay at `76ed07763`,
+not a frozen release. The direct instancing-policy guard was committed at
+`f45a9c01dee51cbc2d868f0236c207579adb1480`. The Manhattan same-package performance harness
+and evidence envelope are committed through `c3c006cf12757bf0040ba7e047d1f9476f138e30`.
+Independent focused R2 returned PASS at that clean HEAD. The frozen unsigned route at
+`f4cce29f3b41840790355c18eb5c5fd72cd8a806` stopped in Manhattan performance before the public
+projection. The [release router](00_release_3.0.0.md) owns that failure and the focused correction;
+this task's P4 remains unverified.
 
 | Step | Runs | Verified by | Starts when |
 |---|---|---|---|
-| R1 independent review | fresh non-author `architect` reviewer | findings applied here and verdict recorded | now |
-| P0 red fixtures | `implement-approved-change` | interruption, concurrency, LFS, and source-identity tests fail for the intended reason | operator approval |
-| P1 isolated projection | implementer with `world-engineering` | invariants 1-10 and focused package tests | P0 red |
-| P2 release integration | implementer | one unsigned 3.0.0 dry preparation from one frozen commit | P1 green |
-| P3 docs and diff review | implementer, independent reviewer | ASCII/link checks and `architect` diff verdict | P2 green |
+| R1 independent review | fresh non-author `architect` reviewer | PATCH findings applied in code and this plan | done |
+| P0 focused fixtures | implementer | committed checkout, corrupt LFS, concurrent roots, kill recovery, cleanup mismatch, source refusal | focused tests green; red-before-code was not recorded |
+| P1 isolated projection | implementer with `world-engineering` | exact commit route and no live World mutation | focused two-city overlay PASS; frozen release proof pending |
+| P2 release integration | implementer | one unsigned 3.0.0 dry preparation from one frozen commit | Candidate accepted; corrected public projection and frozen rerun remain |
+| P3 docs and diff review | implementer, independent reviewer | SOT updates, ASCII/link checks, corrected R2 PASS | done for focused scope; R5 proof pending |
 
 ## Authority register
 
@@ -121,7 +143,7 @@ must not borrow the operator's working tree as temporary public authority.
 
 1. R5 supplies one exact `SourceCommit` to release-input preparation. Resolve it with
    `git rev-parse --verify <commit>^{commit}` and record it in the preparation receipt.
-2. Create one detached linked worktree under `tmp/release/projection/<run-id>/repo` at that commit.
+2. Use the existing isolated-source workspace owner to create one detached linked worktree under `tmp/release/projection/<run-id>/repo` at that commit.
    Guard the resolved path under the project `tmp/` root before any removal.
 3. Fetch the required LFS objects for that commit, materialize them in the isolated worktree, and
    fail closed if a required canonical bundle or World asset is absent, an LFS pointer, or has a
@@ -129,9 +151,9 @@ must not borrow the operator's working tree as temporary public authority.
 4. Invoke the existing release-input composition from the isolated repository root. The existing
    child transaction and public-source verification run unchanged inside that disposable tree.
 5. Promote only the accepted release-input directory back to the caller's requested `InputRoot`.
-   Every report records `SourceCommit`, isolated root, projection profiles, and result.
-6. On success or caught failure, remove the exact linked worktree with normal `git worktree remove`
-   after proving it is the recorded detached checkout. On interruption, the next run reports and
+   The promoted source-identity receipt records `SourceCommit`, projection profiles, and result.
+6. On success or caught failure, remove the exact linked worktree with `git worktree remove --force`
+   after proving it is the recorded detached checkout. On interruption, the next run
    removes only stale release-owned worktrees whose run receipt, registered worktree path, and HEAD
    all agree. A mismatch fails closed for operator inspection.
 
@@ -142,10 +164,12 @@ input. Testing the complete route therefore happens only after the intended sour
 
 - **Owner:** release orchestration owns its disposable checkout; World retains one normal mutation
   owner inside it.
-- **Added:** exact source-commit input, one isolated-worktree helper, LFS materialization checks, and
-  a small run receipt for safe stale-checkout cleanup.
-- **Removed:** live snapshot/delete/restore, its digest as a recovery mechanism, and any need to
-  extend the World journal for a release-only outer transaction.
+- **Added:** exact source-commit input, a commit-only path in the existing
+  isolated-worktree owner, LFS materialization checks, and an owner receipt for
+  safe stale-checkout cleanup.
+- **Removed:** live-tree participation in the projection snapshot/delete/restore,
+  broad release scratch deletion, and any need to extend the World journal for
+  a release-only outer transaction.
 - **Capability given up:** preparing official release inputs from uncommitted local changes. The
   frozen-source release contract already forbids relying on that state.
 
@@ -163,11 +187,13 @@ input. Testing the complete route therefore happens only after the intended sour
 
 ## Required invariants
 
-1. The operator's working tree and index are never written by projection, including on interruption.
+1. The operator's working-tree file bytes and staged entry set remain unchanged
+   by projection, including on interruption. Git may refresh index metadata.
 2. Every accepted output names one resolved source commit; no live or mixed source state contributes.
 3. Canonical and generated LFS inputs are real objects, not pointer files, before Unreal runs.
 4. Concurrent runs use different isolated roots and cannot mutate each other's generated content.
-5. A failed or killed run promotes no release inputs.
+5. Before final directory promotion, a failed or killed run leaves `InputRoot`
+   absent. After promotion, a killed run may leave the complete accepted input tree.
 6. Cleanup removes only an exact, receipt-owned path under `tmp/release/projection/`; identity
    disagreement fails closed.
 7. Successful public World manifests, developer payload, public source, and map-load proof retain
@@ -179,34 +205,37 @@ input. Testing the complete route therefore happens only after the intended sour
 
 ## Implementation tasks
 
-- [ ] **P0 - focused red evidence:** add disposable fixtures for source-commit resolution, LFS
+- [x] **P0 - focused controls:** add disposable fixtures for source-commit resolution, LFS
       pointer refusal, two concurrent projection roots, forced child-process termination before
       promotion, stale-worktree identity mismatch, and exact cleanup. Prove each test discriminates
-      with a known-bad live-tree or mismatched-receipt control.
-- [ ] **P1 - isolate the owner:** add a small sibling helper under `scripts/ue/package/` for guarded
+      with a known-bad live-tree or mismatched-receipt control. Permanent controls are green and
+      independent R2 accepted them; historical pre-fix red output was not retained.
+- [x] **P1 - isolate the owner:** extend `isolated_source_workspace.ps1` for guarded
       detached-worktree create/verify/remove. Keep `public_world_projection.ps1` focused on World
       projection inside the repository it is given. Do not add recovery operations to the World
       journal.
-- [ ] **P2 - route one frozen identity:** require `SourceCommit` through the release entrypoint and
+- [x] **P2 - route one frozen identity:** require `SourceCommit` through the release entrypoint and
       `prepare_release_inputs.ps1`; run public projection and composition inside that checkout; copy
       or move only accepted outputs to the caller-owned `InputRoot`.
-- [ ] **P3 - make cleanup observable:** write an ASCII JSON run receipt before checkout creation,
-      advance phases atomically, preserve failed evidence, and make the next run list stale entries.
-      Automatic cleanup is allowed only after path, HEAD, detached state, and receipt agree.
+- [x] **P3 - make cleanup observable:** write an ASCII JSON owner receipt before checkout creation.
+      The next run removes only dead-owner checkouts whose path, Git registration,
+      HEAD, detached state, and receipt agree. An ambiguous entry remains for inspection.
+      No release phase journal is needed because no generated authority leaves
+      the disposable checkout before promotion.
 - [ ] **P4 - retain child guarantees:** keep the existing realization manifests, map identities,
       public profile checks, payload audit, clean public checkout, and map-load receipt.
-- [ ] **P5 - docs and review:** update the package README, packaging guide, and canonical World
+- [x] **P5 - docs and review:** update the package README, packaging guide, and canonical World
       realization docs only after the route is proven; run independent diff review.
 
 ## Proof traceability
 
 | Invariant | Acceptance surface | Execution envelope | Cheapest proof | Final proof | Stop condition |
 |---|---|---|---|---|---|
-| 1 | live worktree bytes and index | forced kill | before/after Git status and byte digest | killed full projection leaves both identical | any live delta |
+| 1 | live worktree files and staged entries | forced kill | before/after status, file digests, and `ls-files --stage` | killed projection leaves those values identical | any live or staged-content delta |
 | 2 | preparation receipt and outputs | exact detached commit | unresolved/mismatched commit refusal | unsigned dry preparation records one commit everywhere | mixed identity |
 | 3 | canonical and content LFS paths | isolated checkout | synthetic pointer refusal | required-path LFS object check before Unreal | pointer or missing object |
 | 4 | per-run checkout | two simultaneous fixtures | distinct roots and no shared writes | overlapping projection processes both isolate | shared mutable path |
-| 5 | `InputRoot` promotion | forced kill at each phase | absent destination after kill | full interruption matrix | partial promoted input |
+| 5 | `InputRoot` promotion | process kill before promotion and after directory rename | absent destination before rename; complete accepted tree after rename | focused interruption fixtures plus frozen-commit dry | partial or unaccepted input tree |
 | 6 | cleanup helper | mismatched receipts and paths | refusal test with known-bad control | stale real worktree recovery drill | broad or ambiguous removal |
 | 7 | public outputs | current package tests | existing focused tests green | public build, payload audit, two map loads | contract drift |
 | 8 | World transaction owners | source dependency audit | no new outer journal operation | independent architecture review | duplicated authority |
@@ -241,9 +270,9 @@ because it authored this revision.
 
 ## Completion criteria
 
-- An independent R1 verdict is `PASS` after any findings are applied.
-- Invariants 1-10 pass with known-bad controls, and a forced interruption leaves the live tree and
-  index unchanged.
+- An independent review of the corrected diff is `PASS` after the R1 findings are applied.
+- Invariants 1-10 pass with known-bad controls, and a forced interruption leaves working-tree
+  tracked bytes and staged entries unchanged. Git may refresh index metadata.
 - One unsigned 3.0.0 dry preparation succeeds from one frozen commit, with public build, payload,
   and map-load checks green.
 - Durable release and World docs state the accepted route; no live-tree projection path remains.
@@ -256,3 +285,86 @@ because it authored this revision.
   boundary, tracked/LFS input census, existing journal scope, and Windows replacement limits.
   Selected a detached worktree at the frozen source commit as the smallest architecture-aligned
   fix. No production code, engine checkout, Git index, commit, or external state was changed.
+- **2026-10-04 independent R1:** PATCH. Reuse the existing workspace owner; verify cleanup
+  registration, detached HEAD, owner process, and path containment; verify LFS object IDs;
+  protect prior inputs on source refusal; remove unsafe broad scratch cleanup; bind
+  player/Linux release work to a clean frozen HEAD. The production diff addresses
+  these findings. `isolated_source_workspace.ps1` is over 700 lines because the
+  committed checkout shares its lifecycle and cleanup invariant with overlay
+  workspaces. If it grows, the next cohesive seam is candidate-overlay snapshot
+  construction, not a second worktree owner.
+- **2026-10-04 independent R2:** PATCH found omitted LFS inputs in the
+  developer payload. The corrected route selects ProjectObject and
+  ProjectExperienceData artifacts from their accepted manifests in the exact
+  checkout, fetches only those paths, and checks their manifest digests before
+  Unreal. Independent re-review returned PASS. Helper, projection, and
+  release-entrypoint tests exited 0. At this review, the unsigned 3.0.0 build,
+  payload audit, and map loads awaited a frozen committed source identity.
+- **2026-10-04 frozen-commit attempt:** HEAD was clean at
+  `bc5b3c0926a0583503419a5876a1655510a119f2`. The three focused package tests,
+  path governance, and dry release routing passed. The single
+  `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=bc5b3c0926a0583503419a5876a1655510a119f2`
+  run built and cooked the Development Candidate, then its first packaged Kazan
+  playable-tour child exited 3. `Saved/Validation/WorldRealization/playable-tour/`
+  `fb5fe2ad46124e1c8e74474108447dec/development/run-01/game.log` records an
+  Unreal `CSVProfiler` assertion at `CsvProfiler.cpp:1623` after the product-route
+  receipt was accepted. A focused repeat using the matching staged Development
+  files and the same product-route/performance flags also exited 3 with the same
+  assertion; its log is `tmp/world/playable_tour/csv_repro_20261004/game.log`.
+  The Candidate owner removed the failed archive and restored the prior package.
+  Release input preparation did not start; no map-load or public
+  developer proof was produced. The before/after `git ls-files --stage` digest,
+  clean status, HEAD, and registered worktree list matched; no release projection
+  checkout or promoted 3.0.0 input tree remains. The Candidate failure belongs to
+  R5 in `todo/00_current/00_release_3.0.0.md`; do not bypass its gate or mark P4 done.
+- **2026-10-05 focused unblock:** the installed UE navigation source and a live
+  debugger identified a numbered Recast actor name in the `NavTasks` CSV stat.
+  The project config disables that category and its two sibling dynamic-name
+  categories. A fresh packaged Development Kazan route exited 0 with accepted
+  product and performance receipts and nonempty CSV and exact sample files.
+  Independent review returned PASS. The full release route and isolated public
+  projection remain unverified until this fix is committed and R5 reruns from
+  the new clean source identity.
+- **2026-10-05 frozen rerun:** clean commit
+  `a61715d31004df95723b5acdd105192c9f6f7516` passed the player Candidate
+  (three Development runs, Shipping, water stability). The isolated projection
+  then refused a stale `IncludePresentation` argument that its generated-content
+  helper no longer accepts. No release inputs or workspace were promoted. A
+  focused test now validates wrapper calls against the helper signatures; it
+  failed before the local two-call correction and passes after it. Adjacent
+  generated-content transaction and release-entrypoint tests pass. P4 is still
+  open until the correction is committed and the full route passes.
+- **2026-10-05 next frozen rerun:** commit
+  `09b7b6532c15947fd894106a2d26eb91ab02175b` accepted the complete Kazan
+  Candidate, including Shipping and water. Public projection then failed at the
+  World realizer because the wrapper omitted the runtime profile pinned by the
+  public Kazan realization profile. The focused regression failed before the
+  correction and passes after it; the wrapper derives and checks each city's
+  runtime file before snapshot mutation. The release-entrypoint and nine World
+  transaction tests pass. Public map loads and combined release remain unverified
+  until the operator commits this fix and the frozen release route succeeds.
+- **2026-10-05 precommit boundary proof:** a disposable overlay at that source commit accepted
+  public Kazan and Manhattan with engine exit 0 and byte-for-byte private restoration. Release
+  preparation now materializes committed Unreal LFS packages, producer inputs, and isolated
+  Editor modules before projection. A later precommit package pass reached and passed the public
+  source mirror through a fixed Windows/WSL linked-worktree Git handoff; the developer composer
+  then refused an untracked, public-manifest-authenticated Manhattan package. Its focused fix
+  allows only that digest-verified projected class; all 19 composer tests pass. Evidence and
+  remaining frozen-release gate are recorded in `00_release_3.0.0.md`. No live private World
+  content, Git index, or commit was changed by the diagnostics.
+- **2026-10-05 external review PATCH and runtime diagnosis:** the earlier R2 accepted public
+  `runtime_profile_id: none`, which skipped partition, route, and product-spawn realization.
+  Commit `76ed07763` contains that incorrect profile change despite its commit message.
+  Restoring the original pinned IDs caused a real isolated Kazan projection to reject at
+  `runtime-acceptance`: `player_start=1 nanite=1 instancing=0 hlod=1`. The public profile has no
+  vegetation layer, but the territory runtime acceptance check required a vegetation instance
+  unconditionally. The working-tree correction makes that probe required only when vegetation
+  is selected or present, while full territory validation still requires a true probe. Rejected
+  receipt and log are under `tmp/release/diagnostics/pinned_runtime_28dde9f94ae84ddd88b615fac0e78f92/`.
+  The corrected isolated overlay at `76ed07763` then accepted both cities with the original
+  runtime IDs and SHA-256 hashes, one runtime partition and the correct route each, 14 public
+  authority files, and byte-for-byte snapshot restoration. Its evidence is under
+  `tmp/release/diagnostics/pinned_runtime_34e9a71f17fd4d7f85cebc29858835b6/`.
+  The detached worktree was removed and main generated content remained clean. Independent
+  corrected R2 returned PASS for this precommit scope. The operator commit and frozen release
+  remain; clean public checkout, map loads, and packaged player were not part of this overlay.

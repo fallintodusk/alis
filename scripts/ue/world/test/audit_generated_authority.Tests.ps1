@@ -4,11 +4,12 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '..\generated_content_transaction.ps1')
     . (Join-Path $PSScriptRoot '..\generated_manifest.ps1')
+    . (Join-Path $PSScriptRoot 'producer_identity_test_helpers.ps1')
     $script:RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
 Describe 'ProjectWorld generated-authority audit' {
-    It 'accepts an active generated scope with zero artifacts' {
+    It 'accepts an empty scope and reports a producer without a descriptor as stale' {
         $projectRoot = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
         $ownerRoot = Join-Path $projectRoot 'Plugins\World\ProjectWorldTestData'
         $contentRoot = Join-Path $ownerRoot 'Content'
@@ -26,6 +27,8 @@ Describe 'ProjectWorld generated-authority audit' {
             Copy-Item -LiteralPath (Join-Path $script:RepositoryRoot "Plugins\World\ProjectWorld\Data\Schemas\$schema") `
                 -Destination $schemaRoot
         }
+        New-ProjectWorldProducerIdentityFixture -RepositoryRoot $script:RepositoryRoot `
+            -ProjectRoot $projectRoot | Out-Null
 
         $mapPackage = '/ProjectWorldTestData/Generated/P0/L_TestWorld'
         $identity = [ordered]@{
@@ -40,7 +43,7 @@ Describe 'ProjectWorld generated-authority audit' {
         $presentationScopeId = Get-ProjectWorldPresentationScopeId -ProfileId 'test_profile'
         $mapPaths = @(Get-ProjectWorldGeneratedPaths `
             -ContentRoot $contentRoot -MapPackage $mapPackage `
-            -GeneratedPackageRoot '/ProjectWorldTestData/Generated/' -IncludePresentation $false)
+            -GeneratedPackageRoot '/ProjectWorldTestData/Generated/')
         $emptyPaths = @()
         $candidates = @(
             (New-ProjectWorldCandidateManifest -ProjectRoot $projectRoot `
@@ -65,5 +68,23 @@ Describe 'ProjectWorld generated-authority audit' {
 
         $LASTEXITCODE | Should -Be 0
         (Get-Content -LiteralPath $evidence -Raw | ConvertFrom-Json).status | Should -Be 'accepted'
+
+        Remove-Item -LiteralPath (Join-Path $projectRoot 'Plugins\World\ProjectWorld\Data\Producers\map.json')
+        $staleEvidence = Join-Path $projectRoot 'stale-audit.json'
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
+            "& '$audit' -ProjectRoot '$projectRoot' -WorldDataPlugin 'ProjectWorldTestData' -ManifestRoot '$manifestRoot' -GeneratedRoots @('$generatedRoot') -EvidencePath '$staleEvidence'" | Out-Null
+        $LASTEXITCODE | Should -Be 1
+        $stale = Get-Content -LiteralPath $staleEvidence -Raw | ConvertFrom-Json
+        $stale.status | Should -Be 'rejected'
+        @($stale.scopes | Where-Object { $_.producer_id -eq 'map:v1' })[0].generator_fingerprint_expected |
+            Should -BeNullOrEmpty
+        @($stale.scopes | Where-Object { $_.producer_id -eq 'map:v1' })[0].generator_fingerprint_is_current |
+            Should -BeFalse
+        @($stale.checks | Where-Object { $_.name -eq 'generator_fingerprint_current' })[0].passed |
+            Should -BeFalse
+        @($stale.checks | Where-Object { $_.name -eq 'artifacts_intact' })[0].passed |
+            Should -BeTrue
+        @($stale.checks | Where-Object { $_.name -eq 'unowned_scan' })[0].passed |
+            Should -BeTrue
     }
 }

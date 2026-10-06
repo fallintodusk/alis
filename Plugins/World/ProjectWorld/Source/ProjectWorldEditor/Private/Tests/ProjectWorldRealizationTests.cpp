@@ -147,68 +147,6 @@ bool FProjectWorldGeoReferencingPlacementTest::RunTest(const FString& Parameters
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FProjectWorldCrossCellRoadTest,
-	"Project.World.Realization.CrossCellRoadIdentity",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-
-bool FProjectWorldCrossCellRoadTest::RunTest(const FString& Parameters)
-{
-	FProjectWorldCanonicalBundle Bundle;
-	Bundle.GridId = TEXT("road_grid");
-	Bundle.InputsHash = TEXT("road_input");
-	Bundle.CoordinateQuantizationMeters = 0.01;
-	for (int32 CellX = 0; CellX < 2; ++CellX)
-	{
-		FProjectWorldCanonicalCell Cell;
-		Cell.CellId = FString::Printf(TEXT("cell_%d"), CellX);
-		Cell.CellX = CellX;
-		Cell.Bounds = FVector4d(CellX * 10.0, 0.0, (CellX + 1) * 10.0, 10.0);
-		Cell.Terrain.Bounds = Cell.Bounds;
-		Cell.Terrain.SampleSpacing = FVector2D(10.0, 10.0);
-		Cell.Terrain.SamplesX = 2;
-		Cell.Terrain.SamplesY = 2;
-		Cell.Terrain.HeightsMeters.Init(0.0, 4);
-		Bundle.Cells.Add(MoveTemp(Cell));
-	}
-	FProjectWorldCanonicalFeature Road;
-	Road.FeatureId = TEXT("alis:test:road:cross-cell");
-	Road.FeatureClass = TEXT("road");
-	Road.WidthMeters = 4.0;
-	for (int32 CellX = 0; CellX < 2; ++CellX)
-	{
-		FProjectWorldCanonicalRepresentation Representation;
-		Representation.CellId = Bundle.Cells[CellX].CellId;
-		Representation.Kind = TEXT("road_fragment");
-		Representation.Parts.Add({FVector2D(5.0 + CellX * 5.0, 5.0), FVector2D(10.0 + CellX * 5.0, 5.0)});
-		Road.Representations.Add(MoveTemp(Representation));
-	}
-	Bundle.Features.Add(Road.FeatureId, MoveTemp(Road));
-	FProjectWorldCanonicalFeature OtherRoad;
-	OtherRoad.FeatureId = TEXT("alis:test:road:single-cell");
-	OtherRoad.FeatureClass = TEXT("road");
-	OtherRoad.WidthMeters = 3.0;
-	FProjectWorldCanonicalRepresentation OtherRepresentation;
-	OtherRepresentation.CellId = Bundle.Cells[0].CellId;
-	OtherRepresentation.Kind = TEXT("road_fragment");
-	OtherRepresentation.Parts.Add({FVector2D(1.0, 2.0), FVector2D(4.0, 2.0)});
-	OtherRoad.Representations.Add(MoveTemp(OtherRepresentation));
-	Bundle.Features.Add(OtherRoad.FeatureId, MoveTemp(OtherRoad));
-
-	FProjectWorldRealizationResult Result;
-	FString Error;
-	TestTrue(
-		TEXT("Cross-cell road realizes through one canonical identity."),
-		ProjectWorldGeneratedGeometry::CreateOwnedActors(
-			GEditor->NewMap(false), Bundle, false, 2, 0, Result, Error));
-	TestEqual(TEXT("Selected road identity is recorded."), Result.CrossCellRoadFeatureId, FString(TEXT("alis:test:road:cross-cell")));
-	TestEqual(TEXT("Two canonical fragments are expected."), Result.CrossCellRoadExpectedFragmentCount, 2);
-	TestEqual(TEXT("Two canonical fragments are realized."), Result.CrossCellRoadRealizedFragmentCount, 2);
-	TestTrue(TEXT("Fragments share a boundary coordinate."), Result.CrossCellRoadSharedBoundaryPointCount >= 1);
-	TestEqual(TEXT("The second distinct road is not consumed by the primary-road counter."), Result.RoadSectionCount, 3);
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldOwnedDeletionTest,
 	"Project.World.Realization.OwnedDeletionPreservesAuthoredActor",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)

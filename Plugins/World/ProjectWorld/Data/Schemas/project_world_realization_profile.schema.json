@@ -21,353 +21,67 @@
       "type": "string",
       "pattern": "project_world_realization_profile\\.schema\\.json$"
     },
-    "schema_version": {"const": 1},
-    "profile_id": {"$ref": "#/$defs/id"},
-    "world_data_plugin": {"type": "string", "pattern": "^Project[A-Za-z0-9]+$"},
-    "canonical_profile_id": {"$ref": "#/$defs/id"},
-    "map_package": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+$"},
+    "schema_version": {
+      "const": 1
+    },
+    "profile_id": {
+      "$ref": "#/$defs/id"
+    },
+    "world_data_plugin": {
+      "type": "string",
+      "pattern": "^Project[A-Za-z0-9]+$"
+    },
+    "canonical_profile_id": {
+      "$ref": "#/$defs/id"
+    },
+    "map_package": {
+      "type": "string",
+      "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+$"
+    },
     "runtime_profile_id": {
       "anyOf": [
-        {"$ref": "#/$defs/id"},
-        {"const": "none"}
+        {
+          "$ref": "#/$defs/id"
+        },
+        {
+          "const": "none"
+        }
       ]
     },
     "protected_authored_roots": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Authored/[A-Za-z0-9_/]*$"}
+      "items": {
+        "type": "string",
+        "pattern": "^/Project[A-Za-z0-9]+/Authored/[A-Za-z0-9_/]*$"
+      }
     },
     "excluded_runtime_state_roots": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Runtime/[A-Za-z0-9_/]*$"}
+      "items": {
+        "type": "string",
+        "pattern": "^/Project[A-Za-z0-9]+/Runtime/[A-Za-z0-9_/]*$"
+      }
     },
     "layers": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/layer"}
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
     }
   },
   "$defs": {
-    "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
     "layer": {
       "type": "object",
       "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {"properties": {"generator_id": {"const": "project_mesh_terrain"}}},
-          "then": {
-            "properties": {
-              "layer_kind": {"const": "generated_geography"},
-              "generator_version": {"const": 1},
-              "canonical_selectors": {
-                "prefixItems": [{"const": "terrain"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "spatial_ownership": {"const": "compiled_sections_from_canonical_cells"},
-              "dirty_granularity": {"const": "canonical_cell"},
-              "dependency_halo_cells": {"const": 0},
-              "runtime_mapping": {"const": "world_partition_spatial"},
-              "settings": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "shared_definition",
-                  "surface_contract_id",
-                  "surface_contract_version",
-                  "section_max_complexity",
-                  "channel_texel_size_cm",
-                  "channel_texture_max_dimension",
-                  "collision",
-                  "render_variants"
-                ],
-                "properties": {
-                  "shared_definition": {
-                    "const": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1"
-                  },
-                  "surface_contract_id": {"const": "terrain_surface_semantics"},
-                  "surface_contract_version": {"const": 1},
-                  "section_max_complexity": {"const": 2048},
-                  "channel_texel_size_cm": {"const": 3000},
-                  "channel_texture_max_dimension": {"const": 4096},
-                  "collision": {"const": "complex_as_simple"},
-                  "render_variants": {
-                    "prefixItems": [{"const": "nanite"}, {"const": "fallback"}],
-                    "minItems": 2,
-                    "maxItems": 2
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {"properties": {"generator_id": {"const": "project_water_mesh"}}},
-          "then": {
-            "properties": {
-              "layer_kind": {"const": "generated_geography"},
-              "canonical_selectors": {
-                "prefixItems": [{"const": "water"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "spatial_ownership": {"const": "cell_local"},
-              "dirty_granularity": {"const": "canonical_cell"},
-              "runtime_mapping": {"const": "world_partition_spatial"},
-              "settings": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "material_shading_model",
-                  "surface_offset_m",
-                  "nanite"
-                ],
-                "properties": {
-                  "material_shading_model": {"const": "solid_opaque"},
-                  "surface_offset_m": {
-                    "type": "number",
-                    "exclusiveMinimum": 0.0,
-                    "maximum": 1.0
-                  },
-                  "nanite": {"const": false}
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {"properties": {"generator_id": {"const": "project_road_mesh"}}},
-          "then": {
-            "properties": {
-              "layer_kind": {"const": "generated_geography"},
-              "canonical_selectors": {
-                "prefixItems": [{"const": "roads"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "spatial_ownership": {"const": "cell_local"},
-              "dirty_granularity": {"const": "canonical_cell"},
-              "dependency_halo_cells": {"const": 1},
-              "runtime_mapping": {"const": "world_partition_spatial"},
-              "settings": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "selected_classes",
-                  "surface_offset_m",
-                  "maximum_segment_length_m",
-                  "nanite",
-                  "collision",
-                  "structure_fallback",
-                  "intersection_policy"
-                ],
-                "properties": {
-                  "selected_classes": {
-                    "type": "array",
-                    "minItems": 1,
-                    "uniqueItems": true,
-                    "items": {"$ref": "#/$defs/id"}
-                  },
-                  "surface_offset_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 2.0},
-                  "maximum_segment_length_m": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 30.0},
-                  "nanite": {"const": true},
-                  "collision": {"const": "complex_as_simple"},
-                  "structure_fallback": {"const": "terrain_drape"},
-                  "intersection_policy": {"const": "overlap_same_owner"}
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {"properties": {"generator_id": {"const": "project_vegetation_instances"}}},
-          "then": {
-            "properties": {
-              "layer_kind": {"const": "generated_geography"},
-              "depends_on": {
-                "prefixItems": [
-                  {"const": "terrain"},
-                  {"const": "water"},
-                  {"const": "roads"}
-                ],
-                "minItems": 3,
-                "maxItems": 3
-              },
-              "canonical_selectors": {
-                "prefixItems": [{"const": "vegetation"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "spatial_ownership": {"const": "cell_local"},
-              "dirty_granularity": {"const": "canonical_cell"},
-              "dependency_halo_cells": {"const": 0},
-              "runtime_mapping": {"const": "world_partition_spatial"},
-              "settings": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "mesh_assets",
-                  "area_spacing_m",
-                  "area_jitter_fraction",
-                  "minimum_scale",
-                  "maximum_scale",
-                  "maximum_instances_per_cell",
-                  "deterministic_seed",
-                  "surface_offset_m",
-                  "nanite",
-                  "collision",
-                  "placement_policy"
-                ],
-                "properties": {
-                  "mesh_assets": {
-                    "type": "array",
-                    "minItems": 1,
-                    "uniqueItems": true,
-                    "items": {
-                      "type": "string",
-                      "pattern": "^/Project[A-Za-z0-9]+/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
-                    }
-                  },
-                  "area_spacing_m": {"type": "number", "minimum": 5.0, "maximum": 100.0},
-                  "area_jitter_fraction": {"type": "number", "minimum": 0.0, "exclusiveMaximum": 0.5},
-                  "minimum_scale": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 3.0},
-                  "maximum_scale": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 3.0},
-                  "maximum_instances_per_cell": {"type": "integer", "minimum": 1, "maximum": 8192},
-                  "deterministic_seed": {"type": "integer", "minimum": 0, "maximum": 2147483647},
-                  "surface_offset_m": {"type": "number", "minimum": 0.0, "maximum": 2.0},
-                  "nanite": {"const": true},
-                  "collision": {"const": "no_collision"},
-                  "placement_policy": {"const": "canonical_points_and_lattice_areas"}
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {"properties": {"generator_id": {"const": "project_building_massing"}}},
-          "then": {
-            "properties": {
-              "layer_kind": {"const": "generated_geography"},
-              "generator_version": {"enum": [1, 2]},
-              "depends_on": {
-                "prefixItems": [{"const": "terrain"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "canonical_selectors": {
-                "prefixItems": [{"const": "buildings"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "spatial_ownership": {"const": "cell_local"},
-              "dirty_granularity": {"const": "canonical_cell"},
-              "dependency_halo_cells": {"const": 0},
-              "runtime_mapping": {"const": "world_partition_spatial"},
-              "settings": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "maximum_height_m",
-                  "terrain_anchor_policy",
-                  "topology_policy",
-                  "duplicate_policy",
-                  "contained_policy",
-                  "conflict_policy",
-                  "nanite",
-                  "collision",
-                  "navigation"
-                ],
-                "properties": {
-                  "maximum_height_m": {"type": "number", "minimum": 50.0, "maximum": 1000.0},
-                  "terrain_anchor_policy": {"const": "owner_cell_clamped_bounds_center"},
-                  "topology_policy": {
-                    "oneOf": [
-                      {"const": "cell_local_classify_v1"},
-                      {"const": "logical_building_classify_v2"}
-                    ]
-                  },
-                  "duplicate_policy": {"const": "stable_feature_id"},
-                  "contained_policy": {"const": "associate_with_container"},
-                  "conflict_policy": {"const": "reject_affected_fragments"},
-                  "nanite": {"const": true},
-                  "collision": {"const": "complex_as_simple"},
-                  "navigation": {"const": "no_navigation"}
-                }
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "required": ["generator_id", "generator_version"],
-            "properties": {
-              "generator_id": {"const": "project_building_massing"},
-              "generator_version": {"const": 1}
-            }
-          },
-          "then": {
-            "properties": {
-              "settings": {
-                "properties": {"topology_policy": {"const": "cell_local_classify_v1"}}
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "required": ["generator_id", "generator_version"],
-            "properties": {
-              "generator_id": {"const": "project_building_massing"},
-              "generator_version": {"const": 2}
-            }
-          },
-          "then": {
-            "properties": {
-              "settings": {
-                "properties": {"topology_policy": {"const": "logical_building_classify_v2"}}
-              }
-            }
-          }
-        },
-        {
-          "if": {"properties": {"generator_id": {"const": "project_gameplay_placement"}}},
-          "then": {
-            "properties": {
-              "layer_kind": {"const": "generated_gameplay_placement"},
-              "depends_on": {
-                "prefixItems": [{"const": "terrain"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "canonical_selectors": {
-                "prefixItems": [{"const": "gameplay_placements"}],
-                "minItems": 1,
-                "maxItems": 1
-              },
-              "spatial_ownership": {"const": "object_local"},
-              "dirty_granularity": {"const": "object_id"},
-              "dependency_halo_cells": {"const": 0},
-              "runtime_mapping": {"const": "world_partition_spatial"},
-              "settings": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["placement_source", "surface_policy", "runtime_state_policy"],
-                "properties": {
-                  "placement_source": {
-                    "type": "string",
-                    "pattern": "^GameplayPlacement/[A-Za-z0-9_/]+\\.json$"
-                  },
-                  "surface_policy": {"const": "canonical_terrain_snap"},
-                  "runtime_state_policy": {"const": "external_to_generation"}
-                }
-              }
-            }
-          }
-        }
-      ],
       "required": [
         "layer_id",
         "layer_kind",
@@ -383,7 +97,9 @@
         "settings"
       ],
       "properties": {
-        "layer_id": {"$ref": "#/$defs/id"},
+        "layer_id": {
+          "$ref": "#/$defs/id"
+        },
         "layer_kind": {
           "enum": [
             "generated_geography",
@@ -393,35 +109,64 @@
           ]
         },
         "generator_id": {
-          "enum": [
-            "project_mesh_terrain",
-            "project_water_mesh",
-            "project_road_mesh",
-            "project_vegetation_instances",
-            "project_building_massing",
-            "project_gameplay_placement"
-          ]
+          "$ref": "#/$defs/id"
         },
-        "generator_version": {"type": "integer", "minimum": 1},
+        "generator_version": {
+          "type": "integer",
+          "minimum": 1
+        },
         "depends_on": {
           "type": "array",
           "uniqueItems": true,
-          "items": {"$ref": "#/$defs/id"}
+          "items": {
+            "$ref": "#/$defs/id"
+          }
         },
         "canonical_selectors": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"$ref": "#/$defs/id"}
+          "items": {
+            "$ref": "#/$defs/id"
+          }
         },
-        "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/(Generated|Authored|Runtime)/[A-Za-z0-9_/]+$"},
+        "artifact_root": {
+          "type": "string",
+          "pattern": "^/Project[A-Za-z0-9]+/(Generated|Authored|Runtime)/[A-Za-z0-9_/]+$"
+        },
         "spatial_ownership": {
-          "enum": ["compiled_sections_from_canonical_cells", "cell_local", "object_local", "protected_root", "excluded_root"]
+          "enum": [
+            "compiled_sections_from_canonical_cells",
+            "cell_local",
+            "object_local",
+            "protected_root",
+            "excluded_root"
+          ]
         },
-        "dirty_granularity": {"enum": ["whole_layer", "canonical_cell", "source_tile", "object_id", "never"]},
-        "dependency_halo_cells": {"type": "integer", "minimum": 0, "maximum": 16},
-        "runtime_mapping": {"enum": ["world_partition_spatial", "protected", "excluded"]},
-        "settings": {"type": "object"}
+        "dirty_granularity": {
+          "enum": [
+            "whole_layer",
+            "canonical_cell",
+            "source_tile",
+            "object_id",
+            "never"
+          ]
+        },
+        "dependency_halo_cells": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        },
+        "runtime_mapping": {
+          "enum": [
+            "world_partition_spatial",
+            "protected",
+            "excluded"
+          ]
+        },
+        "settings": {
+          "type": "object"
+        }
       }
     }
   }

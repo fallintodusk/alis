@@ -17,6 +17,8 @@ from .contracts import (
     write_result,
 )
 from .execution import REPO_ROOT, execute
+from .canonical_mode import require_world_only_changes
+from .planning import changed_paths
 from .validation import _validate_bootstrap, validate
 
 
@@ -29,9 +31,10 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--profile", required=True)
     run.add_argument("--bootstrap-preflight", required=True)
     run.add_argument("--check-result", required=True)
+    run.add_argument("--from-canonical-authority", action="store_true")
+    run.add_argument("--changed-base")
     accept = subcommands.add_parser("accept")
-    accept.add_argument("--p0-run", required=True)
-    accept.add_argument("--representative-run", required=True)
+    accept.add_argument("--run", required=True)
     accept.add_argument("--profile", required=True)
     accept.add_argument("--bootstrap-preflight", required=True)
     enroll = subcommands.add_parser("enroll")
@@ -112,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         from .acceptance import accept
 
         try:
-            outcome = accept(args.p0_run, args.representative_run, args.profile, args.bootstrap_preflight)
+            outcome = accept(args.run, args.profile, args.bootstrap_preflight)
         except ValidationFailure as error:
             print(json.dumps({"status": "rejected", "code": error.code, "message": str(error)}), file=sys.stderr)
             return 3
@@ -162,6 +165,25 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "rejected", "code": error.code, "message": str(error)}), file=sys.stderr)
         return 3
     profile_id = profile["profile_id"]
+    mode = "canonical_authority" if args.from_canonical_authority else "full"
+    changed = []
+    if mode == "canonical_authority":
+        if not args.changed_base:
+            print(json.dumps({"status": "rejected", "code": "canonical_mode_base_missing",
+                "message": "Canonical Matrix requires --changed-base for the reviewed change"}), file=sys.stderr)
+            return 3
+        try:
+            changed = changed_paths(args.changed_base)
+            require_world_only_changes(changed, args.changed_base, REPO_ROOT)
+            selected = {name: settings for name, settings in profile["profiles"].items()
+                if settings.get("canonical_authority")}
+            if not selected:
+                raise ValidationFailure("canonical_mode_authority_missing", "No profile has promoted canonical authority")
+            profile = {**profile, "profiles": selected}
+        except Exception as error:
+            code = getattr(error, "code", "canonical_mode_scope_unavailable")
+            print(json.dumps({"status": "rejected", "code": code, "message": str(error)}), file=sys.stderr)
+            return 3
     operation_id = f"validate:{profile_id}:{stamp}"
     evidence_root = REPO_ROOT / "Saved" / "Validation" / "WorldPipeline" / f"run-{stamp}"
     _prune_evidence(evidence_root, "run-")
@@ -176,7 +198,10 @@ def main(argv: list[str] | None = None) -> int:
             evidence_root,
             Path(args.bootstrap_preflight),
             common_checks,
+            mode,
         )
+        execution["changed_base"] = args.changed_base if mode != "full" else None
+        execution["changed_paths"] = changed
         if validation_profile_contract(resolved_profile_path) != initial_profile_contract:
             raise ValidationFailure(
                 "validation_profile_changed_during_run",

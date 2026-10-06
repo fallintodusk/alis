@@ -12,6 +12,7 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '..\generated_content_transaction.ps1')
     . (Join-Path $PSScriptRoot '..\generated_manifest.ps1')
+    . (Join-Path $PSScriptRoot 'producer_identity_test_helpers.ps1')
 
     $script:RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
     $script:ManifestSchemaValidator = @'
@@ -59,8 +60,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $mapRoot = Join-Path $contentRoot 'Generated\Representative'
         $mapFile = Join-Path $mapRoot 'L_TestWorld.umap'
         $externalRoot = Join-Path $contentRoot '__ExternalActors__\Generated\Representative\L_TestWorld'
-        $presentationRoot = Join-Path $contentRoot 'Generated\Presentation'
-        New-Item -ItemType Directory -Path $mapRoot, $externalRoot, $presentationRoot, $manifestRoot, $transactionParent -Force | Out-Null
+        New-Item -ItemType Directory -Path $mapRoot, $externalRoot, $manifestRoot, $transactionParent -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $projectRoot 'Plugins\World\ProjectWorldTestData\ProjectWorldTestData.uplugin') `
             -Value '{"FileVersion":3,"CanContainContent":true}' -NoNewline
         New-Item -ItemType Directory -Path (Join-Path $projectRoot 'Plugins\World\ProjectWorld') -Force | Out-Null
@@ -73,17 +73,18 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             -Destination $schemaRoot
         Copy-Item -LiteralPath (Join-Path $script:RepositoryRoot 'Plugins\World\ProjectWorld\Data\Schemas\project_world_generated_manifest.schema.json') `
             -Destination $schemaRoot
+        New-ProjectWorldProducerIdentityFixture -RepositoryRoot $script:RepositoryRoot `
+            -ProjectRoot $projectRoot | Out-Null
         Set-Content -LiteralPath $mapFile -Value 'map-bytes' -NoNewline
         Set-Content -LiteralPath (Join-Path $externalRoot 'actor.uasset') -Value 'actor-bytes' -NoNewline
-        Set-Content -LiteralPath (Join-Path $presentationRoot 'material.uasset') -Value 'material-bytes' -NoNewline
 
         $mapScopeId = Get-ProjectWorldMapScopeId `
             -MapPackage $mapPackage -GeneratedPackageRoot $generatedPackageRoot
         $presentationScopeId = Get-ProjectWorldPresentationScopeId -ProfileId 'test_profile'
         $mapScopePaths = @(Get-ProjectWorldGeneratedPaths `
             -ContentRoot $contentRoot -MapPackage $mapPackage `
-            -GeneratedPackageRoot $generatedPackageRoot -IncludePresentation $false)
-        $presentationScopePaths = @($presentationRoot)
+            -GeneratedPackageRoot $generatedPackageRoot)
+        $presentationScopePaths = @()
         $identity = [ordered]@{
             compile_result_sha256 = 'a' * 64
             presentation_profile_sha256 = 'b' * 64
@@ -475,19 +476,18 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             Should -Throw '*Duplicate candidate scope*'
     }
 
-    It 'produces identical generator fingerprints under different repo roots and differs on one byte' {
+    It 'produces identical fingerprints under different repo roots and moves on a revision bump' {
         $roots = @('rootA', 'rootB') | ForEach-Object { Join-Path $TestDrive "$_-$([System.Guid]::NewGuid().ToString('N'))" }
-        foreach ($root in $roots) {
-            $file = Join-Path $root 'scripts\ue\world\generated_manifest.ps1'
-            New-Item -ItemType Directory -Path (Split-Path -Parent $file) -Force | Out-Null
-            Set-Content -LiteralPath $file -Value 'generator-bytes' -NoNewline
-        }
-        $first = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $roots[0] -ProducerId 'map:v1'
-        $second = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $roots[1] -ProducerId 'map:v1'
+        $fixtures = @($roots | ForEach-Object {
+            New-ProjectWorldProducerIdentityFixture -RepositoryRoot $script:RepositoryRoot -ProjectRoot $_
+        })
+        $engineIdentity = 'e' * 64
+        $first = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $roots[0] -ProducerId 'map:v1' -EngineIdentity $engineIdentity
+        $second = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $roots[1] -ProducerId 'map:v1' -EngineIdentity $engineIdentity
         $first | Should -Be $second
-        Set-Content -LiteralPath (Join-Path $roots[1] 'scripts\ue\world\generated_manifest.ps1') -Value 'generator-byteX' -NoNewline
+        Step-ProjectWorldDescriptorOutputRevision -Path $fixtures[1].Descriptors['map:v1']
         Get-ProjectWorldGeneratorFingerprint -ProjectRoot $roots[1] `
-            -ProducerId 'map:v1' | Should -Not -Be $first
+            -ProducerId 'map:v1' -EngineIdentity $engineIdentity | Should -Not -Be $first
     }
 
     It 'writes authority documents with LF-only bytes so a clean clone still verifies' {
@@ -502,31 +502,6 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             $bytes = [System.IO.File]::ReadAllBytes($path)
             ($bytes -contains [byte]13) | Should -BeFalse -Because "$path must contain no CR bytes"
         }
-    }
-
-    It 'excludes read-only verifiers and test sources from the generator fingerprint' {
-        $root = Join-Path $TestDrive ([System.Guid]::NewGuid().ToString('N'))
-        $dir = Join-Path $root 'scripts\ue\world'
-        $editorDir = Join-Path $root 'Plugins\World\ProjectWorld\Source\ProjectWorldEditor\Private'
-        New-Item -ItemType Directory -Path (Join-Path $dir 'test') -Force | Out-Null
-        New-Item -ItemType Directory -Path (Join-Path $editorDir 'Tests') -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $dir 'generated_manifest.ps1') -Value 'generator-bytes' -NoNewline
-        Set-Content -LiteralPath (Join-Path $dir 'audit_generated_authority.ps1') -Value 'auditor-v1' -NoNewline
-        Set-Content -LiteralPath (Join-Path $dir 'test\some.Tests.ps1') -Value 'test-v1' -NoNewline
-        Set-Content -LiteralPath (Join-Path $editorDir 'Tests\GeneratorTests.cpp') -Value 'cpp-test-v1' -NoNewline
-        $baseline = Get-ProjectWorldGeneratorFingerprint -ProjectRoot $root -ProducerId 'map:v1'
-
-        # Editing the read-only auditor or a test cannot change generated bytes,
-        # so it must not invalidate every accepted manifest.
-        Set-Content -LiteralPath (Join-Path $dir 'audit_generated_authority.ps1') -Value 'auditor-v2-rewritten' -NoNewline
-        Set-Content -LiteralPath (Join-Path $dir 'test\some.Tests.ps1') -Value 'test-v2-rewritten' -NoNewline
-        Set-Content -LiteralPath (Join-Path $editorDir 'Tests\GeneratorTests.cpp') -Value 'cpp-test-v2-rewritten' -NoNewline
-        Get-ProjectWorldGeneratorFingerprint -ProjectRoot $root -ProducerId 'map:v1' | Should -Be $baseline
-
-        # A real generator edit still moves it.
-        Set-Content -LiteralPath (Join-Path $dir 'generated_manifest.ps1') -Value 'generator-v2' -NoNewline
-        Get-ProjectWorldGeneratorFingerprint -ProjectRoot $root `
-            -ProducerId 'map:v1' | Should -Not -Be $baseline
     }
 
     It 'audit fails closed when a manifest was accepted by a different generator' {
@@ -575,6 +550,19 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         $candidate.generator_fingerprint | Should -Be ('f' * 64)
     }
 
+    It 'publishes a migration candidate copied from an active root-relative manifest' {
+        Enroll | Out-Null
+        $activeSet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
+        $candidate = New-ProjectWorldFingerprintMigrationCandidate `
+            -PriorManifest $activeSet.Manifests[$mapScopeId] -Generation 2 `
+            -OperationId ('e4' * 16) -GeneratorFingerprint ('f' * 64)
+        $published = Publish-ProjectWorldActiveSet -ManifestRoot $manifestRoot `
+            -ProjectRoot $projectRoot -TransactionId ('d4' * 16) `
+            -OperationId ('e4' * 16) -CandidateManifests @($candidate) -PriorActiveSet $activeSet
+        $published.Sha256 | Should -Match '^[a-f0-9]{64}$'
+        (Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot).Manifests[$mapScopeId].generation | Should -Be 2
+    }
+
     It 'refuses retirement completion when a prior-owned artifact survives on disk' {
         Enroll | Out-Null
         $activeSet = Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot
@@ -617,7 +605,6 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             -RetiredScopeIds @($mapScopeId, $presentationScopeId) -PriorActiveSet $activeSet
         Remove-Item -LiteralPath $mapFile -Force
         Remove-Item -LiteralPath (Join-Path $externalRoot 'actor.uasset') -Force
-        Remove-Item -LiteralPath (Join-Path $presentationRoot 'material.uasset') -Force
         $snapshotRoot = Join-Path $transactionParent ('a' * 32)
         New-Item -ItemType Directory -Path $snapshotRoot -Force | Out-Null
         Write-ProjectWorldTransactionJournal -ManifestRoot $manifestRoot -Journal (NewJournal `
@@ -763,7 +750,7 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             $liveToken.Length | Should -Be 32
 
             # Direction 1: a child with the matching token joins without self-conflict.
-            $env:ALIS_WORLD_CONTENT_LOCK_TOKEN = $liveToken
+            $env:PROJECT_GENERATED_CONTENT_LOCK_TOKEN = $liveToken
             $delegated = Enter-ProjectWorldContentLock -ProjectRoot $projectRoot
             $delegated | Should -Not -BeNullOrEmpty
             $delegated.Dispose()
@@ -774,17 +761,17 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
             $stillDelegated.Dispose()
 
             # Direction 2: a mismatched token fails closed while the owner lives.
-            $env:ALIS_WORLD_CONTENT_LOCK_TOKEN = 'f' * 32
+            $env:PROJECT_GENERATED_CONTENT_LOCK_TOKEN = 'f' * 32
             { Enter-ProjectWorldContentLock -ProjectRoot $projectRoot } |
                 Should -Throw '*does not match the live lock owner*'
 
             # Direction 2: without any token the normal exclusive conflict remains.
-            Remove-Item Env:ALIS_WORLD_CONTENT_LOCK_TOKEN
+            Remove-Item Env:PROJECT_GENERATED_CONTENT_LOCK_TOKEN
             { Enter-ProjectWorldContentLock -ProjectRoot $projectRoot } |
                 Should -Throw '*Another operation holds the ProjectWorld content mutation lock*'
         }
         finally {
-            Remove-Item Env:ALIS_WORLD_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
+            Remove-Item Env:PROJECT_GENERATED_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
             $owner.Dispose()
         }
     }
@@ -861,13 +848,13 @@ Describe 'ProjectWorld generated-artifact manifest lifecycle' {
         # Stale token in a RELEASED lock file: claim must be rejected, never
         # silently downgraded to self-acquisition.
         Set-Content -LiteralPath (Join-Path $lockDir 'content_mutation.lock') -Value ('e' * 32) -NoNewline
-        $env:ALIS_WORLD_CONTENT_LOCK_TOKEN = 'e' * 32
+        $env:PROJECT_GENERATED_CONTENT_LOCK_TOKEN = 'e' * 32
         try {
             { Enter-ProjectWorldContentLock -ProjectRoot $projectRoot } |
                 Should -Throw '*no live owner holds the lock*'
         }
         finally {
-            Remove-Item Env:ALIS_WORLD_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
+            Remove-Item Env:PROJECT_GENERATED_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
         }
     }
 }
@@ -935,53 +922,7 @@ Describe 'Production enrollment refuses the unattended path (C8 operator control
         ($output -join ' ') | Should -Match 'Refused: production enrollment'
     }
 
-    It 'ALLOWS durable enrollment when the operator authorized that exact operation' {
-        # The sanctioned L3 command (EndToEndValidation "enroll") runs unattended by
-        # construction, so the boundary cannot be "-NonInteractive". It is whether the
-        # operator authorized THIS operation, which the switch carries. Without the
-        # switch the same invocation still refuses - see the durable-root test above.
-        $receipt = New-CompileFixture -Owner 'ProjectWorldData'
-        $durable = Join-Path $script:RepoRoot 'Plugins\World\ProjectWorldData\Data\Manifests'
-        $presentation = Join-Path $script:RepoRoot 'Plugins\World\ProjectWorldData\Data\Presentation\kazan_representative_v1.json'
-        $authored = Join-Path $script:RepoRoot 'Plugins\World\ProjectWorldData\Data\Authored\kazan_slice0_v1.json'
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$script:Wrapper' -CompileResult '$receipt' -Mode Apply -EnrollManifests -NonInteractive -DurableEnrollmentAuthorized -Map '/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory' -AuthoredOverlayProfile '$authored' -PresentationProfile '$presentation' -ManifestRoot '$durable'" 2>&1
-        ($output -join ' ') | Should -Not -Match 'Refused: production enrollment'
-    }
-
-    It 'ALLOWS ProjectWorldData enrollment into a TRANSIENT manifest root with -NonInteractive' {
-        $receipt = New-CompileFixture -Owner 'ProjectWorldData'
-        $sandbox = Join-Path $script:Fixture 'manifests'
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$script:Wrapper' -CompileResult '$receipt' -Mode Apply -EnrollManifests -NonInteractive -Map 'X' -AuthoredOverlayProfile 'A' -PresentationProfile 'P' -ManifestRoot '$sandbox'" 2>&1
-        # It still fails further along (this fixture has no map or profiles), but
-        # it must NOT be stopped by the production-enrollment refusal.
-        ($output -join ' ') | Should -Not -Match 'Refused: production enrollment'
-    }
-
-    It 'ALLOWS ProjectWorldTestData enrollment with -NonInteractive' {
-        $receipt = New-CompileFixture -Owner 'ProjectWorldTestData'
-        $sandbox = Join-Path $script:Fixture 'manifests'
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$script:Wrapper' -CompileResult '$receipt' -Mode Apply -EnrollManifests -NonInteractive -Map 'X' -AuthoredOverlayProfile 'A' -PresentationProfile 'P' -ManifestRoot '$sandbox'" 2>&1
-        # It still fails further along (this fixture has no map or profiles),
-        # but it must NOT be stopped by the production-enrollment refusal.
-        ($output -join ' ') | Should -Not -Match 'Refused: production enrollment'
-    }
-
-    It 'ALLOWS attended ProjectWorldData enrollment (no -NonInteractive)' {
-        $receipt = New-CompileFixture -Owner 'ProjectWorldData'
-        $sandbox = Join-Path $script:Fixture 'manifests'
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$script:Wrapper' -CompileResult '$receipt' -Mode Apply -EnrollManifests -Map 'X' -AuthoredOverlayProfile 'A' -PresentationProfile 'P' -ManifestRoot '$sandbox'" 2>&1
-        ($output -join ' ') | Should -Not -Match 'Refused: production enrollment'
-    }
-
-    It 'ALLOWS ordinary production Apply with -NonInteractive' {
-        $receipt = New-CompileFixture -Owner 'ProjectWorldData'
-        $sandbox = Join-Path $script:Fixture 'manifests'
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `
-            "& '$script:Wrapper' -CompileResult '$receipt' -Mode Apply -NonInteractive -Map 'X' -AuthoredOverlayProfile 'A' -PresentationProfile 'P' -ManifestRoot '$sandbox'" 2>&1
-        ($output -join ' ') | Should -Not -Match 'Refused: production enrollment'
-    }
+    # Every permitted combination is pinned on the guard itself
+    # (operator_controls.Tests.ps1): a wrapper run that is not refused would go on
+    # to take the real lock and realize real content.
 }

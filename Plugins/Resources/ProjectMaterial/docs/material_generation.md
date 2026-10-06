@@ -91,7 +91,9 @@ scripts/ue/material/run_surface_generation.ps1 `
 The host owns the project-wide generated-content lock, same-project Editor exclusion,
 bounded timeout, exact output/manifest snapshot, transaction journal, authenticated
 child receipt, rollback after rejection or interruption, and bounded Current/Previous
-evidence. Production regeneration retains one exact prior rollback bundle.
+evidence. Each accepted regeneration retains the exact state it replaced as one rollback
+bundle bound to its operation id, which only the host's `RestorePrevious` mode restores
+([host transaction](../../../../scripts/ue/material/README.md)).
 
 `Validate` is read-only: it accepts only when a regeneration would skip every output and
 leave the manifest bytes unchanged.

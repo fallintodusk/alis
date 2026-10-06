@@ -1,0 +1,13 @@
+{
+  "$schema": "../Schemas/project_world_producer_descriptor.schema.json",
+  "schema_version": 1,
+  "kind": "producer",
+  "generator_id": "project_vegetation_instances",
+  "generator_version": 1,
+  "output_revision": 1,
+  "data_inputs": [
+    "Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.uasset",
+    "Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset"
+  ],
+  "modules": ["ProjectWorldVegetationEditor"]
+}

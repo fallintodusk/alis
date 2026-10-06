@@ -1,0 +1,10 @@
+{
+  "$schema": "../Schemas/project_world_producer_descriptor.schema.json",
+  "schema_version": 1,
+  "kind": "producer",
+  "generator_id": "project_building_massing",
+  "generator_version": 2,
+  "output_revision": 1,
+  "data_inputs": [],
+  "modules": ["ProjectWorldBuildingEditor"]
+}

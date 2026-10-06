@@ -15,12 +15,19 @@ param(
     [string]$WorldDataPlugin,
 
     # Manifest authority root; defaults to the durable root.
-    [string]$ManifestRoot = ""
+    [string]$ManifestRoot = "",
+
+    # Project whose World data and content lock are recovered; defaults to
+    # this checkout. Outer recovery passes it explicitly.
+    [string]$ProjectRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-$projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDirectory))
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptDirectory))
+}
+$projectRoot = [System.IO.Path]::GetFullPath($ProjectRoot)
 . (Join-Path $scriptDirectory "generated_content_transaction.ps1")
 . (Join-Path $scriptDirectory "generated_manifest.ps1")
 $worldDataRoots = Resolve-ProjectWorldDataRoots -ProjectRoot $projectRoot -PluginName $WorldDataPlugin

@@ -1,22 +1,13 @@
-"""Derive camera vantages from World Partition actor descriptors."""
-import json, math, re, sys
-from collections import Counter
+"""Derive camera vantages from World Partition actor descriptors.
+
+Terrain and water are found by their runtime roles (`actor_descriptors`), so the plan frames
+any terrain representation.
+"""
+import json, math, sys
+
+from actor_descriptors import TERRAIN_ROLE, WATER_ROLE, parse, with_role
 
 FOV_DEG = 90.0
-
-def parse(path):
-    pat = re.compile(
-        r"NativeClass:(?P<cls>\S+).*?\bName:(?P<name>\S+).*?"
-        r"RuntimeBounds:IsValid=\w+, Min=\(X=(?P<x0>[-\d.]+) Y=(?P<y0>[-\d.]+) Z=(?P<z0>[-\d.]+)\), "
-        r"Max=\(X=(?P<x1>[-\d.]+) Y=(?P<y1>[-\d.]+) Z=(?P<z1>[-\d.]+)\)")
-    out = []
-    for line in open(path, encoding="utf-8", errors="replace"):
-        m = pat.search(line)
-        if m:
-            d = m.groupdict()
-            for k in ("x0","y0","z0","x1","y1","z1"): d[k] = float(d[k])
-            out.append(d)
-    return out
 
 CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
@@ -40,10 +31,10 @@ def altitude_for(span_world_x, span_world_y):
 
 def main(desc_path, out_path):
     rows = parse(desc_path)
-    terr = [r for r in rows if "LandscapeStreamingProxy" in r["cls"]]
-    water = [r for r in rows if "Water" in r["name"]]
+    terr = with_role(rows, TERRAIN_ROLE)
+    water = with_role(rows, WATER_ROLE)
     if not terr:
-        print("FATAL: no landscape proxies", file=sys.stderr); return 2
+        print(f"FATAL: no descriptor tagged {TERRAIN_ROLE}", file=sys.stderr); return 2
 
     X0=min(r["x0"] for r in terr); X1=max(r["x1"] for r in terr)
     Y0=min(r["y0"] for r in terr); Y1=max(r["y1"] for r in terr)
@@ -83,7 +74,7 @@ def main(desc_path, out_path):
     # 9. Highest terrain, close oblique -> proves relief is real at human scale.
     hi=max(terr,key=lambda r:r["z1"])
     hx,hy=(hi["x0"]+hi["x1"])/2,(hi["y0"]+hi["y1"])/2
-    add("09_relief_high", hx, hy-90000, hi["z1"]+45000, -25, 90, "highest proxy")
+    add("09_relief_high", hx, hy-90000, hi["z1"]+45000, -25, 90, "highest terrain descriptor")
 
     # The capture route MUST render at the same width, height and field of view the altitude
     # solve above assumed. Emitting them here keeps the solve and the capture bound to one
@@ -93,13 +84,13 @@ def main(desc_path, out_path):
         territory=dict(min=[X0,Y0,Zmin],max=[X1,Y1,Zmax],
                        center=[cx,cy],span_uu=span,span_m=span/100.0,
                        relief_m=(Zmax-Zmin)/100.0),
-        counts=dict(landscape_proxies=len(terr),water_actors=len(water),
+        counts=dict(terrain_descriptors=len(terr),water_actors=len(water),
                     total_descs=len(rows)),
         required_overview_altitude_uu=altitude_for(X1-X0, Y1-Y0),
         vantages=V)
     json.dump(doc, open(out_path,"w"), indent=2)
     print(f"territory {span/100:.0f} m span, relief {(Zmax-Zmin)/100:.1f} m")
-    print(f"proxies={len(terr)} water={len(water)} descs={len(rows)}")
+    print(f"terrain={len(terr)} water={len(water)} descs={len(rows)}")
     print(f"vantages={len(V)} -> {out_path}")
     for v in V:
         print(f"  {v['name']:26s} ({v['x']:>9},{v['y']:>9},{v['z']:>8}) p={v['pitch']:>4} y={v['yaw']:>5}  {v['note']}")

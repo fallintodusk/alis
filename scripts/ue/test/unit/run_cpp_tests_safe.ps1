@@ -9,6 +9,7 @@ param(
     [switch]$Game = $false,  # Run in standalone game mode (creates real game world)
     [int]$TimeoutSeconds = 120,  # 2 minutes
     [string]$ExtraArgs = "",  # Additional command-line args (e.g. -ProjectSkipFrontEnd)
+    [string]$LogDirectory = "",  # Caller-owned scratch for cold-run evidence.
     [string]$PreExecCmds = "",  # Console commands to run before Automation RunTests
     [string[]]$RequiredLogPatterns = @(),  # Regex markers that must appear in the cold-run log
     [string[]]$ExpectedTestNames = @(),  # Exact test paths expected to start and complete
@@ -39,6 +40,7 @@ $root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $stepN = $env:OVERNIGHT_STEP
 if (-not $stepN) { $stepN = "manual" }
 $logDir = Join-Path $root "artifacts\overnight\step-$stepN"
+if ($LogDirectory) { $logDir = [IO.Path]::GetFullPath($LogDirectory) }
 New-Item -Force -ItemType Directory -Path $logDir | Out-Null
 
 # --------------------------------------------------------------------------

@@ -15,6 +15,8 @@ Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot 'world_data_roots.ps1')
 
+. (Join-Path $PSScriptRoot '..\generated_content\generated_content_mutation_lock.ps1')
+
 $script:ManifestSchemaId = 'https://alis.world/schemas/project-world/generated-manifest-v1.json'
 $script:ActiveSetSchemaId = 'https://alis.world/schemas/project-world/active-manifest-set-v1.json'
 
@@ -58,12 +60,7 @@ function Get-ProjectWorldDefaultManifestRoot {
 
 function Enter-ProjectWorldContentLock {
     param([Parameter(Mandatory = $true)][string]$ProjectRoot)
-    $sharedLock = Join-Path $PSScriptRoot '..\generated_content\generated_content_mutation_lock.ps1'
-    . $sharedLock
-    return Enter-ProjectGeneratedContentMutationLock `
-        -ProjectRoot $ProjectRoot `
-        -OwnerName 'ProjectWorld' `
-        -DelegationEnvironmentVariable 'ALIS_WORLD_CONTENT_LOCK_TOKEN'
+    return Enter-ProjectGeneratedContentMutationLock -ProjectRoot $ProjectRoot -OwnerName 'ProjectWorld'
 }
 
 function Enter-ProjectWorldAuthorityLock {
@@ -451,6 +448,7 @@ function New-ProjectWorldFingerprintMigrationCandidate {
         [Parameter(Mandatory = $true)][string]$GeneratorFingerprint
     )
     $candidate = $PriorManifest | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $candidate.'$schema' = $script:ManifestSchemaId
     $candidate.generation = $Generation
     $candidate.accepted_operation_id = $OperationId
     $candidate.accepted_at_utc = [DateTimeOffset]::UtcNow.ToString(
@@ -459,8 +457,24 @@ function New-ProjectWorldFingerprintMigrationCandidate {
     return $candidate
 }
 
+function Move-ProjectWorldStagedFile {
+    # Promotes a fully written staging file: File.Replace swaps an existing
+    # target in one call and File.Move claims an absent name. Move-Item -Force
+    # deletes the target first and can leave neither file behind.
+    param(
+        [Parameter(Mandatory = $true)][string]$Staging,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        [System.IO.File]::Replace($Staging, $Path, [NullString]::Value)
+    }
+    else {
+        [System.IO.File]::Move($Staging, $Path)
+    }
+}
+
 function Write-ProjectWorldJson {
-    # Durable staged replacement: full write to .tmp, then atomic move.
+    # Durable staged replacement: full write to .tmp, then atomic promotion.
     param(
         [Parameter(Mandatory = $true)][object]$Document,
         [Parameter(Mandatory = $true)][string]$Path
@@ -475,7 +489,7 @@ function Write-ProjectWorldJson {
     $json = ($Document | ConvertTo-Json -Depth 8) -replace "`r`n", "`n"
     $staging = "$Path.tmp"
     [System.IO.File]::WriteAllText($staging, $json + "`n", [System.Text.UTF8Encoding]::new($false))
-    Move-Item -LiteralPath $staging -Destination $Path -Force
+    Move-ProjectWorldStagedFile -Staging $staging -Path $Path
 }
 
 function Write-ProjectWorldTransactionJournal {
@@ -719,7 +733,7 @@ function Publish-ProjectWorldActiveSet {
     if ($null -ne $BeforeCommit) {
         & $BeforeCommit $publishedSha
     }
-    Move-Item -LiteralPath $staging -Destination $target -Force
+    Move-ProjectWorldStagedFile -Staging $staging -Path $target
     # Post-commit housekeeping only: archive retired manifests.
     foreach ($retired in $RetiredScopeIds) {
         $priorEntry = $carried | Where-Object { $_.scope_id -eq $retired }
@@ -832,10 +846,12 @@ function Invoke-ProjectWorldTransactionRecovery {
         if (Test-Path -LiteralPath $activeStaging) {
             Remove-Item -LiteralPath $activeStaging -Force
         }
+        # Journal first: once it is gone the transaction is settled and a
+        # leftover snapshot is debris, never a journal without its snapshot.
+        Remove-Item -LiteralPath $journalPath -Force
         if ($journal.snapshot_root -and (Test-Path -LiteralPath $journal.snapshot_root)) {
             Remove-Item -LiteralPath $journal.snapshot_root -Recurse -Force
         }
-        Remove-Item -LiteralPath $journalPath -Force
         return [pscustomobject]@{ State = 'completed' }
     }
     if ($currentSha -ne $journal.prior_active_set_sha256) {
@@ -869,7 +885,7 @@ function Invoke-ProjectWorldTransactionRecovery {
     if (Test-Path -LiteralPath $scopesDir) {
         Get-ChildItem -LiteralPath $scopesDir -Filter '*.tmp' | Remove-Item -Force
     }
-    Remove-Item -LiteralPath $journal.snapshot_root -Recurse -Force
     Remove-Item -LiteralPath $journalPath -Force
+    Remove-Item -LiteralPath $journal.snapshot_root -Recurse -Force
     return [pscustomobject]@{ State = 'rolled_back' }
 }

@@ -36,9 +36,13 @@ python tools/World/VisualVerification/app/census.py \
 ```
 
 World Partition actor descriptors are readable **without loading the actors**,
-so a 210-cell territory is censused in milliseconds with no rendering and no
-editor build. Checks layer counts, single logical landscape, spatial-loading
-flags, the lighting set, relief, and water-below-terrain.
+so a whole territory is censused in milliseconds with no rendering and no
+editor build. Terrain and water are found by the runtime roles their actors
+carry in the descriptor tags (`ProjectWorld.Terrain.v1`,
+`ProjectWorld.Water.v1`), never by class or actor name. The census checks that
+both are present and spatially loaded, the lighting set, and terrain relief. It
+does not judge terrain-to-water heights: canonical compilation owns that
+relation and fails closed when it breaks.
 
 Proves presence and placement **only**. Never report a green census as visual
 approval.
@@ -113,13 +117,22 @@ Do not collapse that wait into the startup frame: all actors can be present
 while Landscape render state is still incomplete, producing authenticated but
 visually false checkerboard frames.
 
-That wait does not cover Mesh Terrain section rendering. On Kazan, a capture taken by this
-command alone can show buildings and water with no terrain at all and still return an
-accepted receipt, while a session that loads the same bounds and lets the editor run longer
-first renders the terrain. Check that the subject is actually drawn before using a frame, and
-compare a change only against a control session that loads and settles the same way. Editor
-worlds also never generate ProjectTexture's runtime pattern pixels, so appearance driven by
-those signals is not visible in these captures
+On each of those frames every registered evidence subject must also be drawn.
+A representation adapter registers an `IProjectWorldEvidenceSubject` (declared
+by ProjectWorldEditor) and reports for the open editor world whether it is
+present, how many units it expects, how many are drawn, and how many builds are
+pending; the command alone turns those counts into a decision. Mesh Terrain's
+subject counts the loaded base modifiers aimed at its partition and how many of
+them have a visible preview section, because an editor world never loads the
+runtime-only compiled sections and builds its preview sections asynchronously
+after the actors load. A frame with an undrawn subject resets the count, and a world with
+no present subject waits for compilations only. The receipt `message` carries
+each present subject's final counts; a subject never drawn within the timeout
+rejects the receipt with them.
+
+Compare a change only against a control session that loads and settles the
+same way. Editor worlds never generate ProjectTexture's runtime pattern pixels,
+so appearance driven by those signals is not visible in these captures
 ([pattern generation](../../../Plugins/Resources/ProjectTexture/docs/pattern_generation.md)).
 
 It is NOT a commandlet. That envelope was tried and abandoned on measured
@@ -193,13 +206,15 @@ All scratch output goes under the project `tmp/` tree:
 tmp/world/visual_verification/
     actor_descs.csv          raw descriptor dump
     receipts/                census.json, surface.json, vantages.json
-    screenshots/             capture output (route not yet implemented)
+    screenshots/             capture output
 ```
 
 Nothing under `tmp/` may be an input to a committed test, doc, or script.
 
 ## Scope
 
-Covers terrain and water, the layers admitted so far. Later generated layers
-attach by extending the expectation table in `census.py` and adding vantages in
-the sweep test; neither requires reopening the stage boundaries above.
+Covers terrain and water, found by their runtime roles. A later generated
+layer attaches by adding its role check to `census.py` and its vantages to
+`plan_vantages.py`; a representation that an editor capture must wait for
+registers its own evidence subject. None of these reopens the stage boundaries
+above.

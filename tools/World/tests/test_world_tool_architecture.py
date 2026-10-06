@@ -24,8 +24,18 @@ class WorldToolArchitectureTests(unittest.TestCase):
         data_root = logic_root / "Data"
         data_files = [path.relative_to(data_root) for path in data_root.rglob("*") if path.is_file()]
         self.assertTrue(data_files)
-        self.assertTrue(all(path.parts[0] == "Schemas" for path in data_files))
-        self.assertTrue(all(path.name.endswith(".schema.json") for path in data_files))
+        # Logic Data holds only tooling records that no runtime module reads: schemas,
+        # producer descriptors, and verify baselines; never instance data.
+        unexpected = [
+            path.as_posix()
+            for path in data_files
+            if not (
+                (path.parts[0] == "Schemas" and path.name.endswith(".schema.json"))
+                or (path.parts[:-1] == ("Producers",) and path.suffix == ".json")
+                or (path.parts[:-1] == ("TestFixtures", "Verify") and path.name.endswith(".verify.json"))
+            )
+        ]
+        self.assertEqual([], unexpected)
 
     def test_world_test_data_is_editor_routed_and_not_production_cooked(self) -> None:
         plugins_root = REPO_ROOT / "Plugins"

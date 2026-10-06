@@ -40,7 +40,7 @@ def build_lineages(
     overlay: dict[str, Any],
 ) -> dict[str, dict[str, Any]]:
     compiler_contract = {
-        "algorithm_version": profile.get("algorithm_version", "alis-world-compiler-1"),
+        "algorithm_version": profile["algorithm_version"],
         "identity_namespace": profile["identity_namespace"],
         "implementation_sha256": run_contract["implementation_sha256"],
         "execution_environment_identity": run_contract["execution_environment"]["identity_sha256"],

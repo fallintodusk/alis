@@ -21,17 +21,19 @@ function Assert-ProjectWorldOwnedPath {
     return $candidate
 }
 
-function Get-ProjectWorldPresentationRoot {
-    # SINGLE authority for legacy World-owned generated presentation artifacts.
-    # Universal materials are now owned by ProjectMaterial, but remaining World
-    # presentation outputs still need one transaction-root authority. Invariant
-    # 19 pins this path so rollback cannot omit a shared World-owned artifact.
+function Get-ProjectWorldGeneratedRoots {
+    # Every content root generated-owned paths live under; the authority audit
+    # scans them and the outer snapshot copies them whole.
     param(
         [Parameter(Mandatory = $true)]
         [string]$ContentRoot
     )
 
-    return Join-Path $ContentRoot 'Generated\Presentation'
+    return @(
+        (Join-Path $ContentRoot 'Generated'),
+        (Join-Path $ContentRoot '__ExternalActors__\Generated'),
+        (Join-Path $ContentRoot '__ExternalObjects__\Generated')
+    )
 }
 
 function Get-ProjectWorldGeneratedPaths {
@@ -43,9 +45,7 @@ function Get-ProjectWorldGeneratedPaths {
         [string]$MapPackage,
 
         [Parameter(Mandatory = $true)]
-        [string]$GeneratedPackageRoot,
-
-        [bool]$IncludePresentation = $true
+        [string]$GeneratedPackageRoot
     )
 
     if ($GeneratedPackageRoot -notmatch '^(/[A-Za-z][A-Za-z0-9_]*/)Generated/$') {
@@ -81,42 +81,7 @@ function Get-ProjectWorldGeneratedPaths {
             $paths.Add((Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $candidate))
         }
     }
-    if ($IncludePresentation) {
-        $presentation = Get-ProjectWorldPresentationRoot -ContentRoot $ContentRoot
-        if (Test-Path -LiteralPath $presentation) {
-            $paths.Add((Assert-ProjectWorldOwnedPath -ContentRoot $ContentRoot -Path $presentation))
-        }
-    }
     return @($paths | Sort-Object -Unique)
-}
-
-function Assert-ProjectWorldSnapshotCoverage {
-    # Invariant 19 fail-closed guard: a transaction may not begin unless its
-    # snapshot covers every generated root the operation can mutate. The map
-    # scope is derived from the map package, and layer roots arrive as declared
-    # AdditionalPaths, but the shared presentation root belongs to no scope and
-    # is therefore the one root a caller can silently omit. Refuse rather than
-    # discover the omission during a failed rollback.
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ContentRoot,
-
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyCollection()]
-        [object[]]$Records
-    )
-
-    $presentation = Get-ProjectWorldPresentationRoot -ContentRoot $ContentRoot
-    if (-not (Test-Path -LiteralPath $presentation)) {
-        return
-    }
-    $target = [System.IO.Path]::GetFullPath($presentation).TrimEnd('\', '/')
-    $covered = @($Records | ForEach-Object {
-        [System.IO.Path]::GetFullPath([string]$_.Source).TrimEnd('\', '/')
-    })
-    if ($covered -notcontains $target) {
-        throw "Generated content transaction does not cover the shared presentation root: $target"
-    }
 }
 
 function New-ProjectWorldGeneratedSnapshot {
@@ -137,6 +102,10 @@ function New-ProjectWorldGeneratedSnapshot {
         [string[]]$AdditionalPaths = @()
     )
 
+    $legacyPresentation = Join-Path $ContentRoot 'Generated\Presentation'
+    if (Test-Path -LiteralPath $legacyPresentation) {
+        throw "Obsolete World presentation artifact root is present: $legacyPresentation"
+    }
     New-Item -ItemType Directory -Path $SnapshotRoot -Force | Out-Null
     $records = [System.Collections.Generic.List[object]]::new()
     $index = 0
@@ -156,7 +125,6 @@ function New-ProjectWorldGeneratedSnapshot {
         $records.Add([pscustomobject]@{ Source = $source; Backup = $backup; Existed = $existed })
         ++$index
     }
-    Assert-ProjectWorldSnapshotCoverage -ContentRoot $ContentRoot -Records @($records)
     return @($records)
 }
 
@@ -165,30 +133,12 @@ function Remove-ProjectWorldGeneratedPaths {
         [Parameter(Mandatory = $true)][string]$ContentRoot,
         [Parameter(Mandatory = $true)][string]$MapPackage,
         [Parameter(Mandatory = $true)]
-        [string]$GeneratedPackageRoot,
-        [bool]$IncludePresentation = $true
+        [string]$GeneratedPackageRoot
     )
     foreach ($path in Get-ProjectWorldGeneratedPaths `
         -ContentRoot $ContentRoot -MapPackage $MapPackage `
-        -GeneratedPackageRoot $GeneratedPackageRoot `
-        -IncludePresentation $IncludePresentation) {
+        -GeneratedPackageRoot $GeneratedPackageRoot) {
         Remove-Item -LiteralPath $path -Recurse -Force
-    }
-}
-
-function Remove-ProjectWorldGeneratedHLODArtifacts {
-    param(
-        [Parameter(Mandatory = $true)][string]$ContentRoot,
-        [Parameter(Mandatory = $true)][string]$MapPackage,
-        [Parameter(Mandatory = $true)][string]$GeneratedPackageRoot
-    )
-    foreach ($path in Get-ProjectWorldGeneratedPaths `
-        -ContentRoot $ContentRoot -MapPackage $MapPackage `
-        -GeneratedPackageRoot $GeneratedPackageRoot `
-        -IncludePresentation $false) {
-        if ((Split-Path -Leaf $path) -like '*_HLODLayer_*.uasset') {
-            Remove-Item -LiteralPath $path -Force
-        }
     }
 }
 
@@ -287,13 +237,22 @@ function Complete-ProjectWorldGeneratedTransaction {
         [int]$EngineExitCode,
 
         [Parameter(Mandatory = $true)]
-        [string]$ChildStatus
+        [string]$ChildStatus,
+
+        # The journal is removed before the snapshot in both outcomes: once it
+        # is gone the transaction is settled, and an interruption can leave
+        # snapshot debris but never a journal whose snapshot is gone.
+        [Parameter(Mandatory = $true)]
+        [string]$JournalPath
     )
 
     $root = Resolve-ProjectWorldTransactionRoot `
         -TransactionParent $TransactionParent `
         -TransactionRoot $TransactionRoot
     if ($EngineExitCode -eq 0 -and $ChildStatus -eq 'accepted') {
+        if (Test-Path -LiteralPath $JournalPath -PathType Leaf) {
+            Remove-Item -LiteralPath $JournalPath -Force
+        }
         Remove-ProjectWorldGeneratedSnapshot `
             -TransactionParent $TransactionParent `
             -TransactionRoot $root
@@ -321,6 +280,9 @@ function Complete-ProjectWorldGeneratedTransaction {
         }
     }
 
+    if (Test-Path -LiteralPath $JournalPath -PathType Leaf) {
+        Remove-Item -LiteralPath $JournalPath -Force
+    }
     Remove-ProjectWorldGeneratedSnapshot `
         -TransactionParent $TransactionParent `
         -TransactionRoot $root

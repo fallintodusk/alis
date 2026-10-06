@@ -4,6 +4,7 @@
 #include "ProjectWorldStaticPartitionAudit.h"
 
 #include "ProjectWorldGeneratedGeometry.h"
+#include "ProjectWorldLayerProducerRegistry.h"
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldTerrainRuntimeRole.h"
@@ -23,17 +24,6 @@ namespace ProjectWorldStaticPartitionAudit
 	{
 		constexpr double MinimumLoadingRangeCells = 3.0;
 		constexpr double ExpectedCellBoundsToleranceMeters = 0.1;
-		const FName MeshTerrainAuthoringTag(TEXT("ProjectWorld.MeshTerrain.Authoring.v1"));
-		const FName MeshTerrainPartitionTag(TEXT("ProjectWorld.MeshTerrain.Partition.v1"));
-		const FString MeshTerrainCellPrefix(TEXT("ProjectWorld.MeshTerrain.Cell="));
-		const TArray<FName> CellOwnedLayerTags{
-			MeshTerrainAuthoringTag,
-			TEXT("ProjectWorld.Water.v1"),
-			TEXT("ProjectWorld.Road.v1"),
-			TEXT("ProjectWorld.Vegetation=v1"),
-			TEXT("ProjectWorld.BuildingMassing.v1"),
-			TEXT("ProjectWorld.BuildingMassing.v2"),
-			TEXT("ProjectWorld.GameplayPlacement.v1")};
 
 		struct FCellRange
 		{
@@ -53,6 +43,7 @@ namespace ProjectWorldStaticPartitionAudit
 		struct FActorEntry
 		{
 			AActor* Actor = nullptr;
+			const IProjectWorldLayerProducer* Owner = nullptr;
 			FGuid Guid;
 			FBox Bounds = FBox(ForceInit);
 			FName PackageName;
@@ -122,35 +113,38 @@ namespace ProjectWorldStaticPartitionAudit
 			Errors.Add(MakeShared<FJsonValueString>(Message));
 		}
 
-		bool HasCellIdentity(const AActor* Actor)
+		bool HasCellIdentity(const FActorEntry& Entry)
 		{
-			return Actor->Tags.ContainsByPredicate([](const FName& Tag)
-			{
-				const FString Value = Tag.ToString();
-				return Value.StartsWith(MeshTerrainCellPrefix) ||
-					Value.StartsWith(TEXT("ProjectWorld.Cell=")) ||
-					Value.StartsWith(TEXT("ProjectWorld.WaterCell=")) ||
-					Value.StartsWith(TEXT("ProjectWorld.RoadCell=")) ||
-					Value.StartsWith(TEXT("ProjectWorld.VegetationCell=")) ||
-					Value.StartsWith(TEXT("ProjectWorld.BuildingCell="));
-			});
+			const FString& Prefix = Entry.Owner->GetDeclaration().OwnedActors.CellTagPrefix;
+			return Entry.Actor->Tags.ContainsByPredicate([&Prefix](const FName& Tag)
+			{ return Tag.ToString().StartsWith(Prefix); });
 		}
 
-		bool HasMeshTerrainCellIdentity(const AActor* Actor)
+		bool IsCellExtentActor(const FActorEntry& Entry)
 		{
-			return Actor->Tags.ContainsByPredicate([](const FName& Tag)
-			{
-				return Tag.ToString().StartsWith(MeshTerrainCellPrefix);
-			});
+			return Entry.Owner != nullptr && Entry.Owner->GetDeclaration().OwnedActors.bCellExtentActors;
 		}
 
-		bool IsCellOwnedLayerActor(const AActor* Actor)
+		bool IsCellOwnedLayerActor(const FActorEntry& Entry)
 		{
-			return CellOwnedLayerTags.ContainsByPredicate([Actor](const FName& Tag)
-			{
-				return Actor->Tags.Contains(Tag);
-			});
+			return Entry.Owner != nullptr &&
+				!Entry.Owner->GetDeclaration().OwnedActors.CellTagPrefix.IsEmpty();
 		}
+	}
+
+	bool ValidateGeneratedActorOwnership(
+		const AActor& Actor,
+		const IProjectWorldLayerProducer* Owner,
+		FString& OutError)
+	{
+		if (Actor.Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag) && Owner == nullptr &&
+			!ProjectWorldGeneratedGeometry::IsCoreGeneratedActor(Actor))
+		{
+			OutError = FString::Printf(TEXT("Generated actor %s has no registered producer or core role."),
+				*Actor.GetName());
+			return false;
+		}
+		return true;
 	}
 
 	int32 CountIntersectedCells(const FBox& Bounds, int32 CellSizeMeters)
@@ -183,9 +177,8 @@ namespace ProjectWorldStaticPartitionAudit
 
 		TArray<FActorEntry> Entries;
 		TMap<FGuid, int32> IndexByGuid;
-		int32 MeshTerrainPartitionCount = 0;
-		int32 MeshTerrainAuthoringCellCount = 0;
-		int32 TerrainSectionCount = 0;
+		int32 CellExtentActorCount = 0;
+		int32 TerrainRoleActorCount = 0;
 		int32 HlodProxyActorCount = 0;
 		int32 HlodEligibleGeneratedActorCount = 0;
 		for (TActorIterator<AActor> It(World); It; ++It)
@@ -193,27 +186,36 @@ namespace ProjectWorldStaticPartitionAudit
 			AActor* Actor = *It;
 			HlodProxyActorCount += Actor->IsA<AWorldPartitionHLOD>() ? 1 : 0;
 			const bool bProjectGenerated = Actor->Tags.Contains(ProjectWorldGeneratedGeometry::GeneratedTag);
-			const bool bMeshTerrainAuthoring = Actor->Tags.Contains(MeshTerrainAuthoringTag);
+			const IProjectWorldLayerProducer* Owner = nullptr;
+			if (!ProjectWorldLayerProducerRegistry::FindActorOwner(*Actor, Owner, OutError))
+			{
+				return false;
+			}
+			if (!ValidateGeneratedActorOwnership(*Actor, Owner, OutError))
+			{
+				return false;
+			}
+			const bool bCellExtent = Owner != nullptr && Owner->GetDeclaration().OwnedActors.bCellExtentActors;
 			const bool bTerrainSection = ProjectWorldTerrainRuntimeRole::HasRole(*Actor);
-			if (!bProjectGenerated && !bMeshTerrainAuthoring && !bTerrainSection)
+			if (!bProjectGenerated && Owner == nullptr && !bTerrainSection)
 			{
 				continue;
 			}
 			HlodEligibleGeneratedActorCount +=
 				bProjectGenerated &&
 				(Actor->bEnableAutoLODGeneration || Actor->GetHLODLayer() != nullptr) ? 1 : 0;
-			MeshTerrainPartitionCount += Actor->Tags.Contains(MeshTerrainPartitionTag) ? 1 : 0;
-			MeshTerrainAuthoringCellCount += HasMeshTerrainCellIdentity(Actor) ? 1 : 0;
-			TerrainSectionCount += bTerrainSection ? 1 : 0;
+			CellExtentActorCount += bCellExtent ? 1 : 0;
+			TerrainRoleActorCount += bTerrainSection ? 1 : 0;
 
 			FActorEntry& Entry = Entries.AddDefaulted_GetRef();
 			Entry.Actor = Actor;
+			Entry.Owner = Owner;
 			Entry.Guid = Actor->GetActorGuid();
 			Entry.bSpatial = Actor->GetIsSpatiallyLoaded();
 			Entry.bProjectGenerated = bProjectGenerated;
-			Entry.bTerrain = bMeshTerrainAuthoring || bTerrainSection;
+			Entry.bTerrain = bCellExtent || bTerrainSection;
 			Entry.bExternalPackage = Actor->IsPackageExternal();
-			if (bMeshTerrainAuthoring)
+			if (bCellExtent)
 			{
 				Entry.Bounds = Actor->GetComponentsBoundingBox(true);
 			}
@@ -251,7 +253,7 @@ namespace ProjectWorldStaticPartitionAudit
 		FVector2D ExpectedCanonicalCellSizeMeters = FVector2D::ZeroVector;
 		for (const FActorEntry& Entry : Entries)
 		{
-			if (HasMeshTerrainCellIdentity(Entry.Actor) && Entry.Bounds.IsValid)
+			if (IsCellExtentActor(Entry) && Entry.Bounds.IsValid)
 			{
 				const FVector SizeMeters = Entry.Bounds.GetSize() * 0.01;
 				ExpectedCanonicalCellSizeMeters.X = FMath::Max(ExpectedCanonicalCellSizeMeters.X, SizeMeters.X);
@@ -352,9 +354,9 @@ namespace ProjectWorldStaticPartitionAudit
 						MaximumNonTerrainActorSize = Entry.Bounds.GetSize() * 0.01;
 						MaximumNonTerrainActorTags = Entry.Actor->Tags;
 					}
-					if (IsCellOwnedLayerActor(Entry.Actor))
+					if (IsCellOwnedLayerActor(Entry))
 					{
-						if (!HasCellIdentity(Entry.Actor))
+						if (!HasCellIdentity(Entry))
 						{
 							++CellOwnedActorMissingIdentityCount;
 							if (FirstMissingIdentityActorName.IsEmpty())
@@ -469,14 +471,13 @@ namespace ProjectWorldStaticPartitionAudit
 					TEXT("Current no-Data-Layer candidates contain %d generated actor memberships."),
 					DataLayerMembershipCount));
 			}
-			if (MeshTerrainPartitionCount != 1 || MeshTerrainAuthoringCellCount == 0 || TerrainSectionCount == 0 ||
+			if (CellExtentActorCount == 0 || TerrainRoleActorCount == 0 ||
 				ExpectedCanonicalCellSizeMeters.X <= 0.0 || ExpectedCanonicalCellSizeMeters.Y <= 0.0)
 			{
 				AddFailure(Errors, FString::Printf(
-					TEXT("Mesh Terrain ownership failed: partitions=%d authoring_cells=%d compiled_sections=%d cell_size=%.3fx%.3f."),
-					MeshTerrainPartitionCount,
-					MeshTerrainAuthoringCellCount,
-					TerrainSectionCount,
+					TEXT("Terrain ownership failed: cell_extent_actors=%d terrain_role_actors=%d cell_size=%.3fx%.3f."),
+					CellExtentActorCount,
+					TerrainRoleActorCount,
 					ExpectedCanonicalCellSizeMeters.X,
 					ExpectedCanonicalCellSizeMeters.Y));
 			}
@@ -566,9 +567,8 @@ namespace ProjectWorldStaticPartitionAudit
 			ProfileObject->SetNumberField(TEXT("runtime_cells_with_packages"), CellPackages.Num());
 			ProfileObject->SetNumberField(TEXT("maximum_runtime_cell_package_bytes"), MaximumCellPackageBytes);
 			ProfileObject->SetNumberField(TEXT("generated_data_layer_membership_count"), DataLayerMembershipCount);
-			ProfileObject->SetNumberField(TEXT("mesh_terrain_partition_count"), MeshTerrainPartitionCount);
-			ProfileObject->SetNumberField(TEXT("mesh_terrain_authoring_cell_count"), MeshTerrainAuthoringCellCount);
-			ProfileObject->SetNumberField(TEXT("terrain_section_count"), TerrainSectionCount);
+			ProfileObject->SetNumberField(TEXT("cell_extent_actor_count"), CellExtentActorCount);
+			ProfileObject->SetNumberField(TEXT("terrain_role_actor_count"), TerrainRoleActorCount);
 			ProfileObject->SetNumberField(TEXT("hlod_proxy_actor_count"), HlodProxyActorCount);
 			ProfileObject->SetNumberField(TEXT("hlod_layer_reference_count"), HlodLayerReferenceCount);
 			ProfileObject->SetNumberField(
@@ -590,8 +590,8 @@ namespace ProjectWorldStaticPartitionAudit
 		}
 		OutReceipt = MakeShared<FJsonObject>();
 		OutReceipt->SetStringField(
-			TEXT("$schema"), TEXT("https://alis.world/schemas/world-static-partition-audit/result-v2.json"));
-		OutReceipt->SetNumberField(TEXT("schema_version"), 2);
+			TEXT("$schema"), TEXT("https://alis.world/schemas/world-static-partition-audit/result-v3.json"));
+		OutReceipt->SetNumberField(TEXT("schema_version"), 3);
 		OutReceipt->SetStringField(TEXT("status"), bSelectedProfileAccepted ? TEXT("accepted") : TEXT("rejected"));
 		OutReceipt->SetStringField(TEXT("map_package"), World->GetPackage()->GetName());
 		OutReceipt->SetStringField(TEXT("selected_profile_id"), SelectedProfileId);

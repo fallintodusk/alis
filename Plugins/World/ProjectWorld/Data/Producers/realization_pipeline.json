@@ -1,0 +1,7 @@
+{
+  "$schema": "../Schemas/project_world_producer_descriptor.schema.json",
+  "schema_version": 1,
+  "kind": "pipeline",
+  "pipeline_revision": 1,
+  "modules": ["ProjectWorld", "ProjectWorldEditor"]
+}

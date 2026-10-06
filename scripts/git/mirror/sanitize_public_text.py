@@ -16,6 +16,7 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "ue" / "check" / "governance"))
 import machine_local_paths  # noqa: E402
@@ -69,43 +70,57 @@ def sanitize_text(text: str, suffix: str) -> str:
     return text
 
 
+def sanitize_file(root: pathlib.Path, path: pathlib.Path) -> None:
+    if not path.is_file():
+        return
+    rel = path.relative_to(root).as_posix()
+    # The mirror tooling carries its identity patterns itself.
+    if rel.startswith("scripts/git/mirror/"):
+        return
+    suffix = path.suffix.lower()
+    if suffix not in TEXT_SUFFIXES and not path.name.lower().startswith("readme"):
+        return
+    try:
+        original = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return
+    text = sanitize_text(original, suffix)
+    if text == original:
+        return
+    newline = "\r\n" if "\r\n" in original else "\n"
+    with open(path, "w", encoding="utf-8", newline=newline) as handle:
+        handle.write(text)
+
+
 def sanitize_tree(root: pathlib.Path) -> None:
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(root).as_posix()
-        # The mirror tooling carries its identity patterns itself.
-        if rel.startswith("scripts/git/mirror/"):
-            continue
-        suffix = path.suffix.lower()
-        if suffix not in TEXT_SUFFIXES and not path.name.lower().startswith("readme"):
-            continue
-        try:
-            original = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        text = sanitize_text(original, suffix)
-        if text == original:
-            continue
-        newline = "\r\n" if "\r\n" in original else "\n"
-        with open(path, "w", encoding="utf-8", newline=newline) as handle:
-            handle.write(text)
+    # Files are independent, so their reads overlap in threads (see
+    # residual_machine_paths).
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        list(pool.map(lambda path: sanitize_file(root, path), list(root.rglob("*"))))
+
+
+def machine_path_lines_in(path: pathlib.Path) -> list[int]:
+    if not path.is_file():
+        return []
+    raw = path.read_bytes()
+    # Binary content fails the mirror's binary guard instead.
+    if b"\0" in raw[:8192]:
+        return []
+    return machine_local_paths.machine_path_lines(raw.decode("utf-8", errors="ignore"))
 
 
 def residual_machine_paths(root: pathlib.Path) -> list[tuple[str, list[int]]]:
     """(path, line numbers) of every file in the tree that carries a machine path."""
-    found = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
-        raw = path.read_bytes()
-        # Binary content fails the mirror's binary guard instead.
-        if b"\0" in raw[:8192]:
-            continue
-        lines = machine_local_paths.machine_path_lines(raw.decode("utf-8", errors="ignore"))
-        if lines:
-            found.append((path.relative_to(root).as_posix(), lines))
-    return found
+    paths = sorted(root.rglob("*"))
+    # Reads overlap in threads: under WSL the tree is on a mounted Windows drive,
+    # where each file access is a slow round trip.
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        per_path = list(pool.map(machine_path_lines_in, paths))
+    return [
+        (path.relative_to(root).as_posix(), lines)
+        for path, lines in zip(paths, per_path)
+        if lines
+    ]
 
 
 def main(argv: list[str]) -> int:

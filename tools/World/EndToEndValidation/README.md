@@ -16,20 +16,15 @@ realization, or packaging logic.
 python -S tools/World/EndToEndValidation/bootstrap.py plan --base HEAD
 python -S tools/World/EndToEndValidation/bootstrap.py check
 python -S tools/World/EndToEndValidation/bootstrap.py run `
-  --profile Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/p0.validation.json `
-  --check-result <common-check-result.json>
-python -S tools/World/EndToEndValidation/bootstrap.py run `
-  --profile Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/representative_v1.validation.json `
-  --check-result <same-common-check-result.json>
-python -S tools/World/EndToEndValidation/bootstrap.py run `
   --profile Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/kazan_territory_v1.validation.json `
-  --check-result <same-common-check-result.json>
+  --check-result <common-check-result.json> `
+  --from-canonical-authority --changed-base <slice-base>
 python -S tools/World/EndToEndValidation/bootstrap.py enroll `
   --run <accepted-territory-run-id> `
   --profile Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/kazan_territory_v1.validation.json
 python -S tools/World/EndToEndValidation/bootstrap.py accept `
-  --p0-run <run-id> --representative-run <run-id> `
-  --profile Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/representative_v1.validation.json
+  --run <accepted-territory-run-id> `
+  --profile Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/kazan_territory_v1.validation.json
 ```
 
 `plan` reads tracked and untracked changed paths and reports the minimum gate
@@ -38,6 +33,13 @@ package, or generated-content mutation. `--base` names the commit before the
 current slice; use `HEAD` only while the slice remains uncommitted.
 Matrix selection follows the transitive inputs of executable validation
 profiles. Unreferenced future profiles and controls select no existing Matrix.
+The plan also prints `canonical_authority` or `full` for each Matrix. The
+canonical route requires the base before every unaccepted change in the
+candidate. Use `HEAD` for uncommitted work only after any earlier committed
+upstream change has its own accepted boundary and nonproducing proof. Record
+the original base and complete path set for a multi-commit review; a later
+World-only Matrix does not prove source replay for the earlier commits. Omit
+both optional run flags for the full source-to-World replay.
 L3 output names candidate owners only; promotion still requires an intentional
 generated-package or manifest change.
 
@@ -47,20 +49,54 @@ once. Each `run` verifies and pins that same accepted check receipt and refuses
 it if any covered code, package/world script, contract, or test changed
 afterward. The Check hash includes project/plugin descriptors, relevant project
 configuration, C++ Build.cs, pinned tool locks, immutable TestData inputs and
-authored fixtures, plus the exact P0 and representative input closures that
+authored fixtures, plus the exact territory Matrix input closure that
 the current suites read. It does not hash the whole future production profile
 namespace. Generated packages and durable manifests are excluded because
-Matrix and L3 own those lifecycles. It
-then runs isolated synthetic and Kazan
+Matrix and L3 own those lifecycles. The full route then runs isolated synthetic and Kazan
 source/compile matrices, and executes six realization legs: full Apply,
 unchanged Apply, road-locality Apply, one-cell incremental Apply, deliberately
 rejected overlay resolution, and clean reconstruction. It compares D0-D3 semantics, requires
 the generated tree to roll back byte-for-byte after rejection, and requires
 every protected authored package hash to remain identical across all legs.
+The canonical-authority route selects the production profile only. It
+validates and materializes the current promoted bundle, then executes full
+Apply, unchanged Apply, road-locality Apply, deliberately rejected overlay
+resolution, and clean reconstruction. It performs no source acquisition or
+fresh compilation, and its receipt reports those upstream proofs as absent.
+The promoted bundle omits the compiler's observational `metrics.json`; the
+canonical byte budget derives from the authenticated compile-result output
+inventory.
+On a builder run, the child receipt records producer artifacts before the
+post-apply Mesh Partition builder. The final manifest also owns its compiled
+section artifacts. The Matrix profile records both counts. An isolated clean
+reconstruction may allocate new Mesh Partition actor package paths; the Matrix
+requires the same scope and artifact counts, equal producer semantics, equal
+World semantic fingerprint, and equal saved producer projections after the
+post-apply builder. Mesh Terrain covers compiled section geometry, collision,
+and role tags. Map and Building Massing cover saved partition/presentation state
+and building actor, mesh, material, and collision state. Their clean comparison
+omits allocation-only actor GUIDs, names, and labels from the authenticated
+saved projections. Only external actor
+package paths in the affected map and terrain scopes may be reallocated on the
+clean leg; other paths and all paths on unchanged and locality Applies stay fixed.
+The changed-path gate refuses the canonical route for source, compiler,
+execution-environment, upstream profile, control, budget, or promoted
+authority changes. Both routes require the current common Check and exact
+generated-tree restoration.
+The canonical route does not scan or apply a budget to the unused raw-source
+cache. Its World-only check name does not claim source or compiler replay.
+For a changed End-to-End validation profile, the gate compares source/compiler
+references and upstream budgets with `--changed-base`. World-only expectation
+edits may still use the canonical route; an unavailable base profile or an
+upstream field edit requires the full route.
+Canonical-mode coverage expectations describe the promoted bundle used by the
+current World manifests. A historical full source replay can disagree until
+the exact pinned raw source is recovered and its candidate is compared with
+that promoted authority; do not alter the source pin to make the counts match.
 The Matrix outer transaction always restores the exact pre-run generated file
 path/hash set before returning, including after successful validation work;
 accepted Matrix evidence never leaves candidate UE packages in the worktree.
-`accept` requires both matrices to reference one common check receipt, then
+`accept` requires one accepted territory Matrix with a current common check receipt, then
 audits the enrolled production tree, packages once, verifies the exact IoStore
 entry, runs the packaged rendered gate, and audits the unchanged tree again.
 Receipts are written under
@@ -69,10 +105,7 @@ stays under `tmp/world/end_to_end_validation/`. Each invocation prunes only
 its own evidence kind to five receipts and its own disposable Matrix work to
 two runs. It never sweeps another tool's `tmp/` ownership.
 
-`p0.validation.json` remains the frozen small compiler regression.
-`representative_v1.validation.json` owns the expanded compiler/environment
-semantics. Neither profile is terrain-realization evidence because neither owns
-a realization profile. `kazan_territory_v1.validation.json` binds the Mesh
+The supported `kazan_territory_v1.validation.json` Matrix binds the Mesh
 Terrain twin to the production 210-cell terrain/water/road/vegetation topology
 and exact generated-layer inventory.
 `enroll` authenticates its
@@ -84,11 +117,12 @@ the pipeline evidence tree. Its pre-audit may cross stale producer
 fingerprints only for exact target map/layer scopes that this Matrix proves
 and enrollment replaces; integrity, ownership, references, journals, and all
 unrelated producer fingerprints remain strict. The post-audit has no
-exception. Stale layer fingerprints inject whole-layer dirty work during
-Apply; enrollment cannot publish a current fingerprint over artifacts that
-the current producer did not reconstruct.
+exception. Stale layer fingerprints mark those layers identity-dirty during
+Apply without propagating a content dirty unit to dependent layers. Enrollment
+cannot publish a current fingerprint over artifacts that the current producer
+did not refresh.
 
-The territory Matrix also compiles the current production inputs and compares
+The full territory Matrix also compiles the current production inputs and compares
 their geographic semantic contract with the promoted canonical authority used
 by Unreal. Grid/cell topology, coverage semantic hash, and every terrain and
 feature artifact hash must match exactly. Implementation-only provenance drift
@@ -102,8 +136,8 @@ closure must report exactly that dirty unit, unrelated layers must remain
 clean, and all sibling artifact path/digest records must equal the preceding
 no-op leg. No geometry or
 vegetation instances may be rewritten for
-this content-identical reevaluation. Together with the producer-source-set
-regression in the common Check, this proves a road implementation or road dirty
+this content-identical reevaluation. Together with the producer revision and
+verify checks in common Check, this proves a road implementation or road dirty
 input cannot advance terrain or water authority.
 
 Each world entry pins its `world_data_plugin`, source/compiler identities,
@@ -119,10 +153,10 @@ overlay, compiler control/fixture, and repository source fixture. The closure
 is frozen before execution, checked again afterward, and rehashed by
 Acceptance. Changing any transitive input under an unchanged profile ID
 invalidates old evidence. Acceptance also validates the recorded profile and
-requires its declared profile ID to match the Matrix claim. The representative
+requires its declared profile ID to match the Matrix claim. The territory
 run must match the explicitly supplied Acceptance profile. Entries that share one
 world-data owner must resolve to the same presentation profile ID and hash;
-one physical presentation root cannot carry two profile scopes.
+one world-data owner admits only one active presentation scope.
 
 For every world-data owner, explicit source and compiler paths are mandatory
 and must resolve inside the owning plugin's descriptor-derived `Data/`
@@ -162,6 +196,23 @@ discovered from the current content tree. IoStore inspection also requires
 zero `ProjectWorldTestData` entries, proving that editor-only synthetic
 fixtures never enter the shipping container.
 
+## Release impact planning
+
+`app/planning.py::plan_release_impact` accepts the complete changed-path set and
+resolved base from release preparation. It delegates production impact to the
+ordinary planner after excluding known test/docs surfaces and the exact focused
+preflight entrypoint. Source, production scripts/tool implementations, generated
+packages/manifests, data and schemas remain visible regardless of extension;
+tool dependency `.txt` files and production package scripts are retained.
+Unknown non-documentation paths are retained too. The code owns the exclusion set.
+
+For retained paths, the result is the ordinary planner's complete result, including
+Matrix replay mode and candidate owners. Proof-only input sets have no World plan;
+mixed changes retain all production requirements. This release projection changes
+neither ordinary `plan` behavior nor the common Check input identity. Reporting
+requirements executes no gate. Focused release contract checks cannot certify
+the planner's full L1, Matrix, promotion or packaged acceptance.
+
 ## Ownership
 
 | Path | Responsibility |
@@ -182,10 +233,9 @@ never editable inputs. Raw provider payloads, normalized caches, compiler
 outputs, package staging, and logs remain ignored.
 
 Clean-map validation derives each owner from its validated UE plugin
-descriptor and owns both the selected generated maps and that owner's
-`Generated/Presentation/`. Failure restoration returns their
-prior files together, so a shared generated terrain material cannot survive
-as stale state outside the D3 rebuild boundary.
+descriptor and owns the selected generated maps and declared layer artifacts.
+Failure restoration returns their prior files together. Generated terrain
+materials are owned and restored by ProjectMaterial.
 
 The realization wrapper makes each individual map mutation transactional. The
 end-to-end backup remains a separate outer transaction because Matrix is

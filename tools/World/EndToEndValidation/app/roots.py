@@ -18,7 +18,6 @@ class WorldDataRoots:
     plugin_name: str
     plugin_root: Path
     content_root: Path
-    presentation_root: Path
     data_root: Path
 
 
@@ -44,7 +43,6 @@ def resolve_world_data_roots(plugin_name: str) -> WorldDataRoots:
         plugin_name=plugin_name,
         plugin_root=plugin_root,
         content_root=content_root,
-        presentation_root=content_root / "Generated" / "Presentation",
         data_root=plugin_root / "Data",
     )
 

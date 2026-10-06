@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import os
 import re
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
+
+from World.CanonicalCompilation.api import validate_canonical_authority
 
 from .contracts import ValidationFailure, file_hash, read_json, tree_size, validate_against
 from .layered_validation import validate_layered_realization
@@ -17,16 +21,29 @@ def _require(condition: bool, code: str, message: str, **details: object) -> Non
         raise ValidationFailure(code, message, **details)
 
 
-def _accepted(path: Path, expected_schema: str) -> dict[str, Any]:
+def _accepted(path: Path, expected_schema: str, expected_version: int = 1) -> dict[str, Any]:
     value = read_json(path)
     _require(value.get("$schema") == expected_schema, "evidence_schema_invalid", "Evidence schema is incompatible", path=str(path))
-    _require(value.get("schema_version") == 1, "evidence_version_invalid", "Evidence version is incompatible", path=str(path))
+    _require(value.get("schema_version") == expected_version, "evidence_version_invalid", "Evidence version is incompatible", path=str(path))
     _require(value.get("status") == "accepted", "evidence_rejected", "Required evidence is not accepted", path=str(path))
     return value
 
 
 def _output_hashes(result: dict[str, Any]) -> dict[str, str]:
     return {item["path"]: item["sha256"] for item in result["outputs"]}
+
+
+def _canonical_bytes_from_result(result_path: Path) -> int:
+    result = _accepted(
+        result_path,
+        "https://alis.world/schemas/world-compiler/compile-result-v1.json",
+    )
+    outputs = result["outputs"]
+    _require(bool(outputs), "canonical_outputs_missing", "Canonical authority has no output inventory")
+    return sum(
+        entry["byte_size"] for entry in outputs
+        if entry["path"].endswith(".json") and entry["path"] != "reports/metrics.json"
+    )
 
 
 def _determinism(first_root: Path, second_root: Path) -> dict[str, Any]:
@@ -186,12 +203,107 @@ def _validate_notices(root: Path) -> dict[str, Any]:
     return {"entries": len(entries), "license_ids": sorted(licenses)}
 
 
+def _validate_saved_terrain_projections(record: dict[str, Any], map_package: str) -> dict[str, Any]:
+    projections = []
+    for leg in ("first", "clean"):
+        path = Path(record[f"terrain_projection_{leg}"])
+        _require(path.is_file() and file_hash(path) == record[f"terrain_projection_{leg}_sha256"],
+            "saved_terrain_receipt_changed", "Saved terrain projection receipt changed", leg=leg)
+        receipt = read_json(path)
+        projection = receipt.get("terrain_projection_json")
+        _require(receipt.get("schema") == "project-world-mesh-terrain-audit:v2" and
+            receipt.get("status") == "accepted" and receipt.get("map") == map_package and
+            receipt.get("compile_result_sha256") == record["realization_compile_result_sha256"] and
+            isinstance(projection, str) and
+            hashlib.sha256(projection.encode("utf-8")).hexdigest() == receipt.get("terrain_projection_sha256"),
+            "saved_terrain_projection_invalid", "Saved terrain projection is unauthenticated", leg=leg)
+        try:
+            records = json.loads(projection)
+        except ValueError as error:
+            raise ValidationFailure("saved_terrain_projection_invalid", "Saved terrain projection is malformed", leg=leg) from error
+        _require(isinstance(records, list) and len(records) == receipt.get("terrain_projection_record_count")
+            and any(isinstance(item, dict) and item.get("kind") == "section" for item in records),
+            "saved_terrain_projection_incomplete", "Saved terrain projection omits compiled sections", leg=leg)
+        projections.append(receipt["terrain_projection_sha256"])
+    _require(projections[0] == projections[1], "saved_terrain_reconstruction_drift",
+        "Clean reconstruction changed saved terrain geometry, collision, or identity")
+    return {"first_sha256": projections[0], "clean_sha256": projections[1]}
+
+
+def _validate_saved_world_projections(record: dict[str, Any], map_package: str) -> dict[str, Any]:
+    observed: dict[str, list[str]] = {"map": [], "buildings": []}
+    for leg in ("first", "clean"):
+        path = Path(record[f"saved_world_projection_{leg}"])
+        _require(path.is_file() and file_hash(path) == record[f"saved_world_projection_{leg}_sha256"],
+            "saved_world_receipt_changed", "Saved World projection receipt changed", leg=leg)
+        receipt = read_json(path)
+        _require(receipt.get("schema") == "project-world-saved-projection:v1" and
+            receipt.get("status") == "accepted" and receipt.get("map_package") == map_package,
+            "saved_world_projection_invalid", "Saved World projection receipt is invalid", leg=leg)
+        for name, generator, version in (("map", "map", 1),
+                                         ("buildings", "project_building_massing", 2)):
+            part = receipt.get(name)
+            _require(isinstance(part, dict) and part.get("generator_id") == generator and
+                part.get("generator_version") == version and part.get("comparison_version") == 1 and
+                isinstance(part.get("projection_json"), str) and
+                hashlib.sha256(part["projection_json"].encode("utf-8")).hexdigest() == part.get("sha256"),
+                "saved_world_projection_invalid", "Saved World producer projection is unauthenticated",
+                leg=leg, producer=name)
+            try:
+                records = json.loads(part["projection_json"])
+            except ValueError as error:
+                raise ValidationFailure("saved_world_projection_invalid",
+                    "Saved World producer projection is malformed", leg=leg, producer=name) from error
+            _require(isinstance(records, list) and len(records) == part.get("record_count") and records and
+                all(isinstance(item, dict) and isinstance(item.get("fields"), dict) for item in records),
+                "saved_world_projection_incomplete", "Saved World producer projection is empty or incomplete",
+                leg=leg, producer=name)
+            for item in records:
+                if item.get("kind") == "actor":
+                    for volatile in ("guid", "name", "label"):
+                        item["fields"].pop(volatile, None)
+            normalized = json.dumps(records, sort_keys=True, separators=(",", ":"))
+            observed[name].append(hashlib.sha256(normalized.encode("utf-8")).hexdigest())
+    for name, digests in observed.items():
+        _require(digests[0] == digests[1], "saved_world_reconstruction_drift",
+            "Clean reconstruction changed saved map or building state", producer=name)
+    return {name: {"first_sha256": digests[0], "clean_sha256": digests[1]}
+            for name, digests in observed.items()}
+
+
+def _validate_manifest_artifact_paths(
+    legs: list[str],
+    artifact_paths: list[dict[str, dict[str, str]]],
+    allow_clean_mesh_partition_reallocation: bool,
+) -> None:
+    for leg, paths in zip(legs[1:], artifact_paths[1:], strict=True):
+        for scope_id, first_paths in artifact_paths[0].items():
+            current_paths = paths[scope_id]
+            reallocated = (
+                leg == "clean" and allow_clean_mesh_partition_reallocation
+                and (scope_id.startswith("map_") or scope_id.endswith("_terrain"))
+            )
+            stable_paths = (
+                {path: kind for path, kind in first_paths.items() if kind != "external_actor"} ==
+                {path: kind for path, kind in current_paths.items() if kind != "external_actor"}
+            )
+            _require(
+                (len(current_paths) == len(first_paths) and stable_paths)
+                if reallocated else current_paths == first_paths,
+                "generated_package_path_churn",
+                "Generated package paths or counts changed outside the clean Mesh Partition allocation",
+                leg=leg,
+                scope=scope_id,
+            )
+
+
 def _validate_manifest_lifecycle(
     first_path: Path,
     second_path: Path,
     clean_path: Path,
     incremental_path: Path | None = None,
     road_locality_path: Path | None = None,
+    allow_clean_mesh_partition_reallocation: bool = False,
 ) -> dict[str, Any]:
     """Prove the sandboxed manifest lifecycle ran on real content.
 
@@ -201,7 +313,7 @@ def _validate_manifest_lifecycle(
     route against the same active set, never re-enrollment.
     """
     sidecars = []
-    artifact_paths: list[dict[str, tuple[str, ...]]] = []
+    artifact_paths: list[dict[str, dict[str, str]]] = []
     legs = [("first", first_path), ("second", second_path)]
     if road_locality_path is not None:
         legs.append(("road_locality", road_locality_path))
@@ -225,12 +337,13 @@ def _validate_manifest_lifecycle(
         )
         sidecars.append(sidecar)
         manifest_root = Path(sidecar["manifest_root"])
-        artifacts_by_scope: dict[str, tuple[str, ...]] = {}
+        artifacts_by_scope: dict[str, dict[str, str]] = {}
         for scope in sidecar["scopes"]:
             manifest = read_json(manifest_root / scope["manifest_path"])
-            artifacts_by_scope[scope["scope_id"]] = tuple(
-                sorted(str(artifact["path"]) for artifact in manifest.get("artifacts", []))
-            )
+            artifacts_by_scope[scope["scope_id"]] = {
+                str(artifact["path"]): str(artifact["kind"])
+                for artifact in manifest.get("artifacts", [])
+            }
         artifact_paths.append(artifacts_by_scope)
     by_leg = {leg: sidecar for (leg, _), sidecar in zip(legs, sidecars, strict=True)}
     _require(by_leg["first"]["route"] == "enroll" and by_leg["first"]["enrolled"] is True, "manifest_enrollment_missing", "The first Apply did not enroll the sandbox scopes")
@@ -258,10 +371,8 @@ def _validate_manifest_lifecycle(
         "manifest_continuity_broken",
         "Active-set continuity is broken across the realization legs",
     )
-    _require(
-        all(paths == artifact_paths[0] for paths in artifact_paths[1:]),
-        "generated_package_path_churn",
-        "Regeneration changed generated package paths for an unchanged scope set",
+    _validate_manifest_artifact_paths(
+        [leg for leg, _ in legs], artifact_paths, allow_clean_mesh_partition_reallocation
     )
     return {
         "enrolled_scopes": sorted(scope["scope_id"] for scope in sidecars[0]["scopes"]),
@@ -288,15 +399,20 @@ def _validate_realization(
     authored_package_hashes: dict[str, dict[str, str]] | None = None,
     rejected_generated_hashes: dict[str, dict[str, str]] | None = None,
     realization_compile_result_sha256: str | None = None,
+    require_incremental: bool = True,
 ) -> dict[str, Any]:
-    schema = "https://alis.world/schemas/world-realization/realization-result-v1.json"
-    first = _accepted(first_path, schema)
-    second = _accepted(second_path, schema)
-    clean = _accepted(clean_path, schema)
-    incremental = _accepted(incremental_path, schema) if incremental_path is not None else None
-    road_locality = _accepted(road_locality_path, schema) if road_locality_path is not None else None
+    schema = "https://alis.world/schemas/world-realization/realization-result-v2.json"
+    first = _accepted(first_path, schema, 2)
+    second = _accepted(second_path, schema, 2)
+    clean = _accepted(clean_path, schema, 2)
+    incremental = _accepted(incremental_path, schema, 2) if incremental_path is not None else None
+    road_locality = _accepted(road_locality_path, schema, 2) if road_locality_path is not None else None
     manifest_evidence = _validate_manifest_lifecycle(
-        first_path, second_path, clean_path, incremental_path, road_locality_path
+        first_path, second_path, clean_path, incremental_path, road_locality_path,
+        allow_clean_mesh_partition_reallocation=realization_profile is not None and any(
+            item["layer_id"] == "terrain" and item["generator_id"] == "project_mesh_terrain"
+            for item in expected["expected_layers"]
+        ),
     )
     accepted_receipts = tuple(
         receipt for receipt in (first, second, road_locality, incremental, clean)
@@ -332,11 +448,6 @@ def _validate_realization(
                 "Unreal evidence does not belong to the pinned runtime input",
             )
             _require(
-                receipt.get("runtime_route_collision_probed") is True and
-                receipt.get("runtime_collision_probe_count") == expected["expected_road_fragments"] and
-                receipt.get("runtime_route_collision_orientation_probed") is True and
-                receipt.get("runtime_collision_orientation_probe_count") == expected["expected_road_fragments"] and
-                receipt.get("runtime_navigation_probed") is True and
                 receipt.get("runtime_streaming_policy_probed") is True and
                 receipt.get("runtime_nanite_policy_probed") is True and
                 receipt.get("runtime_instancing_policy_probed") is True and
@@ -348,6 +459,24 @@ def _validate_realization(
                 "runtime_route_unproven",
                 "Unreal evidence does not prove the accepted gameplay route",
             )
+            if "expected_road_fragments" in expected:
+                _require(
+                    receipt.get("runtime_route_collision_probed") is True and
+                    receipt.get("runtime_collision_probe_count") == expected["expected_road_fragments"] and
+                    receipt.get("runtime_route_collision_orientation_probed") is True and
+                    receipt.get("runtime_collision_orientation_probe_count") == expected["expected_road_fragments"] and
+                    receipt.get("runtime_navigation_probed") is True,
+                    "runtime_route_unproven",
+                    "Unreal evidence does not prove the accepted road collision and navigation route",
+                )
+            else:
+                _require(
+                    receipt.get("runtime_profile_kind") == "territory_product" and
+                    receipt.get("runtime_partition_count", 0) >= 1 and
+                    bool(receipt.get("runtime_route")),
+                    "runtime_route_unproven",
+                    "Unreal evidence does not prove the territory product runtime route",
+                )
         if authored is not None:
             _require(
                 receipt.get("authored_overlay_set") == authored["profile_id"]
@@ -403,13 +532,17 @@ def _validate_realization(
         "Repeated, locality, incremental, or clean-rebuilt Unreal worlds differ semantically",
     )
     if realization_profile is not None:
-        _require(incremental is not None, "layered_realization_leg_missing", "Layered Matrix has no incremental realization")
+        _require(not require_incremental or incremental is not None, "layered_realization_leg_missing", "Layered Matrix has no incremental realization")
         _require(road_locality is not None and road_locality_dirty_unit is not None, "layered_realization_leg_missing", "Layered Matrix has no road-locality realization")
+        layered_receipts = {"first": first, "second": second, "road_locality": road_locality, "clean": clean}
+        if incremental is not None:
+            layered_receipts["incremental"] = incremental
         layered = validate_layered_realization(
-            {"first": first, "second": second, "road_locality": road_locality, "incremental": incremental, "clean": clean},
+            layered_receipts,
             expected,
             realization_profile,
             road_locality_dirty_unit,
+            require_incremental=require_incremental,
         )
         return {
             "D3": second["semantic_fingerprint"],
@@ -578,13 +711,16 @@ def _validate_presentation_gate(profile: dict[str, Any], execution: dict[str, An
 
 def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     thresholds = profile["thresholds"]
+    mode = execution.get("matrix_mode", "full")
+    _require(mode in ("full", "canonical_authority"), "matrix_mode_invalid", "Unknown Matrix mode")
     checks: list[dict[str, Any]] = []
     metrics: dict[str, Any] = {"profiles": {}}
     for suite in execution["test_suites"]:
         _require(suite["status"] == "accepted", "test_suite_failed", "Required failure or architecture tests failed", suite=suite["name"])
     checks.append({"check": "fault_injection_and_architecture", "status": "passed", "suites": len(execution["test_suites"])})
-    bootstrap = _validate_bootstrap(execution["environment"])
-    checks.append({"check": "bootstrap_environment", "status": "passed", **bootstrap})
+    if mode == "full":
+        bootstrap = _validate_bootstrap(execution["environment"])
+        checks.append({"check": "bootstrap_environment", "status": "passed", **bootstrap})
     restoration = execution.get("generated_tree_restoration", {})
     restored_owners = restoration.get("owners", {})
     expected_owners = sorted({settings["world_data_plugin"] for settings in profile["profiles"].values()})
@@ -603,12 +739,31 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
 
     for name, expected in profile["profiles"].items():
         record = execution["profiles"][name]
-        source_result = _accepted(Path(record["source_result"]), "https://alis.world/schemas/world-source/operation-result-v1.json")
-        _require(source_result["profile_id"] == expected["source_profile"], "source_profile_mismatch", "Source evidence belongs to another profile")
-        roots = [Path(record["compile_first_root"]), Path(record["compile_second_root"])]
-        determinism = _determinism(*roots)
-        compile_metrics = read_json(roots[0] / "reports" / "metrics.json")
-        _require(compile_metrics["duration_ms"] / 1000.0 <= thresholds["full_compile_seconds"], "compile_budget_exceeded", "Full compile exceeded its frozen budget")
+        if mode == "full":
+            roots = [Path(record["compile_first_root"]), Path(record["compile_second_root"])]
+            source_result = _accepted(Path(record["source_result"]), "https://alis.world/schemas/world-source/operation-result-v1.json")
+            _require(source_result["profile_id"] == expected["source_profile"], "source_profile_mismatch", "Source evidence belongs to another profile")
+            determinism = _determinism(*roots)
+            compile_metrics = read_json(roots[0] / "reports" / "metrics.json")
+            _require(compile_metrics["duration_ms"] / 1000.0 <= thresholds["full_compile_seconds"], "compile_budget_exceeded", "Full compile exceeded its frozen budget")
+        else:
+            _require(expected.get("canonical_authority") is True, "canonical_mode_authority_missing", "World Matrix requires canonical authority")
+            roots = [Path(record["realization_compile_result"]).parent]
+            determinism = {}
+            compile_metrics = {"canonical_bytes": _canonical_bytes_from_result(Path(record["realization_compile_result"]))}
+            active_path = REPO_ROOT / record["canonical_authority"]["active_path"]
+            current_authority = validate_canonical_authority(
+                REPO_ROOT, active_path, REPO_ROOT / expected["compiler_profile_path"]
+            )
+            _require(
+                file_hash(active_path) == record["canonical_authority"]["active_sha256"]
+                and current_authority["authority_id"] == record["canonical_authority"]["authority_id"]
+                and current_authority["bundle"]["sha256"] == record["canonical_authority"]["bundle_sha256"],
+                "canonical_mode_authority_changed",
+                "Promoted canonical authority changed during the World Matrix",
+            )
+            _require(file_hash(Path(record["realization_compile_result"])) == record["realization_compile_result_sha256"],
+                "canonical_mode_materialized_changed", "Materialized canonical result changed during validation")
         _require(compile_metrics["canonical_bytes"] <= thresholds["canonical_bytes"], "canonical_size_exceeded", "Canonical output exceeded its frozen budget")
         coverage = read_json(roots[0] / "canonical" / "coverage.json")
         _require(coverage["feature_count"] == expected["expected_features"], "feature_count_mismatch", "Canonical feature count differs from the contract")
@@ -621,10 +776,11 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
                 "canonical_authority_evidence_missing",
                 "Territory Matrix did not authenticate canonical authority",
             )
-            canonical_authority = _validate_canonical_authority_candidate(
+            canonical_authority = (_validate_canonical_authority_candidate(
                 roots[0], Path(record["realization_compile_result"]), authority
-            )
-        incremental = _validate_incremental(roots[0], Path(record["incremental_root"]), thresholds["incremental_compile_seconds"])
+            ) if mode == "full" else authority)
+        incremental = (_validate_incremental(roots[0], Path(record["incremental_root"]), thresholds["incremental_compile_seconds"])
+            if mode == "full" else None)
         realization = _validate_realization(
             Path(record["unreal_first"]),
             Path(record["unreal_second"]),
@@ -634,7 +790,7 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
             thresholds["unreal_import_seconds"],
             record.get("runtime_profile"),
             record.get("realization_profile"),
-            incremental_path=Path(record["unreal_incremental"]),
+            incremental_path=Path(record["unreal_incremental"]) if mode == "full" else None,
             road_locality_path=Path(record["unreal_road_locality"]),
             road_locality_dirty_unit=record["road_locality_dirty_unit"],
             rejected_path=Path(record["unreal_rejected_apply"]),
@@ -642,19 +798,34 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
             authored_package_hashes=record["authored_package_hashes"],
             rejected_generated_hashes=record["rejected_generated_hashes"],
             realization_compile_result_sha256=record["realization_compile_result_sha256"],
+            require_incremental=mode == "full",
         )
+        if any(item["layer_id"] == "terrain" and item.get("producer_artifact_count") is not None
+            for item in expected.get("expected_layers", [])):
+            _require(all(record.get(f"terrain_projection_{leg}") and
+                record.get(f"terrain_projection_{leg}_sha256") for leg in ("first", "clean")),
+                "saved_terrain_projection_missing", "Matrix omitted saved terrain output proof")
+            realization["saved_terrain_projection"] = _validate_saved_terrain_projections(
+                record, expected["map_package"])
+        if any(item["layer_id"] == "buildings" and item.get("generator_id") == "project_building_massing"
+            for item in expected.get("expected_layers", [])):
+            _require(all(record.get(f"saved_world_projection_{leg}") and
+                record.get(f"saved_world_projection_{leg}_sha256") for leg in ("first", "clean")),
+                "saved_world_projection_missing", "Matrix omitted saved map and building output proof")
+            realization["saved_world_projection"] = _validate_saved_world_projections(
+                record, expected["map_package"])
         if "realization_profile" not in expected:
             _require(1 + realization["building_sections"] == expected["expected_realized_features"], "realized_feature_count_mismatch", "Realized feature identity count differs from the bounded adapter contract")
         _require(realization["verified_output_count"] <= thresholds["generated_packages"], "generated_output_budget_exceeded", "Verified Unreal output count exceeded its frozen budget")
         _require(record["generated_package_count"] <= thresholds["generated_packages"], "generated_package_budget_exceeded", "Generated Unreal package count exceeded its frozen budget")
-        if name == "synthetic":
+        if name == "synthetic" and mode == "full":
             rejections = read_json(roots[0] / "reports" / "rejections.json")["rejections"]
             expected_rejections = expected.get("expected_rejections", 1)
             _require(len(rejections) == expected_rejections, "invalid_fixture_mismatch", "Invalid fixture rejection count differs from the contract")
         metrics["profiles"][name] = {
-            "source_seconds": record["source_seconds"],
-            "source_output_bytes": tree_size(Path(record["source_root"])),
-            "full_compile_seconds": compile_metrics["duration_ms"] / 1000.0,
+            "source_seconds": record["source_seconds"] if mode == "full" else None,
+            "source_output_bytes": tree_size(Path(record["source_root"])) if mode == "full" else None,
+            "full_compile_seconds": compile_metrics["duration_ms"] / 1000.0 if mode == "full" else None,
             "canonical_bytes": compile_metrics["canonical_bytes"],
             "generated_package_count": record["generated_package_count"],
             **determinism,
@@ -663,12 +834,16 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
             "canonical_authority": canonical_authority,
             "unreal": realization,
         }
-        checks.append({"check": f"{name}_D0_D3", "status": "passed"})
+        checks.append({"check": f"{name}_D0_D3" if mode == "full" else f"{name}_world_realization",
+            "status": "passed"})
 
-    notices = _validate_notices(Path(execution["profiles"]["kazan"]["compile_first_root"]))
+    notices_root = (Path(execution["profiles"]["kazan"]["compile_first_root"]) if mode == "full" else
+        Path(execution["profiles"]["kazan"]["realization_compile_result"]).parent)
+    notices = _validate_notices(notices_root)
     checks.append({"check": "attribution_notices_and_offer", "status": "passed", **notices})
-    immutable_bytes = execution["environment"]["immutable_cache_bytes"]
-    _require(immutable_bytes <= thresholds["provider_payload_bytes"], "provider_budget_exceeded", "Immutable provider payload exceeded its frozen budget")
+    if mode == "full":
+        immutable_bytes = execution["environment"]["immutable_cache_bytes"]
+        _require(immutable_bytes <= thresholds["provider_payload_bytes"], "provider_budget_exceeded", "Immutable provider payload exceeded its frozen budget")
     forbidden = _forbidden_files(
         [Path(path) for path in execution["generated_roots"]],
         set(profile["package"]["forbidden_suffixes"]),
@@ -676,6 +851,6 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
     )
     _require(not forbidden, "forbidden_generated_payload", "Raw or provider-normalized data reached a generated root", paths=forbidden)
     metrics["environment"] = execution["environment"]
-    metrics["environment"]["mode"] = bootstrap["mode"]
+    metrics["environment"]["mode"] = bootstrap["mode"] if mode == "full" else "canonical-authority"
     checks.append({"check": "generated_content_distribution_boundary", "status": "passed"})
     return checks, metrics

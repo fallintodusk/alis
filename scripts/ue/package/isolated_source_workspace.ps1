@@ -156,6 +156,27 @@ function Assert-ProjectIsolatedRequiredFiles {
     }
 }
 
+function Assert-ProjectIsolatedRequiredLfsObjects {
+    param([string]$WorkspaceRoot, [string[]]$RequiredPaths)
+
+    $listed = @(& git -C $WorkspaceRoot lfs ls-files --long)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect required Git LFS object identities.' }
+    foreach ($line in $listed) {
+        if ($line -notmatch '^([0-9a-f]{64}) [*\-] (.+)$') { continue }
+        $oid = $Matches[1]
+        $path = $Matches[2]
+        $required = @($RequiredPaths | Where-Object {
+            $path -ceq $_ -or $path.StartsWith($_.TrimEnd('/') + '/', [StringComparison]::Ordinal)
+        }).Count -gt 0
+        if (-not $required) { continue }
+        $file = Join-Path $WorkspaceRoot $path.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or
+            (Get-ProjectIsolatedFileSha256 -Path $file) -cne $oid) {
+            throw "Required Git LFS payload has wrong object identity: $path"
+        }
+    }
+}
+
 function New-ProjectIsolatedSourceOverlay {
     param(
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
@@ -197,7 +218,7 @@ function New-ProjectIsolatedSourceOverlay {
         throw 'Cannot create the tracked candidate patch.'
     }
     $trackedArguments = @(
-        '-c', 'core.quotepath=false', 'diff', '--name-only', $resolvedCommit, '--') + $candidateRoots
+        '-c', 'core.quotepath=false', 'diff', '--no-renames', '--name-only', $resolvedCommit, '--') + $candidateRoots
     $trackedResult = Invoke-ProjectIsolatedReadOnlyGit -Root $ProjectRoot `
         -Arguments $trackedArguments
     $trackedChanges = @($trackedResult.Output |
@@ -206,15 +227,20 @@ function New-ProjectIsolatedSourceOverlay {
         throw 'Cannot enumerate tracked candidate changes.'
     }
 
+    $trackedFilesResult = Invoke-ProjectIsolatedReadOnlyGit -Root $ProjectRoot `
+        -Arguments (@('-c', 'core.quotepath=false', 'ls-files', '--') + $candidateRoots)
+    if ($trackedFilesResult.ExitCode -ne 0) {
+        throw 'Cannot classify candidate path ownership.'
+    }
+    $trackedFiles = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($path in @($trackedFilesResult.Output)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            [void]$trackedFiles.Add([string]$path)
+        }
+    }
     $untracked = [Collections.Generic.List[object]]::new()
     foreach ($relative in $candidateFiles) {
-        $matchResult = Invoke-ProjectIsolatedReadOnlyGit -Root $ProjectRoot `
-            -Arguments @('-c', 'core.quotepath=false', 'ls-files', '--', $relative)
-        $trackedMatch = @($matchResult.Output)
-        if ($matchResult.ExitCode -ne 0) {
-            throw "Cannot classify candidate path ownership: $relative"
-        }
-        if ($relative -in $trackedMatch) {
+        if ($trackedFiles.Contains($relative)) {
             continue
         }
         $source = Join-Path $ProjectRoot $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
@@ -234,12 +260,23 @@ function New-ProjectIsolatedSourceOverlay {
     foreach ($relative in $resultPaths) {
         $source = Join-Path $ProjectRoot $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
         if (Test-Path -LiteralPath $source -PathType Leaf) {
-            $resultEntries.Add([pscustomobject][ordered]@{
+            $entry = [pscustomobject][ordered]@{
                 path = $relative
                 state = 'file'
                 length = (Get-Item -LiteralPath $source).Length
                 sha256 = Get-ProjectIsolatedFileSha256 -Path $source
-            })
+            }
+            $blob = Join-Path (Join-Path $OverlayRoot 'files') `
+                $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            if (-not (Test-Path -LiteralPath $blob -PathType Leaf)) {
+                New-Item -ItemType Directory -Path (Split-Path -Parent $blob) -Force | Out-Null
+                Copy-Item -LiteralPath $source -Destination $blob
+            }
+            if ((Get-Item -LiteralPath $blob).Length -ne [long]$entry.length -or
+                (Get-ProjectIsolatedFileSha256 -Path $blob) -cne [string]$entry.sha256) {
+                throw "Candidate changed during source snapshot: $relative"
+            }
+            $resultEntries.Add($entry)
         }
         else {
             $resultEntries.Add([pscustomobject][ordered]@{
@@ -309,11 +346,51 @@ function Remove-ProjectIsolatedSourceWorkspace {
     }
     $owner = Get-Content -LiteralPath $ownerPath -Raw | ConvertFrom-Json
     if ([string]$owner.schema -cne 'project-isolated-source-workspace-owner:v1' -or
-        [IO.Path]::GetFullPath([string]$owner.workspace_root) -cne $WorkspaceRoot -or
-        [IO.Path]::GetFullPath([string]$owner.project_root) -cne $ProjectRoot) {
+        -not [IO.Path]::GetFullPath([string]$owner.workspace_root).Equals(
+            $WorkspaceRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [IO.Path]::GetFullPath([string]$owner.project_root).Equals(
+            $ProjectRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        [string]$owner.source_commit -notmatch '^[0-9a-f]{40}$') {
         throw "Workspace owner receipt does not match the cleanup target: $WorkspaceRoot"
     }
+    if ((Test-ProjectIsolatedOwnerAlive -Receipt $owner) -and
+        [int]$owner.owner_process_id -ne $PID) {
+        throw "Workspace belongs to another live process: $WorkspaceRoot"
+    }
     $checkout = Join-Path $WorkspaceRoot 'repo'
+    foreach ($path in @((Join-Path $ProjectRoot 'tmp'),
+            (Join-Path $ProjectRoot 'tmp\release'), $parent, $WorkspaceRoot, $checkout)) {
+        if (Test-Path -LiteralPath $path) {
+            $item = Get-Item -LiteralPath $path -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "Workspace cleanup refuses a reparse point: $path"
+            }
+        }
+    }
+    $listed = Invoke-ProjectIsolatedReadOnlyGit -Root $ProjectRoot `
+        -Arguments @('worktree', 'list', '--porcelain')
+    if ($listed.ExitCode -ne 0) {
+        throw 'Cannot verify registered worktrees before isolated cleanup.'
+    }
+    $entries = @((@($listed.Output) -join "`n") -split "`n`n")
+    $registeredEntries = @($entries | Where-Object {
+        $_ -match '(?m)^worktree (.+)$' -and
+        [IO.Path]::GetFullPath($Matches[1]).Equals($checkout, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($registeredEntries.Count -gt 1 -or
+        ($registeredEntries.Count -eq 0 -and (Test-Path -LiteralPath $checkout))) {
+        throw "Workspace checkout registration disagrees with its receipt: $checkout"
+    }
+    if ($registeredEntries.Count -eq 1 -and -not (Test-Path -LiteralPath $checkout)) {
+        throw "Registered workspace checkout is missing on disk: $checkout"
+    }
+    if ($registeredEntries.Count -eq 1) {
+        if ($registeredEntries[0] -notmatch '(?m)^HEAD ([0-9a-f]{40})$' -or
+            $Matches[1] -cne [string]$owner.source_commit -or
+            $registeredEntries[0] -notmatch '(?m)^detached$') {
+            throw "Workspace checkout HEAD or detached state disagrees with its receipt: $checkout"
+        }
+    }
     if (Test-Path -LiteralPath $checkout) {
         & git -c core.longpaths=true -C $ProjectRoot worktree remove --force $checkout | Out-Null
         if ($LASTEXITCODE -ne 0) {
@@ -322,6 +399,100 @@ function Remove-ProjectIsolatedSourceWorkspace {
     }
     if (Test-Path -LiteralPath $WorkspaceRoot) {
         Remove-Item -LiteralPath $WorkspaceRoot -Recurse -Force
+    }
+}
+
+function Initialize-ProjectIsolatedCommittedFiles {
+    param([string]$CheckoutRoot, [string]$SourceCommit, [string[]]$RequiredPaths)
+
+    if ($RequiredPaths.Count -eq 0) { return }
+    foreach ($required in $RequiredPaths) {
+        $tracked = Invoke-ProjectIsolatedReadOnlyGit -Root $CheckoutRoot `
+            -Arguments @('ls-files', '--', $required)
+        if ($tracked.ExitCode -ne 0 -or @($tracked.Output).Count -eq 0) {
+            throw "Required committed source has no tracked files: $required"
+        }
+        foreach ($path in @($tracked.Output)) {
+            if (-not (Test-Path -LiteralPath (Join-Path $CheckoutRoot $path) -PathType Leaf)) {
+                throw "Required committed source file is missing: $path"
+            }
+        }
+    }
+    & git -C $CheckoutRoot lfs checkout -- @RequiredPaths | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot materialize local Git LFS objects.' }
+    try {
+        Assert-ProjectIsolatedRequiredFiles -WorkspaceRoot $CheckoutRoot -RequiredPaths $RequiredPaths
+    }
+    catch {
+        $include = (@($RequiredPaths | ForEach-Object {
+            $_.TrimEnd('/'); $_.TrimEnd('/') + '/**'
+        }) -join ',')
+        & git -C $CheckoutRoot lfs fetch origin $SourceCommit "--include=$include" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot fetch required release Git LFS objects.' }
+        & git -C $CheckoutRoot lfs checkout -- @RequiredPaths | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot materialize fetched Git LFS objects.' }
+        Assert-ProjectIsolatedRequiredFiles -WorkspaceRoot $CheckoutRoot -RequiredPaths $RequiredPaths
+    }
+    Assert-ProjectIsolatedRequiredLfsObjects -WorkspaceRoot $CheckoutRoot -RequiredPaths $RequiredPaths
+}
+
+function New-ProjectIsolatedCommittedWorkspace {
+    param(
+        [Parameter(Mandatory = $true)][string]$ProjectRoot,
+        [Parameter(Mandatory = $true)][string]$SourceCommit,
+        [string[]]$RequiredPaths = @()
+    )
+
+    $ProjectRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\', '/')
+    if ($SourceCommit -cnotmatch '^[0-9a-f]{40}$') {
+        throw 'SourceCommit must be one full 40-digit commit object ID.'
+    }
+    $resolved = Invoke-ProjectIsolatedReadOnlyGit -Root $ProjectRoot `
+        -Arguments @('rev-parse', '--verify', "$SourceCommit`^{commit}")
+    if ($resolved.ExitCode -ne 0 -or (@($resolved.Output) -join '').Trim() -cne $SourceCommit) {
+        throw "SourceCommit is not an available commit: $SourceCommit"
+    }
+    Remove-StaleProjectIsolatedSourceWorkspaces -ProjectRoot $ProjectRoot
+    $workspace = Join-Path $ProjectRoot ('tmp\release\projection\' + [Guid]::NewGuid().ToString('N'))
+    $checkout = Join-Path $workspace 'repo'
+    New-Item -ItemType Directory -Path $workspace -Force | Out-Null
+    $ownerProcess = Get-Process -Id $PID
+    [ordered]@{
+        schema = 'project-isolated-source-workspace-owner:v1'
+        project_root = $ProjectRoot
+        workspace_root = $workspace
+        source_commit = $SourceCommit
+        owner_process_id = $PID
+        owner_process_start_utc = $ownerProcess.StartTime.ToUniversalTime().ToString('o')
+        mode = 'committed-release'
+    } | ConvertTo-Json -Depth 5 | Set-Content `
+        -LiteralPath (Join-Path $workspace 'workspace-owner.json') -Encoding utf8
+    try {
+        $priorSkipSmudge = $env:GIT_LFS_SKIP_SMUDGE
+        try {
+            $env:GIT_LFS_SKIP_SMUDGE = '1'
+            & git -c core.longpaths=true -C $ProjectRoot worktree add --detach $checkout $SourceCommit | Out-Null
+        }
+        finally {
+            if ($null -eq $priorSkipSmudge) {
+                Remove-Item Env:GIT_LFS_SKIP_SMUDGE -ErrorAction SilentlyContinue
+            }
+            else { $env:GIT_LFS_SKIP_SMUDGE = $priorSkipSmudge }
+        }
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot create committed release worktree.' }
+        & git -C $checkout config core.longpaths true
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot configure release worktree long paths.' }
+        Initialize-ProjectIsolatedCommittedFiles -CheckoutRoot $checkout `
+            -SourceCommit $SourceCommit -RequiredPaths $RequiredPaths
+        return [pscustomobject]@{
+            workspace_root = $workspace
+            checkout_root = $checkout
+            source_commit = $SourceCommit
+        }
+    }
+    catch {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $ProjectRoot -WorkspaceRoot $workspace
+        throw
     }
 }
 
@@ -342,6 +513,50 @@ function Remove-StaleProjectIsolatedSourceWorkspaces {
         if (-not (Test-ProjectIsolatedOwnerAlive -Receipt $owner)) {
             Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $ProjectRoot `
                 -WorkspaceRoot $directory.FullName
+        }
+    }
+}
+
+function Copy-ProjectIsolatedCandidateFiles {
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkspaceRoot,
+        [Parameter(Mandatory = $true)][string]$OverlayRoot,
+        [Parameter(Mandatory = $true)][object]$Overlay
+    )
+
+    foreach ($entry in @($Overlay.result_inventory)) {
+        if ([string]$entry.state -cne 'file') { continue }
+        $relative = ConvertTo-ProjectIsolatedRelativePath -ProjectRoot $WorkspaceRoot `
+            -Path ([string]$entry.path)
+        $target = Join-Path $WorkspaceRoot $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        $source = Join-Path (Join-Path $OverlayRoot 'files') `
+            $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf) -or
+            (Get-Item -LiteralPath $source).Length -ne [long]$entry.length -or
+            (Get-ProjectIsolatedFileSha256 -Path $source) -cne [string]$entry.sha256) {
+            throw "Authenticated candidate bytes are unavailable: $relative"
+        }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+        Copy-Item -LiteralPath $source -Destination $target -Force
+    }
+}
+
+function Remove-ProjectIsolatedCandidateDeletions {
+    param(
+        [Parameter(Mandatory = $true)][string]$WorkspaceRoot,
+        [Parameter(Mandatory = $true)][object]$Overlay
+    )
+
+    foreach ($entry in @($Overlay.result_inventory)) {
+        if ([string]$entry.state -cne 'absent') { continue }
+        $relative = ConvertTo-ProjectIsolatedRelativePath -ProjectRoot $WorkspaceRoot `
+            -Path ([string]$entry.path)
+        $target = Join-Path $WorkspaceRoot $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        if (Test-Path -LiteralPath $target -PathType Container) {
+            throw "Deleted candidate path became a directory: $relative"
+        }
+        if (Test-Path -LiteralPath $target -PathType Leaf) {
+            Remove-Item -LiteralPath $target -Force
         }
     }
 }
@@ -378,13 +593,36 @@ function Assert-ProjectIsolatedSourceWorkspace {
         }
         $actualEntries.Add($entry)
     }
-    $expectedUntracked = @($overlay.untracked_files | ForEach-Object { [string]$_.path } | Sort-Object)
-    $actualUntracked = @(& git -C $checkout -c core.quotepath=false ls-files --others --exclude-standard |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object)
-    $unexpected = @($actualUntracked | Where-Object { $_ -notin $expectedUntracked })
-    $omitted = @($expectedUntracked | Where-Object { $_ -notin $actualUntracked })
+    $cachedResult = Invoke-ProjectIsolatedReadOnlyGit -Root $checkout `
+        -Arguments @('-c', 'core.quotepath=false', 'ls-files', '--cached')
+    $otherResult = Invoke-ProjectIsolatedReadOnlyGit -Root $checkout `
+        -Arguments @('-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard')
+    if ($cachedResult.ExitCode -ne 0 -or $otherResult.ExitCode -ne 0) {
+        throw 'Cannot classify the isolated checkout inventory.'
+    }
+    $cached = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($path in @($cachedResult.Output)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) { [void]$cached.Add([string]$path) }
+    }
+    $expectedUntracked = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($entry in @($overlay.result_inventory)) {
+        if ([string]$entry.state -ceq 'file' -and -not $cached.Contains([string]$entry.path)) {
+            [void]$expectedUntracked.Add([string]$entry.path)
+        }
+    }
+    foreach ($entry in @($overlay.untracked_files)) {
+        if (-not $expectedUntracked.Contains([string]$entry.path)) {
+            throw "Overlay untracked path is absent from its result inventory: $($entry.path)"
+        }
+    }
+    $actualUntracked = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($path in @($otherResult.Output)) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) { [void]$actualUntracked.Add([string]$path) }
+    }
+    $unexpected = @($actualUntracked | Where-Object { -not $expectedUntracked.Contains($_) } | Select-Object -First 5)
+    $omitted = @($expectedUntracked | Where-Object { -not $actualUntracked.Contains($_) } | Select-Object -First 5)
     if ($unexpected.Count -gt 0 -or $omitted.Count -gt 0) {
-        throw "Materialized overlay untracked inventory mismatch; extra=$($unexpected -join ',') omitted=$($omitted -join ',')"
+        throw "Materialized overlay untracked inventory mismatch; extra_first=$($unexpected -join ',') omitted_first=$($omitted -join ',')"
     }
     Assert-ProjectIsolatedRequiredFiles -WorkspaceRoot $checkout `
         -RequiredPaths @($overlay.required_paths)
@@ -460,6 +698,9 @@ function New-ProjectIsolatedSourceWorkspace {
                 throw 'Git LFS checkout failed for required isolated source paths.'
             }
         }
+        Copy-ProjectIsolatedCandidateFiles -WorkspaceRoot $checkout `
+            -OverlayRoot $OverlayRoot -Overlay $overlay
+        Remove-ProjectIsolatedCandidateDeletions -WorkspaceRoot $checkout -Overlay $overlay
         $identity = Assert-ProjectIsolatedSourceWorkspace `
             -WorkspaceRoot $workspace -OverlayRoot $OverlayRoot
         [ordered]@{

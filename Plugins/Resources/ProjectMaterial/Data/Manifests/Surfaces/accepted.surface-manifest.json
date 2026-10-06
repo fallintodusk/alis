@@ -15,9 +15,9 @@
 			"pattern_semantic_identity": "d748edbc40a1ce1f1a872579bc3c10c49b67437ab7c01e29a3a6ae6f274c90e5",
 			"pattern_package_sha256": "7e9f63047ba9513790cf42e0622f21c0b1bc5b9fa1189516df5ea80124999e27",
 			"output_object_path": "/ProjectMaterial/Surfaces/Object/M_ProjectMetricSurface.M_ProjectMetricSurface",
-			"semantic_identity": "7d6cc8be62a0d489bbb94ea3da17d653ad9163dc41928e87b2437c388cc8e5b6",
-			"package_sha256": "8b289a56014a6f507dfaef39cdfc9640a80a76a07069bac60de67f9fecd5dd45",
-			"compiler_fingerprint": "0f2ca6ff3d0e9295bccd5a8a82355234340fa36f3e6d275cf2db232310e92abd",
+			"semantic_identity": "35756bafc812a35708355c1bf4b509b72e253f041f93c3fe7a829c24ca24f485",
+			"package_sha256": "e821d9a5bdbf2ca3bad5c209d87cb01d9881f790049a1782a2bc024ab1600e3f",
+			"compiler_fingerprint": "8040842bb6933e6277aff1f57caac123cc072caaa1eab381c133a11d0d60877b",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -34,11 +34,11 @@
 			"pattern_semantic_identity": "d748edbc40a1ce1f1a872579bc3c10c49b67437ab7c01e29a3a6ae6f274c90e5",
 			"pattern_package_sha256": "7e9f63047ba9513790cf42e0622f21c0b1bc5b9fa1189516df5ea80124999e27",
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Object/M_ProjectMetricSurface.M_ProjectMetricSurface",
-			"dependency_package_sha256": "8b289a56014a6f507dfaef39cdfc9640a80a76a07069bac60de67f9fecd5dd45",
+			"dependency_package_sha256": "e821d9a5bdbf2ca3bad5c209d87cb01d9881f790049a1782a2bc024ab1600e3f",
 			"output_object_path": "/ProjectMaterial/Surfaces/Object/MI_ProjectMetricCube.MI_ProjectMetricCube",
-			"semantic_identity": "e063052575b5536343f2a5b847c5886581cfc30f1f9b8c8874a4734b65b77079",
-			"package_sha256": "cd4ec03ff27462da8e9a826ce2e92f43ad5abb8169f366fd8b56eaedc7843bc3",
-			"compiler_fingerprint": "0f2ca6ff3d0e9295bccd5a8a82355234340fa36f3e6d275cf2db232310e92abd",
+			"semantic_identity": "ed96ac65e53c2b65c84965f026e4a1cbdd3fca562b4c8b9eda91783ce6b88058",
+			"package_sha256": "b61808aee459845d04483d489c75aeb60c3fb862b7483e5e2400185f1659421b",
+			"compiler_fingerprint": "8040842bb6933e6277aff1f57caac123cc072caaa1eab381c133a11d0d60877b",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -53,11 +53,11 @@
 			"pattern_output_contract": "surface_structure_rgb_v1",
 			"pattern_semantic_identity": "d748edbc40a1ce1f1a872579bc3c10c49b67437ab7c01e29a3a6ae6f274c90e5",
 			"pattern_package_sha256": "7e9f63047ba9513790cf42e0622f21c0b1bc5b9fa1189516df5ea80124999e27",
-			"terrain_layout_receipt_sha256": "bebc7d2223d031c5a3db0d47ecfecc03c2ae03fa00364af9839a4db3d692c96b",
+			"terrain_layout_receipt_sha256": "124aef29d3b1162a7af77dc0679b91aa9e40594dc8300c79b48871f979c3ac9c",
 			"output_object_path": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain",
-			"semantic_identity": "b9b647a261b92904bedcfc0599fd1e8062acaa0db8ae2565208783c03a3bb544",
-			"package_sha256": "243f25dc6a171f8e4be2cba9040dc85c2515371d22975657fef00ce35d6792a8",
-			"compiler_fingerprint": "0f2ca6ff3d0e9295bccd5a8a82355234340fa36f3e6d275cf2db232310e92abd",
+			"semantic_identity": "994b88bde859970a4f7a9b84b7573916ecfcf813e8e8eb569ced122b10e3cfc8",
+			"package_sha256": "68bfb3210ef88ecdf07a20eddc6aec0936a32c58e6912882e870c2adb4955639",
+			"compiler_fingerprint": "8040842bb6933e6277aff1f57caac123cc072caaa1eab381c133a11d0d60877b",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -74,12 +74,12 @@
 			"pattern_semantic_identity": "d748edbc40a1ce1f1a872579bc3c10c49b67437ab7c01e29a3a6ae6f274c90e5",
 			"pattern_package_sha256": "7e9f63047ba9513790cf42e0622f21c0b1bc5b9fa1189516df5ea80124999e27",
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain",
-			"dependency_package_sha256": "243f25dc6a171f8e4be2cba9040dc85c2515371d22975657fef00ce35d6792a8",
-			"terrain_layout_receipt_sha256": "bebc7d2223d031c5a3db0d47ecfecc03c2ae03fa00364af9839a4db3d692c96b",
+			"dependency_package_sha256": "68bfb3210ef88ecdf07a20eddc6aec0936a32c58e6912882e870c2adb4955639",
+			"terrain_layout_receipt_sha256": "124aef29d3b1162a7af77dc0679b91aa9e40594dc8300c79b48871f979c3ac9c",
 			"output_object_path": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
-			"semantic_identity": "c90d867508a0007196b1fcbb183f8c525cc07dcc7e9f902ff6e3c1c79dc72a91",
-			"package_sha256": "a19da90ebd9fa36af6384e6aacad02202c74f8153a528b2f4bf3c2d0185391a7",
-			"compiler_fingerprint": "0f2ca6ff3d0e9295bccd5a8a82355234340fa36f3e6d275cf2db232310e92abd",
+			"semantic_identity": "2d70d79c687d0335349c45db836b1a63aa593c2bf758fb8b48b4455094008b6f",
+			"package_sha256": "1e772b3253e21d741e33f3c49a2180000923fffa518eaf83734676555bbefc38",
+			"compiler_fingerprint": "8040842bb6933e6277aff1f57caac123cc072caaa1eab381c133a11d0d60877b",
 			"engine_compatibility": "5.8"
 		}
 	]

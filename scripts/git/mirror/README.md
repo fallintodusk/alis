@@ -152,6 +152,11 @@ Windows wrapper:
 .\scripts\git\mirror\mirror_to_github.ps1 --remote-url git@github.com:org/repo.git --push
 ```
 
+For a Windows linked worktree, the wrapper passes its verified Git directory
+to WSL. The Bash mirror uses that context only for source Git reads and payload
+selection; its new public repository keeps separate Git state. The linked
+worktree's `.git` metadata is never rewritten.
+
 ## Developer Project Release
 
 The final release command internally uses
@@ -172,7 +177,7 @@ to have a generated asset with the same normalized source hash, and rewrites
 the plugin-owned authority manifest. JSON source authentication normalizes line
 endings so the same Git bytes remain valid in Windows and Unix checkouts.
 Review and commit source, `.uasset`, and
-manifest changes together. Release composition then requires a clean tree.
+manifest changes together. Ordinary manual composition requires a clean tree.
 
 Generated surface and pattern recipes need no separate refresh: the owners'
 accepted manifests are the authority, and composition rejects a recipe, package, or
@@ -221,6 +226,10 @@ those owners but does not duplicate their text inside the binary payload.
 
 It rejects TestData, stale generations, HLOD artifacts, incomplete source
 collections, untracked files, wrong hashes, and paths outside declared owners.
+The isolated official release may admit newly generated, untracked World
+packages only when `--allow-dirty` uses an explicit public manifest projection
+and each package matches that manifest's SHA-256. Other untracked payload files
+remain rejected.
 It does not scan every Content folder or guess whether an unrelated third-party
 asset is public. A generated definition may retain a soft reference to a
 separately obtained dependency; the referenced dependency bytes are not copied.
@@ -228,7 +237,8 @@ separately obtained dependency; the referenced dependency bytes are not copied.
 The payload is composed only after the filtered public candidate commit exists.
 Its manifest records the exact full public commit, branch, and intended source
 tag. World assets are selected through that candidate's projected public
-manifest set, while exact binary bytes come from the clean internal owner tree.
+manifest set, while exact binary bytes come from the isolated committed checkout
+after its transactional public World projection.
 The internal repository `HEAD` is not used as public source identity.
 An ordinary public source-branch advance does not redefine an earlier release:
 that payload remains installable from its recorded immutable tag. Only a new

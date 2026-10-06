@@ -2,6 +2,52 @@
 
 `realize_canonical_world.ps1` is the supported operator-controlled UE entry point
 for ProjectWorld canonical validation, application, and owned-output deletion.
+Release-only public projection runs this same World owner inside a detached
+checkout; [release preparation](../package/README.md#prepare_release_inputsps1)
+owns that checkout and its cleanup.
+
+## Release impact routing
+
+`test/release_preflight_plan.py` adapts the existing World planner for the
+[release preflight](../package/README.md#preparation-preflight-and-failure-triage).
+World owns these selections; release preparation composes its other owners and
+additive operator hints. Planning is read-only and uses the shared resolved-base,
+NUL-delimited, rename-safe Git collector, including untracked inputs.
+
+| Changed World input | Focused release checks |
+|---|---|
+| Source, module descriptor, generated content, or runtime probe implementation | Uncooked gameplay and receipt/policy fixtures |
+| Runtime JSON | Contract validation, projection fixtures, and uncooked gameplay |
+| Realization profile, Presentation, or Authored JSON | Contract validation and projection fixtures |
+| Other profiles or plugin schemas | Contract validation; realization/runtime/presentation/authored schemas also select projection fixtures |
+| World toolkit contract schemas | Contract validation and existing World planner requirements |
+| Production World scripts and toolkit implementations | Planner-selected contract checks and unexecuted World gate requirements |
+| Documentation only | Documentation hygiene; no gameplay probe |
+
+`test/validate_release_contracts.py` reuses the inline-schema validator on all
+World profiles, Runtime, Presentation and Authored documents, and validates World
+plugin and toolkit schema syntax. It checks existing consumers even when only
+their schema changed.
+The realization schema regression and release impact fixtures accompany it.
+
+Private PIE reads existing generated maps and Runtime JSON. It cannot prove a
+changed public realization profile. Public projection consumes both private and
+public realization profiles, Presentation, Authored and pinned Runtime inputs;
+its focused fixtures guard those bindings before final frozen projection proof.
+
+All changed paths go to the World owner's
+[release impact planning](../../../tools/World/EndToEndValidation/README.md#release-impact-planning).
+Production source, scripts, tools, generated packages/manifests, data and schemas
+retain its Matrix, verify, promotion and package requirements. They are reported
+as unexecuted requirements
+in `world_plan`; `world_gates_executed` is false. This adapter runs no Matrix,
+generation or promotion and cannot replace the owning World acceptance gates.
+Release fixture edits do not select a generation Matrix merely because they are
+shared proof inputs. Planner-selected L1 inputs add focused contract checks;
+these do not certify the planner's full L1/Matrix requirements. Final
+assembled/cooked proof remains with release preparation.
+
+## Canonical realization contract
 
 It accepts one exact Canonical Compilation `compile_result.json`, resolves the
 configured launcher engine, and writes machine-readable evidence under
@@ -78,8 +124,7 @@ Modes:
   profile.
 
 `-MaxRoads` and `-MaxBuildings` bound source feature identities, not generated
-mesh fragments. P0 defaults to one road and four buildings so a real provider
-snapshot cannot accidentally expand the prototype content budget.
+mesh fragments. Supported territory profiles set the intended feature budget.
 
 Each result records verified inputs, the grid-owned vertical origin, coordinate
 error, actor and terrain-section counts, authored-overlay hash, per-anchor resolutions,
@@ -94,6 +139,10 @@ counts, a mesh-section draw-call upper bound, and executable Nanite, instancing,
 and HLOD policy results. The frozen frame-time value is a target, not a
 `-NullRHI` measurement. A result is rejected when any structural policy or
 budget fails.
+The instancing probe is required when the selected realization layers include
+vegetation or vegetation actors are present. A profile that omits vegetation
+records the probe as false without failing for an absent layer; full product
+validation still requires an accepted instancing probe.
 
 `audit_runtime_partition.ps1` is the read-only static gate for an existing
 generated map. Pass the bounded runtime-profile paths, selected profile ID, and
@@ -103,11 +152,19 @@ weight, canonical-cell identity, Mesh Terrain partition/authoring/compiled owner
 loading-range coverage, and HLOD without calling realization Apply or saving
 the map.
 
+For a production terrain identity migration, run
+`test/integration/verify_terrain_projection.ps1` before and after Apply with
+the same map, materialized canonical compile result, and expected base/section
+counts. It loads the persisted map and writes every base mesh and compiled
+section's output projection into the audit receipt. Compare
+`terrain_projection_sha256` and the records exactly; the projection omits the
+producer identity tag and package path churn. Check package paths separately
+against the migration contract. This probe saves no map.
+
 Every run removes its previous result before launching Unreal, requires a
 newly emitted accepted result, and propagates any nonzero Unreal process exit.
 Apply and Delete also snapshot only the target map, its World Partition
-external actor/object roots, every participating layer root, and generated
-presentation material. Acceptance
+external actor/object roots, and every participating layer root. Acceptance
 discards that temporary snapshot; any rejected result, engine failure, or
 missing receipt restores the exact prior files. An initially absent target is
 restored to absence. A failed restoration preserves the recovery snapshot and
@@ -115,7 +172,7 @@ reports its absolute path. If a nonzero engine exit rolls back a child result
 marked `accepted`, the wrapper removes that stale receipt. The focused
 transaction regression lives under `test/`.
 
-For the complete source-to-cooked-package P0 gate, use the single command
+For the complete source-to-cooked-package territory gate, use the single command
 owned by [`tools/World/EndToEndValidation/`](../../../tools/World/EndToEndValidation/README.md).
 
 ## Workspace cleanup
@@ -129,10 +186,14 @@ Preview and apply the bounded owner cleanup with:
 .\scripts\ue\world\cleanup_workspace.ps1 -Apply
 ```
 
-The script fails closed while Unreal/build processes or a durable transaction
-journal exists. It retains `final_p0`, current canonical materialization,
-source runs/cache, the latest L3 run, and the pinned execution environment.
-Each applied cleanup writes a small receipt under
+`-Apply` plans and deletes as the owner of the
+[generated-content lock](../generated_content/README.md), so it refuses while any
+generator holds the lock, while it runs delegated inside another operation, and
+while an outer-recovery marker is pending; the dry run reports a pending marker.
+It also fails closed while Unreal/build processes or a durable transaction
+journal exists. It never deletes the lock file, current canonical
+materialization, source runs/cache, the latest L3 run, or the pinned execution
+environment. Each applied cleanup writes a small receipt under
 `Saved/Validation/WorldCleanup/`.
 
 ## Packaged fixed-view evidence
@@ -145,6 +206,54 @@ and emits one screenshot plus a machine-readable component receipt. The
 process runs offscreen with a hidden host window. The caller must supply every
 map, view, subject, executable, and output identity; the script has no
 product-specific defaults.
+
+## Uncooked gameplay admission
+
+```powershell
+.\scripts\ue\world\test\integration\run_uncooked_playable_tour.ps1
+```
+
+This command builds the current Editor target incrementally once, runs the exact
+native center-return policy and overhang-recovery tests, then probes both production cities in native
+single-client PIE. It uses each packaged operation's `-DescribeOperation` adapter
+and shared product-route arguments, so map, runtime, interaction, and return
+policies are owned by those operations. `-City` scopes a diagnostic run;
+shared runtime changes require the default two-city admission.
+
+Full Editor PIE is required for the generated Mesh Partition maps: their uncooked
+actor descriptors contain editor component classes. `UnrealEditor -game` does not
+load those authoring modules. The native launch test starts from the configured
+MainMenu with transient Standalone play settings, then the existing menu/loading
+route enters production gameplay. It neither saves preferences nor regenerates
+World content.
+
+The test keeps the actual transient render target at 2560x1440 during startup
+and map travel, before the native gate samples it. Product graphics application
+can resize a PIE viewport; waiting for match readiness to set it is too late.
+Native startup errors are reported before missing downstream traversal fields.
+
+The existing real-input driver uses a capsule sweep to detect a blocking
+underside during obstacle ascent. It releases forward input and backs upward
+until clear, bounded by a ten-second retreat and the existing ascent/leg/tour
+limits. It never moves the pawn directly or changes collision responses.
+The exact native `Project.World.PlayableTour.OverhangRecovery` fixture proves
+the physical underside, input transition, clearance, and refusal cleanup.
+
+Receipts under `tmp/world/playable_tour/uncooked/<run-id>/` bind current effective
+source, launched executable and modules, actual PIE/uncooked identity, map,
+runtime hash, and selected return policy. Exact production data-plugin path/hash
+digests must remain equal before/after, including refusal paths. The wrapper
+requires real input, pause, ascent/descent, the same center cell's unload/reload,
+blocked descent, and forward collision slide. Native FPS measurements remain
+diagnostic; only an independently authenticated FPS-only refusal is admissible
+after every gameplay and sample-validity check passes. The receipt explicitly
+declares that it does not certify performance.
+
+For the historical Manhattan geometry control, add `-City Manhattan
+-KnownBadManhattanReturnControl`. This executes the ordinary return policy against
+the same real map. Its receipt is diagnostic and never release admission. Count
+it as geometry RED only when native movement actually rejects the slide, not
+when startup or a metadata check fails.
 
 ## Packaged Kazan playable-tour acceptance
 
@@ -162,6 +271,20 @@ screenshots, and RTX 4070 High 1440p performance. A separate
 Shipping package proves cook and product-route correctness. The operation-level
 composite under `Saved/Validation/WorldRealization/playable-tour/<run-id>/`
 authenticates the focused receipts and artifacts without replacing their owners.
+Before replacing the Development package with Shipping, the runner passes the
+same package root and executable hashes to the Manhattan existing-package mode
+in `run_manhattan_showcase_prototype.ps1`. That mode runs three Development
+product-route and playable-tour performance children, explicitly omits gameplay
+interaction for the showcase, selects the precise final center return, checks
+unchanged package bytes after each child,
+and emits a Manhattan receipt under `Saved/Validation/WorldRealization/manhattan-showcase/`.
+That receipt records SHA-256 identities for each child's correctness receipt,
+product screenshot, performance receipt, sample CSV, diagnostic CSV, playable-tour
+screenshot, and process log. Its normal-exit check requires terminal closure and
+rejects fatal or assertion markers.
+The default Manhattan prototype command still packages its own Development and
+Shipping smokes; it is not the release performance route. The existing-package
+mode never cooks or promotes a package.
 The Development process uses UE's documented `-novsync` flag and the World gate
 fails before sampling unless read-back proves VSync and `t.MaxFPS` are zero,
 frame smoothing/fixed-rate/fixed-step/benchmark modes are disabled, and dynamic
@@ -172,11 +295,19 @@ Each Development child writes both UE's rich diagnostic CSV and an exact CSV
 projection of the C++ performance collector frames. The runner requires every
 child's functional, streaming, envelope, package, executable, source, and
 minimum-sample evidence, then concatenates all exact frame samples and applies
-the nearest-rank Frame p95 threshold. The fixed 60 FPS product budget is
-`16.67 ms`. Host-load measurement is an idle-host precondition and receipt
-diagnostic; it never changes that product budget. Its evidence contract is owned
-by [World Partition](../../../Plugins/World/ProjectWorld/docs/world_partition.md#automated-design-and-performance-gate).
-An unavailable or invalid load measurement fails closed. Child p95 values are
+the nearest-rank Frame p95 threshold. The base 60 FPS target is `16.67 ms`.
+The release runner measures three CPU/GPU samples with the game stopped before
+and after each of the three Development runs. The lowest of the six window
+loads, where each window uses the higher of CPU and NVIDIA GPU utilization,
+sets the host allowance: zero through 20% load, then one percentage point per
+point of load above 20%, capped at 10%. The effective aggregate threshold is
+the base target times this allowance. The receipt includes all six windows,
+the selected load, the allowance, the base target, and the effective threshold.
+This is an approximate busy-host release comparison, not proof that an idle
+player receives 60 FPS. The native in-game threshold remains the base target;
+its separate evidence contract is owned by
+[World Partition](../../../Plugins/World/ProjectWorld/docs/world_partition.md#automated-design-and-performance-gate).
+An unavailable, incomplete, or invalid load measurement fails closed. Child p95 values are
 reported, never averaged or selected. A fixed count of three is release
 evidence, not the separate runtime-profile tournament.
 An individual child whose only rejection is the Frame p95 gate remains part of
@@ -270,20 +401,17 @@ Any failure
 exits nonzero with the receipt still written.
 
 It is a verifier, never a repair tool: it does not mutate content, manifests,
-or the active set. Producer fingerprints use explicit small source sets:
-shared byte-producing primitives participate in every affected producer, while
-terrain, water, road, vegetation, presentation, and map implementation files
-participate only in their owners. Vegetation also fingerprints its admitted
-mesh assets and exclusion-geometry implementation. Pure catalog, tuple
-validation, profile-schema, and dispatch additions are excluded because they
-cannot change an existing producer's bytes; their executable behavior remains
-covered by profile and end-to-end validation. Direct placement and lifecycle
-dependencies are listed in each producer that consumes them. A stale layer
-fingerprint injects whole-layer dirty work before manifest publication, so
-metadata cannot advance over artifacts skipped by the current producer. The
-auditor and
-test sources are excluded because editing them cannot change generated bytes
-or manifest documents.
+or the active set. Each producer descriptor under `Data/Producers/` declares
+its ID, output revision, modules, and data inputs. The shared pipeline
+descriptor declares the pipeline revision. The fingerprint includes those
+revisions, the engine build identity, and declared data-input digests; source
+text, descriptor formatting, and tests are not identity inputs. A changed
+output implementation requires an explicit revision bump and a new verify
+baseline. A stale layer fingerprint marks only that layer identity-dirty; it
+does not enter the dependent layers' content dirty closure. Its producer must
+refresh the layer before publishing a current fingerprint. A metadata-only
+formula migration is allowed only under the
+[territory identity refresh rule](../../../Plugins/World/ProjectWorld/docs/territory_contract.md).
 
 ## Fast lifecycle tests
 
@@ -292,8 +420,9 @@ or manifest documents.
 ```
 
 This runs the manifest, transaction, recovery, and operator-control Pester
-tests. The end-to-end shared Check runs this entrypoint once before its Matrix
-legs; individual matrices do not repeat it.
+tests, the generated-content lock and outer-recovery tests, and the
+ProjectMaterial host recovery tests. The end-to-end shared Check runs this
+entrypoint once before its Matrix legs; individual matrices do not repeat it.
 
 ## 3-CORE isolated L1 lifecycle
 
@@ -302,11 +431,11 @@ real wrapper-to-commandlet seam with:
 
 ```powershell
 .\scripts\ue\world\test\integration\realization_layer_lifecycle.ps1 `
-  -CompileResult <accepted-synthetic-landscape-water-compile-result.json>
+  -CompileResult <accepted-synthetic-territory-twin-compile-result.json>
 ```
 
-It holds the project content lock, snapshots the TestData map, layer and shared
-presentation roots, and uses a transient manifest authority. It proves first
+It holds the project content lock, snapshots the TestData map and layer roots,
+and uses a transient manifest authority. It proves first
 enrollment, unchanged Apply, one-cell terrain-to-water closure, rejected
 out-of-domain rollback, exact layer-manifest no-op, and Delete retirement. A
 `Saved/Validation/WorldRealization/3-core-lifecycle/<run-id>/summary.json`
@@ -389,9 +518,8 @@ reconstruction from accepted Matrix compile evidence:
 
 1. Enumerate the owned paths for the scope with
    `Get-ProjectWorldGeneratedPaths` - never list them by hand.
-2. Remove them. Remove the shared presentation root ONCE, before the first
-   map; afterwards it matches its freshly published manifest and the
-   remaining maps pass their drift check.
+2. Remove them. Keep the shared presentation scope's consumer links under
+   the same active-set transaction.
 3. Run `-Mode Apply -Reconstruct -Map <package>` per map, from that gate
    run's accepted compile result. Each touched scope republishes at
    generation+1.
@@ -403,7 +531,10 @@ never the drift precondition, and the two flags are mutually exclusive.
 
 `recover_generated_transaction.ps1 -WorldDataPlugin <owner>` completes or
 rolls back an interrupted transaction from its journal, and is the only
-supported response to a pending journal.
+supported response to a pending journal. A transaction removes its journal
+before its snapshot, so an interruption leaves snapshot debris, never a journal
+without its snapshot. A pending outer-recovery marker has its own resolver,
+described with the [generated-content lock](../generated_content/README.md).
 
 Acceptance ordering is owned by the territory contract
 ([layered regeneration contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#layered-regeneration-contract-scale-out-precondition)):

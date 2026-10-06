@@ -28,13 +28,40 @@ pending journal. Restoring such a snapshot can bring back references to an orpha
 Registry cannot see. The public World projection holds no content lock of its own; a
 projection that starts during a cleanup is outside this check.
 
-The wrapper holds the project-wide generated-content lock, refuses a second Editor
-for this project, snapshots exact prior output and manifest state, journals the
-transaction, launches one hidden launcher-engine commandlet, authenticates its
-receipt, and restores after rejection, crash, or timeout. If that restore itself fails,
-for example because another process holds an output file open, the journal and its
-snapshot are both kept and the next run of either mode restores them before anything
-else. The host receipt lists `retained_orphans`, the referenced orphans a cleanup kept.
+The wrapper holds the project-wide [generated-content lock](../generated_content/README.md),
+or joins a live owner that delegated it, refuses while an Unreal process for this project
+runs, snapshots exact prior output and manifest state, journals the transaction, launches
+one hidden launcher-engine commandlet, authenticates its receipt, and restores after
+rejection, crash, or timeout. A restore never deletes live content first: it copies the
+snapshot to staging, checks it, moves the live roots aside, moves the copy in, and checks
+again. If that restore fails, for example because another process holds an output file
+open, the journal and its snapshot are both kept and the next run of any mode restores
+them before anything else. The host releases the lock as its last step.
+
+Every run that holds the lock writes `host.receipt.json` to `Current` when accepted or
+`Rejected` when rejected: its operation id, mode, status, the commandlet status and error,
+and digests of the output and manifest content it leaves on disk. The accepted receipt also
+lists `retained_orphans`, the referenced orphans a cleanup kept.
+
+A caller that must record a run before it mutates passes `-OperationId <32 hex>` to
+`run_material_generation.ps1`; an id that already names an operation folder, the pending
+journal, or the retained rollback bundle is refused before any snapshot. Each accepted
+`Regenerate` retains the state it replaced as the one `RollbackPrevious` bundle, bound to
+its operation id and to content digests: under `Saved/Validation/<domain folder>/` for
+production, and in the test root for test runs. Only the host restores it:
+
+```powershell
+scripts/ue/material/run_material_generation.ps1 `
+  -Domain Surface `
+  -Mode RestorePrevious `
+  -RestoreOperationId <operation id>
+```
+
+`RestorePrevious` runs no commandlet. When the pending journal belongs to that operation,
+the journal restore is the restore. Otherwise it restores the bundle only when the
+bundle's `replaced_by_operation_id` equals the requested id and its digests verify, inside
+its own journaled transaction, and keeps the bundle. A bundle bound to another operation
+restores nothing.
 
 For surface tests, `-PatternTestRoot <tmp/texture/generation/...>` makes the surface
 test mount consume a pattern that a ProjectTexture test run regenerated there.

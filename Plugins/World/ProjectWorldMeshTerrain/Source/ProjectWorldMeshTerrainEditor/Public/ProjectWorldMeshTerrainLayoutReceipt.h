@@ -12,7 +12,6 @@ struct FProjectWorldMeshTerrainLayoutReceipt
 	FString CanonicalSurfaceContractId;
 	int32 CanonicalSurfaceContractVersion = 0;
 	FString CanonicalSurfaceContractSha256;
-	FString AdapterCompilerSha256;
 	FString EngineIdentity;
 	FString LayoutSha256;
 	FString SharedDefinitionPackageSha256;
@@ -36,5 +35,4 @@ public:
 
 	static FString GetLayoutPayload();
 	static FString GetBuildPolicyPayload();
-	static FString GetAdapterCompilerFingerprint();
 };

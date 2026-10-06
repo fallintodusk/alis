@@ -402,8 +402,8 @@ Universal Water appearance remains future ProjectMaterial resource authority;
 the generator-local solid color is only the current prototype legibility fallback.
 Unknown pairs, versions, or settings fail before mutation.
 
-The executable registry is deliberately smaller than the schema vocabulary.
-It currently admits only these complete tuples:
+The executable modular-feature registry admits only complete producer tuples.
+The built-in modules currently provide:
 
 | Generator | Kind | Selector | Spatial ownership | Dirty unit | Runtime mapping |
 |---|---|---|---|---|---|
@@ -411,7 +411,6 @@ It currently admits only these complete tuples:
 | `project_water_mesh:v1` | generated geography | water | cell local | canonical cell | World Partition spatial |
 | `project_road_mesh:v1` | generated geography | roads | cell local | canonical cell | World Partition spatial |
 | `project_vegetation_instances:v1` | generated geography | vegetation | cell-local HISM actors | canonical cell | World Partition spatial |
-| `project_building_massing:v1` | generated geography | buildings | cell-local StaticMesh actors | canonical cell | World Partition spatial |
 | `project_building_massing:v2` | generated geography | logical buildings with effective volumes | cell-local StaticMesh actors | canonical cell | World Partition spatial |
 | `project_gameplay_placement:v1` | generated gameplay placement | gameplay placements | object-local ObjectDefinition actors | stable object ID | World Partition spatial |
 
@@ -420,6 +419,33 @@ through their existing production map identities. `ProjectWorldMeshTerrain`
 alone owns the Epic MeshPartition dependency and maps canonical semantic channel
 names to its private channel layout. ProjectWorld owns the producer-neutral
 registry, manifests, World Partition policy, and runtime acceptance contract.
+
+### Add or change a layer producer
+
+Put implementation, typed settings validation, canonical-unit hashing, Apply,
+artifact capture, and output verification in the producer's editor module. The
+built-in Road, Water, Vegetation, Building, and Gameplay modules are separate
+leaf modules under `ProjectWorld/Source/`; Mesh Terrain lives in its adapter
+plugin. Register one complete `IProjectWorldLayerProducer` declaration for each
+supported generator ID/version tuple. Add its descriptor under the owning
+plugin's `Data/Producers/` and its normalized output baseline under
+`Data/TestFixtures/Verify/`. The shared pipeline module owns transaction and
+dirty-closure mechanics; it does not dispatch by producer ID.
+
+Select a small canonical fixture with saved and reloaded output. Run the exact
+`Project.World.Realization.Verify.<Name>` test through
+`scripts/ue/test/unit/iterate.ps1 -TestFilter <exact-name>`. For Map, Mesh
+Terrain, and Pipeline, run
+`scripts/ue/world/test/integration/verify_twin_realization.ps1`. The common
+Check includes the full verify set. Change an output revision when that
+producer changes saved output behavior; change the pipeline revision when
+shared realization changes it. Re-record the affected baseline with
+`scripts/ue/world/record_verify_baseline.ps1 -Verify <Name>` (`Twin` records
+Map, Mesh Terrain, and Pipeline), then run a fresh comparison and a known-bad
+output sabotage. A source edit with unchanged output requires no revision bump.
+The new producer's fixture, modules, descriptor, registration, profile,
+tests, and baseline are its local change; unrelated producers' saved outputs
+and fingerprints stay equal.
 
 A layer artifact root must be a strict descendant of the owner's `Generated/`
 root; no layer may claim that complete root.
@@ -510,9 +536,9 @@ when the commandlet names each exact file under the target map's confined
 external-package roots. Filename prefixes never establish ownership. Files not
 claimed by a layer remain map-owned, and prospective authority rejects overlap.
 Profile-driven layer removal retires only that layer's accepted artifacts and
-manifest; shared presentation scopes retain their stricter active-consumer
-guard. Map, presentation, and all touched layer roots use the same snapshot,
-journal, recovery, and final active-set commit.
+manifest; shared presentation scopes retain their active-consumer guard.
+Map and touched layer roots use the same snapshot, journal, recovery, and
+final active-set commit. The presentation scope owns no generated artifacts.
 
 Invariants:
 
@@ -663,11 +689,10 @@ transfer between scopes updates all affected manifests in one transaction.
 A consumer reference never grants the consumer permission to mutate the
 owner's artifact.
 
-One world-data owner has exactly one physical generated presentation root and
-therefore at most one active presentation-profile scope. Apply fails closed if
-a different presentation scope is active. A profile-ID transition explicitly
-deletes its consuming maps, atomically retires the old scope with the last
-consumer, then enrolls the new profile; two scopes never share that root.
+One world-data owner has at most one active presentation-profile scope. Apply
+fails closed if a different presentation scope is active. A profile-ID
+transition explicitly deletes its consuming maps, atomically retires the old
+scope with the last consumer, then enrolls the new profile.
 
 ### Recoverable transactional replacement and interruption
 
@@ -730,19 +755,27 @@ the exact pre-run generated tree before returning accepted or rejected
 evidence. They run before enrollment because their immutable evidence
 authorizes the later mutation; nothing may regenerate after enrollment, or
 the enrolled pair is invalidated. Enrollment covers every current scope
-explicitly: the P0 map scopes, the representative map scopes, and the
-shared presentation-profile scope. The frozen acceptance sequence is:
+explicitly: the Kazan territory map scopes and the shared presentation-profile
+scope. The frozen acceptance sequence is:
 
 The test-level selection SOT is
 [World Pipeline Test Layers](../../../../docs/testing/world_pipeline_layers.md).
+A World-only slice may use the canonical-authority territory Matrix from the
+current promoted bundle. A source, compiler, or authority change requires the
+full source-to-World Matrix. Both modes prove bounded World realization and
+restoration; only the full mode proves fresh source replay, deterministic
+compilation, and compiler incremental behavior. The Matrix receipt states
+its mode, and enrollment must use a Matrix covering the changed owner. The
+command and path classification are owned by
+[End-to-End Validation](../../../../tools/World/EndToEndValidation/README.md).
 A normal slice stops at L2 and does not package. The complete sequence below
 is the L4 route for a milestone/release or a slice that changed cook, IoStore,
 shipping inclusion, packaged runtime, or rendered-performance boundaries.
 
 ```text
 one common Check receipt
--> P0 + representative internally destructive, externally observational
-   Matrix gates using that receipt
+-> one Kazan territory Matrix gate, internally destructive and externally
+   observational, using that receipt
 -> final enrollment (the last generated-tree mutation)
 -> durable read-only authority audit (references the E2E run IDs;
    records final active-set SHA-256, every active manifest
@@ -767,40 +800,36 @@ authoritative must follow the same rule; verify with
 `git check-attr text eol` rather than assuming.
 
 Fingerprint currency FAILS CLOSED: every active manifest must carry the
-current fingerprint of its owning producer, because the audit's claim is that
-the accepted scope is reproducible by today's producer. Producer-local source
-sets are explicit, not inferred transitively. True shared byte-producing or
-manifest-producing primitives participate in each affected producer; terrain,
-water, road, vegetation, building, presentation, and map implementation files participate
-only in their owners. Direct shared placement/lifecycle dependencies participate
-in every producer that calls them. A road-only implementation edit therefore
-cannot stale terrain, water, vegetation, presentation, or map scopes. The
-normalized layer contract remains the data-defined behavior authority and is
-not duplicated into the source set. Pure tuple catalog, profile-schema,
-validation, and dispatch additions are not byte-producing inputs and therefore
-do not move existing producer fingerprints. Admission-only regions in the
-realization wrapper are explicitly scoped out. Such a region may only refuse
-inputs before the wrapper's first write, and nothing it computes may be read
-after the region; producing logic placed inside it would escape invalidation.
-Any region marker that does not delimit a well-formed region refuses
-fingerprinting. The wrapper's byte- and manifest-producing behavior remains a
-shared input. The read-only auditor and tests are also excluded because they
-cannot change generated bytes or manifest documents.
+current fingerprint of its owning producer. A fingerprint binds the producer
+ID, its declared output revision, the realization pipeline revision, the
+engine build identity, and the hashes of its declared data inputs. Source edits
+do not move fingerprints. A change to generated output behavior requires a
+producer output-revision bump; a change to shared realization behavior requires
+a pipeline-revision bump. Producer descriptors declare their modules so the
+Check route selects the affected verifies. The normalized layer contract owns
+data-defined behavior independently of the fingerprint.
 
 The enrollment pre-audit has one narrow transition exception: generator
 fingerprint drift may exist only on map/layer scopes for the exact Matrix-
 accepted target map that enrollment will reconstruct. Every artifact must
 still be byte-intact and owned, every manifest and consumer reference must be
 valid, and every unrelated producer must remain current. The post-enrollment
-audit is always strict. Never refresh stale fingerprint metadata onto old
-bytes when the current producer changes their output. The realization wrapper
-converts each stale layer fingerprint into whole-layer dirty work, and the
-generator must bypass content-semantic reuse for that work. A producer
-fingerprint cannot advance unless its existing artifacts were actually
-reconstructed by the current producer.
+audit is always strict. A stale fingerprint normally makes the realization
+wrapper mark that layer identity-dirty, forcing the current producer to rebuild
+it without reusing old content-semantic tags. An explicit identity-formula
+migration may refresh fingerprint metadata without package mutation only when
+current producer verifies match recorded baselines, the read-only audit shows
+fingerprint currency as the sole stale check, and the existing realized output
+has been checked against the current producer's actor and asset identity.
+An intact manifest alone does not prove that its actors still carry the current
+producer identity. Any scope with outdated actors is rebuilt through realization;
+the metadata candidate preserves every artifact path, digest, semantic identity,
+input identity, and consumer reference. The migration publishes a new immutable
+manifest generation and active-set record under the generated-content transaction. Any other drift
+requires realization or refusal.
 
 The whole tail is one command:
-`bootstrap.py accept --p0-run <id> --representative-run <id>`. It owns the
+`bootstrap.py accept --run <kazan-territory-run-id>`. It owns the
 project-global content lock across audit -> package -> IoStore inspection
 -> gate -> audit, so those steps observe ONE coherent tree. Holding the
 lock is what makes "exact final tree" evidence rather than assertion: a
@@ -809,10 +838,14 @@ cook and changed back. Check and Matrix never package; the final acceptance
 is the one packaging and rendered-performance authority.
 
 The cook discovers the current content tree without reading prior Asset
-Registry caches. Generated World Partition external-actor package paths must
-remain identical across unchanged Apply, incremental Apply, and clean
-reconstruction; Matrix rejects path churn even when semantic actor GUIDs are
-stable. After a legitimate artifact-set change, a stale descriptor can still
+Registry caches. Generated World Partition external-actor package paths remain
+identical across unchanged and identity-local Apply. UE 5.8 Mesh Partition
+allocates new actor GUIDs for compiled sections in an isolated clean
+reconstruction, so that leg may reallocate map and terrain package paths while
+preserving the scope set, artifact counts, producer semantic outputs, and
+World semantic fingerprint. Every other scope keeps its paths. The Matrix
+rejects path churn on the unchanged and locality legs. After a legitimate
+artifact-set change, a stale descriptor can still
 select a deleted package and omit the current always-loaded actor. Missing
 generated external packages or duplicate actor descriptors reject acceptance.
 
@@ -833,10 +866,9 @@ never borrow ProjectWorld fixture authority.
 A run ID on the command line is a label, not provenance. Acceptance
 therefore proves the whole path from run to manifest:
 
-- Each supplied run must carry the profile identity it was passed as, so
-  the same accepted representative run cannot be handed in as "p0", and
-  each `result.json` SHA-256 is recorded.
-- Both Matrix runs must pin the same accepted common Check receipt. Its
+- The supplied run must carry the `kazan_territory_v1` profile identity,
+  and its `result.json` SHA-256 is recorded.
+- The Matrix run must pin the accepted common Check receipt. Its
   SHA-256 is verified again during acceptance, so common suites run once
   without becoming an unauthenticated skip flag.
 - Each run FREEZES the SHA-256 of its own realization receipts, and
@@ -846,13 +878,13 @@ therefore proves the whole path from run to manifest:
   into provenance while the parent hash still validated.
 - Identity is compared as a TUPLE per map package, selected by the
   manifest's own `map_package`, never as a union of hashes seen anywhere.
-  A union would accept a P0 map carrying the perfectly legitimate compile
+  A union would accept a map carrying the perfectly legitimate compile
   hash of a different leg - that proves the hash occurred, not that this
   map came from this input. One map package produced from two different
   tuples fails closed as ambiguous.
 - Fields carrying the literal sentinel `none` are absences, not claims -
-  P0 legs declare no runtime profile and the presentation scope is
-  profile-owned with no compile result - and must compare equal to an
+  the presentation scope is profile-owned with no compile result, and a
+  leg may have no runtime profile; these fields must compare equal to an
   absent field on the evidence side. The shared presentation scope owns no
   map, so its provenance is derived from the presentation input its
   consumer map scopes were actually gated with, which must be unanimous.
@@ -864,8 +896,8 @@ receipt carrying the partial evidence and the failure, so a rejection
 leaves an artifact rather than a console message. That includes unexpected
 programming and environment faults, which are converted into a structured
 `acceptance_internal_error` rather than escaping silently; only an
-interrupt or a failure of the write itself can defeat it. It links both E2E runs and their result
-hashes, both audit receipts with their active-set SHAs, the package with
+interrupt or a failure of the write itself can defeat it. It links the E2E run and its result
+hash, both audit receipts with their active-set SHAs, the package with
 its IoStore receipt hash and required-map result, the Shipping binary and
 package-summary hashes, the Presentation Gate operation, and the pinned
 bootstrap-preflight identity. Acceptance requires both audits to report
@@ -1211,36 +1243,26 @@ lattice and coordinate authority, not a competing v1 option.
   input hash includes only the road fragments, canonical water polygon/ribbon
   footprint inputs, and authored masks intersecting that cell, so relevant
   exclusion changes dirty vegetation and unrelated overlays remain clean.
-- Partitioned PCG was evaluated for v1. The reusable PCG module and forest pack
-  contain no admitted graph or biome content, so routing v1 through PCG would
-  create a second unproven placement authority. A future PCG adapter may replace
-  the producer only through a new registered tuple and the same layer gates.
-- The building-massing v1 producer consumes accepted canonical `building`
-  Polygon or MultiPolygon geometry and its compiler-admitted `height_m`. It unions parts,
-  preserves holes, clips output to canonical cells, and creates one persistent
-  StaticMesh plus one spatial OFPA actor per occupied cell. Flat massing is
-  anchored to the owning terrain at the clamped footprint-bounds center.
-  Geometrically equal footprints keep the lowest stable feature ID; strictly
-  contained footprints associate with their container; both participants in
-  any remaining positive-area overlap are rejected with their stable IDs.
-  Malformed geometry, non-positive or over-profile height, and fragments that
-  intersect authored masks excluding `buildings` are rejected before mesh
-  output. Cell cuts do not emit internal seam walls, so adjacent fragments do
-  not duplicate visible or collision surfaces.
+- No PCG producer is registered for v1. A future PCG adapter may replace the
+  vegetation producer only through a new registered tuple and the same layer
+  gates.
+- The building-massing v2 producer consumes accepted logical Building topology
+  and canonical effective volumes. It classifies only independent logical
+  buildings against one another. Equal footprints retain the lowest stable
+  feature ID; contained footprints associate with their container, and
+  conflicting positive-area overlaps are rejected. It anchors each logical
+  Building once to owning terrain, clips its volumes to canonical cells, and
+  extrudes `base + min_height_m` through `base + height_m`. Same-building
+  overlaps and raised or stacked volumes are valid massing input. Each occupied
+  cell owns one persistent StaticMesh and spatial OFPA actor. Malformed geometry,
+  invalid heights, and authored masks excluding `buildings` reject affected
+  fragments before mesh output. Cell cuts emit no internal seam walls.
 - Building assets are Nanite-enabled opaque StaticMeshes with
   complex-as-simple query-and-physics collision, no navigation contribution,
   no distance field, no authored LOD chain, and no HLOD participation. They are
   territory blockouts only: no interiors, doors, gameplay placement, or modular
   assembly is implied. Later selected-feature assembly must replace only the
   selected massing through its own admitted generator tuple.
-- The building-massing v2 producer consumes the same logical Building topology
-  plus its canonical effective volumes. It classifies only independent logical
-  buildings against one another, anchors the logical Building once to owning
-  terrain, clips every volume to each intersected canonical cell, and extrudes
-  `base + min_height_m` through `base + height_m`. Same-building overlaps and
-  raised or stacked volumes are therefore massing input, not duplicate/conflict
-  candidates. It keeps the v1 one-StaticMesh/actor-per-occupied-cell, Nanite,
-  material, collision, seam, and manifest ownership path.
 - Do not generate HLOD layers, proxy meshes, merged meshes, simplified
   meshes, or HLOD companion packages for `kazan_territory_v1`. HLOD adds a
   separate distant-representation build, storage, cook, and regeneration

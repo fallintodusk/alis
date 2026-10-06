@@ -1,0 +1,65 @@
+{
+  "$schema": "../../Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.Vegetation",
+  "identity": {
+    "producer_id": "project_vegetation_instances:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 1,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "data:Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.uasset", "sha256": "a85243b47e8d2d748378334e2d239240429dfdea397d00358e961020a7fd7c04"},
+      {"name": "data:Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset", "sha256": "e229d04ece2107d5fee64b1ec8d9d4eefdb4c314781265cfd3f7b71e69d5ebf8"},
+      {"name": "memory:bundle", "sha256": "0fd9f6aafc4fd6fa4cfb180dbeb6eb7b67e3219fe1b0964857c5f16de543977a"},
+      {"name": "memory:overlays", "sha256": "c3dd14b84b4df033f2d1c682bf45cc6add3e32705b7062596f41fa6e6c2ed003"},
+      {"name": "memory:profile", "sha256": "48be5ce9aca92cb11d0fab962d8521138ecd72f3d0b30bac54c470772ffb1485"}
+    ],
+    "embedded": []
+  },
+  "projection_sha256": "7100bb1cdb9dde94c41a6d01ecc581ccd3f31ce733ee55b5bb671bd0e0a228d9",
+  "records": [
+    {
+      "kind": "actor",
+      "key": "vegetation:vegetation_grid:x0:y0",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.Actor",
+        "components": "Vegetation_00,Vegetation_01",
+        "external_package": "1",
+        "guid": "5629686f-37c1-e44e-7758-d054e385055b",
+        "hism.Vegetation_00.affects_navigation": "0",
+        "hism.Vegetation_00.attach_parent": "none",
+        "hism.Vegetation_00.class": "/Script/Engine.HierarchicalInstancedStaticMeshComponent",
+        "hism.Vegetation_00.collision_enabled": "NoCollision",
+        "hism.Vegetation_00.collision_profile": "Custom",
+        "hism.Vegetation_00.instance_count": "8",
+        "hism.Vegetation_00.instances": "da75524a71039ad54d08a800912bab02d6e797229c76222825d4d839a69208c4",
+        "hism.Vegetation_00.mesh": "/ProjectObject/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.SM_Tree_Hornbeam_Medium",
+        "hism.Vegetation_00.mobility": "Static",
+        "hism.Vegetation_00.overlap_events": "0",
+        "hism.Vegetation_00.override_materials": "",
+        "hism.Vegetation_00.relative_transform": "t=0,-1000000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "hism.Vegetation_01.affects_navigation": "0",
+        "hism.Vegetation_01.attach_parent": "Vegetation_00",
+        "hism.Vegetation_01.class": "/Script/Engine.HierarchicalInstancedStaticMeshComponent",
+        "hism.Vegetation_01.collision_enabled": "NoCollision",
+        "hism.Vegetation_01.collision_profile": "Custom",
+        "hism.Vegetation_01.instance_count": "13",
+        "hism.Vegetation_01.instances": "69bb6a9b413e55736991bbb3407981e028a641170b4dc9a586b391f47c7ad7ca",
+        "hism.Vegetation_01.mesh": "/ProjectObject/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.SM_Tree_AmurCork_Big",
+        "hism.Vegetation_01.mobility": "Static",
+        "hism.Vegetation_01.overlap_events": "0",
+        "hism.Vegetation_01.override_materials": "",
+        "hism.Vegetation_01.relative_transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Vegetation vegetation_grid:x0:y0",
+        "name": "ProjectWorld_Vegetation_vegetation_grid_x0_y0",
+        "root": "Vegetation_00",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=vegetation_grid,ProjectWorld.Vegetation=v1,ProjectWorld.VegetationCell=vegetation_grid:x0:y0,ProjectWorld.VegetationSemantic=ebfcde9cebe451f8ed87ff1300e4869be4dd211dae93c15152b36b9c222efa55",
+        "transform": "t=0,-1000000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    }
+  ]
+}

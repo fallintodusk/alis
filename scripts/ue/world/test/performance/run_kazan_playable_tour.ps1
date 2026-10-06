@@ -5,7 +5,8 @@
 
 [CmdletBinding()]
 param(
-    [int]$GameTimeoutSeconds = 720
+    [int]$GameTimeoutSeconds = 720,
+    [switch]$DescribeOperation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +41,7 @@ $packageRoot = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour'
 $finalPackage = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour\Candidate'
 $previousFinalPackage = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour\PreviousCandidate'
 . (Join-Path $PSScriptRoot 'project_world_performance_evidence.ps1')
+. (Join-Path $PSScriptRoot 'project_world_product_route_arguments.ps1')
 
 function Assert-PlayableTour {
     param(
@@ -84,73 +86,7 @@ function Assert-PlayableTourSourceState {
 }
 
 function Measure-PlayableTourHostLoad {
-    $cpuSamples = [Collections.Generic.List[double]]::new()
-    $gpuSamples = [Collections.Generic.List[double]]::new()
-    for ($sampleIndex = 0; $sampleIndex -lt 3; ++$sampleIndex) {
-        $processor = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor `
-            -Filter "Name='_Total'" -ErrorAction Stop
-        Assert-PlayableTour ($null -ne $processor) `
-            'Unable to measure Windows CPU load for the performance envelope.'
-        $cpuSamples.Add([double]$processor.PercentProcessorTime)
-
-        $gpuOutput = @(& nvidia-smi --query-gpu=utilization.gpu `
-                --format=csv,noheader,nounits)
-        Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $gpuOutput.Count -ge 1) `
-            'Unable to measure NVIDIA GPU load for the performance envelope.'
-        $adapterLoads = [Collections.Generic.List[double]]::new()
-        foreach ($gpuValue in $gpuOutput) {
-            $gpuLoad = 0.0
-            Assert-PlayableTour ([double]::TryParse(
-                    [string]$gpuValue,
-                    [Globalization.NumberStyles]::Float,
-                    [Globalization.CultureInfo]::InvariantCulture,
-                    [ref]$gpuLoad)) `
-                'NVIDIA GPU load measurement was invalid.'
-            $adapterLoads.Add($gpuLoad)
-        }
-        $gpuSamples.Add([double](($adapterLoads | Measure-Object -Maximum).Maximum))
-        if ($sampleIndex -lt 2) {
-            Start-Sleep -Seconds 1
-        }
-    }
-    return [pscustomobject][ordered]@{
-        cpu_percent = [double](($cpuSamples | Measure-Object -Average).Average)
-        gpu_percent = [double](($gpuSamples | Measure-Object -Average).Average)
-    }
-}
-
-function Wait-PlayableTourHostIdle {
-    param(
-        [double]$CpuLimitPercent = 25.0,
-        [double]$GpuLimitPercent = 20.0,
-        [int]$MaxWaitSeconds = 300,
-        [int]$PollSeconds = 15
-    )
-    Assert-PlayableTour ($CpuLimitPercent -ge 0.0 -and $CpuLimitPercent -le 100.0) `
-        'Host CPU idle limit must be between 0 and 100 percent.'
-    Assert-PlayableTour ($GpuLimitPercent -ge 0.0 -and $GpuLimitPercent -le 100.0) `
-        'Host GPU idle limit must be between 0 and 100 percent.'
-    Assert-PlayableTour ($MaxWaitSeconds -ge 0 -and $PollSeconds -gt 0) `
-        'Host idle wait settings are invalid.'
-
-    $deadline = [DateTime]::UtcNow.AddSeconds($MaxWaitSeconds)
-    while ($true) {
-        $hostLoad = Measure-PlayableTourHostLoad
-        if ($hostLoad.cpu_percent -le $CpuLimitPercent -and
-            $hostLoad.gpu_percent -le $GpuLimitPercent) {
-            return $hostLoad
-        }
-        Assert-PlayableTour ([DateTime]::UtcNow -lt $deadline) `
-            (('Release host remained busy: CPU {0:F1}%, GPU {1:F1}%; ' +
-                    'required at most {2:F1}% CPU and {3:F1}% GPU.') -f
-                $hostLoad.cpu_percent, $hostLoad.gpu_percent,
-                $CpuLimitPercent, $GpuLimitPercent)
-        Write-Host (('[i] Waiting for an idle release host: CPU {0:F1}%, GPU {1:F1}%; ' +
-                'limits are {2:F1}% CPU and {3:F1}% GPU.') -f
-            $hostLoad.cpu_percent, $hostLoad.gpu_percent,
-            $CpuLimitPercent, $GpuLimitPercent)
-        Start-Sleep -Seconds $PollSeconds
-    }
+    return Measure-ProjectWorldPerformanceHostLoad
 }
 
 function Remove-PlayableTourWorkspace {
@@ -297,33 +233,18 @@ function Invoke-PlayableTourGame {
         [string]$SamplePath,
         [string]$ScreenshotPath
     )
-    $arguments = @(
-        '-ProjectMenuPlayAutoExperience=KazanTerritory',
-        '-ProjectMenuPlayAutoMode=SinglePlayer',
-        '-ProjectWorldProductRouteGate',
-        '-ProjectWorldProductRouteRestorePreviewFlight',
-        "-ProjectWorldProductOperation=$RunOperationId",
-        "-ProjectWorldProductResult=$CorrectnessPath",
-        "-ProjectWorldProductMap=$mapPackage",
-        '-ProjectWorldProductRuntime=kazan_territory_512_1536_v1',
-        "-ProjectWorldProductRuntimeHash=$script:runtimeProfileHash",
-        '-ProjectWorldProductMachine=rtx4070_primary',
-        "-ProjectWorldProductEdge=$script:edgeArgument",
-        '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
-        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash', '-NoMessaging',
-        "-abslog=$LogPath"
-    )
-    if ($Configuration -ceq 'Development') {
-        $arguments += @(
-            '-ProjectWorldProductPerformanceGate',
-            '-ProjectWorldPlayableTour',
-            "-ProjectWorldPerformanceResult=$PerformancePath",
-            "-ProjectWorldPerformanceCorrectness=$CorrectnessPath",
-            "-ProjectWorldPerformanceCsv=$CsvPath",
-            "-ProjectWorldPerformanceSamples=$SamplePath",
-            "-ProjectWorldPerformanceScreenshot=$ScreenshotPath"
-        )
+    $routeParameters = @{
+        Experience = 'KazanTerritory'; Map = $mapPackage
+        Runtime = 'kazan_territory_512_1536_v1'; RuntimeHash = $script:runtimeProfileHash
+        Edge = $script:edgeArgument; OperationId = $RunOperationId
+        CorrectnessPath = $CorrectnessPath; LogPath = $LogPath
     }
+    if ($Configuration -ceq 'Development') {
+        $routeParameters.PerformancePath = $PerformancePath
+        $routeParameters.CsvPath = $CsvPath; $routeParameters.SamplePath = $SamplePath
+        $routeParameters.ScreenshotPath = $ScreenshotPath
+    }
+    $arguments = @(Get-ProjectWorldProductRouteArguments @routeParameters)
     $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
         -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit($GameTimeoutSeconds * 1000)) {
@@ -509,6 +430,7 @@ function Read-PlayableTourPerformance {
     Assert-PlayableTour (
         [string]$receipt.operation_id -ceq $ExpectedOperationId -and
         [string]$receipt.build_configuration -ceq 'Development' -and
+        $receipt.requires_cooked_data -is [bool] -and $receipt.requires_cooked_data -and
         [string]$receipt.gpu_adapter -ceq 'NVIDIA GeForce RTX 4070' -and
         [string]$receipt.rhi -ceq 'D3D12' -and
         [string]$receipt.quality_preset -ceq 'High' -and
@@ -546,6 +468,16 @@ function Read-PlayableTourPerformance {
     Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.playable_tour_screenshot) -PathType Leaf) `
         'Development playable-tour screenshot is missing.'
     return $receipt
+}
+
+if ($DescribeOperation) {
+    $edge = Get-ProjectWorldCanonicalProductEdge -ProjectRoot $projectRoot `
+        -CompilerProfile $compilerProfile -CellFile 'cell_x8_y-2.json' -HeightCentimeters 10000
+    return [pscustomobject]@{
+        Name = 'Kazan'; Experience = 'KazanTerritory'; Map = $mapPackage
+        Runtime = 'kazan_territory_512_1536_v1'; RuntimePath = $runtimeProfile
+        Edge = $edge; InteractionRequired = $true; PreciseCenterReturn = $false; Radius = 2500.0
+    }
 }
 
 New-Item -ItemType Directory -Path $evidenceRoot, $ownerRoot, $packageRoot -Force | Out-Null
@@ -630,10 +562,7 @@ try {
     $developmentPackageHash = Get-ProjectWorldPackagePayloadDigest -Path $finalPackage
     $developmentExecutableHash = (Get-FileHash -LiteralPath $developmentExecutable `
         -Algorithm SHA256).Hash.ToLowerInvariant()
-    $hostLoad = Wait-PlayableTourHostIdle
-    $hostLoadMessage = '[i] Host load acceptance precondition: CPU {0:F1}%, ' +
-        'maximum NVIDIA GPU {1:F1}%; the fixed product budget is unchanged.'
-    Write-Host ($hostLoadMessage -f $hostLoad.cpu_percent, $hostLoad.gpu_percent)
+    $hostLoadWindows = [Collections.Generic.List[object]]::new()
     $developmentChildren = [Collections.Generic.List[object]]::new()
     $developmentExitCodes = [Collections.Generic.List[int]]::new()
     for ($developmentIndex = 1; $developmentIndex -le 3; ++$developmentIndex) {
@@ -647,12 +576,24 @@ try {
         $childSamplePath = Join-Path $childRoot 'performance.samples.csv'
         $childScreenshotPath = Join-Path $childRoot 'playable-tour.png'
         $childLogPath = Join-Path $childRoot 'game.log'
+        $beforeLoad = Measure-PlayableTourHostLoad
+        $hostLoadWindows.Add([pscustomobject][ordered]@{
+                phase = "$childName-before"
+                cpu_percent = $beforeLoad.cpu_percent
+                gpu_percent = $beforeLoad.gpu_percent
+            })
         $childExitCode = Invoke-PlayableTourGame `
             -Executable $developmentExecutable -Configuration 'Development' `
             -RunOperationId $childOperationId `
             -CorrectnessPath $childCorrectnessPath -LogPath $childLogPath `
             -PerformancePath $childPerformancePath -CsvPath $childCsvPath `
             -SamplePath $childSamplePath -ScreenshotPath $childScreenshotPath
+        $afterLoad = Measure-PlayableTourHostLoad
+        $hostLoadWindows.Add([pscustomobject][ordered]@{
+                phase = "$childName-after"
+                cpu_percent = $afterLoad.cpu_percent
+                gpu_percent = $afterLoad.gpu_percent
+            })
         Assert-PlayableTour ($childExitCode -eq 0 -or $childExitCode -eq 10) `
             "Development child $childName exited abnormally with code $childExitCode."
         Assert-PlayableTourNormalExit -LogPath $childLogPath -Configuration 'Development'
@@ -688,8 +629,7 @@ try {
         -ExpectedExecutable $developmentExecutable `
         -ExpectedExecutableSha256 $developmentExecutableHash `
         -ExpectedPackage $finalPackage -ExpectedPackageSha256 $developmentPackageHash `
-        -HostCpuLoadPercent $hostLoad.cpu_percent `
-        -HostGpuLoadPercent $hostLoad.gpu_percent
+        -HostLoadWindows @($hostLoadWindows)
     $developmentAggregatePath = Join-Path $developmentRoot 'performance-aggregate.json'
     [IO.File]::WriteAllText(
         $developmentAggregatePath,
@@ -698,6 +638,17 @@ try {
     Assert-PlayableTour ([string]$developmentPerformance.status -ceq 'accepted') `
         ("Development pooled performance rejected: {0}" -f `
             [string]$developmentPerformance.acceptance_reason)
+    # The Development payload already contains both configured public maps. Prove Manhattan
+    # against these exact bytes before the Shipping candidate replaces them.
+    $manhattanEvidence = @(& (Join-Path $PSScriptRoot `
+                'run_manhattan_showcase_prototype.ps1') `
+            -ExistingDevelopmentPackageRoot $finalPackage `
+            -ExpectedPackagePayloadSha256 $developmentPackageHash `
+            -ExpectedExecutableSha256 $developmentExecutableHash)
+    Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $manhattanEvidence.Count -eq 1 -and
+        (Test-Path -LiteralPath $manhattanEvidence[0] -PathType Leaf)) `
+        'Manhattan performance did not accept the shared Development package.'
+    $manhattanPerformancePath = $manhattanEvidence[0]
     Remove-PlayableTourPackage -Path $finalPackage
 
     $shippingRoot = Join-Path $evidenceRoot 'shipping'
@@ -753,6 +704,7 @@ try {
 
     $artifactPaths = [ordered]@{
         development_performance_aggregate = $developmentAggregatePath
+        manhattan_development_performance = $manhattanPerformancePath
         shipping_correctness = $shippingCorrectnessPath
         shipping_product_screenshot = [string]$shippingCorrectness.screenshot
         shipping_water_proof = $shippingWaterResultPath

@@ -86,3 +86,24 @@ function Get-ProjectWorldGenerationHistory {
     }
     return @($records | Sort-Object scope_id, generation)
 }
+
+# Enrolling ProjectWorldData into its durable manifest root grants production authority. An
+# unattended run may do it only when the operator authorized that exact operation; TestData,
+# transient manifest roots, attended runs, and Apply without enrollment stay legal.
+function Assert-ProjectWorldProductionEnrollmentAllowed {
+    param(
+        [switch]$EnrollManifests,
+        [switch]$NonInteractive,
+        [switch]$DurableEnrollmentAuthorized,
+        [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
+        [switch]$TargetsDurableAuthority
+    )
+
+    if ($EnrollManifests -and $NonInteractive -and -not $DurableEnrollmentAuthorized -and
+        $WorldDataPlugin -ceq 'ProjectWorldData' -and $TargetsDurableAuthority) {
+        throw ('Refused: production enrollment (-EnrollManifests on ' +
+            'ProjectWorldData into the durable manifest root) cannot run with ' +
+            '-NonInteractive. Enrollment of production authority is ' +
+            'operator-executed after approval.')
+    }
+}

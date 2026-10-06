@@ -100,10 +100,6 @@
       "Enabled": true
     },
     {
-      "Name": "ProjectPCG",
-      "Enabled": true
-    },
-    {
       "Name": "ProjectSettings",
       "Enabled": true
     },

@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../../../../tools/World/CanonicalCompilation/contracts/authored-overlay.schema.json",
+  "schema_version": 2,
+  "overlay_id": "synthetic_territory_twin_empty_v1",
+  "grid_id": "grid_24b9032e5f87005d",
+  "provenance": [],
+  "terrain_patches": [],
+  "feature_overrides": [],
+  "missing_target_policy": "reject_and_require_rebase"
+}

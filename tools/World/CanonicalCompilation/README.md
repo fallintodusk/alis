@@ -52,7 +52,7 @@ compiler does not supply legacy defaults or upgrade old inputs.
 python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_two_cell.compile.json --dry-run
 python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_two_cell.compile.json
 python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_representative_v1.compile.json
-python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_landscape_water_twin.compile.json
+python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_territory_twin.compile.json
 python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldData/Data/Profiles/CanonicalCompilation/kazan_p0.compile.json
 python -S tools/World/CanonicalCompilation/bootstrap.py run --profile Plugins/World/ProjectWorldData/Data/Profiles/CanonicalCompilation/kazan_representative_v1.compile.json
 python -S tools/World/CanonicalCompilation/bootstrap.py controls --profile Plugins/World/ProjectWorldData/Data/Controls/kazan_territory_v1.control.json

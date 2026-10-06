@@ -74,14 +74,6 @@ FString FProjectWorldMeshTerrainLayoutReceiptContract::GetBuildPolicyPayload()
 		TEXT("default=collision,fallback|split_runtime_grid=false"), *MaterialPath);
 }
 
-FString FProjectWorldMeshTerrainLayoutReceiptContract::GetAdapterCompilerFingerprint()
-{
-#ifndef PROJECT_WORLD_MESH_TERRAIN_COMPILER_SOURCE_SHA256
-#error ProjectWorldMeshTerrainEditor must bind its compiler fingerprint to the admitted source set.
-#endif
-	return FString(UTF8_TO_TCHAR(PROJECT_WORLD_MESH_TERRAIN_COMPILER_SOURCE_SHA256));
-}
-
 bool FProjectWorldMeshTerrainLayoutReceiptContract::Build(
 	const FProjectWorldCanonicalBundle& Bundle,
 	FProjectWorldMeshTerrainLayoutReceipt& OutReceipt,
@@ -125,7 +117,6 @@ bool FProjectWorldMeshTerrainLayoutReceiptContract::Build(
 	OutReceipt.CanonicalSurfaceContractId = FirstTerrain.SurfaceContractId;
 	OutReceipt.CanonicalSurfaceContractVersion = FirstTerrain.SurfaceContractVersion;
 	OutReceipt.CanonicalSurfaceContractSha256 = FirstTerrain.SurfaceContractHash;
-	OutReceipt.AdapterCompilerSha256 = GetAdapterCompilerFingerprint();
 	const FEngineVersion Engine = FEngineVersion::Current();
 	OutReceipt.EngineIdentity = FString::Printf(
 		TEXT("%s|changelist=%u"), *Engine.ToString(), Engine.GetChangelist());
@@ -137,12 +128,11 @@ bool FProjectWorldMeshTerrainLayoutReceiptContract::Build(
 		return false;
 	}
 	OutReceipt.ReceiptPayload = FString::Printf(
-		TEXT("project_mesh_terrain_receipt_v1|surface=%s:%d:%s|adapter=project_mesh_terrain:1:%s|")
+		TEXT("project_mesh_terrain_receipt_v2|surface=%s:%d:%s|adapter=project_mesh_terrain:1|")
 		TEXT("engine=%s|layout=project_mesh_terrain_channels:1:%s|definition=%s:%s|build=%s"),
 		*OutReceipt.CanonicalSurfaceContractId,
 		OutReceipt.CanonicalSurfaceContractVersion,
 		*OutReceipt.CanonicalSurfaceContractSha256,
-		*OutReceipt.AdapterCompilerSha256,
 		*OutReceipt.EngineIdentity,
 		*OutReceipt.LayoutSha256,
 		ProjectWorldMeshTerrainProducer::SharedDefinitionObjectPath,
@@ -163,14 +153,13 @@ bool FProjectWorldMeshTerrainLayoutReceiptContract::Save(
 {
 	TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 	Root->SetStringField(TEXT("$schema"), TEXT("../../Data/Schemas/mesh-terrain-layout-receipt.schema.json"));
-	Root->SetNumberField(TEXT("schema_version"), 1);
+	Root->SetNumberField(TEXT("schema_version"), 2);
 	Root->SetStringField(TEXT("receipt_id"), TEXT("project_mesh_terrain_layout"));
 	Root->SetStringField(TEXT("canonical_surface_contract_id"), Receipt.CanonicalSurfaceContractId);
 	Root->SetNumberField(TEXT("canonical_surface_contract_version"), Receipt.CanonicalSurfaceContractVersion);
 	Root->SetStringField(TEXT("canonical_surface_contract_sha256"), Receipt.CanonicalSurfaceContractSha256);
 	Root->SetStringField(TEXT("adapter_id"), TEXT("project_mesh_terrain"));
 	Root->SetNumberField(TEXT("adapter_version"), 1);
-	Root->SetStringField(TEXT("adapter_compiler_sha256"), Receipt.AdapterCompilerSha256);
 	Root->SetStringField(TEXT("engine_identity"), Receipt.EngineIdentity);
 	Root->SetStringField(TEXT("layout_id"), TEXT("project_mesh_terrain_channels"));
 	Root->SetNumberField(TEXT("layout_version"), 1);

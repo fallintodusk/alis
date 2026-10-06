@@ -1,0 +1,292 @@
+{
+  "$schema": "../../Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.Map",
+  "identity": {
+    "producer_id": "map:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 1,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "canonical:features:grid_24b9032e5f87005d:x0:y0", "sha256": "a137d6d7a5f1635bc67e4a5d66385d80cb8163c411f8094582d53e5799e3ba28"},
+      {"name": "canonical:features:grid_24b9032e5f87005d:x1:y0", "sha256": "616adfd766b175e56d1741e071604fa64e009d239cc6ae07d4d456b2d81a7e0a"},
+      {"name": "canonical:grid", "sha256": "ffe770e05f09997e233546c732e550b9763ae7d9b531832260e748feafcc7338"},
+      {"name": "canonical:terrain:grid_24b9032e5f87005d:x0:y0", "sha256": "748f6bbd266900363593e934a521673d09bc7fbd8a9b4114fe65fb7dac28c7bb"},
+      {"name": "canonical:terrain:grid_24b9032e5f87005d:x1:y0", "sha256": "2a251c6168ce9119c232ca2772566dfa0c78c755c0872d26e454edf1a39cb6a2"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Content/Authored/Fixtures/L_ProjectWorldMarker.umap", "sha256": "ecee64f35d2c444e3d1e976599166e7bf0551592bb6b00aa6f3839c159e38479"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_territory_twin_v1.json", "sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_territory_twin/authored_overlay.json", "sha256": "0fa601be70710b744554fad7bb5060bcbcc6438ea4a6c50a5a30c9ee7c94acbb"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Fixtures/Provider/synthetic_territory_twin/synthetic_provider.json", "sha256": "278c7d95e13240c883eeb83ec589f7bebaf6b28ebed5a59f952a94b81656468a"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/GameplayPlacement/synthetic_territory_twin.json", "sha256": "6735be13f9e13ddce975e1f0b45df1ba93082b2b4b38ff911bf96d3a53692f9e"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json", "sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_territory_twin.compile.json", "sha256": "75bfc629eaeddc73bd7ae37b4de227a8ca02459c328500df511f0a851de211c0"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_territory_twin.realization.json", "sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_territory_twin.source.json", "sha256": "f9fdd4256c651d8e19470614147718627d61068377aa714f35634798843b5bc1"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Runtime/synthetic_territory_twin_v1.json", "sha256": "db4373222fb460abdf5f14f5a68a8cbcbb2bf124fabff7059ea75864c48e2b6d"}
+    ],
+    "embedded": []
+  },
+  "projection_sha256": "cd008803a791047821771594c89eadde9f2f15a4991fc95d5eb43ea8a5cb65da",
+  "records": [
+    {
+      "kind": "actor",
+      "key": "overlay:persistence_marker",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.LevelInstance",
+        "external_package": "1",
+        "guid": "31e5027e-f564-2328-8bf6-5e662bf08964",
+        "hlod_layer": "none",
+        "label": "Authored Overlay - persistence_marker",
+        "name": "ProjectWorld_AuthoredOverlay_persistence_marker",
+        "overlay.world_asset": "/ProjectWorldTestData/Authored/Fixtures/L_ProjectWorldMarker.L_ProjectWorldMarker",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.AuthoredOverlay=persistence_marker,ProjectWorld.AuthoredOverlaySet=323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e,ProjectWorld.AuthoredPackage=/ProjectWorldTestData/Authored/Fixtures/L_ProjectWorldMarker,ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Resolver=3",
+        "transform": "t=200000,-200000,275000;r=0,0,-130526,991445;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:Capture_overview",
+      "fields": {
+        "auto_lod": "0",
+        "camera.bias": "0",
+        "camera.blend_weight": "1",
+        "camera.fov": "55",
+        "camera.fstop": "4",
+        "camera.iso": "100",
+        "camera.method": "2",
+        "camera.overrides": "111111",
+        "camera.physical": "true",
+        "camera.shutter": "256",
+        "class": "/Script/Engine.CameraActor",
+        "external_package": "1",
+        "guid": "831d8684-a45c-18e9-8e16-8efbcf5bc05e",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_Capture_overview",
+        "name": "ProjectWorld_Capture_overview",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=Capture_overview",
+        "transform": "t=630000,220500,9000000;r=484924,484924,-514635,514635;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:Capture_road_oblique",
+      "fields": {
+        "auto_lod": "0",
+        "camera.bias": "0",
+        "camera.blend_weight": "1",
+        "camera.fov": "60",
+        "camera.fstop": "4",
+        "camera.iso": "100",
+        "camera.method": "2",
+        "camera.overrides": "111111",
+        "camera.physical": "true",
+        "camera.shutter": "256",
+        "class": "/Script/Engine.CameraActor",
+        "external_package": "1",
+        "guid": "0901f9e0-5d78-3aa6-fffa-a3cf36ad867c",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_Capture_road_oblique",
+        "name": "ProjectWorld_Capture_road_oblique",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=Capture_road_oblique",
+        "transform": "t=554400,-201600,900000;r=122123,610617,-153452,767258;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:Capture_terrain_oblique",
+      "fields": {
+        "auto_lod": "0",
+        "camera.bias": "0",
+        "camera.blend_weight": "1",
+        "camera.fov": "60",
+        "camera.fstop": "4",
+        "camera.iso": "100",
+        "camera.method": "2",
+        "camera.overrides": "111111",
+        "camera.physical": "true",
+        "camera.shutter": "256",
+        "class": "/Script/Engine.CameraActor",
+        "external_package": "1",
+        "guid": "45c83859-21da-404a-f644-0974d0d4afa5",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_Capture_terrain_oblique",
+        "name": "ProjectWorld_Capture_terrain_oblique",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=Capture_terrain_oblique",
+        "transform": "t=-189000,94500,3200000;r=127228,573488,-175275,790065;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:HeightFog",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.ExponentialHeightFog",
+        "external_package": "1",
+        "fog.density": "0.00200000009",
+        "fog.falloff": "0.200000003",
+        "fog.volumetric": "true",
+        "guid": "8f68e672-1f03-16e0-ded3-212164b730b4",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_HeightFog",
+        "name": "ProjectWorld_HeightFog",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=HeightFog",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:PostProcess",
+      "fields": {
+        "auto_lod": "0",
+        "camera.bias": "0",
+        "camera.fstop": "4",
+        "camera.iso": "100",
+        "camera.method": "2",
+        "camera.overrides": "111111",
+        "camera.physical": "true",
+        "camera.shutter": "256",
+        "class": "/Script/Engine.PostProcessVolume",
+        "external_package": "1",
+        "guid": "e8898f88-cd44-b789-3bfa-4a39d7b92c5c",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_PostProcess",
+        "name": "ProjectWorld_PostProcess",
+        "post.blend_weight": "1",
+        "post.unbound": "true",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=PostProcess",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:SkyAtmosphere",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.SkyAtmosphere",
+        "external_package": "1",
+        "guid": "4e9bd362-deb1-f410-c842-e76dc21cd8b9",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_SkyAtmosphere",
+        "name": "ProjectWorld_SkyAtmosphere",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=SkyAtmosphere",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:SkyLight",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.SkyLight",
+        "external_package": "1",
+        "guid": "5d47215f-8ba2-e5cc-5101-3f14dfc61e42",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_SkyLight",
+        "name": "ProjectWorld_SkyLight",
+        "sky.intensity": "1",
+        "sky.realtime": "true",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=SkyLight",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:Sun",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.DirectionalLight",
+        "external_package": "1",
+        "guid": "d2a0f8de-7511-0e89-6d41-b6411ae7404e",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_Sun",
+        "name": "ProjectWorld_Sun",
+        "spatially_loaded": "0",
+        "sun.atmosphere": "true",
+        "sun.intensity": "50000",
+        "sun.mobility": "2",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=Sun",
+        "transform": "t=0,0,0;r=89739,312956,-260620,908891;s=250000,250000,250000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "presentation:VolumetricCloud",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.VolumetricCloud",
+        "cloud.material": "/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst",
+        "external_package": "1",
+        "guid": "ab6e1eb3-5f27-771e-7529-a7bd3dfe3005",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_VolumetricCloud",
+        "name": "ProjectWorld_VolumetricCloud",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Presentation=synthetic_representative_v1,ProjectWorld.PresentationHash=ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5,ProjectWorld.PresentationRole=VolumetricCloud",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "runtime:PlayerStart",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.PlayerStart",
+        "external_package": "1",
+        "guid": "627f6679-0e19-7733-751d-34eec0d42677",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_PlayerStart",
+        "name": "ProjectWorld_PlayerStart",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Route=synthetic_twin_start,ProjectWorld.Runtime=synthetic_territory_twin_v1,ProjectWorld.RuntimeHash=db4373222fb460abdf5f14f5a68a8cbcbb2bf124fabff7059ea75864c48e2b6d,ProjectWorld.RuntimeRole=PlayerStart",
+        "transform": "t=0,0,2105000;r=-66452,160430,376870,909844;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "runtime:TerritoryNavigation",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/NavigationSystem.NavMeshBoundsVolume",
+        "external_package": "1",
+        "guid": "b7896575-7ec4-aa11-6f21-e9c6009624a9",
+        "hlod_layer": "none",
+        "label": "ProjectWorld_TerritoryNavigation",
+        "name": "ProjectWorld_TerritoryNavigation",
+        "navigation.bounds_extent": "t=830000,515000,550500;r=0,0,0,1000000;s=100000,100000,100000",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=grid_24b9032e5f87005d,ProjectWorld.Route=synthetic_twin_start,ProjectWorld.Runtime=synthetic_territory_twin_v1,ProjectWorld.RuntimeHash=db4373222fb460abdf5f14f5a68a8cbcbb2bf124fabff7059ea75864c48e2b6d,ProjectWorld.RuntimeRole=TerritoryNavigation",
+        "transform": "t=630000,-315000,254500;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "navigation",
+      "key": "recast",
+      "fields": {
+        "class": "/Script/NavigationSystem.RecastNavMesh",
+        "tile_size_uu": "4096"
+      }
+    },
+    {
+      "kind": "world",
+      "key": "partition",
+      "fields": {
+        "class": "/Script/Engine.WorldPartition",
+        "partition_block_on_slow_streaming": "true",
+        "partition_cell_size_cm": "12800",
+        "partition_count": "1",
+        "partition_is_2d": "true",
+        "partition_loading_range_cm": "76800"
+      }
+    }
+  ]
+}

@@ -6,26 +6,23 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from contextlib import redirect_stdout
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
 TEST_DATA = REPO_ROOT / "Plugins" / "World" / "ProjectWorldTestData" / "Data"
-SOURCE_PROFILE = TEST_DATA / "Profiles" / "SourceIngestion" / "synthetic_landscape_water_twin.source.json"
 COMPILER_PROFILE = (
-    TEST_DATA / "Profiles" / "CanonicalCompilation" / "synthetic_landscape_water_twin.compile.json"
+    TEST_DATA / "Profiles" / "CanonicalCompilation" / "synthetic_territory_twin.compile.json"
 )
 COMPILER_SCHEMA = "https://alis.world/schemas/world-compiler/compiler-profile-v1.json"
-OVERLAY_SCHEMA = "https://alis.world/schemas/world-compiler/authored-overlay-v1.json"
+OVERLAY_SCHEMA = "https://alis.world/schemas/world-compiler/authored-overlay-v2.json"
 
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from World.CanonicalCompilation.app.contracts import read_json as read_compiler_json
 from World.CanonicalCompilation.app.pipeline import compile_world
-from World.SourceIngestion.app.cli import main as source_main
+from compile_twin_fixture import compile_twin
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -87,23 +84,22 @@ def main() -> int:
     if not output_root.is_relative_to((REPO_ROOT / "tmp").resolve()):
         raise RuntimeError("Package-locality fixtures must stay under the repository tmp root")
 
-    source_output = output_root / "source"
-    with redirect_stdout(StringIO()):
-        source_exit = source_main([
-            "run", "--profile", str(SOURCE_PROFILE), "--output-root", str(source_output)
-        ])
-    if source_exit != 0:
-        raise RuntimeError("Synthetic source fixture failed")
-    source_result = source_output / "run_result.json"
+    base_result = compile_twin(output_root)
+    source_result = output_root / "source" / "run_result.json"
 
     terrain_overlay = _read(
         TEST_DATA / "Fixtures" / "CanonicalCompilation" /
-        "synthetic_landscape_water_twin" / "authored_overlay.json"
+        "synthetic_territory_twin" / "authored_overlay.json"
     )
     terrain_overlay["$schema"] = OVERLAY_SCHEMA
     terrain_overlay["overlay_id"] = "synthetic_package_locality_terrain_v1"
+    terrain_overlay["provenance"] = [{
+        "provenance_id": "package_locality_fixture",
+        "authority": "authored_fixture",
+    }]
     terrain_overlay["terrain_patches"] = [{
         "patch_id": "package_locality_cell_x1_y0",
+        "provenance_ref": "package_locality_fixture",
         "center": [120.0, 5.0],
         "radius_m": 1.0,
         "delta_m": 5.0,
@@ -111,7 +107,6 @@ def main() -> int:
     terrain_overlay_path = output_root / "terrain_overlay.json"
     _write(terrain_overlay_path, terrain_overlay)
 
-    base_result = _compile_variant(output_root / "base", source_result)
     terrain_result = _compile_variant(
         output_root / "terrain", source_result, overlay_path=terrain_overlay_path
     )
@@ -128,11 +123,10 @@ def main() -> int:
     terrain_changed_cells = _changed(base_terrain, terrain_terrain)
     if len(terrain_changed_cells) != 1 or _changed(base_features, terrain_features):
         raise RuntimeError("Terrain variant is not isolated to one terrain cell")
-    if _changed(terrain_terrain, water_terrain):
-        raise RuntimeError("Water variant changed canonical terrain")
+    water_changed_terrain_cells = _changed(terrain_terrain, water_terrain)
     water_changed_cells = _changed(terrain_features, water_features)
-    if not water_changed_cells:
-        raise RuntimeError("Water variant did not change canonical feature authority")
+    if not water_changed_cells or not water_changed_terrain_cells:
+        raise RuntimeError("Water variant did not change feature and hydrologic terrain authority")
 
     print(json.dumps({
         "base_compile_result": str(base_result),
@@ -140,6 +134,7 @@ def main() -> int:
         "water_compile_result": str(water_result),
         "terrain_changed_cell_id": terrain_changed_cells[0],
         "water_changed_cell_ids": water_changed_cells,
+        "water_changed_terrain_cell_ids": water_changed_terrain_cells,
     }, sort_keys=True, separators=(",", ":")))
     return 0
 

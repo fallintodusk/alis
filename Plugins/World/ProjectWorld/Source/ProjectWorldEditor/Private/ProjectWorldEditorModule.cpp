@@ -8,6 +8,7 @@
 #include "Containers/Ticker.h"
 #include "Editor.h"
 #include "Engine/World.h"
+#include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Modules/ModuleManager.h"
@@ -29,6 +30,7 @@ namespace
 		TArray<FProjectWorldCaptureVantage> Vantages;
 		FProjectWorldCaptureResult Result;
 		FProjectWorldEvidenceReadiness Readiness;
+		FString SubjectSummary;
 		FString OutputDirectory;
 		FString ReceiptPath;
 		double RequestedSeconds = 0.0;
@@ -37,6 +39,64 @@ namespace
 	};
 
 	TUniquePtr<FPendingEvidenceCapture> GPendingCapture;
+
+	TArray<FProjectWorldEvidenceSubjectReport> InspectSubjects(const UWorld& World)
+	{
+		IModularFeatures::FScopedLockModularFeatureList ScopedLock;
+		TArray<FProjectWorldEvidenceSubjectReport> Reports;
+		for (const IProjectWorldEvidenceSubject* Subject :
+			IModularFeatures::Get().GetModularFeatureImplementations<IProjectWorldEvidenceSubject>(
+				IProjectWorldEvidenceSubject::GetModularFeatureName()))
+		{
+			Reports.Add(Subject->Inspect(World));
+		}
+		return Reports;
+	}
+
+	FString FormatSubjects(TConstArrayView<FProjectWorldEvidenceSubjectReport> Reports)
+	{
+		TArray<FString> Present;
+		for (const FProjectWorldEvidenceSubjectReport& Report : Reports)
+		{
+			if (Report.bPresent)
+			{
+				Present.Add(FString::Printf(
+					TEXT("%s expected=%d drawn=%d pending=%d"),
+					*Report.SubjectName,
+					Report.ExpectedUnits,
+					Report.DrawnUnits,
+					Report.PendingBuilds));
+			}
+		}
+		return Present.IsEmpty()
+			? FString(TEXT("subjects: none present"))
+			: FString(TEXT("subjects: ")) + FString::Join(Present, TEXT("; "));
+	}
+
+	// Subjects are read only on frames with no pending compilation; a changed summary is logged.
+	bool InspectSubjectsDrawn(FPendingEvidenceCapture& Pending, const UWorld& World)
+	{
+		const TArray<FProjectWorldEvidenceSubjectReport> Reports = InspectSubjects(World);
+		const FString Summary = FormatSubjects(Reports);
+		if (Summary != Pending.SubjectSummary)
+		{
+			UE_LOG(
+				LogProjectWorldEvidenceCommand,
+				Display,
+				TEXT("[ProjectWorld.CaptureEvidence] frame=%llu %s"),
+				static_cast<unsigned long long>(GFrameCounter),
+				*Summary);
+			Pending.SubjectSummary = Summary;
+		}
+		return ProjectWorldEvidenceReadiness::AreSubjectsDrawn(Reports);
+	}
+
+	FString FinalSubjectSummary(const FPendingEvidenceCapture& Pending)
+	{
+		return Pending.SubjectSummary.IsEmpty()
+			? FString(TEXT("subjects: not inspected, compilations never settled"))
+			: Pending.SubjectSummary;
+	}
 
 	void ReleaseLoader(FPendingEvidenceCapture& Pending)
 	{
@@ -89,7 +149,8 @@ namespace
 		}
 
 		const int32 RemainingCompilations = FAssetCompilingManager::Get().GetNumRemainingAssets();
-		if (!Pending.Readiness.Advance(GFrameCounter, RemainingCompilations))
+		const bool bSubjectsDrawn = RemainingCompilations == 0 && InspectSubjectsDrawn(Pending, *World);
+		if (!Pending.Readiness.Advance(GFrameCounter, RemainingCompilations, bSubjectsDrawn))
 		{
 			if (FPlatformTime::Seconds() - Pending.RequestedSeconds <= CaptureReadinessTimeoutSeconds)
 			{
@@ -97,9 +158,10 @@ namespace
 			}
 			Pending.Result.Status = TEXT("rejected");
 			Pending.Result.Message = FString::Printf(
-				TEXT("Rendering did not settle within %.0f seconds; remaining compilations=%d."),
+				TEXT("Rendering did not settle within %.0f seconds; remaining compilations=%d; %s."),
 				CaptureReadinessTimeoutSeconds,
-				RemainingCompilations);
+				RemainingCompilations,
+				*FinalSubjectSummary(Pending));
 			WriteResultAndExit(Pending);
 			GPendingCapture.Reset();
 			return false;
@@ -128,9 +190,10 @@ namespace
 		{
 			Pending.Result.Status = TEXT("accepted");
 			Pending.Result.Message = FString::Printf(
-				TEXT("Captured %d operator views (repeat-pose control %s)."),
+				TEXT("Captured %d operator views (repeat-pose control %s; %s)."),
 				Pending.Result.Views.Num(),
-				Pending.Result.bControlMatches ? TEXT("byte-identical") : TEXT("differs; temporal state, not gated"));
+				Pending.Result.bControlMatches ? TEXT("byte-identical") : TEXT("differs; temporal state, not gated"),
+				*FinalSubjectSummary(Pending));
 		}
 		WriteResultAndExit(Pending);
 		GPendingCapture.Reset();
@@ -212,7 +275,7 @@ namespace
 		UE_LOG(
 			LogProjectWorldEvidenceCommand,
 			Display,
-			TEXT("[ProjectWorld.CaptureEvidence] Loaded evidence bounds; waiting for three settled editor frames."));
+			TEXT("[ProjectWorld.CaptureEvidence] Loaded evidence bounds; waiting for three settled editor frames with every evidence subject drawn."));
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&TickPendingCapture));
 	}
 

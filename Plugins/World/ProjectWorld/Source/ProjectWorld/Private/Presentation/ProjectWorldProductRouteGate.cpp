@@ -54,9 +54,6 @@ namespace
 	const FString GameplayObjectPrefix(TEXT("ProjectWorld.GameplayObject="));
 	const FName GeneratedTag(TEXT("ProjectWorld.Generated.v1"));
 	const FName RoadTag(TEXT("ProjectWorld.Road.v1"));
-	// The generic product route serves every /ProjectWorldData/Generated/ map, so it accepts both
-	// massing generations. Realization, the partition audit, and territory acceptance do the same.
-	const FName BuildingTagV1(TEXT("ProjectWorld.BuildingMassing.v1"));
 	const FName BuildingTagV2(TEXT("ProjectWorld.BuildingMassing.v2"));
 
 	FString ProductRouteTagValue(const AActor& Actor, const FString& Prefix)
@@ -212,7 +209,9 @@ bool FProjectWorldProductRouteGate::TryAcquireProductWorld()
 		LastReadinessError = TEXT("The normal game world is not ready.");
 		return false;
 	}
-	if (World->GetPackage()->GetName() != Config.MapPackage)
+	const FString WorldPackage = World->WorldType == EWorldType::PIE
+		? UWorld::RemovePIEPrefix(World->GetPackage()->GetName()) : World->GetPackage()->GetName();
+	if (WorldPackage != Config.MapPackage)
 	{
 		LastReadinessError = FString::Printf(
 			TEXT("Waiting for the menu/loading route to enter '%s'; current world is '%s'."),
@@ -365,7 +364,7 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 	Progress.bRoadCollision = ProbeTaggedCollision(
 		{RoadTag}, RoadCollisionActor, RoadCandidateCount, RoadBlockingPrimitiveCount);
 	Progress.bBuildingCollision = ProbeTaggedCollision(
-		{BuildingTagV1, BuildingTagV2},
+		{BuildingTagV2},
 		BuildingCollisionActor,
 		BuildingCandidateCount,
 		BuildingBlockingPrimitiveCount);

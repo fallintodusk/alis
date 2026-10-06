@@ -16,6 +16,7 @@ REQUIRED_TEST_SUITE_NAMES = {
     "end_to_end_validation",
     "world_architecture",
     "world_lifecycle_scripts",
+    "twin_realization",
     "unreal_realization",
 }
 def common_contract_hash(repo_root: Path = REPO_ROOT) -> str:
@@ -41,6 +42,17 @@ def _run_test_suites(logs: Path, powershell: str) -> list[dict[str, Any]]:
                 "Bypass",
                 "-File",
                 str(REPO_ROOT / "scripts" / "ue" / "world" / "test" / "run_all.ps1"),
+            ],
+        ),
+        (
+            "twin_realization",
+            [
+                powershell,
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(REPO_ROOT / "scripts" / "ue" / "world" / "test" / "integration" / "verify_twin_realization.ps1"),
             ],
         ),
         (
@@ -72,13 +84,19 @@ def _run_test_suites(logs: Path, powershell: str) -> list[dict[str, Any]]:
 
 
 def execute_checks(evidence_root: Path, preflight_path: Path) -> dict[str, Any]:
+    logs = evidence_root / "logs"
+    powershell = _powershell()
+    _run(
+        "export_editor_target",
+        [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+         str(REPO_ROOT / "scripts" / "ue" / "build" / "export_target_json.ps1")],
+        logs,
+    )
     initial_contract_hash = common_contract_hash()
     preflight = read_json(preflight_path)
     validate_against(preflight, "bootstrap-preflight.schema.json")
-    logs = evidence_root / "logs"
     cache_root = REPO_ROOT / "tmp" / "world" / "source_ingestion" / "cache"
     cache_before = tree_size(cache_root)
-    powershell = _powershell()
     _run("bootstrap_tools", [sys.executable, str(SOURCE_RUN), "bootstrap-tools"], logs)
     test_suites = _run_test_suites(logs, powershell)
     if common_contract_hash() != initial_contract_hash:

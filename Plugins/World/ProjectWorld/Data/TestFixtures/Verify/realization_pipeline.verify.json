@@ -1,0 +1,251 @@
+{
+  "$schema": "../../Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.Pipeline",
+  "identity": {
+    "producer_id": "realization_pipeline:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 1,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "canonical:features:grid_24b9032e5f87005d:x0:y0", "sha256": "a137d6d7a5f1635bc67e4a5d66385d80cb8163c411f8094582d53e5799e3ba28"},
+      {"name": "canonical:features:grid_24b9032e5f87005d:x1:y0", "sha256": "616adfd766b175e56d1741e071604fa64e009d239cc6ae07d4d456b2d81a7e0a"},
+      {"name": "canonical:grid", "sha256": "ffe770e05f09997e233546c732e550b9763ae7d9b531832260e748feafcc7338"},
+      {"name": "canonical:terrain:grid_24b9032e5f87005d:x0:y0", "sha256": "748f6bbd266900363593e934a521673d09bc7fbd8a9b4114fe65fb7dac28c7bb"},
+      {"name": "canonical:terrain:grid_24b9032e5f87005d:x1:y0", "sha256": "2a251c6168ce9119c232ca2772566dfa0c78c755c0872d26e454edf1a39cb6a2"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Content/Authored/Fixtures/L_ProjectWorldMarker.umap", "sha256": "ecee64f35d2c444e3d1e976599166e7bf0551592bb6b00aa6f3839c159e38479"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_territory_twin_v1.json", "sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_territory_twin/authored_overlay.json", "sha256": "0fa601be70710b744554fad7bb5060bcbcc6438ea4a6c50a5a30c9ee7c94acbb"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Fixtures/Provider/synthetic_territory_twin/synthetic_provider.json", "sha256": "278c7d95e13240c883eeb83ec589f7bebaf6b28ebed5a59f952a94b81656468a"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/GameplayPlacement/synthetic_territory_twin.json", "sha256": "6735be13f9e13ddce975e1f0b45df1ba93082b2b4b38ff911bf96d3a53692f9e"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json", "sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_territory_twin.compile.json", "sha256": "75bfc629eaeddc73bd7ae37b4de227a8ca02459c328500df511f0a851de211c0"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_territory_twin.realization.json", "sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_territory_twin.source.json", "sha256": "f9fdd4256c651d8e19470614147718627d61068377aa714f35634798843b5bc1"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Runtime/synthetic_territory_twin_v1.json", "sha256": "db4373222fb460abdf5f14f5a68a8cbcbb2bf124fabff7059ea75864c48e2b6d"},
+      {"name": "layer:terrain:data:Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset", "sha256": "756a0e8d8870db6f1fbc3f9d2ab4e7d66c8e99eac129d7fba8c156880fc0e31c"},
+      {"name": "layer:vegetation:data:Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/AmurCork/SM_Tree_AmurCork_Big.uasset", "sha256": "a85243b47e8d2d748378334e2d239240429dfdea397d00358e961020a7fd7c04"},
+      {"name": "layer:vegetation:data:Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset", "sha256": "e229d04ece2107d5fee64b1ec8d9d4eefdb4c314781265cfd3f7b71e69d5ebf8"}
+    ],
+    "embedded": [
+      "project_building_massing:v2|1|1",
+      "project_gameplay_placement:v1|1|1",
+      "project_mesh_terrain:v1|1|2",
+      "project_road_mesh:v1|1|1",
+      "project_vegetation_instances:v1|1|1",
+      "project_water_mesh:v1|1|1"
+    ]
+  },
+  "projection_sha256": "3efd93413e121248c96ac17fbfddc485538ce5137560dabff39d8cb4641b3907",
+  "records": [
+    {
+      "kind": "layer_output",
+      "key": "buildings",
+      "fields": {
+        "projection_sha256": "4b910e6fe8cab9ff727134fd4d4bf3e41d9e4041db0362de1cfee3ca77c37822",
+        "records": "4"
+      }
+    },
+    {
+      "kind": "layer_output",
+      "key": "gameplay",
+      "fields": {
+        "projection_sha256": "dfaeb0af3abcf98f0e7d0097996305b2fa0313fb476fd1f52e1aafb6bdc43554",
+        "records": "2"
+      }
+    },
+    {
+      "kind": "layer_output",
+      "key": "roads",
+      "fields": {
+        "projection_sha256": "f41f449ec88c31dc8ccb4f22aace9a59a3563e6f91716fc2417a7ad89d6039a1",
+        "records": "4"
+      }
+    },
+    {
+      "kind": "layer_output",
+      "key": "terrain",
+      "fields": {
+        "projection_sha256": "e245855b50bf59fa213572a096ed5d9e435a828e7517ba42d8b6e37aec69a557",
+        "records": "10"
+      }
+    },
+    {
+      "kind": "layer_output",
+      "key": "vegetation",
+      "fields": {
+        "projection_sha256": "69c2b35f8861333915382a5014fa89fe4c0a5f0d6c50233bca665be90ab2f191",
+        "records": "2"
+      }
+    },
+    {
+      "kind": "layer_output",
+      "key": "water",
+      "fields": {
+        "projection_sha256": "e35274a5e2989940003417c197864868aca1bd3dcc675538660a7e5ef0b47db5",
+        "records": "5"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "layer_synthetic_territory_twin_buildings",
+      "fields": {
+        "artifact.external_actor_count": "2",
+        "artifact.named": "asset:Generated/Twin/Buildings/Cells/SM_ProjectWorldBuildings_grid_24b9032e5f87005d_x0_y0.uasset,asset:Generated/Twin/Buildings/Cells/SM_ProjectWorldBuildings_grid_24b9032e5f87005d_x1_y0.uasset",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "contract.artifact_root": "/ProjectWorldTestData/Generated/Twin/Buildings/",
+        "contract.canonical_inputs": "grid_24b9032e5f87005d:x0:y0=afafa26a08bfca49169f8fab6d36317f8f5602f8dd700d62002c714e202bac13,grid_24b9032e5f87005d:x1:y0=572b211eaa931f530c456a13002d23b2a1500689352af104e5aa4f7fd360f1ca",
+        "contract.dependency_inputs": "layer:terrain:contract=6912bd6b935b47f20eaaaa17bd1a2bc14e963121a5d982ba51a8693c4f756c75",
+        "contract.generator_id": "project_building_massing",
+        "contract.generator_version": "2",
+        "contract.normalized_layer_contract_sha256": "ab6a11baa29a5416ed0661725928e81f4ec091062d1aed0d7c27c5928348db92",
+        "contract.realization_profile_id": "synthetic_territory_twin",
+        "contract.realization_profile_sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "buildings"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "layer_synthetic_territory_twin_gameplay",
+      "fields": {
+        "artifact.external_actor_count": "2",
+        "artifact.named": "",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "contract.artifact_root": "/ProjectWorldTestData/Generated/Twin/Gameplay/",
+        "contract.canonical_inputs": "synthetic_water_01=fa4f863b46139f702f7b56ae8fdfb75e2d20bd099126640052fbd69521a31e19,synthetic_water_02=b1a98a5bb8e74b109a3105a9fc283818b8e59bae59f709612e6f980eebceb711",
+        "contract.dependency_inputs": "layer:terrain:contract=6912bd6b935b47f20eaaaa17bd1a2bc14e963121a5d982ba51a8693c4f756c75",
+        "contract.generator_id": "project_gameplay_placement",
+        "contract.generator_version": "1",
+        "contract.normalized_layer_contract_sha256": "7311eb9f61aead10f428e8c440c54efde647f4ab9b64bd578b58836affff99c9",
+        "contract.realization_profile_id": "synthetic_territory_twin",
+        "contract.realization_profile_sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "gameplay"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "layer_synthetic_territory_twin_roads",
+      "fields": {
+        "artifact.external_actor_count": "2",
+        "artifact.named": "asset:Generated/Twin/Roads/Cells/SM_ProjectWorldRoad_grid_24b9032e5f87005d_x0_y0.uasset,asset:Generated/Twin/Roads/Cells/SM_ProjectWorldRoad_grid_24b9032e5f87005d_x1_y0.uasset",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "contract.artifact_root": "/ProjectWorldTestData/Generated/Twin/Roads/",
+        "contract.canonical_inputs": "grid_24b9032e5f87005d:x0:y0=4c7bb5a0ccb947d2a5432a60277c6258337d484a46c3b4360b79b8ec3522856d,grid_24b9032e5f87005d:x1:y0=cc4864537ae6bbba75b80daaeee92d097c4c5eefdfc45889704d2c5878d85609",
+        "contract.dependency_inputs": "layer:terrain:contract=6912bd6b935b47f20eaaaa17bd1a2bc14e963121a5d982ba51a8693c4f756c75",
+        "contract.generator_id": "project_road_mesh",
+        "contract.generator_version": "1",
+        "contract.normalized_layer_contract_sha256": "51f8c61a05d7b6b0ca81ac28556b34a696b3f0637f44f52bace6c5e000029713",
+        "contract.realization_profile_id": "synthetic_territory_twin",
+        "contract.realization_profile_sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "roads"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "layer_synthetic_territory_twin_terrain",
+      "fields": {
+        "artifact.external_actor_count": "9",
+        "artifact.named": "",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "contract.artifact_root": "/ProjectWorldTestData/Generated/Twin/Terrain/",
+        "contract.canonical_inputs": "grid_24b9032e5f87005d:x0:y0=e0bbe1cc539c245ed2048ac588ad134f0bba5c2a440ff38472a744e0a8687250,grid_24b9032e5f87005d:x1:y0=dac9557351d73553e40d210ac6b1beb17881296061f2738bde1d03ef0e56f93a",
+        "contract.dependency_inputs": "",
+        "contract.generator_id": "project_mesh_terrain",
+        "contract.generator_version": "1",
+        "contract.normalized_layer_contract_sha256": "6912bd6b935b47f20eaaaa17bd1a2bc14e963121a5d982ba51a8693c4f756c75",
+        "contract.realization_profile_id": "synthetic_territory_twin",
+        "contract.realization_profile_sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "terrain"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "layer_synthetic_territory_twin_vegetation",
+      "fields": {
+        "artifact.external_actor_count": "2",
+        "artifact.named": "",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "contract.artifact_root": "/ProjectWorldTestData/Generated/Twin/Vegetation/",
+        "contract.canonical_inputs": "grid_24b9032e5f87005d:x0:y0=04d9b3f68d37b95101a9920423ccffbe2b312ebfed4277b84f6829e8f1976fd4,grid_24b9032e5f87005d:x1:y0=0b82332509903488f80e7e76b57fcd8cf491956f3fe9dae79071c31c04a15308",
+        "contract.dependency_inputs": "layer:roads:contract=51f8c61a05d7b6b0ca81ac28556b34a696b3f0637f44f52bace6c5e000029713,layer:terrain:contract=6912bd6b935b47f20eaaaa17bd1a2bc14e963121a5d982ba51a8693c4f756c75,layer:water:contract=8e0cba1fcaaac0c2e4b90131adaf36d9312bfd406eb5a4e34da0480a5dd88718",
+        "contract.generator_id": "project_vegetation_instances",
+        "contract.generator_version": "1",
+        "contract.normalized_layer_contract_sha256": "2942272fe90db94e992f8113dc279b1aa08892f2adcffe790d2e24253613ffab",
+        "contract.realization_profile_id": "synthetic_territory_twin",
+        "contract.realization_profile_sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "vegetation"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "layer_synthetic_territory_twin_water",
+      "fields": {
+        "artifact.external_actor_count": "2",
+        "artifact.named": "asset:Generated/Twin/Water/Cells/SM_ProjectWorldWater_grid_24b9032e5f87005d_x0_y0.uasset,asset:Generated/Twin/Water/Cells/SM_ProjectWorldWater_grid_24b9032e5f87005d_x1_y0.uasset,asset:Generated/Twin/Water/M_ProjectWorldWater.uasset",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "contract.artifact_root": "/ProjectWorldTestData/Generated/Twin/Water/",
+        "contract.canonical_inputs": "grid_24b9032e5f87005d:x0:y0=c892f79e4d5beca4dc127c9fcc0b610c8ba7c56742912f2c45bdbabf7ac9f1e2,grid_24b9032e5f87005d:x1:y0=1beb9c27aa9eacb26a087109ce7b16896c0b44cd5907e359063e8326a3617544",
+        "contract.dependency_inputs": "layer:terrain:contract=6912bd6b935b47f20eaaaa17bd1a2bc14e963121a5d982ba51a8693c4f756c75",
+        "contract.generator_id": "project_water_mesh",
+        "contract.generator_version": "1",
+        "contract.normalized_layer_contract_sha256": "8e0cba1fcaaac0c2e4b90131adaf36d9312bfd406eb5a4e34da0480a5dd88718",
+        "contract.realization_profile_id": "synthetic_territory_twin",
+        "contract.realization_profile_sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "water"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "map_twin_l_projectworldterritorytwin",
+      "fields": {
+        "artifact.external_actor_count": "14",
+        "artifact.named": "map:Generated/Twin/L_ProjectWorldTerritoryTwin.umap",
+        "consumers": "",
+        "input.authored_overlay_profile_sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e",
+        "input.map_package": "/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "db4373222fb460abdf5f14f5a68a8cbcbb2bf124fabff7059ea75864c48e2b6d",
+        "layer": "map"
+      }
+    },
+    {
+      "kind": "scope",
+      "key": "presentation_synthetic_representative_v1",
+      "fields": {
+        "artifact.external_actor_count": "0",
+        "artifact.named": "",
+        "consumers": "map_twin_l_projectworldterritorytwin",
+        "input.authored_overlay_profile_sha256": "none",
+        "input.map_package": "shared",
+        "input.presentation_profile_sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5",
+        "input.runtime_profile_sha256": "none",
+        "layer": "presentation"
+      }
+    }
+  ]
+}

@@ -20,12 +20,11 @@ public class ProjectWorldEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"AssetRegistry",
-			"Foliage",
+			"EngineSettings",
 			"GeoReferencing",
 			"GeometryAlgorithms",
 			"GeometryCore",
 			"Json",
-			"Landscape",
 			"MeshDescription",
 			"NavigationSystem",
 			"ProceduralMeshComponent",

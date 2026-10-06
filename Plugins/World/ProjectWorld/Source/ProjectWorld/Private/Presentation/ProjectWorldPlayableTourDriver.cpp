@@ -5,6 +5,7 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Dom/JsonObject.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -21,7 +22,8 @@ namespace
 	constexpr double MenuTransitionTimeoutSeconds = 3.0;
 	constexpr double AscendTimeoutSeconds = 20.0;
 	constexpr double ArrivalRadiusCentimeters = 25000.0;
-	constexpr double FinalCenterArrivalRadiusCentimeters = 2500.0;
+	constexpr double StandardCenterArrivalRadiusCentimeters = 2500.0;
+	constexpr double PreciseCenterArrivalRadiusCentimeters = 500.0;
 	constexpr double MinimumTurnBeforeTravelDegrees = 12.0;
 	constexpr double DescentTimeoutSeconds = 45.0;
 	constexpr double MinimumDescentBeforeCollisionCentimeters = 3000.0;
@@ -30,6 +32,8 @@ namespace
 	constexpr double MinimumSlideCentimeters = 100.0;
 	constexpr double ObstacleStallSeconds = 1.0;
 	constexpr double MaximumObstacleAscentCentimeters = 75000.0;
+	constexpr double OverhangRecoveryTimeoutSeconds = 10.0;
+	constexpr double OverhangProbeCentimeters = 200.0;
 	constexpr double OverallTimeoutSeconds = 360.0;
 }
 
@@ -42,7 +46,8 @@ bool FProjectWorldPlayableTourDriver::Initialize(
 	APlayerController& InController,
 	ACharacter& InCharacter,
 	const TArray<FVector>& InWaypoints,
-	FString& OutError)
+	FString& OutError,
+	bool bPreciseCenterReturn)
 {
 	UCharacterMovementComponent* Movement = InCharacter.GetCharacterMovement();
 	if (InWaypoints.Num() < 3 || Movement == nullptr || !Movement->IsFlying())
@@ -59,6 +64,8 @@ bool FProjectWorldPlayableTourDriver::Initialize(
 	Controller = &InController;
 	Character = &InCharacter;
 	Waypoints = InWaypoints;
+	FinalCenterArrivalRadiusCentimeters = bPreciseCenterReturn
+		? PreciseCenterArrivalRadiusCentimeters : StandardCenterArrivalRadiusCentimeters;
 	Evidence.InputMethod = TEXT("APlayerController::InputKey/FInputKeyEventArgs::CreateSimulated");
 	Evidence.StartLocation = InCharacter.GetActorLocation();
 	double FarthestDistanceSquared = 0.0;
@@ -136,6 +143,7 @@ void FProjectWorldPlayableTourDriver::ReleaseInputs()
 	{
 		Release(Key);
 	}
+	bBackingFromOverhang = false;
 }
 
 void FProjectWorldPlayableTourDriver::AppendReceiptFields(FJsonObject& Receipt) const
@@ -328,7 +336,7 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 {
 	if (!Waypoints.IsValidIndex(WaypointIndex))
 	{
-		Release(EKeys::W);
+		ReleaseInputs();
 		StableCollisionSeconds = 0.0;
 		SetPhase(EPhase::Descending, TEXT("centre_dense_edge_centre"));
 		return EProjectWorldPlayableTourResult::Running;
@@ -355,10 +363,12 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 	if (Distance <= ArrivalRadius)
 	{
 		Release(EKeys::W);
+		Release(EKeys::S);
 		Release(EKeys::A);
 		Release(EKeys::D);
 		Release(EKeys::SpaceBar);
 		bClearingObstacle = false;
+		bBackingFromOverhang = false;
 		++Evidence.WaypointsReached;
 		if (WaypointIndex == EdgeWaypointIndex)
 		{
@@ -382,7 +392,7 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 		Controller->GetControlRotation().Yaw,
 		DesiredYaw);
 	SendLook(YawError);
-	if (FMath::Abs(YawError) <= MinimumTurnBeforeTravelDegrees)
+	if (!bBackingFromOverhang && FMath::Abs(YawError) <= MinimumTurnBeforeTravelDegrees)
 	{
 		Hold(EKeys::W);
 	}
@@ -406,19 +416,9 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 	const double NowSeconds = FPlatformTime::Seconds();
 	if (bClearingObstacle)
 	{
-		Hold(EKeys::SpaceBar);
-		if (bMadeForwardProgress)
+		if (TickObstacleClearance(bMadeForwardProgress, OutError) == EProjectWorldPlayableTourResult::Rejected)
 		{
-			Release(EKeys::SpaceBar);
-			bClearingObstacle = false;
-			ConsecutiveStallSeconds = 0.0;
-			UE_LOG(LogProjectWorldPlayableTour, Display,
-				TEXT("[FProjectWorldPlayableTourDriver::TickTraversing] Obstacle clearance completed - index=%d ascent_cm=%.1f"),
-				WaypointIndex, Location.Z - ObstacleClearanceStartedZ);
-		}
-		else if (Location.Z - ObstacleClearanceStartedZ >= MaximumObstacleAscentCentimeters)
-		{
-			return Reject(TEXT("Real flight input could not clear a blocking volume within the bounded ascent."), OutError);
+			return EProjectWorldPlayableTourResult::Rejected;
 		}
 	}
 	else if (HeldKeys.Contains(EKeys::W) &&
@@ -456,6 +456,69 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 	return EProjectWorldPlayableTourResult::Running;
 }
 
+EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickObstacleClearance(
+	bool bMadeForwardProgress, FString& OutError)
+{
+	const FVector Location = Character->GetActorLocation();
+	if (Location.Z - ObstacleClearanceStartedZ >= MaximumObstacleAscentCentimeters)
+	{
+		return Reject(TEXT("Real flight input could not clear a blocking volume within the bounded ascent."), OutError);
+	}
+	UCapsuleComponent* Capsule = Character->GetCapsuleComponent();
+	UWorld* World = Character->GetWorld();
+	if (Capsule == nullptr || World == nullptr)
+	{
+		return Reject(TEXT("Obstacle clearance lost the production collision owner."), OutError);
+	}
+	FHitResult Hit;
+	const bool bBlockedUp = World->SweepSingleByChannel(Hit, Location,
+		Location + FVector(0, 0, OverhangProbeCentimeters), Capsule->GetComponentQuat(),
+		Capsule->GetCollisionObjectType(),
+		FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius(), Capsule->GetScaledCapsuleHalfHeight()),
+		FCollisionQueryParams(SCENE_QUERY_STAT(ProjectWorldOverhangClearance), false, Character.Get()),
+		FCollisionResponseParams(Capsule->GetCollisionResponseToChannels()));
+	const double Now = FPlatformTime::Seconds();
+	if (!bBackingFromOverhang && bBlockedUp && Hit.ImpactNormal.Z < -0.5)
+	{
+		bBackingFromOverhang = true;
+		OverhangRecoveryStartedSeconds = Now;
+		OverhangClearanceZ = Hit.ImpactPoint.Z + 2.0 * Capsule->GetScaledCapsuleHalfHeight();
+		UE_LOG(LogProjectWorldPlayableTour, Display,
+			TEXT("[FProjectWorldPlayableTourDriver::TickObstacleClearance] Overhang retreat started - index=%d blocker=%s component=%s normal=%s clearance_z=%.1f"),
+			WaypointIndex, *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent()),
+			*Hit.ImpactNormal.ToCompactString(), OverhangClearanceZ);
+	}
+	Hold(EKeys::SpaceBar);
+	if (bBackingFromOverhang)
+	{
+		Release(EKeys::W);
+		Hold(EKeys::S);
+		if (!bBlockedUp && Location.Z >= OverhangClearanceZ)
+		{
+			Release(EKeys::S);
+			bBackingFromOverhang = false;
+			UE_LOG(LogProjectWorldPlayableTour, Display,
+				TEXT("[FProjectWorldPlayableTourDriver::TickObstacleClearance] Overhang retreat completed - index=%d location=%s duration_s=%.1f"),
+				WaypointIndex, *Location.ToCompactString(), Now - OverhangRecoveryStartedSeconds);
+		}
+		else if (Now - OverhangRecoveryStartedSeconds > OverhangRecoveryTimeoutSeconds)
+		{
+			return Reject(TEXT("Real backward/upward input could not clear an overhang within the bounded retreat."), OutError);
+		}
+		return EProjectWorldPlayableTourResult::Running;
+	}
+	if (bMadeForwardProgress)
+	{
+		Release(EKeys::SpaceBar);
+		bClearingObstacle = false;
+		ConsecutiveStallSeconds = 0.0;
+		UE_LOG(LogProjectWorldPlayableTour, Display,
+			TEXT("[FProjectWorldPlayableTourDriver::TickObstacleClearance] Obstacle clearance completed - index=%d ascent_cm=%.1f"),
+			WaypointIndex, Location.Z - ObstacleClearanceStartedZ);
+	}
+	return EProjectWorldPlayableTourResult::Running;
+}
+
 EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickDescending(FString& OutError)
 {
 	Hold(EKeys::LeftControl);
@@ -464,6 +527,10 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickDescending(
 		Evidence.bCollisionBlockedDescent = true;
 		Evidence.DescentCentimeters = Evidence.HighLocation.Z - Character->GetActorLocation().Z;
 		SlideStartLocation = Character->GetActorLocation();
+		UE_LOG(LogProjectWorldPlayableTour, Display,
+			TEXT("[FProjectWorldPlayableTourDriver::TickDescending] Collision - location=%s yaw=%.1f velocity=%s"),
+			*SlideStartLocation.ToCompactString(), Controller->GetControlRotation().Yaw,
+			*Character->GetVelocity().ToCompactString());
 		SetPhase(EPhase::Sliding, TEXT("descend_to_collision"));
 		return EProjectWorldPlayableTourResult::Running;
 	}
@@ -490,6 +557,10 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickSliding(FSt
 		FVector2D(Evidence.EndLocation));
 	Evidence.bCollisionSlide = Evidence.SlideDisplacementCentimeters >= MinimumSlideCentimeters;
 	Evidence.DurationSeconds = FPlatformTime::Seconds() - StartedSeconds;
+	UE_LOG(LogProjectWorldPlayableTour, Display,
+		TEXT("[FProjectWorldPlayableTourDriver::TickSliding] Forward slide - start=%s end=%s displacement_cm=%.1f yaw=%.1f"),
+		*SlideStartLocation.ToCompactString(), *Evidence.EndLocation.ToCompactString(),
+		Evidence.SlideDisplacementCentimeters, Controller->GetControlRotation().Yaw);
 	if (!Evidence.bCollisionSlide)
 	{
 		return Reject(TEXT("W input did not slide along the blocking surface."), OutError);

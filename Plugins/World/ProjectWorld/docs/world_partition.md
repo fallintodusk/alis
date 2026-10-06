@@ -68,6 +68,14 @@ input, the normalized producer contract, adapter/compiler fingerprint, shared
 definition layout, and build policy. An unchanged Apply and builder run must
 reuse unchanged sections and write no geography packages.
 
+Compiled sections are runtime-only, so an Editor world never loads them. It
+draws transient MeshPartition preview sections, which the editor builds
+asynchronously from the base actors after they load and register with the
+partition. Editor tools learn whether terrain is drawn from the adapter's
+evidence subject, never by searching for compiled sections or the runtime
+terrain role. The role on compiled-section descriptors serves tools that read
+descriptors without loading actors.
+
 The terrain channel ABI is semantic at the ProjectWorld boundary and private at
 the adapter boundary. Canonical names describe only facts their derivation
 proves. The current terrain surface uses `ground` and `hydro_transition`; slope

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/project-world/verify-baseline-v1.json",
+  "title": "ProjectWorld Verify Baseline",
+  "description": "Recorded output projection of one World producer verify and the verification identity it was recorded against, at Plugins/<Category>/<Plugin>/Data/TestFixtures/Verify/<generator_id>.verify.json in the producer's owning plugin. Only scripts/ue/world/record_verify_baseline.ps1 writes it; ordinary runs and the common checks only read it; production identity never reads it. projection_sha256 is the SHA-256 of the compact canonical serialization of records. Excluded from every projection on purpose: package bytes and package paths derived from random GUIDs, terrain reuse-identity tags, layout receipt provenance (schema_version, adapter_compiler_sha256, engine_identity, receipt_payload, receipt_sha256), manifest generation, operation, time, and fingerprint fields, artifact digest and semantic_sha256, compiled-section BuildInfo hashes, checksums, BuildKey, MegaMeshGUID, MegaMeshPath, and PackageDependencies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "verify", "identity", "projection_sha256", "records"],
+  "properties": {
+    "$schema": {"type": "string", "pattern": "(^|/)project_world_verify_baseline\\.schema\\.json$"},
+    "schema_version": {"const": 1},
+    "verify": {"type": "string", "pattern": "^Project\\.World\\.Realization\\.Verify\\.[A-Za-z0-9]+$"},
+    "identity": {
+      "description": "A change of any member permits a re-record; the same identity with different output fails and record mode refuses it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_id", "output_revision", "pipeline_revision", "comparison_contract_version",
+                   "engine_identity", "fixture_inputs", "embedded"],
+      "properties": {
+        "producer_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*:v[1-9][0-9]*$"},
+        "output_revision": {"type": "integer", "minimum": 1},
+        "pipeline_revision": {"type": "integer", "minimum": 1},
+        "comparison_contract_version": {"type": "integer", "minimum": 1},
+        "engine_identity": {
+          "description": "SHA-256 of the running engine's Build/Build.version bytes.",
+          "$ref": "#/$defs/sha256"
+        },
+        "fixture_inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "sha256"],
+            "properties": {
+              "name": {"type": "string", "pattern": "^(memory|file|data|object|definition|canonical|layer):.+$"},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        },
+        "embedded": {
+          "description": "Pipeline baselines only: the identities of the layer projections the pipeline projection embeds.",
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "projection_sha256": {"$ref": "#/$defs/sha256"},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "key", "fields"],
+        "properties": {
+          "kind": {"type": "string", "minLength": 1},
+          "key": {"type": "string", "minLength": 1},
+          "fields": {"type": "object", "additionalProperties": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

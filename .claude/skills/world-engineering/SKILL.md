@@ -50,6 +50,7 @@ Start from repository-root paths. Read only the branch the task needs.
 | Known Unreal realization incident or pitfall | `Plugins/World/ProjectWorld/docs/pitfalls.md` |
 | Test depth, proof traceability, review cadence, change locality | `docs/testing/world_pipeline_layers.md` |
 | Generated-world transaction, rollback, manifests, authority | `scripts/ue/world/README.md` |
+| Release-only public World projection and frozen source | `scripts/ue/package/README.md` |
 | Reality contradicts green evidence, repeated failed hypotheses, unclear failure | `docs/agents/scientific_debugging.md` |
 | Live Editor / MCP control, only when driving the Editor | `docs/ue_engine/mcp_editor_control.md` |
 
@@ -183,6 +184,7 @@ For acceptance:
 Use the cheapest focused proof during iteration. Run expensive integration, rendered, durable-authority, or release proofs only when their boundary is actually crossed.
 
 Do not rerun a broad gate merely because another edit happened; rerun when the changed code/data/authority invalidates what that gate previously authenticated.
+On a failed late gate, follow the failure loop in `docs/testing/world_pipeline_layers.md`: diagnose the first failing owner and keep valid upstream evidence. Packaging is reserved for an explicit package request or release preparation.
 
 ## Operator and authority boundaries
 

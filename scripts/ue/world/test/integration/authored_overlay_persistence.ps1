@@ -12,13 +12,16 @@ param(
         'Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json',
 
     [string]$AuthoredOverlayProfile =
-        'Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_landscape_water_twin_v1.json',
+        'Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_territory_twin_v1.json',
 
     [string]$ChangedAuthoredOverlayProfile =
-        'Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_landscape_water_twin_changed_v1.json',
+        'Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_territory_twin_changed_v1.json',
 
     [string]$RealizationProfile =
-        'Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_landscape_water_twin.realization.json'
+        'Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_territory_twin.realization.json',
+
+    [string]$RuntimeProfile =
+        'Plugins/World/ProjectWorldTestData/Data/Runtime/synthetic_territory_twin_v1.json'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -121,7 +124,7 @@ $externalRoot = Join-Path $roots.ContentRoot "__ExternalActors__\$mapRelative"
 $durableActiveSet = Join-Path $roots.ManifestRoot 'active_set.json'
 $durableAuthorityBefore = Get-ProjectWorldTreeDigest -Paths @($durableActiveSet)
 $powerShellExe = (Get-Process -Id $PID).Path
-$priorDelegatedToken = $env:ALIS_WORLD_CONTENT_LOCK_TOKEN
+$priorDelegation = $null
 $contentLock = $null
 $snapshotRecords = @()
 
@@ -141,6 +144,7 @@ function Invoke-ProjectWorldPersistenceRun {
         '-PresentationProfile', $presentationPath,
         '-AuthoredOverlayProfile', $Profile,
         '-RealizationProfile', $realizationPath,
+        '-RuntimeProfile', (Resolve-ProjectPath -Path $RuntimeProfile),
         '-ManifestRoot', $manifestRoot,
         '-EvidencePath', $evidencePath,
         '-MaxRoads', '0',
@@ -158,10 +162,7 @@ function Invoke-ProjectWorldPersistenceRun {
 
 try {
     $contentLock = Enter-ProjectWorldContentLock -ProjectRoot $projectRoot
-    if ([string]::IsNullOrWhiteSpace($priorDelegatedToken)) {
-        $lockPath = Join-Path $projectRoot 'tmp\world\world_realization\content_mutation.lock'
-        $env:ALIS_WORLD_CONTENT_LOCK_TOKEN = (Get-Content -LiteralPath $lockPath -Raw).Trim()
-    }
+    $priorDelegation = Enable-ProjectGeneratedContentLockDelegation -Lock $contentLock
     $evidenceParent = Split-Path -Parent $evidenceRoot
     Get-ChildItem -LiteralPath $evidenceParent -Directory -ErrorAction SilentlyContinue |
         Where-Object {
@@ -227,8 +228,7 @@ try {
     $generatedRoots = @(
         (Join-Path $roots.ContentRoot 'Generated\Twin'),
         $externalRoot,
-        (Join-Path $roots.ContentRoot '__ExternalObjects__\Generated\Twin\L_ProjectWorldLandscapeWaterTwin'),
-        (Get-ProjectWorldPresentationRoot -ContentRoot $roots.ContentRoot)
+        (Join-Path $roots.ContentRoot '__ExternalObjects__\Generated\Twin\L_ProjectWorldTerritoryTwin'),
     )
     $rootLiteral = '@(' + (($generatedRoots | ForEach-Object {
         "'$($_.Replace("'", "''"))'"
@@ -281,10 +281,10 @@ finally {
             -TransactionParent $workParent `
             -TransactionRoot $workRoot
     }
-    if ([string]::IsNullOrWhiteSpace($priorDelegatedToken)) {
-        Remove-Item Env:ALIS_WORLD_CONTENT_LOCK_TOKEN -ErrorAction SilentlyContinue
+    if ($null -ne $contentLock) {
+        Disable-ProjectGeneratedContentLockDelegation -Prior $priorDelegation
+        $contentLock.Dispose()
     }
-    if ($null -ne $contentLock) { $contentLock.Dispose() }
 }
 
 Write-Host "[ProjectWorldAuthoredOverlayPersistence] accepted: $(Join-Path $evidenceRoot 'summary.json')"

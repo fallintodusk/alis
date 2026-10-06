@@ -1,0 +1,10 @@
+{
+  "$schema": "../Schemas/project_world_producer_descriptor.schema.json",
+  "schema_version": 1,
+  "kind": "producer",
+  "generator_id": "presentation",
+  "generator_version": 1,
+  "output_revision": 1,
+  "data_inputs": [],
+  "modules": []
+}

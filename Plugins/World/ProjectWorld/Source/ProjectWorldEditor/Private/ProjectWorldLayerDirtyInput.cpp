@@ -128,14 +128,15 @@ namespace ProjectWorldLayerDirtyInput
 		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() ||
 			!HasOnlyFields(Root, {
 				TEXT("$schema"), TEXT("schema_version"), TEXT("realization_profile_id"),
-				TEXT("base_layers"), TEXT("operator_additions")}, OutError) ||
+				TEXT("producer_fingerprints"), TEXT("base_layers"),
+				TEXT("identity_dirty_layers"), TEXT("operator_additions")}, OutError) ||
 			!Root->TryGetStringField(TEXT("$schema"), Schema) ||
 			!ProjectWorldSchemaReference::ResolvesToCanonical(
 				Path,
 				Schema,
 				ExpectedSchemaFilename,
 				OutError) ||
-			!Root->TryGetNumberField(TEXT("schema_version"), SchemaVersion) || SchemaVersion != 1.0 ||
+			!Root->TryGetNumberField(TEXT("schema_version"), SchemaVersion) || SchemaVersion != 2.0 ||
 			!Root->TryGetStringField(TEXT("realization_profile_id"), OutInput.RealizationProfileId) ||
 			!IsIdentifier(OutInput.RealizationProfileId))
 		{
@@ -144,13 +145,34 @@ namespace ProjectWorldLayerDirtyInput
 		}
 
 		const TArray<TSharedPtr<FJsonValue>>* BaseLayers = nullptr;
+		const TArray<TSharedPtr<FJsonValue>>* Fingerprints = nullptr;
+		const TArray<TSharedPtr<FJsonValue>>* IdentityDirtyLayers = nullptr;
 		const TArray<TSharedPtr<FJsonValue>>* Additions = nullptr;
-		if (!Root->TryGetArrayField(TEXT("base_layers"), BaseLayers) || BaseLayers == nullptr ||
+		if (!Root->TryGetArrayField(TEXT("producer_fingerprints"), Fingerprints) || Fingerprints == nullptr ||
+			!Root->TryGetArrayField(TEXT("base_layers"), BaseLayers) || BaseLayers == nullptr ||
+			!Root->TryGetArrayField(TEXT("identity_dirty_layers"), IdentityDirtyLayers) || IdentityDirtyLayers == nullptr ||
 			!Root->TryGetArrayField(TEXT("operator_additions"), Additions) || Additions == nullptr)
 		{
-			OutErrorCode = TEXT("layer-dirty-input-contract");
-			OutError = TEXT("Dirty input requires base_layers and operator_additions arrays.");
+			OutErrorCode = TEXT("layer-dirty-input-identity");
+			OutError = TEXT("Dirty input requires producer_fingerprints, base_layers, identity_dirty_layers, and operator_additions arrays.");
 			return false;
+		}
+		for (const TSharedPtr<FJsonValue>& FingerprintValue : *Fingerprints)
+		{
+			const TSharedPtr<FJsonObject> Fingerprint = FingerprintValue.IsValid() ? FingerprintValue->AsObject() : nullptr;
+			FString LayerId;
+			FString Hash;
+			if (!Fingerprint.IsValid() ||
+				!HasOnlyFields(Fingerprint, {TEXT("layer_id"), TEXT("generator_fingerprint")}, OutError) ||
+				!Fingerprint->TryGetStringField(TEXT("layer_id"), LayerId) || !IsIdentifier(LayerId) ||
+				!Fingerprint->TryGetStringField(TEXT("generator_fingerprint"), Hash) || !IsSha256(Hash) ||
+				OutInput.ProducerFingerprints.Contains(LayerId))
+			{
+				OutErrorCode = TEXT("layer-dirty-input-identity");
+				OutError = TEXT("Producer fingerprints contain an invalid or duplicate layer.");
+				return false;
+			}
+			OutInput.ProducerFingerprints.Add(LayerId, Hash);
 		}
 		for (const TSharedPtr<FJsonValue>& BaseValue : *BaseLayers)
 		{
@@ -172,6 +194,20 @@ namespace ProjectWorldLayerDirtyInput
 				return false;
 			}
 			OutInput.BaseLayers.Add(LayerId, MoveTemp(Identity));
+		}
+		for (const TSharedPtr<FJsonValue>& LayerValue : *IdentityDirtyLayers)
+		{
+			FString LayerId;
+			if (!LayerValue.IsValid() || !LayerValue->TryGetString(LayerId) ||
+				!IsIdentifier(LayerId) || OutInput.IdentityDirtyLayers.Contains(LayerId) ||
+				!OutInput.BaseLayers.Contains(LayerId) ||
+				!OutInput.ProducerFingerprints.Contains(LayerId))
+			{
+				OutErrorCode = TEXT("layer-dirty-input-identity");
+				OutError = TEXT("Identity-dirty layers must uniquely name a base layer with a producer fingerprint.");
+				return false;
+			}
+			OutInput.IdentityDirtyLayers.Add(LayerId);
 		}
 		for (const TSharedPtr<FJsonValue>& AdditionValue : *Additions)
 		{

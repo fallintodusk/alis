@@ -70,6 +70,7 @@ $configDirectory = Join-Path $projectRoot "scripts\config"
 . (Join-Path $scriptDirectory "generated_content_transaction.ps1")
 . (Join-Path $scriptDirectory "generated_manifest.ps1")
 . (Join-Path $scriptDirectory "realization_layer_operation.ps1")
+. (Join-Path $scriptDirectory "producer_run_identity.ps1")
 . (Join-Path $scriptDirectory "operator_controls.ps1")
 . (Join-Path $scriptDirectory "execution_envelope.ps1")
 $config = Resolve-UEConfig -ConfigDir $configDirectory
@@ -243,7 +244,8 @@ if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath)) {
     # Admission-only policy does not shape any accepted producer output.
     # PROJECTWORLD_PRODUCER_BEGIN preflight_only
     $requestedRuntimeProfileId = if ($runtimeProfilePath) { [string](Get-Content -LiteralPath $runtimeProfilePath -Raw | ConvertFrom-Json).profile_id } else { 'none' }
-    if ([string]$realizationDocument.runtime_profile_id -cne $requestedRuntimeProfileId) {
+    if ($modeName -ne 'delete' -and
+        [string]$realizationDocument.runtime_profile_id -cne $requestedRuntimeProfileId) {
         throw "Realization profile requires runtime profile '$($realizationDocument.runtime_profile_id)'; got '$requestedRuntimeProfileId'."
     }
     # PROJECTWORLD_PRODUCER_END preflight_only
@@ -253,6 +255,8 @@ if (-not [string]::IsNullOrWhiteSpace($realizationProfilePath)) {
     $layerDefinitions = $resolvedLayers.Definitions
     $layerScopePaths = $resolvedLayers.ScopePaths
 }
+$runIdentity = New-ProjectWorldRunIdentity -ProjectRoot $projectRoot `
+    -LayerDefinitions $layerDefinitions -Mode $modeName
 if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
     $identity = [ordered]@{
         schema_version = 1
@@ -332,13 +336,12 @@ $enrollmentTargetsDurableAuthority =
 if ($TestFailAfterSelfSavedActor -and $enrollmentTargetsDurableAuthority) {
     throw 'TestFailAfterSelfSavedActor requires transient manifest authority.'
 }
-if ($EnrollManifests -and $NonInteractive -and -not $DurableEnrollmentAuthorized -and
-    $WorldDataPlugin -ceq 'ProjectWorldData' -and $enrollmentTargetsDurableAuthority) {
-    throw ('Refused: production enrollment (-EnrollManifests on ' +
-        'ProjectWorldData into the durable manifest root) cannot run with ' +
-        '-NonInteractive. Enrollment of production authority is ' +
-        'operator-executed after approval.')
-}
+Assert-ProjectWorldProductionEnrollmentAllowed `
+    -EnrollManifests:$EnrollManifests `
+    -NonInteractive:$NonInteractive `
+    -DurableEnrollmentAuthorized:$DurableEnrollmentAuthorized `
+    -WorldDataPlugin $WorldDataPlugin `
+    -TargetsDurableAuthority:$enrollmentTargetsDurableAuthority
 
 $mapScopeId = Get-ProjectWorldMapScopeId -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot
 $presentationScopeId = $null
@@ -346,8 +349,8 @@ if ($modeName -eq "apply") {
     $presentationProfileId = (Get-Content -LiteralPath $presentationProfilePath -Raw | ConvertFrom-Json).profile_id
     $presentationScopeId = Get-ProjectWorldPresentationScopeId -ProfileId $presentationProfileId
 }
-$mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot -IncludePresentation $false)
-$presentationScopePaths = @(Get-ProjectWorldPresentationRoot -ContentRoot $contentRoot)
+$mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot)
+$presentationScopePaths = @()
 $activeSet = $null
 $scopeGenerations = @{}
 $retirePresentation = $false
@@ -555,6 +558,7 @@ if ($modeName -eq 'apply' -and $layerDefinitions.Count -gt 0) {
         -OutputDirectory $evidenceDirectory `
         -RealizationDocument $realizationDocument `
         -LayerDefinitions $layerDefinitions `
+        -ProducerFingerprints $runIdentity.LayerFingerprints `
         -ActiveSet $activeSet `
         -OperatorDirtyUnits $DirtyUnit
     $layerDirtyInputPath = $dirtyInput.Path
@@ -575,6 +579,7 @@ $unrealArguments = @(
     "-unattended"
     "-nop4"
     "-nosplash"
+    "-NoAssetRegistryCache"
     "-FullStdOutLogOutput"
 )
 # Mesh Terrain channel compilation requires a rendering-capable commandlet envelope.
@@ -637,9 +642,9 @@ elseif ($null -eq $invocationFailure) {
         "World realization emitted no structured result. See $logPath")
 }
 if ($engineExitCode -eq 0 -and $childStatus -eq 'accepted' -and
-    (Test-ProjectWorldMeshTerrainBuildRequired -Mode $modeName -Result $result)) {
+    (Test-ProjectWorldPostApplyBuildRequired -Mode $modeName -Result $result)) {
     try {
-		Invoke-ProjectWorldMeshTerrainBuildIfRequired -EditorCommand $editorCommand -ProjectFile $projectFile -ProjectRoot $projectRoot -MapPackage $Map -CompileResult $compileResultPath -EvidenceDirectory $evidenceDirectory -Result $result
+		Invoke-ProjectWorldPostApplyBuilders -EditorCommand $editorCommand -ProjectFile $projectFile -ProjectRoot $projectRoot -MapPackage $Map -CompileResult $compileResultPath -EvidenceDirectory $evidenceDirectory -Result $result
     }
     catch {
         $invocationFailure = $_
@@ -667,8 +672,7 @@ if ($transactionActive) {
         if ($modeName -eq 'apply' -and $layerDefinitions.Count -gt 0) {
             $mapScopePaths = @(Get-ProjectWorldGeneratedPaths `
                 -ContentRoot $contentRoot -MapPackage $Map `
-                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot `
-                -IncludePresentation $false)
+                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot)
             $layerExternalRoots = @($mapScopePaths | Where-Object {
                 (Test-Path -LiteralPath $_ -PathType Container) -and
                 ($_ -match '[\\/]__External(Actors|Objects)__[\\/]')
@@ -691,6 +695,7 @@ if ($transactionActive) {
                 if ([string]$inventory.layer_id -cne [string]$definition.layer_id -or
                     [string]$inventory.generator_id -cne [string]$definition.generator_id -or
                     [int]$inventory.generator_version -ne [int]$definition.generator_version -or
+                    [string]$inventory.generator_fingerprint -cne [string]$runIdentity.LayerFingerprints[$scopeId] -or
                     [string]$inventory.artifact_root -cne [string]$definition.artifact_root -or
                     [string]$inventory.normalized_layer_contract_sha256 -notmatch '^[a-f0-9]{64}$') {
                     throw "Accepted child layer inventory conflicts with the realization profile: $scopeId"
@@ -747,8 +752,7 @@ if ($transactionActive) {
         if ($modeName -eq 'delete') {
             Remove-ProjectWorldGeneratedPaths -ContentRoot $contentRoot `
                 -MapPackage $Map `
-                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot `
-                -IncludePresentation $false
+                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot
             foreach ($scopeId in $layerScopePaths.Keys) {
                 foreach ($path in $layerScopePaths[$scopeId]) {
                     if (Test-Path -LiteralPath $path) {
@@ -758,27 +762,11 @@ if ($transactionActive) {
             }
         }
         if ($modeName -eq 'apply') {
-            # The commandlet has already removed every map/runtime HLOD
-            # reference. Retire the old companion definitions inside the same
-            # recoverable transaction before publishing the new map manifest.
-            Remove-ProjectWorldGeneratedHLODArtifacts -ContentRoot $contentRoot `
-                -MapPackage $Map `
-                -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot
             foreach ($scopeId in $removedLayerScopes) {
                 foreach ($path in $layerScopePaths[$scopeId]) {
                     if (Test-Path -LiteralPath $path) {
                         Remove-Item -LiteralPath $path -Recurse -Force
                     }
-                }
-            }
-        }
-        # The last map consumer and its shared presentation scope retire in
-        # one recoverable transaction, so owner migration cannot leave an
-        # orphaned generated profile behind.
-        if ($modeName -eq 'delete' -and $retirePresentation) {
-            foreach ($path in $presentationScopePaths) {
-                if (Test-Path -LiteralPath $path) {
-                    Remove-Item -LiteralPath $path -Recurse -Force
                 }
             }
         }
@@ -796,10 +784,8 @@ if ($transactionActive) {
 			-OperationIdentity $inputIdentity
         $candidates = @()
         $retired = @($removedLayerScopes)
-        $mapGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
-            -ProjectRoot $projectRoot -ProducerId 'map:v1'
-        $presentationGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
-            -ProjectRoot $projectRoot -ProducerId 'presentation:v1'
+        $mapGeneratorFingerprint = if ($modeName -eq 'apply') { $runIdentity.Fingerprints['map:v1'] } else { '' }
+        $presentationGeneratorFingerprint = $runIdentity.Fingerprints['presentation:v1']
         $priorPresentation = if ($null -ne $activeSet -and $null -ne $presentationScopeId -and
             $activeSet.Manifests.Contains($presentationScopeId)) {
             $activeSet.Manifests[$presentationScopeId]
@@ -847,7 +833,7 @@ if ($transactionActive) {
         else {
             # Re-expand the map scope paths: the preflight expansion predates
             # the child, which may have created the map and external roots.
-            $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot -IncludePresentation $false)
+            $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot)
             $layerOwnedPaths = @{}
             foreach ($scopeId in $layerCandidatesByScope.Keys) {
                 foreach ($record in @($layerCandidatesByScope[$scopeId].Records)) {
@@ -868,16 +854,14 @@ if ($transactionActive) {
                 $activeSet.Manifests[$mapScopeId]
             }
             else { $null }
-            if (-not (Test-ProjectWorldManifestSemanticallyUnchanged `
+            if (-not (Test-ProjectWorldManifestUnchanged `
                 -PriorManifest $priorMap -CandidateManifest $mapCandidate `
                 -GeneratorFingerprint $mapGeneratorFingerprint)) {
                 $candidates += , $mapCandidate
             }
             foreach ($scopeId in $layerCandidatesByScope.Keys) {
                 $candidateInfo = $layerCandidatesByScope[$scopeId]
-                $layerProducerId = "$([string]$candidateInfo.Contract.generator_id):v$([int]$candidateInfo.Contract.generator_version)"
-                $layerGeneratorFingerprint = Get-ProjectWorldGeneratorFingerprint `
-                    -ProjectRoot $projectRoot -ProducerId $layerProducerId
+                $layerGeneratorFingerprint = $runIdentity.LayerFingerprints[$scopeId]
                 $layerCandidate = New-ProjectWorldCandidateManifest `
                     -ProjectRoot $projectRoot -ScopeId $scopeId `
                     -Generation $scopeGenerations[$scopeId] `
@@ -891,7 +875,7 @@ if ($transactionActive) {
                     $activeSet.Manifests[$scopeId]
                 }
                 else { $null }
-                if (-not (Test-ProjectWorldManifestSemanticallyUnchanged `
+                if (-not (Test-ProjectWorldManifestUnchanged `
                     -PriorManifest $priorLayer -CandidateManifest $layerCandidate `
                     -GeneratorFingerprint $layerGeneratorFingerprint -CompareLayerContract)) {
                     $candidates += , $layerCandidate
@@ -968,13 +952,8 @@ if ($transactionActive) {
         -TransactionRoot $transactionRoot `
         -ResultPath $resultPath `
         -EngineExitCode $engineExitCode `
-        -ChildStatus $childStatus
-    # Journal removal is the final step: after this point there is no
-    # in-flight transaction in either the accepted or rolled-back outcome.
-    $journalFile = Join-Path $resolvedManifestRoot 'journal.json'
-    if (Test-Path -LiteralPath $journalFile -PathType Leaf) {
-        Remove-Item -LiteralPath $journalFile -Force
-    }
+        -ChildStatus $childStatus `
+        -JournalPath (Join-Path $resolvedManifestRoot 'journal.json')
     if ($null -ne $authorityLock) {
         $authorityLock.Dispose()
     }

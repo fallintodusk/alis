@@ -21,7 +21,7 @@ namespace ProjectWorldRealizationProfileTests
 	{
 		return FPaths::Combine(
 			FPaths::ProjectPluginsDir(),
-			TEXT("World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_landscape_water_twin.realization.json"));
+			TEXT("World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_territory_twin.realization.json"));
 	}
 
 	FString MeshProfilePath()
@@ -87,14 +87,15 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 	TestTrue(
 		TEXT("The shipped synthetic realization profile is accepted."),
 		ProjectWorldRealizationProfile::Load(ProfilePath(), Profile, ErrorCode, Error));
-	TestEqual(TEXT("Profile identity is loaded."), Profile.ProfileId, FString(TEXT("synthetic_landscape_water_twin")));
+	TestEqual(TEXT("Profile identity is loaded."), Profile.ProfileId, FString(TEXT("synthetic_territory_twin")));
 	TestEqual(TEXT("Profile owner is data-defined."), Profile.WorldDataPluginName, FString(TEXT("ProjectWorldTestData")));
-	TestEqual(TEXT("The layer DAG has five nodes."), Profile.TopologicalLayerIds.Num(), 5);
+	TestEqual(TEXT("The layer DAG has six nodes."), Profile.TopologicalLayerIds.Num(), 6);
 	TestEqual(TEXT("Terrain executes before dependent layers."), Profile.TopologicalLayerIds[0], FString(TEXT("terrain")));
-	TestEqual(TEXT("Buildings execute after their terrain dependency."), Profile.TopologicalLayerIds[1], FString(TEXT("buildings")));
-	TestEqual(TEXT("Gameplay executes after its terrain dependency."), Profile.TopologicalLayerIds[2], FString(TEXT("gameplay")));
-	TestEqual(TEXT("Roads execute after their terrain dependency."), Profile.TopologicalLayerIds[3], FString(TEXT("roads")));
-	TestEqual(TEXT("Water executes after its terrain dependency."), Profile.TopologicalLayerIds[4], FString(TEXT("water")));
+	TestEqual(TEXT("Water follows terrain in declaration order."), Profile.TopologicalLayerIds[1], FString(TEXT("water")));
+	TestEqual(TEXT("Roads follow water in declaration order."), Profile.TopologicalLayerIds[2], FString(TEXT("roads")));
+	TestEqual(TEXT("Vegetation follows its dependencies."), Profile.TopologicalLayerIds[3], FString(TEXT("vegetation")));
+	TestEqual(TEXT("Buildings follow vegetation in declaration order."), Profile.TopologicalLayerIds[4], FString(TEXT("buildings")));
+	TestEqual(TEXT("Gameplay follows buildings in declaration order."), Profile.TopologicalLayerIds[5], FString(TEXT("gameplay")));
 	TestEqual(TEXT("Each layer has a normalized contract SHA-256."), Profile.Layers[0].ContractHash.Len(), 64);
 	FProjectWorldRealizationProfile RuntimeOnly = Profile;
 	RuntimeOnly.RuntimeProfileId = TEXT("synthetic_runtime_candidate_v2");
@@ -130,14 +131,14 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 			TEXT("project_vegetation_instances"),
 			1,
 			EProjectWorldLayerKind::GeneratedGeography));
-	TestTrue(
-		TEXT("The exact building massing generator pair is registered."),
+	TestFalse(
+		TEXT("Retired Building v1 is rejected."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
 			TEXT("project_building_massing"),
 			1,
 			EProjectWorldLayerKind::GeneratedGeography));
 	TestTrue(
-		TEXT("The part-aware building massing generator pair is registered."),
+		TEXT("The Building v2 generator pair is registered."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
 			TEXT("project_building_massing"),
 			2,
@@ -172,6 +173,14 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 	TestFalse(
 		TEXT("An unknown generator pair is rejected before mutation."),
 		ProjectWorldRealizationProfile::ValidateAndFinalize(UnknownGenerator, Error));
+	FProjectWorldRealizationProfile DuplicateGenerator = Profile;
+	FProjectWorldRealizationLayer ExtraWater = Profile.Layers[1];
+	ExtraWater.LayerId = TEXT("water_copy");
+	ExtraWater.ArtifactRoot = TEXT("/ProjectWorldTestData/Generated/WaterCopy/");
+	DuplicateGenerator.Layers.Add(MoveTemp(ExtraWater));
+	TestFalse(TEXT("A producer cannot be dispatched twice in one profile."),
+		ProjectWorldRealizationProfile::ValidateAndFinalize(DuplicateGenerator, Error));
+	TestTrue(TEXT("The refusal names the duplicate producer."), Error.Contains(TEXT("project_water_mesh")));
 	TestTrue(
 		TEXT("The gameplay generator advertises its typed object-ID domain."),
 		ProjectWorldRealizationProfile::IsGeneratorRegistered(
@@ -179,23 +188,13 @@ bool FProjectWorldRealizationProfileContractTest::RunTest(const FString& Paramet
 			1,
 			EProjectWorldLayerKind::GeneratedGameplayPlacement));
 
-	FProjectWorldRealizationProfile WithVegetation = Profile;
-	FProjectWorldRealizationLayer Vegetation;
-	Vegetation.LayerId = TEXT("vegetation");
-	Vegetation.LayerKind = EProjectWorldLayerKind::GeneratedGeography;
-	Vegetation.GeneratorId = TEXT("project_vegetation_instances");
-	Vegetation.GeneratorVersion = 1;
-	Vegetation.DependsOn = {TEXT("terrain"), TEXT("water"), TEXT("roads")};
-	Vegetation.CanonicalSelectors = {TEXT("vegetation")};
-	Vegetation.ArtifactRoot = TEXT("/ProjectWorldTestData/Generated/Twin/Vegetation/");
-	Vegetation.SpatialOwnership = TEXT("cell_local");
-	Vegetation.DirtyGranularity = EProjectWorldDirtyGranularity::CanonicalCell;
-	Vegetation.RuntimeMapping = TEXT("world_partition_spatial");
-	Vegetation.NormalizedSettings = TEXT("{\"area_jitter_fraction\":0.25,\"area_spacing_m\":40,\"collision\":\"no_collision\",\"deterministic_seed\":7,\"maximum_instances_per_cell\":256,\"maximum_scale\":1.1,\"mesh_assets\":[\"/ProjectObject/Test.SM_Test\"],\"minimum_scale\":0.9,\"nanite\":true,\"placement_policy\":\"canonical_points_and_lattice_areas\",\"surface_offset_m\":0}");
-	WithVegetation.Layers.Add(Vegetation);
 	TestTrue(
-		TEXT("The registered vegetation tuple joins the existing layer DAG."),
-		ProjectWorldRealizationProfile::ValidateAndFinalize(WithVegetation, Error));
+		TEXT("The twin profile includes the registered vegetation producer."),
+		Profile.Layers.ContainsByPredicate([](const FProjectWorldRealizationLayer& Layer)
+		{
+			return Layer.LayerId == TEXT("vegetation") &&
+				Layer.GeneratorId == TEXT("project_vegetation_instances") && Layer.GeneratorVersion == 1;
+		}));
 
 	FProjectWorldRealizationProfile InvalidGranularity = Profile;
 	InvalidGranularity.Layers[0].DirtyGranularity = EProjectWorldDirtyGranularity::WholeLayer;
@@ -329,6 +328,102 @@ bool FProjectWorldRealizationDirtyClosureTest::RunTest(const FString& Parameters
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldIdentityRefreshClosureTest,
+	"Project.World.Realization.Layers.IdentityRefreshClosure",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldIdentityRefreshClosureTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldRealizationProfileTests;
+	FProjectWorldRealizationProfile Profile;
+	FString ErrorCode;
+	FString Error;
+	if (!ProjectWorldRealizationProfile::Load(ProfilePath(), Profile, ErrorCode, Error))
+	{
+		AddError(Error);
+		return false;
+	}
+
+	FProjectWorldDirtyInputs Inputs;
+	for (const FProjectWorldRealizationLayer& Layer : Profile.Layers)
+	{
+		if (Layer.IsGenerated())
+		{
+			Inputs.ValidUnits.Add(Layer.LayerId);
+			Inputs.OperatorValidUnits.Add(Layer.LayerId);
+		}
+	}
+	Inputs.IdentityDirtyLayers.Add(TEXT("terrain"));
+	TArray<FProjectWorldLayerDirtyPlan> Plan;
+	if (!TestTrue(TEXT("A terrain fingerprint change builds a plan."),
+		ProjectWorldRealizationProfile::BuildDirtyPlan(Profile, Inputs, Plan, Error)))
+	{
+		AddError(Error);
+		return false;
+	}
+	const FProjectWorldLayerDirtyPlan* Terrain = FindPlan(Plan, TEXT("terrain"));
+	const FProjectWorldLayerDirtyPlan* Water = FindPlan(Plan, TEXT("water"));
+	const FProjectWorldLayerDirtyPlan* Roads = FindPlan(Plan, TEXT("roads"));
+	const FProjectWorldLayerDirtyPlan* Gameplay = FindPlan(Plan, TEXT("gameplay"));
+	if (!TestNotNull(TEXT("Terrain plan exists."), Terrain) ||
+		!TestNotNull(TEXT("Water plan exists."), Water) ||
+		!TestNotNull(TEXT("Roads plan exists."), Roads) ||
+		!TestNotNull(TEXT("Gameplay plan exists."), Gameplay))
+	{
+		return false;
+	}
+	TestTrue(TEXT("The terrain producer is refreshed."), Terrain->DirtyUnits.Contains(TEXT("*")));
+	TestEqual(TEXT("Identity alone leaves water clean."), Water->DirtyUnits.Num(), 0);
+	TestEqual(TEXT("Identity alone leaves roads clean."), Roads->DirtyUnits.Num(), 0);
+	TestEqual(TEXT("Identity alone leaves gameplay clean."), Gameplay->DirtyUnits.Num(), 0);
+	Inputs.ValidUnits.FindOrAdd(TEXT("terrain")).Add(TEXT("gridtwin:x0:y0"));
+	Inputs.ValidUnits.FindOrAdd(TEXT("water")).Add(TEXT("gridtwin:x0:y0"));
+	Inputs.ValidUnits.FindOrAdd(TEXT("roads")).Add(TEXT("gridtwin:x0:y0"));
+	Inputs.ValidUnits.FindOrAdd(TEXT("gameplay")).Add(TEXT("synthetic_water_01"));
+	Inputs.DependencyUnitMappings.FindOrAdd(TEXT("gameplay|terrain"))
+		.FindOrAdd(TEXT("gridtwin:x0:y0")).Add(TEXT("synthetic_water_01"));
+	Inputs.ComputedUnits.FindOrAdd(TEXT("terrain")).Add(TEXT("gridtwin:x0:y0"));
+	TestTrue(TEXT("Identity and canonical cell changes build one plan."),
+		ProjectWorldRealizationProfile::BuildDirtyPlan(Profile, Inputs, Plan, Error));
+	Water = FindPlan(Plan, TEXT("water"));
+	Gameplay = FindPlan(Plan, TEXT("gameplay"));
+	if (Water != nullptr && Gameplay != nullptr)
+	{
+		TestTrue(TEXT("The real cell change reaches water."), Water->DirtyUnits.Contains(TEXT("gridtwin:x0:y0")));
+		TestFalse(TEXT("Producer identity does not propagate a wildcard."), Water->DirtyUnits.Contains(TEXT("*")));
+		TestTrue(TEXT("The real cell reaches its gameplay object."), Gameplay->DirtyUnits.Contains(TEXT("synthetic_water_01")));
+	}
+	Inputs.ComputedUnits.Reset();
+	Inputs.IdentityDirtyLayers.Reset();
+	Inputs.IdentityDirtyLayers.Add(TEXT("water"));
+	TestTrue(TEXT("A dependent producer identity can refresh alone."),
+		ProjectWorldRealizationProfile::BuildDirtyPlan(Profile, Inputs, Plan, Error));
+	Terrain = FindPlan(Plan, TEXT("terrain"));
+	Water = FindPlan(Plan, TEXT("water"));
+	if (Terrain != nullptr && Water != nullptr)
+	{
+		TestEqual(TEXT("Water identity does not dirty terrain."), Terrain->DirtyUnits.Num(), 0);
+		TestTrue(TEXT("Water identity refreshes water."), Water->DirtyUnits.Contains(TEXT("*")));
+	}
+	Inputs.IdentityDirtyLayers.Reset();
+	Inputs.IdentityDirtyLayers.Add(TEXT("missing"));
+	TestFalse(TEXT("An unknown identity layer is rejected."),
+		ProjectWorldRealizationProfile::BuildDirtyPlan(Profile, Inputs, Plan, Error));
+	Inputs.IdentityDirtyLayers.Reset();
+	Inputs.OperatorAdditions.FindOrAdd(TEXT("terrain")).Add(TEXT("*"));
+	TestTrue(TEXT("The retired operator route remains a discriminating control."),
+		ProjectWorldRealizationProfile::BuildDirtyPlan(Profile, Inputs, Plan, Error));
+	Water = FindPlan(Plan, TEXT("water"));
+	Gameplay = FindPlan(Plan, TEXT("gameplay"));
+	if (Water != nullptr && Gameplay != nullptr)
+	{
+		TestTrue(TEXT("Operator wildcard still propagates to water."), Water->DirtyUnits.Contains(TEXT("*")));
+		TestTrue(TEXT("Operator wildcard still propagates to gameplay."), Gameplay->DirtyUnits.Contains(TEXT("*")));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldRealizationIncrementalInventoryTest,
 	"Project.World.Realization.Layers.IncrementalInventory",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -347,7 +442,7 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 
 	FProjectWorldCanonicalBundle Bundle;
 	Bundle.GridId = TEXT("grid_24b9032e5f87005d");
-	Bundle.ProfileId = TEXT("synthetic_landscape_water_twin");
+	Bundle.ProfileId = TEXT("synthetic_territory_twin");
 	Bundle.WorldDataPluginName = TEXT("ProjectWorldTestData");
 	for (int32 CellIndex = 0; CellIndex < 2; ++CellIndex)
 	{
@@ -429,8 +524,14 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 
 	FProjectWorldLayerDirtyInput DirtyInput;
 	DirtyInput.RealizationProfileId = Profile.ProfileId;
+	TArray<FString> FingerprintEntries;
 	for (const FProjectWorldLayerInventory& Inventory : Baseline.LayerInventories)
 	{
+		const FString Fingerprint = FString::ChrN(64, TEXT('f'));
+		DirtyInput.ProducerFingerprints.Add(Inventory.LayerId, Fingerprint);
+		FingerprintEntries.Add(FString::Printf(
+			TEXT("{\"layer_id\":\"%s\",\"generator_fingerprint\":\"%s\"}"),
+			*Inventory.LayerId, *Fingerprint));
 		FProjectWorldLayerBaseIdentity& Base = DirtyInput.BaseLayers.Add(Inventory.LayerId);
 		Base.NormalizedLayerContractHash = Inventory.NormalizedLayerContractHash;
 		for (const FProjectWorldLayerInputInventory& Input : Inventory.CanonicalInputs)
@@ -447,8 +548,9 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	const FString DirtyInputJson = FString::Printf(
 		TEXT("{\n")
 		TEXT("  \"$schema\": \"%s\",\n")
-		TEXT("  \"schema_version\": 1,\n")
+		TEXT("  \"schema_version\": 2,\n")
 		TEXT("  \"realization_profile_id\": \"%s\",\n")
+		TEXT("  \"producer_fingerprints\": [%s],\n")
 		TEXT("  \"base_layers\": [\n")
 		TEXT("    {\"layer_id\": \"terrain\", \"normalized_layer_contract_sha256\": \"%s\", \"canonical_inputs\": [")
 		TEXT("{\"unit_id\": \"gridtwin:x0:y0\", \"sha256\": \"%s\"},")
@@ -457,12 +559,14 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 		TEXT("{\"unit_id\": \"gridtwin:x0:y0\", \"sha256\": \"%s\"},")
 		TEXT("{\"unit_id\": \"gridtwin:x1:y0\", \"sha256\": \"%s\"}]}\n")
 		TEXT("  ],\n")
+		TEXT("  \"identity_dirty_layers\": [],\n")
 		TEXT("  \"operator_additions\": [{\"layer_id\": \"water\", \"units\": [\"gridtwin:x1:y0\"]}]\n")
 		TEXT("}\n"),
 		*ProjectWorldSchemaTestUtilities::ReferenceFor(
 			DirtyInputPath,
 			TEXT("project_world_layer_dirty_input.schema.json")),
 		*Profile.ProfileId,
+		*FString::Join(FingerprintEntries, TEXT(",")),
 		*Profile.Layers[0].ContractHash,
 		*FString::ChrN(64, TEXT('e')),
 		*BaselineTerrain->CanonicalInputs[1].Hash,
@@ -499,7 +603,7 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 		TestEqual(
 			TEXT("Layer scope identity is namespaced by realization profile."),
 			Terrain->ScopeId,
-			FString(TEXT("layer_synthetic_landscape_water_twin_terrain")));
+			FString(TEXT("layer_synthetic_territory_twin_terrain")));
 		TestEqual(TEXT("Terrain records exact cell-to-hash identities."), Terrain->CanonicalInputs.Num(), 2);
 		TestEqual(TEXT("Only one computed terrain cell is dirty."), Terrain->FinalDirtyUnits.Num(), 1);
 		TestTrue(TEXT("The changed terrain cell propagates to water."), Water->FinalDirtyUnits.Contains(TEXT("gridtwin:x0:y0")));
@@ -510,6 +614,7 @@ bool FProjectWorldRealizationIncrementalInventoryTest::RunTest(const FString& Pa
 	NoOp.RealizationProfileId = Profile.ProfileId;
 	for (const FProjectWorldLayerInventory& Inventory : Baseline.LayerInventories)
 	{
+		NoOp.ProducerFingerprints.Add(Inventory.LayerId, FString::ChrN(64, TEXT('f')));
 		FProjectWorldLayerBaseIdentity& Base = NoOp.BaseLayers.Add(Inventory.LayerId);
 		Base.NormalizedLayerContractHash = Inventory.NormalizedLayerContractHash;
 		for (const FProjectWorldLayerInputInventory& Input : Inventory.CanonicalInputs)

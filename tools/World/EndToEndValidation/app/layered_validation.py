@@ -52,12 +52,15 @@ def validate_layered_realization(
     expected: dict[str, Any],
     realization_profile: dict[str, str],
     road_dirty_unit: str,
+    require_incremental: bool = True,
 ) -> dict[str, Any]:
-    required_legs = ("first", "second", "road_locality", "incremental", "clean")
+    required_legs = ("first", "second", "road_locality", "clean")
+    if require_incremental:
+        required_legs += ("incremental",)
     _require(
         all(leg in receipts for leg in required_legs),
         "layered_realization_leg_missing",
-        "Layered realization requires full, no-op, road-locality, incremental, and reconstruction evidence",
+        "Layered realization is missing a required World leg",
     )
     topology = expected["expected_topology"]
     layer_contracts = {item["layer_id"]: item for item in expected["expected_layers"]}
@@ -103,36 +106,10 @@ def validate_layered_realization(
         )
         changes = receipt.get("changes", {})
         _require(
-            changes.get("terrain_sections") == topology["terrain_sections"]
-            and changes.get("water_cell_actors") == topology["water_cell_actors"]
-            and changes.get("water_mesh_assets") == topology["water_mesh_assets"]
-            and changes.get("road_cell_actors") == topology["road_cell_actors"]
-            and changes.get("road_mesh_assets") == topology["road_mesh_assets"]
-            and changes.get("vegetation_cell_actors") == topology["vegetation_cell_actors"]
-            and changes.get("vegetation_components") == topology["vegetation_components"]
-            and changes.get("vegetation_instances") == topology["vegetation_instances"]
-            and changes.get("vegetation_candidates") == topology["vegetation_candidates"]
-            and changes.get("vegetation_road_exclusions") == topology["vegetation_road_exclusions"]
-            and changes.get("vegetation_water_exclusions") == topology["vegetation_water_exclusions"]
-            and changes.get("vegetation_authored_mask_exclusions")
-            == topology["vegetation_authored_mask_exclusions"]
-            and changes.get("building_cell_actors") == topology["building_cell_actors"]
-            and changes.get("building_mesh_assets") == topology["building_mesh_assets"]
-            and changes.get("building_triangles") == topology["building_triangles"]
-            and changes.get("building_candidate_fragments") == topology["building_candidate_fragments"]
-            and changes.get("building_accepted_fragments") == topology["building_accepted_fragments"]
-            and changes.get("building_duplicate_fragments") == topology["building_duplicate_fragments"]
-            and changes.get("building_contained_fragments") == topology["building_contained_fragments"]
-            and changes.get("building_conflict_fragments") == topology["building_conflict_fragments"]
-            and changes.get("building_malformed_fragments") == topology["building_malformed_fragments"]
-            and changes.get("building_authored_mask_exclusions")
-            == topology["building_authored_mask_exclusions"]
-            and changes.get("gameplay_placement_actors")
-            == topology["gameplay_placement_actors"]
-            and changes.get("road_sections") == 0
+            changes.get("road_sections") == 0
             and changes.get("building_sections") == 0,
             "layered_output_topology_mismatch",
-            "Terrain, water, road, vegetation, or building topology differs from the layered profile",
+            "Retired P0 section counters are nonzero",
             leg=leg,
         )
         inventories[leg] = _inventory_by_id(receipt, leg)
@@ -147,14 +124,32 @@ def validate_layered_realization(
     for layer_id, contract in layer_contracts.items():
         records = {leg: inventories[leg][layer_id] for leg in required_legs}
         for leg, record in records.items():
+            expected_artifact_count = (
+                contract.get("producer_artifact_count", contract["artifact_count"])
+                if leg in ("first", "clean") else contract["artifact_count"]
+            )
             _require(
                 record.get("generator_id") == contract["generator_id"]
                 and record.get("generator_version") == contract["generator_version"]
                 and record.get("artifact_root") == contract["artifact_root"]
                 and len(record.get("canonical_inputs", [])) == contract["canonical_input_count"]
-                and len(record.get("artifacts", [])) == contract["artifact_count"],
+                and len(record.get("artifacts", [])) == expected_artifact_count,
                 "layer_inventory_contract_mismatch",
                 "Layer generator, root, inputs, or artifacts differ from the profile",
+                leg=leg,
+                layer_id=layer_id,
+            )
+            metrics = record.get("metrics")
+            expected_metrics = contract["metrics"]
+            _require(
+                isinstance(metrics, dict)
+                and set(metrics) == set(expected_metrics)
+                and all(
+                    metrics[key] == (value if leg in ("first", "clean") or not key.endswith("_written") else 0)
+                    for key, value in expected_metrics.items()
+                ),
+                "layer_metrics_mismatch",
+                "Layer metrics differ from the profile or rewrite work occurred on a no-op leg",
                 leg=leg,
                 layer_id=layer_id,
             )
@@ -164,16 +159,31 @@ def validate_layered_realization(
             "Normalized layer contract changed across one Matrix",
             layer_id=layer_id,
         )
-        artifact_paths = [
-            tuple(sorted(item.get("path") for item in record.get("artifacts", [])))
-            for record in records.values()
-        ]
-        _require(
-            all(paths == artifact_paths[0] for paths in artifact_paths[1:]),
-            "layer_artifact_path_churn",
-            "Layer artifact paths changed across no-op or reconstruction",
-            layer_id=layer_id,
-        )
+        first_artifacts = records["first"].get("artifacts", [])
+        first_paths = tuple(sorted(item.get("path") for item in first_artifacts))
+        second_paths = tuple(sorted(item.get("path") for item in records["second"].get("artifacts", [])))
+        mesh_terrain = layer_id == "terrain" and records["first"].get("generator_id") == "project_mesh_terrain"
+        for leg, record in records.items():
+            artifacts = record.get("artifacts", [])
+            paths = tuple(sorted(item.get("path") for item in artifacts))
+            if leg == "clean" and mesh_terrain:
+                first_semantics = [item.get("semantic_sha256") for item in first_artifacts]
+                clean_semantics = [item.get("semantic_sha256") for item in artifacts]
+                _require(
+                    all(isinstance(value, str) and len(value) == 64 for value in first_semantics + clean_semantics)
+                    and sorted(first_semantics) == sorted(clean_semantics),
+                    "layer_reconstruction_semantic_drift",
+                    "Clean Mesh Terrain allocation changed base or partition semantic output",
+                    layer_id=layer_id,
+                )
+            else:
+                _require(
+                    paths == (first_paths if not mesh_terrain or leg == "first" else second_paths),
+                    "layer_artifact_path_churn",
+                    "Layer artifact paths changed outside clean Mesh Terrain allocation",
+                    layer_id=layer_id,
+                    leg=leg,
+                )
         _require(
             records["first"].get("final_dirty_units") == ["*"],
             "layer_initial_full_build_unproven",
@@ -187,6 +197,7 @@ def validate_layered_realization(
             layer_id=layer_id,
         )
         _require(
+            not require_incremental or
             len(records["incremental"].get("final_dirty_units", [])) == contract["incremental_dirty_count"],
             "layer_incremental_dirty_mismatch",
             "Incremental dirty closure differs from the profile",
@@ -215,64 +226,14 @@ def validate_layered_realization(
                 layer_id=layer_id,
             )
 
-    for leg in ("first", "clean"):
-        changes = receipts[leg]["changes"]
-        _require(
-            changes.get("water_triangles") == topology["water_triangles"],
-            "layered_full_rebuild_unproven",
-            "Full or reconstructed layered output did not rebuild exact terrain and water",
-            leg=leg,
-        )
-        _require(
-            changes.get("road_triangles") == topology["road_triangles"]
-            and changes.get("vegetation_instance_rewrites") == topology["vegetation_instances"]
-            and changes.get("building_triangle_rewrites") == topology["building_triangles"]
-            and changes.get("gameplay_placement_rewrites") == topology["gameplay_placement_actors"],
-            "layered_road_rebuild_unproven",
-            "Full or reconstructed layered output did not rebuild exact roads and vegetation",
-            leg=leg,
-        )
-    for leg in ("second", "road_locality", "incremental"):
-        changes = receipts[leg]["changes"]
-        _require(
-            changes.get("water_triangles") == 0
-            and changes.get("road_triangles") == 0
-            and changes.get("vegetation_instance_rewrites") == 0
-            and changes.get("building_triangle_rewrites") == 0
-            and changes.get("gameplay_placement_rewrites") == 0,
-            "layered_noop_rewrite",
-            "No-op or content-identical incremental work rewrote layered geometry",
-            leg=leg,
-        )
-
     return {
         "canonical_cells": topology["canonical_cells"],
-        "terrain_sections": topology["terrain_sections"],
-        "water_cell_actors": topology["water_cell_actors"],
-        "water_triangles": topology["water_triangles"],
-        "road_cell_actors": topology["road_cell_actors"],
-        "road_triangles": topology["road_triangles"],
-        "vegetation_cell_actors": topology["vegetation_cell_actors"],
-        "vegetation_components": topology["vegetation_components"],
-        "vegetation_instances": topology["vegetation_instances"],
-        "vegetation_candidates": topology["vegetation_candidates"],
-        "vegetation_road_exclusions": topology["vegetation_road_exclusions"],
-        "vegetation_water_exclusions": topology["vegetation_water_exclusions"],
-        "vegetation_authored_mask_exclusions": topology["vegetation_authored_mask_exclusions"],
-        "building_cell_actors": topology["building_cell_actors"],
-        "building_triangles": topology["building_triangles"],
-        "building_candidate_fragments": topology["building_candidate_fragments"],
-        "building_accepted_fragments": topology["building_accepted_fragments"],
-        "building_duplicate_fragments": topology["building_duplicate_fragments"],
-        "building_contained_fragments": topology["building_contained_fragments"],
-        "building_conflict_fragments": topology["building_conflict_fragments"],
-        "building_malformed_fragments": topology["building_malformed_fragments"],
-        "gameplay_placement_actors": topology["gameplay_placement_actors"],
         "road_locality_dirty_unit": road_dirty_unit,
         "layers": {
             layer_id: {
                 "canonical_inputs": contract["canonical_input_count"],
                 "artifacts": contract["artifact_count"],
+                "metrics": contract["metrics"],
             }
             for layer_id, contract in sorted(layer_contracts.items())
         },

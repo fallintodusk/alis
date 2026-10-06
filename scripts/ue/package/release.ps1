@@ -8,6 +8,7 @@ param(
     [string]$ReleaseVersion,
     [ValidateSet("All", "Game")][string]$Target = "All",
     [switch]$SkipSigning,
+    [string]$SourceCommit,
     [string]$InputRoot,
     [string]$ReleaseDir,
     [string]$PublicSourceRoot,
@@ -149,18 +150,6 @@ function Remove-AutomaticReleaseInputs {
     Remove-Item -LiteralPath $InputRoot -Recurse -Force
 }
 
-function Remove-AbandonedReleaseScratch {
-    param([string]$ReleaseRoot)
-
-    foreach ($Name in @("work", "c", "final-public-source")) {
-        $ScratchRoot = [IO.Path]::GetFullPath((Join-Path $ReleaseRoot $Name))
-        Assert-PathUnderRoot -Path $ScratchRoot -Root $ReleaseRoot -Description "Release scratch"
-        if (Test-Path -LiteralPath $ScratchRoot) {
-            Remove-Item -LiteralPath $ScratchRoot -Recurse -Force
-        }
-    }
-}
-
 $ReleaseTag = "v$ReleaseVersion"
 $ResolvedInputRoot = Resolve-ProjectPath -Path $InputRoot -DefaultPath "tmp\release\inputs\$ReleaseTag"
 $ResolvedReleaseDir = Resolve-ProjectPath -Path $ReleaseDir -DefaultPath "tmp\release\$ReleaseTag"
@@ -194,7 +183,6 @@ if ($Target -eq "Game" -and $SkipSigning) {
 if ($Target -eq "Game" -and -not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
     throw "TARGET=game requires an existing reviewed release workspace: $ResolvedReleaseDir"
 }
-Remove-AbandonedReleaseScratch -ReleaseRoot $ReleaseRoot
 $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerPackageRoot) -or
     -not [string]::IsNullOrWhiteSpace($PlayerEvidence) -or
@@ -205,6 +193,23 @@ $UsesExplicitInputs = -not [string]::IsNullOrWhiteSpace($PublicSourceRoot) -or
     -not [string]::IsNullOrWhiteSpace($DependencyReport) -or
     -not [string]::IsNullOrWhiteSpace($PrivacyReport) -or
     -not [string]::IsNullOrWhiteSpace($MapLoadReport)
+if ([version]$ReleaseVersion -ge [version]'3.0.0' -and
+    -not $UsesExplicitInputs -and $Target -ne 'Game' -and
+    -not (Test-Path -LiteralPath $ExistingWorkspaceStatePath -PathType Leaf)) {
+    if ($SourceCommit -cnotmatch '^[0-9a-f]{40}$') {
+        throw 'Automatic release preparation requires SOURCE_COMMIT as one full 40-digit commit ID.'
+    }
+    $SourceHead = (& git -C $ProjectRoot rev-parse --verify HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or $SourceHead -cne $SourceCommit) {
+        throw 'SOURCE_COMMIT does not match the current release checkout HEAD.'
+    }
+    $SourceStatus = @(& git -C $ProjectRoot status --porcelain=v1 --untracked-files=all)
+    if ($LASTEXITCODE -ne 0 -or @($SourceStatus | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_)
+        }).Count -ne 0) {
+        throw 'Automatic release preparation requires a clean frozen source checkout.'
+    }
+}
 $SigningManifest = Join-Path $ResolvedGitHubDir "SHA256SUMS.txt"
 $Signature = Join-Path $ResolvedGitHubDir "SHA256SUMS.txt.asc"
 $GitHubVerifyArguments = @{ ReleaseDir = $ResolvedGitHubDir }
@@ -336,7 +341,8 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         $AutomaticPlayerEvidence = [string]$AcceptanceStatus.composite
 
         & (Join-Path $ScriptDir "prepare_release_inputs.ps1") `
-            -ReleaseVersion $ReleaseVersion -InputRoot $ResolvedInputRoot
+            -ReleaseVersion $ReleaseVersion -InputRoot $ResolvedInputRoot `
+            -SourceCommit $SourceCommit
         if ($LASTEXITCODE -ne 0) {
             throw "Automatic release input preparation failed."
         }

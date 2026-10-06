@@ -7,6 +7,7 @@
 #include "ProjectWorldMeshTerrainTransformer.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldTerrainRuntimeRole.h"
+#include "ProjectWorldVerify.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/StaticMeshComponent.h"
@@ -22,6 +23,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Rendering/PositionVertexBuffer.h"
@@ -341,6 +343,9 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 	TMap<FName, int32> VariantCounts;
 	TArray<TSharedPtr<FJsonValue>> SectionsJson;
 	TArray<FString> Failures;
+	FProjectWorldProjection TerrainProjection;
+	bool bHasTerrainProjection = false;
+	TArray<TSharedPtr<FJsonValue>> BaseIdentityTags;
 	TArray<FSurfaceProbe> NaniteSurfaces;
 	TArray<FSurfaceProbe> FallbackSurfaces;
 	int32 PartitionCount = 0;
@@ -545,12 +550,82 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 		}
 	}
 
+	if (FParse::Param(*Params, TEXT("TerrainProjection")))
+	{
+		int32 ComparisonVersion = 0;
+		FProjectWorldProjectFn Project;
+		FString ProjectionError;
+		const FString ArtifactRoot = FPaths::Combine(
+			FPaths::GetPath(*MapPackagePath), TEXT("Terrain")) + TEXT("/");
+		const FProjectWorldVerifyScope Scope{World, ArtifactRoot, &Bundle};
+		bHasTerrainProjection = ProjectWorldVerify::FindProjection(
+			TEXT("project_mesh_terrain"), 1, ComparisonVersion, Project) &&
+			Project(Scope, TerrainProjection, ProjectionError) &&
+			TerrainProjection.IsValid(ProjectionError) && !TerrainProjection.IsEmpty();
+		if (!bHasTerrainProjection)
+		{
+			Failures.Add(TEXT("terrain output projection failed: ") + ProjectionError);
+		}
+		else
+		{
+			TMap<FString, TArray<FString>> TagsByCell;
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				if (!It->Tags.Contains(FName(TEXT("ProjectWorld.MeshTerrain.Authoring.v1"))) ||
+					It->Tags.Contains(FName(TEXT("ProjectWorld.MeshTerrain.Partition.v1"))))
+				{
+					continue;
+				}
+				FString Cell;
+				TArray<FString> Tags;
+				for (const FName Tag : It->Tags)
+				{
+					const FString Text = Tag.ToString();
+					Tags.Add(Text);
+					if (Text.StartsWith(TEXT("ProjectWorld.MeshTerrain.Cell=")))
+					{
+						Cell = Text.RightChop(30);
+					}
+				}
+				if (Cell.IsEmpty() || TagsByCell.Contains(Cell))
+				{
+					Failures.Add(TEXT("terrain base identity tags lack a unique cell"));
+					continue;
+				}
+				Tags.Sort();
+				TagsByCell.Add(Cell, MoveTemp(Tags));
+			}
+			TArray<FString> Cells;
+			TagsByCell.GetKeys(Cells);
+			Cells.Sort();
+			for (const FString& Cell : Cells)
+			{
+				TSharedRef<FJsonObject> Record = MakeShared<FJsonObject>();
+				Record->SetStringField(TEXT("cell"), Cell);
+				TArray<TSharedPtr<FJsonValue>> Tags;
+				for (const FString& Tag : TagsByCell.FindChecked(Cell))
+				{
+					Tags.Add(MakeShared<FJsonValueString>(Tag));
+				}
+				Record->SetArrayField(TEXT("tags"), Tags);
+				BaseIdentityTags.Add(MakeShared<FJsonValueObject>(Record));
+			}
+		}
+	}
+
 	TSharedPtr<FJsonObject> Receipt = MakeShared<FJsonObject>();
-	Receipt->SetStringField(TEXT("schema"), TEXT("project-world-mesh-terrain-audit:v1"));
+	Receipt->SetStringField(TEXT("schema"), TEXT("project-world-mesh-terrain-audit:v2"));
 	Receipt->SetStringField(TEXT("map"), *MapPackagePath);
 	Receipt->SetStringField(TEXT("shared_definition"),
 		ProjectWorldMeshTerrainProducer::SharedDefinitionObjectPath);
 	Receipt->SetStringField(TEXT("compile_result_sha256"), Bundle.CompileResultHash);
+	if (bHasTerrainProjection)
+	{
+		Receipt->SetStringField(TEXT("terrain_projection_sha256"), TerrainProjection.Sha256());
+		Receipt->SetStringField(TEXT("terrain_projection_json"), TerrainProjection.ToCanonicalJson());
+		Receipt->SetNumberField(TEXT("terrain_projection_record_count"), TerrainProjection.Sorted().Num());
+		Receipt->SetArrayField(TEXT("terrain_base_identity_tags"), BaseIdentityTags);
+	}
 	Receipt->SetStringField(TEXT("status"), Failures.IsEmpty() ? TEXT("accepted") : TEXT("rejected"));
 	Receipt->SetNumberField(TEXT("partition_count"), PartitionCount);
 	Receipt->SetNumberField(TEXT("expected_sections_per_variant"), ExpectedSectionsPerVariant);
@@ -565,6 +640,15 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 	Receipt->SetNumberField(TEXT("fallback_height_mismatched_samples"), FallbackHeight.MismatchedSamples);
 	Receipt->SetNumberField(TEXT("fallback_height_maximum_error_cm"), FallbackHeight.MaximumErrorCentimeters);
 	Receipt->SetArrayField(TEXT("sections"), SectionsJson);
+	TArray<TSharedPtr<FJsonValue>> BuilderArtifacts;
+	for (const TSharedPtr<FJsonValue>& SectionValue : SectionsJson)
+	{
+		TSharedRef<FJsonObject> Artifact = MakeShared<FJsonObject>();
+		Artifact->SetStringField(TEXT("path"), SectionValue->AsObject()->GetStringField(TEXT("artifact_path")));
+		Artifact->SetStringField(TEXT("kind"), TEXT("external_actor"));
+		BuilderArtifacts.Add(MakeShared<FJsonValueObject>(Artifact));
+	}
+	Receipt->SetArrayField(TEXT("builder_artifacts"), BuilderArtifacts);
 	TArray<TSharedPtr<FJsonValue>> FailuresJson;
 	for (const FString& Failure : Failures)
 	{

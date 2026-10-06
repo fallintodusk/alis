@@ -51,7 +51,7 @@ Describe 'ProjectWorld exact layer manifests' {
                 $dependencyHashes = @((('d' * 64) -join ''))
             }
             return [ordered]@{
-                realization_profile_id = 'synthetic_landscape_water_twin'
+                realization_profile_id = 'synthetic_territory_twin'
                 realization_profile_sha256 = $profileHash
                 normalized_layer_contract_sha256 = $(if ($LayerId -eq 'terrain') { (('d' * 64) -join '') } else { (('e' * 64) -join '') })
                 generator_id = $(if ($LayerId -eq 'terrain') { 'project_mesh_terrain' } else { 'project_water_mesh' })
@@ -96,8 +96,7 @@ Describe 'ProjectWorld exact layer manifests' {
         }
     }
 
-    It 'forces a whole-layer rebuild when the accepted producer fingerprint is stale' {
-        Mock Get-ProjectWorldGeneratorFingerprint { return ('c' * 64) }
+    It 'passes a stale producer as an identity-dirty layer and never as an operator unit' {
         $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
         $output = Join-Path $TestDrive 'producer-drift'
         New-Item -ItemType Directory -Path $output -Force | Out-Null
@@ -119,15 +118,22 @@ Describe 'ProjectWorld exact layer manifests' {
             }
         } }
 
+        $fingerprints = [ordered]@{ $scopeId = ('c' * 64) }
         $result = New-ProjectWorldLayerDirtyInput `
             -ProjectRoot $repoRoot -OutputDirectory $output `
             -RealizationDocument ([pscustomobject]@{ profile_id = 'synthetic' }) `
-            -LayerDefinitions $definitions -ActiveSet $active
+            -LayerDefinitions $definitions -ProducerFingerprints $fingerprints -ActiveSet $active
         $document = Get-Content -LiteralPath $result.Path -Raw | ConvertFrom-Json
 
-        @($document.operator_additions).Count | Should -Be 1
-        $document.operator_additions[0].layer_id | Should -Be 'terrain'
-        @($document.operator_additions[0].units) | Should -Contain '*'
+        $document.schema_version | Should -Be 2
+        @($document.operator_additions).Count | Should -Be 0
+        @($document.identity_dirty_layers) | Should -Be @('terrain')
+        $document.producer_fingerprints[0].generator_fingerprint | Should -Be ('c' * 64)
+        { New-ProjectWorldLayerDirtyInput `
+            -ProjectRoot $repoRoot -OutputDirectory $output `
+            -RealizationDocument ([pscustomobject]@{ profile_id = 'synthetic' }) `
+            -LayerDefinitions $definitions -ProducerFingerprints ([ordered]@{}) -ActiveSet $active } |
+            Should -Throw '*do not cover exactly*'
     }
 
     It 'removes only prior layer artifacts omitted by the accepted replacement inventory' {
@@ -194,10 +200,23 @@ Describe 'ProjectWorld exact layer manifests' {
             $candidate.input_identity.runtime_profile_sha256 | Should -Be 'none'
             ($candidate.artifacts | ConvertTo-Json -Depth 6 -Compress) | Should -Be `
                 ($prior.artifacts | ConvertTo-Json -Depth 6 -Compress)
-            Test-ProjectWorldManifestSemanticallyUnchanged `
+            Test-ProjectWorldManifestUnchanged `
                 -PriorManifest $prior -CandidateManifest $candidate `
                 -GeneratorFingerprint $fingerprint -CompareLayerContract | Should -BeTrue
         }
+    }
+
+    It 'refreshes provenance without regeneration on a compile-receipt-only change' {
+        $prior = LayerCandidate 'terrain' 1 $terrainRoot '/ProjectWorldTestData/Generated/Twin/Terrain/'
+        $identity.compile_result_sha256 = ('e' * 64)
+        $candidate = LayerCandidate 'terrain' 2 $terrainRoot '/ProjectWorldTestData/Generated/Twin/Terrain/'
+
+        ($candidate.artifacts | ConvertTo-Json -Depth 6 -Compress) | Should -Be `
+            ($prior.artifacts | ConvertTo-Json -Depth 6 -Compress)
+        $candidate.input_identity.compile_result_sha256 | Should -Be ('e' * 64)
+        Test-ProjectWorldManifestUnchanged `
+            -PriorManifest $prior -CandidateManifest $candidate `
+            -GeneratorFingerprint $fingerprint -CompareLayerContract | Should -BeFalse
     }
 
     It 'namespaces wrapper layer scopes by realization profile before mutation' {
@@ -237,7 +256,7 @@ Describe 'ProjectWorld exact layer manifests' {
         $resolved.ScopePaths['layer_synthetic_two_terrain'].Count | Should -Be 1
     }
 
-    It 'rejects broad roots and unregistered executable tuples before mutation' {
+    It 'rejects a broad generated layer root before mutation' {
         $roots = [pscustomobject]@{
             ContentRoot = $contentRoot
             MountRoot = '/ProjectWorldTestData/'
@@ -245,159 +264,13 @@ Describe 'ProjectWorld exact layer manifests' {
         }
         $layer = [pscustomobject]@{
             layer_id = 'terrain'
-            layer_kind = 'generated_geography'
-            generator_id = 'project_mesh_terrain'
-            generator_version = 1
-            canonical_selectors = @('terrain')
             artifact_root = '/ProjectWorldTestData/Generated/'
-            spatial_ownership = 'compiled_sections_from_canonical_cells'
-            dirty_granularity = 'canonical_cell'
-            dependency_halo_cells = 0
-            runtime_mapping = 'world_partition_spatial'
-            settings = [pscustomobject]@{
-                shared_definition = '/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1'
-                surface_contract_id = 'terrain_surface_semantics'
-                surface_contract_version = 1
-                section_max_complexity = 2048
-                channel_texel_size_cm = 3000
-                channel_texture_max_dimension = 4096
-                collision = 'complex_as_simple'
-                render_variants = @('nanite', 'fallback')
-            }
         }
         $document = [pscustomobject]@{ profile_id = 'synthetic_two'; layers = @($layer) }
         {
             Resolve-ProjectWorldRealizationLayers `
                 -RealizationDocument $document -WorldDataRoots $roots
         } | Should -Throw '*invalid or duplicate owned root*'
-
-        $layer.artifact_root = '/ProjectWorldTestData/Generated/Twin/Terrain/'
-        $layer.spatial_ownership = 'cell_local'
-        {
-            Resolve-ProjectWorldRealizationLayers `
-                -RealizationDocument $document -WorldDataRoots $roots
-        } | Should -Throw '*registered executable tuple*'
-    }
-
-    It 'admits only the exact registered solid Water tuple' {
-        $layer = [pscustomobject]@{
-            layer_id = 'water'
-            layer_kind = 'generated_geography'
-            generator_id = 'project_water_mesh'
-            generator_version = 1
-            canonical_selectors = @('water')
-            spatial_ownership = 'cell_local'
-            dirty_granularity = 'canonical_cell'
-            runtime_mapping = 'world_partition_spatial'
-            settings = [pscustomobject]@{
-                material_shading_model = 'solid_opaque'
-                surface_offset_m = 0.25
-                nanite = $false
-            }
-        }
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
-
-        $layer.settings | Add-Member -NotePropertyName unexpected -NotePropertyValue $true
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
-            Should -Throw '*registered executable tuple*'
-    }
-
-    It 'admits only the exact registered vegetation tuple' {
-        $layer = [pscustomobject]@{
-            layer_id = 'vegetation'
-            layer_kind = 'generated_geography'
-            generator_id = 'project_vegetation_instances'
-            generator_version = 1
-			depends_on = @('terrain', 'water', 'roads')
-            canonical_selectors = @('vegetation')
-            spatial_ownership = 'cell_local'
-            dirty_granularity = 'canonical_cell'
-            dependency_halo_cells = 0
-            runtime_mapping = 'world_partition_spatial'
-            settings = [pscustomobject]@{
-                mesh_assets = @('/ProjectObject/Nature/SM_Tree.SM_Tree')
-                area_spacing_m = 45.0
-                area_jitter_fraction = 0.35
-                minimum_scale = 0.85
-                maximum_scale = 1.15
-                maximum_instances_per_cell = 1024
-                deterministic_seed = 31052026
-                surface_offset_m = 0.0
-                nanite = $true
-                collision = 'no_collision'
-                placement_policy = 'canonical_points_and_lattice_areas'
-            }
-        }
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
-
-        $layer.settings.placement_policy = 'unregistered'
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
-            Should -Throw '*registered executable tuple*'
-    }
-
-    It 'admits only the exact registered building massing tuple' {
-        $layer = [pscustomobject]@{
-            layer_id = 'buildings'
-            layer_kind = 'generated_geography'
-            generator_id = 'project_building_massing'
-            generator_version = 1
-            depends_on = @('terrain')
-            canonical_selectors = @('buildings')
-            spatial_ownership = 'cell_local'
-            dirty_granularity = 'canonical_cell'
-            dependency_halo_cells = 0
-            runtime_mapping = 'world_partition_spatial'
-            settings = [pscustomobject]@{
-                maximum_height_m = 300.0
-                terrain_anchor_policy = 'owner_cell_clamped_bounds_center'
-                topology_policy = 'cell_local_classify_v1'
-                duplicate_policy = 'stable_feature_id'
-                contained_policy = 'associate_with_container'
-                conflict_policy = 'reject_affected_fragments'
-                nanite = $true
-                collision = 'complex_as_simple'
-                navigation = 'no_navigation'
-            }
-        }
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
-
-        $layer.generator_version = 2
-        $layer.settings.topology_policy = 'logical_building_classify_v2'
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
-
-        $layer.settings.topology_policy = 'cell_local_classify_v1'
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
-            Should -Throw '*registered executable tuple*'
-        $layer.settings.topology_policy = 'logical_building_classify_v2'
-
-        $layer.settings.conflict_policy = 'keep_both'
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
-            Should -Throw '*registered executable tuple*'
-    }
-
-    It 'admits only the exact registered gameplay placement tuple' {
-        $layer = [pscustomobject]@{
-            layer_id = 'gameplay'
-            layer_kind = 'generated_gameplay_placement'
-            generator_id = 'project_gameplay_placement'
-            generator_version = 1
-            depends_on = @('terrain')
-            canonical_selectors = @('gameplay_placements')
-            spatial_ownership = 'object_local'
-            dirty_granularity = 'object_id'
-            dependency_halo_cells = 0
-            runtime_mapping = 'world_partition_spatial'
-            settings = [pscustomobject]@{
-                placement_source = 'GameplayPlacement/synthetic_twin.json'
-                surface_policy = 'canonical_terrain_snap'
-                runtime_state_policy = 'external_to_generation'
-            }
-        }
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } | Should -Not -Throw
-
-        $layer.settings.runtime_state_policy = 'generated_state'
-        { Assert-ProjectWorldExecutableLayerTuple -Layer $layer } |
-            Should -Throw '*registered executable tuple*'
     }
 
     It 'requires an exact complete commandlet inventory under the layer root' {
@@ -535,30 +408,34 @@ Describe 'ProjectWorld exact layer manifests' {
             -ProjectRoot $projectRoot -ScopeId 'map_twin_l_twin' -Generation 2 `
             -OwningLayer 'map' -OperationId (('7' * 32) -join '') `
             -InputIdentity ([ordered]@{
-                compile_result_sha256 = ('9' * 64)
+                compile_result_sha256 = ('a' * 64)
                 presentation_profile_sha256 = 'none'
                 runtime_profile_sha256 = 'none'
                 map_package = '/ProjectWorldTestData/Generated/Twin/L_Twin'
             }) -ScopePaths @($mapFile) -GeneratorFingerprint $fingerprint
-        Test-ProjectWorldManifestSemanticallyUnchanged `
+        Test-ProjectWorldManifestUnchanged `
             -PriorManifest $firstActive.Manifests['map_twin_l_twin'] `
             -CandidateManifest $noOpMap -GeneratorFingerprint $fingerprint | Should -BeTrue
+        $noOpMap.input_identity.compile_result_sha256 = ('e' * 64)
+        Test-ProjectWorldManifestUnchanged `
+            -PriorManifest $firstActive.Manifests['map_twin_l_twin'] `
+            -CandidateManifest $noOpMap -GeneratorFingerprint $fingerprint | Should -BeFalse
 
         $noOpTerrain = LayerCandidate 'terrain' 2 $terrainRoot '/ProjectWorldTestData/Generated/Twin/Terrain/'
-        $noOpTerrain.input_identity.compile_result_sha256 = ('9' * 64)
-        Test-ProjectWorldManifestSemanticallyUnchanged `
+        $noOpTerrain.input_identity.compile_result_sha256 = ('a' * 64)
+        Test-ProjectWorldManifestUnchanged `
             -PriorManifest $firstActive.Manifests['layer_terrain'] `
             -CandidateManifest $noOpTerrain -GeneratorFingerprint $fingerprint `
             -CompareLayerContract | Should -BeTrue
 
         $noOpTerrain.layer_contract.realization_profile_sha256 = ('f' * 64)
-        Test-ProjectWorldManifestSemanticallyUnchanged `
+        Test-ProjectWorldManifestUnchanged `
             -PriorManifest $firstActive.Manifests['layer_terrain'] `
             -CandidateManifest $noOpTerrain -GeneratorFingerprint $fingerprint `
             -CompareLayerContract | Should -BeTrue
 
         $noOpWater = LayerCandidate 'water' 2 $waterRoot '/ProjectWorldTestData/Generated/Twin/Water/'
-        Test-ProjectWorldManifestSemanticallyUnchanged `
+        Test-ProjectWorldManifestUnchanged `
             -PriorManifest $firstActive.Manifests['layer_water'] `
             -CandidateManifest $noOpWater -GeneratorFingerprint $fingerprint `
             -CompareLayerContract | Should -BeTrue
@@ -607,29 +484,124 @@ Describe 'ProjectWorld exact layer manifests' {
     }
 }
 
-Describe 'ProjectWorld Mesh Terrain audit artifact merge' {
-    It 'runs the Mesh builder only for an accepted Apply result' {
+Describe 'ProjectWorld post-apply builder' {
+    It 'runs a declared builder only for an accepted Apply result' {
         $meshResult = [pscustomobject]@{
             layer_inventories = @([pscustomobject]@{
                 layer_id = 'terrain'
                 generator_id = 'project_mesh_terrain'
+                post_apply_builder = [pscustomobject]@{ inventory_commandlet = 'SomeInventory' }
             })
         }
         $nonMeshResult = [pscustomobject]@{
             layer_inventories = @([pscustomobject]@{
-                layer_id = 'terrain'
+                layer_id = 'another_layer'
                 generator_id = 'project_water_mesh'
+                post_apply_builder = $null
             })
         }
 
-        Test-ProjectWorldMeshTerrainBuildRequired -Mode apply -Result $meshResult |
+        Test-ProjectWorldPostApplyBuildRequired -Mode apply -Result $meshResult |
             Should -BeTrue
-        Test-ProjectWorldMeshTerrainBuildRequired -Mode validate -Result $meshResult |
+        Test-ProjectWorldPostApplyBuildRequired -Mode validate -Result $meshResult |
             Should -BeFalse
-        Test-ProjectWorldMeshTerrainBuildRequired -Mode delete -Result $meshResult |
+        Test-ProjectWorldPostApplyBuildRequired -Mode delete -Result $meshResult |
             Should -BeFalse
-        Test-ProjectWorldMeshTerrainBuildRequired -Mode apply -Result $nonMeshResult |
+        Test-ProjectWorldPostApplyBuildRequired -Mode apply -Result $nonMeshResult |
             Should -BeFalse
+    }
+
+    It 'dispatches a declared inventory, builder, and final inventory in order' {
+        $projectRoot = Join-Path $TestDrive 'generic-builder'
+        $evidenceRoot = Join-Path $projectRoot 'tmp\world\builder-evidence'
+        $relative = 'Plugins/World/ProjectWorldTestData/Content/generated.uasset'
+        $artifactPath = Join-Path $projectRoot $relative.Replace('/', '\')
+        New-Item -ItemType Directory -Path (Split-Path -Parent $artifactPath), $evidenceRoot -Force | Out-Null
+        Set-Content -LiteralPath $artifactPath -Value 'generated' -NoNewline
+        $fakeEditor = Join-Path $projectRoot 'fake-editor.ps1'
+        $callLog = Join-Path $evidenceRoot 'calls.txt'
+        $env:PROJECT_WORLD_TEST_BUILDER_CALLS = $callLog
+        $env:PROJECT_WORLD_TEST_BUILDER_ARTIFACT = $relative
+        $fakeSource = @'
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+$global:LASTEXITCODE = 0
+$commandlet = @($Arguments | Where-Object { $_ -like '-run=*' })[0]
+Add-Content -LiteralPath $env:PROJECT_WORLD_TEST_BUILDER_CALLS -Value $commandlet
+$resultArgument = @($Arguments | Where-Object { $_ -like '-Result=*' })
+if ($resultArgument.Count -gt 0) {
+    $resultPath = $resultArgument[0].Substring(8)
+    $map = @($Arguments | Where-Object { $_ -like '-Map=*' })[0].Substring(5)
+    $receipt = @{
+        schema = 'probe-inventory:v1'
+        map = $map
+        status = 'accepted'
+        builder_artifacts = @(@{
+            path = $env:PROJECT_WORLD_TEST_BUILDER_ARTIFACT
+            kind = 'external_actor'
+        })
+    }
+    $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $resultPath
+}
+'@
+        Set-Content -LiteralPath $fakeEditor -Value $fakeSource
+        $inventory = [pscustomobject]@{
+            layer_id = 'probe'
+            artifacts = @()
+            post_apply_builder = [pscustomobject]@{
+                inventory_commandlet = 'ProbeInventory'
+                inventory_arguments = @('-AllowCommandletRendering')
+                inventory_schema = 'probe-inventory:v1'
+                builder_commandlet = 'ProbeBuilder'
+                builder_arguments = @('-Builder=Probe')
+            }
+        }
+        $result = [pscustomobject]@{ layer_inventories = @($inventory) }
+        try {
+            Invoke-ProjectWorldPostApplyBuilders -EditorCommand $fakeEditor `
+                -ProjectFile 'Project.uproject' -ProjectRoot $projectRoot `
+                -MapPackage '/ProjectWorldTestData/Generated/L_Probe' `
+                -CompileResult 'compile.json' -EvidenceDirectory $evidenceRoot -Result $result
+            @(Get-Content -LiteralPath $callLog) | Should -Be @(
+                '-run=ProbeInventory', '-run=ProbeBuilder', '-run=ProbeInventory')
+            @($inventory.artifacts).Count | Should -Be 1
+            $inventory.artifacts[0].path | Should -Be $relative
+        }
+        finally {
+            Remove-Item Env:PROJECT_WORLD_TEST_BUILDER_CALLS -ErrorAction SilentlyContinue
+            Remove-Item Env:PROJECT_WORLD_TEST_BUILDER_ARTIFACT -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'rejects an unsafe declared argument before starting the editor' {
+        $inventory = [pscustomobject]@{
+            layer_id = 'probe'
+            artifacts = @()
+            post_apply_builder = [pscustomobject]@{
+                inventory_commandlet = 'ProbeInventory'
+                inventory_arguments = @('-Good', ';Remove-Item')
+                inventory_schema = 'probe-inventory:v1'
+                builder_commandlet = 'ProbeBuilder'
+                builder_arguments = @('-Builder=Probe')
+            }
+        }
+        $safe = [pscustomobject]@{
+            layer_id = 'safe'
+            artifacts = @()
+            post_apply_builder = [pscustomobject]@{
+                inventory_commandlet = 'ProbeInventory'
+                inventory_arguments = @('-Good')
+                inventory_schema = 'probe-inventory:v1'
+                builder_commandlet = 'ProbeBuilder'
+                builder_arguments = @('-Builder=Probe')
+            }
+        }
+        $result = [pscustomobject]@{ layer_inventories = @($safe, $inventory) }
+        {
+            Invoke-ProjectWorldPostApplyBuilders -EditorCommand 'missing-editor' `
+                -ProjectFile 'Project.uproject' -ProjectRoot $TestDrive `
+                -MapPackage '/ProjectWorldTestData/Generated/L_Probe' `
+                -CompileResult 'compile.json' -EvidenceDirectory $TestDrive -Result $result
+        } | Should -Throw '*Unsafe post-apply builder argument*'
     }
 
     It 'accepts a compiled section already present in the terrain inventory' {
@@ -646,9 +618,9 @@ Describe 'ProjectWorld Mesh Terrain audit artifact merge' {
             digest = $digest
         })
 
-        $merged = @(Merge-ProjectWorldMeshTerrainAuditArtifacts `
-            -TerrainArtifacts $inventory `
-            -Sections @([pscustomobject]@{ artifact_path = $relative }) `
+        $merged = @(Merge-ProjectWorldPostApplyArtifacts `
+            -LayerArtifacts $inventory `
+            -BuilderArtifacts @([pscustomobject]@{ path = $relative; kind = 'external_actor' }) `
             -ProjectRoot $projectRoot)
 
         $merged.Count | Should -Be 1
@@ -663,14 +635,14 @@ Describe 'ProjectWorld Mesh Terrain audit artifact merge' {
         New-Item -ItemType Directory -Path (Split-Path -Parent $artifact) -Force | Out-Null
         Set-Content -LiteralPath $artifact -Value 'compiled-section' -NoNewline
         $sections = @(
-            [pscustomobject]@{ artifact_path = $relative },
-            [pscustomobject]@{ artifact_path = $relative }
+            [pscustomobject]@{ path = $relative; kind = 'external_actor' },
+            [pscustomobject]@{ path = $relative; kind = 'external_actor' }
         )
 
         {
-            Merge-ProjectWorldMeshTerrainAuditArtifacts `
-                -TerrainArtifacts @() -Sections $sections -ProjectRoot $projectRoot
-        } | Should -Throw '*invalid or duplicate artifact path*'
+            Merge-ProjectWorldPostApplyArtifacts `
+                -LayerArtifacts @() -BuilderArtifacts $sections -ProjectRoot $projectRoot
+        } | Should -Throw '*invalid or duplicate artifact*'
     }
 
     It 'replaces prior compiled sections but still rejects a missing authoring artifact' {
@@ -687,17 +659,17 @@ Describe 'ProjectWorld Mesh Terrain audit artifact merge' {
             [pscustomobject]@{ path = $_; kind = 'external_actor'; digest_kind = 'sha256'; digest = 'prior' }
         }
         $arguments = @{
-            TerrainArtifacts = $inventory
-            PriorSections = @([pscustomobject]@{ artifact_path = $oldSection })
-            Sections = @([pscustomobject]@{ artifact_path = $newSection })
+            LayerArtifacts = $inventory
+            PriorBuilderArtifacts = @([pscustomobject]@{ path = $oldSection; kind = 'external_actor' })
+            BuilderArtifacts = @([pscustomobject]@{ path = $newSection; kind = 'external_actor' })
             ProjectRoot = $projectRoot
         }
 
-        $merged = @(Merge-ProjectWorldMeshTerrainAuditArtifacts @arguments)
+        $merged = @(Merge-ProjectWorldPostApplyArtifacts @arguments)
         @($merged.path) | Should -Be @($authoring, $newSection)
 
         Remove-Item -LiteralPath (Join-Path $projectRoot $authoring.Replace('/', '\')) -Force
-        { Merge-ProjectWorldMeshTerrainAuditArtifacts @arguments } |
-            Should -Throw '*removed a declared terrain artifact*'
+        { Merge-ProjectWorldPostApplyArtifacts @arguments } |
+            Should -Throw '*removed a declared layer artifact*'
     }
 }

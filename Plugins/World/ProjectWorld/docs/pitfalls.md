@@ -202,7 +202,7 @@ participate in an exact shared-boundary seam.
 **Regression tests.**
 `GeometryAuthorityTests.test_polygon_suppressed_river_tails_need_no_false_shared_seam`
 `GeometryAuthorityTests.test_disconnected_cross_cell_road_still_fails_closed`,
-and `LandscapeWaterTwinTests`.
+and `TerritoryTwinTests`.
 
 ---
 
@@ -224,7 +224,7 @@ GeometryCore/GeometryAlgorithms MeshDescription adapter.
 
 **Regression tests.**
 `Project.World.Realization.NativeTwin.WaterCanonicalContract` and
-`LandscapeWaterTwinTests`.
+`TerritoryTwinTests`.
 
 ---
 
@@ -281,8 +281,9 @@ presence with descriptors before ever reaching for a screenshot.
 
 **File.** `tools/World/VisualVerification/app/{census,plan_vantages}.py`.
 
-**Regression test.** `plan_vantages` solves the overview altitude from measured
-proxy bounds, so an authored constant cannot reintroduce the framing failure.
+**Regression test.** `plan_vantages` solves the overview altitude from the
+bounds of the descriptors carrying the terrain runtime role, so an authored
+constant cannot reintroduce the framing failure.
 The former `Project.World.Realization.Territory.VisualSweep` automation test
 that first carried this solve was REMOVED - it ran inside
 `Automation RunTests`, where the screenshot gates below make evidence capture
@@ -308,14 +309,16 @@ wp.Editor.DumpActorDescs <repo>/tmp/world/visual_verification/actor_descs.csv
 python tools/World/VisualVerification/app/census.py <csv> <receipt.json>
 ```
 
-Full 210-cell census in milliseconds: per-class counts, spatial-loading flags,
-bounds, extent, relief, lighting set. No rendering, no editor build. Run this
-BEFORE any visual step. Note the dump is space-delimited `key:value`, not real
-CSV, and always-loaded actors (e.g. `DirectionalLight`) carry
-`IsValid=false` with no `Min`/`Max`, so bounds must be parsed optionally or
-those rows vanish and the lighting check falsely fails.
+A whole-territory census in milliseconds: terrain and water presence by the
+runtime roles in the descriptor `Tags`, spatial-loading flags, bounds, extent,
+relief, lighting set. No rendering, no editor build. Run this BEFORE any visual
+step. Note the dump is space-delimited `key:value`, not real CSV, and
+always-loaded actors (e.g. `DirectionalLight`) carry `IsValid=false` with no
+`Min`/`Max`, so bounds must be parsed optionally or those rows vanish and the
+lighting check falsely fails.
 
-**File.** `tools/World/VisualVerification/app/census.py`.
+**File.** `tools/World/VisualVerification/app/actor_descriptors.py` (dump
+format), `census.py`.
 
 ---
 
@@ -517,12 +520,11 @@ failure class.
 ## 17. An empty recovery journal is not metadata-only
 
 **Symptom.** A metadata-only manifest publication fails before commit. Running
-the supported transaction recovery removes an existing generated map and the
-shared presentation root even though the attempted operation never edited
-content.
+the supported transaction recovery removes an existing generated map even
+though the attempted operation never edited content.
 
 **Root cause.** Generated-content recovery always removes the journal's map
-and presentation paths before replaying `snapshot_records`. An empty record
+paths before replaying `snapshot_records`. An empty record
 set means those paths were initially absent; it does not mean "do not touch
 content." Writing an `apply` journal with an existing map but no real snapshot
 therefore makes recovery correctly restore the wrong declared state.
@@ -539,7 +541,7 @@ an empty record set for existing content.
 
 **Regression test.**
 `scripts/ue/world/test/generated_content_transaction.Tests.ps1` proves both
-directions: existing map/presentation bytes are restored from real snapshot
+directions: existing map bytes are restored from real snapshot
 records, while an initially absent target is removed when the record set is
 empty.
 
@@ -600,13 +602,14 @@ origin instead of occupying their canonical cells.
 The generated HISM root was registered at identity, so the external package
 owned no durable cell origin. A second lifecycle defect hid attempted fixes:
 whole-layer producer drift reused actors when their old semantic tag matched,
-allowing a new producer fingerprint to advance without rebuilding old bytes.
+allowing a new producer fingerprint to advance without refreshing old bytes.
 
 **Fix.** Assign the canonical cell origin to the new HISM root before component
-registration. A whole-layer dirty marker must bypass per-actor semantic reuse.
-The wrapper adds that marker whenever an accepted layer manifest carries a
-stale producer fingerprint, so implementation changes reconstruct their layer
-before new authority can be published.
+registration. A stale producer fingerprint marks only its own layer
+identity-dirty. The producer checks that identity during actor reuse; content
+dirty units still propagate only from changed canonical or profile inputs.
+An output implementation change requires the owning descriptor's output
+revision to advance and its verify baseline to be re-recorded.
 
 **File.**
 `Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldVegetationRealization.cpp`.
@@ -615,7 +618,8 @@ before new authority can be published.
 `Project.World.Realization.Vegetation.RetirementPersistence` requires the root
 to own the canonical cell origin and proves whole-layer producer refreshes
 rewrite unchanged cell semantics. `generated_layer_manifest.Tests.ps1`
-requires stale producer fingerprints to inject whole-layer dirty work. Live
+requires stale producer fingerprints to mark only their own layer
+identity-dirty. Live
 editor evidence compares vegetation and road actors for the same cell identity
 after save and reload.
 
@@ -658,8 +662,9 @@ After that was corrected, the realization profile compiler still included
 contract. The first locality harness changed only the `-RuntimeProfile`
 argument, not the realization SOT field, so it produced a false green result.
 
-**Fix.** Fingerprint runtime partition realization only in the map producer,
-exclude evidence hosts from byte-producer fingerprints, and record `none` as
+**Fix.** The map's output revision and profile input identity own runtime
+partition changes; producer fingerprints exclude source and evidence-host text.
+Record `none` as
 the runtime identity of every geography/gameplay layer. Keep the full
 realization execution hash for the map, but derive layer contracts from a
 second execution identity that excludes `runtime_profile_id`. Exercise copied
@@ -671,7 +676,7 @@ one-time honest layer reconstruction before claiming locality.
 `scripts/ue/world/realization_layer_operation.ps1`, and
 `scripts/ue/world/test/integration/runtime_profile_locality.ps1`.
 
-**Regression test.** `generator_fingerprint.Tests.ps1` proves source locality;
+**Regression test.** `generator_fingerprint.Tests.ps1` proves revision and data-input locality;
 `generated_layer_manifest.Tests.ps1` proves semantic stability; the production
 `runtime_profile_locality.ps1` integration changes the copied realization SOT
 `512/1536 -> 128/768 -> 512/1536` while requiring all six manifest entries and
@@ -742,12 +747,12 @@ semantic ownership, collision, and presentation are unchanged. Editing only the 
 evidence serializer can also stale every active geography producer fingerprint.
 
 **Root cause.** `ProjectWorld.Input=<compile receipt hash>` was included in the product
-semantic fingerprint, and the evidence serializer was included in the shared generated-
-byte producer source set. Both are evidence/provenance surfaces, not generated content.
+semantic fingerprint, and the evidence serializer was included in the former
+generated-byte source hash. Both are evidence/provenance surfaces, not generated content.
 
 **Fix.** Exclude only the compile-receipt provenance tag from D3 while retaining cell,
-grid, geometry, and other semantic tags. Keep the semantic-evidence serializer outside
-all generated-byte producer fingerprints. A content-identical incremental compile may
+grid, geometry, and other semantic tags. Producer identity now uses declared
+revisions and data inputs, not evidence serializer source. A content-identical incremental compile may
 advance provenance without claiming a different realized World.
 
 **File.** `ProjectWorldSemanticEvidence.cpp` and
@@ -828,22 +833,26 @@ the same source can land near a usable facade and pass, so an ordinary package G
 not explain the variance.
 
 **Root cause.** The broad traversal arrival radius is appropriate for streamed territory
-waypoints, but using the same 250 m radius for the final center return allows descent far
-from the intended collision-proof area. Trying unrelated lateral keys only measures
-arbitrary horizontal escape and weakens the meaning of "forward input slid along a
-blocking surface."
+waypoints, but a loose final center return can descend in a dense collision pocket. Even
+25 m leaves Manhattan's origin-side return far enough from the intended collision-proof
+area to record zero forward slide. Trying unrelated lateral keys only measures arbitrary
+horizontal escape and weakens the meaning of "forward input slid along a blocking surface."
 
-**Fix.** Keep the broad radius for territory traversal and use the focused 25 m radius
-only for the final center return. Preserve one forward `W` slide after blocked descent;
-do not add direction retries as a substitute for deterministic arrival.
+**Fix.** Keep the broad radius for territory traversal and the default 25 m final
+return for Kazan. The Manhattan operation explicitly selects a 5 m final return;
+the receipt records that radius. Preserve one forward `W` slide after blocked
+descent; do not add direction retries as a substitute for deterministic arrival.
 
 **File.**
-`Source/ProjectWorld/Private/Presentation/ProjectWorldPlayableTourDriver.cpp`.
+`Source/ProjectWorld/Private/Presentation/ProjectWorldPlayableTourDriver.cpp` and
+`scripts/ue/world/test/performance/run_manhattan_showcase_prototype.ps1`.
 
 **Regression test.**
-The exact packaged Development product gate must record a forward collision slide of at
-least 1 m after center return, while preserving the real-input, collision, streaming, and
-performance receipts in the same process.
+The permanent [uncooked gameplay admission](../../../../scripts/ue/world/README.md#uncooked-gameplay-admission)
+must prove real return, descent and forward slide on both production maps before
+requesting a frozen release. Final packaged Development still re-proves at least
+1 m of slide and authenticates real input, collision, streaming and performance
+in the same process. The Manhattan wrapper rejects missing slide/input proof.
 
 ---
 
@@ -959,7 +968,7 @@ scope and excluded paths in aggregate/composite evidence.
 `performance_aggregate.Tests.ps1` proves that runtime-state writes preserve the payload
 digest while an executable-byte change moves it.
 
-## 33. Producer fingerprints must not depend on text line endings
+## 33. Producer fingerprints must not depend on source line endings
 
 **Symptom.** Generated artifacts and manifest hashes are byte-identical, but a clean
 public clone rejects every active World scope as produced by different source.
@@ -968,17 +977,18 @@ public clone rejects every active World scope as produced by different source.
 Windows generation checkout used CRLF while the public Git projection used LF, so the
 same C++, PowerShell, and JSON semantics acquired different producer identities.
 
-**Fix.** Canonicalize text inputs to LF before hashing. Continue to hash Unreal assets,
-maps, and archives byte-for-byte. Advance the fingerprint envelope version and use the
-existing metadata-only manifest migration only after proving every declared producer
-input is semantically identical and every owned artifact remains byte-identical.
+**Fix.** Fingerprint declared output and pipeline revisions, engine build identity,
+and declared data inputs. JSON data inputs normalize line endings to LF; binary
+inputs hash byte-for-byte. A source edit alone does not alter producer identity.
+Use the metadata-only formula migration only after every producer verify matches
+its accepted baseline and the audit reports fingerprint currency as the sole drift.
 
 **Files.**
 `scripts/ue/world/generator_fingerprint.ps1` and generated World manifests.
 
 **Regression test.**
-`generator_fingerprint.Tests.ps1` proves CRLF/LF stability and proves a real text edit
-still moves the owning producer fingerprint.
+`generator_fingerprint.Tests.ps1` proves source-edit stability and that a revision
+bump or declared data-input edit moves only the owning producer fingerprint.
 
 ## 34. A terrain-only spawn trace can place the player inside valid geometry
 
@@ -1028,24 +1038,283 @@ one-sided; two-sided rendering is only a diagnostic discriminator.
 `Project.World.Realization.MeshTerrain.RendererFacingWinding` checks the rendered-face
 cross products and includes the former order as a known-bad control.
 
-## 36. Mesh Terrain reuse must include adapter implementation identity
+## 36. Mesh Terrain reuse must include declared producer identity
 
 **Symptom.** A Mesh Terrain adapter fix compiles and the canonical input and material
 path are unchanged, but realization reports a no-op and retains stale generated mesh
 packages.
 
-**Root cause.** Base-layer reuse compared only canonical input, engine compatibility,
-and material identity. It omitted the adapter compiler fingerprint, so implementation
-changes could authenticate old geometry.
+**Root cause.** Base-layer reuse compared only canonical input and material
+identity. A declared output revision could then advance over old geometry.
 
-**Fix.** Include `ProjectWorld.MeshTerrain.AdapterCompiler` in the base actor identity,
-layout receipt, artifact semantic hash, and reuse comparison. A changed adapter
-fingerprint invalidates realization; an unchanged fingerprint remains a no-op.
+**Fix.** Include `ProjectWorld.MeshTerrain.Producer` in base actor identity and
+reuse comparison. It carries the declared Mesh Terrain output revision, shared
+pipeline revision, engine build identity, and data-input digests. Refresh an
+identity-dirty layer without propagating a content dirty unit to dependents;
+keep the layout receipt's consumed ABI independent of this provenance.
 
 **Files.**
 `Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp`
 and `ProjectWorldMeshTerrainLayoutReceipt.cpp`.
 
 **Regression test.**
-`Project.World.Realization.MeshTerrain.BaseIdentity` rejects stale material or adapter
-identity while accepting an exact match.
+`Project.World.Realization.MeshTerrain.BaseIdentity` rejects stale material or
+producer identity while accepting an exact match.
+
+---
+
+## 37. A settled compile queue does not prove Mesh Terrain is drawn
+
+**Symptom.** An unattended Kazan evidence capture returns an accepted receipt
+whose PNGs show buildings and water but no terrain. A session that keeps the
+editor running longer draws the terrain.
+
+**Root cause.** An Editor world never loads the runtime-only compiled sections.
+It draws preview sections that MeshPartition builds asynchronously after the
+base actors load and register with the partition's editor component. That build
+is not an asset compilation, so the three-frame compile wait of entry 16 passed
+before the build finished and before any preview section existed. Registration
+itself lags loading by a tick: for one frame all base modifiers are loaded and
+none is registered.
+
+**Fix.** The capture also waits for every registered evidence subject to be
+drawn. ProjectWorldEditor declares `IProjectWorldEvidenceSubject` as a modular
+feature; the Mesh Terrain adapter reports the loaded base modifiers aimed at
+its partition, those whose preview section is visible in the editor, and active
+preview builds, and counts a partition without any loaded base modifier as one
+undrawn unit. A frame where a present subject expects no unit, misses a drawn
+unit, or has a pending build resets the ready count; a subject never drawn
+rejects the receipt at the existing timeout with its counts in `message`.
+
+**Files.** `ProjectWorldEditorModule.cpp`, `ProjectWorldEvidenceReadiness.h`,
+`Public/ProjectWorldEvidenceSubject.h`, and the
+`ProjectWorldMeshTerrainEvidence` module of ProjectWorldMeshTerrain.
+
+**Regression test.** `Project.World.Evidence.SubjectDecision` pins the
+count-to-decision rule, `Project.World.Evidence.ReadinessContract` pins the
+reset on an undrawn frame, and `Project.World.MeshTerrain.EvidenceSubjectRegistered`
+pins the adapter registration. The rendered gate is the
+`capture_visual_evidence.ps1` route itself.
+
+---
+
+## 38. Output changes require a producer revision and verify baseline
+
+**Symptom.** A source edit changes saved generated geometry while the manifest
+producer fingerprint remains current.
+
+**Root cause.** Source files are intentionally outside the fingerprint. A
+changed output without an output-revision bump has no declared identity change.
+
+**Fix.** Bump the owning descriptor's output revision, re-record its verify
+baseline, and run the output sabotage. Shared realization changes bump the
+pipeline revision and re-record every affected baseline.
+
+**Files.** The owning `Data/Producers/` descriptor and
+`Data/TestFixtures/Verify/` baseline.
+
+**Regression test.** The producer's `Project.World.Realization.Verify.*` test
+compares saved output to its recorded projection; BaselineRules rejects an
+unchanged verification identity with changed projection.
+
+---
+
+## 39. Mesh Partition builder must ignore stale Asset Registry cache in an isolated Matrix
+
+**Symptom.** A canonical-authority Kazan Matrix realizes a fresh World
+Partition map, but the Mesh Partition post-apply builder tries to delete old
+compiled-section descriptors whose external actor packages are in the Matrix
+backup. UE 5.8 crashes on a checked cast of the missing actor.
+
+**Root cause.** The first Apply creates a fresh map with zero loaded actor
+references. The separate builder process reads the project Asset Registry
+cache, which can still list compiled sections from the pre-Matrix map. Its
+cleanup path assumes every listed compiled-section package can load.
+
+**Fix.** The Mesh Terrain producer passes UE 5.8's
+`-NoAssetRegistryCache` to `WorldPartitionMeshPartitionBuilder`. The builder
+then discovers current packages from disk. The Matrix still restores the
+exact pre-run generated tree after every outcome.
+
+**Files.** `ProjectWorldMeshTerrainLayerProducer.cpp` and
+`tools/World/EndToEndValidation/app/execution.py` (the canonical-only route
+creates its per-profile receipt directory explicitly).
+
+**Regression test.** The `kazan_territory_v1` canonical-authority Matrix runs
+the post-apply builder on an isolated production map and requires its accepted
+compiled-terrain inventory plus exact generated-tree restoration. The focused
+`TerritoryMatrixContractTests.test_canonical_matrix_reaches_authority_without_source_or_compile`
+also checks canonical-mode work-directory creation.
+
+---
+
+## 40. Fingerprint migration candidates need the staging manifest schema ID
+
+**Symptom.** S5 O4 refuses the first metadata-only fingerprint migration with
+`Manifest schema identity is invalid for its authority root` before publishing
+any candidate. The outer recovery restores both authorities.
+
+**Root cause.** An active manifest stores a schema reference relative to its
+authority root. Prospective candidate validation expects the staging schema
+ID; the migration helper copied the active reference unchanged.
+
+**Fix.** `New-ProjectWorldFingerprintMigrationCandidate` sets the staging
+schema ID after copying the prior document. `Publish-ProjectWorldActiveSet`
+still writes the root-relative schema reference to the immutable manifest.
+
+**Regression test.** `generated_manifest.Tests.ps1` publishes a candidate
+cloned from an enrolled active manifest. The original S5 O4 preflight checked
+12 nonterrain candidates; after finding old building actors, the migration
+limits metadata-only candidates to 10 scopes.
+
+---
+
+## 41. A current building manifest can coexist with old actor tags
+
+**Symptom.** A production Apply reports no dirty building units but tries to
+replace a named building actor and fails to spawn it. The actor has
+`ProjectWorld.BuildingMassing.v1` while the active manifest and realization
+profile declare v2. Its original creation history is unverified.
+
+**Root cause.** The manifest audit authenticates package bytes and metadata;
+it does not inspect the actor's live producer tag. The building pass detects
+the missing v2 output. After retiring the v1 actor, Unreal keeps its UObject
+name reserved until collection, and a spawn requiring that exact name fails.
+
+**Fix.** Treat the affected building scopes as identity-dirty and rebuild them
+during the one-lock S5 migration. The building producer ignores a retired
+named actor and requests a free actor name; live actors with conflicting tags
+still fail. The current v2 tag and cell identity own subsequent discovery.
+
+**Regression test.** `Project.World.Realization.Buildings.SavedStaleRecovery`
+persists a stale actor, detects it through the ownership lifecycle, replaces
+it, reloads, and proves the following Apply writes no actors or meshes.
+`Project.World.Realization.Verify.BuildingRetiredIdentityProjection` keeps
+retired actors visible to saved-output comparison. The 61 historical Kazan
+actor and mesh payload pairs were compared with the repaired saved output:
+all 342 building records matched in placement, geometry, material, collision,
+and other meaningful fields after excluding version tags and allocation IDs.
+
+---
+
+## 42. Realization after isolated reconstruction must ignore stale Asset Registry cache
+
+**Symptom.** A Matrix first Apply reconstructs a production map, but the next
+unchanged Apply sees missing external actor package warnings and attempts to
+rewrite a saved building mesh. The save fails even though the first leg and
+saved-output projections accepted.
+
+**Root cause.** Matrix moves generated packages aside before the first Apply.
+A later Unreal process can read Asset Registry entries from the pre-isolation
+tree. Disabling the cache only for the read-only projection processes leaves
+the realization process exposed.
+
+**Fix.** `realize_canonical_world.ps1` starts the realization commandlet with
+`-NoAssetRegistryCache`, so every leg discovers the current on-disk packages.
+
+**Regression test.** The canonical-authority Kazan Matrix starts with the map
+and layer packages isolated, runs a full first Apply, both saved projections,
+and an unchanged second Apply with zero actor and mesh writes. Its outer
+transaction restores the original generated tree byte for byte.
+
+---
+
+## 43. Numbered navigation actor names can crash Unreal CSV capture
+
+**Symptom.** The packaged Kazan playable-tour product route accepts, then its
+Development performance child exits 3 shortly after CSV capture starts. The
+CSV processing thread asserts at `CsvProfiler.cpp:1623` because an `FName`
+stat ID exceeds its 51-bit mask.
+
+**Root cause.** In the installed UE 5.8.3 source, `NavigationSystem.cpp`
+records `NavTasks`, `NavTasksDelays`, and `NavInvokers` CSV stats using the
+navigation-data actor name. A generated Recast actor name can carry a numeric
+suffix. UE converts the dynamic stat string to `FName`, whose number occupies
+the high bits rejected by the CSV stat register. The failing stat was
+`NumRemainingTasks_RecastNavMesh_UAID_7085C2D2E177660503` with a nonzero
+number field; the live debugger identified the `NavTasks` category.
+
+**Fix.** `Config/DefaultEngine.ini` disables these three engine navigation
+diagnostic CSV categories for the project. The playable-tour gate still records
+the rich CSV and uses its native per-frame consumer for Frame, Game, Render,
+GPU, memory, and streaming acceptance. The product route separately verifies
+navigation and terrain collision. Do not disable the CSV capture or relax the
+performance budget to avoid this engine assertion.
+
+**File.** `Config/DefaultEngine.ini` (`[CsvProfiler]`). The producer is in the
+installed engine's `NavigationSystem.cpp`, not in a World generator.
+
+**Regression test.** The matching pre-fix packaged Development child exited 3
+twice. With the project configuration, the same packaged Kazan product and
+performance route exits 0, both receipts accept, and the CSV and exact raw
+sample files are nonempty. The full three-child playable-tour Candidate gate
+remains the release prerequisite.
+
+---
+
+## 44. An empty vegetation actor must not prove runtime instancing
+
+**Symptom.** A vegetation-tagged generated actor with no static mesh component
+could pass the territory instancing check when other runtime gates passed.
+
+**Root cause.** The scan initialized the instancing result to true and only
+changed it while visiting mesh components. An empty component list left true.
+
+**Fix.** Require at least one mesh component on every vegetation actor and
+require each component to be a nonempty HISM. A selected vegetation layer with
+no vegetation actors also fails; a deliberately vegetation-free projection may
+leave the instancing probe false.
+
+**File.** `Source/ProjectWorldEditor/Private/ProjectWorldTerritoryRuntimeAcceptance.cpp`.
+
+**Regression test.** `Project.World.Realization.Runtime.TerritoryInstancingPolicy`
+covers the selected/present/proof decision table and the empty-actor case.
+
+---
+
+## 45. Upward flight can remain trapped below a building overhang
+
+**Symptom.** Real forward/upward input remains active with zero velocity during
+an obstacle-clearance leg. Repeating the whole release does not clear the trap.
+
+**Root cause.** The capsule meets both a wall and an underside. Forward/upward
+input has no free direction; the previous driver only increased ascent input.
+This was observed in uncooked PIE before final return, independently of the
+packaged final-arrival slide failure in entry 29.
+
+**Fix.** The playable driver's existing obstacle phase sweeps the actual scaled
+capsule upward using its collision channel and responses. A blocking underside
+selects real backward/upward input until clear above the hit plane. The retreat
+has a ten-second bound and retains the existing ascent, leg and tour bounds.
+Clearance, arrival and terminal cleanup release backward input. No physics or
+generated collision is changed.
+
+**File.** `Source/ProjectWorld/Private/Presentation/ProjectWorldPlayableTourDriver.cpp`.
+
+**Regression test.** Exact `Project.World.PlayableTour.OverhangRecovery` uses a
+real physics-world underside and exercises driver input selection, clearance,
+bounded refusal and key cleanup. The real-map proof belongs to
+[uncooked gameplay admission](../../../../scripts/ue/world/README.md#uncooked-gameplay-admission).
+
+---
+
+## 46. PIE match readiness is too late to configure the runtime viewport
+
+**Symptom.** An uncooked gameplay probe refuses 1920x1080 despite requesting
+2560x1440; missing traversal fields can obscure this native startup failure.
+
+**Root cause.** Native PIE startup waits for match readiness. Product graphics
+application can resize the real viewport before that wait completes.
+
+**Fix.** The Editor test maintains its transient render-target dimensions during
+startup and travel, on actual mismatch only. Native acceptance limits and saved
+preferences remain intact. The outer contract reports the first native refusal
+before checking downstream traversal fields. Operational ownership is in
+[uncooked gameplay admission](../../../../scripts/ue/world/README.md#uncooked-gameplay-admission).
+
+**Files.** `Source/ProjectWorldEditor/Private/Tests/ProjectWorldUncookedSessionTest.cpp`
+and `scripts/ue/world/test/integration/uncooked_playable_tour_contract.ps1`.
+
+**Regression tests.** The uncooked receipt fixture requires the native startup
+error code. The actual two-city probe proves render-target correction precedes
+traversal and authenticates both real gameplay receipts.

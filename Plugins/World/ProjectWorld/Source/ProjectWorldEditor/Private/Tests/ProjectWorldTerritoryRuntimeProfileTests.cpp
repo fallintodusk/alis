@@ -3,9 +3,11 @@
 
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimePartitionPolicy.h"
+#include "Tests/ProjectWorldSchemaTestUtilities.h"
 
 #include "Editor.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -51,6 +53,34 @@ bool FProjectWorldTerritoryRuntimeProfileContractTest::RunTest(const FString& Pa
 		TestEqual(TEXT("Candidate starts with a downward overview pitch."),
 			Profile.ProductSpawnPitchDegrees, -20.0);
 	}
+	const FString SourcePath = FPaths::Combine(FPaths::ProjectPluginsDir(),
+		TEXT("World/ProjectWorldTestData/Data/Runtime/synthetic_territory_twin_v1.json"));
+	FString Source;
+	if (!TestTrue(TEXT("The territory fixture is readable."),
+		FFileHelper::LoadFileToString(Source, *SourcePath)))
+	{
+		return false;
+	}
+	const FString RetiredPath = FPaths::Combine(FPaths::ProjectDir(),
+		TEXT("tmp/world/runtime_profile_contract/retired.json"));
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(RetiredPath), true);
+	FString RetiredSource = ProjectWorldSchemaTestUtilities::Rewrite(Source, RetiredPath,
+		TEXT("project_world_runtime_profile.schema.json"));
+	RetiredSource.ReplaceInline(TEXT("\"profile_kind\": \"territory_product\""),
+		TEXT("\"profile_kind\": \"bounded_procedural_route\""));
+	if (!TestTrue(TEXT("The retired route fixture is writable."),
+		FFileHelper::SaveStringToFile(RetiredSource, *RetiredPath)))
+	{
+		return false;
+	}
+	FProjectWorldRuntimeProfile Retired;
+	FString ErrorCode;
+	FString Error;
+	TestFalse(TEXT("The retired bounded route cannot enter product realization."),
+		ProjectWorldRuntimeProfile::Load(RetiredPath, Retired, ErrorCode, Error));
+	TestEqual(TEXT("Retired route rejection is structured."), ErrorCode,
+		FString(TEXT("runtime-profile-contract")));
+	IFileManager::Get().Delete(*RetiredPath, false, true, true);
 	return true;
 }
 

@@ -15,7 +15,9 @@ struct FProjectWorldLayerDirtyInput
 {
 	FString RealizationProfileId;
 	FString InputHash;
+	TMap<FString, FString> ProducerFingerprints;
 	TMap<FString, FProjectWorldLayerBaseIdentity> BaseLayers;
+	TSet<FString> IdentityDirtyLayers;
 	TMap<FString, TSet<FString>> OperatorAdditions;
 };
 

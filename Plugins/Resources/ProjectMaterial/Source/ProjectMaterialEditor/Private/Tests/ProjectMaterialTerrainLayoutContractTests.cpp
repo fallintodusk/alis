@@ -16,7 +16,6 @@ namespace
 	FString MakeReceipt(const bool bCorruptLayout)
 	{
 		const FString SurfaceHash = FString::ChrN(64, TEXT('a'));
-		const FString AdapterHash = FString::ChrN(64, TEXT('b'));
 		const FString DefinitionHash = FString::ChrN(64, TEXT('c'));
 		const FString LayoutPayload = TEXT(
 			"project_mesh_terrain_layout_v1|channels=ground:0,hydro_transition:1|"
@@ -41,11 +40,10 @@ namespace
 		}
 		const FString EngineIdentity = TEXT("5.8.3-test|changelist=1");
 		const FString Payload = FString::Printf(
-			TEXT("project_mesh_terrain_receipt_v1|surface=terrain_surface_semantics:1:%s|")
-			TEXT("adapter=project_mesh_terrain:1:%s|engine=%s|")
+			TEXT("project_mesh_terrain_receipt_v2|surface=terrain_surface_semantics:1:%s|")
+			TEXT("adapter=project_mesh_terrain:1|engine=%s|")
 			TEXT("layout=project_mesh_terrain_channels:1:%s|definition=%s:%s|build=%s"),
 			*SurfaceHash,
-			*AdapterHash,
 			*EngineIdentity,
 			*LayoutHash,
 			TEXT("/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1"),
@@ -54,14 +52,13 @@ namespace
 
 		TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 		Root->SetStringField(TEXT("$schema"), TEXT("../../Data/Schemas/mesh-terrain-layout-receipt.schema.json"));
-		Root->SetNumberField(TEXT("schema_version"), 1);
+		Root->SetNumberField(TEXT("schema_version"), 2);
 		Root->SetStringField(TEXT("receipt_id"), TEXT("project_mesh_terrain_layout"));
 		Root->SetStringField(TEXT("canonical_surface_contract_id"), TEXT("terrain_surface_semantics"));
 		Root->SetNumberField(TEXT("canonical_surface_contract_version"), 1);
 		Root->SetStringField(TEXT("canonical_surface_contract_sha256"), SurfaceHash);
 		Root->SetStringField(TEXT("adapter_id"), TEXT("project_mesh_terrain"));
 		Root->SetNumberField(TEXT("adapter_version"), 1);
-		Root->SetStringField(TEXT("adapter_compiler_sha256"), AdapterHash);
 		Root->SetStringField(TEXT("engine_identity"), EngineIdentity);
 		Root->SetStringField(TEXT("layout_id"), TEXT("project_mesh_terrain_channels"));
 		Root->SetNumberField(TEXT("layout_version"), 1);
@@ -93,6 +90,21 @@ namespace
 		FJsonSerializer::Serialize(Root, Writer);
 		return Json;
 	}
+
+	FString AlterReceipt(const FString& Json, TFunctionRef<void(TSharedRef<FJsonObject>)> Alter)
+	{
+		TSharedPtr<FJsonObject> Root;
+		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+		if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+		{
+			return FString();
+		}
+		Alter(Root.ToSharedRef());
+		FString Changed;
+		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Changed);
+		FJsonSerializer::Serialize(Root.ToSharedRef(), Writer);
+		return Changed;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -111,6 +123,36 @@ bool FProjectMaterialTerrainLayoutContractTest::RunTest(const FString& Parameter
 		Contract.SemanticChannels[TEXT("hydro_transition")], 1);
 	TestFalse(TEXT("Injected layout mismatch fails before generation"),
 		FProjectMaterialTerrainLayoutCompiler::CompileJson(MakeReceipt(true), FString(), Contract, Error));
+	const FString Valid = MakeReceipt(false);
+	const FString Extra = AlterReceipt(Valid, [](TSharedRef<FJsonObject> Root)
+	{
+		Root->SetStringField(TEXT("future_provenance"), TEXT("ignored by layout consumer"));
+	});
+	TestTrue(TEXT("Unconsumed producer provenance is accepted"),
+		FProjectMaterialTerrainLayoutCompiler::CompileJson(Extra, FString(), Contract, Error));
+	const FString BadReceiptHash = AlterReceipt(Valid, [](TSharedRef<FJsonObject> Root)
+	{
+		Root->SetStringField(TEXT("receipt_sha256"), FString::ChrN(64, TEXT('0')));
+	});
+	TestFalse(TEXT("Receipt payload hash is authenticated"),
+		FProjectMaterialTerrainLayoutCompiler::CompileJson(BadReceiptHash, FString(), Contract, Error));
+	const FString BadChannels = AlterReceipt(Valid, [](TSharedRef<FJsonObject> Root)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Channels = nullptr;
+		Root->TryGetArrayField(TEXT("channels"), Channels);
+		(*Channels)[0]->AsObject()->SetNumberField(TEXT("private_channel_index"), 1);
+	});
+	TestFalse(TEXT("Changed private channel mapping is rejected"),
+		FProjectMaterialTerrainLayoutCompiler::CompileJson(BadChannels, FString(), Contract, Error));
+	const FString BadId = AlterReceipt(Valid, [](TSharedRef<FJsonObject> Root)
+	{
+		Root->SetStringField(TEXT("receipt_id"), TEXT("other"));
+	});
+	TestFalse(TEXT("Unexpected receipt id is rejected"),
+		FProjectMaterialTerrainLayoutCompiler::CompileJson(BadId, FString(), Contract, Error));
+	TestFalse(TEXT("Expected layout hash mismatch is rejected"),
+		FProjectMaterialTerrainLayoutCompiler::CompileJson(
+			Valid, FString::ChrN(64, TEXT('0')), Contract, Error));
 	return true;
 }
 

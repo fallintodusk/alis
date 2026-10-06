@@ -56,3 +56,67 @@ Describe 'ProjectWorld operator controls' {
         $history[1].originating_run | Should -Be 'run-2'
     }
 }
+
+Describe 'Production enrollment guard (C8 operator control)' {
+    BeforeAll {
+        $script:Guard = {
+            param([hashtable]$Arguments)
+            Assert-ProjectWorldProductionEnrollmentAllowed @Arguments
+        }
+    }
+
+    It 'refuses unattended ProjectWorldData enrollment into the durable root' {
+        {
+            & $script:Guard @{
+                EnrollManifests = $true; NonInteractive = $true; WorldDataPlugin = 'ProjectWorldData'
+                TargetsDurableAuthority = $true
+            }
+        } | Should -Throw '*Refused: production enrollment*'
+    }
+
+    # The sanctioned L3 command (EndToEndValidation "enroll") runs unattended by
+    # construction, so the boundary is the operator's authorization of this exact
+    # operation, which the switch carries.
+    It 'allows durable enrollment the operator authorized' {
+        {
+            & $script:Guard @{
+                EnrollManifests = $true; NonInteractive = $true; DurableEnrollmentAuthorized = $true
+                WorldDataPlugin = 'ProjectWorldData'; TargetsDurableAuthority = $true
+            }
+        } | Should -Not -Throw
+    }
+
+    It 'allows unattended enrollment into a transient manifest root' {
+        {
+            & $script:Guard @{
+                EnrollManifests = $true; NonInteractive = $true; WorldDataPlugin = 'ProjectWorldData'
+                TargetsDurableAuthority = $false
+            }
+        } | Should -Not -Throw
+    }
+
+    It 'allows unattended ProjectWorldTestData enrollment' {
+        {
+            & $script:Guard @{
+                EnrollManifests = $true; NonInteractive = $true; WorldDataPlugin = 'ProjectWorldTestData'
+                TargetsDurableAuthority = $true
+            }
+        } | Should -Not -Throw
+    }
+
+    It 'allows attended ProjectWorldData enrollment' {
+        {
+            & $script:Guard @{
+                EnrollManifests = $true; WorldDataPlugin = 'ProjectWorldData'; TargetsDurableAuthority = $true
+            }
+        } | Should -Not -Throw
+    }
+
+    It 'allows unattended Apply without enrollment' {
+        {
+            & $script:Guard @{
+                NonInteractive = $true; WorldDataPlugin = 'ProjectWorldData'; TargetsDurableAuthority = $true
+            }
+        } | Should -Not -Throw
+    }
+}

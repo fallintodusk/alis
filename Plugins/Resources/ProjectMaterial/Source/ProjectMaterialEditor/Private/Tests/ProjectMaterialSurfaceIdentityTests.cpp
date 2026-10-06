@@ -39,18 +39,12 @@ FProjectMaterialPatternDependency Pattern(const TCHAR* Contract, const TCHAR* Ob
 	return Dependency;
 }
 
-// The receipt identity covers the canonical surface contract hash, adapter fingerprint, engine
-// identity, MPD bytes, build policy, and the channel layout, so it changes with any of them.
 FProjectMaterialTerrainLayoutContract Layout(TCHAR LayoutHash, TCHAR Provenance)
 {
 	FProjectMaterialTerrainLayoutContract Contract;
 	Contract.LayoutId = TEXT("project_mesh_terrain_channels");
 	Contract.LayoutVersion = 1;
 	Contract.LayoutSha256 = FString::ChrN(64, LayoutHash);
-	Contract.AdapterCompilerSha256 = FString::ChrN(64, Provenance);
-	Contract.SharedDefinitionPackageSha256 = FString::ChrN(64, Provenance);
-	Contract.BuildPolicySha256 = FString::ChrN(64, Provenance);
-	Contract.EngineIdentity = FString::Printf(TEXT("5.8|changelist=%c"), Provenance);
 	Contract.ReceiptSha256 = FString::ChrN(32, LayoutHash) + FString::ChrN(32, Provenance);
 	Contract.SemanticChannels = {{TEXT("ground"), 0}, {TEXT("hydro_transition"), 1}};
 	return Contract;
@@ -84,7 +78,7 @@ bool FProjectMaterialSurfaceIdentityFirewallTest::RunTest(const FString& Paramet
 	TestFalse(TEXT("A changed pattern object path changes the material identity."),
 		Identity(Pattern(Contract, TEXT("/ProjectTexture/Patterns/Terrain/DA_Other.RT_Other"), TEXT('b')),
 			Layout(TEXT('1'), TEXT('e'))) == Accepted);
-	TestEqual(TEXT("Adapter, engine, MPD, or build-policy provenance alone leaves the terrain identity unchanged."),
+	TestEqual(TEXT("Receipt provenance alone leaves the terrain identity unchanged."),
 		Identity(Pattern(Contract, PatternPath, TEXT('b')), Layout(TEXT('1'), TEXT('9'))), Accepted);
 	TestFalse(TEXT("A changed channel layout changes the terrain material identity."),
 		Identity(Pattern(Contract, PatternPath, TEXT('b')), Layout(TEXT('2'), TEXT('e'))) == Accepted);

@@ -17,6 +17,11 @@
       "Name": "ProjectWorldMeshTerrainEditor",
       "Type": "Editor",
       "LoadingPhase": "Default"
+    },
+    {
+      "Name": "ProjectWorldMeshTerrainEvidence",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
     }
   ],
   "Plugins": [

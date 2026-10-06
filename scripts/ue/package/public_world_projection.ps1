@@ -52,6 +52,75 @@ function Convert-ProjectWorldPackageRootToContentPath {
     return Join-Path $ContentRoot $Matches[1].Replace('/', [IO.Path]::DirectorySeparatorChar)
 }
 
+function Get-ProjectWorldPublicProducerInputs {
+    param([Parameter(Mandatory = $true)][string]$ProjectRoot)
+
+    $inputs = [Collections.Generic.List[string]]::new()
+    foreach ($category in Get-ChildItem -LiteralPath (Join-Path $ProjectRoot 'Plugins') -Directory) {
+        foreach ($plugin in Get-ChildItem -LiteralPath $category.FullName -Directory) {
+            $directory = Join-Path $plugin.FullName 'Data\Producers'
+            if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
+            foreach ($descriptor in Get-ChildItem -LiteralPath $directory -File -Filter '*.json') {
+                $document = Get-Content -LiteralPath $descriptor.FullName -Raw | ConvertFrom-Json
+                if ([string]$document.kind -cne 'producer') { continue }
+                foreach ($input in @($document.data_inputs)) {
+                    if ($input -isnot [string] -or
+                        $input -cnotmatch '^Plugins/[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)+\.(uasset|umap|json)$') {
+                        throw "Invalid public World producer input in $($descriptor.FullName): $input"
+                    }
+                    $inputs.Add($input)
+                }
+            }
+        }
+    }
+    return @($inputs | Sort-Object -Unique)
+}
+
+function Resolve-ProjectWorldPublicRuntimeProfile {
+    param(
+        [Parameter(Mandatory = $true)][string]$DataRoot,
+        [Parameter(Mandatory = $true)][object]$RealizationProfile
+    )
+
+    $profileId = [string]$RealizationProfile.runtime_profile_id
+    if ($profileId -ceq 'none') { return '' }
+    if ($profileId -cnotmatch '^[a-z0-9_]+$') {
+        throw "Invalid public World runtime profile ID: $profileId"
+    }
+    $path = Join-Path $DataRoot "Runtime\$profileId.json"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Pinned public World runtime profile is missing: $path"
+    }
+    $runtime = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+    if ([string]$runtime.profile_id -cne $profileId) {
+        throw "Pinned public World runtime profile identity drift: $path"
+    }
+    return $path
+}
+
+function Get-ProjectWorldPublicRealizationFailure {
+    param(
+        [Parameter(Mandatory = $true)][string]$WorldName,
+        [Parameter(Mandatory = $true)][int]$ExitCode,
+        [Parameter(Mandatory = $true)][string]$ReceiptPath
+    )
+
+    $prefix = "Public World realization failed for $WorldName (engine exit $ExitCode)"
+    if (-not (Test-Path -LiteralPath $ReceiptPath -PathType Leaf)) {
+        return "$prefix`: no structured result was emitted."
+    }
+    try {
+        $result = Get-Content -LiteralPath $ReceiptPath -Raw | ConvertFrom-Json
+    }
+    catch {
+        return "$prefix`: the structured result could not be read: $($_.Exception.Message)"
+    }
+    $details = @($result.errors | ForEach-Object {
+        "[$([string]$_.code)] $([string]$_.message) $([string]$_.detail)".Trim()
+    }) -join '; '
+    return "$prefix`: status=$([string]$result.status); $details"
+}
+
 function Invoke-WithProjectWorldPublicProjection {
     param(
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
@@ -109,6 +178,10 @@ function Invoke-WithProjectWorldPublicProjection {
                 [string]$profile.world_data_plugin -cne 'ProjectWorldData') {
                 throw "World realization profile identity drift: $profilePath"
             }
+            if ($profilePath -ceq $world.Realization) {
+                $world.Runtime = Resolve-ProjectWorldPublicRuntimeProfile `
+                    -DataRoot $dataRoot -RealizationProfile $profile
+            }
             foreach ($layer in @($profile.layers)) {
                 $additionalPaths.Add((Convert-ProjectWorldPackageRootToContentPath `
                     -ContentRoot $contentRoot -PackageRoot ([string]$layer.artifact_root)))
@@ -117,7 +190,7 @@ function Invoke-WithProjectWorldPublicProjection {
     }
     foreach ($path in @(Get-ProjectWorldGeneratedPaths `
             -ContentRoot $contentRoot -MapPackage $worlds[1].Map `
-            -GeneratedPackageRoot $generatedPackageRoot -IncludePresentation $false)) {
+            -GeneratedPackageRoot $generatedPackageRoot)) {
         $additionalPaths.Add($path)
     }
 
@@ -153,11 +226,13 @@ function Invoke-WithProjectWorldPublicProjection {
             $receipt = Join-Path $evidenceRoot "$($world.Name).json"
             & $realizer -CompileResult $compileResult -Mode Apply -Map $world.Map `
                 -WorldDataPlugin ProjectWorldData -PresentationProfile $presentation `
+                -RuntimeProfile $world.Runtime `
                 -AuthoredOverlayProfile $world.Authored -RealizationProfile $world.Realization `
                 -ManifestRoot $manifestRoot -EnrollManifests -NonInteractive `
                 -EvidencePath $receipt
             if ($LASTEXITCODE -ne 0) {
-                throw "Public World realization failed for $($world.Name)."
+                throw (Get-ProjectWorldPublicRealizationFailure `
+                    -WorldName $world.Name -ExitCode $LASTEXITCODE -ReceiptPath $receipt)
             }
             $result = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
             if ([string]$result.status -cne 'accepted') {
@@ -170,8 +245,7 @@ function Invoke-WithProjectWorldPublicProjection {
     finally {
         if ($records.Count -gt 0) {
             Remove-ProjectWorldGeneratedPaths -ContentRoot $contentRoot `
-                -MapPackage $worlds[1].Map -GeneratedPackageRoot $generatedPackageRoot `
-                -IncludePresentation $false
+                -MapPackage $worlds[1].Map -GeneratedPackageRoot $generatedPackageRoot
             Restore-ProjectWorldGeneratedSnapshot -ContentRoot $contentRoot `
                 -MapPackage $worlds[0].Map -GeneratedPackageRoot $generatedPackageRoot `
                 -Records $records

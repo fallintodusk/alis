@@ -32,7 +32,8 @@ Manhattan data and engine-specific terrain adapters stay outside this component.
 | Part | Responsibility |
 |---|---|
 | `ProjectWorld` | Runtime contracts, services, and reusable actors |
-| `ProjectWorldEditor` | Producer-neutral canonical-input realization, transactions, and editor validation |
+| `ProjectWorldEditor` | Producer-neutral canonical-input realization, transactions, registry, and editor validation |
+| `ProjectWorldRoadEditor`, `ProjectWorldWaterEditor`, `ProjectWorldVegetationEditor`, `ProjectWorldBuildingEditor`, `ProjectWorldGameplayEditor` | Layer-owned settings, hashing, realization, artifacts, and verifies |
 | Territory contracts | Stable authority, identity, and acceptance semantics |
 | World Partition policy | Runtime streaming and cell policy |
 
@@ -43,9 +44,11 @@ Relationships are drawn once in [the main view](diagrams/main.md).
 Through the canonical manifest contract, realization consumes authenticated
 engine-independent inputs. Through generated manifests and package identity,
 runtime code consumes only output produced by the accepted realization
-transaction. The registered terrain producer contract delegates MeshPartition
-details to ProjectWorldMeshTerrain without exposing that dependency to
-ProjectWorld consumers.
+transaction. Layer producers register through `IProjectWorldLayerProducer` and
+consume the shared editor contracts. The Mesh Terrain adapter alone depends on
+MeshPartition; generic ProjectWorld code does not expose that dependency to
+consumers. The contributor route and revision rule live in the
+[territory producer contract](../territory_contract.md#add-or-change-a-layer-producer).
 
 ## Invariants
 

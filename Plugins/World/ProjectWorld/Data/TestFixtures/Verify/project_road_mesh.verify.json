@@ -1,0 +1,107 @@
+{
+  "$schema": "../../Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.Road",
+  "identity": {
+    "producer_id": "project_road_mesh:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 1,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "memory:bundle", "sha256": "ca055ef34ca2957f212dfde22f655ff84225c4b7d6230533ffd79534c0503cfa"},
+      {"name": "memory:profile", "sha256": "670f7a1a6bf028271a63841a846ba37a83b20bfd4ccc075c7299958153023be8"},
+      {"name": "object:/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial", "sha256": "e707d63439f5df802115c7c1693e64e47e708fb619e581a2af2e1651466eeaa4"}
+    ],
+    "embedded": []
+  },
+  "projection_sha256": "d088a9f78603bfa2453f0812875bb6c45cf11b40e23e57e339ab56e529ccb302",
+  "records": [
+    {
+      "kind": "actor",
+      "key": "road:cell_0",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.StaticMeshActor",
+        "component.affects_navigation": "0",
+        "component.class": "/Script/Engine.StaticMeshComponent",
+        "component.collision_enabled": "QueryAndPhysics",
+        "component.collision_profile": "BlockAll",
+        "component.mesh": "Cells/SM_ProjectWorldRoad_cell_0.SM_ProjectWorldRoad_cell_0",
+        "component.mobility": "Static",
+        "component.overlap_events": "0",
+        "component.override_materials": "",
+        "component.relative_transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "external_package": "1",
+        "guid": "2a71404a-3a58-0191-d57b-c1f699578747",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Roads cell_0",
+        "name": "ProjectWorld_Road_cell_0",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=road_grid,ProjectWorld.Road.v1,ProjectWorld.RoadCell=cell_0,ProjectWorld.RoadSemantic=416e270a6aa52f6498bdfe6ade2ab602f699e43cc3ef87fb5aac4b32967bc072",
+        "transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "road:cell_1",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.StaticMeshActor",
+        "component.affects_navigation": "0",
+        "component.class": "/Script/Engine.StaticMeshComponent",
+        "component.collision_enabled": "QueryAndPhysics",
+        "component.collision_profile": "BlockAll",
+        "component.mesh": "Cells/SM_ProjectWorldRoad_cell_1.SM_ProjectWorldRoad_cell_1",
+        "component.mobility": "Static",
+        "component.overlap_events": "0",
+        "component.override_materials": "",
+        "component.relative_transform": "t=100000,-100000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "external_package": "1",
+        "guid": "7a226a5b-868e-5c9c-e728-7c810bab3577",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Roads cell_1",
+        "name": "ProjectWorld_Road_cell_1",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=road_grid,ProjectWorld.Road.v1,ProjectWorld.RoadCell=cell_1,ProjectWorld.RoadSemantic=ca712396ae140d43946ae29c4927eab3d38243bb621cbda102974cd76a1d118c",
+        "transform": "t=100000,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "mesh",
+      "key": "Cells/SM_ProjectWorldRoad_cell_0",
+      "fields": {
+        "body": "present",
+        "body_double_sided": "0",
+        "body_simple_elements": "0",
+        "body_trace": "CTF_UseComplexAsSimple",
+        "distance_field": "0",
+        "distance_field_resolution_scale": "0",
+        "mesh_description": "12f8ce13c6c95475e0fde47ebdec23173194ae32ec07e0ebe411d28ac5d23729",
+        "nanite": "1",
+        "navigation_data": "0",
+        "render_lod0": "d97a6a3b4155b764fa9fe85d107aff95d21c20d65366cb5e46e5226b20c94778",
+        "source_models": "1",
+        "static_materials": "Road=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
+      }
+    },
+    {
+      "kind": "mesh",
+      "key": "Cells/SM_ProjectWorldRoad_cell_1",
+      "fields": {
+        "body": "present",
+        "body_double_sided": "0",
+        "body_simple_elements": "0",
+        "body_trace": "CTF_UseComplexAsSimple",
+        "distance_field": "0",
+        "distance_field_resolution_scale": "0",
+        "mesh_description": "8df7aa8ba7ad2bd15139bde9530c103c12b6a2593f1078998bdfe0eedc88da97",
+        "nanite": "1",
+        "navigation_data": "0",
+        "render_lod0": "c4b7bf6e3a03cd15457d8b21b591e8be7ddb33daf47dbd81700e0fc8912556be",
+        "source_models": "1",
+        "static_materials": "Road=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
+      }
+    }
+  ]
+}

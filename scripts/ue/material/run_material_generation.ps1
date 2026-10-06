@@ -8,7 +8,9 @@ param(
     [ValidateSet('Surface', 'Texture')]
     [string]$Domain = 'Surface',
 
-    [ValidateSet('Validate', 'Regenerate')]
+    # RestorePrevious runs no commandlet: it restores the pending journal or the retained
+    # RollbackPrevious bundle of exactly the operation named by -RestoreOperationId.
+    [ValidateSet('Validate', 'Regenerate', 'RestorePrevious')]
     [string]$Mode = 'Validate',
 
     [string]$TestRoot = '',
@@ -21,8 +23,16 @@ param(
 
     [switch]$CleanupOrphans,
 
-    [ValidateSet('', 'post-save')]
+    [ValidateSet('', 'post-save', 'pre-commit')]
     [string]$InjectFailure = '',
+
+    # A caller that records this run before it mutates passes the id; it binds the journal,
+    # the commandlet receipt, the host receipt, and the rollback bundle.
+    [ValidatePattern('^([a-f0-9]{32})?$')]
+    [string]$OperationId = '',
+
+    [ValidatePattern('^([a-f0-9]{32})?$')]
+    [string]$RestoreOperationId = '',
 
     [ValidateRange(30, 3600)]
     [int]$TimeoutSeconds = 600
@@ -35,29 +45,7 @@ $projectFile = Join-Path $projectRoot 'Alis.uproject'
 $configDirectory = Join-Path $projectRoot 'scripts\config'
 . (Join-Path $configDirectory 'Resolve-UEConfig.ps1')
 . (Join-Path $projectRoot 'scripts\ue\generated_content\generated_content_mutation_lock.ps1')
-$config = Resolve-UEConfig -ConfigDir $configDirectory
-$editorCommand = Join-Path $config.UE_PATH 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
-
-function Get-NormalizedFullPath {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    return [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
-}
-
-function Assert-PathWithin {
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$Root,
-        [Parameter(Mandatory = $true)][string]$Label
-    )
-    $fullPath = Get-NormalizedFullPath -Path $Path
-    $fullRoot = Get-NormalizedFullPath -Path $Root
-    if ($fullPath -ne $fullRoot -and -not $fullPath.StartsWith(
-        $fullRoot + [System.IO.Path]::DirectorySeparatorChar,
-        [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "$Label escapes its admitted owner root: $fullPath"
-    }
-    return $fullPath
-}
+. (Join-Path $scriptDirectory 'material_host_recovery.ps1')
 
 function Get-FileSha256OrNone {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -67,37 +55,12 @@ function Get-FileSha256OrNone {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
-function Get-StringSha256 {
-    param([Parameter(Mandatory = $true)][string]$Value)
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
-        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    }
-    finally {
-        $sha.Dispose()
-    }
-}
-
-function Assert-NoSameProjectEditor {
-    $projectNeedle = (Get-NormalizedFullPath -Path $projectFile).Replace('\', '/').ToLowerInvariant()
-    $matches = @(Get-CimInstance Win32_Process -Filter "Name = 'UnrealEditor.exe' OR Name = 'UnrealEditor-Cmd.exe'" |
-        Where-Object {
-            $commandLine = ([string]$_.CommandLine).Replace('\', '/').ToLowerInvariant()
-            $commandLine.Contains($projectNeedle)
-        })
-    if ($matches.Count -gt 0) {
-        $ids = ($matches | ForEach-Object { [string]$_.ProcessId }) -join ','
-        throw "$Domain mutation refused while this project's Editor is running: pid=$ids"
-    }
-}
-
 function Get-PendingRestoreSources {
     # Each result can still restore packages that reference an orphan this host would otherwise
     # delete; references held in a snapshot are invisible to the Asset Registry. World transactions
-    # keep their snapshots under one folder whatever the manifest root, World test harnesses keep
-    # outer snapshots named 'snapshot' or 'outer-snapshot' under tmp/world, and each is removed once
-    # its content is restored or committed.
+    # keep their snapshots under one folder whatever the manifest root, World test harnesses and
+    # generated-content outer operations keep snapshots named 'snapshot' or 'outer-snapshot' under
+    # tmp/world, and each is removed once its content is restored or committed.
     $pending = @()
     $worldScratch = Join-Path $projectRoot 'tmp\world'
     $worldSnapshots = Join-Path $worldScratch 'world_realization\transactions'
@@ -123,87 +86,31 @@ function Get-PendingRestoreSources {
     return $pending
 }
 
-function Copy-DirectorySnapshot {
-    param(
-        [Parameter(Mandatory = $true)][string]$Source,
-        [Parameter(Mandatory = $true)][string]$Destination
-    )
-    if (Test-Path -LiteralPath $Source -PathType Container) {
-        New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-        Get-ChildItem -LiteralPath $Source -Force |
-            Copy-Item -Destination $Destination -Recurse -Force
-        return $true
+$isRestore = $Mode -eq 'RestorePrevious'
+if ($isRestore) {
+    if ([string]::IsNullOrWhiteSpace($RestoreOperationId)) {
+        throw 'RestorePrevious requires -RestoreOperationId.'
     }
-    return $false
-}
-
-function Remove-ScopedDirectory {
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$OwnerRoot
-    )
-    $target = Assert-PathWithin -Path $Path -Root $OwnerRoot -Label 'Rollback target'
-    if ($target -eq (Get-NormalizedFullPath -Path $OwnerRoot)) {
-        throw "Rollback refuses to remove an owner root directly: $target"
+    if ($RestoreOperationId -ceq $OperationId) {
+        throw 'RestorePrevious cannot restore its own operation id.'
     }
-    if (Test-Path -LiteralPath $target) {
-        Remove-Item -LiteralPath $target -Recurse -Force
+    if ($CleanupOrphans -or $InjectFailure -or $LayoutReceipt -or $PatternTestRoot) {
+        throw 'RestorePrevious runs no commandlet; cleanup, failure injection, a layout receipt, and a pattern test root are refused.'
     }
 }
-
-function Restore-MaterialSnapshot {
-    param(
-        [Parameter(Mandatory = $true)][object]$Journal,
-        [Parameter(Mandatory = $true)][string]$JournalPath,
-        [Parameter(Mandatory = $true)][string]$AllowedTargetRoot,
-        [Parameter(Mandatory = $true)][string]$AllowedSnapshotRoot
-    )
-    if ([string]$Journal.schema_version -ne '1' -or
-        [string]$Journal.operation_id -notmatch '^[a-f0-9]{32}$') {
-        throw 'Material recovery journal is malformed; recovery fails closed.'
-    }
-    $snapshotRoot = Assert-PathWithin `
-        -Path ([string]$Journal.snapshot_root) `
-        -Root $AllowedSnapshotRoot `
-        -Label 'Snapshot root'
-    $outputRoot = Assert-PathWithin `
-        -Path ([string]$Journal.output_root) `
-        -Root $AllowedTargetRoot `
-        -Label 'Output root'
-    $manifestRoot = Assert-PathWithin `
-        -Path ([string]$Journal.manifest_root) `
-        -Root $AllowedTargetRoot `
-        -Label 'Manifest root'
-    Remove-ScopedDirectory -Path $outputRoot -OwnerRoot $AllowedTargetRoot
-    Remove-ScopedDirectory -Path $manifestRoot -OwnerRoot $AllowedTargetRoot
-    if ([bool]$Journal.output_was_present) {
-        Copy-Item -LiteralPath (Join-Path $snapshotRoot 'output') -Destination $outputRoot -Recurse -Force
-    }
-    if ([bool]$Journal.manifest_was_present) {
-        Copy-Item -LiteralPath (Join-Path $snapshotRoot 'manifests') -Destination $manifestRoot -Recurse -Force
-    }
-    Remove-Item -LiteralPath $JournalPath -Force
-    if (Test-Path -LiteralPath $snapshotRoot) {
-        Remove-Item -LiteralPath $snapshotRoot -Recurse -Force
-    }
+elseif (-not [string]::IsNullOrWhiteSpace($RestoreOperationId)) {
+    throw '-RestoreOperationId is valid only for RestorePrevious.'
 }
-
-function Write-JsonAtomic {
-    param(
-        [Parameter(Mandatory = $true)][object]$Document,
-        [Parameter(Mandatory = $true)][string]$Path
-    )
-    New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
-    $staging = "$Path.staging"
-    $Document | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $staging -Encoding UTF8
-    Move-Item -LiteralPath $staging -Destination $Path -Force
-}
-
-if (-not (Test-Path -LiteralPath $editorCommand -PathType Leaf)) {
-    throw "Launcher UnrealEditor-Cmd does not exist: $editorCommand"
-}
-if ($Mode -eq 'Validate' -and (-not [string]::IsNullOrWhiteSpace($InjectFailure) -or $CleanupOrphans)) {
+elseif ($Mode -eq 'Validate' -and (-not [string]::IsNullOrWhiteSpace($InjectFailure) -or $CleanupOrphans)) {
     throw 'Cleanup and failure injection are valid only for Regenerate.'
+}
+$editorCommand = $null
+if (-not $isRestore) {
+    $config = Resolve-UEConfig -ConfigDir $configDirectory
+    $editorCommand = Join-Path $config.UE_PATH 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+    if (-not (Test-Path -LiteralPath $editorCommand -PathType Leaf)) {
+        throw "Launcher UnrealEditor-Cmd does not exist: $editorCommand"
+    }
 }
 
 $isTexture = $Domain -eq 'Texture'
@@ -227,6 +134,9 @@ $isTest = -not [string]::IsNullOrWhiteSpace($TestRoot)
 if (-not [string]::IsNullOrWhiteSpace($PatternTestRoot) -and ($isTexture -or -not $isTest)) {
     throw 'A pattern test root is valid only for a Surface test run.'
 }
+if ($InjectFailure -eq 'pre-commit' -and -not $isTest) {
+    throw 'Pre-commit failure injection is valid only for a test run.'
+}
 if ($isTest) {
     $testOwnerRoot = Assert-PathWithin `
         -Path $TestRoot `
@@ -236,6 +146,7 @@ if ($isTest) {
     $manifestRoot = Join-Path $testOwnerRoot 'manifests'
     $transactionRoot = Join-Path $testOwnerRoot 'transaction'
     $allowedTargetRoot = $testOwnerRoot
+    $rollbackRoot = Join-Path $testOwnerRoot 'RollbackPrevious'
 }
 else {
     $pluginRoot = Join-Path $projectRoot "Plugins\Resources\$domainName"
@@ -243,8 +154,15 @@ else {
     $manifestRoot = Join-Path $pluginRoot "Data\Manifests\$manifestFolder"
     $transactionRoot = Join-Path $projectRoot "tmp\$scratchDomain\generation\transactions"
     $allowedTargetRoot = $pluginRoot
+    $rollbackRoot = Join-Path $projectRoot "Saved\Validation\$validationFolder\RollbackPrevious"
 }
-$operationId = [System.Guid]::NewGuid().ToString('N')
+$operationId = if ([string]::IsNullOrWhiteSpace($OperationId)) {
+    [System.Guid]::NewGuid().ToString('N')
+}
+else {
+    $OperationId
+}
+$modeName = if ($isRestore) { 'restore_previous' } else { $Mode.ToLowerInvariant() }
 $operationRoot = Join-Path $transactionRoot $operationId
 $snapshotRoot = Join-Path $operationRoot 'snapshot'
 $receiptPath = Join-Path $operationRoot 'commandlet.receipt.json'
@@ -262,14 +180,63 @@ else {
     Assert-PathWithin -Path $EvidencePath -Root $projectRoot -Label 'Evidence path'
 }
 
+function New-HostReceipt {
+    # One structured verdict per run, accepted or rejected, with digests of the content this
+    # run leaves on disk (after its own rollback when rejected).
+    param([Parameter(Mandatory = $true)][string]$Status, [string]$Rejection = '')
+    $hostReceipt = [ordered]@{
+        schema_version = '2'
+        operation_id = $operationId
+        mode = $modeName
+        status = $Status
+        commandlet_status = $script:commandletStatus
+        commandlet_error = $script:commandletError
+        commandlet_exit_code = $script:commandletExitCode
+        receipt_sha256 = Get-FileSha256OrNone -Path $receiptPath
+        manifest_sha256 = $script:commandletManifest
+        generated = $script:commandletGenerated
+        skipped = $script:commandletSkipped
+        shader_compiles = $script:commandletShaderCompiles
+        retained_orphans = @($script:commandletRetainedOrphans)
+        manifest_tree_sha256 = Get-MaterialTreeSha256 -Root $manifestRoot
+        output_tree_sha256 = Get-MaterialTreeSha256 -Root $outputRoot
+    }
+    if ($isRestore) {
+        $hostReceipt['restored_operation_id'] = $RestoreOperationId
+        $hostReceipt['source'] = $script:restoreSource
+    }
+    if ($Status -eq 'accepted') {
+        $hostReceipt['accepted_at_utc'] = [DateTime]::UtcNow.ToString('o')
+    }
+    else {
+        $hostReceipt['rejection'] = $Rejection
+        $hostReceipt['rejected_at_utc'] = [DateTime]::UtcNow.ToString('o')
+    }
+    return $hostReceipt
+}
+
 $contentLock = $null
 $child = $null
-$accepted = $false
+$mutationStarted = $false
+$script:commandletStatus = 'none'
+$script:commandletError = ''
+$script:commandletExitCode = -1
+$script:commandletManifest = ''
+$script:commandletGenerated = 0
+$script:commandletSkipped = 0
+$script:commandletShaderCompiles = 0
+$script:commandletRetainedOrphans = @()
+$script:restoreSource = ''
 try {
     $contentLock = Enter-ProjectGeneratedContentMutationLock `
         -ProjectRoot $projectRoot `
         -OwnerName 'project generated-content'
-    Assert-NoSameProjectEditor
+    Assert-ProjectGeneratedContentNoProjectUnrealProcess -ProjectFile $projectFile -Purpose "$Domain generation"
+    Assert-MaterialOperationIdUnused `
+        -OperationId $operationId `
+        -OperationRoot $operationRoot `
+        -JournalPath $journalPath `
+        -RollbackRoot $rollbackRoot
     if ($CleanupOrphans) {
         $pendingRestore = @(Get-PendingRestoreSources)
         if ($pendingRestore.Count -gt 0) {
@@ -277,98 +244,148 @@ try {
         }
     }
 
-    if (Test-Path -LiteralPath $journalPath -PathType Leaf) {
-        $pending = Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json
-        Restore-MaterialSnapshot `
-            -Journal $pending `
-            -JournalPath $journalPath `
-            -AllowedTargetRoot $allowedTargetRoot `
-            -AllowedSnapshotRoot $transactionRoot
-    }
+    $mutationStarted = $true
+    $pendingOperationId = Restore-MaterialPendingJournal `
+        -JournalPath $journalPath `
+        -AllowedTargetRoot $allowedTargetRoot `
+        -AllowedSnapshotRoot $transactionRoot
 
-    New-Item -ItemType Directory -Path $snapshotRoot -Force | Out-Null
-    $outputWasPresent = Copy-DirectorySnapshot -Source $outputRoot -Destination (Join-Path $snapshotRoot 'output')
-    $manifestWasPresent = Copy-DirectorySnapshot -Source $manifestRoot -Destination (Join-Path $snapshotRoot 'manifests')
-    $journal = [ordered]@{
-        schema_version = '1'
-        operation_id = $operationId
-        mode = $Mode.ToLowerInvariant()
-        output_root = Get-NormalizedFullPath -Path $outputRoot
-        manifest_root = Get-NormalizedFullPath -Path $manifestRoot
-        snapshot_root = Get-NormalizedFullPath -Path $snapshotRoot
-        output_was_present = $outputWasPresent
-        manifest_was_present = $manifestWasPresent
+    if ($isRestore) {
+        $bundle = $null
+        if ($pendingOperationId -ceq $RestoreOperationId) {
+            # That operation's own journal already put back the state it replaced.
+            $script:restoreSource = 'journal'
+        }
+        else {
+            $bundle = Read-MaterialRollbackBundle -RollbackRoot $rollbackRoot
+            if ($null -eq $bundle -or [string]$bundle.replaced_by_operation_id -cne $RestoreOperationId) {
+                $script:restoreSource = 'none'
+                $bundle = $null
+            }
+        }
+        if ($null -ne $bundle) {
+            Assert-MaterialRollbackBundle -Bundle $bundle -RollbackRoot $rollbackRoot
+            $null = New-MaterialHostTransaction `
+                -OperationId $operationId -ModeName $modeName `
+                -OutputRoot $outputRoot -ManifestRoot $manifestRoot `
+                -SnapshotRoot $snapshotRoot -JournalPath $journalPath
+            Restore-MaterialRoots `
+                -SnapshotRoot (Join-Path $rollbackRoot 'snapshot') `
+                -OutputRoot $outputRoot `
+                -ManifestRoot $manifestRoot `
+                -OutputWasPresent ([bool]$bundle.output_was_present) `
+                -ManifestWasPresent ([bool]$bundle.manifest_was_present) `
+                -OwnerRoot $allowedTargetRoot `
+                -WorkRoot (Join-Path $operationRoot 'restore')
+            if ((Get-MaterialTreeSha256 -Root $outputRoot) -cne [string]$bundle.output_tree_sha256 -or
+                (Get-MaterialTreeSha256 -Root $manifestRoot) -cne [string]$bundle.manifest_tree_sha256) {
+                throw "$Domain RestorePrevious left content that does not match the bundle digests."
+            }
+            # The bundle is kept: a rerun restores the same bytes and the next Regenerate replaces it.
+            Remove-Item -LiteralPath $journalPath -Force
+            $script:restoreSource = 'bundle'
+        }
     }
-    Write-JsonAtomic -Document $journal -Path $journalPath
+    else {
+        $transaction = New-MaterialHostTransaction `
+            -OperationId $operationId -ModeName $modeName `
+            -OutputRoot $outputRoot -ManifestRoot $manifestRoot `
+            -SnapshotRoot $snapshotRoot -JournalPath $journalPath
 
-    $arguments = @(
-        "`"$projectFile`"",
-        "-run=$commandletName",
-        "-operation=$operationId",
-        "-hosttransaction=$operationId",
-        "-receipt=`"$receiptPath`"",
-        "-mode=$($Mode.ToLowerInvariant())",
-        '-unattended',
-        '-nopause',
-        '-nosplash',
-        '-nosound',
-        '-NullRHI',
-        '-log',
-        "-abslog=`"$commandletLogPath`""
-    )
-    if ($isTest) {
-        $arguments += "-testroot=`"$testOwnerRoot`""
-    }
-    if (-not [string]::IsNullOrWhiteSpace($LayoutReceipt)) {
-        $layoutReceiptPath = Assert-PathWithin `
-            -Path $LayoutReceipt `
-            -Root $projectRoot `
-            -Label 'Layout receipt'
-        $arguments += "-layoutreceipt=`"$layoutReceiptPath`""
-    }
-    if (-not [string]::IsNullOrWhiteSpace($PatternTestRoot)) {
-        $patternTestRootPath = Assert-PathWithin `
-            -Path $PatternTestRoot `
-            -Root (Join-Path $projectRoot 'tmp\texture\generation') `
-            -Label 'Pattern test root'
-        $arguments += "-patterntestroot=`"$patternTestRootPath`""
-    }
-    if ($CleanupOrphans) {
-        $arguments += '-cleanup'
-    }
-    if (-not [string]::IsNullOrWhiteSpace($InjectFailure)) {
-        $arguments += "-injectfailure=$InjectFailure"
-    }
-    New-Item -ItemType Directory -Path $operationRoot -Force | Out-Null
-    $child = Start-Process `
-        -FilePath $editorCommand `
-        -ArgumentList $arguments `
-        -WindowStyle Hidden `
-        -PassThru
-    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
-    while (-not $child.HasExited -and [DateTime]::UtcNow -lt $deadline) {
-        Start-Sleep -Milliseconds 250
-        $child.Refresh()
-    }
-    if (-not $child.HasExited) {
-        Stop-Process -Id $child.Id -Force
+        $arguments = @(
+            "`"$projectFile`"",
+            "-run=$commandletName",
+            "-operation=$operationId",
+            "-hosttransaction=$operationId",
+            "-receipt=`"$receiptPath`"",
+            "-mode=$modeName",
+            '-unattended',
+            '-nopause',
+            '-nosplash',
+            '-nosound',
+            '-NullRHI',
+            '-log',
+            "-abslog=`"$commandletLogPath`""
+        )
+        if ($isTest) {
+            $arguments += "-testroot=`"$testOwnerRoot`""
+        }
+        if (-not [string]::IsNullOrWhiteSpace($LayoutReceipt)) {
+            $layoutReceiptPath = Assert-PathWithin `
+                -Path $LayoutReceipt `
+                -Root $projectRoot `
+                -Label 'Layout receipt'
+            $arguments += "-layoutreceipt=`"$layoutReceiptPath`""
+        }
+        if (-not [string]::IsNullOrWhiteSpace($PatternTestRoot)) {
+            $patternTestRootPath = Assert-PathWithin `
+                -Path $PatternTestRoot `
+                -Root (Join-Path $projectRoot 'tmp\texture\generation') `
+                -Label 'Pattern test root'
+            $arguments += "-patterntestroot=`"$patternTestRootPath`""
+        }
+        if ($CleanupOrphans) {
+            $arguments += '-cleanup'
+        }
+        if ($InjectFailure -eq 'post-save') {
+            $arguments += "-injectfailure=$InjectFailure"
+        }
+        New-Item -ItemType Directory -Path $operationRoot -Force | Out-Null
+        $child = Start-Process `
+            -FilePath $editorCommand `
+            -ArgumentList $arguments `
+            -WindowStyle Hidden `
+            -PassThru
+        $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+        while (-not $child.HasExited -and [DateTime]::UtcNow -lt $deadline) {
+            Start-Sleep -Milliseconds 250
+            $child.Refresh()
+        }
+        if (-not $child.HasExited) {
+            Stop-Process -Id $child.Id -Force
+            $child.WaitForExit()
+            throw "Material commandlet timed out after $TimeoutSeconds seconds."
+        }
         $child.WaitForExit()
-        throw "Material commandlet timed out after $TimeoutSeconds seconds."
-    }
-    $child.WaitForExit()
-    if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
-        throw "Material commandlet produced no receipt; exit=$($child.ExitCode)"
-    }
-    $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
-    $expectedAuthentication = Get-StringSha256 -Value (
-        "operation=$operationId|status=$([string]$receipt.status)|manifest=$([string]$receipt.manifest_sha256)|generated=$([int]$receipt.generated)|skipped=$([int]$receipt.skipped)")
-    if ([string]$receipt.operation_id -cne $operationId -or
-        [string]$receipt.authentication_sha256 -cne $expectedAuthentication -or
-        $child.ExitCode -ne 0 -or
-        [string]$receipt.status -cne 'accepted') {
-        throw "Material commandlet rejected or receipt authentication failed; exit=$($child.ExitCode) status=$($receipt.status)"
+        $script:commandletExitCode = $child.ExitCode
+        if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
+            throw "Material commandlet produced no receipt; exit=$($child.ExitCode)"
+        }
+        $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
+        $expectedAuthentication = Get-StringSha256 -Value (
+            "operation=$operationId|status=$([string]$receipt.status)|manifest=$([string]$receipt.manifest_sha256)|generated=$([int]$receipt.generated)|skipped=$([int]$receipt.skipped)")
+        if ([string]$receipt.operation_id -cne $operationId -or
+            [string]$receipt.authentication_sha256 -cne $expectedAuthentication) {
+            $script:commandletStatus = 'unauthenticated'
+            throw "Material commandlet rejected or receipt authentication failed; exit=$($child.ExitCode) status=$($receipt.status)"
+        }
+        $script:commandletStatus = [string]$receipt.status
+        $errorProperty = $receipt.PSObject.Properties['error']
+        $script:commandletError = if ($null -ne $errorProperty) { [string]$errorProperty.Value } else { '' }
+        if ($child.ExitCode -ne 0 -or [string]$receipt.status -cne 'accepted') {
+            throw "Material commandlet rejected or receipt authentication failed; exit=$($child.ExitCode) status=$($receipt.status)"
+        }
+        $script:commandletManifest = [string]$receipt.manifest_sha256
+        $script:commandletGenerated = [int]$receipt.generated
+        $script:commandletSkipped = [int]$receipt.skipped
+        $script:commandletShaderCompiles = [int]$receipt.shader_compiles
+        $script:commandletRetainedOrphans = @($receipt.retained_orphans)
+        if ($Mode -eq 'Regenerate') {
+            New-MaterialRollbackBundle `
+                -RollbackRoot $rollbackRoot `
+                -SnapshotRoot $snapshotRoot `
+                -OperationId $operationId `
+                -OutputWasPresent $transaction.OutputWasPresent `
+                -ManifestWasPresent $transaction.ManifestWasPresent
+            if ($InjectFailure -eq 'pre-commit') {
+                throw "$Domain transaction rejected by an injected failure after retention and before commit."
+            }
+        }
+        # Deleting the journal commits this run.
+        Remove-Item -LiteralPath $journalPath -Force
     }
 
+    $summary = New-HostReceipt -Status 'accepted'
     $currentEvidence = Join-Path $evidenceRoot 'Current'
     $previousEvidence = Join-Path $evidenceRoot 'Previous'
     $rejectedEvidence = Join-Path $evidenceRoot 'Rejected'
@@ -382,79 +399,57 @@ try {
         Move-Item -LiteralPath $currentEvidence -Destination $previousEvidence
     }
     New-Item -ItemType Directory -Path $currentEvidence -Force | Out-Null
-    Copy-Item -LiteralPath $receiptPath -Destination (Join-Path $currentEvidence 'commandlet.receipt.json') -Force
-    Copy-Item -LiteralPath $commandletLogPath -Destination (Join-Path $currentEvidence 'commandlet.log') -Force
-    $summary = [ordered]@{
-        schema_version = '1'
-        operation_id = $operationId
-        mode = $Mode.ToLowerInvariant()
-        commandlet_exit_code = $child.ExitCode
-        receipt_sha256 = Get-FileSha256OrNone -Path $receiptPath
-        manifest_sha256 = [string]$receipt.manifest_sha256
-        generated = [int]$receipt.generated
-        skipped = [int]$receipt.skipped
-        shader_compiles = [int]$receipt.shader_compiles
-        retained_orphans = @($receipt.retained_orphans)
-        accepted_at_utc = [DateTime]::UtcNow.ToString('o')
+    foreach ($artifact in @($receiptPath, $commandletLogPath)) {
+        if (Test-Path -LiteralPath $artifact -PathType Leaf) {
+            Copy-Item -LiteralPath $artifact -Destination (Join-Path $currentEvidence (Split-Path -Leaf $artifact)) -Force
+        }
     }
     Write-JsonAtomic -Document $summary -Path (Join-Path $currentEvidence 'host.receipt.json')
-    if (-not $isTest -and $Mode -eq 'Regenerate') {
-        $rollbackRoot = Join-Path $projectRoot "Saved\Validation\$validationFolder\RollbackPrevious"
-        if (Test-Path -LiteralPath $rollbackRoot) {
-            Remove-Item -LiteralPath $rollbackRoot -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path $rollbackRoot -Force | Out-Null
-        if (Test-Path -LiteralPath $snapshotRoot) {
-            Move-Item -LiteralPath $snapshotRoot -Destination (Join-Path $rollbackRoot 'snapshot')
-        }
-        $rollbackReceipt = [ordered]@{
-            schema_version = '1'
-            replaced_by_operation_id = $operationId
-            output_was_present = $outputWasPresent
-            manifest_was_present = $manifestWasPresent
-            retained_at_utc = [DateTime]::UtcNow.ToString('o')
-        }
-        Write-JsonAtomic -Document $rollbackReceipt -Path (Join-Path $rollbackRoot 'rollback.receipt.json')
-    }
-    Remove-Item -LiteralPath $journalPath -Force
-    $accepted = $true
     Write-Output ($summary | ConvertTo-Json -Compress)
 }
 catch {
+    $failure = $_
     $rejection = $_.Exception.Message
-    $rejectedEvidence = Join-Path $evidenceRoot 'Rejected'
-    if (Test-Path -LiteralPath $rejectedEvidence) {
-        Remove-Item -LiteralPath $rejectedEvidence -Recurse -Force
+    $rejectedEvidence = $null
+    # A run that never held the lock leaves evidence alone: the live owner may be writing it.
+    if ($null -ne $contentLock) {
+        $rejectedEvidence = Join-Path $evidenceRoot 'Rejected'
+        if (Test-Path -LiteralPath $rejectedEvidence) {
+            Remove-Item -LiteralPath $rejectedEvidence -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $rejectedEvidence -Force | Out-Null
+        foreach ($artifact in @($receiptPath, $commandletLogPath)) {
+            if (Test-Path -LiteralPath $artifact -PathType Leaf) {
+                Copy-Item -LiteralPath $artifact -Destination (Join-Path $rejectedEvidence (Split-Path -Leaf $artifact)) -Force
+            }
+        }
+        Set-Content -LiteralPath (Join-Path $rejectedEvidence 'host.error.txt') -Value $rejection -Encoding UTF8
     }
-    New-Item -ItemType Directory -Path $rejectedEvidence -Force | Out-Null
-    if (Test-Path -LiteralPath $receiptPath -PathType Leaf) {
-        Copy-Item -LiteralPath $receiptPath -Destination (Join-Path $rejectedEvidence 'commandlet.receipt.json') -Force
-    }
-    if (Test-Path -LiteralPath $commandletLogPath -PathType Leaf) {
-        Copy-Item -LiteralPath $commandletLogPath -Destination (Join-Path $rejectedEvidence 'commandlet.log') -Force
-    }
-    Set-Content -LiteralPath (Join-Path $rejectedEvidence 'host.error.txt') -Value $_.Exception.Message -Encoding UTF8
-    if (Test-Path -LiteralPath $journalPath -PathType Leaf) {
-        $pending = Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json
+    $rollbackFailure = $null
+    if ($mutationStarted -and (Test-Path -LiteralPath $journalPath -PathType Leaf)) {
         try {
-            Restore-MaterialSnapshot `
-                -Journal $pending `
+            $null = Restore-MaterialPendingJournal `
                 -JournalPath $journalPath `
                 -AllowedTargetRoot $allowedTargetRoot `
                 -AllowedSnapshotRoot $transactionRoot
         }
         catch {
-            throw "$Domain transaction was rejected and its rollback failed; the journal and its snapshot are kept, and the next run restores them first. Rejection: $rejection Rollback: $($_.Exception.Message)"
+            $rollbackFailure = $_.Exception.Message
         }
     }
-    throw
+    if ($null -ne $rejectedEvidence) {
+        Write-JsonAtomic `
+            -Document (New-HostReceipt -Status 'rejected' -Rejection $rejection) `
+            -Path (Join-Path $rejectedEvidence 'host.receipt.json')
+    }
+    if ($null -ne $rollbackFailure) {
+        throw "$Domain transaction was rejected and its rollback failed; the journal and its snapshot are kept, and the next run restores them first. Rejection: $rejection Rollback: $rollbackFailure"
+    }
+    throw $failure
 }
 finally {
-    if ($null -ne $child) {
+    if ($null -ne $child -and $child -is [System.IDisposable]) {
         $child.Dispose()
-    }
-    if ($null -ne $contentLock) {
-        $contentLock.Dispose()
     }
     # A journal that survives a failed rollback still names the snapshot in this operation folder.
     if ((Test-Path -LiteralPath $operationRoot) -and -not (Test-Path -LiteralPath $journalPath -PathType Leaf)) {
@@ -475,5 +470,10 @@ finally {
                 Remove-Item -LiteralPath $emptyRoot -Force
             }
         }
+    }
+    # Released last: nothing this run does happens after its handle is gone, which outer
+    # recovery's quiescence proof relies on.
+    if ($null -ne $contentLock) {
+        $contentLock.Dispose()
     }
 }

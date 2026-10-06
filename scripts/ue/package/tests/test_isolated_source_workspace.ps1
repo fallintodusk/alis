@@ -9,8 +9,13 @@ $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $Packa
 $TestParent = Join-Path $ProjectRoot 'tmp\world\mesh_terrain_comparison\workspace-tests'
 $TestRoot = Join-Path $TestParent ([Guid]::NewGuid().ToString('N'))
 $Repo = Join-Path $TestRoot 'source'
+$LfsRepo = Join-Path $TestRoot 'source-lfs'
 $Overlay = Join-Path $Repo 'tmp\overlay\candidate'
 $Workspaces = [Collections.Generic.List[string]]::new()
+$LfsWorkspace = $null
+$CommittedWorkspace = $null
+$FetchedWorkspace = $null
+$FetchedFileWorkspace = $null
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -59,14 +64,18 @@ try {
     'candidate' | Set-Content -LiteralPath (Join-Path $Repo 'tracked.txt') -Encoding Ascii
     New-Item -ItemType Directory -Path (Join-Path $Repo 'candidate') -Force | Out-Null
     [IO.File]::WriteAllBytes((Join-Path $Repo 'candidate\new.bin'), [byte[]](8, 7, 6, 5))
+    'staged candidate' | Set-Content -LiteralPath (Join-Path $Repo 'staged_new.txt') -Encoding Ascii
+    & git -C $Repo add staged_new.txt
     $LiveBefore = Get-LiveIdentity
 
     $overlayReceipt = New-ProjectIsolatedSourceOverlay -ProjectRoot $Repo `
-        -SourceCommit $Base -CandidatePaths @('tracked.bin', 'tracked.txt', 'candidate') `
-        -RequiredPaths @('tracked.bin', 'candidate/new.bin') -OverlayRoot $Overlay
+        -SourceCommit $Base -CandidatePaths @('tracked.bin', 'tracked.txt', 'candidate', 'staged_new.txt') `
+        -RequiredPaths @('tracked.bin', 'candidate/new.bin', 'staged_new.txt') -OverlayRoot $Overlay
     Assert-True ($overlayReceipt.source_commit -ceq $Base) 'Overlay did not bind the exact source commit.'
     Assert-True (@($overlayReceipt.untracked_files).Count -eq 1) `
         'Overlay did not record the exact untracked candidate inventory.'
+    Assert-True ('staged_new.txt' -in @($overlayReceipt.tracked_changed_paths)) `
+        'Overlay omitted a staged addition from the tracked candidate patch.'
     Assert-True ([string]$overlayReceipt.tracked_patch.sha256 -match '^[0-9a-f]{64}$') `
         'Overlay did not authenticate its tracked binary patch.'
 
@@ -82,6 +91,9 @@ try {
     Assert-True ((Get-ProjectIsolatedFileSha256 -Path (Join-Path $firstCheckout 'candidate\new.bin')) -ceq `
         (Get-ProjectIsolatedFileSha256 -Path (Join-Path $Repo 'candidate\new.bin'))) `
         'Untracked candidate bytes did not survive materialization.'
+    Assert-True ((Get-ProjectIsolatedFileSha256 -Path (Join-Path $firstCheckout 'staged_new.txt')) -ceq `
+        (Get-ProjectIsolatedFileSha256 -Path (Join-Path $Repo 'staged_new.txt'))) `
+        'Staged new candidate bytes did not survive materialization.'
 
     $candidateInCheckout = Join-Path $firstCheckout 'candidate\new.bin'
     $candidateBlob = Join-Path $Overlay 'files\candidate\new.bin'
@@ -119,6 +131,103 @@ try {
         (Test-Path -LiteralPath ([string]$second.workspace_root))) `
         'Creating a concurrent workspace removed an active workspace.'
 
+    New-Item -ItemType Directory -Path $LfsRepo -Force | Out-Null
+    & git -C $LfsRepo init --quiet
+    & git -C $LfsRepo config user.name 'Project Workspace Test'
+    & git -C $LfsRepo config user.email 'workspace-test@invalid.local'
+    & git -C $LfsRepo config core.autocrlf false
+    & git -C $LfsRepo lfs install --local | Out-Null
+    'tmp/' | Set-Content -LiteralPath (Join-Path $LfsRepo '.gitignore') -Encoding Ascii
+    '*.lfsbin filter=lfs diff=lfs merge=lfs -text' |
+        Set-Content -LiteralPath (Join-Path $LfsRepo '.gitattributes') -Encoding Ascii
+    $lfsFolder = Join-Path $LfsRepo 'payload'
+    New-Item -ItemType Directory -Path $lfsFolder -Force | Out-Null
+    $lfsPath = Join-Path $lfsFolder 'candidate.lfsbin'
+    $retiredPath = Join-Path $lfsFolder 'retired.lfsbin'
+    [IO.File]::WriteAllBytes($lfsPath, [byte[]]::new(1024))
+    [IO.File]::WriteAllBytes($retiredPath, [byte[]]::new(1024))
+    & git -C $LfsRepo add .gitignore .gitattributes payload
+    & git -C $LfsRepo commit --quiet -m 'baseline LFS payload'
+    $lfsBase = (& git -C $LfsRepo rev-parse HEAD).Trim()
+    [IO.File]::WriteAllBytes($lfsPath, [byte[]](@(2) * 1024))
+    Remove-Item -LiteralPath $retiredPath -Force
+    $lfsExpected = Get-ProjectIsolatedFileSha256 -Path $lfsPath
+    $lfsOverlay = Join-Path $LfsRepo 'tmp\overlay\candidate'
+    $lfsReceipt = New-ProjectIsolatedSourceOverlay -ProjectRoot $LfsRepo `
+        -SourceCommit $lfsBase -CandidatePaths @('payload') `
+        -RequiredPaths @('payload') -OverlayRoot $lfsOverlay
+    [IO.File]::WriteAllBytes($lfsPath, [byte[]](@(3) * 1024))
+    $priorSkip = $env:GIT_LFS_SKIP_SMUDGE
+    try {
+        $env:GIT_LFS_SKIP_SMUDGE = '1'
+        $LfsWorkspace = New-ProjectIsolatedSourceWorkspace -ProjectRoot $LfsRepo `
+            -OverlayRoot $lfsOverlay
+    }
+    finally {
+        if ($null -eq $priorSkip) { Remove-Item Env:GIT_LFS_SKIP_SMUDGE -ErrorAction SilentlyContinue }
+        else { $env:GIT_LFS_SKIP_SMUDGE = $priorSkip }
+    }
+    $lfsActual = Get-ProjectIsolatedFileSha256 -Path (Join-Path ([string]$LfsWorkspace.checkout_root) 'payload\candidate.lfsbin')
+    Assert-True ($lfsActual -ceq $lfsExpected -and
+        [string]$LfsWorkspace.source_identity_sha256 -ceq [string]$lfsReceipt.source_identity_sha256) `
+        'Unstaged LFS candidate did not materialize as the verified raw payload.'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path ([string]$LfsWorkspace.checkout_root) 'payload\retired.lfsbin'))) `
+        'LFS checkout recreated a deleted candidate payload.'
+
+    Assert-ThrowsLike {
+        New-ProjectIsolatedCommittedWorkspace -ProjectRoot $LfsRepo `
+            -SourceCommit 'HEAD' -RequiredPaths @('payload') | Out-Null
+    } '*full 40-digit commit*' 'A symbolic release source identity was accepted.'
+    $CommittedWorkspace = New-ProjectIsolatedCommittedWorkspace -ProjectRoot $LfsRepo `
+        -SourceCommit $lfsBase -RequiredPaths @('payload')
+    $committedCheckout = [string]$CommittedWorkspace.checkout_root
+    Assert-True ((Get-ProjectIsolatedFileSha256 -Path (Join-Path $committedCheckout 'payload\candidate.lfsbin')) -ceq `
+        (Get-ProjectIsolatedFileSha256 -Path (Join-Path $committedCheckout 'payload\retired.lfsbin'))) `
+        'Committed release workspace did not materialize the exact LFS payloads.'
+    [IO.File]::WriteAllBytes((Join-Path $committedCheckout 'payload\candidate.lfsbin'), [byte[]](1, 2, 3))
+    Assert-ThrowsLike {
+        Assert-ProjectIsolatedRequiredLfsObjects -WorkspaceRoot $committedCheckout `
+            -RequiredPaths @('payload')
+    } '*wrong object identity*' 'A corrupted committed LFS payload was accepted.'
+    Remove-Item -LiteralPath (Join-Path $committedCheckout 'payload\candidate.lfsbin') -Force
+    & git -C $committedCheckout lfs checkout -- payload | Out-Null
+    Assert-ProjectIsolatedRequiredLfsObjects -WorkspaceRoot $committedCheckout `
+        -RequiredPaths @('payload')
+    $ownerFile = Join-Path ([string]$CommittedWorkspace.workspace_root) 'workspace-owner.json'
+    $ownerOriginal = Get-Content -LiteralPath $ownerFile -Raw
+    $tampered = $ownerOriginal | ConvertFrom-Json
+    $tampered.source_commit = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    $tampered | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ownerFile -Encoding utf8
+    Assert-ThrowsLike {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $LfsRepo `
+            -WorkspaceRoot ([string]$CommittedWorkspace.workspace_root)
+    } '*HEAD or detached state*' 'Cleanup accepted a mismatched source commit receipt.'
+    $ownerOriginal | Set-Content -LiteralPath $ownerFile -Encoding utf8
+    Assert-True (Test-Path -LiteralPath $committedCheckout) `
+        'Mismatched cleanup removed the protected checkout.'
+
+    $remote = Join-Path $TestRoot 'lfs-remote.git'
+    & git init --bare --quiet $remote
+    & git -C $LfsRepo remote add origin $remote
+    & git -C $LfsRepo lfs push origin $lfsBase | Out-Null
+    Assert-True ($LASTEXITCODE -eq 0) 'Disposable LFS remote was not populated.'
+    $lfsListing = @(& git -C $LfsRepo lfs ls-files --long)
+    Assert-True ($lfsListing[0] -match '^([0-9a-f]{64}) ') 'Cannot read fixture LFS object ID.'
+    $oid = $Matches[1]
+    $localObject = Join-Path $LfsRepo ('.git\lfs\objects\' + $oid.Substring(0, 2) +
+        '\' + $oid.Substring(2, 2) + '\' + $oid)
+    Remove-Item -LiteralPath $localObject -Force
+    $FetchedWorkspace = New-ProjectIsolatedCommittedWorkspace -ProjectRoot $LfsRepo `
+        -SourceCommit $lfsBase -RequiredPaths @('payload')
+    Assert-ProjectIsolatedRequiredLfsObjects `
+        -WorkspaceRoot ([string]$FetchedWorkspace.checkout_root) -RequiredPaths @('payload')
+    Remove-Item -LiteralPath $localObject -Force
+    $FetchedFileWorkspace = New-ProjectIsolatedCommittedWorkspace -ProjectRoot $LfsRepo `
+        -SourceCommit $lfsBase -RequiredPaths @('payload/candidate.lfsbin')
+    Assert-ProjectIsolatedRequiredLfsObjects `
+        -WorkspaceRoot ([string]$FetchedFileWorkspace.checkout_root) `
+        -RequiredPaths @('payload/candidate.lfsbin')
+
     $signal = Join-Path $TestRoot 'forced-workspace.txt'
     $childScript = Join-Path $TestRoot 'forced-owner.ps1'
     @'
@@ -151,6 +260,25 @@ while ($true) { Start-Sleep -Seconds 1 }
     Write-Host '[OK] Isolated source workspace preserves authenticated candidates and live-tree isolation.'
 }
 finally {
+    if ($null -ne $FetchedFileWorkspace -and
+        (Test-Path -LiteralPath ([string]$FetchedFileWorkspace.workspace_root))) {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $LfsRepo `
+            -WorkspaceRoot ([string]$FetchedFileWorkspace.workspace_root)
+    }
+    if ($null -ne $FetchedWorkspace -and
+        (Test-Path -LiteralPath ([string]$FetchedWorkspace.workspace_root))) {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $LfsRepo `
+            -WorkspaceRoot ([string]$FetchedWorkspace.workspace_root)
+    }
+    if ($null -ne $CommittedWorkspace -and
+        (Test-Path -LiteralPath ([string]$CommittedWorkspace.workspace_root))) {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $LfsRepo `
+            -WorkspaceRoot ([string]$CommittedWorkspace.workspace_root)
+    }
+    if ($null -ne $LfsWorkspace -and (Test-Path -LiteralPath ([string]$LfsWorkspace.workspace_root))) {
+        Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $LfsRepo `
+            -WorkspaceRoot ([string]$LfsWorkspace.workspace_root)
+    }
     foreach ($workspace in @($Workspaces)) {
         if (Test-Path -LiteralPath $workspace) {
             Remove-ProjectIsolatedSourceWorkspace -ProjectRoot $Repo -WorkspaceRoot $workspace

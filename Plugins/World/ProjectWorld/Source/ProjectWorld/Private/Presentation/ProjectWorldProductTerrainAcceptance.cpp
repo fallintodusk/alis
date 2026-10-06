@@ -160,6 +160,23 @@ bool FProjectWorldProductTerrainAcceptance::LoadContract(
 		OutError = TEXT("The terrain acceptance contract identity does not match the requested product route.");
 		return false;
 	}
+	const TSharedPtr<FJsonObject>* Expectations = nullptr;
+	FString CollisionExpectation;
+	FString HelperExpectation;
+	FString EndpointExpectation;
+	if (!Root->TryGetObjectField(TEXT("terrain_expectations"), Expectations) ||
+		Expectations == nullptr || !Expectations->IsValid() || (*Expectations)->Values.Num() != 3 ||
+		!(*Expectations)->TryGetStringField(TEXT("collision_components"), CollisionExpectation) ||
+		!(*Expectations)->TryGetStringField(TEXT("non_main_pass_helpers"), HelperExpectation) ||
+		!(*Expectations)->TryGetStringField(TEXT("route_endpoints"), EndpointExpectation) ||
+		CollisionExpectation != TEXT("navigation_relevant_pawn_blocking") ||
+		HelperExpectation != TEXT("required_navigation_irrelevant") ||
+		EndpointExpectation != TEXT("navigation_relevant_pawn_blocking"))
+	{
+		OutError = FString::Printf(TEXT("Terrain generator %s has no supported runtime acceptance expectations."),
+			*TerrainGeneratorId);
+		return false;
+	}
 
 	const TSharedPtr<FJsonObject>* NavigationObject = nullptr;
 	if (!Root->TryGetObjectField(TEXT("navigation"), NavigationObject) || NavigationObject == nullptr ||
@@ -471,14 +488,10 @@ bool FProjectWorldProductTerrainAcceptance::TraceTerrain(
 
 bool FProjectWorldProductTerrainAcceptance::InspectMeshNavigationComponents(FString& OutError)
 {
-	if (TerrainGeneratorId != TEXT("project_mesh_terrain:v1"))
-	{
-		return true;
-	}
 	UWorld* ActiveWorld = World.Get();
 	if (ActiveWorld == nullptr)
 	{
-		OutError = TEXT("The product world is unavailable for Mesh Terrain navigation inspection.");
+		OutError = TEXT("The product world is unavailable for terrain navigation inspection.");
 		return false;
 	}
 	MeshCollisionComponentCount = 0;
@@ -521,7 +534,7 @@ bool FProjectWorldProductTerrainAcceptance::InspectMeshNavigationComponents(FStr
 	if (!bMeshCollisionNavigationRelevant || !bMeshHelperNavigationIrrelevant)
 	{
 		OutError = FString::Printf(
-			TEXT("Every loaded Mesh Terrain collision/helper component must obey navigation policy (collision=%d helpers=%d offenders=%d)."),
+			TEXT("Every loaded terrain collision/helper component must obey navigation policy (collision=%d helpers=%d offenders=%d)."),
 			MeshCollisionComponentCount,
 			MeshHelperComponentCount,
 			MeshNavigationPolicyOffenderCount);
@@ -535,17 +548,13 @@ bool FProjectWorldProductTerrainAcceptance::ValidateMeshRoutePrimitive(
 	const TCHAR* Endpoint,
 	FString& OutError) const
 {
-	if (TerrainGeneratorId != TEXT("project_mesh_terrain:v1"))
-	{
-		return true;
-	}
 	const bool bAccepted = Primitive != nullptr && Primitive->IsCollisionEnabled() &&
 		Primitive->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block &&
 		Primitive->CanEverAffectNavigation();
 	if (!bAccepted)
 	{
 		OutError = FString::Printf(
-			TEXT("The Mesh Terrain %s route endpoint did not trace to navigation-relevant Pawn-blocking collision."),
+			TEXT("The terrain %s route endpoint did not trace to navigation-relevant Pawn-blocking collision."),
 			Endpoint);
 	}
 	return bAccepted;

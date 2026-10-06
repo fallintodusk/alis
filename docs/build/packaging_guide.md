@@ -22,6 +22,12 @@ optional `make publish itch` command distributes the already signed game;
 `RTAG` remains the explicit switch from generic mirroring to reviewed source
 publication.
 
+For a new 3.0.0 candidate, freeze and commit the intended source first, then
+run `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<40-digit-commit>` from that
+clean checkout. [Release input preparation](../../scripts/ue/package/README.md#prepare_release_inputsps1)
+owns the isolated World projection and recovery rules. Signing a reviewed
+workspace uses `make release 3.0.0`.
+
 1. Start or resume the automated local release without signing:
    ```powershell
    make release 2.0.0 RELEASE_SIGN=0
@@ -246,9 +252,8 @@ Important implementation note:
 - public release packaging must currently stay unencrypted because encrypted startup containers fail before the game module registers the key
 - the accepted release and reviewed-mirror route runs through native Windows
   PowerShell/Make; WSL mirror parity is not part of the 2.0.0 acceptance path
-- during release-only public World projection, close Unreal Editor and do not
-  run another World/generated-content operation; successful preparation must
-  restore the private generated tree byte-for-byte
+- during release-only public World projection, close Unreal Editor so its
+  process and build files do not contend with the release verification run
 
 ## Recommended Public Release Flow
 

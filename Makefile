@@ -41,7 +41,7 @@ endif
 ifeq (release,$(firstword $(MAKECMDGOALS)))
   RELEASE_VERSION_GOALS := $(filter-out release,$(MAKECMDGOALS))
   ifneq ($(words $(RELEASE_VERSION_GOALS)),1)
-    $(error Usage: make release X.Y.Z [RELEASE_SIGN=0] [TARGET=game])
+    $(error Usage: make release X.Y.Z [RELEASE_SIGN=0] [SOURCE_COMMIT=<40-digit-commit>] [TARGET=game])
   endif
   RELEASE_VERSION := $(firstword $(RELEASE_VERSION_GOALS))
   $(eval $(RELEASE_VERSION):;@:)
@@ -479,7 +479,7 @@ package:
 release:
 	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
 		-File "scripts/ue/package/release.ps1" \
-		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(strip $(TARGET)),-Target "$(strip $(TARGET))",) $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,)
+		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(strip $(TARGET)),-Target "$(strip $(TARGET))",) $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,) $(if $(strip $(SOURCE_COMMIT)),-SourceCommit "$(strip $(SOURCE_COMMIT))",)
 
 # Publish an already signed local release. This target never builds or signs.
 publish:

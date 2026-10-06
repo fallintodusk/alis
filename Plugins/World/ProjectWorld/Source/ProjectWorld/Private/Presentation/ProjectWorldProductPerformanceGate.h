@@ -38,6 +38,9 @@ public:
 	void StartIfRequested();
 
 private:
+	friend class FProjectWorldPlayableTourPolicyTest;
+	static constexpr double FrameP95BudgetMilliseconds = 16.67;
+
 	enum class EPhase : uint8
 	{
 		WaitingForCorrectness,
@@ -125,6 +128,7 @@ private:
 	bool bCsvCaptureStarted = false;
 	bool bNativeSteadyRequested = false;
 	bool bPlayableTourRequested = false;
+	bool bPreciseCenterReturnRequested = false;
 
 	/**
 	 * Whether the measured operation requires gameplay interaction evidence.

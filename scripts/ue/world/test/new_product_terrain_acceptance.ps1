@@ -10,7 +10,7 @@ param(
     [Parameter(Mandatory = $true)][string]$RuntimeProfilePath,
     [Parameter(Mandatory = $true)][string]$MapPackage,
     [Parameter(Mandatory = $true)]
-    [ValidateSet('project_mesh_terrain:v1')]
+    [ValidatePattern('^[a-z0-9_]+:v[1-9][0-9]*$')]
     [string]$TerrainGeneratorId,
     [Parameter(Mandatory = $true)][string]$OutputPath
 )
@@ -45,6 +45,43 @@ function Test-UnderRoot([string]$Path, [string]$Root) {
         [StringComparison]::OrdinalIgnoreCase)
 }
 
+function Get-TerrainExpectations([string]$ProducerId) {
+    $descriptorPaths = foreach ($category in Get-ChildItem -LiteralPath (Join-Path $projectRoot 'Plugins') -Directory) {
+        foreach ($plugin in Get-ChildItem -LiteralPath $category.FullName -Directory) {
+            $producerRoot = Join-Path $plugin.FullName 'Data\Producers'
+            if (Test-Path -LiteralPath $producerRoot -PathType Container) {
+                Get-ChildItem -LiteralPath $producerRoot -File -Filter '*.json'
+            }
+        }
+    }
+    $matches = @(
+        $descriptorPaths |
+            ForEach-Object {
+                $descriptor = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+                if ([string]$descriptor.kind -ceq 'producer' -and
+                    ("$($descriptor.generator_id):v$($descriptor.generator_version)" -ceq $ProducerId)) {
+                    $descriptor
+                }
+            }
+    )
+    Assert-Acceptance ($matches.Count -eq 1) "Expected exactly one producer descriptor for $ProducerId."
+    $terrain = $matches[0].runtime_acceptance.terrain
+    Assert-Acceptance ($null -ne $terrain) "Producer $ProducerId has no terrain runtime acceptance expectations."
+    $fields = @($terrain.PSObject.Properties.Name | Sort-Object)
+    Assert-Acceptance (($fields -join ',') -ceq 'collision_components,non_main_pass_helpers,route_endpoints') `
+        "Producer $ProducerId has invalid terrain runtime acceptance fields."
+    Assert-Acceptance (
+        [string]$terrain.collision_components -ceq 'navigation_relevant_pawn_blocking' -and
+        [string]$terrain.non_main_pass_helpers -ceq 'required_navigation_irrelevant' -and
+        [string]$terrain.route_endpoints -ceq 'navigation_relevant_pawn_blocking') `
+        "Producer $ProducerId has unsupported terrain runtime acceptance values."
+    return [ordered]@{
+        collision_components = [string]$terrain.collision_components
+        non_main_pass_helpers = [string]$terrain.non_main_pass_helpers
+        route_endpoints = [string]$terrain.route_endpoints
+    }
+}
+
 Assert-Acceptance (@($allowedOutputRoots | Where-Object { Test-UnderRoot $outputFile $_ }).Count -eq 1) `
     'Terrain acceptance output must remain under tmp/world or Saved/Validation/WorldRealization.'
 Assert-Acceptance ($MapPackage.StartsWith('/ProjectWorldData/Generated/')) `
@@ -53,6 +90,7 @@ Assert-Acceptance ($MapPackage.StartsWith('/ProjectWorldData/Generated/')) `
 $compileResult = Read-Json $compileResultFile
 $compilerProfile = Read-Json $compilerProfileFile
 $runtimeProfile = Read-Json $runtimeProfileFile
+$terrainExpectations = Get-TerrainExpectations $TerrainGeneratorId
 Assert-Acceptance ([string]$compileResult.status -ceq 'accepted') `
     'Terrain acceptance requires an accepted compile result.'
 Assert-Acceptance ([string]$compileResult.profile_id -ceq [string]$compilerProfile.profile_id) `
@@ -240,6 +278,7 @@ $contract = [ordered]@{
     schema = 'project-world-product-terrain-acceptance:v1'
     map_package = $MapPackage
     terrain_generator_id = $TerrainGeneratorId
+    terrain_expectations = $terrainExpectations
     compile_result_sha256 = Get-Sha256 $compileResultFile
     compiler_profile_sha256 = Get-Sha256 $compilerProfileFile
     runtime_profile_sha256 = $runtimeHash

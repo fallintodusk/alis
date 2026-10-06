@@ -63,6 +63,7 @@ import argparse
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 # Disallowed character groups as DATA. Each maps a name to (description, ranges)
 # where ranges is a list of inclusive (lo, hi) codepoint pairs. Hex literals
@@ -130,7 +131,14 @@ def classify(ch: str, active) -> str | None:
     return None
 
 
+# No block reaches ASCII, so an ASCII-only line cannot violate; str.isascii() runs
+# in C, while the per-character scan below runs in Python.
+ASCII_CANNOT_VIOLATE = all(lo >= 0x80 for _, ranges in BLOCKS.values() for lo, _ in ranges)
+
+
 def first_violation(text: str, active):
+    if ASCII_CANNOT_VIOLATE and text.isascii():
+        return -1, None
     for i, ch in enumerate(text):
         block = classify(ch, active)
         if block:
@@ -204,21 +212,28 @@ def iter_tree_paths(root: str):
             yield os.path.relpath(full, root).replace("\\", "/")
 
 
-def scan_content(files, active):
+def scan_file(rel, full, active):
     violations = []
-    for rel, full in files:
-        try:
-            with open(full, encoding="utf-8") as handle:
-                for lineno, line in enumerate(handle, 1):
-                    hit, block = first_violation(line, active)
-                    if hit >= 0:
-                        token = widen_token(line, hit)
-                        violations.append((rel, lineno, hit + 1, block, token))
-        except UnicodeDecodeError as exc:
-            violations.append((rel, 0, 0, "decode", f"not utf-8: {exc}"))
-        except OSError:
-            continue
+    try:
+        with open(full, encoding="utf-8") as handle:
+            for lineno, line in enumerate(handle, 1):
+                hit, block = first_violation(line, active)
+                if hit >= 0:
+                    token = widen_token(line, hit)
+                    violations.append((rel, lineno, hit + 1, block, token))
+    except UnicodeDecodeError as exc:
+        violations.append((rel, 0, 0, "decode", f"not utf-8: {exc}"))
+    except OSError:
+        pass
     return violations
+
+
+def scan_content(files, active):
+    # Reads overlap in threads: on a mounted Windows drive (the WSL mirror run)
+    # each file access is a slow round trip. Results keep the input order.
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        per_file = pool.map(lambda item: scan_file(item[0], item[1], active), files)
+        return [violation for violations in per_file for violation in violations]
 
 
 def scan_paths(paths, root=None):

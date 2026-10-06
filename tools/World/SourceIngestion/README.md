@@ -15,6 +15,18 @@ source profile
     -> accepted source receipt
 ```
 
+The content-addressed cache under `tmp/world/source_ingestion/` is disposable.
+The source profile pins provider bytes by size and SHA-256; its URL is an
+acquisition location, not durable storage or permission to substitute a
+nearby dated snapshot. On a cache miss, SourceIngestion fetches the pinned
+location and verifies the exact bytes. If that location no longer serves
+the pinned bytes, full source replay stops until the exact snapshot is
+recovered. Downstream World-only verification can instead begin at a current
+promoted canonical bundle through the Matrix route documented in
+[World pipeline layers](../../../docs/testing/world_pipeline_layers.md).
+That route does not claim fresh source replay. The normal developer payload
+contains canonical and generated authority, not this raw provider cache.
+
 ## Layout
 
 | Path | Responsibility |

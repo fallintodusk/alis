@@ -58,35 +58,10 @@
           },
           "expected_topology": {
             "type": "object",
-            "required": ["canonical_cells", "sample_spacing_m", "terrain_sections", "water_cell_actors", "water_mesh_assets", "water_triangles", "road_cell_actors", "road_mesh_assets", "road_triangles", "vegetation_cell_actors", "vegetation_components", "vegetation_instances", "vegetation_candidates", "vegetation_road_exclusions", "vegetation_water_exclusions", "vegetation_authored_mask_exclusions", "building_cell_actors", "building_mesh_assets", "building_triangles", "building_candidate_fragments", "building_accepted_fragments", "building_duplicate_fragments", "building_contained_fragments", "building_conflict_fragments", "building_malformed_fragments", "building_authored_mask_exclusions", "gameplay_placement_actors", "maximum_georeferencing_error_m"],
+            "required": ["canonical_cells", "sample_spacing_m", "maximum_georeferencing_error_m"],
             "properties": {
               "canonical_cells": {"type": "integer", "minimum": 1},
               "sample_spacing_m": {"type": "number", "exclusiveMinimum": 0},
-              "terrain_sections": {"type": "integer", "minimum": 1},
-              "water_cell_actors": {"type": "integer", "minimum": 0},
-              "water_mesh_assets": {"type": "integer", "minimum": 0},
-              "water_triangles": {"type": "integer", "minimum": 0},
-              "road_cell_actors": {"type": "integer", "minimum": 0},
-              "road_mesh_assets": {"type": "integer", "minimum": 0},
-              "road_triangles": {"type": "integer", "minimum": 0},
-              "vegetation_cell_actors": {"type": "integer", "minimum": 0},
-              "vegetation_components": {"type": "integer", "minimum": 0},
-              "vegetation_instances": {"type": "integer", "minimum": 0},
-              "vegetation_candidates": {"type": "integer", "minimum": 0},
-              "vegetation_road_exclusions": {"type": "integer", "minimum": 0},
-              "vegetation_water_exclusions": {"type": "integer", "minimum": 0},
-              "vegetation_authored_mask_exclusions": {"type": "integer", "minimum": 0},
-              "building_cell_actors": {"type": "integer", "minimum": 0},
-              "building_mesh_assets": {"type": "integer", "minimum": 0},
-              "building_triangles": {"type": "integer", "minimum": 0},
-              "building_candidate_fragments": {"type": "integer", "minimum": 0},
-              "building_accepted_fragments": {"type": "integer", "minimum": 0},
-              "building_duplicate_fragments": {"type": "integer", "minimum": 0},
-              "building_contained_fragments": {"type": "integer", "minimum": 0},
-              "building_conflict_fragments": {"type": "integer", "minimum": 0},
-              "building_malformed_fragments": {"type": "integer", "minimum": 0},
-              "building_authored_mask_exclusions": {"type": "integer", "minimum": 0},
-              "gameplay_placement_actors": {"type": "integer", "minimum": 1},
               "maximum_georeferencing_error_m": {"type": "number", "minimum": 0}
             },
             "additionalProperties": false
@@ -96,7 +71,7 @@
             "minItems": 1,
             "items": {
               "type": "object",
-              "required": ["layer_id", "generator_id", "generator_version", "artifact_root", "canonical_input_count", "artifact_count", "incremental_dirty_count"],
+              "required": ["layer_id", "generator_id", "generator_version", "artifact_root", "canonical_input_count", "artifact_count", "incremental_dirty_count", "metrics"],
               "properties": {
                 "layer_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
                 "generator_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
@@ -104,7 +79,14 @@
                 "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/.+/$"},
                 "canonical_input_count": {"type": "integer", "minimum": 1},
                 "artifact_count": {"type": "integer", "minimum": 1},
-                "incremental_dirty_count": {"type": "integer", "minimum": 0}
+                "producer_artifact_count": {"type": "integer", "minimum": 1},
+                "incremental_dirty_count": {"type": "integer", "minimum": 0},
+                "metrics": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "patternProperties": {"^[a-z][a-z0-9_]*$": {"type": "integer", "minimum": 0}},
+                  "additionalProperties": false
+                }
               },
               "additionalProperties": false
             }

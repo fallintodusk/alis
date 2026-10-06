@@ -1,0 +1,226 @@
+{
+  "$schema": "../../../../ProjectWorld/Data/Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.MeshTerrain",
+  "identity": {
+    "producer_id": "project_mesh_terrain:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 2,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "canonical:features:grid_24b9032e5f87005d:x0:y0", "sha256": "a137d6d7a5f1635bc67e4a5d66385d80cb8163c411f8094582d53e5799e3ba28"},
+      {"name": "canonical:features:grid_24b9032e5f87005d:x1:y0", "sha256": "616adfd766b175e56d1741e071604fa64e009d239cc6ae07d4d456b2d81a7e0a"},
+      {"name": "canonical:grid", "sha256": "ffe770e05f09997e233546c732e550b9763ae7d9b531832260e748feafcc7338"},
+      {"name": "canonical:terrain:grid_24b9032e5f87005d:x0:y0", "sha256": "748f6bbd266900363593e934a521673d09bc7fbd8a9b4114fe65fb7dac28c7bb"},
+      {"name": "canonical:terrain:grid_24b9032e5f87005d:x1:y0", "sha256": "2a251c6168ce9119c232ca2772566dfa0c78c755c0872d26e454edf1a39cb6a2"},
+      {"name": "data:Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset", "sha256": "756a0e8d8870db6f1fbc3f9d2ab4e7d66c8e99eac129d7fba8c156880fc0e31c"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Content/Authored/Fixtures/L_ProjectWorldMarker.umap", "sha256": "ecee64f35d2c444e3d1e976599166e7bf0551592bb6b00aa6f3839c159e38479"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Authored/synthetic_territory_twin_v1.json", "sha256": "323c193a649674cb16e3ca97908e24e7f1cfb42acd7bd836a08eeadb15bb0c4e"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Fixtures/CanonicalCompilation/synthetic_territory_twin/authored_overlay.json", "sha256": "0fa601be70710b744554fad7bb5060bcbcc6438ea4a6c50a5a30c9ee7c94acbb"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Fixtures/Provider/synthetic_territory_twin/synthetic_provider.json", "sha256": "278c7d95e13240c883eeb83ec589f7bebaf6b28ebed5a59f952a94b81656468a"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/GameplayPlacement/synthetic_territory_twin.json", "sha256": "6735be13f9e13ddce975e1f0b45df1ba93082b2b4b38ff911bf96d3a53692f9e"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Presentation/synthetic_representative_v1.json", "sha256": "ef1f576c7968097cf4f9210e390935a79846c54b1ab76c749ab4e40c71a192b5"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_territory_twin.compile.json", "sha256": "75bfc629eaeddc73bd7ae37b4de227a8ca02459c328500df511f0a851de211c0"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/Realization/synthetic_territory_twin.realization.json", "sha256": "80980379b0023366ca61ba12de81527accfdecf8c2a014d9b6de8143a4001277"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Profiles/SourceIngestion/synthetic_territory_twin.source.json", "sha256": "f9fdd4256c651d8e19470614147718627d61068377aa714f35634798843b5bc1"},
+      {"name": "file:Plugins/World/ProjectWorldTestData/Data/Runtime/synthetic_territory_twin_v1.json", "sha256": "db4373222fb460abdf5f14f5a68a8cbcbb2bf124fabff7059ea75864c48e2b6d"}
+    ],
+    "embedded": []
+  },
+  "projection_sha256": "e245855b50bf59fa213572a096ed5d9e435a828e7517ba42d8b6e37aec69a557",
+  "records": [
+    {
+      "kind": "base",
+      "key": "grid_24b9032e5f87005d:x0:y0",
+      "fields": {
+        "auto_lod": "1",
+        "class": "/Script/Engine.Actor",
+        "external_package": "1",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Mesh Terrain Base grid_24b9032e5f87005d:x0:y0",
+        "mesh": "19b1b6c07856230265295c52f8e4fafb6712f21b3f4bf31259f96605fe3aae7c",
+        "provider.class": "/Script/MeshPartitionEditor.MeshProviderModifier",
+        "provider.material": "none",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.MeshTerrain.Authoring.v1,ProjectWorld.MeshTerrain.Cell=grid_24b9032e5f87005d:x0:y0",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "base",
+      "key": "grid_24b9032e5f87005d:x1:y0",
+      "fields": {
+        "auto_lod": "1",
+        "class": "/Script/Engine.Actor",
+        "external_package": "1",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Mesh Terrain Base grid_24b9032e5f87005d:x1:y0",
+        "mesh": "dc490d165c490c2694ac4427eec4b2450784004b86bd8b8e0b221cbabbd55c0a",
+        "provider.class": "/Script/MeshPartitionEditor.MeshProviderModifier",
+        "provider.material": "none",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.MeshTerrain.Authoring.v1,ProjectWorld.MeshTerrain.Cell=grid_24b9032e5f87005d:x1:y0",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "partition",
+      "key": "mesh-terrain",
+      "fields": {
+        "auto_lod": "1",
+        "class": "/Script/ProjectWorldMeshTerrain.ProjectWorldMeshTerrainPartition",
+        "definition": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1",
+        "external_package": "1",
+        "hlod_layer": "none",
+        "label": "ProjectWorld Mesh Terrain",
+        "spatially_loaded": "0",
+        "tags": "ProjectWorld.MeshTerrain.Authoring.v1,ProjectWorld.MeshTerrain.Partition.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "receipt",
+      "key": "layout",
+      "fields": {
+        "adapter": "project_mesh_terrain:v1",
+        "build_policy_sha256": "eef27982ef337be33debcb4fff622b5e0eef430df55974d8daaefeff6663beff",
+        "layout_payload": "project_mesh_terrain_layout_v1|channels=ground:0,hydro_transition:1|source=float32_vertex_weight|compiled=unorm8_texture2d_array|texel_cm=3000|max_dimension=4096|uv_set=0",
+        "layout_sha256": "7c31e7bcd47733212be88b4a221356a9b2f9ed6eda209e11177b99b7dce8a27d",
+        "shared_definition": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1.MPD_ProjectTerrain_Shared_v1",
+        "shared_definition_sha256": "756a0e8d8870db6f1fbc3f9d2ab4e7d66c8e99eac129d7fba8c156880fc0e31c",
+        "surface_id": "terrain_surface_semantics",
+        "surface_sha256": "87a37150a7d0241bea9aa9eaf73db0e8fbf7b95adeacb44ec2760621842a3eda",
+        "surface_version": "1"
+      }
+    },
+    {
+      "kind": "section",
+      "key": "collision:0.0,-6300.0,0.0:12600.0,0.0,2700.0",
+      "fields": {
+        "channel_table": "4290a836daf3e3e6b270581cb393060250b2a28ccb5e79c8c0af07d36e9517d1",
+        "channel_texcoord": "6325.58301,6325.58301",
+        "channel_texture_source": "762a9b237685876f50815c3aeb22a2827fd2b67247de01c75539fb158bd039b0",
+        "class": "/Script/MeshPartition.CompiledSection",
+        "collision.0": "8aa40576ffc84a60f8d18dc37fe5e6c5c17992043a52ad964369982927bf461b",
+        "material_parameters": "texture:MeshPartitionChannelTexture:2:-1=channel",
+        "material_parent": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+        "spatial": "true",
+        "tags": "ProjectWorld.Terrain.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "section",
+      "key": "collision:0.0,-6300.0,0.0:6300.0,0.0,3050.0",
+      "fields": {
+        "channel_table": "4290a836daf3e3e6b270581cb393060250b2a28ccb5e79c8c0af07d36e9517d1",
+        "channel_texcoord": "6350.76855,6350.76855",
+        "channel_texture_source": "3bc38ceec9aec7ac4b5386a7fde94d50dc7646e671768fca4a3e4347548e0fe2",
+        "class": "/Script/MeshPartition.CompiledSection",
+        "collision.0": "3c84a89bb297917336696ae60541bb40dbaef4dbdc82dfb82b4d8db8272d9a9c",
+        "material_parameters": "texture:MeshPartitionChannelTexture:2:-1=channel",
+        "material_parent": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+        "spatial": "true",
+        "tags": "ProjectWorld.Terrain.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "section",
+      "key": "fallback:0.0,-6300.0,0.0:12600.0,0.0,2700.0",
+      "fields": {
+        "channel_table": "4290a836daf3e3e6b270581cb393060250b2a28ccb5e79c8c0af07d36e9517d1",
+        "channel_texcoord": "6325.58301,6325.58301",
+        "channel_texture_source": "762a9b237685876f50815c3aeb22a2827fd2b67247de01c75539fb158bd039b0",
+        "class": "/Script/MeshPartition.CompiledSection",
+        "material_parameters": "texture:MeshPartitionChannelTexture:2:-1=channel",
+        "material_parent": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+        "mesh.1.affects_navigation": "0",
+        "mesh.1.class": "/Script/MeshPartition.MeshPartitionStaticMeshComponent",
+        "mesh.1.collision_enabled": "NoCollision",
+        "mesh.1.collision_profile": "NoCollision",
+        "mesh.1.mobility": "Static",
+        "mesh.1.overlap_events": "1",
+        "mesh.1.override_materials": "",
+        "mesh.1.relative_transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "mesh.1.render": "6b647ecc922ac5bfe9a2e08c8627e62d21506228bed5b10280368bcba59e35f3",
+        "spatial": "true",
+        "tags": "ProjectWorld.Terrain.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "section",
+      "key": "fallback:0.0,-6300.0,0.0:6300.0,0.0,3050.0",
+      "fields": {
+        "channel_table": "4290a836daf3e3e6b270581cb393060250b2a28ccb5e79c8c0af07d36e9517d1",
+        "channel_texcoord": "6350.76855,6350.76855",
+        "channel_texture_source": "3bc38ceec9aec7ac4b5386a7fde94d50dc7646e671768fca4a3e4347548e0fe2",
+        "class": "/Script/MeshPartition.CompiledSection",
+        "material_parameters": "texture:MeshPartitionChannelTexture:2:-1=channel",
+        "material_parent": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+        "mesh.1.affects_navigation": "0",
+        "mesh.1.class": "/Script/MeshPartition.MeshPartitionStaticMeshComponent",
+        "mesh.1.collision_enabled": "NoCollision",
+        "mesh.1.collision_profile": "NoCollision",
+        "mesh.1.mobility": "Static",
+        "mesh.1.overlap_events": "1",
+        "mesh.1.override_materials": "",
+        "mesh.1.relative_transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "mesh.1.render": "8ebfcada590e3e52cb297b90a550143eea3b1dc18d93c551b1a790c45b144a3f",
+        "spatial": "true",
+        "tags": "ProjectWorld.Terrain.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "section",
+      "key": "nanite:0.0,-6300.0,0.0:12600.0,0.0,2700.0",
+      "fields": {
+        "channel_table": "4290a836daf3e3e6b270581cb393060250b2a28ccb5e79c8c0af07d36e9517d1",
+        "channel_texcoord": "6325.58301,6325.58301",
+        "channel_texture_source": "762a9b237685876f50815c3aeb22a2827fd2b67247de01c75539fb158bd039b0",
+        "class": "/Script/MeshPartition.CompiledSection",
+        "material_parameters": "texture:MeshPartitionChannelTexture:2:-1=channel",
+        "material_parent": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+        "mesh.1.affects_navigation": "0",
+        "mesh.1.class": "/Script/MeshPartition.MeshPartitionStaticMeshComponent",
+        "mesh.1.collision_enabled": "NoCollision",
+        "mesh.1.collision_profile": "NoCollision",
+        "mesh.1.mobility": "Static",
+        "mesh.1.overlap_events": "1",
+        "mesh.1.override_materials": "",
+        "mesh.1.relative_transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "mesh.1.render": "6b647ecc922ac5bfe9a2e08c8627e62d21506228bed5b10280368bcba59e35f3",
+        "spatial": "true",
+        "tags": "ProjectWorld.Terrain.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "section",
+      "key": "nanite:0.0,-6300.0,0.0:6300.0,0.0,3050.0",
+      "fields": {
+        "channel_table": "4290a836daf3e3e6b270581cb393060250b2a28ccb5e79c8c0af07d36e9517d1",
+        "channel_texcoord": "6350.76855,6350.76855",
+        "channel_texture_source": "3bc38ceec9aec7ac4b5386a7fde94d50dc7646e671768fca4a3e4347548e0fe2",
+        "class": "/Script/MeshPartition.CompiledSection",
+        "material_parameters": "texture:MeshPartitionChannelTexture:2:-1=channel",
+        "material_parent": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
+        "mesh.1.affects_navigation": "0",
+        "mesh.1.class": "/Script/MeshPartition.MeshPartitionStaticMeshComponent",
+        "mesh.1.collision_enabled": "NoCollision",
+        "mesh.1.collision_profile": "NoCollision",
+        "mesh.1.mobility": "Static",
+        "mesh.1.overlap_events": "1",
+        "mesh.1.override_materials": "",
+        "mesh.1.relative_transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "mesh.1.render": "8ebfcada590e3e52cb297b90a550143eea3b1dc18d93c551b1a790c45b144a3f",
+        "spatial": "true",
+        "tags": "ProjectWorld.Terrain.v1",
+        "transform": "t=0,0,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 #include "ProjectWorldMeshTerrainProducer.h"
 
-#include "ProjectWorldMeshTerrainLayoutReceipt.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -14,7 +13,6 @@
 #include "MeshPartitionComponent.h"
 #include "MeshPartitionDefinition.h"
 #include "MeshPartitionModifierComponent.h"
-#include "Misc/EngineVersion.h"
 #include "Modifiers/MeshPartitionMeshProvider.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldTerrainRuntimeRole.h"
@@ -23,6 +21,7 @@
 #include "ProjectWorldMeshTerrainTransformer.h"
 #include "ProjectWorldRealizationService.h"
 #include "Serialization/JsonReader.h"
+#include "UObject/Linker.h"
 #include "Serialization/JsonSerializer.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
@@ -39,17 +38,11 @@ namespace ProjectWorldMeshTerrainProducer
 	{
 		const FName AuthoringTag(TEXT("ProjectWorld.MeshTerrain.Authoring.v1"));
 		const FName PartitionTag(TEXT("ProjectWorld.MeshTerrain.Partition.v1"));
+		const FString OwnedTagNamespace(TEXT("ProjectWorld.MeshTerrain."));
 		const FString CellTagPrefix(TEXT("ProjectWorld.MeshTerrain.Cell="));
 		const FString InputTagPrefix(TEXT("ProjectWorld.MeshTerrain.Input="));
-		const FString EngineTagPrefix(TEXT("ProjectWorld.MeshTerrain.Engine="));
 		const FString MaterialTagPrefix(TEXT("ProjectWorld.MeshTerrain.Material="));
-		const FString AdapterCompilerTagPrefix(TEXT("ProjectWorld.MeshTerrain.AdapterCompiler="));
-
-		FString CurrentEngineIdentity()
-		{
-			const FEngineVersion Version = FEngineVersion::Current();
-			return FString::Printf(TEXT("%s|changelist=%u"), *Version.ToString(), Version.GetChangelist());
-		}
+		const FString ProducerTagPrefix(TEXT("ProjectWorld.MeshTerrain.Producer="));
 
 		bool ImportProperty(UObject* Object, const FName Name, const TCHAR* Value, FString& OutError)
 		{
@@ -376,37 +369,6 @@ namespace ProjectWorldMeshTerrainProducer
 			return true;
 		}
 
-		bool ValidateSettings(const FString& NormalizedSettings, FString& OutError)
-		{
-			TSharedPtr<FJsonObject> Settings;
-			if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(NormalizedSettings), Settings) ||
-				!Settings.IsValid() || Settings->Values.Num() != 8)
-			{
-				OutError = TEXT("Mesh Terrain settings must contain the complete typed contract.");
-				return false;
-			}
-			FString DefinitionPath;
-			FString SurfaceContract;
-			FString Collision;
-			double SurfaceVersion = 0.0;
-			double MaxComplexity = 0.0;
-			double TexelSize = 0.0;
-			double MaxTexture = 0.0;
-			const TArray<TSharedPtr<FJsonValue>>* Variants = nullptr;
-			return Settings->TryGetStringField(TEXT("shared_definition"), DefinitionPath) &&
-				DefinitionPath == SharedDefinitionObjectPath &&
-				Settings->TryGetStringField(TEXT("surface_contract_id"), SurfaceContract) &&
-				SurfaceContract == TEXT("terrain_surface_semantics") &&
-				Settings->TryGetNumberField(TEXT("surface_contract_version"), SurfaceVersion) && SurfaceVersion == 1.0 &&
-				Settings->TryGetNumberField(TEXT("section_max_complexity"), MaxComplexity) && MaxComplexity == 2048.0 &&
-				Settings->TryGetNumberField(TEXT("channel_texel_size_cm"), TexelSize) && TexelSize == 3000.0 &&
-				Settings->TryGetNumberField(TEXT("channel_texture_max_dimension"), MaxTexture) && MaxTexture == 4096.0 &&
-				Settings->TryGetStringField(TEXT("collision"), Collision) && Collision == TEXT("complex_as_simple") &&
-				Settings->TryGetArrayField(TEXT("render_variants"), Variants) && Variants != nullptr &&
-				Variants->Num() == 2 && (*Variants)[0]->AsString() == TEXT("nanite") &&
-				(*Variants)[1]->AsString() == TEXT("fallback");
-		}
-
 		FString FindTagValue(const TArray<FName>& Tags, const FString& Prefix)
 		{
 			for (const FName Tag : Tags)
@@ -514,19 +476,14 @@ namespace ProjectWorldMeshTerrainProducer
 
 		UE::MeshPartition::AMeshPartition* FindPartition(UWorld* World)
 		{
-			UE::MeshPartition::AMeshPartition* LegacyPartition = nullptr;
 			for (TActorIterator<UE::MeshPartition::AMeshPartition> It(World); It; ++It)
 			{
-				if (It->Tags.Contains(PartitionTag))
+				if (It->Tags.Contains(PartitionTag) && It->IsA<AProjectWorldMeshTerrainPartition>())
 				{
-					if (It->IsA<AProjectWorldMeshTerrainPartition>())
-					{
-						return *It;
-					}
-					LegacyPartition = *It;
+					return *It;
 				}
 			}
-			return LegacyPartition;
+			return nullptr;
 		}
 
 		bool EnsureEditorComponent(UE::MeshPartition::AMeshPartition* Partition, FString& OutError)
@@ -565,7 +522,7 @@ namespace ProjectWorldMeshTerrainProducer
 
 		bool RemoveExternalActor(UWorld* World, AActor* Actor)
 		{
-			const UPackage* Package = Actor != nullptr ? Actor->GetExternalPackage() : nullptr;
+			UPackage* Package = Actor != nullptr ? Actor->GetExternalPackage() : nullptr;
 			const FString Filename = Package != nullptr
 				? FPackageName::LongPackageNameToFilename(
 					Package->GetName(), FPackageName::GetAssetPackageExtension())
@@ -573,6 +530,10 @@ namespace ProjectWorldMeshTerrainProducer
 			if (Actor != nullptr && !World->EditorDestroyActor(Actor, true))
 			{
 				return false;
+			}
+			if (Package != nullptr)
+			{
+				ResetLoaders(Package);
 			}
 			return Filename.IsEmpty() || !IFileManager::Get().FileExists(*Filename) ||
 				IFileManager::Get().Delete(*Filename, false, true);
@@ -583,9 +544,21 @@ namespace ProjectWorldMeshTerrainProducer
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FString&,
 			UMaterialInterface* Material,
+			const FString& ProducerFingerprint,
 			FProjectWorldRealizationResult& OutResult,
 			FString& OutError)
 		{
+			bool bValidFingerprint = ProducerFingerprint.Len() == 64;
+			for (const TCHAR Character : ProducerFingerprint)
+			{
+				bValidFingerprint &= (Character >= TEXT('0') && Character <= TEXT('9')) ||
+					(Character >= TEXT('a') && Character <= TEXT('f'));
+			}
+			if (!bValidFingerprint)
+			{
+				OutError = TEXT("Mesh Terrain requires the realization request's producer fingerprint.");
+				return false;
+			}
 			if (World == nullptr || Material == nullptr ||
 				!ValidateSharedDefinition(Material != nullptr ? Material->GetPathName() : FString(), OutError))
 			{
@@ -611,11 +584,6 @@ namespace ProjectWorldMeshTerrainProducer
 				{
 					ExtraPartitions.Add(*It);
 				}
-			}
-			if (Partition != nullptr && !Partition->IsA<AProjectWorldMeshTerrainPartition>())
-			{
-				ExtraPartitions.Add(Partition);
-				Partition = nullptr;
 			}
 			for (UE::MeshPartition::AMeshPartition* ExtraPartition : ExtraPartitions)
 			{
@@ -665,11 +633,9 @@ namespace ProjectWorldMeshTerrainProducer
 					}
 				}
 				const FString MaterialPath = Material->GetPathName();
-				const FString AdapterCompiler =
-					FProjectWorldMeshTerrainLayoutReceiptContract::GetAdapterCompilerFingerprint();
 				if (!bPartitionCreated && Existing != nullptr && MatchesBaseIdentity(
-					Existing->Tags, Cell.Terrain.ArtifactHash, CurrentEngineIdentity(), MaterialPath,
-					AdapterCompiler))
+					Existing->Tags, Cell.CellId, Cell.Terrain.ArtifactHash, MaterialPath,
+					ProducerFingerprint))
 				{
 					continue;
 				}
@@ -684,18 +650,12 @@ namespace ProjectWorldMeshTerrainProducer
 						*Cell.CellId);
 					return false;
 				}
-				BaseActor->Tags.AddUnique(AuthoringTag);
-				BaseActor->Tags.AddUnique(FName(*(CellTagPrefix + Cell.CellId)));
 				BaseActor->Tags.RemoveAllSwap([](const FName Tag)
 				{
-					const FString Text = Tag.ToString();
-					return Text.StartsWith(InputTagPrefix) || Text.StartsWith(EngineTagPrefix) ||
-						Text.StartsWith(MaterialTagPrefix) || Text.StartsWith(AdapterCompilerTagPrefix);
+				return Tag.ToString().StartsWith(OwnedTagNamespace);
 				});
-				BaseActor->Tags.Add(FName(*(InputTagPrefix + Cell.Terrain.ArtifactHash)));
-				BaseActor->Tags.Add(FName(*(EngineTagPrefix + CurrentEngineIdentity())));
-				BaseActor->Tags.Add(FName(*(MaterialTagPrefix + MaterialPath)));
-				BaseActor->Tags.Add(FName(*(AdapterCompilerTagPrefix + AdapterCompiler)));
+				BaseActor->Tags.Append(BuildBaseIdentityTags(
+					Cell.CellId, Cell.Terrain.ArtifactHash, MaterialPath, ProducerFingerprint));
 				BaseActor->SetActorLabel(TEXT("ProjectWorld Mesh Terrain Base ") + Cell.CellId);
 				BaseActor->SetIsSpatiallyLoaded(true);
 				Provider->SetIgnoreChanged(true);
@@ -820,20 +780,18 @@ namespace ProjectWorldMeshTerrainProducer
 					Cast<UE::MeshPartition::UMeshProviderModifier>(It->GetRootComponent());
 				const UE::Geometry::FDynamicMesh3* Mesh = Provider != nullptr ? Provider->GetMesh() : nullptr;
 				const FString MaterialPath = Partition->GetMeshPartitionDefinition()->GetMaterial()->GetPathName();
-				const FString AdapterCompiler =
-					FProjectWorldMeshTerrainLayoutReceiptContract::GetAdapterCompilerFingerprint();
 				if (Cell == nullptr || ActualCells.Contains(CellId) || !MatchesBaseIdentity(
-					It->Tags, Cell->Terrain.ArtifactHash, CurrentEngineIdentity(), MaterialPath,
-					AdapterCompiler) ||
+					It->Tags, CellId, Cell->Terrain.ArtifactHash, MaterialPath,
+					Inventory.GeneratorFingerprint) ||
 					!It->GetIsSpatiallyLoaded() || Provider == nullptr || Provider->GetAffectedMeshPartition() != Partition ||
 					Mesh == nullptr || Mesh->VertexCount() != Cell->Terrain.SamplesX * Cell->Terrain.SamplesY ||
 					Mesh->Attributes() == nullptr || Mesh->Attributes()->NumWeightLayers() != 2)
 				{
 					OutError = FString::Printf(
-						TEXT("Mesh Terrain base ownership is invalid for cell: %s input=%s engine=%s material_tag=%s expected_material=%s"),
+						TEXT("Mesh Terrain base ownership is invalid for cell: %s input=%s producer=%s material_tag=%s expected_material=%s"),
 						*CellId,
 						*InputHash,
-						*FindTagValue(*It, EngineTagPrefix),
+						*FindTagValue(*It, ProducerTagPrefix),
 						*FindTagValue(*It, MaterialTagPrefix),
 						*MaterialPath);
 					return false;
@@ -848,8 +806,8 @@ namespace ProjectWorldMeshTerrainProducer
 				}
 				ActualCells.Add(CellId);
 				FString Semantic;
-				if (!HashText(FString::Printf(TEXT("project_mesh_terrain_base_v1|%s|%s|%s|%s"),
-					*CellId, *InputHash, *MaterialPath, *AdapterCompiler),
+			if (!HashText(FString::Printf(TEXT("project_mesh_terrain_base_v2|%s|%s|%s"),
+				*CellId, *InputHash, *MaterialPath),
 					Semantic) || !AddActorArtifact(*It, Semantic, Inventory, OutError))
 				{
 					return false;
@@ -890,17 +848,46 @@ namespace ProjectWorldMeshTerrainProducer
 		}
 	}
 
+	TArray<FName> BuildBaseIdentityTags(const FString& CellId, const FString& Input,
+		const FString& MaterialPath, const FString& ProducerFingerprint)
+	{
+		return {
+			AuthoringTag,
+			FName(*(CellTagPrefix + CellId)),
+			FName(*(InputTagPrefix + Input)),
+			FName(*(MaterialTagPrefix + MaterialPath)),
+			FName(*(ProducerTagPrefix + ProducerFingerprint))};
+	}
+
 	bool MatchesBaseIdentity(
 		const TArray<FName>& Tags,
+		const FString& ExpectedCellId,
 		const FString& ExpectedInput,
-		const FString& ExpectedEngine,
 		const FString& ExpectedMaterial,
-		const FString& ExpectedAdapterCompiler)
+		const FString& ExpectedProducerFingerprint)
 	{
-		return FindTagValue(Tags, InputTagPrefix) == ExpectedInput &&
-			FindTagValue(Tags, EngineTagPrefix) == ExpectedEngine &&
-			FindTagValue(Tags, MaterialTagPrefix) == ExpectedMaterial &&
-			FindTagValue(Tags, AdapterCompilerTagPrefix) == ExpectedAdapterCompiler;
+		const TArray<FName> Expected = BuildBaseIdentityTags(
+			ExpectedCellId, ExpectedInput, ExpectedMaterial, ExpectedProducerFingerprint);
+		TArray<FName> Actual;
+		for (const FName Tag : Tags)
+		{
+			if (Tag.ToString().StartsWith(OwnedTagNamespace))
+			{
+				Actual.Add(Tag);
+			}
+		}
+		if (Actual.Num() != Expected.Num())
+		{
+			return false;
+		}
+		for (const FName Tag : Expected)
+		{
+			if (!Actual.Contains(Tag))
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	bool EnsureSharedDefinition(UMaterialInterface* TerrainMaterial, FString& OutError)
@@ -947,20 +934,24 @@ namespace ProjectWorldMeshTerrainProducer
 		return ValidateDefinition(Definition, TerrainMaterialObjectPath, OutError);
 	}
 
-	FProjectWorldTerrainProducerContract Contract()
+	bool ApplyLayer(UWorld* World, const FProjectWorldCanonicalBundle& Bundle,
+		const FString& Settings, UMaterialInterface* Material, const FString& ProducerFingerprint,
+		FProjectWorldRealizationResult& OutResult, FString& OutError)
 	{
-		FProjectWorldTerrainProducerContract Result;
-		Result.GeneratorId = TEXT("project_mesh_terrain");
-		Result.GeneratorVersion = 1;
-		Result.CanonicalSelectors = {TEXT("terrain")};
-		Result.SpatialOwnership = TEXT("compiled_sections_from_canonical_cells");
-		Result.RuntimeMapping = TEXT("world_partition_spatial");
-		Result.DependencyHaloCells = 0;
-		Result.ValidateSettings = ValidateSettings;
-		Result.Apply = Apply;
-		Result.Delete = Delete;
-		Result.CaptureArtifacts = CaptureArtifacts;
-		return Result;
+		return Apply(World, Bundle, Settings, Material, ProducerFingerprint, OutResult, OutError);
+	}
+
+	bool DeleteLayer(UWorld* World, const FProjectWorldCanonicalBundle& Bundle,
+		FProjectWorldRealizationResult& OutResult, FString& OutError)
+	{
+		return Delete(World, Bundle, OutResult, OutError);
+	}
+
+	bool CaptureLayer(UWorld* World, const FProjectWorldCanonicalBundle& Bundle,
+		FProjectWorldLayerInventory& Inventory, FProjectWorldRealizationResult& OutResult,
+		FString& OutError)
+	{
+		return CaptureArtifacts(World, Bundle, Inventory, OutResult, OutError);
 	}
 }
 

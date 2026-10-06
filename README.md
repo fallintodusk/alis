@@ -4,7 +4,10 @@ World Reborn
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM">
-    <img src="https://img.youtube.com/vi/eIJHYsPgNnM/maxresdefault.jpg" alt="ALIS world preview - watch on YouTube" width="640">
+    <img src="https://img.youtube.com/vi/eIJHYsPgNnM/maxresdefault.jpg" alt="ALIS - World Reborn trailer - watch on YouTube" width="320">
+  </a>
+  <a href="https://youtu.be/zZOI2uBskSA">
+    <img src="https://img.youtube.com/vi/zZOI2uBskSA/maxresdefault.jpg" alt="Build the Game - watch on YouTube" width="320">
   </a>
 </p>
 

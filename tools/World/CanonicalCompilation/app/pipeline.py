@@ -519,7 +519,7 @@ def compile_world(
             "profile_id": profile["profile_id"],
             "world_data_plugin": profile["world_data_plugin"],
             "engine_georeference_origin": profile["engine_georeference_origin"],
-            "algorithm_version": profile.get("algorithm_version", "alis-world-compiler-1"),
+            "algorithm_version": profile["algorithm_version"],
             "grid_id": identifier,
             "grid": profile["grid"],
             "area_fingerprints": sorted({

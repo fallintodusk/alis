@@ -86,6 +86,45 @@ function Get-ProjectWorldPerformanceFileHash {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Measure-ProjectWorldPerformanceHostLoad {
+    $cpuSamples = [Collections.Generic.List[double]]::new()
+    $gpuSamples = [Collections.Generic.List[double]]::new()
+    for ($sampleIndex = 0; $sampleIndex -lt 3; ++$sampleIndex) {
+        $processor = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor `
+            -Filter "Name='_Total'" -ErrorAction Stop
+        if ($null -eq $processor) {
+            throw 'Unable to measure Windows CPU load for the performance envelope.'
+        }
+        $cpuSamples.Add([double]$processor.PercentProcessorTime)
+
+        $gpuOutput = @(& nvidia-smi --query-gpu=utilization.gpu `
+                --format=csv,noheader,nounits)
+        if ($LASTEXITCODE -ne 0 -or $gpuOutput.Count -lt 1) {
+            throw 'Unable to measure NVIDIA GPU load for the performance envelope.'
+        }
+        $adapterLoads = [Collections.Generic.List[double]]::new()
+        foreach ($gpuValue in $gpuOutput) {
+            $gpuLoad = 0.0
+            if (-not [double]::TryParse(
+                    [string]$gpuValue,
+                    [Globalization.NumberStyles]::Float,
+                    [Globalization.CultureInfo]::InvariantCulture,
+                    [ref]$gpuLoad)) {
+                throw 'NVIDIA GPU load measurement was invalid.'
+            }
+            $adapterLoads.Add($gpuLoad)
+        }
+        $gpuSamples.Add([double](($adapterLoads | Measure-Object -Maximum).Maximum))
+        if ($sampleIndex -lt 2) {
+            Start-Sleep -Seconds 1
+        }
+    }
+    return [pscustomobject][ordered]@{
+        cpu_percent = [double](($cpuSamples | Measure-Object -Average).Average)
+        gpu_percent = [double](($gpuSamples | Measure-Object -Average).Average)
+    }
+}
+
 function Get-ProjectWorldPerformanceChildOutcome {
     param(
         [Parameter(Mandatory = $true)][object]$Receipt,
@@ -259,19 +298,46 @@ function New-ProjectWorldPerformanceAggregate {
         [Parameter(Mandatory = $true)][string]$ExpectedExecutableSha256,
         [Parameter(Mandatory = $true)][string]$ExpectedPackage,
         [Parameter(Mandatory = $true)][string]$ExpectedPackageSha256,
-        [double]$HostCpuLoadPercent = 0.0,
-        [double]$HostGpuLoadPercent = 0.0
+        [Parameter(Mandatory = $true)][object[]]$HostLoadWindows,
+        [string]$ExpectedMapPackage,
+        [string]$ExpectedRuntimeProfile,
+        [switch]$RequireCorrectnessBinding,
+        [switch]$RequireNonInteractivePolicy
     )
 
-    foreach ($value in @($HostCpuLoadPercent, $HostGpuLoadPercent)) {
-        if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or
-            $value -lt 0.0 -or $value -gt 100.0) {
-            throw 'Host load must be a finite percentage from 0 through 100.'
+    if ($HostLoadWindows.Count -ne 6) {
+        throw 'Performance aggregation requires six host-load windows.'
+    }
+    $hostLoadPercent = 100.0
+    $selectedHostLoad = $null
+    for ($index = 0; $index -lt 6; ++$index) {
+        $window = $HostLoadWindows[$index]
+        $expectedPhase = 'run-{0:D2}-{1}' -f `
+            ([int][Math]::Floor($index / 2) + 1), @('before', 'after')[$index % 2]
+        if ($null -eq $window -or [string]$window.phase -cne $expectedPhase) {
+            throw "Host-load window sequence is invalid at $expectedPhase."
+        }
+        foreach ($field in @('cpu_percent', 'gpu_percent')) {
+            if ($null -eq $window.PSObject.Properties[$field] -or
+                $null -eq $window.PSObject.Properties[$field].Value) {
+                throw "Host-load window is missing $field."
+            }
+            $value = [double]$window.PSObject.Properties[$field].Value
+            if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or
+                $value -lt 0.0 -or $value -gt 100.0) {
+                throw 'Host load must be a finite percentage from 0 through 100.'
+            }
+        }
+        $windowLoad = [Math]::Max([double]$window.cpu_percent, [double]$window.gpu_percent)
+        if ($windowLoad -le $hostLoadPercent) {
+            $hostLoadPercent = $windowLoad
+            $selectedHostLoad = $window
         }
     }
-    $frameP95BudgetMilliseconds = 16.67
-    $hostLoadPercent = [Math]::Max($HostCpuLoadPercent, $HostGpuLoadPercent)
-    $hostLoadAllowancePercent = 0.0
+    $baseFrameP95BudgetMilliseconds = 16.67
+    $hostLoadAllowancePercent = [Math]::Min(10.0, [Math]::Max(0.0, $hostLoadPercent - 20.0))
+    $frameP95BudgetMilliseconds = [Math]::Round(
+        $baseFrameP95BudgetMilliseconds * (1.0 + $hostLoadAllowancePercent / 100.0), 3)
 
     if ($Children.Count -ne 3) {
         throw 'Performance aggregation requires exactly three predetermined child runs.'
@@ -311,6 +377,20 @@ function New-ProjectWorldPerformanceAggregate {
         $receipt = Get-Content -LiteralPath $child.ReceiptPath -Raw | ConvertFrom-Json
         if (-not (Test-ProjectWorldPerformanceEnvelopeReceipt -Receipt $receipt)) {
             throw 'Performance child has a missing or invalid runtime envelope.'
+        }
+        if (($ExpectedMapPackage -and [string]$receipt.map_package -cne $ExpectedMapPackage) -or
+            ($ExpectedRuntimeProfile -and [string]$receipt.runtime_profile -cne $ExpectedRuntimeProfile) -or
+            ($RequireNonInteractivePolicy -and
+                ($null -eq $receipt.PSObject.Properties['gameplay_interaction_required'] -or
+                    [bool]$receipt.gameplay_interaction_required)) -or
+            ($RequireCorrectnessBinding -and
+                ($null -eq $child.PSObject.Properties['CorrectnessPath'] -or
+                    [string]::IsNullOrWhiteSpace([string]$child.CorrectnessPath) -or
+                    $null -eq $receipt.PSObject.Properties['correctness_receipt'] -or
+                    -not ([IO.Path]::GetFullPath([string]$receipt.correctness_receipt)).Equals(
+                        [IO.Path]::GetFullPath([string]$child.CorrectnessPath),
+                        [StringComparison]::OrdinalIgnoreCase)))) {
+            throw 'Performance child map, runtime, policy, or correctness binding was rejected.'
         }
         $receiptExecutable = [IO.Path]::GetFullPath([string]$receipt.executable)
         if ([string]$receipt.operation_id -cne [string]$child.ExpectedOperationId -or
@@ -355,7 +435,7 @@ function New-ProjectWorldPerformanceAggregate {
         }
         $outcome = Get-ProjectWorldPerformanceChildOutcome -Receipt $receipt `
             -ProcessExitCode ([int]$child.ExpectedProcessExitCode) `
-            -FrameP95BudgetMilliseconds $frameP95BudgetMilliseconds
+            -FrameP95BudgetMilliseconds $baseFrameP95BudgetMilliseconds
         if (-not $outcome.valid) {
             throw ('Performance child failed for a non-aggregatable reason: ' +
                 "status=$($receipt.status) frame_p95_ms=$($receipt.frame_p95_ms) " +
@@ -414,9 +494,10 @@ function New-ProjectWorldPerformanceAggregate {
         development_executable = $resolvedExecutable
         development_executable_sha256 = $ExpectedExecutableSha256
         execution_count = 3
-        base_frame_p95_budget_ms = $frameP95BudgetMilliseconds
-        host_cpu_load_percent = $HostCpuLoadPercent
-        host_gpu_load_percent = $HostGpuLoadPercent
+        base_frame_p95_budget_ms = $baseFrameP95BudgetMilliseconds
+        host_cpu_load_percent = [double]$selectedHostLoad.cpu_percent
+        host_gpu_load_percent = [double]$selectedHostLoad.gpu_percent
+        host_load_windows = @($HostLoadWindows)
         host_load_percent = $hostLoadPercent
         host_load_allowance_percent = $hostLoadAllowancePercent
         frame_p95_budget_ms = $frameP95BudgetMilliseconds

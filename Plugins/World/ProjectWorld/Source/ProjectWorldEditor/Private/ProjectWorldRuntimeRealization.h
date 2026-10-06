@@ -35,6 +35,7 @@ namespace ProjectWorldRuntimeRealization
 	bool CaptureAndCheckStructuralBudgets(
 		UWorld* World,
 		const FProjectWorldRuntimeProfile& Profile,
+		bool bVegetationLayerSelected,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError);
 }

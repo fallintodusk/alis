@@ -96,6 +96,9 @@ Describe 'Product terrain acceptance derivation' {
             -MapPackage '/ProjectWorldData/Generated/Test/L_Test' `
             -TerrainGeneratorId 'project_mesh_terrain:v1' -OutputPath $script:outputPath | Out-Null
         $result = Get-Content $script:outputPath -Raw | ConvertFrom-Json
+        $result.terrain_expectations.collision_components | Should -Be 'navigation_relevant_pawn_blocking'
+        $result.terrain_expectations.non_main_pass_helpers | Should -Be 'required_navigation_irrelevant'
+        $result.terrain_expectations.route_endpoints | Should -Be 'navigation_relevant_pawn_blocking'
         @($result.height_probes).Count | Should -Be 6
         @($result.height_probes.kind | Sort-Object) | Should -Be @(
             'cell_boundary', 'center', 'high', 'hydro_transition', 'low', 'perimeter')
@@ -118,5 +121,17 @@ Describe 'Product terrain acceptance derivation' {
                 -TerrainGeneratorId 'project_mesh_terrain:v1' `
                 -OutputPath (Join-Path $script:testRoot 'bad-acceptance.json') | Out-Null
         } | Should -Throw '*Canonical terrain hash failed*'
+    }
+
+    It 'rejects an undeclared terrain producer before writing an acceptance contract' {
+        $unknownOutput = Join-Path $script:testRoot 'unknown-acceptance.json'
+        {
+            & $script:runner -CompileResultPath $script:compileResultPath `
+                -CompilerProfilePath $script:compilerProfilePath `
+                -RuntimeProfilePath $script:runtimeProfilePath `
+                -MapPackage '/ProjectWorldData/Generated/Test/L_Test' `
+                -TerrainGeneratorId 'unknown_terrain:v1' -OutputPath $unknownOutput | Out-Null
+        } | Should -Throw '*exactly one producer descriptor for unknown_terrain:v1*'
+        Test-Path -LiteralPath $unknownOutput | Should -BeFalse
     }
 }

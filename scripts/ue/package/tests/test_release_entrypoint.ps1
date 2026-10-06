@@ -13,10 +13,13 @@ $WorkspaceRoot = Join-Path $TestParent "v2.0.98"
 $SchemaMismatchRoot = Join-Path $TestParent ("schema-mismatch-" + [Guid]::NewGuid().ToString("N"))
 $FinalRemote = Join-Path $TestParent ("final-source-fixture-" + [Guid]::NewGuid().ToString("N"))
 $FinalCheckout = Join-Path $TestParent "final-public-source\v2.0.97"
+$GuardInputRoot = Join-Path $TestParent ('inputs\guard-fixture-' + [Guid]::NewGuid().ToString('N'))
+$GuardReleaseRoot = Join-Path $TestParent ('guard-fixture-' + [Guid]::NewGuid().ToString('N'))
+$ScratchMarker = 'foreign-fixture-' + [Guid]::NewGuid().ToString('N')
 $EphemeralRoots = @(
-    (Join-Path $TestParent "work"),
-    (Join-Path $TestParent "c"),
-    (Join-Path $TestParent "final-public-source")
+    (Join-Path $TestParent "work\$ScratchMarker"),
+    (Join-Path $TestParent "c\$ScratchMarker"),
+    (Join-Path $TestParent "final-public-source\$ScratchMarker")
 )
 
 $ReleaseSource = Get-Content -LiteralPath $ReleaseScript -Raw
@@ -153,6 +156,19 @@ if (Test-Path -LiteralPath $WorkspaceRoot) {
     throw "Release workspace fixture already exists: $WorkspaceRoot"
 }
 try {
+    New-Item -ItemType Directory -Path $GuardInputRoot -Force | Out-Null
+    'protected' | Set-Content -LiteralPath (Join-Path $GuardInputRoot 'sentinel.txt') -Encoding Ascii
+    Assert-Fails -MessagePattern '*requires SOURCE_COMMIT*' -Action {
+        & $ReleaseScript -ReleaseVersion '3.0.0' -ReleaseDir $GuardReleaseRoot `
+            -InputRoot $GuardInputRoot -SkipSigning
+    }
+    Assert-Fails -MessagePattern '*does not match*HEAD*' -Action {
+        & $ReleaseScript -ReleaseVersion '3.0.0' -ReleaseDir $GuardReleaseRoot `
+            -InputRoot $GuardInputRoot -SourceCommit ('a' * 40) -SkipSigning
+    }
+    if ((Get-Content -LiteralPath (Join-Path $GuardInputRoot 'sentinel.txt') -Raw).Trim() -cne 'protected') {
+        throw 'Rejected frozen source removed existing release inputs.'
+    }
     Write-PendingRelease -Directory $SchemaMismatchRoot -ReleaseVersion "2.1.0"
     Assert-Fails -MessagePattern "*requires workspace schema*" -Action {
         & $ReleaseScript -ReleaseVersion "2.1.0" -ReleaseDir $SchemaMismatchRoot -SkipSigning
@@ -194,8 +210,8 @@ try {
         throw "Unsigned release entrypoint created signing outputs."
     }
     foreach ($EphemeralRoot in $EphemeralRoots) {
-        if (Test-Path -LiteralPath $EphemeralRoot) {
-            throw "Release entrypoint left abandoned scratch behind: $EphemeralRoot"
+        if (-not (Test-Path -LiteralPath (Join-Path $EphemeralRoot 'stale\.git'))) {
+            throw "Release entrypoint removed another run's scratch: $EphemeralRoot"
         }
     }
 
@@ -302,6 +318,9 @@ try {
     Write-Host "[OK] Release entrypoint unsigned contract passed"
 }
 finally {
+    if (Test-Path -LiteralPath $GuardInputRoot) {
+        Remove-Item -LiteralPath $GuardInputRoot -Recurse -Force
+    }
     foreach ($EphemeralRoot in $EphemeralRoots) {
         if (Test-Path -LiteralPath $EphemeralRoot) {
             Remove-Item -LiteralPath $EphemeralRoot -Recurse -Force

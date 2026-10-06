@@ -1,6 +1,6 @@
 # ALIS 3.0.0 Release Plan
 
-**Status:** CURRENT RELEASE FOCUS - concerns 1 and 2 are done; no release candidate exists
+**Status:** CURRENT RELEASE FOCUS - routing fixes committed; planner composition verified with independent R2 PASS; operator commit precedes one unsigned R5
 **Active concern:** none; concerns 1 and 2 are done ([Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md))  
 **Scope:** release-level scope, sequencing, and gates for 3.0.0, plus the release-platform contract change in `scripts/ue/package/` (R4)  
 **Stable documentation owner:** [Package and Release Guide](../../docs/build/packaging_guide.md) and [package scripts README](../../scripts/ue/package/README.md) for release operations; each concern task names its own owners
@@ -12,14 +12,231 @@ Reviewers start with `## Reviewer brief`.
 
 ## Current state and next steps
 
-State on 2026-10-01: concern 1 is done; production Kazan and Manhattan use Mesh Terrain
+### World planner composition correction
+
+The prior routing fixes are committed at
+`ac9f8c998acf5d8bdcaa8945afcf604b49dcdb8a`. The external follow-up correctly
+identified that the adapter's JSON-only filter omitted production source,
+scripts, tool implementations and generated packages from World requirements.
+The RED equivalence table reproduced eight omitted production path cases.
+
+R1 independent PASS: put the release projection beside the ordinary World
+planner, filter only known proof/docs surfaces, and delegate retained inputs
+unchanged. Keep `.txt` dependencies, production package scripts and mixed
+production changes. Full L1/Matrix decisions and Check identity remain intact.
+
+CHANGED: World-owned release planning seam, thin adapter, equivalence/negative
+controls and existing Git-fixture producer declarations, owning SOTs/handoff.
+UNTOUCHED: ordinary planner decision logic, Check fingerprint inputs, gameplay,
+profiles, generated authority, native binaries and the frozen release boundary.
+
+The full production result must equal the direct ordinary planner result;
+proof-only changes report no generation plan. Compiler/source L1 requirements
+add WorldContracts without relabelling focused checks as full L1/Matrix proof.
+GREEN: 10 World tests (14 production variants plus proof/mixed controls), 9 Pester
+cases, 26 existing planner cases and 93 profile/schema files; PlanOnly, parse,
+ASCII, link, path/name and diff hygiene passed. Independent R2 PASS with no
+concrete blocking finding. Evidence under `tmp/release/preflight-routing/composition/`:
+`red.log`, `world-router.log`, `planner.log`, `world-contracts.log`, `pester.json`
+and `plan.json`. Planning reports unexecuted Matrix/verify requirements; no real
+PIE, Matrix, generation, build, package or R5 ran for this correction.
+Stop for the operator commit, then perform the single frozen unsigned R5.
+Packaged acceptance remains unverified. Do not retry refused scratch cleanup.
+
+### Release impact routing correction
+
+The accepted admission slice is committed at
+`e41f774445b6e526b737d83825d7474ef67f197a`. Its real two-city PIE and native
+gameplay evidence below remains valid: this follow-up changes only impact
+selection, contract checks and handoff documentation.
+
+Operator authorized evaluation and valid fixes from the external routing review.
+R1 independent design review accepted shared rename-safe Git collection,
+additive `-Owner`, World-owned profile/schema selection and explicit unexecuted
+Matrix requirements. It required projection selection for consumed Runtime,
+Presentation and Authored inputs and validation of unchanged schema consumers.
+The blanket public-profile -> private PIE claim is incorrect: private PIE reads
+existing maps; the public profile belongs to projection/contract checks.
+
+Owning black boxes: World impact planning/contracts and release orchestration.
+CHANGED: shared snapshot API, World release adapter/contract validator, additive
+release selection, focused router tests and owning SOTs.
+UNTOUCHED: gameplay, maps, profiles, generated authority, native launch arguments,
+performance thresholds and frozen release/publication boundaries.
+
+RED: three focused routing cases rejected the missing plan/World adapter seams.
+Independent R2 also found toolkit-owned profile schemas fell through. The real
+Git compiler-schema route returned no owners, all four toolkit profile/budget
+schema cases lost Matrix metadata, and an invalid unreferenced toolkit schema
+passed validation. The World owner now includes toolkit schemas and their
+existing profile consumers; all six RED assertions are GREEN.
+
+GREEN: 9 Pester cases, 8 World impact/contract cases, 26 existing planner cases,
+93 World profile/schema files, public projection fixture, PlanOnly, PowerShell
+parse and ASCII/path/name/diff hygiene. Independent routing R2 PASS: no remaining
+concrete blocking finding. Evidence under `tmp/release/preflight-routing/20261006/`:
+`routing-pester.json`, `pester.json`, `world-router.log`, `world-contracts.log`
+and `plan.json`. This slice is committed at
+`ac9f8c998acf5d8bdcaa8945afcf604b49dcdb8a`; the next commit boundary is the
+planner composition correction above. The full packaged release is still unverified.
+
+Automatic approval refused manual cleanup of four earlier test Git fixtures in
+ignored `tmp/release/preflight-tests/` (reason: blocked by policy). They remain
+disposable diagnostics. New routing fixtures clean their recorded repositories
+after containment checks; that cleanup passed. Source and index were preserved.
+
+For any necessary routing correction, run only routing,
+schema/consumer fixtures, parse and governance hygiene; no real PIE, Matrix,
+regeneration, cook or R5 for this slice.
+
+### Uncooked admission slice
+
+Implementation, runtime proof and independent R2 are closed and committed at
+`e41f774445b6e526b737d83825d7474ef67f197a`. The remaining commit boundary is
+the routing correction above.
+Do not repeat generation, packaging or real-map probes for documentation
+handoff alone. The next frozen unsigned R5 remains final artifact certification.
+
+Operator request: apply the supplied release-debugging review before another R5.
+R1 independent design review PASS: reuse the existing product route, performance
+collector, playable driver, and residency tracker; add no simulator or native test mode.
+The uncooked wrapper accepts gameplay only, including a native p95-only rejection
+after independently proving sample validity, zero streaming failures, and full input,
+collision, and residency evidence. It never certifies performance.
+
+Owning black box: World product-runtime verification and release test routing.
+Contract: one current-source, no-cook command; fresh operation-bound receipts,
+native uncooked PIE identity, stable source/modules and generated authority.
+CHANGED: runtime receipt envelope metadata, operation argument/description adapters,
+uncooked runner and tests, bounded real-input driver overhang recovery,
+thin release preflight, owning test/release docs.
+UNTOUCHED: CharacterMovement and collision physics, generated maps, runtime profiles, generators,
+canonical authority, final performance thresholds, frozen release publication.
+
+| Invariant | Acceptance surface | Envelope | Cheapest proof | Final proof | Stop |
+|---|---|---|---|---|---|
+| Real center return, descent and forward slide | CharacterMovement and collision on each production map | Current Editor modules, normal RHI, native single-client PIE, menu/loading route | Receipt refusal fixtures | Unflagged Manhattan control, then precise Manhattan and ordinary Kazan | No R5 admission if geometry/control evidence is absent |
+| Exact current inputs and no generated mutation | Source/modules, runtime profile and generated path/hash inventory | Current checkout, no cook or regeneration | Identity/mutation sabotage fixture | Equal before/after inventory and bound receipts | Reject changed or unknown input |
+| Correctness cannot stand in for package performance | Native cooked identity and outer acceptance scope | Uncooked gameplay versus final package | Envelope and native p95-refusal tests | R5 remains the only final artifact proof | Reject wrong-envelope certification |
+| Release fixes select their own checks | First failed owner and dependency closure | Focused scripts in current checkout | Owner-routing fixture and historical guard audit | Independent R2 of runner and evidence | No automatic package/territory replay |
+
+Execution: focused RED fixtures -> implementation -> one incremental Editor build ->
+real known-bad control and two-city GREEN -> historical guard audit -> independent R2.
+Only then request the operator commit and resume the frozen unsigned release.
+
+The initial `-game` diagnostic at `tmp/world/playable_tour/uncooked/977f4b5bda26468aac06e7923557d9fd/`
+asserted in native `FWorldPartitionActorDesc::Serialize`: Mesh Partition's editor
+component classes are required to read these uncooked descriptors. Generated
+authority stayed byte-identical. This is not the slide RED control. R1 amendment
+PASS selects native full-Editor PIE with transient Standalone settings and
+canonical map identity after PIE prefix removal; plugin types and saved maps
+remain untouched. The following launch diagnostic was stopped after native logs
+localized incorrect quoting of `ExecCmds`; it is not gameplay evidence either.
+
+The actual PIE probe `e2f7592a05134fb6b6acc35300b392c3` entered a different
+failure before final return: forward/upward input stalled under a generated
+building underside on leg 2. A live native capsule sweep identified downward
+impact normal, clear backward travel, active input, and zero velocity. R1
+amendment PASS approved generic bounded `S+Space` recovery in the test driver;
+it changes neither physics nor generated collision. The native regression
+first proved the real blocking underside and failed only backward-input
+selection/forward release. That RED is an overhang regression, not the
+historical cooked zero-slide control. Probe exit was clean after moving PIE
+cleanup to the native editor pre-exit delegate. Flat and linked plugins are
+included in the loaded-module inventory. Native policy fixtures now run cold
+with exact authenticated names, NullRHI, and distinct ignored log directories.
+
+Historical failure-class audit by the independent reviewer:
+
+| First failed property | Cheapest permanent guard | Invalidated by its fix | Reusable input/evidence |
+|---|---|---|---|
+| LFS object materialization | `test_isolated_source_workspace.ps1`: local LFS, pointer, corrupt committed payload and missing-object fetch arms | Isolated source checkout/materialization proof | Private game and unrelated projection policy |
+| Linked-worktree Git handoff | `test_mirror_linked_worktree.ps1` plus `test_developer_payload.py` linked-worktree composer arm | Mirror adapter and public composition | Private gameplay/cooked bytes; WSL composition coverage requires the conditional arm to execute |
+| Untracked manifest-projected package | `test_developer_payload.py::test_compose_accepts_only_digest_verified_untracked_projection` | Selected payload/archive and manifest-digest proof | Game correctness and unrelated tracked source checks |
+| Pinned runtime forwarding | `test_public_world_projection.ps1`: actual realizer binding and identity drift rejection | Public World runtime projection | Private generated authority and package correctness |
+| Vegetation omitted by public profile | Exact `Project.World.Realization.Runtime.TerritoryInstancingPolicy` | Runtime instancing acceptance for selected/omitted vegetation | Canonical geography and unaffected generated layers |
+| Manhattan evidence binding | `manhattan_existing_package.Tests.ps1`: map/runtime/executable/path/policy/package mutation and abnormal exit arms | Manhattan acceptance envelope | Same immutable package bytes, while their consumed inputs remain unchanged |
+| Final center return produces zero physical slide | Permanent uncooked real-map probe: ordinary Manhattan RED, precise Manhattan and ordinary Kazan GREEN | Game executable and both candidate runtime proofs | Unchanged generated content and previously proved projection owners |
+
+The historical guards exist and have focused proof from their owning slices;
+the current change does not replay their packaging routes. Full source identity
+and failed preparation rollback still prevent relabelling an old artifact as a
+new frozen candidate. Locality governs debugging, not provenance substitution.
+
+Actual geometry RED: `tmp/world/playable_tour/uncooked/e288baf0ad01419b8ff07cc177df5a4b/admission.json`.
+The unflagged Manhattan control ran the real production route at 2500 cm,
+completed the center streaming cycle and blocked descent, then native forward
+slide measured 0 cm and rejected. The wrapper rejected `collision_slide`,
+the process closed normally, and source/modules/generated authority remained
+unchanged. This is the relevant old-policy discriminator, unlike the earlier
+startup, lifecycle and ceiling diagnostics. Native overhang fixture GREEN:
+`tmp/world/playable_tour/slide_diagnostic/overhang_green/tests.log`.
+Two-city corrected-policy GREEN and independent R2 PASS are recorded below.
+
+The first two-city admission `69f0e7673d754b45ba0b14c012a2f108` accepted Kazan
+at 2500 cm with 2017.03 cm slide, then Manhattan's native startup refused
+1920x1080 before traversal. Generated authority/source/modules stayed unchanged.
+Native `FStartPIEForAutomationCommand::Update` waits for match readiness; setting
+the viewport only after it returns true was too late. R1 amendment PASS keeps
+the real transient render target at 2560x1440 during every startup/wait poll,
+including graphics-application and travel resizes, without changing preferences
+or acceptance limits. A focused RED/GREEN contract fixture now reports native
+startup errors before missing traversal fields, preserving the first failing
+owner. Only the affected Editor envelope and its downstream gameplay evidence
+are invalidated; ordinary-policy geometry RED and other owner fixtures remain
+valid. The corrected two-city replacement accepted both routes.
+
+Admission closure:
+
+| Proof | Result | Evidence |
+|---|---|---|
+| Ordinary Manhattan geometry control | RED: actual 2500 cm, blocked descent, 0 cm forward slide | `tmp/world/playable_tour/uncooked/e288baf0ad01419b8ff07cc177df5a4b/admission.json` |
+| Corrected two-city uncooked gameplay | GREEN: Kazan 2500 cm / 1858.73 cm slide; Manhattan 500 cm / 1188.71 cm slide | `tmp/world/playable_tour/uncooked/2e03af07933f4fd08b4e6de779761563/admission.json` |
+| Selected release preflight | PASS: 32 Pester cases, two exact native tests, release entrypoint, 26 Python cases, syntax/ASCII/path/name/diff checks | `tmp/release/preflight/c1b5a6eeb1de4e07bbc5f8ab4ce03b69/preflight.json` |
+| Independent R2 | PASS, no remaining blocking findings; gameplay and diagnostic performance scopes kept distinct | Non-author source, artifact, RED/GREEN and final documentation review on 2026-10-06 |
+
+Both native gameplay children returned an FPS-budget-only refusal under Editor
+load. The wrapper independently proved samples, input, streaming and collision;
+it accepted gameplay and explicitly did not certify performance. Independent
+review authenticated every artifact hash and raw sample count (6325 / 7003),
+actual production classes, map/profile/radius bindings, normal process exits,
+and unchanged generated authority/source/modules. Final documentation edits
+after this probe alter no consumed gameplay or launch input; their hygiene is
+checked separately. Existing probe hashes are preserved, not relabelled as a
+future frozen candidate. Packaged performance, Shipping and final projection
+remain R5 properties.
+
+Current state: concern 1 is done; production Kazan and Manhattan use Mesh Terrain
 ([record](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md)). Concern 2's
 generated terrain material is in production on both cities and its final development delta passed
 review, and the task is done. Generated texture and material identities now bind only the public
 contracts they consume, so an internal ProjectTexture or ProjectMaterial change no longer reaches
 World. The payload can be composed again, but its dependency closure still rejects World content
 (see Pre-candidate items). Earlier concern-2 packages are development evidence only; R2 below names
-what R5 re-proves on the candidate. No 3.0.0 release candidate exists.
+what R5 re-proves on the candidate. The committed D16 runner accepted the frozen Kazan Candidate
+at `09b7b6532`, including Shipping and water. The release then reached the public World projection
+and refused an omitted runtime-profile argument. Commit `76ed07763` forwarded runtime only after
+setting both public runtime IDs to `none`, weakening the map contract. The local correction restores
+the IDs and fixes runtime acceptance for public profiles without vegetation. A focused isolated
+overlay accepted both cities and restored its private snapshot byte-for-byte; it is not a frozen
+release. The permanent runtime guard is committed at `f45a9c01dee51cbc2d868f0236c207579adb1480`.
+The Manhattan same-package performance harness and evidence envelope are committed through
+`c3c006cf12757bf0040ba7e047d1f9476f138e30`; focused R2 passed. The unsigned frozen route at
+`f4cce29f3b41840790355c18eb5c5fd72cd8a806` cooked both maps and accepted Kazan's three-run
+Development aggregate (Frame p95 13.293 ms), then Manhattan child 1 rejected because the final
+`W` input produced zero slide after blocked descent. The first failing receipt is under
+`Saved/Validation/WorldRealization/manhattan-showcase/33ab5f2f434e4dbe83d1ed0edd58852c/`.
+The same cooked Development content proved that a 5 m final return accepted three Manhattan
+children (7.90-9.06 m slide), while applying 5 m globally rejected Kazan. The focused fix selects
+5 m only for Manhattan's performance operation and records it in the receipt. The final rebuilt
+binary accepted one Manhattan child at 5 m and one Kazan child at its default 25 m, with slide,
+streaming, and performance evidence. The retained Development IoStore inventory places Manhattan
+in `pakchunk11`. Independent focused R2 passed with no concrete finding. The next operator commit
+must include the routing correction and its handoff;
+the full release route remains unverified. The scoped runtime correction is now
+committed at `e93d7d17c836616af18e23b2bca548119deffbd0`; the new admission slice
+passed independent R2 and is committed at `e41f774445b6e526b737d83825d7474ef67f197a`.
+No combined 3.0.0 release workspace exists.
 
 Daily Mesh development uses the one normal repository. The separate public World projection task
 keeps its isolated frozen-commit worktree because it protects final release-input reproducibility;
@@ -171,6 +388,15 @@ elsewhere; never restate or renumber them.
     edit. `update_engine.ps1 -CompleteSource` moves from step 1 to R5; source packaging stays frozen
     until then, as the update flow requires.
   - Date/source: 2026-09-23, this session.
+- **D16** Allow an automatically calculated, bounded host-load cap for the packaged
+  performance comparison so development and release checks can run while the host is
+  moderately busy. Operator's words: "our goal to use auto cap , so we could use the host
+  aproximately performance calculations even it it unders some load".
+  - Effect: the three-run packaged Kazan aggregate uses the measured host-load windows and
+    effective threshold owned by the [World runner](../../scripts/ue/world/README.md).
+    The native child target stays at 16.67 ms, and the adjusted result is identified as an
+    approximate busy-host comparison.
+  - Date/source: 2026-10-05, operator conversation.
 
 ### Operator gates
 
@@ -228,7 +454,8 @@ elsewhere; never restate or renumber them.
 |---|---|---|---|
 | 1 | Terrain substrate: switch to Mesh Terrain (D12), proven on a same-Kazan comparison, then cutover | [Mesh Terrain migration](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md) | Done |
 | 2 | Generated production terrain material | [Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md) | Done; candidate proof per R2 |
-| Required | World release projection safety fix | [Projection recovery](20260914-1215_audit_public_world_release_projection_recovery.md) | Current; REVIEW REQUIRED; before R5 step 4 (D8) |
+| Required | World release projection safety fix | [Projection recovery](20260914-1215_audit_public_world_release_projection_recovery.md) | Corrected two-city overlay PASS; frozen release pending (D8) |
+| Required | World generation locality and identity correctness | [Generation locality](../01_done/world/20261002-1711_world_restore_generation_locality.md) | Done; independent R2 PASS before R5 (D8) |
 | Integration | Release-platform contract and final candidate | this file, R4-R6 | R4 any time after review; R5-R6 last |
 | Optional | Water presentation | [Water presentation](../02_backlog/world/20260825-1717_world_improve_water_presentation.md) | Only through the Water gate |
 
@@ -302,7 +529,9 @@ elsewhere; never restate or renumber them.
    second time: 428 external-actor packages reference the current terrain material today.
 4. R4 is independent of World work and can be implemented once reviewed.
 5. The World release projection safety fix (D8) lands before R5 step 4.
-6. R5 and R6 run last from one frozen source identity, on engine 5.8.3 (D13).
+6. The World generation-locality task, including its one combined realization of both cities,
+   lands before R5 (D8).
+7. R5 and R6 run last from one frozen source identity, on engine 5.8.3 (D13).
 
 ## Verified evidence
 
@@ -443,17 +672,22 @@ Release certification: R5 proves the packaged properties on the frozen candidate
 separate material package:
 
 - step 2: SM5/SM6 cook, archive/IoStore and package limits, packaged Kazan and Manhattan terrain
-  render, frame/memory/hitch for both territories against the existing 16.67 ms p95 budget
-  (Manhattan has no accepted frame measurement yet), and the Shipping Water proof;
+  render, frame/memory/hitch for both territories against the
+  [World performance contract](../../scripts/ue/world/README.md#packaged-kazan-playable-tour-acceptance)
+  (Manhattan has no accepted frame measurement yet), and the Shipping Water proof. The Kazan
+  runner now calls Manhattan's existing-package mode on its exact Development package after
+  Kazan's three-run aggregate and before Shipping replaces it. Manhattan uses the same package
+  and executable bytes, three runs, explicit non-interactive policy, and the shared 16.67 ms
+  base p95 aggregator. Focused fixtures pass; real packaged Manhattan acceptance awaits R5;
 - step 4: payload composition that includes the v2 material and ProjectTexture authorities;
 - step 5: owner-attributed ProjectTexture and ProjectMaterial bytes, plus shader and PSO counts;
 - step 6: operator visual acceptance of the terrain material.
 
 ### R3 - supported-route blockers
 
-The projection safety fix is pending in its own task and lands before R5 step 4 (D8); City17's SM5
-fallback is accepted as legacy (D9). No shader error on a non-legacy route is suppressed and no
-fixed budget is relaxed to pass.
+The projection safety implementation is committed, with its frozen-commit proof pending before
+R5 step 4 (D8). City17's SM5 fallback is accepted as legacy (D9). No shader error on a
+non-legacy route is suppressed. The packaged host allowance follows D16.
 
 ### R4 - release-platform contract
 
@@ -468,8 +702,24 @@ See the R4 section below.
    (Pre-candidate items), and record operator acceptance (V12).
 4. With the projection safety fix in place (D8), run
    `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<candidate-commit>`. After that fix it must
-   run the public World projection in an isolated checkout of that commit (V12); today it still
-   projects in the live tree. Do not run the projection separately; that would repeat an
+   run the public World projection in an isolated checkout of that commit (V12).
+   The focused isolation tests pass and the implementation is committed at
+   `bc5b3c0926a0583503419a5876a1655510a119f2`. The first unsigned run at
+   that commit stopped before input preparation because the Kazan playable-tour
+   Candidate child crashed in Unreal's CSV profiler. The project-wide CSV
+   category fix was committed at `a61715d31004df95723b5acdd105192c9f6f7516`.
+   The second run accepted the player Candidate, then stopped at a stale World
+   transaction parameter in the isolated projection. Commit `09b7b6532` includes that fix and
+   the D16 host-load cap. Its replacement run accepted the Candidate, then the projection refused
+   an omitted pinned runtime profile. The corrected projection and permanent runtime guard are
+   committed through `f45a9c01dee51cbc2d868f0236c207579adb1480`. The Manhattan same-package
+   harness and evidence envelope passed focused independent R2 at
+   `c3c006cf12757bf0040ba7e047d1f9476f138e30`. The first frozen route at
+   `f4cce29f3b41840790355c18eb5c5fd72cd8a806` stopped at Manhattan's collision-slide proof
+   before Shipping or public projection. The focused runtime correction changes the game executable,
+   so the next frozen route must rebuild the package and re-prove both cities from the operator's
+   new full commit SHA. Do not reuse the earlier Kazan aggregate as candidate acceptance.
+   Do not run the projection separately; that would repeat an
    expensive gate.
    Review the unsigned `tmp/release/v3.0.0/` `game/` and `github/` projections, including the 3.0.0
    highlights in `README.txt` (V16).
@@ -787,3 +1037,178 @@ and smallest fix, with sources linked.
   required after the safety fix. Pre-candidate items link the public character task and
   Manhattan chunk 11, and R5 step 5 certifies `pakchunk11`.
 - **Authority:** D1-D15 unchanged. No release, publication, or commit.
+
+### 2026-10-02 - World generation locality linked
+
+- **Trigger:** the operator required the World generation-locality task to be fully done before
+  release.
+- **Change:** one Required row in Release concerns and Sequencing step 6, under D8 (wide fixes
+  become a linked current task).
+- **Authority:** D1-D15 unchanged.
+
+### 2026-10-04 - frozen release route blocked by Candidate CSV crash
+
+- **Attempt:** one unsigned `make release 3.0.0` run from clean commit
+  `bc5b3c0926a0583503419a5876a1655510a119f2`. The Development Candidate
+  built, cooked, staged, and passed archive verification. Its first packaged
+  Kazan playable-tour child accepted the product route, then exited 3 on an
+  Unreal `CSVProfiler` assertion at `CsvProfiler.cpp:1623`. Evidence:
+  `Saved/Validation/WorldRealization/playable-tour/`
+  `fb5fe2ad46124e1c8e74474108447dec/development/run-01/game.log`.
+- **Focused repeat:** the matching `Saved/StagedBuilds/Windows/` Development
+  files run with the same product-route/performance flags exited 3 on the same
+  assertion. The product-route receipt accepted; the CSV performance receipt
+  was not produced. Log: `tmp/world/playable_tour/csv_repro_20261004/game.log`.
+- **Boundary:** Candidate acceptance failed before release input preparation;
+  Kazan/Manhattan public projection, developer build, and map loads were not run.
+  The script restored the prior Candidate. HEAD, tracked status, staged entries,
+  and registered worktrees remained unchanged; no 3.0.0 input tree was promoted.
+  Keep R5 step 3 and the projection concern open. At this point the malformed
+  CSV stat producer was unidentified. The repeat's minidump showed the
+  `FName` stat raw ID `0x48999b23002b9801`, which exceeds the engine's 51-bit
+  CSV stat mask; the stack alone did not establish whether ALIS or Unreal
+  supplied it. The next entry records the producer and fix.
+- **Authority:** D1-D15 unchanged. No signing, publication, or remote write.
+
+### 2026-10-05 - CSV producer identified and focused package fixed
+
+- **Diagnosis:** live debugging of the exact packaged Development child traced
+  the failing CSV stat to UE 5.8.3's `NavTasks` category and a numbered Recast
+  navigation actor name. The stable [World pitfall](../../Plugins/World/ProjectWorld/docs/pitfalls.md)
+  owns the root cause and config contract.
+- **Fix and focused proof:** `Config/DefaultEngine.ini` disables the three UE
+  navigation categories that emit dynamic actor-named CSV stats. A fresh
+  Development Kazan package built, cooked, staged, and passed IoStore checks;
+  its packaged product and performance route exited 0, both receipts accepted,
+  and rich CSV plus exact frame samples were produced. Evidence:
+  `tmp/world/playable_tour/csv_config_fix_20261005/`. Independent boundary and
+  fix review returned PASS. The native performance budgets were unchanged.
+- **Next at this point:** commit the CSV fix, then run R5 step 3 and the
+  unsigned 3.0.0 release route from the new clean source commit. This focused
+  run did not close the three-child Candidate, public projection, or P4 proof.
+
+### 2026-10-05 - player Candidate accepted; frozen projection integration stopped
+
+- **Attempt:** from clean commit `a61715d31004df95723b5acdd105192c9f6f7516`,
+  `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<that-commit>` accepted the
+  Kazan playable-tour Candidate: three Development runs, Shipping, and water
+  stability. The accepted composite receipt is at
+  `Saved/Validation/WorldRealization/playable-tour/`
+  `ecf67532e77d47c284e9eaeac66b41a3/composite.json`.
+- **First failing boundary:** the detached release checkout reached the public
+  World projection, then `Invoke-WithProjectWorldPublicProjection` failed when
+  its `Get-ProjectWorldGeneratedPaths` call passed removed parameter
+  `IncludePresentation`. The isolated checkout and failed work root were cleaned;
+  no `tmp/release/inputs/v3.0.0` or `tmp/release/v3.0.0` was promoted. The live
+  tracked tree and staged entries remained unchanged during the failed route.
+- **Focused correction:** the public projection wrapper no longer passes the
+  obsolete argument to generated-content enumeration or removal. Its test now
+  checks both calls against the live helper signatures: observed RED before the
+  correction, GREEN after. The generated-content transaction's nine tests and
+  the release-entrypoint test pass. The exact frozen route still requires a new
+  operator commit; do not infer public payload or map-load acceptance from
+  these focused checks.
+
+### 2026-10-05 - busy-host performance policy and local Candidate
+
+- **Frozen-route failure:** the unsigned route from clean `735c9726e50629ab5c3bc49d7a2c329731aa156f`
+  stopped at the three-run Kazan Development aggregate before public projection. Its pooled
+  Frame p95 was 17.507 ms against the fixed 16.67 ms target. The three children were
+  16.112, 17.306, and 18.805 ms; the prior accepted Candidate used the same executable
+  hash. Evidence: `Saved/Validation/WorldRealization/playable-tour/`
+  `53855523e17c4d4b8da7f07d81966cc7/development/performance-aggregate.json`.
+  No release input tree was promoted.
+- **Decision and implementation:** D16 replaces the idle-host wait with six game-stopped
+  load windows around the three packaged runs. The [World runner](../../scripts/ue/world/README.md)
+  owns the bounded calculation. A focused aggregate test was RED before the change and all
+  10 cases passed after it, including partial load, maximum allowance, invalid evidence,
+  and slow-frame refusal.
+- **Local product proof:** the uncommitted source state produced an accepted Kazan Candidate
+  with three Development runs, Shipping, and Water. Its pooled Frame p95 was 16.632 ms;
+  the lowest host window was 19.7%, so the effective threshold remained 16.67 ms in this
+  live run. The accepted composite is `Saved/Validation/WorldRealization/playable-tour/`
+  `dcf81c63b1704052b97791cbff4d695a/composite.json`. This proves the new measurement
+  path and unadjusted decision on a real package; the adjusted branch is proven by the
+  focused regression tests, not by this particular product run.
+- **Remaining:** commit this focused change, then rerun the unsigned 3.0.0 route from that
+  clean source commit. The public projection and combined release remain unverified.
+
+### 2026-10-05 - frozen Candidate accepted; public projection profile gap
+
+- **Attempt:** clean commit `09b7b6532c15947fd894106a2d26eb91ab02175b` first failed the
+  Kazan Development aggregate at pooled Frame p95 19.499 ms versus its adjusted 17.337 ms cap.
+  The same staged build passed one exact packaged control at 16.499 ms, and one replacement
+  `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<that-commit>` accepted the full Candidate.
+  Its pooled Development Frame p95 was 16.424 ms, below the unadjusted 16.67 ms target;
+  Shipping and water also passed. Composite receipt:
+  `Saved/Validation/WorldRealization/playable-tour/60611dbfe041400680a041b53c6e7a84/composite.json`.
+- **Projection failure:** the detached checkout reached public Kazan realization, which refused
+  the missing `-RuntimeProfile`: its realization profile pins
+  `kazan_territory_512_1536_v1`, but the wrapper passed `none`. No public input tree or combined
+  release workspace was promoted. The realizer's refusal and the release rollback are correct.
+- **Focused correction:** the package projection derives each city runtime file from its pinned
+  public realization profile, validates the file identity before snapshot mutation, and forwards
+  it to the realizer. The projection regression was RED before the change, then GREEN. The release
+  entrypoint test and nine generated-content transaction tests pass. The next frozen route needs
+  an operator commit; public payload, map loads, and combined release remain unverified.
+
+### 2026-10-05 - precommit package boundary diagnosis
+
+- **Real public projection:** an isolated overlay of the uncommitted package fix at source commit
+  `09b7b6532c15947fd894106a2d26eb91ab02175b` accepted both Kazan and Manhattan with engine
+  exit 0 and restored private generated content. Receipts and logs are under
+  `tmp/release/diagnostics/precommit_projection_50f5240c09c64f568b573aa9aa218ce2/`.
+  The earlier engine exit 1 was caused by 5,002 Git LFS pointer packages scanned by Unreal;
+  preparation now verifies the committed `Content/` and `Plugins/` LFS payloads and builds the
+  isolated Editor before realization. That diagnostic used runtime `none` in both public profiles;
+  it is not evidence for the intended pinned-runtime map contract.
+- **Mirror boundary:** the expanded precommit run accepted both cities but WSL Git could not read
+  a Windows linked-worktree `.git` pointer. The Windows wrapper now hands its verified Git
+  directory to the Bash source operations and developer composer without rewriting Git metadata.
+  A synthetic linked-worktree regression passes, and a real source-only official dry mirror
+  passed at `tmp/release/diagnostics/mirror_linked_probe_e1e91c3b68424e769ef4bc7f6c876aa0/`.
+- **Payload boundary:** the next expanded run accepted both cities and the public source mirror,
+  then rejected an untracked generated Manhattan package in the disposable checkout. The
+  composer now admits only explicit public-manifest-projected World packages after SHA-256
+  verification when `--allow-dirty` is used; every other untracked payload remains rejected.
+  The focused regression was red before the fix, green after, and all 19 developer-payload tests
+  pass. The failing candidate and reports remain under
+  `tmp/release/diagnostics/precommit_projection_4fb2cc05d3c94cb3b07837e85ef0c3f4/`.
+- **Verification discipline:** repeated full precommit worktrees were unnecessarily costly.
+  Package and general troubleshooting now route to the first failing owner and focused check.
+  Do not replay two World generations for another composer or mirror diagnosis. The final
+  combined unsigned release, installed developer checkout, and public map loads remain unverified;
+  they require the operator's next commit and one frozen `make release 3.0.0 RELEASE_SIGN=0` run.
+- **Focused brick closure:** a real composer fixture archived an untracked map selected by a
+  projected manifest, then rejected a changed digest and an unrelated untracked map. Its linked
+  worktree variant invoked the real composer CLI inside WSL with the source Git handoff and passed.
+  The 20-test developer-payload suite passed before that WSL extension; the revised exact fixture
+  passed afterward, and the other 19 tests were unchanged. Manifest staging and dependency
+  audit passed 9 tests; public source selection passed 20. Public projection, isolated-source
+  recovery, release entrypoint, and Windows/WSL handoff focused PowerShell checks passed.
+  Release-workspace assembly passed 26 focused tests. Changed
+  PowerShell files parse, Bash syntax checks, public realization JSON parses, and `git diff --check`
+  pass. The public Editor build and real two-map load require assembled release inputs and remain
+  the final frozen-commit proof. No package build was run before review.
+- **Independent precommit R2 (superseded):** PASS on that diff and focused evidence. The reviewer
+  examined the linked-worktree WSL composer fixture, runtime forwarding, LFS/Editor preparation,
+  release ownership, and test limits; no remaining concrete defect was found. The assembled public
+  developer Editor build, installation in that checkout, and both map loads remain final-only
+  checks. An external reviewer subsequently found that this review had accepted the invalid
+  `none` premise; the corrected runtime contract needs its own proof and re-review before commit.
+
+### 2026-10-05 - public runtime contract correction
+
+- The external reviewer found that commit `76ed07763` changed both public runtime IDs to `none`.
+  That allowed map-load proof to pass without the pinned partition, route, and spawn. The local
+  correction restores the original Kazan and Manhattan IDs.
+- The first real pinned Kazan projection rejected at runtime acceptance because the reduced
+  public profile omits vegetation while the C++ territory policy required an instance
+  unconditionally. The runtime owner now conditions that probe on the selected layer or a
+  present vegetation actor. Full product validation still requires a true probe. A corrected
+  isolated overlay at `76ed07763` accepted both cities with their pinned runtime identities,
+  partition, route, and manifest enrollment, then restored the private tree byte-for-byte.
+  Evidence is under `tmp/release/diagnostics/pinned_runtime_34e9a71f17fd4d7f85cebc29858835b6/`.
+  Independent corrected R2 returned PASS for the precommit scope. The overlay is precommit
+  evidence; clean public checkout, map loads, packaged player, and R5 still require the eventual
+  clean committed source.

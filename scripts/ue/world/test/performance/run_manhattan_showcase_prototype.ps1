@@ -24,7 +24,11 @@
 [CmdletBinding()]
 param(
     [int]$GameTimeoutSeconds = 720,
-    [switch]$SkipShipping
+    [switch]$SkipShipping,
+    [switch]$DescribeOperation,
+    [string]$ExistingDevelopmentPackageRoot,
+    [string]$ExpectedPackagePayloadSha256,
+    [string]$ExpectedExecutableSha256
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +53,7 @@ $runtimeRoot = Join-Path $ownerRoot 'runtime'
 $packageRoot = Join-Path $projectRoot 'Saved\PackageRelease\ManhattanShowcase'
 $finalPackage = Join-Path $packageRoot 'Candidate'
 . (Join-Path $PSScriptRoot 'project_world_performance_evidence.ps1')
+. (Join-Path $PSScriptRoot 'project_world_product_route_arguments.ps1')
 
 function Assert-ManhattanShowcase {
     param(
@@ -57,6 +62,22 @@ function Assert-ManhattanShowcase {
     )
     if (-not $Condition) {
         throw $Message
+    }
+}
+
+function Test-ManhattanSamePath {
+    param([string]$Actual, [string]$Expected)
+    if ([string]::IsNullOrWhiteSpace($Actual) -or
+        [string]::IsNullOrWhiteSpace($Expected)) {
+        return $false
+    }
+    try {
+        return [IO.Path]::GetFullPath($Actual).Equals(
+            [IO.Path]::GetFullPath($Expected),
+            [StringComparison]::OrdinalIgnoreCase)
+    }
+    catch {
+        return $false
     }
 }
 
@@ -127,27 +148,31 @@ function Invoke-ManhattanShowcaseGame {
         [Parameter(Mandatory = $true)][string]$Configuration,
         [Parameter(Mandatory = $true)][string]$RunOperationId,
         [Parameter(Mandatory = $true)][string]$CorrectnessPath,
-        [Parameter(Mandatory = $true)][string]$LogPath
+        [Parameter(Mandatory = $true)][string]$LogPath,
+        [string]$PerformancePath,
+        [string]$CsvPath,
+        [string]$SamplePath,
+        [string]$ScreenshotPath
     )
-    $arguments = @(
-        "-ProjectMenuPlayAutoExperience=$experienceId",
-        '-ProjectMenuPlayAutoMode=SinglePlayer',
-        '-ProjectWorldProductRouteGate',
-        '-ProjectWorldProductRouteRestorePreviewFlight',
-        # The showcase has no gameplay-placement layer by design; this is the only
-        # invocation permitted to omit the interaction gate.
-        '-ProjectWorldProductRouteSkipInteraction',
-        "-ProjectWorldProductOperation=$RunOperationId",
-        "-ProjectWorldProductResult=$CorrectnessPath",
-        "-ProjectWorldProductMap=$mapPackage",
-        '-ProjectWorldProductRuntime=manhattan_showcase_512_1536_v1',
-        "-ProjectWorldProductRuntimeHash=$script:runtimeProfileHash",
-        '-ProjectWorldProductMachine=rtx4070_primary',
-        "-ProjectWorldProductEdge=$edgeArgument",
-        '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
-        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash', '-NoMessaging',
-        "-abslog=$LogPath"
-    )
+    if ($PerformancePath -and ([string]::IsNullOrWhiteSpace($CsvPath) -or
+            [string]::IsNullOrWhiteSpace($SamplePath) -or
+            [string]::IsNullOrWhiteSpace($ScreenshotPath))) {
+        throw 'Manhattan performance requires CSV, raw-sample, and screenshot paths.'
+    }
+    $routeParameters = @{
+        Experience = $experienceId; Map = $mapPackage
+        Runtime = 'manhattan_showcase_512_1536_v1'; RuntimeHash = $script:runtimeProfileHash
+        Edge = $edgeArgument; OperationId = $RunOperationId
+        CorrectnessPath = $CorrectnessPath; LogPath = $LogPath
+    }
+    if ($PerformancePath) {
+        $routeParameters.PerformancePath = $PerformancePath
+        $routeParameters.CsvPath = $CsvPath; $routeParameters.SamplePath = $SamplePath
+        $routeParameters.ScreenshotPath = $ScreenshotPath
+        $routeParameters.PreciseCenterReturn = $true
+    }
+    $routeParameters.SkipInteraction = $true
+    $arguments = @(Get-ProjectWorldProductRouteArguments @routeParameters)
     $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
         -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit($GameTimeoutSeconds * 1000)) {
@@ -190,13 +215,303 @@ function Read-ManhattanShowcaseCorrectness {
         "$Configuration Manhattan receipt failed its identity/correctness contract."
 
     # The non-interactive policy must be explicit in the receipt, not merely absent.
-    Assert-ManhattanShowcase (-not [bool]$receipt.gameplay_interaction_required) `
+    Assert-ManhattanShowcase ($null -ne $receipt.PSObject.Properties['gameplay_interaction_required'] -and
+        -not [bool]$receipt.gameplay_interaction_required) `
         "$Configuration Manhattan receipt did not record the non-interactive policy."
 
     Assert-ManhattanShowcase (Test-Path -LiteralPath ([string]$receipt.screenshot) -PathType Leaf) `
         "$Configuration Manhattan product-route screenshot is missing."
     return $receipt
 }
+
+function Get-ManhattanPackageSourceIdentity {
+    param([Parameter(Mandatory = $true)][string]$PackageRoot)
+    $summaryPath = Join-Path $PackageRoot 'package_summary.txt'
+    Assert-ManhattanShowcase (Test-Path -LiteralPath $summaryPath -PathType Leaf) `
+        'Existing Development package has no package summary.'
+    $lines = @(Get-Content -LiteralPath $summaryPath)
+    $revisions = @($lines | Where-Object { $_ -clike 'SourceRevision=*' })
+    $states = @($lines | Where-Object { $_ -clike 'SourceStateSha256=*' })
+    Assert-ManhattanShowcase ($revisions.Count -eq 1 -and $states.Count -eq 1 -and
+        $revisions[0] -cmatch '^SourceRevision=[a-f0-9]{40}$' -and
+        $states[0] -cmatch '^SourceStateSha256=[a-f0-9]{64}$') `
+        'Existing Development package source identity is missing or ambiguous.'
+    return [pscustomobject]@{
+        Revision = $revisions[0].Substring('SourceRevision='.Length)
+        StateHash = $states[0].Substring('SourceStateSha256='.Length)
+    }
+}
+
+function Assert-ManhattanPerformanceChild {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$CorrectnessPath,
+        [Parameter(Mandatory = $true)][string]$Operation,
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter(Mandatory = $true)][string]$SamplePath,
+        [Parameter(Mandatory = $true)][string]$CsvPath,
+        [Parameter(Mandatory = $true)][string]$ScreenshotPath,
+        [Parameter(Mandatory = $true)][int]$ProcessExitCode
+    )
+    Assert-ManhattanShowcase (Test-Path -LiteralPath $Path -PathType Leaf) `
+        'Manhattan Development performance receipt is missing.'
+    $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $outcome = Get-ProjectWorldPerformanceChildOutcome -Receipt $receipt `
+        -ProcessExitCode $ProcessExitCode
+    Assert-ManhattanShowcase ($outcome.valid -and
+        [string]$receipt.operation_id -ceq $Operation -and
+        [string]$receipt.map_package -ceq $mapPackage -and
+        [string]$receipt.runtime_profile -ceq 'manhattan_showcase_512_1536_v1' -and
+        [string]$receipt.runtime_profile_sha256 -ceq $script:runtimeProfileHash -and
+        [string]$receipt.build_configuration -ceq 'Development' -and
+        $receipt.requires_cooked_data -is [bool] -and $receipt.requires_cooked_data -and
+        [string]$receipt.correctness_status -ceq 'accepted' -and
+        (Test-ManhattanSamePath -Actual ([string]$receipt.correctness_receipt) `
+            -Expected $CorrectnessPath) -and
+        (Test-ManhattanSamePath -Actual ([string]$receipt.executable) `
+            -Expected $Executable) -and
+        [string]$receipt.machine_profile_id -ceq 'rtx4070_primary' -and
+        [string]$receipt.gpu_adapter -ceq 'NVIDIA GeForce RTX 4070' -and
+        [string]$receipt.rhi -ceq 'D3D12' -and
+        [string]$receipt.quality_preset -ceq 'High' -and
+        [int]$receipt.resolution_x -eq 2560 -and
+        [int]$receipt.resolution_y -eq 1440 -and
+        [bool]$receipt.playable_tour -and
+        [double]$receipt.final_center_arrival_radius_cm -eq 500.0 -and
+        $null -ne $receipt.PSObject.Properties['gameplay_interaction_required'] -and
+        -not [bool]$receipt.gameplay_interaction_required -and
+        [int]$receipt.streaming_failures -eq 0 -and
+        [bool]$receipt.center_cell_streaming_cycle -and
+        [string]$receipt.input_method -ceq `
+            'APlayerController::InputKey/FInputKeyEventArgs::CreateSimulated' -and
+        [int]$receipt.input_event_count -gt 0 -and
+        [bool]$receipt.pause_menu_opened -and
+        [bool]$receipt.pause_menu_closed -and
+        [int]$receipt.waypoints_reached -ge 3 -and
+        [double]$receipt.ascent_cm -gt 4000.0 -and
+        [double]$receipt.descent_cm -gt 3000.0 -and
+        [double]$receipt.horizontal_displacement_cm -gt 100000.0 -and
+        [bool]$receipt.collision_blocked_descent -and
+        [bool]$receipt.collision_slide -and
+        [double]$receipt.slide_displacement_cm -ge 100.0 -and
+        (Test-ManhattanSamePath -Actual ([string]$receipt.raw_sample_capture) `
+            -Expected $SamplePath) -and
+        (Test-ManhattanSamePath -Actual ([string]$receipt.csv_capture) `
+            -Expected $CsvPath) -and
+        (Test-ManhattanSamePath -Actual ([string]$receipt.playable_tour_screenshot) `
+            -Expected $ScreenshotPath) -and
+        (Test-Path -LiteralPath $ScreenshotPath -PathType Leaf)) `
+        'Manhattan performance identity, product route, or non-interactive policy was rejected.'
+    return $receipt
+}
+
+function Assert-ManhattanNormalExit {
+    param(
+        [Parameter(Mandatory = $true)][string]$LogPath,
+        [Parameter(Mandatory = $true)][string]$ChildName
+    )
+    Assert-ManhattanShowcase (Test-Path -LiteralPath $LogPath -PathType Leaf) `
+        "Manhattan Development child $ChildName has no process log."
+    $log = Get-Content -LiteralPath $LogPath -Raw
+    Assert-ManhattanShowcase (
+        $log.Contains('LogExit: Exiting.') -and
+        $log.Contains('Log file closed') -and
+        -not $log.Contains('Assertion failed:') -and
+        -not $log.Contains('Fatal error:')) `
+        "Manhattan Development child $ChildName did not exit cleanly."
+}
+
+function Assert-ManhattanEvidenceInventory {
+    param([Parameter(Mandatory = $true)][string]$ReceiptPath)
+    $receipt = Get-Content -LiteralPath $ReceiptPath -Raw | ConvertFrom-Json
+    $suffixes = @('correctness', 'product_screenshot', 'performance', 'samples',
+        'csv', 'playable_screenshot', 'log')
+    $expectedCount = 3 * $suffixes.Count
+    Assert-ManhattanShowcase ($null -ne $receipt.artifacts -and
+        $null -ne $receipt.artifact_sha256 -and
+        @($receipt.artifacts.PSObject.Properties.Name).Count -eq $expectedCount -and
+        @($receipt.artifact_sha256.PSObject.Properties.Name).Count -eq $expectedCount) `
+        'Manhattan evidence inventory is incomplete.'
+    for ($index = 1; $index -le 3; ++$index) {
+        $name = 'run-{0:D2}' -f $index
+        foreach ($suffix in $suffixes) {
+            $key = "${name}_$suffix"
+            $path = [string]$receipt.artifacts.$key
+            $hash = [string]$receipt.artifact_sha256.$key
+            Assert-ManhattanShowcase (-not [string]::IsNullOrWhiteSpace($path) -and
+                $hash -cmatch '^[a-f0-9]{64}$' -and
+                (Get-ProjectWorldPerformanceFileHash -Path $path) -ceq $hash) `
+                "Manhattan evidence artifact changed or is missing: $key"
+        }
+    }
+}
+
+function Invoke-ManhattanExistingPackagePerformance {
+    param(
+        [Parameter(Mandatory = $true)][string]$PackageRoot,
+        [string]$ExpectedPackageHash,
+        [string]$ExpectedExecutableHash
+    )
+    Assert-ManhattanShowcase (Test-Path -LiteralPath $PackageRoot -PathType Container) `
+        'Existing Development package root is missing.'
+    $resolvedPackage = (Resolve-Path -LiteralPath $PackageRoot).Path
+    $executable = Get-ManhattanShowcaseExecutable -PackageRoot $resolvedPackage
+    $packageHash = Get-ProjectWorldPackagePayloadDigest -Path $resolvedPackage
+    $executableHash = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($ExpectedPackageHash) {
+        Assert-ManhattanShowcase ($packageHash -ceq $ExpectedPackageHash) `
+            'Existing package does not match the Kazan Development package payload.'
+    }
+    if ($ExpectedExecutableHash) {
+        Assert-ManhattanShowcase ($executableHash -ceq $ExpectedExecutableHash) `
+            'Existing executable does not match the Kazan Development executable.'
+    }
+    $source = Get-ManhattanPackageSourceIdentity -PackageRoot $resolvedPackage
+    $revision = (& git -C $projectRoot rev-parse HEAD).Trim()
+    Assert-ManhattanShowcase ($LASTEXITCODE -eq 0 -and $revision -ceq $source.Revision) `
+        'Existing package does not match the current source revision.'
+    $sourceTool = Join-Path $projectRoot 'scripts\ue\package\prepare_release.py'
+    $sourceState = @(& python $sourceTool source-state --source-root $projectRoot)
+    Assert-ManhattanShowcase ($LASTEXITCODE -eq 0 -and $sourceState.Count -eq 1 -and
+        $sourceState[0] -ceq $source.StateHash) `
+        'Existing package does not match the current source state.'
+    $script:runtimeProfileHash = (Get-FileHash -LiteralPath $runtimeProfile `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
+    $script:operationId = "manhattan_release_performance_$runId"
+    New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+    $children = [Collections.Generic.List[object]]::new()
+    $hostLoadWindows = [Collections.Generic.List[object]]::new()
+    $artifactPaths = [ordered]@{}
+    $artifactHashes = [ordered]@{}
+    for ($index = 1; $index -le 3; ++$index) {
+        $name = 'run-{0:D2}' -f $index
+        $childRoot = Join-Path $evidenceRoot $name
+        New-Item -ItemType Directory -Path $childRoot -Force | Out-Null
+        $childOperation = "$operationId-$name"
+        $correctnessPath = Join-Path $childRoot 'product-route.json'
+        $performancePath = Join-Path $childRoot 'performance.json'
+        $csvPath = Join-Path $childRoot 'performance.csv'
+        $samplePath = Join-Path $childRoot 'performance.samples.csv'
+        $screenshotPath = Join-Path $childRoot 'playable-tour.png'
+        $logPath = Join-Path $childRoot 'game.log'
+        foreach ($phase in @('before', 'after')) {
+            if ($phase -ceq 'before') {
+                $load = Measure-ProjectWorldPerformanceHostLoad
+                $hostLoadWindows.Add([pscustomobject]@{
+                    phase = "$name-before"; cpu_percent = $load.cpu_percent;
+                    gpu_percent = $load.gpu_percent })
+                $exitCode = Invoke-ManhattanShowcaseGame -Executable $executable `
+                    -Configuration Development -RunOperationId $childOperation `
+                    -CorrectnessPath $correctnessPath -LogPath $logPath `
+                    -PerformancePath $performancePath -CsvPath $csvPath `
+                    -SamplePath $samplePath -ScreenshotPath $screenshotPath
+            }
+            else {
+                $load = Measure-ProjectWorldPerformanceHostLoad
+                $hostLoadWindows.Add([pscustomobject]@{
+                    phase = "$name-after"; cpu_percent = $load.cpu_percent;
+                    gpu_percent = $load.gpu_percent })
+            }
+        }
+        Assert-ManhattanShowcase ($exitCode -eq 0 -or $exitCode -eq 10) `
+            "Manhattan Development child $name exited abnormally with code $exitCode."
+        Assert-ManhattanNormalExit -LogPath $logPath -ChildName $name
+        $correctness = Read-ManhattanShowcaseCorrectness -Path $correctnessPath `
+            -Configuration Development -ExpectedOperationId $childOperation
+        $performance = Assert-ManhattanPerformanceChild -Path $performancePath `
+            -CorrectnessPath $correctnessPath -Operation $childOperation `
+            -Executable $executable -SamplePath $samplePath -CsvPath $csvPath `
+            -ScreenshotPath $screenshotPath -ProcessExitCode $exitCode
+        $artifactPaths["${name}_correctness"] = $correctnessPath
+        $artifactPaths["${name}_product_screenshot"] = [string]$correctness.screenshot
+        $artifactPaths["${name}_performance"] = $performancePath
+        $artifactPaths["${name}_samples"] = $samplePath
+        $artifactPaths["${name}_csv"] = $csvPath
+        $artifactPaths["${name}_playable_screenshot"] = [string]$performance.playable_tour_screenshot
+        $artifactPaths["${name}_log"] = $logPath
+        foreach ($suffix in @('correctness', 'product_screenshot', 'performance',
+                'samples', 'csv', 'playable_screenshot', 'log')) {
+            $key = "${name}_$suffix"
+            $artifactPaths[$key] = [IO.Path]::GetFullPath([string]$artifactPaths[$key])
+            $artifactHashes[$key] = Get-ProjectWorldPerformanceFileHash -Path $artifactPaths[$key]
+        }
+        Assert-ManhattanShowcase ((Get-ProjectWorldPackagePayloadDigest -Path $resolvedPackage) -ceq
+            $packageHash -and
+            (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant() -ceq
+            $executableHash) "Existing package payload changed during $name."
+        $children.Add([pscustomobject]@{
+            ExpectedOperationId = $childOperation
+            ExpectedProcessExitCode = $exitCode
+            ReceiptPath = $performancePath
+            CorrectnessPath = $correctnessPath
+            SamplePath = $samplePath
+            RichCsvPath = $csvPath
+        })
+    }
+    $aggregate = New-ProjectWorldPerformanceAggregate -Children @($children) `
+        -OperationId $operationId -SourceRevision $revision `
+        -SourceStateSha256 $sourceState[0] -RuntimeProfileSha256 $script:runtimeProfileHash `
+        -ExpectedExecutable $executable -ExpectedExecutableSha256 $executableHash `
+        -ExpectedPackage $resolvedPackage -ExpectedPackageSha256 $packageHash `
+        -HostLoadWindows @($hostLoadWindows) -ExpectedMapPackage $mapPackage `
+        -ExpectedRuntimeProfile 'manhattan_showcase_512_1536_v1' `
+        -RequireCorrectnessBinding -RequireNonInteractivePolicy
+    Assert-ManhattanShowcase ([string]$aggregate.status -ceq 'accepted') `
+        "Manhattan pooled performance rejected: $($aggregate.acceptance_reason)"
+    Assert-ManhattanShowcase ((Get-ProjectWorldPackagePayloadDigest -Path $resolvedPackage) -ceq
+        $packageHash) 'Existing package payload changed after aggregation.'
+    $finalSourceState = @(& python $sourceTool source-state --source-root $projectRoot)
+    Assert-ManhattanShowcase ($LASTEXITCODE -eq 0 -and $finalSourceState.Count -eq 1 -and
+        $finalSourceState[0] -ceq $sourceState[0] -and
+        (Get-FileHash -LiteralPath $runtimeProfile -Algorithm SHA256).Hash.ToLowerInvariant() -ceq
+        $script:runtimeProfileHash) 'Source or runtime profile changed during Manhattan performance.'
+    $receipt = [ordered]@{
+        status = 'accepted'
+        operation_id = $operationId
+        source_revision = $revision
+        source_state_sha256 = $sourceState[0]
+        package_root = $resolvedPackage
+        package_payload_sha256 = $packageHash
+        executable = $executable
+        executable_sha256 = $executableHash
+        map_package = $mapPackage
+        runtime_profile = 'manhattan_showcase_512_1536_v1'
+        runtime_profile_sha256 = $script:runtimeProfileHash
+        gameplay_interaction_required = $false
+        performance = $aggregate
+        artifacts = $artifactPaths
+        artifact_sha256 = $artifactHashes
+    }
+    $receiptPath = Join-Path $evidenceRoot 'manhattan-release-performance.json'
+    [IO.File]::WriteAllText($receiptPath, ($receipt | ConvertTo-Json -Depth 14) + "`n",
+        [Text.UTF8Encoding]::new($false))
+    Assert-ManhattanEvidenceInventory -ReceiptPath $receiptPath
+    Write-Host "Manhattan existing-package performance accepted: $receiptPath" -ForegroundColor Green
+    return $receiptPath
+}
+
+if ($DescribeOperation) {
+    return [pscustomobject]@{
+        Name = 'Manhattan'; Experience = $experienceId; Map = $mapPackage
+        Runtime = 'manhattan_showcase_512_1536_v1'; RuntimePath = $runtimeProfile
+        Edge = $edgeArgument; InteractionRequired = $false; PreciseCenterReturn = $true; Radius = 500.0
+    }
+}
+
+if ($PSBoundParameters.ContainsKey('ExistingDevelopmentPackageRoot')) {
+    Assert-ManhattanShowcase (-not [string]::IsNullOrWhiteSpace($ExistingDevelopmentPackageRoot)) `
+        'ExistingDevelopmentPackageRoot cannot be empty.'
+    Assert-ManhattanShowcase (-not $SkipShipping) `
+        'SkipShipping is not part of existing Development package performance mode.'
+    Invoke-ManhattanExistingPackagePerformance `
+        -PackageRoot $ExistingDevelopmentPackageRoot `
+        -ExpectedPackageHash $ExpectedPackagePayloadSha256 `
+        -ExpectedExecutableHash $ExpectedExecutableSha256
+    return
+}
+Assert-ManhattanShowcase (-not $ExpectedPackagePayloadSha256 -and
+    -not $ExpectedExecutableSha256) `
+    'Expected package and executable hashes require existing Development package mode.'
 
 New-Item -ItemType Directory -Path $evidenceRoot, $runtimeRoot -Force | Out-Null
 $script:runtimeProfileHash = (Get-FileHash -LiteralPath $runtimeProfile -Algorithm SHA256).Hash.ToLowerInvariant()

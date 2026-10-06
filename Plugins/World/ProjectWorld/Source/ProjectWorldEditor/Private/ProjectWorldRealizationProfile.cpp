@@ -345,7 +345,8 @@ namespace ProjectWorldRealizationProfile
 			OutError = TEXT("Cannot hash the realization layer contract.");
 			return false;
 		}
-		TMap<FString, int32> LayerIndices;
+	TMap<FString, int32> LayerIndices;
+	TSet<FString> GeneratorIds;
 		TArray<FString> Roots;
 		const FString GeneratedRoot = FString::Printf(TEXT("/%s/Generated/"), *Profile.WorldDataPluginName);
 		const FString AuthoredRoot = FString::Printf(TEXT("/%s/Authored/"), *Profile.WorldDataPluginName);
@@ -369,11 +370,16 @@ namespace ProjectWorldRealizationProfile
 		for (int32 Index = 0; Index < Profile.Layers.Num(); ++Index)
 		{
 			FProjectWorldRealizationLayer& Layer = Profile.Layers[Index];
-			if (!IsIdentifier(Layer.LayerId) || LayerIndices.Contains(Layer.LayerId))
-			{
-				OutError = FString::Printf(TEXT("Layer ID is invalid or duplicated: %s"), *Layer.LayerId);
-				return false;
-			}
+		if (!IsIdentifier(Layer.LayerId) || LayerIndices.Contains(Layer.LayerId))
+		{
+			OutError = FString::Printf(TEXT("Layer ID is invalid or duplicated: %s"), *Layer.LayerId);
+			return false;
+		}
+		if (GeneratorIds.Contains(Layer.GeneratorId))
+		{
+			OutError = FString::Printf(TEXT("A generator already owns a layer in this profile: %s"), *Layer.GeneratorId);
+			return false;
+		}
 			if (!IsGeneratorRegistered(Layer.GeneratorId, Layer.GeneratorVersion, Layer.LayerKind))
 			{
 				OutError = FString::Printf(TEXT("Generator pair is not registered: %s:v%d"), *Layer.GeneratorId, Layer.GeneratorVersion);
@@ -399,8 +405,9 @@ namespace ProjectWorldRealizationProfile
 					return false;
 				}
 			}
-			Roots.Add(Layer.ArtifactRoot);
-			LayerIndices.Add(Layer.LayerId, Index);
+		Roots.Add(Layer.ArtifactRoot);
+		LayerIndices.Add(Layer.LayerId, Index);
+		GeneratorIds.Add(Layer.GeneratorId);
 		}
 
 		TMap<FString, int32> InDegree;
@@ -429,7 +436,10 @@ namespace ProjectWorldRealizationProfile
 					Ready.Add(Pair.Key);
 				}
 			}
-			Ready.Sort();
+			Ready.Sort([&LayerIndices](const FString& Left, const FString& Right)
+			{
+				return LayerIndices.FindChecked(Left) < LayerIndices.FindChecked(Right);
+			});
 			if (Ready.IsEmpty())
 			{
 				OutError = TEXT("Layer dependencies contain a cycle.");
@@ -618,6 +628,14 @@ namespace ProjectWorldRealizationProfile
 				Dirty.Add(Layer.LayerId);
 			}
 		}
+		for (const FString& LayerId : Inputs.IdentityDirtyLayers)
+		{
+			if (!Dirty.Contains(LayerId))
+			{
+				OutError = FString::Printf(TEXT("Identity-dirty layer is unknown or non-generated: %s"), *LayerId);
+				return false;
+			}
+		}
 		auto MergeInputs = [&Layers, &Dirty, &Inputs, &OutError](
 			const TMap<FString, TSet<FString>>& Source,
 			bool bOperator)
@@ -718,9 +736,16 @@ namespace ProjectWorldRealizationProfile
 			}
 			FProjectWorldLayerDirtyPlan Entry;
 			Entry.LayerId = LayerId;
-			for (const FString& Unit : Dirty.FindChecked(LayerId))
+			if (Inputs.IdentityDirtyLayers.Contains(LayerId))
 			{
-				Entry.DirtyUnits.Add(Unit);
+				Entry.DirtyUnits.Add(TEXT("*"));
+			}
+			else
+			{
+				for (const FString& Unit : Dirty.FindChecked(LayerId))
+				{
+					Entry.DirtyUnits.Add(Unit);
+				}
 			}
 			Entry.DirtyUnits.Sort();
 			OutPlan.Add(MoveTemp(Entry));
