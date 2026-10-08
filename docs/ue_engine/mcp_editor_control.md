@@ -96,6 +96,29 @@ operator merely because `UnrealEditor.exe` or an MCP listener is absent.
   must still inspect the images and reject a set that does not frame its stated
   subject.
 
+### Optional local bridge unattended shutdown
+
+An optional local `McpAutomationBridge` can crash on unattended Editor shutdown
+in `FMcpBridgeWebSocket::Close` through its subsystem's `Deinitialize`. A
+completed gameplay receipt does not make that abnormal process exit acceptable.
+For a probe that needs no MCP connection, use UE's process-only plugin opt-out;
+do not edit generated World data or the local plugin to hide the crash:
+
+```powershell
+$priorArguments = [Environment]::GetEnvironmentVariable('UE-CmdLineArgs', 'Process')
+try {
+    [Environment]::SetEnvironmentVariable('UE-CmdLineArgs',
+        ($priorArguments + ' -DisablePlugins=McpAutomationBridge').Trim(), 'Process')
+    powershell -NoProfile -ExecutionPolicy Bypass -File `
+        scripts/ue/world/test/integration/run_uncooked_playable_tour.ps1
+} finally {
+    [Environment]::SetEnvironmentVariable('UE-CmdLineArgs', $priorArguments, 'Process')
+}
+```
+
+The child log must show the opt-out, no bridge initialization, and a normal exit.
+This isolates optional editor tooling; functional admission remains required.
+
 If one MCP route is still starting, use another connected route only within
 the routing and concurrency rules above. Starting the editor and waiting for
 its owned endpoints is normal task work, not a user dependency.
@@ -113,6 +136,6 @@ An MCP command returning `queued` or `success` proves dispatch only. Confirm
 the terminal test result or `Map Check` counts in the editor log. Screenshots
 and live queries support review but do not replace accepted receipts.
 
-Keep transient screenshots and MCP output under ignored `Saved/` evidence
+Keep transient screenshots and MCP output under ignored `tmp/` evidence
 roots. Feature-specific verification owns the exact map, profile, probes, and
 acceptance comparisons.

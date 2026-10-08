@@ -12,6 +12,7 @@ from unittest import mock
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "prepare_release.py"
+sys.path.insert(0, str(SCRIPT.parent))
 WRAPPER = SCRIPT.with_suffix(".ps1")
 TEST_TMP = SCRIPT.parents[3] / "tmp/release/tests"
 SPEC = importlib.util.spec_from_file_location("prepare_release", SCRIPT)
@@ -292,6 +293,7 @@ class PrepareReleaseTests(unittest.TestCase):
         self.assertFalse((output / "player-archive.json").exists())
         self.assertFalse((output / "player-machine-acceptance.json").exists())
         self.assertFalse((output / "developer-dependency-report.json").exists())
+
         self.assertFalse((output / "public-source-privacy.json").exists())
         self.assertFalse((output / "public-world-map-load.json").exists())
         self.assertFalse((output / "LICENSE.txt").exists())
@@ -352,6 +354,250 @@ class PrepareReleaseTests(unittest.TestCase):
         self.assertIn(MODULE.sha256_file(self.player_archive), player_installer)
         self.assertNotIn("__ALIS_PLAYER_ARCHIVE_MANIFEST_JSON__", player_installer)
 
+    def waived_machine(self) -> Path:
+        aggregate = {
+            "schema_version": 1, "status": "rejected", "operation_id": "fixture-operation",
+            "source_revision": self.private_revision,
+            "source_state_sha256": MODULE.source_state_digest(self.private),
+            "runtime_profile_sha256": "a" * 64,
+            "development_executable_sha256": "b" * 64,
+            "development_package_sha256": "c" * 64,
+            "execution_count": 3, "children": [{}, {}, {}], "total_sample_count": 900,
+            "base_frame_p95_budget_ms": 16.67, "frame_p95_budget_ms": 18.337,
+            "frame_p95_ms": 24.35, "streaming_failures": 0,
+            "acceptance_reason": "Pooled Frame p95 exceeded the budget.",
+        }
+        kazan = self.root / "kazan-performance.json"
+        manhattan = self.root / "manhattan-performance.json"
+        write_json(kazan, aggregate)
+        write_json(manhattan, {"performance": aggregate})
+        machine = {
+            "schema_version": 1, "status": "accepted_with_performance_waiver",
+            "operation_id": "fixture-operation", "revision": self.private_revision,
+            "source_state_sha256": MODULE.source_state_digest(self.private),
+            "runtime_profile_sha256": "a" * 64,
+            "development_executable_sha256": "b" * 64,
+            "development_package_sha256": "c" * 64,
+            "final_package": self.candidate.as_posix(),
+            "shipping_package_sha256": MODULE.package_tree_digest(self.candidate),
+            "shipping_executable_sha256": MODULE.sha256_file(
+                self.candidate / "Windows/Alis/Binaries/Win64/Alis-Win64-Shipping.exe"),
+            "artifacts": {"development_performance_aggregate": kazan.as_posix(),
+                          "manhattan_development_performance": manhattan.as_posix()},
+            "artifact_sha256": {"development_performance_aggregate": MODULE.sha256_file(kazan),
+                                "manhattan_development_performance": MODULE.sha256_file(manhattan)},
+        }
+        from release_performance import performance_decision, validate_machine_performance
+        nested = {}
+        for index in range(1, 4):
+            for suffix in ("correctness", "product_screenshot", "performance", "samples",
+                           "csv", "playable_screenshot", "log"):
+                key = f"run-{index:02d}_{suffix}"
+                path = self.root / "manhattan" / key
+                path.parent.mkdir(exist_ok=True)
+                path.write_text("fixture evidence", encoding="ascii")
+                nested[key] = path.as_posix()
+        write_json(manhattan, {"performance": aggregate, "runtime_profile_sha256": "a" * 64,
+                              "performance_review": performance_decision(aggregate, True),
+                              "artifacts": nested,
+                              "artifact_sha256": {key: MODULE.sha256_file(Path(path)) for key, path in nested.items()}})
+        machine["artifact_sha256"]["manhattan_development_performance"] = MODULE.sha256_file(manhattan)
+        machine["performance_review"] = validate_machine_performance(machine, True, self.private, False)
+        write_json(self.composite, machine)
+        return self.composite
+
+    def test_waiver_requires_explicit_release_acceptance_before_output_creation(self) -> None:
+        evidence = self.waived_machine()
+        output = self.root / "release"
+        with self.assertRaises(MODULE.ReleaseError):
+            MODULE.prepare_release(replace(self.inputs(), player_evidence=evidence), output,
+                                   [self.player_archive], self.archive_report)
+        self.assertFalse(output.exists())
+
+    def test_explicit_waiver_retains_inconclusive_measurement_in_release_manifest(self) -> None:
+        evidence = self.waived_machine()
+        inputs = SimpleNamespace(**{**vars(self.inputs()), "player_evidence": evidence,
+                                   "accept_inconclusive_performance": True})
+        output = self.root / "release"
+        manifest_path = MODULE.prepare_release(inputs, output, [self.player_archive], self.archive_report)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual("inconclusive", manifest["performance_review"]["status"])
+        self.assertEqual("accepted_residual_risk", manifest["performance_review"]["operator_decision"])
+        self.assertEqual("rejected", json.loads((self.root / "kazan-performance.json").read_text())["status"])
+        self.assertEqual(self.private_revision, manifest["performance_review"]["source_revision"])
+
+    def test_waiver_refuses_changed_artifact_or_candidate_before_output_creation(self) -> None:
+        for mutation in ("artifact_bytes", "source_revision", "runtime_profile_sha256",
+                         "development_executable_sha256", "shipping_package_sha256", "decision"):
+            with self.subTest(mutation=mutation):
+                evidence = self.waived_machine()
+                machine = json.loads(evidence.read_text())
+                if mutation == "artifact_bytes":
+                    with (self.root / "kazan-performance.json").open("a") as stream:
+                        stream.write(" ")
+                elif mutation == "source_revision":
+                    machine["revision"] = "d" * 40
+                elif mutation == "decision":
+                    machine["performance_review"]["status"] = "accepted"
+                else:
+                    machine[mutation] = "d" * 64
+                write_json(evidence, machine)
+                inputs = replace(self.inputs(), player_evidence=evidence, accept_inconclusive_performance=True)
+                output = self.root / "release"
+                with self.assertRaises(MODULE.ReleaseError):
+                    MODULE.prepare_release(inputs, output, [self.player_archive], self.archive_report)
+                self.assertFalse(output.exists())
+
+    def test_waiver_cannot_accept_unknown_measurement_or_non_budget_failure(self) -> None:
+        from release_performance import performance_decision
+        self.waived_machine()
+        original = json.loads((self.root / "kazan-performance.json").read_text())
+        for key, value in (("frame_p95_ms", None), ("frame_p95_ms", float("nan")),
+                           ("status", "accepted"), ("streaming_failures", 1),
+                           ("execution_count", 1), ("total_sample_count", 0),
+                           ("base_frame_p95_budget_ms", 25), ("frame_p95_budget_ms", 25)):
+            with self.subTest(key=key, value=value):
+                with self.assertRaises(ValueError):
+                    performance_decision({**original, key: value}, True)
+        accepted = {**original, "status": "accepted", "frame_p95_ms": 12.96, "acceptance_reason": ""}
+        self.assertEqual("accepted", performance_decision(accepted, True)["status"])
+        self.assertEqual("not_required", performance_decision(accepted, True)["operator_decision"])
+
+    def test_manifest_verification_preserves_waiver_identity_and_inconclusive_status(self) -> None:
+        evidence = self.waived_machine()
+        inputs = replace(self.inputs(), player_evidence=evidence, accept_inconclusive_performance=True)
+        output = self.root / "release"
+        path = MODULE.prepare_release(inputs, output, [self.player_archive], self.archive_report)
+        MODULE.verify_release_manifest(output)
+        original = json.loads(path.read_text())
+        for field, value in (("source_revision", "d" * 40), ("status", "accepted"),
+                              ("operator_decision", "not_required")):
+            with self.subTest(field=field):
+                manifest = json.loads(json.dumps(original))
+                manifest["performance_review"][field] = value
+                write_json(path, manifest)
+                with self.assertRaises(MODULE.ReleaseError):
+                    MODULE.verify_release_manifest(output)
+
+    def test_operator_receipt_cannot_hide_waived_machine_acceptance(self) -> None:
+        self.waived_machine()
+        acceptance = json.loads(self.acceptance.read_text())
+        acceptance["release_composite_sha256"] = MODULE.sha256_file(self.composite)
+        write_json(self.acceptance, acceptance)
+        output = self.root / "release"
+        with self.assertRaises(MODULE.ReleaseError):
+            MODULE.prepare_release(self.inputs(), output, [self.player_archive], self.archive_report)
+        self.assertFalse(output.exists())
+        inputs = replace(self.inputs(), accept_inconclusive_performance=True)
+        path = MODULE.prepare_release(inputs, output, [self.player_archive], self.archive_report)
+        self.assertEqual("inconclusive", json.loads(path.read_text())["performance_review"]["status"])
+
+    def test_waiver_reauthenticates_nested_manhattan_evidence_before_output_creation(self) -> None:
+        for mutation in ("changed_samples", "deleted_samples", "missing_inventory"):
+            with self.subTest(mutation=mutation):
+                evidence = self.waived_machine()
+                if mutation == "missing_inventory":
+                    path = self.root / "manhattan-performance.json"
+                    document = json.loads(path.read_text())
+                    del document["artifacts"]
+                    del document["artifact_sha256"]
+                    write_json(path, document)
+                    machine = json.loads(evidence.read_text())
+                    digest = MODULE.sha256_file(path)
+                    machine["artifact_sha256"]["manhattan_development_performance"] = digest
+                    machine["performance_review"]["cities"]["manhattan"]["aggregate_sha256"] = digest
+                    write_json(evidence, machine)
+                else:
+                    path = self.root / "manhattan/run-01_samples"
+                    path.unlink() if mutation == "deleted_samples" else path.write_text("changed")
+                inputs = replace(self.inputs(), player_evidence=evidence, accept_inconclusive_performance=True)
+                output = self.root / ("release-" + mutation)
+                with self.assertRaises(MODULE.ReleaseError):
+                    MODULE.prepare_release(inputs, output, [self.player_archive], self.archive_report)
+                self.assertFalse(output.exists())
+
+    def test_interrupted_waived_projection_refuses_recovery_without_mutation(self) -> None:
+        import shutil
+        import release_workspace as workspace
+        evidence = self.waived_machine()
+        inputs = replace(self.inputs(), player_evidence=evidence, accept_inconclusive_performance=True)
+        output = self.root / "workspace"
+        MODULE.prepare_release(inputs, output / "github", [self.player_archive], self.archive_report)
+        workspace.initialize_workspace(output, self.candidate, "2.0.0")
+        workspace.adopt_game(output, self.candidate)
+        backup = output / ("github-previous-" + "a" * 32)
+        (output / "github").rename(backup)
+        for current_exists in (False, True):
+            with self.subTest(current_exists=current_exists):
+                if current_exists:
+                    shutil.copytree(output / "github", backup)
+                before = {path.relative_to(output).as_posix(): MODULE.sha256_file(path)
+                          for path in output.rglob("*") if path.is_file()}
+                with self.assertRaises(MODULE.ReleaseError):
+                    workspace.recover_github_projection(output)
+                self.assertEqual(before, {path.relative_to(output).as_posix(): MODULE.sha256_file(path)
+                                         for path in output.rglob("*") if path.is_file()})
+                workspace.recover_github_projection(output, accept_inconclusive_performance=True)
+                self.assertFalse(backup.exists())
+                workspace.verify_workspace(output)
+
+    def test_windows_300_wrapper_assembles_and_resumes_waived_workspace_only_explicitly(self) -> None:
+        self.private = SCRIPT.parents[3]
+        self.private_revision = MODULE.git_value(self.private, "rev-parse", "HEAD")
+        evidence = self.waived_machine()
+        subprocess.run(["git", "-C", str(self.public), "tag", "v3.0.0"], check=True)
+        for path, key in ((self.developer_manifest, "release_version"), (self.component, "source_tag")):
+            document = json.loads(path.read_text())
+            document[key] = "v3.0.0"
+            if path == self.developer_manifest:
+                document["public_source"]["tag"] = "v3.0.0"
+            write_json(path, document)
+        output = self.root / "release"
+        arguments = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(WRAPPER),
+                     "-ReleaseVersion", "3.0.0", "-ReleaseDir", str(output),
+                     "-PublicSourceRoot", str(self.public), "-PlayerPackageRoot", str(self.candidate),
+                     "-PlayerEvidence", str(evidence), "-DeveloperReleaseDir", str(self.developer),
+                     "-DeveloperPayloadManifest", str(self.developer_manifest), "-ComponentManifest", str(self.component),
+                     "-DependencyReport", str(self.dependency), "-PrivacyReport", str(self.privacy),
+                     "-MapLoadReport", str(self.map_load), "-AttributionNotice", str(self.attribution),
+                     "-ProductTerms", str(self.terms)]
+        refused = subprocess.run(arguments, capture_output=True, text=True)
+        self.assertNotEqual(0, refused.returncode)
+        self.assertFalse(output.exists())
+        accepted = subprocess.run([*arguments, "-AcceptInconclusivePerformance"], capture_output=True, text=True)
+        self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
+        manifest = MODULE.verify_release_manifest(output / "github")
+        self.assertEqual("inconclusive", manifest["performance_review"]["status"])
+        self.assertFalse((output / "game/linux-x86_64").exists())
+        resume = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                  str(SCRIPT.with_name("release.ps1")), "-ReleaseVersion", "3.0.0",
+                  "-ReleaseDir", str(output), "-SkipSigning"]
+        before = {path.relative_to(output).as_posix(): MODULE.sha256_file(path)
+                  for path in output.rglob("*") if path.is_file()}
+        refused = subprocess.run(resume, capture_output=True, text=True)
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("requires -AcceptInconclusivePerformance", refused.stdout + refused.stderr)
+        self.assertEqual(before, {path.relative_to(output).as_posix(): MODULE.sha256_file(path)
+                                 for path in output.rglob("*") if path.is_file()})
+        accepted = subprocess.run([*resume, "-AcceptInconclusivePerformance"], capture_output=True, text=True)
+        self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
+        self.assertIn("Absolute performance INCONCLUSIVE", accepted.stdout)
+        self.candidate.mkdir()
+        (output / "game").rename(self.candidate / "Windows")
+        (output / "package_summary.txt").rename(self.candidate / "package_summary.txt")
+        state_path = output / "release-workspace.json"
+        state = json.loads(state_path.read_text())
+        state["status"] = "awaiting_game_adoption"
+        write_json(state_path, state)
+        resume.extend(["-PlayerPackageRoot", str(self.candidate)])
+        refused = subprocess.run(resume, capture_output=True, text=True)
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("requires -AcceptInconclusivePerformance", refused.stdout + refused.stderr)
+        self.assertTrue((self.candidate / "Windows").is_dir())
+        self.assertEqual("awaiting_game_adoption", json.loads(state_path.read_text())["status"])
+        accepted = subprocess.run([*resume, "-AcceptInconclusivePerformance"], capture_output=True, text=True)
+        self.assertEqual(0, accepted.returncode, accepted.stdout + accepted.stderr)
+
     def test_prepare_accepts_player_archive_already_in_output(self) -> None:
         output = self.root / "release"
         output.mkdir()
@@ -392,6 +638,45 @@ class PrepareReleaseTests(unittest.TestCase):
         self.assertFalse(output.exists())
 
     def test_wrapper_creates_game_and_github_workspace_from_absent_output(self) -> None:
+        self.assert_wrapper_creates_workspace("2.0.0")
+
+    def test_wrapper_creates_windows_3_0_without_linux_inputs(self) -> None:
+        self.assert_wrapper_creates_workspace("3.0.0")
+
+    def test_3_0_guide_has_concrete_player_and_developer_highlights(self) -> None:
+        output = self.root / "guide"
+        output.mkdir()
+        (output / "developer.developer-payload.json").write_text("{}")
+        (output / "developer.notices.json").write_text("{}")
+        MODULE.write_release_guide(
+            output, "3.0.0", "v3.0.0",
+            {"parts": [{"name": "ALIS_Win64_v3.0.0.zip"}]},
+            {"archive": {"parts": [{"name": "developer.zip"}]}}, {},
+        )
+        guide = (output / "README.txt").read_text(encoding="utf-8")
+        self.assertIn("WHAT'S NEW 3.0.0", guide)
+        players, developers = guide.split("\nPlayers\n", 1)[1].split(
+            "\nDevelopers and contributors\n", 1
+        )
+        self.assertIn("Kazan and Manhattan", players)
+        self.assertIn("Mesh Terrain", players)
+        self.assertIn("generated terrain material", players)
+        self.assertIn("common World pipeline", developers.split("\nPLAY ON WINDOWS\n", 1)[0])
+        self.assertNotIn("See the Git history", guide)
+
+    def test_wrapper_requires_explicit_version_before_output_creation(self) -> None:
+        self.assert_wrapper_creates_workspace("2.0.0", omit_version=True)
+
+    def assert_wrapper_creates_workspace(self, version: str, omit_version: bool = False) -> None:
+        if version != "2.0.0":
+            subprocess.run(["git", "tag", f"v{version}"], cwd=self.public, check=True, capture_output=True)
+            developer = MODULE.read_json(self.developer_manifest)
+            developer["release_version"] = f"v{version}"
+            developer["public_source"]["tag"] = f"v{version}"
+            write_json(self.developer_manifest, developer)
+            component = MODULE.read_json(self.component)
+            component["source_tag"] = f"v{version}"
+            write_json(self.component, component)
         project_root = SCRIPT.parents[3]
         release = self.root / "workspace"
         evidence = self.root / "wrapper-machine-acceptance.json"
@@ -418,7 +703,7 @@ class PrepareReleaseTests(unittest.TestCase):
         )
         result = subprocess.run(
             [
-                "powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                 "-File", str(WRAPPER),
                 "-ReleaseDir", str(release),
                 "-PublicSourceRoot", str(self.public),
@@ -432,17 +717,27 @@ class PrepareReleaseTests(unittest.TestCase):
                 "-MapLoadReport", str(self.map_load),
                 "-AttributionNotice", str(self.attribution),
                 "-ProductTerms", str(self.terms),
-                "-ReleaseVersion", "2.0.0",
-                "-ReleaseTag", "v2.0.0",
                 "-SplitSizeMiB", "1",
-            ],
+            ] + ([] if omit_version else ["-ReleaseVersion", version]),
             cwd=project_root,
             capture_output=True,
             text=True,
         )
+        if omit_version:
+            self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("ReleaseVersion", result.stderr)
+            self.assertFalse(release.exists())
+            self.assertEqual(MODULE.read_json(evidence)["shipping_package_sha256"],
+                             MODULE.package_tree_digest(self.candidate))
+            return
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertTrue((release / "game/Alis/Binaries/Win64/Alis-Win64-Shipping.exe").is_file())
         self.assertTrue((release / "github/release_manifest.json").is_file())
+        self.assertEqual("alis-release-workspace-v1", MODULE.read_json(release / "release-workspace.json")["schema"])
+        self.assertEqual("alis-release-manifest-v3", MODULE.read_json(release / "github/release_manifest.json")["schema"])
+        self.assertEqual(f"v{version}", MODULE.read_json(release / "release-workspace.json")["release_tag"])
+        self.assertEqual(f"v{version}", MODULE.read_json(release / "github/release_manifest.json")["release_tag"])
+        self.assertFalse((release / "game/linux-x86_64").exists())
 
     def test_dependency_rejection_fails_before_output(self) -> None:
         dependency = json.loads(self.dependency.read_text(encoding="utf-8"))

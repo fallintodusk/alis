@@ -48,6 +48,12 @@ ifeq (release,$(firstword $(MAKECMDGOALS)))
 endif
 
 RELEASE_SIGN ?= 1
+RELEASE_ACCEPT_INCONCLUSIVE_PERFORMANCE ?= 0
+ifneq ($(RELEASE_ACCEPT_INCONCLUSIVE_PERFORMANCE),0)
+  ifneq ($(RELEASE_ACCEPT_INCONCLUSIVE_PERFORMANCE),1)
+    $(error RELEASE_ACCEPT_INCONCLUSIVE_PERFORMANCE must be 0 or 1)
+  endif
+endif
 ifneq ($(RELEASE_SIGN),0)
   ifneq ($(RELEASE_SIGN),1)
     $(error RELEASE_SIGN must be 0 or 1)
@@ -479,7 +485,7 @@ package:
 release:
 	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
 		-File "scripts/ue/package/release.ps1" \
-		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(strip $(TARGET)),-Target "$(strip $(TARGET))",) $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,) $(if $(strip $(SOURCE_COMMIT)),-SourceCommit "$(strip $(SOURCE_COMMIT))",)
+		-ReleaseVersion "$(RELEASE_VERSION)" $(if $(strip $(TARGET)),-Target "$(strip $(TARGET))",) $(if $(filter 0,$(RELEASE_SIGN)),-SkipSigning,) $(if $(filter 1,$(RELEASE_ACCEPT_INCONCLUSIVE_PERFORMANCE)),-AcceptInconclusivePerformance,) $(if $(strip $(SOURCE_COMMIT)),-SourceCommit "$(strip $(SOURCE_COMMIT))",)
 
 # Publish an already signed local release. This target never builds or signs.
 publish:

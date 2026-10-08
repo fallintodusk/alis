@@ -144,8 +144,6 @@ def initialize_workspace(workspace: Path, candidate: Path, version: str) -> Path
     if not (workspace / GITHUB_DIRECTORY).is_dir():
         raise release.ReleaseError("Prepared workspace has no github directory")
     manifest = release_manifest(workspace)
-    if tuple(map(int, release.normalize_version(version).split("."))) >= (2, 1, 0):
-        raise release.ReleaseError(f"Release {version} requires workspace schema {WORKSPACE_SCHEMA_V2}")
     release.require_equal(manifest.get("release_version"), version, "release workspace version")
     release.require_equal(manifest.get("status"), "pending_owner_approval", "release workspace state")
     release.require_equal(manifest.get("schema"), "alis-release-manifest-v3", "release manifest schema")
@@ -176,8 +174,6 @@ def initialize_workspace_v2(
     if not (workspace / GITHUB_DIRECTORY).is_dir():
         raise release.ReleaseError("Prepared workspace has no github directory")
     manifest = release_manifest(workspace)
-    if tuple(map(int, release.normalize_version(version).split("."))) < (2, 1, 0):
-        raise release.ReleaseError(f"Release {version} requires workspace schema {WORKSPACE_SCHEMA_V1}")
     release.require_equal(manifest.get("schema"), "alis-release-manifest-v4", "release manifest schema")
     release.require_equal(manifest.get("release_version"), version, "release workspace version")
     release.require_equal(manifest.get("status"), "pending_owner_approval", "release workspace state")
@@ -269,8 +265,6 @@ def verify_workspace(workspace: Path, allowed_workspace_entries: set[str] | None
     version = release.normalize_version(str(state.get("release_version", "")))
     if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
         raise release.ReleaseError(f"Invalid release workspace version: {version!r}")
-    required_schema = WORKSPACE_SCHEMA_V2 if tuple(map(int, version.split("."))) >= (2, 1, 0) else WORKSPACE_SCHEMA_V1
-    release.require_equal(schema, required_schema, f"release {version} requires workspace schema")
     if schema == WORKSPACE_SCHEMA_V1:
         release.require_equal(manifest.get("schema"), "alis-release-manifest-v3", "release manifest schema")
         assert_workspace_inventory(workspace, allowed_workspace_entries)
@@ -283,7 +277,7 @@ def verify_workspace(workspace: Path, allowed_workspace_entries: set[str] | None
     return state_path
 
 
-def recover_github_projection(workspace: Path) -> Path:
+def recover_github_projection(workspace: Path, accept_inconclusive_performance: bool = False) -> Path:
     workspace = workspace.resolve()
     state_path = workspace / WORKSPACE_FILE
     state = read_json(state_path)
@@ -311,6 +305,8 @@ def recover_github_projection(workspace: Path) -> Path:
     github = workspace / GITHUB_DIRECTORY
     if not github.exists():
         backup_manifest = release.verify_release_manifest(backup)
+        if backup_manifest.get("performance_review", {}).get("status") == "inconclusive" and not accept_inconclusive_performance:
+            raise release.ReleaseError("Recovery requires explicit inconclusive performance acceptance")
         if state.get("schema") == WORKSPACE_SCHEMA_V2:
             verify_release_identity_v2(workspace, state, backup_manifest)
         else:
@@ -324,7 +320,9 @@ def recover_github_projection(workspace: Path) -> Path:
         or github.resolve().parent != workspace
     ):
         raise release.ReleaseError("Current GitHub projection is not a normal directory")
-    release.verify_release_manifest(github)
+    current_manifest = release.verify_release_manifest(github)
+    if current_manifest.get("performance_review", {}).get("status") == "inconclusive" and not accept_inconclusive_performance:
+        raise release.ReleaseError("Recovery requires explicit inconclusive performance acceptance")
     verify_workspace(workspace, {backup.name})
     shutil.rmtree(backup)
     return verify_workspace(workspace)
@@ -416,6 +414,7 @@ def main() -> int:
     verify.add_argument("--workspace-root", type=Path, required=True)
     recover = commands.add_parser("recover-github")
     recover.add_argument("--workspace-root", type=Path, required=True)
+    recover.add_argument("--accept-inconclusive-performance", action="store_true")
     package_tree = commands.add_parser("package-tree")
     package_tree.add_argument("--workspace-root", type=Path, required=True)
     args = parser.parse_args()
@@ -444,7 +443,7 @@ def main() -> int:
         elif args.command == "verify":
             result = verify_workspace(args.workspace_root)
         elif args.command == "recover-github":
-            result = recover_github_projection(args.workspace_root)
+            result = recover_github_projection(args.workspace_root, args.accept_inconclusive_performance)
         else:
             print(workspace_package_tree_digest(args.workspace_root))
             return 0

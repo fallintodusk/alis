@@ -139,7 +139,12 @@ def unreal_relative_class(relative_path: str) -> str | None:
     if not path.parts:
         return None
     first = path.parts[0]
-    if first in {"Source", "Config", "Data"}:
+    if first in {"Source", "Config", "Data", "Test", "Tests"}:
+        return "ue-in-process"
+    if path.parts[:3] in {
+        ("scripts", "ue", "editor"),
+        ("scripts", "ue", "cinematic"),
+    } or path.parts[:4] == ("scripts", "ue", "check", "assets"):
         return "ue-in-process"
     if first == "Tools":
         return "separate-process"

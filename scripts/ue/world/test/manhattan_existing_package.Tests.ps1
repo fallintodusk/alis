@@ -57,6 +57,7 @@ Describe 'Manhattan existing Development package performance' {
     }
 
     BeforeEach {
+        $script:AcceptInconclusivePerformance = $false
         $script:ownerRoot = Join-Path $script:projectRoot `
             'tmp\world\manhattan_existing_package_test'
         $script:testRoot = Join-Path $script:ownerRoot ([Guid]::NewGuid().ToString('N'))
@@ -191,6 +192,46 @@ Describe 'Manhattan existing Development package performance' {
                 -ExpectedExecutableHash $script:executableHash } | Should -Throw
         $script:gameCalls | Should -Be 1
         Should -Invoke Invoke-ManhattanShowcasePackage -Times 0
+    }
+
+    It 'retains a rejected budget and accepts only the explicit release waiver' {
+        Mock New-ProjectWorldPerformanceAggregate {
+            [pscustomobject]@{
+                schema_version = 1; status = 'rejected'; operation_id = $OperationId
+                acceptance_reason = 'Pooled Frame p95 exceeded the budget.'
+                source_revision = $SourceRevision; source_state_sha256 = $SourceStateSha256
+                runtime_profile_sha256 = $RuntimeProfileSha256
+                development_executable_sha256 = $ExpectedExecutableSha256
+                development_package_sha256 = $ExpectedPackageSha256
+                execution_count = 3; children = @($Children); total_sample_count = 900
+                base_frame_p95_budget_ms = 16.67; frame_p95_budget_ms = 18.337
+                frame_p95_ms = 24.35; streaming_failures = 0
+            }
+        }
+        { Invoke-ManhattanExistingPackagePerformance -PackageRoot $script:package `
+                -ExpectedPackageHash $script:packageHash `
+                -ExpectedExecutableHash $script:executableHash } | Should -Throw '*pooled performance rejected*'
+        $path = Join-Path $script:evidenceRoot 'manhattan-release-performance.json'
+        (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json).status | Should -BeExactly 'rejected'
+        $script:AcceptInconclusivePerformance = $true
+        $path = Invoke-ManhattanExistingPackagePerformance -PackageRoot $script:package `
+            -ExpectedPackageHash $script:packageHash -ExpectedExecutableHash $script:executableHash
+        $receipt = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+        $receipt.status | Should -BeExactly 'accepted_with_performance_waiver'
+        $receipt.performance.status | Should -BeExactly 'rejected'
+        $receipt.performance.frame_p95_ms | Should -Be 24.35
+        $receipt.performance_review.status | Should -BeExactly 'inconclusive'
+        $receipt.performance_review.operator_decision | Should -BeExactly 'accepted_residual_risk'
+        Should -Invoke Invoke-ManhattanShowcasePackage -Times 0
+    }
+
+    It 'keeps abnormal process exits strict even with the performance waiver' {
+        $script:AcceptInconclusivePerformance = $true
+        Mock Invoke-ManhattanShowcaseGame { return 1 }
+        { Invoke-ManhattanExistingPackagePerformance -PackageRoot $script:package `
+                -ExpectedPackageHash $script:packageHash `
+                -ExpectedExecutableHash $script:executableHash } | Should -Throw '*exited abnormally*'
+        Should -Invoke New-ProjectWorldPerformanceAggregate -Times 0
     }
 
     It 'rejects a child without a normal process exit before starting another' {

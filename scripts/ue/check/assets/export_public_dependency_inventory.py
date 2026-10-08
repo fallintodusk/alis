@@ -21,6 +21,7 @@ def main():
     roots = sorted({str(item["package_name"]) for item in seed_document["seeds"]})
 
     registry = unreal.AssetRegistryHelpers.get_asset_registry()
+    registry.search_all_assets(True)
     registry.wait_for_completion()
     project_root = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
     artifact_files = [

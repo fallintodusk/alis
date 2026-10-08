@@ -9,6 +9,7 @@ from unittest import mock
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PACKAGE_ROOT))
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 for name in (
     "prepare_release",
@@ -155,6 +156,7 @@ class PrepareReleaseV4Tests(unittest.TestCase):
             terms,
         )
         validated = {
+            "performance_review": None,
             "private_revision": "a" * 40,
             "private_state": "b" * 64,
             "public_revision": "c" * 40,

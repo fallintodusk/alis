@@ -6,7 +6,8 @@
 [CmdletBinding()]
 param(
     [int]$GameTimeoutSeconds = 720,
-    [switch]$DescribeOperation
+    [switch]$DescribeOperation,
+    [switch]$AcceptInconclusivePerformance
 )
 
 $ErrorActionPreference = 'Stop'
@@ -635,7 +636,17 @@ try {
         $developmentAggregatePath,
         ($developmentPerformance | ConvertTo-Json -Depth 12) + "`n",
         [Text.UTF8Encoding]::new($false))
-    Assert-PlayableTour ([string]$developmentPerformance.status -ceq 'accepted') `
+    $performancePolicy = Join-Path $projectRoot 'scripts/ue/package/release_performance.py'
+    if ($AcceptInconclusivePerformance) {
+        $decision = @(& python $performancePolicy decide --receipt $developmentAggregatePath `
+                --accept-inconclusive-performance)
+        Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $decision.Count -eq 1) `
+            'Release performance waiver rejected the Development evidence.'
+        $developmentDecision = $decision[0] | ConvertFrom-Json
+        Assert-PlayableTour ([string]$developmentDecision.status -cin @('accepted', 'inconclusive')) `
+            'Release performance decision is unknown.'
+    }
+    Assert-PlayableTour ($AcceptInconclusivePerformance -or [string]$developmentPerformance.status -ceq 'accepted') `
         ("Development pooled performance rejected: {0}" -f `
             [string]$developmentPerformance.acceptance_reason)
     # The Development payload already contains both configured public maps. Prove Manhattan
@@ -644,7 +655,8 @@ try {
                 'run_manhattan_showcase_prototype.ps1') `
             -ExistingDevelopmentPackageRoot $finalPackage `
             -ExpectedPackagePayloadSha256 $developmentPackageHash `
-            -ExpectedExecutableSha256 $developmentExecutableHash)
+            -ExpectedExecutableSha256 $developmentExecutableHash `
+            -AcceptInconclusivePerformance:$AcceptInconclusivePerformance)
     Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $manhattanEvidence.Count -eq 1 -and
         (Test-Path -LiteralPath $manhattanEvidence[0] -PathType Leaf)) `
         'Manhattan performance did not accept the shared Development package.'
@@ -740,7 +752,10 @@ try {
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'before composite publication'
     $composite = [ordered]@{
         schema_version = 1
-        status = 'accepted'
+        status = if ($AcceptInconclusivePerformance -and
+            ($developmentDecision.status -ceq 'inconclusive' -or
+             (Get-Content -LiteralPath $manhattanPerformancePath -Raw | ConvertFrom-Json).status -ceq
+                'accepted_with_performance_waiver')) { 'accepted_with_performance_waiver' } else { 'accepted' }
         operation_id = $operationId
         revision = $sourceRevision
         source_state_sha256 = $sourceStateHash
@@ -793,6 +808,15 @@ try {
         } else { $null }
     }
 
+    if ($AcceptInconclusivePerformance) {
+        $reviewInput = Join-Path $workRoot 'performance-review-input.json'
+        [IO.File]::WriteAllText($reviewInput, ($composite | ConvertTo-Json -Depth 12))
+        $review = @(& python $performancePolicy compose --receipt $reviewInput `
+                --source-root $projectRoot --accept-inconclusive-performance)
+        Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $review.Count -eq 1) `
+            'Release performance review did not authenticate both cities.'
+        $composite.performance_review = $review[0] | ConvertFrom-Json
+    }
     $resolvedFinalPackage = [IO.Path]::GetFullPath($finalPackage)
     $resolvedFinalRoot = [IO.Path]::GetFullPath(
         (Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour')).TrimEnd('\', '/')
@@ -808,7 +832,7 @@ try {
         $compositeJson + "`n",
         [Text.UTF8Encoding]::new($false))
     $accepted = $true
-    Write-Host "[ProjectWorldPlayableTour] Accepted: $compositePath" -ForegroundColor Green
+    Write-Host "[ProjectWorldPlayableTour] Decision $($composite.status): $compositePath"
     Write-Host "[ProjectWorldPlayableTour] Final package: $finalPackage" -ForegroundColor Green
 }
 finally {

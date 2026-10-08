@@ -9,7 +9,7 @@ from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-for name in ("prepare_release", "release_platforms", "release_workspace"):
+for name in ("release_performance", "prepare_release", "release_platforms", "release_workspace"):
     path = PACKAGE_ROOT / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -29,7 +29,7 @@ class ReleaseWorkspaceTests(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
 
-    def make_fixture(self, name: str) -> tuple[Path, Path]:
+    def make_fixture(self, name: str, version: str = "2.0.99") -> tuple[Path, Path]:
         candidate = self.root / f"{name}-candidate"
         executable = candidate / "Windows/Alis/Binaries/Win64/Alis-Win64-Shipping.exe"
         executable.parent.mkdir(parents=True)
@@ -44,8 +44,8 @@ class ReleaseWorkspaceTests(unittest.TestCase):
         manifest = {
             "schema": "alis-release-manifest-v3",
             "status": "pending_owner_approval",
-            "release_version": "2.0.99",
-            "release_tag": "v2.0.99",
+            "release_version": version,
+            "release_tag": f"v{version}",
             "unresolved_count": 0,
             "player_source": {
                 "package_tree_sha256": package_digest,
@@ -60,7 +60,7 @@ class ReleaseWorkspaceTests(unittest.TestCase):
             ],
         }
         (github / "release_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-        workspace.initialize_workspace(release_root, candidate, "2.0.99")
+        workspace.initialize_workspace(release_root, candidate, version)
         return release_root, candidate
 
     def make_v2_fixture(self, name: str, initialize: bool = True) -> tuple[Path, Path]:
@@ -211,20 +211,23 @@ class ReleaseWorkspaceTests(unittest.TestCase):
         self.assertFalse((release_root / "github").exists())
         self.assertTrue(backup.is_dir())
 
-    def test_v1_rejects_release_version_that_requires_v2(self) -> None:
+    def test_v1_rejects_incompatible_workspace_generation(self) -> None:
         release_root, candidate = self.make_fixture("v1-wrong-generation")
         workspace.adopt_game(release_root, candidate)
-        for path in (
-            release_root / "release-workspace.json",
-            release_root / "github/release_manifest.json",
-        ):
-            value = json.loads(path.read_text(encoding="utf-8"))
-            value["release_version"] = "2.1.0"
-            value["release_tag"] = "v2.1.0"
-            path.write_text(json.dumps(value), encoding="utf-8")
-
-        with self.assertRaisesRegex(release.ReleaseError, "manifest schema mismatch"):
+        path = release_root / "release-workspace.json"
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["schema"] = "alis-release-workspace-v2"
+        path.write_text(json.dumps(value), encoding="utf-8")
+        before = {item.relative_to(release_root): item.read_bytes() for item in release_root.rglob("*") if item.is_file()}
+        with self.assertRaisesRegex(release.ReleaseError, "inventory mismatch"):
             workspace.verify_workspace(release_root)
+        self.assertEqual(before, {item.relative_to(release_root): item.read_bytes() for item in release_root.rglob("*") if item.is_file()})
+
+    def test_windows_3_0_workspace_does_not_require_linux(self) -> None:
+        release_root, candidate = self.make_fixture("windows-3-0", "3.0.0")
+        workspace.adopt_game(release_root, candidate)
+        workspace.verify_workspace(release_root)
+        self.assertFalse((release_root / "game/linux-x86_64").exists())
 
     def test_v2_adopts_exact_closed_platform_map(self) -> None:
         release_root, candidate = self.make_v2_fixture("v2-normal")

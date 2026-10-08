@@ -1,7 +1,7 @@
 # ALIS 3.0.0 Release Plan
 
-**Status:** CURRENT RELEASE FOCUS - routing fixes committed; planner composition verified with independent R2 PASS; operator commit precedes one unsigned R5
-**Active concern:** none; concerns 1 and 2 are done ([Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md))  
+**Status:** frozen unsigned R5 machine gates accepted at a4167f43b91403d69da0ad011aa85d319c1453e6; operator walkthrough/review and R6 publication remain
+**Active concern:** review the verified unsigned workspace, perform the operator walkthrough, then authorize R6 steps individually; concerns 1 and 2 are done ([Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md))
 **Scope:** release-level scope, sequencing, and gates for 3.0.0, plus the release-platform contract change in `scripts/ue/package/` (R4)  
 **Stable documentation owner:** [Package and Release Guide](../../docs/build/packaging_guide.md) and [package scripts README](../../scripts/ue/package/README.md) for release operations; each concern task names its own owners
 
@@ -11,6 +11,551 @@ authorization and gates. Durable facts move to their stable owners before this f
 Reviewers start with `## Reviewer brief`.
 
 ## Current state and next steps
+
+### Current frozen boundary: unsigned R5 accepted
+
+The operator committed `a4167f43b91403d69da0ad011aa85d319c1453e6`.
+One `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<that-full-SHA>
+RELEASE_ACCEPT_INCONCLUSIVE_PERFORMANCE=1` completed with exit 0.
+The accepted workspace is `tmp/release/v3.0.0/`, with `game/` and `github/`.
+Its manifest remains `pending_owner_approval`; it is unsigned and unpublished.
+
+All six Development city routes, Shipping gameplay and water, both isolated
+public realizations, source/payload composition, component licensing,
+install/reinstall, clean public Editor build, native dependency audit, both map
+loads, archive integrity and final release/workspace verification passed.
+The private source/index stayed unchanged and the isolated checkout was removed.
+The existing pre-freeze Check/Matrix/verifies remain accepted; no replacement
+run or production correction was needed during this frozen R5.
+
+Performance is explicitly inconclusive with accepted residual risk: Kazan pooled
+Frame p95 20.8098 ms exceeded its 17.059 ms measured budget; Manhattan pooled
+16.5936 ms accepted against 16.67 ms. The base target remains 16.67 ms.
+The manifest retains the rejected Kazan evidence and waiver decision.
+This does not certify absolute performance on this busy host.
+
+The authenticated ledger is
+`tmp/release/r5/a4167f43b91403d69da0ad011aa85d319c1453e6/closure.json`.
+That folder also retains both public realization receipts and the per-owner
+IoStore comparison: Shipping 2,077,142,532 bytes versus retained 2.0.0's
+5,102,176,124 bytes. Manhattan appears exactly once in chunk 11.
+Projection recovery P4 is satisfied and its task is done.
+
+Next: operator walkthrough/review of this exact unsigned candidate, then R6.
+Do not build, cook, regenerate or repeat R5 merely for task bookkeeping.
+Do not sign, push, tag, publish or promote without the operation's authorization.
+The sections below retain investigation context; this frozen receipt owns the
+current execution status.
+
+### Closed investigation: busy-host performance
+
+The unsigned R5 at `914a9b64d430b965a15bd2a0c5c181e2edfa41da` stopped
+after Kazan's three native gameplay runs and valid IoStore proof, before
+Manhattan, Shipping and public preparation. Its pooled Frame p95 was 24.3549 ms.
+The rejected measurement remains under
+`Saved/Validation/WorldRealization/playable-tour/227a62ac8a9440ecb2e807db22582b38/`;
+the native release ledger is `tmp/release/r5/<that-full-SHA>/result.json`.
+
+One bounded ABBA diagnostic and a subsequent identity-only audit live under
+`tmp/release/performance/abba-20261007T184131-5b06b6d9/`. The known-good
+reference degraded on this host, and package assignment was confounded with
+load. Earlier accepted B runs share the executable, route, runtime profile,
+graphics envelope and 249 logged CVars; their deleted Development packages
+prevent complete historical runtime-byte equivalence proof. Candidate regression
+is not demonstrated; current absolute performance is not PASS. Do not run
+Insights, another benchmark campaign or raise the target to debug this incident.
+
+D18 authorizes the default-off release acceptance flag. Its stable contract is
+[release preparation and failure triage](../../scripts/ue/package/README.md#preparation-preflight-and-failure-triage).
+The performance correction is limited to release decision propagation and
+authentication. A subsequent functional gate found a separate actual-input
+driver defect; its focused correction and evidence are recorded below.
+Generated World authority, performance calculation and targets are untouched.
+Verify focused admission/refusal and assembly fixtures,
+then satisfy only the exact planner's unexecuted pre-freeze gates. L4 and packaged
+performance belong to the explicitly requested real frozen release, not an
+architectural review. The earlier diagnostic downstream tail is accepted only
+within its recorded non-authoritative identity; it does not close frozen R5 or
+the projection task's P4. No main index/commit/tag, remote write or background
+process stop is authorized by this implementation.
+
+Pre-freeze implementation evidence is under
+`tmp/release/performance-waiver/20261007/`. The package-owned decision is
+propagated through Make, release coordination, the existing two-city runners,
+Candidate admission, preparation and workspace recovery. Focused RED proved
+default refusal, altered nested Manhattan evidence and recovery mutation before
+explicit acceptance. Those regressions are GREEN, including native-shaped
+three-run evidence, output refusal without mutation, and a real Windows 3.0.0
+wrapper/archive/workspace fixture. Fixture payloads are synthetic, not release
+or runtime certification. Independent focused R2 PASS covers both review fixes.
+
+Affected fixtures passed: 33 preparation, 13 workspace, 5 v4 assembly,
+3 platform, 3 finalization, 39 Pester and 10 impact-planner cases; release
+contracts passed for 93 files and the unsigned entrypoint fixture passed.
+Make dry runs prove default-off, explicit-on and invalid-value refusal. Changed
+PowerShell parsing, Python parsing, ASCII, portable paths, reusable naming and
+diff hygiene passed. The workspace fixture's explicit module loader now loads
+the new policy dependency; its initial standalone import failure is corrected.
+The existing preparation fixture remains cohesive at 917 lines; its next seam
+would be release admission/refusal fixtures if it grows further. The release
+coordinator and Kazan runner remain their orchestration owners; their next seams
+would be workspace resume and two-city evidence composition. The pre-existing
+preparation owner grows by 19 net lines, below the mega-file guardrail.
+
+The first common Check rejected source changes during execution. A premature
+replacement was cancelled during Python fixtures, before any Unreal work, to
+correct the standalone workspace fixture loader. The replacement started
+only after all focused fixtures and production source were stable. Preserve
+these attempts as diagnostics; only the accepted current Check can authorize
+Matrix. Do not package or benchmark to verify this implementation.
+
+The required uncooked gate first completed Kazan gameplay but rejected an
+optional local MCP bridge's abnormal shutdown. Native process-only plugin
+isolation proved normal exit; the procedure lives in the
+[MCP owner](../../docs/ue_engine/mcp_editor_control.md#optional-local-bridge-unattended-shutdown).
+That replacement exposed backward-only Manhattan retreat blocked by a second
+wall. The existing driver now chooses and retains a collision-free capsule
+escape direction. Exact physics RED/GREEN and focused independent R2 PASS are
+under the same evidence root; the existing World pitfall entry 45 owns the fix.
+Both current-driver uncooked admissions accepted without source or generated
+data mutation: Manhattan `a43d061eea7e4cac9bc55f404e587fd4` and Kazan
+`6c08caefb71748b0b62e6dff6c5df2cb`. Both reached four waypoints and proved
+streaming and collision slide; neither certifies performance. `plan-escape.json`
+preserves the exact base/worktree plan: L1, canonical Kazan Matrix, eight verifies,
+no candidate owners, and L4 reserved for the frozen release. The invalidated
+common Check and Matrix were replaced once after the driver fix, both PASS:
+
+- Check: `Saved/Validation/WorldPipeline/check-20261007T200625Z/result.json`,
+  SHA-256 `df1568bc8d50b2747b3b391c3f7db8a0b0ad615bc01b2a345a0bf6a27e11de40`.
+  All eight suites accepted, including 205 lifecycle and 69 native cases.
+- Matrix: `Saved/Validation/WorldPipeline/run-20261007T201651Z/result.json`,
+  SHA-256 `70b6e2574ccbf42e2e346f23433ee1c7a6327abcdd791109cf54ea8b798dfe7b`.
+  Canonical mode, five realization legs and saved-output comparisons accepted.
+- Authenticated common contract:
+  `9b758006bc57aa92368c1d4eba3cfda0a08b4f05b499cced0592402e59d56ff3`.
+  Matrix authenticates the Check receipt. All eight listed verifies passed
+  through native and twin verification. ProjectWorldData restored all 3,096
+  files with identical before/after tree hash
+  `dfc6df6e3d39307d63d4d69473bbf7a00166d241e35935fe12eef59afe818b66`.
+
+`closure.json` in the evidence root records `world_gates_executed=true` for the
+pre-freeze scope, with L4 explicitly pending. These were the accepted inputs
+to the `6b82046` frozen attempt. Their source binding was superseded by the
+accepted current Check and Matrix above. Retain these historical receipts;
+do not rerun their gates.
+Retain INCONCLUSIVE performance and strict functional/integrity decisions.
+
+### Earlier frozen R5: public dependency closure
+
+The operator committed the centralized license correction at
+`4876552bb419630e47158d5a92e0b0bacb31a0de`. One native unsigned
+`make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<that-full-SHA>` ran and
+stopped at the developer dependency audit:
+
+| Boundary | Result at the frozen SHA |
+|---|---|
+| Kazan packaged gameplay and three-run performance | Accepted; aggregate frame p95 13.4586 ms |
+| Manhattan through the same Development package | Accepted; aggregate frame p95 12.6178 ms |
+| Shipping gameplay, CVars, water and IoStore | Accepted; 2,077,138,948 bytes; Manhattan map in chunk 11 |
+| Isolated public Editor build and both public World projections | Accepted |
+| Tagged component-license manifest | Accepted; no first-party fixture NOTICE required |
+| Clean developer install, no-op reinstall, Editor build and skill projection | Accepted |
+| Public developer dependency audit | Rejected; exact report removed by failed-input cleanup |
+| Public map loads and combined unsigned workspace | Not executed |
+
+Evidence root: `tmp/release/r5/<that-full-SHA>/`; `release.log` preserves the
+native run. The derived local public commit was
+`248ebf2b848caee6af4713ae634d165588599541`. The developer payload identity was
+`ff1de390a317cf9bcc5e0e95a917373659dd6fa0d07aa7eca329cfdf06fe1e73`.
+No publication or signing ran; the working tree was clean after owned cleanup.
+
+The earlier readiness claim missed the unresolved dependency-closure item
+under Pre-candidate items. Keep valid upstream evidence for this frozen SHA;
+do not debug with another package/cook/R5.
+
+Focused diagnosis and correction:
+
+- The private checkout audit reports 20 missing packages and 22 unselected
+  dependencies. A native synchronous registry gather resolves all missing
+  packages and discovers 45 unselected dependencies. This is diagnostic,
+  not the failed public checkout's report: public profiles exclude gameplay
+  and vegetation, so private tree/bottle findings do not establish public gaps.
+- The exporter never started a full registry search. Add native synchronous
+  discovery before traversing dependencies. Its regression failed with a
+  missing transitive package before the correction.
+- Rejection printed only the report path, and enclosing release cleanup removed
+  that report. Print each issue's code, package and reason to the retained log.
+  Its regression failed before correction and proves diagnostics survive report
+  deletion. Both corrections passed the initial eight dependency-audit fixtures.
+- Reconstruct only the two public projections through the existing transactional
+  wrapper, retain their selected bytes and dependency inventory under the evidence
+  root, and restore private generated content exactly. No new checkout, cook,
+  S5, production enrollment or runtime-performance iteration is involved.
+- The payload selection fixture file reached 719 lines. It remains the owner of
+  the shared composer's admission contracts; the next SRP seam, if needed, is
+  fixtures grouped by authority family. No helper file is needed for this slice.
+- The restored public-only inventory has 2,827 audit roots, 2,829 traversed
+  packages and zero missing packages. Exactly one dependency rejects:
+  `/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1`. The fixture
+  map, vegetation and gameplay objects are absent from this public closure.
+- Independent architect R1 accepts explicit `producer_input` selection in the
+  existing release contract. The descriptor only declares the input; the contract
+  separately selects its exact bytes, native class, first-party configuration
+  provenance and preferred C++ source. No registry, NOTICE, new production file,
+  World generator change or binary regeneration is needed. Installed engine
+  source confirms the producer duplicates a class default object, not an Epic
+  content asset, then configures its own material, channels and pipelines.
+- Both generated-definition authorities were refreshed with their existing
+  generator and retained native inventory. Comparison proved only
+  `release_contract_sha256` changed: all sources and binary assets are unchanged.
+- All 32 affected payload/dependency cases are green across the initial run
+  (29 green) and exact replacement of three installer fixtures. Their fixture
+  checkout had hardcoded old owner markers; it now derives descriptors from the
+  release contract. The producer-input selection regression was RED before the
+  new kind, and hash/owner/package/source/provenance/duplicate/undeclared-input
+  refusals and native class mismatch are covered.
+- Exact PlanOnly against the frozen base requires L1, one Kazan Matrix in
+  `canonical_authority` mode and eight verifies; L3 owners are empty, L4 false.
+  Plan: `dependency-diagnostic/plan.json` under the evidence root. No PIE,
+  source replay, S5, cook or package is required for this correction.
+
+- The focused native policy proof accepts 2,828 selected packages and 2,829
+  traversed packages with zero issues. Its inventory transparently combines the
+  original public inventory with a read-only native inventory of the selected
+  input. All five focused packages, classes and outgoing edges match the original
+  public inventory; the input bytes match both the declaration and frozen LFS
+  identity. This proves the uncommitted selection policy, not a clean public
+  checkout or frozen R5. Original inventories remain unchanged.
+- Independent architect R2 PASS covers the final code, admission/refusal guards,
+  generated hash bindings, native provenance and the explicitly bounded proof.
+  No further implementation correction is required within that reviewed scope.
+- All remaining selected preflight checks passed: 93 World contract files, one
+  realization-schema fixture, ten planner cases, three manifest-staging cases,
+  twenty public-source projection cases and the linked-worktree mirror fixture.
+  Release-contract schema, Python syntax, license, portable-path, reusable-name,
+  documentation ASCII and diff hygiene checks passed.
+- Common Check: `Saved/Validation/WorldPipeline/check-20261007T121940Z/result.json`,
+  SHA-256 `13bbf05c71208c50837867b85383f86ff2e818b13c41404aea6cab8fdac3623c`.
+  All eight suites passed, including 203 lifecycle cases, 69 native cases and
+  the twin. Five planned verifies passed in native automation; Map, MeshTerrain
+  and Pipeline passed in the twin receipt under
+  `Saved/Validation/WorldRealization/verify-twin/4b1f1f47d3f249a8a70d74fde90d3d2d/`.
+- Kazan Matrix: `Saved/Validation/WorldPipeline/run-20261007T123157Z/result.json`,
+  SHA-256 `0de34c0d06379be5480792ce538d7bd3eb07fbea27aa74e00c9a8849182c7f8c`.
+  `canonical_authority` mode passed all five legs and equal saved terrain, map
+  and building projections. All 3,096 ProjectWorldData files restored exactly;
+  before/after SHA-256 is
+  `dfc6df6e3d39307d63d4d69473bbf7a00166d241e35935fe12eef59afe818b66`.
+  Common proof-input SHA-256 is
+  `2e312e60d47aafc38d1aa03561baf27442076fb7d98ce437888b4e57b18b0972`.
+- Final PlanOnly (`dependency-diagnostic/plan-final.json`) preserves the exact
+  initial requirements: L1 true, Kazan `canonical_authority`, all eight verifies,
+  no candidate owner and L4 false. Its `presentation:v1` entry has no standalone
+  verify; the saved presentation is covered by the Map projection. The separate
+  correction ledger (`dependency-diagnostic/closure.json`) records
+  `world_gates_executed=true` and no outstanding required pre-commit gate.
+  No source changed after independent R2 or during the World gates.
+
+### Diagnostic unsigned tail after the dependency correction
+
+The operator committed the dependency correction at
+`203667beb4c90a5377ded0ae95dd852e884ddb8e`. The diagnostic evidence root is
+`tmp/release/diagnostic/efd7d461/`. Scratch Git identities are authorized there;
+they are not release authority. No main-checkout staging, commit, tag, remote
+write, signing or package/cook was performed during this continuation.
+
+- Native public source validation, developer composition, clean installation,
+  no-op reinstall, public Editor build (285 actions), dependency audit and both
+  real public map loads passed. The audit accepts 2,828 selected packages,
+  2,829 closure packages and 22,641 dependency edges with zero issues.
+- The first workspace initialization rejected an unexpected Candidate `debug`
+  directory. `package_release.ps1` had placed IoStore inspection receipts and
+  listing logs inside the distributable tree. Its existing owner now writes
+  these diagnostics under invocation-specific `tmp/package/iostore/` paths.
+  No workspace guard, inspection rule or package identity formula changed.
+- The permanent regression in the existing preflight fixture executes the
+  actual packager inspection block twice. The original owner fails the path
+  assertion; the corrected owner passes, preserves the Candidate inventory
+  and native package hash, and creates distinct diagnostic paths. All nine
+  preflight cases passed; independent architect R1 and focused R2 passed.
+- Native inspection of the retained real containers passed: 10,470 entries,
+  69 expected object definitions and eight capability references, with no
+  missing or forbidden package. Receipts and four listing logs are outside
+  the Candidate (`iostore-location-native.path.txt` identifies the receipt).
+- The original packaged Candidate and native composite remain immutable.
+  Only a scratch projection excludes the five auxiliary diagnostic files.
+  Its full-tree hash is
+  `63a766c306e8252c1bfc6603b94634c1cdbac2562e1072c66209b0250931d02c`,
+  distinct from the original accepted full-tree hash
+  `90e7d5ef42d490fe782bae3e5bee2c71d409042d2959d8b309ff766ce9e1f3c1`.
+  `player-projection-evidence.json` records this non-authoritative derivation;
+  unchanged Windows bytes and executable authenticate runtime-evidence reuse.
+- Current scratch public source/tag identity is
+  `ff56461cfee3d54766b8a78550106cfff3a2858c`; developer payload identity is
+  `b04c5e59bf1abb1800dde9221a0d4fd8a0152dca351d7dd3815fc09f46f29768`.
+  Only the package owner, its fixture and README changed in that source.
+  Payload bytes, audit seeds and runtime inputs remain identical; the native
+  dependency validator revalidated the retained inventory against the current
+  identity. `upstream-evidence-reuse.json` records the build/map reuse boundary.
+- Native player archive creation and 7-Zip validation, complete current release
+  preparation, workspace initialization/adoption, unsigned release verification
+  and strict workspace verification all passed. The final diagnostic workspace
+  is `workspace-current/`, not the preserved first rejected `workspace/`.
+  It uses Windows-only workspace v1/manifest v3, remains pending owner approval,
+  and contains concrete 3.0.0 Player and Developer highlights without fallback.
+- `plan-after-iostore.json` requires fresh Common Check, one Kazan Matrix in
+  `canonical_authority` mode, all eight verifies, no candidate owner and L4.
+  Common Check passed all eight suites, including 203 lifecycle and 69 native
+  cases. Its receipt is
+  `Saved/Validation/WorldPipeline/check-20261007T135743Z/result.json`, SHA-256
+  `37f9e84037333ff0d52f6152df6787b41b411888bbdf40c2e8b82af4505c91a9`.
+  All eight planned verifies passed; `world-verifies.json` authenticates the
+  five native completion markers and three saved-twin projections. The common
+  proof-input SHA-256 is
+  `bc47936202c75b70175a86e954ff7994bf126e95544188ac03b8d8eca80f97e1`.
+  Kazan Matrix passed all five legs in `canonical_authority` mode. Its receipt
+  is `Saved/Validation/WorldPipeline/run-20261007T141449Z/result.json`, SHA-256
+  `495052f73c8335689d67225c2930ff982c344313e48218773f966b767dc1e818`.
+  Saved terrain and World projections match across the first and clean legs.
+  All 3,096 ProjectWorldData files restored exactly; before/after SHA-256 is
+  `dfc6df6e3d39307d63d4d69473bbf7a00166d241e35935fe12eef59afe818b66`.
+  L4 is reserved for the one final frozen unsigned R5; diagnostic
+  assembly and retained runtime evidence do not satisfy frozen acceptance.
+
+Next: the operator commits the four changed files once. Obtain the resulting
+full SHA, then run one frozen unsigned R5. `closure.json` records the complete
+diagnostic tail, satisfied pre-commit requirements, exact current identities,
+protected original package and unchanged main Git staging. Its separate L4
+entry remains outstanding until frozen certification; no source changed after
+focused R2 or during the World gates. Do not rerun PIE/S5 or retry historical
+scratch cleanup.
+No new production framework or NOTICE is needed. The rejected R5 remains
+rejected and this task stays current until final frozen certification passes.
+
+### Frozen R5 result and fixture-boundary correction
+
+The operator committed the highlights/version correction at
+`049e06a42e1f121bf9b816a6dc19996e552740e6`. One native unsigned
+`make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<that-full-SHA>` ran:
+
+| Boundary | Result at the frozen SHA |
+|---|---|
+| Kazan packaged gameplay and three-run performance | Accepted; frame p95 12.9586 ms |
+| Manhattan through the same Development package | Accepted; frame p95 12.4809 ms |
+| Shipping gameplay, console-variable and water proofs | Accepted |
+| Isolated public Editor build and both World projections | Accepted |
+| Filtered public source and developer payload composition | Completed; dry run only |
+| Component-license manifest | Refused `Test/test_latest_state.json`: unknown boundary |
+| Clean developer install/build, map loads and combined unsigned workspace | Not executed |
+
+Both cities used the 16.67 ms budget with zero host-load allowance. The frozen
+player composite is under `Saved/Validation/WorldRealization/playable-tour/`
+operation folder `c90c9b3eb53d46dcaaa08b0bdb3583f8`; Manhattan's aggregate is
+under `manhattan-showcase/38d4d6a007834309ae3e302dd10785b5/`.
+The Shipping game measures 2,077,138,948 bytes versus 5,102,176,124 bytes for
+the retained 2.0.0 game projection (including its verification sidecars).
+Native IoStore inventory confirms Manhattan's map occurs once in chunk 11.
+The per-owner comparison and preserved public projection receipts are in
+`tmp/release/r5/049e06a42e1f121bf9b816a6dc19996e552740e6/`.
+
+The failing files are first-party Orchestrator UE-facing fixtures, established
+by their introducing commit `edc92c267`. The operator rejected adding
+`Test/NOTICE`: ordinary first-party components inherit the root license through
+the centralized router. The shared `validate_licensing.py` owner now recognizes
+UE fixtures under `Test/` and `Tests/`, plus the existing editor, cinematic and
+asset-check integration components. Their three redundant first-party notices
+were removed; genuine upstream notices and provenance guards remain intact.
+Root license terms are unchanged. No registry, schema or new source file was added.
+
+Regression tests reproduced the unknown fixture boundary and missing integration
+classification without local declarations. All 19 manifest and 15 validator
+cases now pass, including unknown-owner, original-terms, ownership and mixed-process
+refusals. A diagnostic filtered working-tree inventory classified all 2,994 paths
+without error; it is not tagged release evidence. Focused release preflight,
+licensing, portable-path, ASCII, local-link and diff checks passed.
+
+PlanOnly against the exact operator base above required L1, one Kazan Matrix
+in `canonical_authority` mode, eight verifies, no candidate owner and no L4
+for this correction. Exact plan: `tmp/release/license_router/plan.json`, seven
+production paths; final PlanOnly confirmed the same requirements. Replacement
+gates passed without further source changes:
+
+- Check: `Saved/Validation/WorldPipeline/check-20261007T070703Z/result.json`,
+  SHA-256 `522ec87805a32a804da720d573e7aecdead8af7c2dc71a31d2377b2a480f716c`.
+  All eight suites passed, including 203 lifecycle cases, 69 native cases and
+  the twin. All eight planned verifies are covered by native automation and
+  `Saved/Validation/WorldRealization/verify-twin/21ae8a543b14434ea8369b2e21a1cde2/verify.json`.
+- Matrix: `Saved/Validation/WorldPipeline/run-20261007T071852Z/result.json`,
+  SHA-256 `6ebd99cb809ac8a4f00f41bfa0b6a765d233363304c1e6c39c2f48ffabc16413`.
+  All five legs and projection comparisons passed. All 3,096 ProjectWorldData
+  files restored exactly, with equal before/after hashes.
+
+The current receipt loader authenticated common proof-input SHA-256
+`085fc50ac01542cd2f5d605009ea58a5b7b3de97943afed6b461d8da48205443`.
+`tmp/release/license_router/closure.json` records `world_gates_executed=true`
+for every requirement of this correction's plan and no outstanding patch gate.
+The previous notice-based receipts are historical and do not authenticate the
+current router. Their ledger, `component-closure.json` in the R5 evidence folder,
+is marked superseded. The combined release R5 remains incomplete.
+The release runner removed its owned failed projection checkout; the four
+historical scratch repositories were untouched. No signing or publication ran.
+
+The router correction was committed and its replacement R5 is recorded above.
+Do not use R5 as a debugger, replay raw acquisition, run S5, or retry historical
+scratch cleanup. The optional
+leading-zero SemVer alignment remains deferred; the release was already frozen.
+Earlier sections record evidence for their earlier source inputs.
+
+### Release highlights and explicit preparation identity
+
+The follow-up review correctly found two omitted R4 requirements (V16). D17
+removed the per-version contract proposal, not the need for concrete 3.0.0
+highlights or explicit preparation identity. The Windows-only policy is committed
+at `3aac3847333a588a316e85c70850bdbbc08cc6b4` and remains accepted.
+
+Two regression cases reproduced the placeholder highlights and successful
+historical-default preparation. The existing README generator now supplies
+bounded Player/Developer 3.0.0 highlights. Direct preparation requires the version
+and derives its tag; the coordinator and documented example pass that one value.
+No registry, schema, loader, extraction, dependency or new file was added.
+The ten-line highlights branch remains with the existing guide generator; it
+does not require extracting the pre-existing mega-file. The coordinator only
+removes the redundant tag argument; its next SRP seam remains final source checks.
+
+All 48 affected Python fixtures passed, including archived formats, concrete
+3.0.0 README output, version omission with no output/Candidate mutation, and
+real 2.0.0/3.0.0 wrappers deriving the tag. The unsigned entrypoint fixture,
+eight preflight Pester cases, 93 World contract files, the realization-schema
+fixture and ten release-planner cases also passed. Syntax, portable paths,
+ASCII, document links and diff checks passed; the 2.0.0 README is byte-identical.
+
+PlanOnly is recorded in `tmp/release/assembly_metadata/plan-current.json` against
+current HEAD `3aac3847333a588a316e85c70850bdbbc08cc6b4`, and `plan.json`
+against original operator base `ac9f8c998acf5d8bdcaa8945afcf604b49dcdb8a`.
+Both require L1, one Kazan Matrix using `canonical_authority`, eight verifies,
+no candidate owners, and L4. The fresh Check and Matrix passed once:
+
+- `Saved/Validation/WorldPipeline/check-20261006T135049Z/result.json`;
+  operation `check:common:20261006T135049Z`, SHA-256
+  `e227d0573b5cfe4513b1a058f453d3472544201970aabbc05c5f9833dc927d45`.
+  All eight suites passed, including 203 lifecycle cases, 69 native tests and
+  the twin. All eight planned verifies passed; the twin receipt is
+  `Saved/Validation/WorldRealization/verify-twin/dbead1947d594f1b86df9e9d78e35b21/verify.json`.
+- `Saved/Validation/WorldPipeline/run-20261006T140807Z/result.json`;
+  operation `validate:kazan_territory_v1:20261006T140807Z`, SHA-256
+  `4b52a8c18e2aaf06607afabd1ed96f489937759da896191affcad68959686892`.
+  All five legs and both projection runs passed. Exact restoration accepted
+  all 3,096 ProjectWorldData files with equal before/after SHA-256
+  `dfc6df6e3d39307d63d4d69473bbf7a00166d241e35935fe12eef59afe818b66`.
+
+The current common proof-input hash is
+`d73c030eae4a94ce096a2537d5d47e82ea04ab2e256b83e7fd30264bec2fb1a0`;
+the authoritative receipt loader accepted it after Matrix. Execution ledger:
+`tmp/release/assembly_metadata/closure.json`. It records
+`pre_freeze_world_gates_executed=true`, no outstanding pre-freeze gates, and
+`world_gates_executed=false` because L4 awaits the frozen unsigned R5.
+Earlier sections retain evidence for their earlier source inputs.
+No gameplay PIE, S5, package/cook or historical scratch cleanup is part of this
+correction. No new independent R2 is required for these bounded text/default
+corrections. Stop for the operator commit; the next package/cook operation is
+one unsigned R5 from its full SHA. No pre-freeze gate rerun is required merely
+for the commit or this evidence-only handoff.
+
+### Committed Windows-only release policy correction
+
+The committed gate handoff at `74e3797e667d71920078dc8758ea78408d4ff398`
+missed the still-unimplemented R4 blocker: six SemVer-to-platform checks.
+The operator narrowed R4 to one global Windows-only policy (D17). The unused
+per-version loader, contracts and schema draft were removed before production
+integration. No new source files, dependencies or Linux acceptance work remain.
+
+`release_platforms.py` now owns the policy; both PowerShell coordinators consume
+its public CLI. Workspace/manifest tools use recorded formats rather than version
+thresholds. The focused 3.0.0 regression failed before the fix with the expected
+v4 manifest demand. After the fix, 16 workspace/platform cases, 29 preparation/
+finalization cases and the real PowerShell unsigned entrypoint fixtures passed.
+Unknown workspace refusal preserves its complete file inventory.
+
+`release.ps1` remains the coordinator for selecting new versus resumed workspaces;
+its small policy change is cohesive. Its next possible SRP seam is final public
+source validation, which this fix does not extract. `prepare_release.py` shrank
+by two lines; no prerequisite mega-file refactor is needed for this fix.
+
+Independent R2 PASS covers the minimal code/docs change and focused consumers.
+The real 3.0.0 preparation wrapper passed with no Linux inputs (one additional
+case); release preflight Pester passed all eight cases. Syntax, ASCII, diff and
+portable-path checks passed.
+
+Exact original-base PlanOnly is captured in
+`tmp/release/platform_contract/plan-global.json`: L1 required, one Kazan Matrix
+in `canonical_authority` mode, eight verifies, no L3 candidate owners, and L4
+required. Current Check/Matrix passed once, with no source changes after R2. L4 remains
+reserved for one frozen unsigned R5. Earlier World receipts below prove their
+original input set; the following fresh receipts cover these shared script edits:
+
+- `Saved/Validation/WorldPipeline/check-20261006T125435Z/result.json`: eight
+  suites accepted, including 203 lifecycle cases, 69 native cases and the
+  synthetic twin. Receipt SHA-256
+  `cb258ce181a43aeaa0aea1fdcca0d24af87750ec3b88ae89362237f211d171a5`.
+- `Saved/Validation/WorldPipeline/run-20261006T130726Z/result.json`: Kazan
+  `canonical_authority` Matrix accepted. Receipt SHA-256
+  `4969512537d7c4f1939e8336fe56ad727cbb77f2938920707c0f71b1e0867429`.
+  All five legs and saved projections passed; exact ProjectWorldData restoration
+  passed for 3,096 files with equal before/after hash
+  `dfc6df6e3d39307d63d4d69473bbf7a00166d241e35935fe12eef59afe818b66`.
+- All eight named verifies passed in the fresh common Check. Twin evidence:
+  `Saved/Validation/WorldRealization/verify-twin/8a2a25e90cef44ada8a1f13de17bbd89/verify.json`.
+
+Execution ledger: `tmp/release/platform_contract/focused-global.json`. It records
+`pre_freeze_world_gates_executed=true` and no outstanding pre-freeze gate.
+`world_gates_executed=false` deliberately retains the planned L4 requirement.
+Stop for the operator commit; the next package/cook operation is one unsigned
+R5 from that new full SHA. Do not rerun already-accepted pre-freeze gates solely
+for a commit or this evidence-only handoff.
+No package/cook, gameplay PIE, S5 promotion or historical scratch cleanup is part
+of this fix. The next package operation still requires an operator commit.
+
+### Prior routing World gate closure
+
+The review finding was valid: focused routing proof did not satisfy the World
+requirements reported for the production planner edit. The implementation is
+committed at `9f1c6b61911c243e84abca63fa460a0b2ed70c7b`; no implementation
+change was needed to close this finding.
+
+PlanOnly captured the complete slice from operator base
+`ac9f8c998acf5d8bdcaa8945afcf604b49dcdb8a` through that commit and the working
+tree. Exact plan and execution ledger: `tmp/release/world_gate_closure/plan.json`
+and `closure.json`. Required: L1, one `kazan_territory_v1` L2 Matrix in
+`canonical_authority` mode, and eight named producer verifies. No L3 candidate
+owners, durable identity changes or L4 requirement were selected.
+
+A README-only commit `444ba873608385bee4e83ddc51c148a7e13a0b03` landed while
+the gates ran. Final PlanOnly captured that additional documentation path and
+identical World requirements; the current common Check identity was revalidated.
+
+ACCEPTED receipts under `Saved/Validation/WorldPipeline/`:
+
+- `check-20261006T110123Z/result.json`: all eight common suites, 203 lifecycle
+  cases and 69 native World tests passed; the synthetic twin passed as well.
+- `run-20261006T111637Z/result.json`: Kazan Apply, no-op, road locality, authored
+  overlay rejection and clean reconstruction passed, including saved projections.
+  Exact pre-run generated inventory restored: 3,096 files, equal before/after
+  digest `dfc6df6e3d39307d63d4d69473bbf7a00166d241e35935fe12eef59afe818b66`.
+
+All eight selected verifies passed: BuildingMassing, Gameplay, Map, MeshTerrain,
+Pipeline, Road, Vegetation and Water. Map/MeshTerrain/Pipeline use the accepted
+synthetic twin commandlet; the other five use native automation. The planner's
+`unrecorded_verifies=[presentation:v1]` diagnostic remains recorded; it names no
+additional executable verify and no presentation baseline or revision changed.
+
+The separate execution ledger records `world_gates_executed=true`; PlanOnly
+remains read-only. No raw replay, durable enrollment, gameplay PIE rerun,
+package/cook, R5 or refused historical scratch cleanup ran. Existing accepted
+two-city gameplay evidence remains valid. No additional R2 is needed for this
+execution-only closure. Its handoff was committed at
+`74e3797e667d71920078dc8758ea78408d4ff398`. The Windows-only correction above
+supplies the current pre-freeze receipts. Packaged release acceptance is still
+unverified.
 
 ### World planner composition correction
 
@@ -38,10 +583,11 @@ cases, 26 existing planner cases and 93 profile/schema files; PlanOnly, parse,
 ASCII, link, path/name and diff hygiene passed. Independent R2 PASS with no
 concrete blocking finding. Evidence under `tmp/release/preflight-routing/composition/`:
 `red.log`, `world-router.log`, `planner.log`, `world-contracts.log`, `pester.json`
-and `plan.json`. Planning reports unexecuted Matrix/verify requirements; no real
-PIE, Matrix, generation, build, package or R5 ran for this correction.
-Stop for the operator commit, then perform the single frozen unsigned R5.
-Packaged acceptance remains unverified. Do not retry refused scratch cleanup.
+and `plan.json`. This focused proof initially left the reported World gates
+unexecuted. The correction is committed at
+`9f1c6b61911c243e84abca63fa460a0b2ed70c7b`; their execution is closed in the
+Required World gate closure above. Packaged acceptance remains unverified.
+Do not retry refused scratch cleanup.
 
 ### Release impact routing correction
 
@@ -77,23 +623,23 @@ parse and ASCII/path/name/diff hygiene. Independent routing R2 PASS: no remainin
 concrete blocking finding. Evidence under `tmp/release/preflight-routing/20261006/`:
 `routing-pester.json`, `pester.json`, `world-router.log`, `world-contracts.log`
 and `plan.json`. This slice is committed at
-`ac9f8c998acf5d8bdcaa8945afcf604b49dcdb8a`; the next commit boundary is the
-planner composition correction above. The full packaged release is still unverified.
+`ac9f8c998acf5d8bdcaa8945afcf604b49dcdb8a`; planner composition and its required
+World gates are closed above. The full packaged release is still unverified.
 
 Automatic approval refused manual cleanup of four earlier test Git fixtures in
 ignored `tmp/release/preflight-tests/` (reason: blocked by policy). They remain
 disposable diagnostics. New routing fixtures clean their recorded repositories
 after containment checks; that cleanup passed. Source and index were preserved.
 
-For any necessary routing correction, run only routing,
-schema/consumer fixtures, parse and governance hygiene; no real PIE, Matrix,
-regeneration, cook or R5 for this slice.
+For a necessary routing correction, start with routing, schema/consumer fixtures,
+parse and governance hygiene, then satisfy the exact authoritative World plan.
+Do not add real PIE, unrelated regeneration, cook or R5 as a debugging loop.
 
 ### Uncooked admission slice
 
 Implementation, runtime proof and independent R2 are closed and committed at
 `e41f774445b6e526b737d83825d7474ef67f197a`. The remaining commit boundary is
-the routing correction above.
+the World gate handoff above.
 Do not repeat generation, packaging or real-map probes for documentation
 handoff alone. The next frozen unsigned R5 remains final artifact certification.
 
@@ -211,8 +757,8 @@ Current state: concern 1 is done; production Kazan and Manhattan use Mesh Terrai
 generated terrain material is in production on both cities and its final development delta passed
 review, and the task is done. Generated texture and material identities now bind only the public
 contracts they consume, so an internal ProjectTexture or ProjectMaterial change no longer reaches
-World. The payload can be composed again, but its dependency closure still rejects World content
-(see Pre-candidate items). Earlier concern-2 packages are development evidence only; R2 below names
+World. The public dependency correction is verified in the current checkout; the next frozen R5
+must authenticate the assembled public checkout (see Current state and next steps). Earlier concern-2 packages are development evidence only; R2 below names
 what R5 re-proves on the candidate. The committed D16 runner accepted the frozen Kazan Candidate
 at `09b7b6532`, including Shipping and water. The release then reached the public World projection
 and refused an omitted runtime-profile argument. Commit `76ed07763` forwarded runtime only after
@@ -231,8 +777,8 @@ children (7.90-9.06 m slide), while applying 5 m globally rejected Kazan. The fo
 5 m only for Manhattan's performance operation and records it in the receipt. The final rebuilt
 binary accepted one Manhattan child at 5 m and one Kazan child at its default 25 m, with slide,
 streaming, and performance evidence. The retained Development IoStore inventory places Manhattan
-in `pakchunk11`. Independent focused R2 passed with no concrete finding. The next operator commit
-must include the routing correction and its handoff;
+in `pakchunk11`. Independent focused R2 passed with no concrete finding. Routing corrections
+are committed; the remaining operator commit records the public dependency correction above;
 the full release route remains unverified. The scoped runtime correction is now
 committed at `e93d7d17c836616af18e23b2bca548119deffbd0`; the new admission slice
 passed independent R2 and is committed at `e41f774445b6e526b737d83825d7474ef67f197a`.
@@ -319,7 +865,7 @@ elsewhere; never restate or renumber them.
   solutions so no need couple for existing stubs, we need keep the right SOC names hierarchy and
   vector and future proof oriented build with our data driven design fully modular blackboxed
   decoupled component driven".
-  - Effect in this file: the required platform set becomes explicit release data (R4). Both
+  - Effect in this file: the required platform set has one explicit owner (R4, narrowed by D17). Both
     concern tasks carry the same decision.
   - Date/source: 2026-09-23, this session.
 - **D6** Three tasks live in `todo/00_current/`: this router, the Mesh Terrain task, and the
@@ -397,6 +943,23 @@ elsewhere; never restate or renumber them.
     The native child target stays at 16.67 ms, and the adjusted result is identified as an
     approximate busy-host comparison.
   - Date/source: 2026-10-05, operator conversation.
+- **D17** Keep release platform enablement global and Windows-only now; add Linux
+  globally when qualified. Use the smaller architecture-reviewed fix without
+  expanding the repository with per-version contracts or schema scaffolding.
+  - Effect: supersedes R4's derived per-version contract design and A7. The
+    existing release-platform module owns policy; existing artifact formats and
+    their validation remain intact. No prerequisite extraction or notes framework.
+  - Date/source: 2026-10-06, operator correction in this session.
+- **D18** Implement the default-off explicit release performance waiver and
+  complete its local verification autonomously. Absolute performance on the busy
+  host remains INCONCLUSIVE; preserve rejected measurements and accept residual
+  risk explicitly without changing the target or claiming performance PASS.
+  - Effect: a valid budget rejection may be accepted at the release boundary;
+    all non-performance gates remain strict. Architectural/development checks do
+    not run packaged benchmarks. Final frozen release and todo closure still
+    require their real acceptance evidence and the operator-owned source commit.
+  - Date/source: 2026-10-07, operator: "yes performance only need check when we
+    do real release, not some arhcitectural check" and "so do fully without my confirmation".
 
 ### Operator gates
 
@@ -434,8 +997,8 @@ elsewhere; never restate or renumber them.
   evidence.
 - **A6 [ACTIVE]:** Promotion means updating site and promotion links after publication, as
   [release compliance](../../docs/legal/release_compliance.md) requires.
-- **A7 [ACTIVE]:** A release contract is reviewed source data for a future release, not a global
-  product-version file. It records only facts needed to reproduce that release preparation.
+- **A7 [SUPERSEDED by D17]:** Per-version platform contracts are unnecessary for
+  the current Windows-only product policy.
 
 ## Non-goals
 
@@ -454,7 +1017,7 @@ elsewhere; never restate or renumber them.
 |---|---|---|---|
 | 1 | Terrain substrate: switch to Mesh Terrain (D12), proven on a same-Kazan comparison, then cutover | [Mesh Terrain migration](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md) | Done |
 | 2 | Generated production terrain material | [Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md) | Done; candidate proof per R2 |
-| Required | World release projection safety fix | [Projection recovery](20260914-1215_audit_public_world_release_projection_recovery.md) | Corrected two-city overlay PASS; frozen release pending (D8) |
+| Required | World release projection safety fix | [Projection recovery](../01_done/world/20260914-1215_audit_public_world_release_projection_recovery.md) | Done; frozen unsigned R5 accepted (D8) |
 | Required | World generation locality and identity correctness | [Generation locality](../01_done/world/20261002-1711_world_restore_generation_locality.md) | Done; independent R2 PASS before R5 (D8) |
 | Integration | Release-platform contract and final candidate | this file, R4-R6 | R4 any time after review; R5-R6 last |
 | Optional | Water presentation | [Water presentation](../02_backlog/world/20260825-1717_world_improve_water_presentation.md) | Only through the Water gate |
@@ -472,7 +1035,7 @@ elsewhere; never restate or renumber them.
   `/MotionMatching/` assets. Public developers install the Game Animation Sample for the
   release's engine version themselves, as the developer quickstart says; an ALIS-owned character
   module comes later ([decisions D4-D6](../01_done/build/20261002-1144_public_close_source_slice_gaps.md)).
-  The payload-closure item below owns declaring this dependency for the audit.
+  These reference-only examples are outside the two-map World closure promise.
 - Packaged console-variable checks (before R5 step 1, so the frozen Candidate stays fresh). In
   `scripts/ue/world/test/performance/run_kazan_playable_tour.ps1`:
   - `Assert-PlayableTourNormalExit` fails on a `Failed to find console variable` line, which proves
@@ -486,34 +1049,18 @@ elsewhere; never restate or renumber them.
   registers its map and the `ChunkId=11` rule (`Config/DefaultGame.ini:121`) can apply
   ([record](../01_done/build/20261002-1144_public_close_source_slice_gaps.md)). Packages before this
   fix hold no `pakchunk11`; R5 step 5 certifies the chunk.
-- Public developer payload dependency closure (blocks R5 step 4): the audit approves all 3,103
-  selected packages but rejects 45 dependencies of current World content that no payload
-  authority selects; none is reachable from a generated surface or pattern. Each owner either
-  selects its packages with verified authority and redistribution rights or removes the
-  reference (D8); the audit stays fail-closed:
-  - ProjectObject (22): AmurCork and Hornbeam tree meshes with their layer instances and
-    textures (Manhattan vegetation layer); the water-bottle family (Kazan gameplay layer).
-  - ProjectMaterial (15): the object material-layer system (`MaterialLayer/*`, 11 packages),
-    `Function/MF_TextureColor`, `MF_WorldAlignedTexture`, `MF_WorldUvTiling`, and
-    `Base/M_ObjectUv_Compact`, used by those objects.
-  - ProjectTexture (5): `Base/T_*` textures used by those layers.
-  - ProjectElement (1): `HumanMade/Paint/MLI_Paint_Mate_Pure_Grey`.
-  - ProjectWorldMeshTerrain (1): `Terrain/MPD_ProjectTerrain_Shared_v1`, referenced by the
-    terrain layer actors.
-  - ProjectWorldData (1): the fixture marker map `Authored/Fixtures/L_ProjectWorldMarker`.
-  First fix: `scripts/ue/check/assets/export_public_dependency_inventory.py` scans only the seed
-  files and never gathers the registry, so the audit reported 18 of these as missing and traversed
-  none of their dependencies (it counted 42); a read-only full-registry run gives 45 with none
-  missing.
-  External dependency: once the registry is gathered, Hero's and GrandPa's `/MotionMatching/`
-  references will be rejected. `classify_dependency` (`scripts/git/mirror/audit_developer_payload.py:172`)
-  knows only approved payload, public source, local engine, and rejected. This item therefore
-  owns three changes:
-  - a machine-readable external-dependency declaration in `developer_asset_release.json`: the
-    `/MotionMatching` mount, Epic's Game Animation Sample from Fab, and a version matching the
-    release's engine;
-  - generic audit handling of that declaration, with no mount name in code;
-  - an audit that still rejects any undeclared mount, and a payload that carries no GASP bytes.
+- Public developer payload dependency closure: the exact public four-layer
+  profiles require one native configuration asset omitted from the frozen payload,
+  `ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1`. Its focused
+  correction passed focused R2 and every planned pre-commit gate, recorded in
+  Current state and next steps. The next frozen R5 must certify its assembled
+  clean public checkout and map loads. The audit
+  stays fail-closed. The historical 45-package report sampled private vegetation,
+  gameplay and fixture references; it does not define public payload selection.
+  The prediction that synchronous registry discovery would introduce character
+  sample dependencies into this World closure was unsupported: the native public
+  inventory contains none. Do not turn reference-only object examples into new
+  admission roots or broaden this fix to character content.
 - [Manhattan Shipping performance watch](../02_backlog/world/20260903-1545_world_investigate_manhattan_shipping_performance.md) - only if it reproduces.
 - Later build-blocking findings follow D8: small fixes land in this file, concern-owned fixes in
   their task, and wide fixes in a new current task linked from this table.
@@ -716,9 +1263,9 @@ See the R4 section below.
    harness and evidence envelope passed focused independent R2 at
    `c3c006cf12757bf0040ba7e047d1f9476f138e30`. The first frozen route at
    `f4cce29f3b41840790355c18eb5c5fd72cd8a806` stopped at Manhattan's collision-slide proof
-   before Shipping or public projection. The focused runtime correction changes the game executable,
-   so the next frozen route must rebuild the package and re-prove both cities from the operator's
-   new full commit SHA. Do not reuse the earlier Kazan aggregate as candidate acceptance.
+   before Shipping or public projection. That runtime correction was committed and the frozen
+   `049e06a42` route re-proved both cities; its assembly failure and current correction are
+   recorded in Current state and next steps. Earlier aggregates do not certify a later candidate.
    Do not run the projection separately; that would repeat an
    expensive gate.
    Review the unsigned `tmp/release/v3.0.0/` `game/` and `github/` projections, including the 3.0.0
@@ -755,125 +1302,53 @@ Otherwise Water stays the next World release concern.
 
 ## R4 - release-platform contract
 
-### Problem
+### Current decision and boundary
 
-The required platform set is a hidden policy derived from semantic version (V1). Any version at or
-above 2.1.0 silently requires Linux, so 3.0.0 cannot be prepared on this workstation (V2) and
-contradicts D4.
+D17 narrows this slice to one global platform policy in the existing
+`release_platforms.py` owner. Windows is enabled now. Add Linux globally only
+after its separate acceptance is qualified; no new Linux work is authorized.
+No version number selects a platform or schema. No per-version registry,
+contract schema, highlights loader, prerequisite extraction or new dependency.
 
-### Decision
+New workspaces use the policy through the existing public CLI. Existing
+workspaces resume and verify their recorded schema, so a later global policy
+change cannot reinterpret historical artifacts. v1/v3 and the existing closed
+v2/v4 formats retain their identity, inventory, recovery and signing guards.
+The archived two-platform fixtures remain tests of the existing format, not
+Linux release qualification.
 
-Each releasable version has one tracked, schema-validated contract under
-`scripts/ue/package/releases/<version>.json`. It contains exactly:
+### Tasks and verification
 
-- contract/schema version;
-- matching semantic release version;
-- a closed ordered platform set using the existing platform keys;
-- the ordered plain-text highlights written to `README.txt`.
+- [X] Reproduce the Windows-only 3.0.0 initialization failure before the fix.
+- [X] Remove the unused per-version draft files and directories.
+- [X] Add global policy to the existing owner and consume it in both coordinators.
+- [X] Remove all six SemVer-to-platform checks, retaining source-freeze and
+      publication-order comparisons.
+- [X] Verify 3.0.0 initialization, adoption, unsigned resume and identity checks.
+- [X] Verify unsupported-schema refusal leaves the workspace unchanged.
+- [X] Keep existing Windows and closed two-platform fixture validation green.
+- [X] Update the existing package README and release guide.
+- [X] Verify the real Windows-only 3.0.0 preparation wrapper with existing fixtures.
+- [X] Independent R2 of the minimal diff.
+- [X] Capture the platform correction's release/World plan and satisfy its required
+      unexecuted pre-freeze gates. Reserve the reported L4 requirement for frozen R5.
+- [X] Restore concrete 3.0.0 Player/Developer highlights in the existing generator.
+- [X] Require explicit direct preparation version and derive its tag; verify
+      omission refuses before output creation or Candidate adoption.
+- [X] Satisfy the fresh exact Check/Matrix/verifies plan for these assembly edits.
+- [X] Operator committed; one frozen unsigned R5 accepted at `a4167f43b91403d69da0ad011aa85d319c1453e6`.
 
-There is no platform default. `make release <version>` resolves the matching tracked contract and
-fails before creating or resuming a workspace if the file is absent, invalid, names another version,
-contains an unknown/duplicate/open platform set, or disagrees with a recorded workspace. The 3.0.0
-contract names only `windows-x86_64`; the 2.0.0 contract reproduces its existing highlights and
-Windows-only bytes. A future Linux release must add or review its own contract after the parked
-Linux acceptance task is complete.
-
-The platform set selects the existing generation: Windows only means workspace v1/manifest v3;
-exactly Windows plus Linux means workspace v2/manifest v4. The workspace schema remains the derived
-on-disk record used by later signing/finalization tools, but is no longer the policy authority.
-`verify_workspace` checks the recorded generation against the release contract rather than deriving
-one from SemVer. No version comparison selects platforms or schema.
-
-Both generators read highlights through one small release-contract loader. The 2.0.0 text stays
-byte-identical, `prepare_release.ps1` loses its stale 2.0.0 default, and the v4 generator stops
-owning a different hard-coded "WHAT'S NEW" block. Its WSL claim remains owned by the parked Linux
-task (V10). The mirror path defect (V11) is fixed with a red test built on the real `github/` layout.
-
-### Premise / KISS gate
-
-- **Owner:** the release workspace and manifest tools (`release.ps1`, `prepare_release.ps1`,
-  `release_workspace.py`, `prepare_release.py`) already own release preparation. The tracked
-  contract becomes their one per-release input; workspace schema remains a derived runtime record.
-- **Added:** one tiny closed contract schema and one data file per supported release. Platforms and
-  highlights need one recorded owner already, so this is not a second authority.
-- **Removed:** the six version comparisons and the tests that assert them, the hard-coded 2.0.0
-  highlights branch, and the stale 2.0.0 default.
-- **Capability given up:** implicit release preparation from an unrecorded default or a version
-  threshold. A reviewed contract is required before any release workspace is created.
-
-### Alternatives considered
-
-- **Raise the threshold** (for example to 4.0.0) - rejected: still semver-derived hidden policy
-  (D5).
-- **Workspace v2 with a Windows-only platform map** - rejected as larger: it opens the closed
-  two-platform map (V3) and touches the parked Linux machinery.
-- **Makefile platform variable plus schema-generation proxy** - rejected after investigation (V17):
-  a default fails open, the invocation is not durable release data, and highlights still need a
-  separate per-version owner.
-- **Add platform fields to historical workspace schemas** - rejected: it changes v1/v3 contracts
-  and historical bytes when the existing schema generation can remain a derived record.
-
-### Invariants
-
-1. The 2.0.0 workspace verifies exactly, including the reproduced `package_tree_sha256` (V7) and
-   the byte-identical 2.0.0 highlights.
-2. The v1 and v3 functions in V7 keep their behaviour for historical input.
-3. No version-derived platform/schema selection or default platform remains in release code (grep
-   proof). SemVer ordering of workspaces (`publish_itch.ps1:212`) is not selection policy and stays.
-4. The Linux route stays admissible when explicitly requested and its acceptance evidence exists.
-   V10 is not changed here.
-5. `make release 3.0.0 RELEASE_SIGN=0` needs no Linux input, toolchain, or receipt.
-6. Refusal leaves no workspace: a missing/invalid/mismatched contract, Linux without acceptance, or
-   resume against a different platform set fails before mutation.
-7. Signing, publishing, finalizing, and verification keep branching on the recorded schema (V4).
-8. `prepare_release.py` does not grow past the guardrail. A larger change moves into a sibling
-   module (V15).
-
-### Tasks
-
-- [ ] First, behavior-free (architect verdict SPLIT, recorded in the backlog task
-      [Fix stale docs and leftovers](../02_backlog/chore/20260923-1802_chore_fix_stale_docs_and_leftovers.md)):
-      move the manifest contract (`verify_artifacts`, `verify_release_manifest`, `approve_release`,
-      `prepare_release.py:709-864`) into `release_manifest.py`, and update its five importers (two
-      import it as `legacy`) in one pass with no re-export shim. The closed release-contract parser
-      and highlights loader live in a small sibling module imported by both generations.
-- [ ] Red: add closed-schema tests for absent contract, version mismatch, unknown/duplicate/open
-      platforms, and unknown fields. Each refusal must leave no workspace.
-- [ ] Red: add a test that the tracked 3.0.0 contract selects workspace v1 and manifest v3 and needs
-      no Linux input. Add a 2.0.0 golden-byte highlights check.
-- [ ] Red: add a refusal test for contract/platform mismatch on resume that proves no workspace is
-      changed. It fails today because no release contract exists.
-- [ ] Preservation guard: Linux without acceptance evidence already leaves no workspace
-      (`prepare_release.ps1:114-121`, cleanup in `:230-233`). Add the test with a known-bad
-      control: sabotage the cleanup and watch the test fail before trusting its pass.
-- [ ] Red: a mirror test on the real `github/` workspace layout fails on V11 today.
-- [ ] Red: a 3.0.0 preparation must produce 3.0.0 highlights from release data; it gets the Git
-      history placeholder today (V16).
-- [ ] Add the contract schema plus 2.0.0 and 3.0.0 data. Replace the six comparisons (V1) with
-      contract selection, move both generators' highlights to the shared loader, drop the 2.0.0
-      default, and fix the mirror path.
-- [ ] Rewrite the two threshold tests (V5) as platform-set tests; keep every historical v1 and v3
-      test green.
-- [ ] Update the statements in V6 to describe release-contract selection.
-- [ ] Architect review of the diff.
-
-### Verification
-
-- The Python tests under `scripts/ue/package/tests/` (`test_release_workspace.py`,
-  `test_prepare_release.py`, `test_prepare_release_v4.py`, `test_finalize_release.py`,
-  `test_release_platforms.py`, `test_accept_linux_player.py` for invariant 4) and the script tests
-  `test_release_entrypoint.ps1`, `test_component_manifest_signing.ps1`, and `test_publish_itch.ps1`,
-  using the commands in the package README; the mirror test
-  `scripts/git/mirror/tests/test_publish_reviewed_release_source.ps1` for V11.
-- A dry preparation of an unsigned 3.0.0 workspace from a known package, proving invariant 5.
-- Verification of the retained 2.0.0 workspace, proving invariant 1. `tmp/release/v2.0.0/` is
-  disposable: run this before any `tmp/` cleanup, or verify against the published 2.0.0 assets.
+The focused RED command was the exact
+`ReleaseWorkspaceTests.test_windows_3_0_workspace_does_not_require_linux`
+case, which failed on the erroneous v4 manifest requirement. Focused green
+coverage is recorded in the current state above. Release notes and publication
+remain with their existing owners; this platform fix adds no second owner.
 
 ## Documentation plan
 
-- **Release operations:** `packaging_guide.md` and `scripts/ue/package/README.md` describe
-  the required per-release contract, closed platform selection, and immutable-release verification
-  instead of version thresholds (V6, V18).
+- **Release operations:** `packaging_guide.md` and `scripts/ue/package/README.md`
+  route to the global platform owner and describe recorded-format verification,
+  Windows-only scope and immutable-release verification.
 - **World and material owners:** each concern task's own documentation plan.
 - **Release history:** after publication this file shrinks to the outcome record, following the
   2.0.0 precedent, and still-current facts live in their stable owners.
@@ -893,11 +1368,9 @@ the [package scripts README](../../scripts/ue/package/README.md),
 
 Investigate carefully, on the web wherever the fact is external, and cite primary sources:
 
-- **Release contract (R4):** challenge the selected tracked contract as the one owner for platforms
-  and highlights; verify workspace schema remains only a derived record and that Linux can resume
-  without changing historical schemas.
-- **Release highlights as data:** the smallest format and owner that keeps the 2.0.0 bytes
-  identical and serves both generations.
+- **Release policy (R4, D17):** verify one global owner, no SemVer-derived
+  platform selection, Windows-only creation and unchanged recorded-format
+  validation. Reject speculative scaffolding or a prerequisite refactor.
 - **GitHub publication:** current GitHub guidance on immutable releases, asset digests, and artifact
   attestations for the manual upload step; verify `gh release verify` and `verify-asset` are
   sufficient after the operator publishes without widening agent push authority.

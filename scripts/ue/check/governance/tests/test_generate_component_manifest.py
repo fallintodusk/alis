@@ -46,10 +46,6 @@ class ComponentManifestTests(unittest.TestCase):
         self._write("Plugins/UI/Test/README.md", "# Test")
         self._write("docs/README.md", "# Docs")
         self._write("docs/legal/policy.md", "# Policy")
-        self._write(
-            "scripts/ue/editor/NOTICE",
-            "ALIS-Component-Class: ue-in-process\n",
-        )
         self._write("scripts/README.md", "# Scripts")
         self._write("scripts/tool.py", "print('tool')")
         self._write("tools/helper.py", "print('tool')")
@@ -240,12 +236,12 @@ class ComponentManifestTests(unittest.TestCase):
         ):
             self._generate()
 
-    def test_unreal_declaration_does_not_allow_owner_notice(self) -> None:
+    def test_unreal_component_does_not_allow_owner_notice(self) -> None:
         self._write(
             "scripts/ue/editor/editor.py",
             "# Copyright Epic Games, Inc. All Rights Reserved.\nimport unreal\n",
         )
-        self._commit("declared Unreal owner notice")
+        self._commit("Unreal component owner notice")
         self._retag()
 
         with self.assertRaisesRegex(
@@ -330,14 +326,14 @@ class ComponentManifestTests(unittest.TestCase):
             ],
         )
 
-    def test_unreal_import_requires_local_unreal_declaration(self) -> None:
+    def test_unreal_import_cannot_cross_separate_process_boundary(self) -> None:
         self._write("scripts/new_editor.py", "import unreal\n")
         self._commit("unmarked Unreal script")
         self._retag()
 
         with self.assertRaisesRegex(
             generate_component_manifest.ManifestError,
-            "requires a local ue-in-process declaration",
+            "crosses a separate-process boundary",
         ):
             self._generate()
 
@@ -405,6 +401,38 @@ class ComponentManifestTests(unittest.TestCase):
             "Unknown component boundary",
         ):
             self._generate()
+
+    def test_orchestrator_fixtures_inherit_unreal_boundary(self) -> None:
+        fixture_root = GOVERNANCE_DIR.parents[3] / "Test"
+        for fixture in fixture_root.glob("*.json"):
+            self._write(f"Test/{fixture.name}", fixture.read_text(encoding="utf-8"))
+        self._commit("Orchestrator fixtures")
+        self._retag()
+        entries = {entry["path"]: entry for entry in self._generate()["entries"]}
+        for name in ("test_manifest.json", "test_latest_state.json"):
+            with self.subTest(fixture=name):
+                entry = entries[f"Test/{name}"]
+                self.assertEqual("ue-in-process", entry["component_class"])
+                self.assertEqual("MPL-2.0", entry["license"])
+                self.assertNotIn("evidence", entry)
+
+    def test_unreal_tool_components_inherit_without_notices(self) -> None:
+        paths = (
+            "scripts/ue/editor/helper.py",
+            "scripts/ue/cinematic/capture.py",
+            "scripts/ue/cinematic/capture.ps1",
+            "scripts/ue/check/assets/check.py",
+        )
+        for path in paths:
+            self._write(path, "import unreal\n" if path.endswith(".py") else "Write-Host 'capture'")
+        self._commit("Unreal integration components")
+        self._retag()
+        entries = {entry["path"]: entry for entry in self._generate()["entries"]}
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertEqual("ue-in-process", entries[path]["component_class"])
+                self.assertEqual("MPL-2.0", entries[path]["license"])
+                self.assertNotIn("evidence", entries[path])
 
 
 if __name__ == "__main__":

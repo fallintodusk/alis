@@ -218,7 +218,9 @@ The composer includes only:
 - active manifest-owned production `.uasset` and `.umap` files;
 - selected immutable canonical ZIP bundles;
 - persistent generated `.uasset` files selected by
-  `developer_asset_release.json` and each plugin-owned authority manifest.
+  `developer_asset_release.json` and each plugin-owned authority manifest;
+- explicitly selected native producer inputs, authenticated against their
+  owning descriptor, package hash and first-party configuration provenance.
 
 Public source JSON, schemas, release contracts, active indexes, and owner
 manifests remain in the exact Git tag. The composer reads and authenticates
@@ -233,6 +235,10 @@ remain rejected.
 It does not scan every Content folder or guess whether an unrelated third-party
 asset is public. A generated definition may retain a soft reference to a
 separately obtained dependency; the referenced dependency bytes are not copied.
+The dependency gate covers the promised World maps and their required resources.
+Producer descriptor inputs become payload only through explicit release selection;
+the declaration alone does not grant redistribution rights. The native configuration's
+preferred C++ source remains in the matching public source tag.
 
 The payload is composed only after the filtered public candidate commit exists.
 Its manifest records the exact full public commit, branch, and intended source

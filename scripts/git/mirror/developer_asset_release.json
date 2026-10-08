@@ -94,6 +94,24 @@
       "recipe_suffix": ".surface.json",
       "artifact_root": "Plugins/Resources/ProjectMaterial/Content/Surfaces",
       "package_root": "/ProjectMaterial/Surfaces"
+    },
+    {
+      "authority_kind": "producer_input",
+      "owner": "ProjectWorldMeshTerrain",
+      "manifest_path": "Plugins/World/ProjectWorldMeshTerrain/Data/Producers/project_mesh_terrain.json",
+      "license_id": "MPL-2.0",
+      "distribution_class": "rights_cleared_first_party_code_bearing",
+      "dependency_payload_policy": "references_only",
+      "assets": [
+        {
+          "artifact_path": "Plugins/World/ProjectWorldMeshTerrain/Content/Terrain/MPD_ProjectTerrain_Shared_v1.uasset",
+          "artifact_sha256": "756a0e8d8870db6f1fbc3f9d2ab4e7d66c8e99eac129d7fba8c156880fc0e31c",
+          "package_name": "/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1",
+          "asset_class": "MeshPartitionDefinition",
+          "provenance": "first_party_native_configuration",
+          "preferred_source_path": "Plugins/World/ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainProducer.cpp"
+        }
+      ]
     }
   ]
 }

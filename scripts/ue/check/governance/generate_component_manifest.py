@@ -429,8 +429,8 @@ def generate_manifest(repo_root: Path, tag: str) -> dict[str, object]:
             and imports_unreal(read_blob(repo_root, commit, rel))
         ):
             raise ManifestError(
-                "Unreal-importing script requires a local ue-in-process "
-                f"declaration: {rel}"
+                "Unreal-importing script crosses a separate-process boundary: "
+                f"{rel}; move it into its UE component or correct the central router"
             )
         if entry.get("component_class") != "ue-in-process":
             continue

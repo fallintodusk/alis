@@ -62,6 +62,7 @@ public:
 
 private:
 	friend class FProjectWorldPlayableTourOverhangRecoveryTest;
+	friend class FProjectWorldPlayableTourCenterArrivalTest;
 	enum class EPhase : uint8
 	{
 		OpeningMenu,

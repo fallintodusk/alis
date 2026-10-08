@@ -8,6 +8,7 @@ param(
     [string]$ReleaseVersion,
     [ValidateSet("All", "Game")][string]$Target = "All",
     [switch]$SkipSigning,
+    [switch]$AcceptInconclusivePerformance,
     [string]$SourceCommit,
     [string]$InputRoot,
     [string]$ReleaseDir,
@@ -96,7 +97,11 @@ function Read-ReleaseManifest {
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
         throw "Release manifest is missing: $ManifestPath"
     }
-    return Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+    $Document = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+    if ($Document.performance_review.status -ceq 'inconclusive' -and -not $AcceptInconclusivePerformance) {
+        throw 'This release requires -AcceptInconclusivePerformance to accept its recorded residual risk.'
+    }
+    return $Document
 }
 
 function Remove-ObsoleteUnsignedRelease {
@@ -154,15 +159,17 @@ $ReleaseTag = "v$ReleaseVersion"
 $ResolvedInputRoot = Resolve-ProjectPath -Path $InputRoot -DefaultPath "tmp\release\inputs\$ReleaseTag"
 $ResolvedReleaseDir = Resolve-ProjectPath -Path $ReleaseDir -DefaultPath "tmp\release\$ReleaseTag"
 $ExistingWorkspaceStatePath = Join-Path $ResolvedReleaseDir "release-workspace.json"
-$UseMultiPlatformSchema = [version]$ReleaseVersion -ge [version]"2.1.0"
-$RequiredWorkspaceSchema = if ($UseMultiPlatformSchema) { "alis-release-workspace-v2" }
-else { "alis-release-workspace-v1" }
+$PolicyJson = & $Python.Source (Join-Path $ScriptDir "release_platforms.py") policy
+if ($LASTEXITCODE -ne 0) { throw "Unable to resolve release platform policy." }
+$RequiredWorkspaceSchema = [string](($PolicyJson -join "`n" | ConvertFrom-Json).workspace_schema)
 if (Test-Path -LiteralPath $ExistingWorkspaceStatePath -PathType Leaf) {
     $ExistingWorkspaceState = Get-Content -LiteralPath $ExistingWorkspaceStatePath -Raw | ConvertFrom-Json
-    if ([string]$ExistingWorkspaceState.schema -ne $RequiredWorkspaceSchema) {
-        throw "Release $ReleaseVersion requires workspace schema $RequiredWorkspaceSchema; found $($ExistingWorkspaceState.schema)."
+    $RequiredWorkspaceSchema = [string]$ExistingWorkspaceState.schema
+    if ($RequiredWorkspaceSchema -notin @("alis-release-workspace-v1", "alis-release-workspace-v2")) {
+        throw "Unsupported release workspace schema: $RequiredWorkspaceSchema"
     }
 }
+$UseMultiPlatformSchema = $RequiredWorkspaceSchema -eq "alis-release-workspace-v2"
 $ResolvedGameDir = Join-Path $ResolvedReleaseDir "game"
 $ResolvedGitHubDir = Join-Path $ResolvedReleaseDir "github"
 $ResolvedPlayerPackageRoot = Resolve-ProjectPath -Path $PlayerPackageRoot -DefaultPath "Saved\PackageRelease\KazanPlayableTour\Candidate"
@@ -256,10 +263,13 @@ if (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container) {
     $WorkspaceState = Join-Path $ResolvedReleaseDir "release-workspace.json"
     $FlatManifest = Join-Path $ResolvedReleaseDir "release_manifest.json"
     if (Test-Path -LiteralPath $WorkspaceState -PathType Leaf) {
-        & $Python.Source $WorkspaceTool recover-github --workspace-root $ResolvedReleaseDir
+        $RecoveryArguments = @('recover-github', '--workspace-root', $ResolvedReleaseDir)
+        if ($AcceptInconclusivePerformance) { $RecoveryArguments += '--accept-inconclusive-performance' }
+        & $Python.Source $WorkspaceTool @RecoveryArguments
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to recover an interrupted GitHub projection replacement."
         }
+        $null = Read-ReleaseManifest -Directory $ResolvedGitHubDir
         $ExistingWorkspace = Get-Content -LiteralPath $WorkspaceState -Raw | ConvertFrom-Json
         if ($ExistingWorkspace.schema -eq "alis-release-workspace-v2") {
             & $Python.Source $WorkspaceTool adopt-v2 `
@@ -314,18 +324,21 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         }
 
         $AcceptanceScript = Join-Path $ProjectRoot "scripts\ue\world\accept_playable_tour_candidate.ps1"
-        $StatusJson = @(& $AcceptanceScript -Mode Status -ReleaseVersion $ReleaseVersion)
+        $StatusJson = @(& $AcceptanceScript -Mode Status -ReleaseVersion $ReleaseVersion `
+                -AcceptInconclusivePerformance:$AcceptInconclusivePerformance)
         if ($LASTEXITCODE -ne 0 -or $StatusJson.Count -ne 1) {
             throw "Unable to resolve the player Candidate acceptance state."
         }
         $AcceptanceStatus = $StatusJson[0] | ConvertFrom-Json
         if ($AcceptanceStatus.state -in @("candidate_missing", "candidate_stale")) {
             Write-Host "[Release] Building and machine-verifying the exact player Candidate."
-            & (Join-Path $ProjectRoot "scripts\ue\world\test\performance\run_kazan_playable_tour.ps1")
+            & (Join-Path $ProjectRoot "scripts\ue\world\test\performance\run_kazan_playable_tour.ps1") `
+                -AcceptInconclusivePerformance:$AcceptInconclusivePerformance
             if ($LASTEXITCODE -ne 0) {
                 throw "Player Candidate machine acceptance failed."
             }
-            $StatusJson = @(& $AcceptanceScript -Mode Status -ReleaseVersion $ReleaseVersion)
+            $StatusJson = @(& $AcceptanceScript -Mode Status -ReleaseVersion $ReleaseVersion `
+                    -AcceptInconclusivePerformance:$AcceptInconclusivePerformance)
             if ($LASTEXITCODE -ne 0 -or $StatusJson.Count -ne 1) {
                 throw "Unable to recheck the player Candidate acceptance state."
             }
@@ -411,9 +424,9 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
         "-MapLoadReport", $ResolvedMapLoadReport,
         "-AttributionNotice", $AttributionNotice,
         "-ProductTerms", $ResolvedProductTerms,
-        "-ReleaseVersion", $ReleaseVersion,
-        "-ReleaseTag", $ReleaseTag
+        "-ReleaseVersion", $ReleaseVersion
     )
+    if ($AcceptInconclusivePerformance) { $PrepareArguments += '-AcceptInconclusivePerformance' }
     if ($UseMultiPlatformSchema) {
         $PrepareArguments += @("-LinuxPackageRoot", $ResolvedLinuxPackageRoot)
         if ($ResolvedLinuxAcceptance) {
@@ -428,11 +441,14 @@ if (-not (Test-Path -LiteralPath $ResolvedReleaseDir -PathType Container)) {
 }
 
 $Manifest = Read-ReleaseManifest -Directory $ResolvedGitHubDir
+if ($Manifest.performance_review.status -ceq 'inconclusive') {
+    Write-Host '[Release] Absolute performance INCONCLUSIVE; operator accepted residual risk.'
+}
 if ($Manifest.schema -notin @("alis-release-manifest-v3", "alis-release-manifest-v4")) {
     throw "Release directory uses an unsupported manifest schema."
 }
 if ($UseMultiPlatformSchema -ne ($Manifest.schema -eq "alis-release-manifest-v4")) {
-    throw "Release manifest generation does not match release version $ReleaseVersion."
+    throw "Release manifest generation does not match the selected workspace schema."
 }
 if ($Manifest.release_version -ne $ReleaseVersion -or $Manifest.release_tag -ne $ReleaseTag) {
     throw "Release directory identity does not match requested version $ReleaseVersion."

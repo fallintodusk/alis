@@ -7,7 +7,8 @@ param(
     [string]$Mode = "Accept",
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')]
-    [string]$ReleaseVersion
+    [string]$ReleaseVersion,
+    [switch]$AcceptInconclusivePerformance
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,12 +64,21 @@ function Test-CurrentAcceptance {
             [string]$Acceptance.shipping_executable_sha256 -ceq $ExecutableHash -and
             (Test-Path -LiteralPath $CompositePath -PathType Leaf) -and
             [string]$Acceptance.release_composite_sha256 -ceq
-                (Get-FileHash -LiteralPath $CompositePath -Algorithm SHA256).Hash.ToLowerInvariant()
+                (Get-FileHash -LiteralPath $CompositePath -Algorithm SHA256).Hash.ToLowerInvariant() -and
+            (Test-ReleaseMachineAcceptance -Path $CompositePath)
         )
     }
     catch {
         return $false
     }
+}
+
+function Test-ReleaseMachineAcceptance {
+    param([string]$Path)
+    $arguments = @('validate', '--receipt', $Path, '--source-root', $ProjectRoot)
+    if ($AcceptInconclusivePerformance) { $arguments += '--accept-inconclusive-performance' }
+    & python (Join-Path $ProjectRoot 'scripts/ue/package/release_performance.py') @arguments > $null 2>$null
+    return $LASTEXITCODE -eq 0
 }
 
 if (-not (Test-Path -LiteralPath $PackageRoot -PathType Container) -or
@@ -115,12 +125,22 @@ foreach ($Candidate in $CompositeCandidates) {
     try {
         $Document = Get-Content -LiteralPath $Candidate.FullName -Raw | ConvertFrom-Json
         $RecordedPackage = Resolve-RecordedPath -Path ([string]$Document.final_package)
-        if ([string]$Document.status -ceq "accepted" -and
+        if ([string]$Document.status -cin @('accepted', 'accepted_with_performance_waiver') -and
             [string]$Document.revision -ceq $Revision -and
             [string]$Document.source_state_sha256 -ceq $SourceState -and
             [string]$Document.shipping_package_sha256 -ceq $PackageTree -and
             [string]$Document.shipping_executable_sha256 -ceq $ExecutableHash -and
             $RecordedPackage.Equals([IO.Path]::GetFullPath($PackageRoot), [StringComparison]::OrdinalIgnoreCase)) {
+            if ([string]$Document.status -ceq 'accepted_with_performance_waiver' -and
+                -not $AcceptInconclusivePerformance) {
+                if ($Mode -eq 'Status') {
+                    @{ schema = 'alis-player-acceptance-status-v1'; state = 'performance_waiver_required' } |
+                        ConvertTo-Json -Compress
+                    exit 0
+                }
+                throw 'This Candidate requires explicit inconclusive performance acceptance.'
+            }
+            if (-not (Test-ReleaseMachineAcceptance -Path $Candidate.FullName)) { continue }
             $SelectedComposite = $Candidate
             $SelectedDocument = $Document
             break

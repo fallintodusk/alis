@@ -73,7 +73,7 @@ Describe 'Focused release preflight owner routing' {
         foreach ($required in $automatic.owners) { $plan.owners | Should -Contain $required }
         $json = & powershell -NoProfile -ExecutionPolicy Bypass -File $runner -Owner WorldRuntime -PlanOnly
         $plan = ($json -join "`n") | ConvertFrom-Json
-        @($plan.commands | Where-Object { $_.Path -match '(package_release|realize_canonical|prepare_release_inputs)' }).Count | Should -Be 0
+        @($plan.commands | Where-Object { $_.Path -match '(package_release|realize_canonical|prepare_release_inputs|run_kazan_playable_tour|run_manhattan_showcase_prototype)' }).Count | Should -Be 0
         @($plan.commands | Where-Object { $_.Path.EndsWith('run_uncooked_playable_tour.ps1') }).Count | Should -Be 1
     }
     It 'keeps both rename endpoints, untracked paths and additive owners through the executed plan' {
@@ -160,6 +160,66 @@ write_producers(Path(sys.argv[2]))
                 -Wait -PassThru -RedirectStandardOutput (Join-Path $directory 'stdout.log') `
                 -RedirectStandardError (Join-Path $directory 'stderr.log')
             $process.ExitCode | Should -Be $fixture.Exit
+        }
+    }
+}
+
+Describe 'Packager inspection handoff' {
+    It 'keeps IoStore diagnostics outside the Candidate with distinct invocation paths' {
+        $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
+        $fixture = Join-Path $repo ('tmp/package/inspection-tests/' + [Guid]::NewGuid().ToString('N'))
+        $ProjectRoot = $fixture
+        $ScriptDir = Join-Path $fixture 'scripts/ue/package'
+        $OutputDir = Join-Path $fixture 'candidate'
+        $PlatformDir = Join-Path $OutputDir 'Windows'
+        $Platform = 'Win64'
+        $RequiredCookMap = '/ProjectWorldData/Generated/Territory/Fixture'
+        $ObjectCookContract = Join-Path $fixture 'contract.json'
+        $EngineRoot = Join-Path $fixture 'engine'
+        New-Item -ItemType Directory -Path $ScriptDir,$PlatformDir -Force | Out-Null
+        Set-Content (Join-Path $PlatformDir 'Alis.exe') 'unchanged-runtime' -Encoding Ascii
+        Set-Content (Join-Path $OutputDir 'package_summary.txt') 'accepted' -Encoding Ascii
+        @'
+param($PackageRoot, $RequiredPackage, $ResultPath, $ObjectContractPath, $EngineRoot)
+New-Item -ItemType Directory -Path (Split-Path -Parent $ResultPath) -Force | Out-Null
+Set-Content -LiteralPath $ResultPath '{"status":"accepted"}' -Encoding Ascii
+Set-Content (Join-Path (Split-Path -Parent $ResultPath) 'pakchunk.list.log') 'listing' -Encoding Ascii
+'@ | Set-Content (Join-Path $ScriptDir 'inspect_iostore.ps1') -Encoding Ascii
+        try {
+            $tokens = $null; $errors = $null
+            $ast = [Management.Automation.Language.Parser]::ParseFile(
+                (Join-Path $repo 'scripts/ue/package/package_release.ps1'), [ref]$tokens, [ref]$errors)
+            $errors.Count | Should -Be 0
+            $blocks = @($ast.FindAll({ param($node)
+                $node -is [Management.Automation.Language.IfStatementAst] -and
+                $node.Extent.Text.Contains('$IoStoreInspectionRoot =')
+            }, $true))
+            $blocks.Count | Should -Be 1
+            $block = [scriptblock]::Create($blocks[0].Extent.Text)
+            $identity = Join-Path $repo 'scripts/ue/package/prepare_release.py'
+            $before = & python $identity package-tree --package-root $OutputDir
+            $LASTEXITCODE | Should -Be 0
+            $paths = @()
+            foreach ($invocation in 1..2) {
+                . $block
+                $paths += $IoStoreInspectionResult
+                Test-Path -LiteralPath $IoStoreInspectionResult | Should -BeTrue
+                $prefix = [IO.Path]::GetFullPath((Join-Path $fixture 'tmp/package/iostore')) +
+                    [IO.Path]::DirectorySeparatorChar
+                [IO.Path]::GetFullPath($IoStoreInspectionResult).StartsWith($prefix,
+                    [StringComparison]::OrdinalIgnoreCase) | Should -BeTrue
+                @(Get-ChildItem -LiteralPath $OutputDir | ForEach-Object Name | Sort-Object) |
+                    Should -Be @('package_summary.txt', 'Windows')
+                (& python $identity package-tree --package-root $OutputDir) | Should -Be $before
+            }
+            $paths[1] | Should -Not -Be $paths[0]
+        }
+        finally {
+            $scratch = [IO.Path]::GetFullPath((Join-Path $repo 'tmp/package/inspection-tests')) +
+                [IO.Path]::DirectorySeparatorChar
+            if (-not [IO.Path]::GetFullPath($fixture).StartsWith($scratch,
+                    [StringComparison]::OrdinalIgnoreCase)) { throw 'Inspection fixture escaped scratch.' }
+            Remove-Item -LiteralPath $fixture -Recurse -Force
         }
     }
 }

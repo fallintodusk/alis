@@ -26,6 +26,7 @@ param(
     [int]$GameTimeoutSeconds = 720,
     [switch]$SkipShipping,
     [switch]$DescribeOperation,
+    [switch]$AcceptInconclusivePerformance,
     [string]$ExistingDevelopmentPackageRoot,
     [string]$ExpectedPackagePayloadSha256,
     [string]$ExpectedExecutableSha256
@@ -456,8 +457,6 @@ function Invoke-ManhattanExistingPackagePerformance {
         -HostLoadWindows @($hostLoadWindows) -ExpectedMapPackage $mapPackage `
         -ExpectedRuntimeProfile 'manhattan_showcase_512_1536_v1' `
         -RequireCorrectnessBinding -RequireNonInteractivePolicy
-    Assert-ManhattanShowcase ([string]$aggregate.status -ceq 'accepted') `
-        "Manhattan pooled performance rejected: $($aggregate.acceptance_reason)"
     Assert-ManhattanShowcase ((Get-ProjectWorldPackagePayloadDigest -Path $resolvedPackage) -ceq
         $packageHash) 'Existing package payload changed after aggregation.'
     $finalSourceState = @(& python $sourceTool source-state --source-root $projectRoot)
@@ -466,7 +465,7 @@ function Invoke-ManhattanExistingPackagePerformance {
         (Get-FileHash -LiteralPath $runtimeProfile -Algorithm SHA256).Hash.ToLowerInvariant() -ceq
         $script:runtimeProfileHash) 'Source or runtime profile changed during Manhattan performance.'
     $receipt = [ordered]@{
-        status = 'accepted'
+        status = [string]$aggregate.status
         operation_id = $operationId
         source_revision = $revision
         source_state_sha256 = $sourceState[0]
@@ -486,7 +485,25 @@ function Invoke-ManhattanExistingPackagePerformance {
     [IO.File]::WriteAllText($receiptPath, ($receipt | ConvertTo-Json -Depth 14) + "`n",
         [Text.UTF8Encoding]::new($false))
     Assert-ManhattanEvidenceInventory -ReceiptPath $receiptPath
-    Write-Host "Manhattan existing-package performance accepted: $receiptPath" -ForegroundColor Green
+    if ($AcceptInconclusivePerformance) {
+        $aggregatePath = Join-Path $evidenceRoot 'performance-aggregate.json'
+        [IO.File]::WriteAllText($aggregatePath, ($aggregate | ConvertTo-Json -Depth 12))
+        $policy = Join-Path $projectRoot 'scripts/ue/package/release_performance.py'
+        $decision = @(& python $policy decide --receipt $aggregatePath --accept-inconclusive-performance)
+        Assert-ManhattanShowcase ($LASTEXITCODE -eq 0 -and $decision.Count -eq 1) `
+            'Release performance waiver rejected the Manhattan evidence.'
+        $receipt.performance_review = $decision[0] | ConvertFrom-Json
+        Assert-ManhattanShowcase ([string]$receipt.performance_review.status -cin @('accepted', 'inconclusive')) `
+            'Release performance decision is unknown.'
+        if ($receipt.performance_review.status -ceq 'inconclusive') {
+            $receipt.status = 'accepted_with_performance_waiver'
+        }
+        [IO.File]::WriteAllText($receiptPath, ($receipt | ConvertTo-Json -Depth 14) + "`n",
+            [Text.UTF8Encoding]::new($false))
+    }
+    Assert-ManhattanShowcase ($AcceptInconclusivePerformance -or [string]$aggregate.status -ceq 'accepted') `
+        "Manhattan pooled performance rejected: $($aggregate.acceptance_reason)"
+    Write-Host "Manhattan existing-package decision $($receipt.status): $receiptPath"
     return $receiptPath
 }
 
@@ -512,6 +529,8 @@ if ($PSBoundParameters.ContainsKey('ExistingDevelopmentPackageRoot')) {
 Assert-ManhattanShowcase (-not $ExpectedPackagePayloadSha256 -and
     -not $ExpectedExecutableSha256) `
     'Expected package and executable hashes require existing Development package mode.'
+Assert-ManhattanShowcase (-not $AcceptInconclusivePerformance) `
+    'Performance waiver is available only through the existing-package release route.'
 
 New-Item -ItemType Directory -Path $evidenceRoot, $runtimeRoot -Force | Out-Null
 $script:runtimeProfileHash = (Get-FileHash -LiteralPath $runtimeProfile -Algorithm SHA256).Hash.ToLowerInvariant()

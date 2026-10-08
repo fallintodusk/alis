@@ -90,8 +90,13 @@ does not change an existing grant.
 
 Do not maintain an exhaustive per-file or per-subtree path map. Classification
 inherits from existing ownership boundaries. The release resolver recognizes
-the stable top-level first-party tool and automation roots; only genuine
-exceptions need local declarations:
+the native components and first-party integration boundaries through the shared
+router in
+[validate_licensing.py](../../scripts/ue/check/governance/validate_licensing.py).
+Normal first-party components inherit the root assignment without local
+`LICENSE` or `NOTICE` files. A missing normal boundary is corrected in that
+router; it is not a reason to create another license declaration.
+Only genuine exceptions need local declarations:
 
 1. An explicit component-local declaration controls genuine exceptions and
    upstream material. A `LICENSE` or `NOTICE` participates in ALIS
@@ -103,8 +108,8 @@ exceptions need local declarations:
    remain provenance-controlled until their manifests grant specific terms.
 4. Unknown or conflicting evidence blocks distribution.
 
-Only an exception outside the recognized native or top-level tooling boundaries
-needs local machine-readable fields:
+Only a genuine exception to the central component assignment, such as upstream
+material retaining its own terms, needs local machine-readable fields:
 
 ```text
 ALIS-Component-Class: original-terms
@@ -125,12 +130,13 @@ relative to the discovered `.uproject` or `.uplugin` root:
 
 | Component-relative path | Result |
 |---|---|
-| Descriptor, native build metadata, `Source/**`, `Config/**`, or functional `Data/**` | `ue-in-process` |
-| `Tools/**` standalone tooling | `separate-process`; importing Unreal requires an explicit exception |
+| Descriptor, native build metadata, `Source/**`, `Config/**`, functional `Data/**`, or UE fixtures under `Test/**` and `Tests/**` | `ue-in-process` |
+| UE-loaded editor, cinematic and asset-check integration components | `ue-in-process`; their helpers inherit the component boundary |
+| `Tools/**` standalone tooling | `separate-process`; importing Unreal requires moving the code into its UE component or correcting the central boundary |
 | `Content/**` or `Resources/**` | `provenance-required` |
 | Component documentation | `documentation` |
 | Standalone first-party tooling or configuration at the repository root | `separate-process` |
-| Anything else | Unknown; require an explicit local declaration |
+| Anything else | Unknown; resolve ownership before distribution, extending the central router for ordinary first-party components |
 
 Functional JSON under `Content/**` uses the existing generated-definition owner
 manifest to establish its source identity and hash before receiving the

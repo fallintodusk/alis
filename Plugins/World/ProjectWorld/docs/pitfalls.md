@@ -835,12 +835,18 @@ not explain the variance.
 **Root cause.** The broad traversal arrival radius is appropriate for streamed territory
 waypoints, but a loose final center return can descend in a dense collision pocket. Even
 25 m leaves Manhattan's origin-side return far enough from the intended collision-proof
-area to record zero forward slide. Trying unrelated lateral keys only measures arbitrary
+area to record zero forward slide. Position alone also counts a fast pass through the
+precise center as arrival. Immediate vertical input suppresses native flight braking,
+allowing drift before contact. Trying unrelated lateral keys only measures arbitrary
 horizontal escape and weakens the meaning of "forward input slid along a blocking surface."
 
 **Fix.** Keep the broad radius for territory traversal and the default 25 m final
 return for Kazan. The Manhattan operation explicitly selects a 5 m final return;
-the receipt records that radius. Preserve one forward `W` slide after blocked
+the receipt records that radius. The precise operation coasts through native flight
+braking and requires settled horizontal motion before descent. This settlement is
+scoped to precise return: changing Kazan's descent starting state can land it in a
+different blocked pocket, and a smaller radius alone does not prevent that.
+Preserve one forward `W` slide after blocked
 descent; do not add direction retries as a substitute for deterministic arrival.
 
 **File.**
@@ -848,6 +854,8 @@ descent; do not add direction retries as a substitute for deterministic arrival.
 `scripts/ue/world/test/performance/run_manhattan_showcase_prototype.ps1`.
 
 **Regression test.**
+`Project.World.PlayableTour.CenterArrival` rejects a fast precise-center pass and
+preserves standard arrival semantics. The uncooked admission runs this native test.
 The permanent [uncooked gameplay admission](../../../../scripts/ue/world/README.md#uncooked-gameplay-admission)
 must prove real return, descent and forward slide on both production maps before
 requesting a frozen release. Final packaged Development still re-proves at least
@@ -1284,16 +1292,28 @@ packaged final-arrival slide failure in entry 29.
 
 **Fix.** The playable driver's existing obstacle phase sweeps the actual scaled
 capsule upward using its collision channel and responses. A blocking underside
-selects real backward/upward input until clear above the hit plane. The retreat
+selects real backward/upward input until clear above the hit plane. If the
+backward capsule sweep is blocked, it selects an open lateral direction and
+keeps that direction while it remains open. A Manhattan control showed that
+backward-only retreat can move about 30 m and then stop against another wall.
+If backward and both sides are blocked, an open forward capsule sweep is the
+last escape option. Initial traversal W is released on entering recovery;
+only a direction selected by recovery is retained. The earlier "enclosed"
+fixture had no front wall: its open forward exit was never considered.
+The revised fixture measures that opening and adds a fourth wall to prove
+bounded refusal for actual enclosure. This fixture defect is confirmed;
+the intermittent real-map timeout's exact exit geometry was not retained.
+An enclosed capsule still refuses instead of changing collision. The retreat
 has a ten-second bound and retains the existing ascent, leg and tour bounds.
-Clearance, arrival and terminal cleanup release backward input. No physics or
+Clearance, arrival and terminal cleanup release all escape keys. No physics or
 generated collision is changed.
 
 **File.** `Source/ProjectWorld/Private/Presentation/ProjectWorldPlayableTourDriver.cpp`.
 
 **Regression test.** Exact `Project.World.PlayableTour.OverhangRecovery` uses a
-real physics-world underside and exercises driver input selection, clearance,
-bounded refusal and key cleanup. The real-map proof belongs to
+real physics-world underside, blocked rear wall and open side. It exercises
+backward-first selection, lateral and forward fallback/retention, clearance,
+measured four-wall bounded refusal and key cleanup. The real-map proof belongs to
 [uncooked gameplay admission](../../../../scripts/ue/world/README.md#uncooked-gameplay-admission).
 
 ---

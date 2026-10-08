@@ -21,6 +21,74 @@ RECIPE_OWNERS = ("ProjectTexture", "ProjectMaterial")
 
 
 class DeveloperPayloadTests(unittest.TestCase):
+    @staticmethod
+    def _write_producer_input_fixture(root):
+        plugin = root / "Plugins/World/ProjectTerrain"
+        artifact = plugin / "Content/Terrain/Definition.uasset"
+        descriptor = plugin / "Data/Producers/terrain.json"
+        source = plugin / "Source/ProjectTerrain/Private/Producer.cpp"
+        for path in (artifact, descriptor, source):
+            path.parent.mkdir(parents=True, exist_ok=True)
+        (plugin / "ProjectTerrain.uplugin").write_text("{}")
+        artifact.write_bytes(b"original-native-configuration")
+        source.write_text("// First-party native configuration generator.\n")
+        relative = artifact.relative_to(root).as_posix()
+        descriptor.write_text(json.dumps({"kind": "producer", "data_inputs": [relative]}))
+        authority = {
+            "authority_kind": "producer_input",
+            "owner": "ProjectTerrain",
+            "manifest_path": descriptor.relative_to(root).as_posix(),
+            "license_id": "MPL-2.0",
+            "distribution_class": "rights_cleared_first_party_code_bearing",
+            "dependency_payload_policy": "references_only",
+            "assets": [{"artifact_path": relative, "artifact_sha256": MODULE.sha256_file(artifact),
+                        "package_name": "/ProjectTerrain/Terrain/Definition",
+                        "asset_class": "MeshPartitionDefinition",
+                        "provenance": "first_party_native_configuration",
+                        "preferred_source_path": source.relative_to(root).as_posix()}],
+        }
+        contract = root / MODULE.ASSET_RELEASE_CONTRACT
+        contract.parent.mkdir(parents=True, exist_ok=True)
+        contract.write_text(json.dumps({"asset_authorities": [authority]}))
+        return authority, contract, descriptor, artifact
+
+    def test_explicit_producer_input_enters_payload(self):
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            authority, _, _, _ = self._write_producer_input_fixture(root)
+            entries = {}
+            selected = MODULE.collect_public_asset_authority(root, entries)
+            self.assertEqual(1, selected[0]["asset_count"])
+            self.assertEqual({authority["assets"][0]["artifact_path"]}, set(entries))
+            self.assertEqual("producer_input_asset", next(iter(entries.values())).kind)
+
+    def test_producer_input_rejects_invalid_authority(self):
+        def edit_path(authority):
+            authority["assets"][0]["artifact_path"] = "Plugins/World/Other/Content/Definition.uasset"
+
+        sabotages = (
+            ("hash", lambda a: a["assets"][0].update(artifact_sha256="0" * 64), "hash mismatch"),
+            ("owner path", edit_path, "outside owner"),
+            ("package path", lambda a: a["assets"][0].update(package_name="/Other/Definition"), "package/path mismatch"),
+            ("source owner", lambda a: a["assets"][0].update(preferred_source_path="Plugins/World/Other/Source/Producer.cpp"), "preferred source"),
+            ("provenance", lambda a: a["assets"][0].update(provenance="third_party"), "provenance"),
+            ("duplicate", lambda a: a["assets"].append(dict(a["assets"][0])), "Duplicate"),
+        )
+        for name, sabotage, message in sabotages:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temp_value:
+                root = Path(temp_value)
+                authority, contract, _, _ = self._write_producer_input_fixture(root)
+                sabotage(authority)
+                contract.write_text(json.dumps({"asset_authorities": [authority]}))
+                with self.assertRaisesRegex(MODULE.PayloadError, message):
+                    MODULE.collect_public_asset_authority(root, {})
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            _, _, descriptor, _ = self._write_producer_input_fixture(root)
+            descriptor.write_text(json.dumps({"kind": "producer", "data_inputs": []}))
+            with self.assertRaisesRegex(MODULE.PayloadError, "undeclared"):
+                MODULE.collect_public_asset_authority(root, {})
+
     def test_allow_dirty_skips_checkout_cleanliness_but_not_tracked_admission(self):
         with tempfile.TemporaryDirectory() as temp_value:
             root = Path(temp_value)
@@ -221,12 +289,14 @@ class DeveloperPayloadTests(unittest.TestCase):
         expected = {}
         for authority in contract["asset_authorities"]:
             manifest = json.loads((REPO_ROOT / authority["manifest_path"]).read_text(encoding="utf-8-sig"))
-            items = "assets" if authority["authority_kind"] == "generated_definition_manifest" else "records"
-            expected[authority["owner"]] = (authority["authority_kind"], len(manifest[items]))
+            assets = authority["assets"] if authority["authority_kind"] == "producer_input" else manifest[
+                "assets" if authority["authority_kind"] == "generated_definition_manifest" else "records"]
+            expected[authority["owner"]] = (authority["authority_kind"], len(assets))
         self.assertEqual({owner: count for owner, (_, count) in expected.items()}, counts)
         for kind, entry_kind in (
             ("generated_definition_manifest", "generated_definition_asset"),
             ("generated_recipe_manifest", "generated_recipe_asset"),
+            ("producer_input", "producer_input_asset"),
         ):
             self.assertEqual(
                 sum(count for owner_kind, count in expected.values() if owner_kind == kind),
@@ -619,13 +689,13 @@ class DeveloperPayloadTests(unittest.TestCase):
             REPO_ROOT / "Plugins" / "Resources" / "ProjectObject" / "ProjectObject.uplugin",
             object_plugin / "ProjectObject.uplugin",
         )
-        for owner in ("ProjectExperienceData", *RECIPE_OWNERS):
-            owner_plugin = project / "Plugins" / "Resources" / owner
-            owner_plugin.mkdir(parents=True)
-            shutil.copy2(
-                REPO_ROOT / "Plugins" / "Resources" / owner / f"{owner}.uplugin",
-                owner_plugin / f"{owner}.uplugin",
-            )
+        contract = json.loads((REPO_ROOT / MODULE.ASSET_RELEASE_CONTRACT).read_text())
+        for authority in contract["asset_authorities"]:
+            owner = authority["owner"]
+            source = MODULE.plugin_root(REPO_ROOT, owner) / f"{owner}.uplugin"
+            target = project / source.relative_to(REPO_ROOT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
         mirror = project / "scripts/git/mirror"
         package = project / "scripts/ue/package"
         mirror.mkdir(parents=True)

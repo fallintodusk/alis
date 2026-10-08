@@ -24,6 +24,7 @@ namespace
 	constexpr double ArrivalRadiusCentimeters = 25000.0;
 	constexpr double StandardCenterArrivalRadiusCentimeters = 2500.0;
 	constexpr double PreciseCenterArrivalRadiusCentimeters = 500.0;
+	constexpr double SettledCenterSpeedCentimetersPerSecond = 10.0;
 	constexpr double MinimumTurnBeforeTravelDegrees = 12.0;
 	constexpr double DescentTimeoutSeconds = 45.0;
 	constexpr double MinimumDescentBeforeCollisionCentimeters = 3000.0;
@@ -357,10 +358,27 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 			TEXT("[FProjectWorldPlayableTourDriver::TickTraversing] Leg started - index=%d distance_cm=%.1f timeout_s=%.1f"),
 			WaypointIndex, Distance, CurrentLegTimeoutSeconds);
 	}
-	const double ArrivalRadius = WaypointIndex == Waypoints.Num() - 1
+	const bool bFinalLeg = WaypointIndex == Waypoints.Num() - 1;
+	const bool bPreciseFinalLeg = bFinalLeg &&
+		FinalCenterArrivalRadiusCentimeters == PreciseCenterArrivalRadiusCentimeters;
+	const double ArrivalRadius = bFinalLeg
 		? FinalCenterArrivalRadiusCentimeters
 		: ArrivalRadiusCentimeters;
-	if (Distance <= ArrivalRadius)
+	const FVector2D HorizontalVelocity(Character->GetVelocity());
+	double StoppingDistance = 0.0;
+	if (bPreciseFinalLeg)
+	{
+		const double Braking = Character->GetCharacterMovement()->GetMaxBrakingDeceleration();
+		if (!FMath::IsFinite(Braking) || Braking <= 0.0)
+		{
+			return Reject(TEXT("The final flight approach requires positive native braking deceleration."), OutError);
+		}
+		const double ApproachSpeed = FMath::Max(0.0,
+			FVector2D::DotProduct(HorizontalVelocity, Delta.GetSafeNormal()));
+		StoppingDistance = FMath::Square(ApproachSpeed) / (2.0 * Braking);
+	}
+	if (Distance <= ArrivalRadius && (!bPreciseFinalLeg ||
+		HorizontalVelocity.Size() <= SettledCenterSpeedCentimetersPerSecond))
 	{
 		Release(EKeys::W);
 		Release(EKeys::S);
@@ -375,9 +393,12 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 			Evidence.EdgeLocation = Location;
 			bReachedEdge = true;
 		}
-		if (WaypointIndex == Waypoints.Num() - 1)
+		if (bFinalLeg)
 		{
 			bReturnedToCenter = true;
+			UE_LOG(LogProjectWorldPlayableTour, Display,
+				TEXT("[FProjectWorldPlayableTourDriver::TickTraversing] Center return - distance_cm=%.1f speed_cm_s=%.1f location=%s"),
+				Distance, HorizontalVelocity.Size(), *Location.ToCompactString());
 		}
 		++WaypointIndex;
 		CurrentLegTimeoutSeconds = 0.0;
@@ -392,11 +413,19 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickTraversing(
 		Controller->GetControlRotation().Yaw,
 		DesiredYaw);
 	SendLook(YawError);
-	if (!bBackingFromOverhang && FMath::Abs(YawError) <= MinimumTurnBeforeTravelDegrees)
+	// Vertical or lateral acceleration also suppresses native flight braking.
+	const bool bBrakingForCenter = bPreciseFinalLeg &&
+		(Distance <= ArrivalRadius || Distance <= StoppingDistance + ArrivalRadius * 0.5);
+	if (bBrakingForCenter)
+	{
+		ReleaseInputs();
+		bClearingObstacle = false;
+	}
+	else if (!bBackingFromOverhang && FMath::Abs(YawError) <= MinimumTurnBeforeTravelDegrees)
 	{
 		Hold(EKeys::W);
 	}
-	else
+	else if (!bBackingFromOverhang)
 	{
 		Release(EKeys::W);
 	}
@@ -480,6 +509,7 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickObstacleCle
 	const double Now = FPlatformTime::Seconds();
 	if (!bBackingFromOverhang && bBlockedUp && Hit.ImpactNormal.Z < -0.5)
 	{
+		Release(EKeys::W);
 		bBackingFromOverhang = true;
 		OverhangRecoveryStartedSeconds = Now;
 		OverhangClearanceZ = Hit.ImpactPoint.Z + 2.0 * Capsule->GetScaledCapsuleHalfHeight();
@@ -491,11 +521,57 @@ EProjectWorldPlayableTourResult FProjectWorldPlayableTourDriver::TickObstacleCle
 	Hold(EKeys::SpaceBar);
 	if (bBackingFromOverhang)
 	{
-		Release(EKeys::W);
-		Hold(EKeys::S);
+		const FRotationMatrix InputRotation(FRotator(0, Controller->GetControlRotation().Yaw, 0));
+		const FKey EscapeKeys[] = { EKeys::S, EKeys::D, EKeys::A, EKeys::W };
+		const FVector EscapeDirections[] = { -InputRotation.GetUnitAxis(EAxis::X),
+			InputRotation.GetUnitAxis(EAxis::Y), -InputRotation.GetUnitAxis(EAxis::Y),
+			InputRotation.GetUnitAxis(EAxis::X) };
+		bool OpenDirections[UE_ARRAY_COUNT(EscapeKeys)];
+		int32 SelectedDirection = INDEX_NONE;
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(EscapeKeys); ++Index)
+		{
+			FHitResult EscapeHit;
+			OpenDirections[Index] = !World->SweepSingleByChannel(EscapeHit, Location,
+				Location + EscapeDirections[Index] * OverhangProbeCentimeters, Capsule->GetComponentQuat(),
+				Capsule->GetCollisionObjectType(),
+				FCollisionShape::MakeCapsule(Capsule->GetScaledCapsuleRadius(), Capsule->GetScaledCapsuleHalfHeight()),
+				FCollisionQueryParams(SCENE_QUERY_STAT(ProjectWorldOverhangEscape), false, Character.Get()),
+				FCollisionResponseParams(Capsule->GetCollisionResponseToChannels()));
+			if (OpenDirections[Index] && HeldKeys.Contains(EscapeKeys[Index]))
+			{
+				SelectedDirection = Index;
+			}
+		}
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(EscapeKeys); ++Index)
+		{
+			if (SelectedDirection == INDEX_NONE && OpenDirections[Index])
+			{
+				SelectedDirection = Index;
+			}
+		}
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(EscapeKeys); ++Index)
+		{
+			if (Index == SelectedDirection)
+			{
+				if (!HeldKeys.Contains(EscapeKeys[Index]))
+				{
+					UE_LOG(LogProjectWorldPlayableTour, Display,
+						TEXT("[FProjectWorldPlayableTourDriver::TickObstacleClearance] Overhang escape input - index=%d key=%s location=%s"),
+						WaypointIndex, *EscapeKeys[Index].ToString(), *Location.ToCompactString());
+				}
+				Hold(EscapeKeys[Index]);
+			}
+			else
+			{
+				Release(EscapeKeys[Index]);
+			}
+		}
 		if (!bBlockedUp && Location.Z >= OverhangClearanceZ)
 		{
+			Release(EKeys::W);
 			Release(EKeys::S);
+			Release(EKeys::A);
+			Release(EKeys::D);
 			bBackingFromOverhang = false;
 			UE_LOG(LogProjectWorldPlayableTour, Display,
 				TEXT("[FProjectWorldPlayableTourDriver::TickObstacleClearance] Overhang retreat completed - index=%d location=%s duration_s=%.1f"),

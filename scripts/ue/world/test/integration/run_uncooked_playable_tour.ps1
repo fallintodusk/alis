@@ -74,7 +74,7 @@ try {
         > (Join-Path $root 'build.log') 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Editor build failed. See $root/build.log" }
     $modulesBefore = Get-CurrentModuleInventory
-    foreach ($test in @('CenterReturnPolicy', 'OverhangRecovery')) {
+    foreach ($test in @('CenterReturnPolicy', 'CenterArrival', 'OverhangRecovery')) {
         $name = 'Project.World.PlayableTour.' + $test
         & powershell -NoProfile -ExecutionPolicy Bypass -File `
             (Join-Path $repoRoot 'scripts/ue/test/unit/run_cpp_tests_safe.ps1') `

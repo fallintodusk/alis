@@ -3,7 +3,10 @@ import json
 import sys
 import subprocess
 import tempfile
+import runpy
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -17,6 +20,101 @@ SPEC.loader.exec_module(MODULE)
 
 
 class DeveloperDependencyAuditTests(unittest.TestCase):
+    def test_native_producer_input_class_is_authenticated(self):
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            seeds, inventory = self._write_inventory_fixture(root, [])
+            document = json.loads(seeds.read_text())
+            document["seeds"][0]["asset_class"] = "MeshPartitionDefinition"
+            seeds.write_text(json.dumps(document))
+            native = json.loads(inventory.read_text())
+            native["assets"] = [{"package_name": "/ProjectWorldData/PublicMap",
+                                 "asset_classes": ["MeshPartitionDefinition"]}]
+            inventory.write_text(json.dumps(native))
+            self.assertEqual("accepted", MODULE.validate_inventory(root, seeds, inventory)["status"])
+            for classes in ([], ["Material"], ["MeshPartitionDefinition", "Material"]):
+                with self.subTest(classes=classes):
+                    native["assets"][0]["asset_classes"] = classes
+                    inventory.write_text(json.dumps(native))
+                    report = MODULE.validate_inventory(root, seeds, inventory)
+                    self.assertEqual("rejected_asset_class", report["issues"][0]["code"])
+
+    def test_selected_producer_inputs_enter_dependency_seeds(self):
+        plan = MODULE.build_seed_plan(REPO_ROOT)
+        inputs = [item for item in plan["seeds"] if item["owner"] == "ProjectWorldMeshTerrain"]
+        self.assertEqual(1, len(inputs))
+        self.assertEqual("MeshPartitionDefinition", inputs[0]["asset_class"])
+        self.assertEqual("/ProjectWorldMeshTerrain/Terrain/MPD_ProjectTerrain_Shared_v1", inputs[0]["package_name"])
+
+    def test_rejected_cli_identifies_packages_after_report_cleanup(self):
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            seeds, inventory = self._write_inventory_fixture(
+                root, [], ["/ProjectWorldData/PublicMap"]
+            )
+            report = root / "report.json"
+            result = subprocess.run(
+                [sys.executable, str(MODULE_PATH), "validate", "--repo-root", str(root),
+                 "--seeds", str(seeds), "--inventory", str(inventory),
+                 "--output", str(report), "--engine-root", str(root / "engine")],
+                capture_output=True, text=True, check=False,
+            )
+            report.unlink()
+            self.assertEqual(1, result.returncode)
+            self.assertIn("rejected_missing_package", result.stderr)
+            self.assertIn("/ProjectWorldData/PublicMap", result.stderr)
+
+    def test_registry_gather_discovers_transitive_dependencies(self):
+        class Registry:
+            gathered = False
+
+            def search_all_assets(self, synchronous):
+                self.assert_synchronous = synchronous
+                self.gathered = True
+
+            def wait_for_completion(self):
+                pass
+
+            def scan_files_synchronous(self, files, force):
+                pass
+
+            def get_assets_by_package_name(self, package):
+                if not self.gathered and package != "/Public/Map":
+                    return []
+                return [SimpleNamespace(asset_class_path=SimpleNamespace(asset_name="Object"))]
+
+            def get_dependencies(self, package, options):
+                if not options.include_hard_package_references:
+                    return []
+                return {"/Public/Map": ["/Public/Material"],
+                        "/Public/Material": ["/Public/Texture"]}.get(package, []) if (
+                            self.gathered or package == "/Public/Map"
+                        ) else []
+
+        with tempfile.TemporaryDirectory() as temp_value:
+            root = Path(temp_value)
+            seeds = root / "seeds.json"
+            output = root / "inventory.json"
+            seeds.write_text(json.dumps({"seeds": [{"package_name": "/Public/Map",
+                                                   "artifact_path": "Map.umap"}]}))
+            registry = Registry()
+            unreal = SimpleNamespace(
+                AssetRegistryHelpers=SimpleNamespace(get_asset_registry=lambda: registry),
+                Paths=SimpleNamespace(project_dir=lambda: str(root),
+                                      convert_relative_path_to_full=lambda value: value),
+                AssetRegistryDependencyOptions=SimpleNamespace,
+                log=lambda value: None,
+            )
+            with patch.dict(sys.modules, {"unreal": unreal}), patch.dict(
+                "os.environ", {"ALIS_PUBLIC_DEPENDENCY_SEEDS": str(seeds),
+                               "ALIS_PUBLIC_DEPENDENCY_OUTPUT": str(output)}
+            ):
+                runpy.run_path(str(REPO_ROOT / "scripts/ue/check/assets/export_public_dependency_inventory.py"))
+            result = json.loads(output.read_text())
+            self.assertEqual([], result["missing_packages"])
+            self.assertEqual(["/Public/Map", "/Public/Material", "/Public/Texture"], result["packages"])
+            self.assertTrue(registry.assert_synchronous)
+
     @staticmethod
     def _write_inventory_fixture(root: Path, dependencies: list[str], missing: list[str] | None = None):
         (root / "Alis.uproject").write_text('{"Modules": []}\n', encoding="utf-8")

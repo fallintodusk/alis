@@ -144,11 +144,7 @@ class LicensingValidationTests(unittest.TestCase):
 
         self.assertEqual([], self._validate())
 
-    def test_unreal_declaration_does_not_allow_owner_notice(self) -> None:
-        self._write(
-            "scripts/ue/editor/NOTICE",
-            "ALIS-Component-Class: ue-in-process\n",
-        )
+    def test_unreal_component_does_not_allow_owner_notice(self) -> None:
         self._write(
             "scripts/ue/editor/EpicDerived.py",
             "# Copyright Epic Games, Inc. All Rights Reserved.",

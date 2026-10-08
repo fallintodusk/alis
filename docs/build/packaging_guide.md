@@ -91,19 +91,20 @@ creates a Linux channel.
 `make package` remains the lower-level Shipping package/archive command. It
 does not approve or sign a release.
 
-For 2.1.0 and later, the same commands own one multi-platform workspace:
+New releases use the global platform policy in
+[release_platforms.py](../../scripts/ue/package/release_platforms.py), independent
+of semantic version. Windows-only 3.0.0 writes workspace v1 and manifest v3:
 
 ```text
 tmp/release/vX.Y.Z/
-|-- game/
-|   |-- windows-x86_64/
-|   `-- linux-x86_64/
+|-- game/                # Directly runnable Windows game.
 |-- github/
 `-- release-workspace.json
 ```
 
-The Windows game remains the World-owned product/performance Candidate. The
-Linux package is cross-compiled with the configured v26 toolchain. Linux release
+The Windows game remains the World-owned product/performance Candidate. Add
+Linux to the global policy only after its separate acceptance is qualified.
+The parked Linux package route is cross-compiled with the configured v26 toolchain. Linux release
 eligibility remains parked until the exact unsigned TAR passes rendered runtime
 acceptance on a native Ubuntu 22.04 x86-64 GPU host. Acceptance copies the exact
 archive to that host's local Linux filesystem before verification, extraction,
@@ -116,9 +117,11 @@ GitHub signature binds the final downloadable archive parts. If the declared
 Vulkan device or either required product route is unavailable, release
 preparation fails without creating the workspace.
 
-Multi-platform releases write workspace v2 and manifest v4. Historical 2.0.0
-workspace v1 and manifest v3 remain readable and verifiable, and are never
-migrated in place.
+The two-platform format is workspace v2 and manifest v4. Existing releases
+verify and resume using their recorded format, regardless of the current
+platform policy or version number. A workspace and its manifest must agree;
+inventory, executable and payload identity checks remain required. Formats are
+never migrated in place.
 
 ## Canonical Script
 

@@ -329,6 +329,8 @@ def prepare(
                 },
             },
             "unresolved_count": 0,
+            **({"performance_review": validated["performance_review"]}
+               if validated["performance_review"] is not None else {}),
             "product_review": {"status": validated["player"]["product_review"]},
             "rights_review": {"status": "pending_owner_approval"},
             "release_documents": {
@@ -357,6 +359,7 @@ def main() -> int:
     parser.add_argument("--public-source-root", type=Path, required=True)
     parser.add_argument("--windows-package-root", type=Path, required=True)
     parser.add_argument("--windows-evidence", type=Path, required=True)
+    parser.add_argument("--accept-inconclusive-performance", action="store_true")
     parser.add_argument("--windows-archive-report", type=Path, required=True)
     parser.add_argument("--linux-game-root", type=Path, required=True)
     parser.add_argument("--linux-archive-report", type=Path, required=True)
@@ -386,6 +389,7 @@ def main() -> int:
         args.map_load_report,
         args.attribution_notice,
         args.product_terms,
+        accept_inconclusive_performance=args.accept_inconclusive_performance,
     )
     try:
         result = prepare(

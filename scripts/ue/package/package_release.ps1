@@ -388,7 +388,8 @@ if (Test-Path $StagingCheckScript) {
 
 if ($Platform -eq 'Win64') {
     $IoStoreInspectionScript = Join-Path $ScriptDir 'inspect_iostore.ps1'
-    $IoStoreInspectionRoot = Join-Path $OutputDir 'debug\iostore'
+    $IoStoreInspectionRoot = Join-Path $ProjectRoot (
+        'tmp\package\iostore\' + [Guid]::NewGuid().ToString('N'))
     $IoStoreInspectionResult = Join-Path $IoStoreInspectionRoot 'inspection.json'
     if (-not (Test-Path -LiteralPath $IoStoreInspectionScript -PathType Leaf)) {
         throw "Shipping IoStore inspection is unavailable."

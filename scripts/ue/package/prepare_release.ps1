@@ -6,6 +6,7 @@ param(
     [Parameter(Mandatory = $true)][string]$PublicSourceRoot,
     [Parameter(Mandatory = $true)][string]$PlayerPackageRoot,
     [Parameter(Mandatory = $true)][string]$PlayerEvidence,
+    [switch]$AcceptInconclusivePerformance,
     [string]$LinuxPackageRoot,
     [string]$LinuxAcceptance,
     [Parameter(Mandatory = $true)][string]$DeveloperReleaseDir,
@@ -16,13 +17,13 @@ param(
     [Parameter(Mandatory = $true)][string]$MapLoadReport,
     [Parameter(Mandatory = $true)][string]$AttributionNotice,
     [Parameter(Mandatory = $true)][string]$ProductTerms,
-    [string]$ReleaseVersion = "2.0.0",
-    [string]$ReleaseTag = "v2.0.0",
+    [Parameter(Mandatory = $true)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$ReleaseVersion,
     [int]$SplitSizeMiB = 1900,
     [string]$SevenZip
 )
 
 $ErrorActionPreference = "Stop"
+$ReleaseTag = "v$ReleaseVersion"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $Implementation = Join-Path $ScriptDir "prepare_release.py"
@@ -50,7 +51,9 @@ $PreparedGitHubDir = Join-Path $WorkRoot "github"
 $LinuxArchiveDir = Join-Path $WorkParent ("{0}-linux-archive-{1}" -f $ReleaseTag, [Guid]::NewGuid().ToString("N"))
 $GeneratedLinuxAcceptance = Join-Path $WorkParent ("{0}-linux-acceptance-{1}.json" -f $ReleaseTag, [Guid]::NewGuid().ToString("N"))
 $PreserveWorkRoot = $false
-$UseMultiPlatformSchema = [version]$ReleaseVersion -ge [version]"2.1.0"
+$PolicyJson = & $Python.Source (Join-Path $ScriptDir "release_platforms.py") policy
+if ($LASTEXITCODE -ne 0) { throw "Unable to resolve release platform policy." }
+$UseMultiPlatformSchema = ($PolicyJson -join "`n" | ConvertFrom-Json).workspace_schema -eq "alis-release-workspace-v2"
 
 function Get-PackageSummaryValue {
     param(
@@ -167,6 +170,7 @@ try {
         "--output-dir", $PreparedGitHubDir
         )
     }
+    if ($AcceptInconclusivePerformance) { $PrepareArgs += '--accept-inconclusive-performance' }
     & $Python.Source @PrepareArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Release manifest preparation failed."

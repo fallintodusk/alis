@@ -40,6 +40,7 @@ class ReleaseInputs:
     map_load_report: Path
     attribution_notice: Path
     product_terms: Path
+    accept_inconclusive_performance: bool = False
 
 
 RUNTIME_STATE_PATHS = (
@@ -326,7 +327,7 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
             (inputs.player_evidence, "player-acceptance.json"),
             (composite, "player-machine-acceptance.json"),
         ]
-    elif evidence.get("status") == "accepted":
+    elif evidence.get("status") in ("accepted", "accepted_with_performance_waiver"):
         machine = evidence
         composite = inputs.player_evidence.resolve()
         require_equal(machine.get("revision"), private_revision, "player source revision")
@@ -341,7 +342,15 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
     else:
         raise ReleaseError(f"Unsupported player evidence status: {evidence.get('status')!r}")
 
-    require_equal(machine.get("status"), "accepted", "player machine acceptance")
+    from release_performance import validate_machine_performance
+    try:
+        performance_review = validate_machine_performance(
+            machine, inputs.accept_inconclusive_performance, private_root)
+    except (ValueError, OSError, TypeError, KeyError) as error:
+        raise ReleaseError(str(error)) from error
+    if performance_review is not None:
+        require_equal(performance_review["source_revision"], private_revision, "performance source revision")
+        require_equal(performance_review["source_state_sha256"], private_state, "performance source state")
     require_equal(recorded_package, package_root, "player package root")
     require_equal(package_sha256, package_tree_digest(package_root), "player package tree")
     if not executable.is_file() or not executable.is_relative_to(package_root):
@@ -423,6 +432,7 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
         },
         "evidence_files": evidence_files,
         "composite": composite,
+        "performance_review": performance_review,
         "archive_report": archive_report,
         "developer_manifest": developer,
         "developer_files": developer_files,
@@ -500,6 +510,16 @@ def write_release_guide(
             "  the packaged release.",
             "- Validate world generation, streaming, gameplay routes, and performance with",
             "  expanded automated gates.",
+        ]
+        changes_heading = f"WHAT'S NEW {version}"
+    elif version == "3.0.0":
+        player_changes = [
+            "- Explore Kazan and Manhattan on the new Mesh Terrain foundation.",
+            "- Both worlds use generated terrain material.",
+        ]
+        developer_changes = [
+            "- Develop both worlds through the common World pipeline.",
+            "- Generate and verify independently owned World producers with local changes.",
         ]
         changes_heading = f"WHAT'S NEW {version}"
     else:
@@ -698,6 +718,8 @@ def prepare_release(inputs: ReleaseInputs, output: Path, archive_paths: Iterable
             },
             "artifacts": artifacts,
         }
+        if validated["performance_review"] is not None:
+            manifest["performance_review"] = validated["performance_review"]
         manifest_path = output / "release_manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return manifest_path
@@ -746,14 +768,17 @@ def verify_artifacts(root: Path, manifest: dict[str, Any]) -> None:
 
 def verify_release_manifest(root: Path, require_ready: bool = False) -> dict[str, Any]:
     manifest = read_json(root / "release_manifest.json")
+    from release_performance import validate_release_performance
+    try:
+        validate_release_performance(manifest)
+    except (ValueError, TypeError, KeyError) as error:
+        raise ReleaseError(str(error)) from error
     schema = manifest.get("schema")
     if schema not in {"alis-release-manifest-v3", "alis-release-manifest-v4"}:
         raise ReleaseError(f"Unsupported release manifest schema: {schema!r}")
     version = str(manifest.get("release_version", ""))
     if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
         raise ReleaseError(f"Invalid release manifest version: {version!r}")
-    required_schema = "alis-release-manifest-v4" if tuple(map(int, version.split("."))) >= (2, 1, 0) else "alis-release-manifest-v3"
-    require_equal(schema, required_schema, f"release {version} manifest schema")
     if schema == "alis-release-manifest-v4":
         player_sources = manifest.get("player_sources")
         required_platforms = ("windows-x86_64", "linux-x86_64")
@@ -956,6 +981,7 @@ def main() -> int:
     prepare.add_argument("--public-source-root", type=Path, required=True)
     prepare.add_argument("--player-package-root", type=Path, required=True)
     prepare.add_argument("--player-evidence", type=Path, required=True)
+    prepare.add_argument("--accept-inconclusive-performance", action="store_true")
     prepare.add_argument("--player-archive-report", type=Path, required=True)
     prepare.add_argument("--developer-release-dir", type=Path, required=True)
     prepare.add_argument("--developer-payload-manifest", type=Path, required=True)
@@ -1005,6 +1031,7 @@ def main() -> int:
                 args.map_load_report,
                 args.attribution_notice,
                 args.product_terms,
+                accept_inconclusive_performance=args.accept_inconclusive_performance,
             )
             archive_report = args.player_archive_report.resolve()
             report = read_json(archive_report)

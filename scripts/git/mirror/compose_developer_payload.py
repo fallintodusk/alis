@@ -315,6 +315,46 @@ def collect_recipe_authority(
     return len(records)
 
 
+def collect_producer_input_authority(
+    repo_root: Path, entries: dict[str, Entry], authority: dict[str, Any],
+    descriptor: dict[str, Any],
+) -> int:
+    owner = str(authority["owner"])
+    prefix = plugin_root(repo_root, owner).relative_to(repo_root).as_posix()
+    if (not str(authority["manifest_path"]).startswith(prefix + "/Data/Producers/")
+            or descriptor.get("kind") != "producer"):
+        raise PayloadError(f"Producer input descriptor is outside owner {owner}")
+    if (authority.get("license_id") != "MPL-2.0"
+            or authority.get("distribution_class") != "rights_cleared_first_party_code_bearing"):
+        raise PayloadError(f"Producer input requires first-party code-bearing authority: {owner}")
+    assets = authority.get("assets", [])
+    if not assets:
+        raise PayloadError(f"Producer input authority is empty: {owner}")
+    selected = set()
+    for asset in assets:
+        relative = safe_relative(str(asset.get("artifact_path", "")))
+        if not relative.startswith(prefix + "/Content/") or not relative.endswith(".uasset"):
+            raise PayloadError(f"Producer input is outside owner {owner}: {relative}")
+        expected_package = f"/{owner}/" + relative[len(prefix + "/Content/"):-len(".uasset")]
+        if asset.get("package_name") != expected_package:
+            raise PayloadError(f"Producer input package/path mismatch: {relative}")
+        if relative in selected:
+            raise PayloadError(f"Duplicate producer input: {relative}")
+        selected.add(relative)
+        if relative not in descriptor.get("data_inputs", []):
+            raise PayloadError(f"Producer input is undeclared: {relative}")
+        if asset.get("provenance") != "first_party_native_configuration" or not asset.get("asset_class"):
+            raise PayloadError(f"Producer input provenance is unsupported: {relative}")
+        source = safe_relative(str(asset.get("preferred_source_path", "")))
+        if not source.startswith(prefix + "/Source/") or Path(source).suffix not in {".cpp", ".h"}:
+            raise PayloadError(f"Producer input preferred source is outside owner {owner}: {source}")
+        resolve_repo_file(repo_root, source)
+        entry = add_entry(entries, repo_root, relative, "producer_input_asset", owner)
+        if entry.sha256 != asset.get("artifact_sha256"):
+            raise PayloadError(f"Producer input hash mismatch: {relative}")
+    return len(selected)
+
+
 def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -> list[dict[str, Any]]:
     contract_relative, contract_path = resolve_repo_file(repo_root, ASSET_RELEASE_CONTRACT)
     contract = read_json(contract_path)
@@ -344,6 +384,8 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
             asset_count = collect_recipe_authority(
                 repo_root, entries, authority, manifest, recipe_packages, recipe_dependencies
             )
+        elif kind == "producer_input":
+            asset_count = collect_producer_input_authority(repo_root, entries, authority, manifest)
         else:
             raise PayloadError(f"Unsupported public asset authority kind for {owner}: {kind}")
 
@@ -358,6 +400,8 @@ def collect_public_asset_authority(repo_root: Path, entries: dict[str, Entry]) -
                 "asset_count": asset_count,
             }
         )
+        if kind == "producer_input":
+            selected[-1]["assets"] = authority["assets"]
     for dependent, package_name, package_sha256 in recipe_dependencies:
         if recipe_packages.get(package_name) != package_sha256:
             raise PayloadError(

@@ -169,9 +169,19 @@ try {
     if ((Get-Content -LiteralPath (Join-Path $GuardInputRoot 'sentinel.txt') -Raw).Trim() -cne 'protected') {
         throw 'Rejected frozen source removed existing release inputs.'
     }
-    Write-PendingRelease -Directory $SchemaMismatchRoot -ReleaseVersion "2.1.0"
-    Assert-Fails -MessagePattern "*requires workspace schema*" -Action {
-        & $ReleaseScript -ReleaseVersion "2.1.0" -ReleaseDir $SchemaMismatchRoot -SkipSigning
+    Write-PendingRelease -Directory $SchemaMismatchRoot -ReleaseVersion "3.0.0"
+    & $ReleaseScript -ReleaseVersion "3.0.0" -ReleaseDir $SchemaMismatchRoot -SkipSigning
+    if (-not $?) { throw "Windows-only 3.0.0 workspace did not resume without Linux." }
+    $StatePath = Join-Path $SchemaMismatchRoot "release-workspace.json"
+    $State = Get-Content -LiteralPath $StatePath -Raw | ConvertFrom-Json
+    $State.schema = "alis-release-workspace-unknown"
+    $State | ConvertTo-Json | Set-Content -LiteralPath $StatePath -Encoding Ascii
+    $RejectedBefore = Get-InventoryDigest -Directory $SchemaMismatchRoot
+    Assert-Fails -MessagePattern "*Unsupported release workspace schema*" -Action {
+        & $ReleaseScript -ReleaseVersion "3.0.0" -ReleaseDir $SchemaMismatchRoot -SkipSigning
+    }
+    if ($RejectedBefore -cne (Get-InventoryDigest -Directory $SchemaMismatchRoot)) {
+        throw "Rejected workspace schema changed the existing release."
     }
 
     Write-PendingRelease -Directory $WorkspaceRoot -ReleaseVersion "2.0.98"

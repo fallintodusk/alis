@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Platform-specific player archive ownership for ALIS releases."""
+"""Release platform policy and platform-specific player archive ownership."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ from typing import Any
 
 GITHUB_RELEASE_ASSET_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
 MAX_RELEASE_PART_SIZE_MIB = 1900
+# Enable another platform here only after its release acceptance is qualified.
+RELEASE_PLATFORMS = ("windows-x86_64",)
 LINUX_PLATFORM = "linux-x86_64"
 LINUX_EXECUTABLE = Path("Alis/Binaries/Linux/Alis-Linux-Shipping")
 LINUX_LAUNCHER = Path("Alis.sh")
@@ -24,6 +26,16 @@ LINUX_LAUNCHER = Path("Alis.sh")
 
 class ReleasePlatformError(RuntimeError):
     pass
+
+
+def release_policy() -> dict[str, Any]:
+    if RELEASE_PLATFORMS == ("windows-x86_64",):
+        workspace, manifest = "alis-release-workspace-v1", "alis-release-manifest-v3"
+    elif RELEASE_PLATFORMS == ("windows-x86_64", LINUX_PLATFORM):
+        workspace, manifest = "alis-release-workspace-v2", "alis-release-manifest-v4"
+    else:
+        raise ReleasePlatformError(f"Unsupported release platform policy: {RELEASE_PLATFORMS!r}")
+    return {"platforms": list(RELEASE_PLATFORMS), "workspace_schema": workspace, "manifest_schema": manifest}
 
 
 def sha256_file(path: Path) -> str:
@@ -195,6 +207,7 @@ def archive_linux_game(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("policy", help="Print the global platform policy for new releases")
     archive_linux = commands.add_parser("archive-linux")
     archive_linux.add_argument("--game-root", type=Path, required=True)
     archive_linux.add_argument("--output-dir", type=Path, required=True)
@@ -204,6 +217,9 @@ def main() -> int:
     archive_linux.add_argument("--split-size-mib", type=int, default=MAX_RELEASE_PART_SIZE_MIB)
     args = parser.parse_args()
     try:
+        if args.command == "policy":
+            print(json.dumps(release_policy()))
+            return 0
         result = archive_linux_game(
             args.game_root,
             args.output_dir,

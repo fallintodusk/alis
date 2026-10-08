@@ -234,8 +234,10 @@ Native startup errors are reported before missing downstream traversal fields.
 
 The existing real-input driver uses a capsule sweep to detect a blocking
 underside during obstacle ascent. It releases forward input and backs upward
-until clear, bounded by a ten-second retreat and the existing ascent/leg/tour
-limits. It never moves the pawn directly or changes collision responses.
+until clear, choosing an open lateral direction if the backward capsule sweep
+is blocked. It keeps an open escape direction, bounded by a ten-second retreat
+and the existing ascent/leg/tour limits. It never moves the pawn directly or
+changes collision responses.
 The exact native `Project.World.PlayableTour.OverhangRecovery` fixture proves
 the physical underside, input transition, clearance, and refusal cleanup.
 
@@ -314,6 +316,11 @@ An individual child whose only rejection is the Frame p95 gate remains part of
 the aggregate. UE requests process status 10 for that case, but packaged Windows
 may report normal exit 0; the authenticated rejection receipt and normal-exit
 log own the performance decision, while every abnormal process exit still fails.
+
+Explicit inconclusive performance acceptance is owned by
+[release preparation](../package/README.md#preparation-preflight-and-failure-triage).
+The release runners preserve the native measurement and apply that decision
+only after its authenticated correctness and envelope checks.
 
 The same Shipping transaction also runs the focused Water proof in the background.
 It reuses the packaged playable-tour driver's simulated `APlayerController::InputKey`

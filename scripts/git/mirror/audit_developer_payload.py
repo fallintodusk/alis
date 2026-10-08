@@ -87,6 +87,9 @@ def build_seed_plan(repo_root: Path) -> dict[str, Any]:
     composer.collect_manifest_authority(repo_root, "ProjectWorldData", entries)
     public_authorities = composer.collect_public_asset_authority(repo_root, entries)
     authority_by_owner = {item["owner"]: item for item in public_authorities}
+    producer_inputs = {asset["artifact_path"]: asset for authority in public_authorities
+                       if authority["authority_kind"] == "producer_input"
+                       for asset in authority["assets"]}
     world_root = repo_root / "Plugins" / "World" / "ProjectWorldData"
     active = read_json(world_root / "Data" / "Manifests" / "active_set.json")
     required_world_artifacts = {}
@@ -104,7 +107,7 @@ def build_seed_plan(repo_root: Path) -> dict[str, Any]:
             required_world_artifacts[str(item["path"])] = str(scope["scope_id"])
     seeds = []
     for entry in entries.values():
-        if entry.owner not in REQUIRED_OWNERS:
+        if entry.owner not in REQUIRED_OWNERS and entry.kind != "producer_input_asset":
             continue
         if entry.owner == "ProjectWorldData" and entry.path not in required_world_artifacts:
             continue
@@ -129,6 +132,8 @@ def build_seed_plan(repo_root: Path) -> dict[str, Any]:
                 "scope_id": required_world_artifacts.get(entry.path, entry.owner),
             }
         )
+        if entry.kind == "producer_input_asset":
+            seeds[-1]["asset_class"] = producer_inputs[entry.path]["asset_class"]
     seeds.sort(key=lambda item: item["package_name"])
     packages = {item["package_name"] for item in seeds}
     missing_roots = sorted(PUBLIC_ROOTS - packages)
@@ -271,9 +276,12 @@ def validate_inventory(
     )
     dependencies = []
     issues = []
+    asset_classes = {item["package_name"]: set(item["asset_classes"])
+                     for item in inventory.get("assets", [])}
     for package_name in sorted({edge["to"] for edge in inventory.get("edges", [])} | expected_roots):
         if "hlod" in package_name.lower():
-            issues.append({"code": "hlod_forbidden", "package_name": package_name})
+            issues.append({"code": "hlod_forbidden", "package_name": package_name,
+                           "reason": "HLOD packages are forbidden in the public payload."})
         classification = classify_dependency(
             package_name,
             selected,
@@ -282,6 +290,10 @@ def validate_inventory(
             engine_mounts,
             engine_modules,
         )
+        expected_class = selected.get(package_name, {}).get("asset_class")
+        if expected_class and asset_classes.get(package_name) != {expected_class}:
+            classification = {**classification, "disposition": "rejected_asset_class",
+                              "reason": f"Native package class does not match declared {expected_class}."}
         if package_name in missing:
             classification = {
                 **classification,
@@ -345,6 +357,8 @@ def main() -> int:
         return 1
     if args.command == "validate" and result.get("status") != "accepted":
         print(f"[FAIL] Developer dependency validate rejected: {args.output}", file=sys.stderr)
+        for issue in result["issues"]:
+            print(f"[FAIL] {issue['code']}: {issue['package_name']}: {issue['reason']}", file=sys.stderr)
         return 1
     print(f"[OK] Developer dependency {args.command}: {args.output}")
     return 0

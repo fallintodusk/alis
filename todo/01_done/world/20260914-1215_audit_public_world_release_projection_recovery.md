@@ -1,9 +1,9 @@
 # Make Public World Release Projection Isolated and Recoverable
 
-Status: CURRENT - focused isolation, pinned-runtime and Manhattan corrections committed; frozen unsigned projection proof pending the admission slice's operator commit and final release gate
+Status: DONE - frozen unsigned R5 accepted; public build, payload/dependency audit and both map loads verified
 Priority: Required before 3.0.0 release inputs are generated
 Created: 2026-09-14 12:15 Europe/Moscow
-Updated: 2026-10-06 Europe/Moscow
+Updated: 2026-10-08 Europe/Moscow
 
 ## Goal
 
@@ -11,7 +11,23 @@ Generate the release-only public Kazan and Manhattan projections without replaci
 operator's working tree. An interrupted or concurrent release run must be recoverable by discarding
 only its isolated, release-owned checkout. Do not reopen or change the accepted 2.0.0 release.
 
-## Current state and next steps
+## Outcome
+
+The frozen unsigned 3.0.0 route accepted from
+`a4167f43b91403d69da0ad011aa85d319c1453e6` with exit 0.
+Both public World realizations and pinned runtime profiles passed inside the
+isolated checkout. Composition, licensing, install/reinstall, clean public
+Editor build, dependency closure, both map loads and final unsigned assembly
+passed. The main source/index remained unchanged and the isolated checkout
+was removed. P4 is satisfied. No signing or publication occurred.
+
+The ledger is
+`tmp/release/r5/a4167f43b91403d69da0ad011aa85d319c1453e6/closure.json`.
+The [release router](../../00_current/00_release_3.0.0.md#current-state-and-next-steps) owns the
+operator walkthrough/review and R6 boundary. Absolute performance is
+inconclusive with explicit residual-risk acceptance; this is not performance PASS.
+
+## Implementation and historical evidence
 
 The live-tree failure mode is verified. Release input preparation now creates a
 detached worktree at the frozen source commit. The existing child World
@@ -37,7 +53,7 @@ not a frozen release. The direct instancing-policy guard was committed at
 and evidence envelope are committed through `c3c006cf12757bf0040ba7e047d1f9476f138e30`.
 Independent focused R2 returned PASS at that clean HEAD. The frozen unsigned route at
 `f4cce29f3b41840790355c18eb5c5fd72cd8a806` stopped in Manhattan performance before the public
-projection. The [release router](00_release_3.0.0.md) owns that failure and the focused correction;
+projection. The [release router](../../00_current/00_release_3.0.0.md) owns that failure and the focused correction;
 this task's P4 remains unverified.
 
 | Step | Runs | Verified by | Starts when |
@@ -222,7 +238,7 @@ input. Testing the complete route therefore happens only after the intended sour
       HEAD, detached state, and receipt agree. An ambiguous entry remains for inspection.
       No release phase journal is needed because no generated authority leaves
       the disposable checkout before promotion.
-- [ ] **P4 - retain child guarantees:** keep the existing realization manifests, map identities,
+- [x] **P4 - retain child guarantees:** keep the existing realization manifests, map identities,
       public profile checks, payload audit, clean public checkout, and map-load receipt.
 - [x] **P5 - docs and review:** update the package README, packaging guide, and canonical World
       realization docs only after the route is proven; run independent diff review.

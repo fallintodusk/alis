@@ -6,6 +6,7 @@ import sys
 import tarfile
 import unittest
 import uuid
+from unittest import mock
 from pathlib import Path
 
 
@@ -34,6 +35,18 @@ class ReleasePlatformTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_global_policy_selects_closed_formats_without_a_release_version(self) -> None:
+        self.assertEqual({"platforms": ["windows-x86_64"],
+                          "workspace_schema": "alis-release-workspace-v1",
+                          "manifest_schema": "alis-release-manifest-v3"}, self.module.release_policy())
+        with mock.patch.object(self.module, "RELEASE_PLATFORMS", ("windows-x86_64", "linux-x86_64")):
+            self.assertEqual("alis-release-workspace-v2", self.module.release_policy()["workspace_schema"])
+            self.assertEqual("alis-release-manifest-v4", self.module.release_policy()["manifest_schema"])
+        for invalid in ((), ("linux-x86_64",), ("windows-x86_64", "windows-x86_64"), ("windows-x86_64", "unknown")):
+            with self.subTest(platforms=invalid), mock.patch.object(self.module, "RELEASE_PLATFORMS", invalid):
+                with self.assertRaisesRegex(self.module.ReleasePlatformError, "Unsupported release platform policy"):
+                    self.module.release_policy()
 
     def test_linux_archive_preserves_launch_modes_and_splits_below_limit(self) -> None:
         output = self.root / "archive"

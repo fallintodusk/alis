@@ -37,7 +37,7 @@
         ],
         "properties": {
           "authority_kind": {
-            "enum": ["generated_definition_manifest", "generated_recipe_manifest"]
+            "enum": ["generated_definition_manifest", "generated_recipe_manifest", "producer_input"]
           },
           "owner": { "type": "string", "minLength": 1 },
           "manifest_path": { "type": "string", "minLength": 1 },
@@ -65,7 +65,22 @@
           "recipe_root": { "type": "string", "minLength": 1 },
           "recipe_suffix": { "type": "string", "pattern": "^[.][a-z_]+[.]json$" },
           "artifact_root": { "type": "string", "minLength": 1 },
-          "package_root": { "type": "string", "pattern": "^/" }
+          "package_root": { "type": "string", "pattern": "^/" },
+          "assets": {
+            "type": "array", "minItems": 1, "uniqueItems": true,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["artifact_path", "artifact_sha256", "package_name", "asset_class", "provenance", "preferred_source_path"],
+              "properties": {
+                "artifact_path": { "type": "string", "pattern": "^Plugins/.+/Content/.+\\.uasset$" },
+                "artifact_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                "package_name": { "type": "string", "pattern": "^/" },
+                "asset_class": { "type": "string", "minLength": 1 },
+                "provenance": { "const": "first_party_native_configuration" },
+                "preferred_source_path": { "type": "string", "pattern": "^Plugins/.+/Source/.+\\.(cpp|h)$" }
+              }
+            }
+          }
         },
         "allOf": [
           {
@@ -75,6 +90,16 @@
           {
             "if": { "properties": { "authority_kind": { "const": "generated_recipe_manifest" } } },
             "then": { "required": ["recipe_root", "recipe_suffix", "artifact_root", "package_root"] }
+          },
+          {
+            "if": { "properties": { "authority_kind": { "const": "producer_input" } } },
+            "then": {
+              "required": ["assets"],
+              "properties": {
+                "license_id": { "const": "MPL-2.0" },
+                "distribution_class": { "const": "rights_cleared_first_party_code_bearing" }
+              }
+            }
           }
         ]
       }
