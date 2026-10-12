@@ -14,15 +14,22 @@ Use when:
 - you are validating that the project opens with the configured engine
 - an agent needs a live editor for MCP inspection or supervised control
 
-From an agent PowerShell session, start it without blocking that session:
+From an agent PowerShell session, start it in the background without a visible
+editor window or foreground activation. Native offscreen rendering keeps the
+normal RHI available for viewport screenshots; do not substitute `-NullRHI`:
 
 ```powershell
 Start-Process -FilePath "cmd.exe" `
-  -ArgumentList "/c", "scripts\ue\run\run_editor.bat" `
-  -WorkingDirectory (Get-Location)
+  -ArgumentList '/c scripts\ue\run\run_editor.bat -RenderOffScreen -unattended -NoSplash' `
+  -WorkingDirectory (Get-Location) `
+  -WindowStyle Hidden
 ```
 
-The window appearing is not a readiness proof. For MCP work, follow the
+For an existing territory, put its map package immediately after
+`run_editor.bat`, before the engine flags. The wrapper forwards those arguments
+unchanged. Omit the offscreen flags for an operator's interactive editor.
+
+A process appearing is not a readiness proof. For MCP work, follow the
 engine-initialization and loopback-listener checks in
 [mcp_editor_control.md](../../../docs/ue_engine/mcp_editor_control.md).
 

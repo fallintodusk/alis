@@ -10,6 +10,7 @@
 #include "ProjectTextureRuntimeCatalog.generated.h"
 
 class UMaterialInterface;
+class UProjectTextureOutputSlot;
 
 USTRUCT(BlueprintType)
 struct PROJECTTEXTURE_API FProjectTextureRuntimeNodeDescriptor
@@ -64,6 +65,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Project Texture")
 	TArray<FProjectTextureRuntimeNodeDescriptor> Nodes;
+
+	// Explicit siblings for a reviewed multi-output contract; all live in this package.
+	UPROPERTY(EditAnywhere, Category = "Project Texture")
+	TArray<TObjectPtr<UProjectTextureOutputSlot>> OutputSlots;
 };
 
 UCLASS(BlueprintType)

@@ -362,8 +362,8 @@ The command requires the local tag and reviewed manifest to identify the same
 commit. It preflights the remote tag, publishes the branch and an absent tag in
 one atomic push, and reads both identities back. An existing tag on the same
 commit is an idempotent success. A tag on any other commit fails closed and is
-never force-moved. `RTAG` cannot be combined with generic `MIRROR_*` projection
-arguments, and the release-tag route is native Windows only.
+never force-moved. `RTAG` cannot be combined with `force` or generic `MIRROR_*`
+projection arguments, and the release-tag route is native Windows only.
 
 The later `make release X.Y.Z` still compares the final public Git tree before
 recording the operator's approval and signing. Only GPG prompts. The complete
@@ -389,9 +389,12 @@ Ephemeral local preview:
 make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1
 ```
 
-Allow dirty tree:
+Publish the current worktree instead of `HEAD`, uncommitted and untracked files
+included (see [Dirty Working Tree Policy](#dirty-working-tree-policy)). `force`
+is the short spelling of `MIRROR_FORCE=1`:
 ```bash
-make mirror MIRROR_DRY_RUN=1 MIRROR_FORCE=1
+make mirror force
+make mirror force MIRROR_DRY_RUN=1
 ```
 
 Compose the matching developer release:

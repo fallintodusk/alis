@@ -22,6 +22,7 @@ public class ProjectMaterialEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
+			"AssetReferenceRestrictions",
 			"AssetRegistry",
 			"Core",
 			"CoreUObject",
@@ -31,7 +32,9 @@ public class ProjectMaterialEditor : ModuleRules
 			"MeshPartitionEditor",
 			"ProjectCore",
 			"ProjectTexture",
+			"ProjectTextureEditor",
 			"Projects",
+			"RenderCore",
 			"UnrealEd"
 		});
 	}

@@ -67,6 +67,10 @@ operator merely because `UnrealEditor.exe` or an MCP listener is absent.
 2. If none exists, launch the project in the background through
    [`run_editor.bat`](../../scripts/ue/run/run_editor.bat). That script resolves
    the project root and launcher engine from repository-owned paths.
+   Use the offscreen agent invocation in the
+   [run instructions](../../scripts/ue/run/README.md), which retains rendering
+   without activating an editor window. Hiding the launcher shell alone does
+   not prevent the editor's own window from gaining focus.
 3. Wait for `LogInit: Display: Engine is initialized` and the required
    loopback listener (`8000` official, `8091` `ue-mcp`, or `9847`
    `blueprint-mcp`). A window title or mounted-plugin log line is not ready.

@@ -1,6 +1,13 @@
 # Improve Generated Building Presentation
 
-Status: researched; implementation not selected
+Status: researched; isolated massing prototype captured; implementation not selected
+
+Current sequencing: the active World Surface Presentation concern permits isolated
+building samples independently of soil approval. A textureless neutral Substrate
+Slab instance shares its parent with the road sample; matched BasicShape massing
+controls show lit wall/roof readability. These proxies do not establish generated
+building appearance or select a production implementation. City visual evaluation
+and material-assignment locality proof remain required.
 
 ## Current evidence
 
@@ -13,8 +20,8 @@ Status: researched; implementation not selected
 - `ProjectWorldBuildingRealization::Apply()` can leave a geometry-current mesh
   untouched before material reassignment. A future material-only change needs
   its own assignment/locality proof rather than forcing geometry dirty.
-- ProjectMaterial currently implements only its accepted terrain family; it
-  does not yet provide a reusable building material.
+- ProjectMaterial provides terrain/object families and an isolated soil fixture;
+  it does not yet provide a reusable building-massing material.
 
 The old package census and visual captures are not current authority. Recount
 the active manifests and capture a fresh control before implementation.

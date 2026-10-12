@@ -62,6 +62,33 @@ try {
         $TaggedMakeText -notmatch '-ReleaseTag\s+"v9\.8\.5"') {
         throw 'Make mirror did not pass the explicit RTAG to the reviewed publisher.'
     }
+    if ($BareMakeText -match '--force') {
+        throw 'Bare make mirror must not publish the worktree.'
+    }
+    $ForcedMake = @(& make -n -C $ProjectRoot mirror force FORCE_WSL=0 2>&1)
+    $ForcedMakeText = $ForcedMake -join "`n"
+    if ($LASTEXITCODE -ne 0 -or
+        $ForcedMakeText -notmatch 'mirror mode: generic' -or
+        $ForcedMakeText -notmatch 'mirror_to_github\.ps1.* --force') {
+        throw 'make mirror force must pass --force to the generic mirror publisher.'
+    }
+    $ForcedTaggedMake = @(& make -n -C $ProjectRoot mirror force FORCE_WSL=0 RTAG=v9.8.5 2>&1)
+    $ForcedTaggedMakeText = $ForcedTaggedMake -join "`n"
+    if ($ForcedTaggedMakeText -notmatch 'RTAG cannot be combined' -or
+        $ForcedTaggedMakeText -match 'publish_reviewed_release_source\.ps1') {
+        throw 'make mirror force must not reach the reviewed release publisher.'
+    }
+    $MisspelledFailed = $false
+    try {
+        & make -n -C $ProjectRoot mirror forse FORCE_WSL=0 2>&1 | Out-Null
+        $MisspelledFailed = $LASTEXITCODE -ne 0
+    }
+    catch {
+        $MisspelledFailed = $true
+    }
+    if (-not $MisspelledFailed) {
+        throw 'An unknown mirror modifier must fail instead of publishing.'
+    }
 
     New-Item -ItemType Directory -Path $Candidate, $Pending, $EmptyReleaseRoot -Force | Out-Null
     Invoke-Git $Candidate init -q

@@ -4,7 +4,7 @@
   "kind": "producer",
   "generator_id": "project_road_mesh",
   "generator_version": 1,
-  "output_revision": 1,
+  "output_revision": 2,
   "data_inputs": [],
   "modules": ["ProjectWorldRoadEditor"]
 }

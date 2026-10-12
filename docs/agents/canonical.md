@@ -61,6 +61,10 @@ bugs come from violating them.
 
 ## 3. Use UE engine primitives. Do not reinvent.
 
+Mandatory native capability selection and the evidence required for custom
+exceptions are owned by [Native Engine First](../architecture/principles.md#native-engine-first).
+Apply that rule before selecting an implementation.
+
 For each area: what UE gives you, where it lives, when to prefer it.
 
 - Drag/drop (Slate + UMG).

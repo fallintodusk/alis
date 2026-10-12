@@ -55,9 +55,34 @@ published file.
 
 ## Native Engine First
 
-Use current Unreal Engine capabilities before adding a project framework.
-Introduce a wrapper only when the native boundary cannot satisfy a demonstrated
-ALIS requirement.
+Maximum reuse of relevant out-of-box Unreal Engine capabilities is mandatory.
+This includes Beta and Experimental plugins, expressions, functions, toolsets,
+generation, caching, streaming, and profiling facilities. Their maturity label
+alone is not grounds for exclusion.
+
+Before implementing a custom equivalent or extending one to solve a new gap:
+
+1. Inspect the selected installed engine's implementation and current official
+   documentation for relevant native capabilities.
+2. Test the closest viable native option in a bounded disposable experiment when
+   inspection cannot establish suitability. Prefer native live parameter controls
+   for tuning over repeated C++ changes and rebuilds.
+3. Reuse the suitable native facility inside the existing owning black box.
+   Keep project authority, public contracts, dependency locality, and recovery intact.
+4. If custom work is necessary, record the concrete unmet requirement, native
+   candidates considered, evidence of their limitation, and smallest required
+   project extension in the change artifact. A preference for familiar custom code
+   or an untested performance claim is insufficient.
+
+This is a feature-selection requirement, not a mandate to enable every plugin.
+Experiments do not authorize production adoption or replacement of an accepted
+owner. Verify identity, repeatability, lifecycle, recovery, and the affected
+consumers before promotion. Quality and performance claims require rendered and
+measured evidence; a native cache or streaming API alone proves neither.
+
+Review must flag a custom equivalent without the required native investigation
+and gap evidence as PATCH. Introduce a wrapper only when the native boundary
+cannot satisfy a demonstrated ALIS requirement; keep it limited to that gap.
 
 ## Data and Authority
 

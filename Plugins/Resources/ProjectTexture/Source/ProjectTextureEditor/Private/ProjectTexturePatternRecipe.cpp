@@ -69,6 +69,7 @@ bool ReadNodes(
 	const TSharedPtr<FJsonObject>& Root,
 	int32 Seed,
 	const FString& ResolutionClass,
+	bool bSoil,
 	TArray<FProjectTexturePatternNode>& OutNodes,
 	FString& OutError)
 {
@@ -122,7 +123,11 @@ bool ReadNodes(
 			Node.OutputLayout == TEXT("natural_noise_basis_rgb_v1") && Node.Parents.IsEmpty();
 		const bool bGround = Node.Algorithm == TEXT("natural_ground_structure_native") &&
 			Node.OutputLayout == TEXT("surface_structure_rgb_v1") && Node.Parents.Num() == 1;
-		if (!bBasis && !bGround)
+		const bool bSoilNode = bSoil && (
+			(Node.Algorithm == TEXT("soil_clump_structure_native") && Node.OutputLayout == TEXT("soil_height_clump_grain_rgb_v1") && Node.Parents.IsEmpty()) ||
+			(Node.Algorithm == TEXT("soil_normal_native") && Node.OutputLayout == TEXT("soil_normal_rgb_v1") && Node.Parents.Num() == 1) ||
+			(Node.Algorithm == TEXT("soil_masks_native") && Node.OutputLayout == TEXT("soil_cavity_roughness_pigment_rgb_v1") && Node.Parents.Num() == 1));
+		if (bSoil ? !bSoilNode : (!bBasis && !bGround))
 		{
 			OutError = TEXT("Runtime node uses an unsupported algorithm, layout, or parent cardinality.");
 			return false;
@@ -145,48 +150,60 @@ bool ReadNodes(
 bool ReadExports(
 	const TSharedPtr<FJsonObject>& Root,
 	const TArray<FProjectTexturePatternNode>& Nodes,
+	bool bSoil,
 	TArray<FProjectTexturePatternExport>& OutExports,
 	FString& OutError)
 {
 	const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
-	if (!Root->TryGetArrayField(TEXT("exports"), Values) || Values == nullptr || Values->Num() != 1)
+	const TArray<FString> Slots = bSoil ? TArray<FString>{TEXT("Structure"), TEXT("Normal"), TEXT("Masks")}
+		: TArray<FString>{TEXT("Structure")};
+	const TArray<FString> Layouts = bSoil ? TArray<FString>{TEXT("soil_height_clump_grain_rgb_v1"),
+		TEXT("soil_normal_rgb_v1"), TEXT("soil_cavity_roughness_pigment_rgb_v1")}
+		: TArray<FString>{TEXT("surface_structure_rgb_v1")};
+	if (!Root->TryGetArrayField(TEXT("exports"), Values) || !Values || Values->Num() != Slots.Num())
 	{
-		OutError = TEXT("The first runtime output bundle requires exactly one Structure export.");
+		OutError = TEXT("Runtime export bundle has the wrong cardinality.");
 		return false;
 	}
-	const TSharedPtr<FJsonObject>* Object = nullptr;
-	FProjectTexturePatternExport Export;
-	if (!(*Values)[0]->TryGetObject(Object) || Object == nullptr ||
-		!ValidateFields(*Object, {TEXT("slot"), TEXT("node_id"), TEXT("descriptor_id")},
-			TEXT("runtime export"), OutError) ||
-		!ReadRequiredString(*Object, TEXT("slot"), Export.Slot, OutError) ||
-		!ReadRequiredString(*Object, TEXT("node_id"), Export.NodeId, OutError) ||
-		!ReadRequiredString(*Object, TEXT("descriptor_id"), Export.DescriptorId, OutError))
+	TSet<FString> Descriptors;
+	for (int32 Index = 0; Index < Values->Num(); ++Index)
 	{
-		return false;
-	}
-	const FProjectTexturePatternNode* Node = Nodes.FindByPredicate(
-		[&Export](const FProjectTexturePatternNode& Candidate)
+		const TSharedPtr<FJsonObject>* Object = nullptr;
+		FProjectTexturePatternExport Export;
+		if (!(*Values)[Index]->TryGetObject(Object) || !Object ||
+			!ValidateFields(*Object, {TEXT("slot"), TEXT("node_id"), TEXT("descriptor_id")}, TEXT("runtime export"), OutError) ||
+			!ReadRequiredString(*Object, TEXT("slot"), Export.Slot, OutError) ||
+			!ReadRequiredString(*Object, TEXT("node_id"), Export.NodeId, OutError) ||
+			!ReadRequiredString(*Object, TEXT("descriptor_id"), Export.DescriptorId, OutError)) return false;
+		const FProjectTexturePatternNode* Node = Nodes.FindByPredicate(
+			[&Export](const auto& Candidate) { return Candidate.NodeId == Export.NodeId; });
+		if (Export.Slot != Slots[Index] || !Node || Node->OutputLayout != Layouts[Index] ||
+			!IsSafeIdentifier(Export.DescriptorId) || !Export.DescriptorId.StartsWith(TEXT("RT_")) ||
+			Descriptors.Contains(Export.DescriptorId))
 		{
-			return Candidate.NodeId == Export.NodeId;
-		});
-	if (Export.Slot != TEXT("Structure") || Node == nullptr ||
-		Node->OutputLayout != TEXT("surface_structure_rgb_v1") ||
-		!IsSafeIdentifier(Export.DescriptorId) || !Export.DescriptorId.StartsWith(TEXT("RT_")))
+			OutError = TEXT("Export slot, node layout, or descriptor is invalid.");
+			return false;
+		}
+		Descriptors.Add(Export.DescriptorId);
+		OutExports.Add(MoveTemp(Export));
+	}
+	if (bSoil && (Nodes.Num() != 3 || Nodes[0].OutputLayout != Layouts[0] ||
+		Nodes[1].OutputLayout != Layouts[1] || Nodes[2].OutputLayout != Layouts[2] ||
+		OutExports[0].NodeId != Nodes[0].NodeId || OutExports[1].NodeId != Nodes[1].NodeId || OutExports[2].NodeId != Nodes[2].NodeId ||
+		Nodes[1].Parents != TArray<FString>{Nodes[0].NodeId} || Nodes[2].Parents != TArray<FString>{Nodes[0].NodeId}))
 	{
-		OutError = TEXT("Structure export must target a surface_structure_rgb_v1 node and RT_ descriptor.");
+		OutError = TEXT("Soil requires one coherent structure parent and its two derived outputs.");
 		return false;
 	}
-	OutExports.Add(MoveTemp(Export));
 	return true;
 }
 
 FString Normalize(const FProjectTexturePatternRecipe& Recipe)
 {
 	FString Result = FString::Printf(
-		TEXT("schema=3|pattern=%s|catalog=%s|family=%s|algorithm=%s|compiler=%s|")
+		TEXT("schema=%s|pattern=%s|catalog=%s|family=%s|algorithm=%s|compiler=%s|")
 		TEXT("output_contract=%s|seed=%d|resolution=%s|folder=%s"),
-		*Recipe.PatternId, *Recipe.CatalogId, *Recipe.Family, *Recipe.Algorithm,
+		*Recipe.SchemaVersion, *Recipe.PatternId, *Recipe.CatalogId, *Recipe.Family, *Recipe.Algorithm,
 		*Recipe.CompilerVersion, *Recipe.OutputContract, Recipe.Seed,
 		*Recipe.ResolutionClass, *Recipe.RelativeFolder);
 	for (const FProjectTexturePatternNode& Node : Recipe.Nodes)
@@ -248,9 +265,11 @@ bool FProjectTexturePatternRecipeContract::Parse(
 		}
 		return false;
 	}
-	if (SchemaPath != TEXT("../../Schemas/pattern-recipe.schema.json") ||
-		Schema != SchemaVersion || OutRecipe.Family != Family ||
-		OutRecipe.CompilerVersion != CompilerVersion || OutRecipe.OutputContract != OutputContract ||
+	const bool bSoil = Schema == TEXT("4") && OutRecipe.Family == TEXT("soil_structure") &&
+		OutRecipe.CompilerVersion == TEXT("6") && OutRecipe.OutputContract == TEXT("soil_structure_normal_masks_v1");
+	const bool bTerrain = Schema == SchemaVersion && OutRecipe.Family == Family &&
+		OutRecipe.CompilerVersion == CompilerVersion && OutRecipe.OutputContract == OutputContract;
+	if (SchemaPath != TEXT("../../Schemas/pattern-recipe.schema.json") || (!bSoil && !bTerrain) ||
 		!IsSafeIdentifier(OutRecipe.PatternId) || !IsSafeIdentifier(OutRecipe.CatalogId) ||
 		!OutRecipe.CatalogId.StartsWith(TEXT("DA_")) ||
 		(OutRecipe.ResolutionClass != TEXT("low") && OutRecipe.ResolutionClass != TEXT("medium") &&
@@ -259,10 +278,11 @@ bool FProjectTexturePatternRecipeContract::Parse(
 		OutError = TEXT("Pattern recipe uses an unsupported schema, identity, family, output, or resolution.");
 		return false;
 	}
+	OutRecipe.SchemaVersion = Schema;
 	OutRecipe.Algorithm = Algorithm;
 	OutRecipe.Seed = static_cast<int32>(Seed);
-	if (!ReadNodes(Root, OutRecipe.Seed, OutRecipe.ResolutionClass, OutRecipe.Nodes, OutError) ||
-		!ReadExports(Root, OutRecipe.Nodes, OutRecipe.Exports, OutError))
+	if (!ReadNodes(Root, OutRecipe.Seed, OutRecipe.ResolutionClass, bSoil, OutRecipe.Nodes, OutError) ||
+		!ReadExports(Root, OutRecipe.Nodes, bSoil, OutRecipe.Exports, OutError))
 	{
 		return false;
 	}
@@ -300,7 +320,7 @@ bool FProjectTexturePatternRecipeContract::ResolveOutputIdentity(
 	OutError.Reset();
 	if (!OutputPackageRoot.StartsWith(TEXT("/")) || OutputPackageRoot.Contains(TEXT("..")) ||
 		OutputPackageRoot.EndsWith(TEXT("/")) || Recipe.RelativeFolder.Contains(TEXT("..")) ||
-		Recipe.Exports.Num() != 1)
+		Recipe.Exports.IsEmpty())
 	{
 		OutError = TEXT("Output package root, recipe folder, or export bundle is invalid.");
 		return false;

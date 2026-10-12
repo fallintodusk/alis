@@ -5,12 +5,15 @@
 
 #include "ProjectMaterialPatternAuthority.h"
 #include "ProjectMaterialCompilerIdentity.h"
+#include "ProjectMaterialFixturePackage.h"
+#include "ProjectMaterialFixtureDomain.h"
 #include "ProjectMaterialSurfaceBuilder.h"
 #include "ProjectMaterialSurfaceManifest.h"
 #include "ProjectMaterialSurfaceRecipe.h"
 #include "ProjectMaterialTerrainLayoutContract.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "HAL/FileManager.h"
+#include "Interfaces/IPluginManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -99,9 +102,8 @@ bool HashFile(const FString& Path, FString& OutHash, FString& OutError)
 
 bool ResolvePackageFile(const FString& PackageName, FString& OutFilename, FString& OutError)
 {
-	OutFilename = FPackageName::LongPackageNameToFilename(
-		PackageName, FPackageName::GetAssetPackageExtension());
-	if (OutFilename.IsEmpty())
+	if (!FPackageName::TryConvertLongPackageNameToFilename(
+		PackageName, OutFilename, FPackageName::GetAssetPackageExtension()))
 	{
 		OutError = FString::Printf(TEXT("Could not resolve surface package file: %s"), *PackageName);
 		return false;
@@ -391,11 +393,39 @@ bool PrepareInputs(
 			}
 			OutPatterns.Add(Recipe.PatternId, MoveTemp(Pattern));
 		}
-		bNeedsTerrainLayout |= Recipe.Archetype == TEXT("terrain_metric");
+		bNeedsTerrainLayout |= FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype);
 	}
 	return !bNeedsTerrainLayout || FProjectMaterialTerrainLayoutCompiler::CompileFile(
 		Request.TerrainLayoutReceiptPath, FString(), OutLayout, OutError);
 }
+}
+
+bool FProjectMaterialSurfaceGenerationService::MakeTestRequest(const FString& Root,
+	const FString& LayoutReceipt, FProjectMaterialSurfaceGenerationRequest& OutRequest, FString& OutError)
+{
+	using namespace ProjectMaterialSurfaceGenerationPrivate;
+	OutRequest = {};
+	const FString Allowed = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/material/generation"));
+	if (!IsUnderDirectory(Root, Allowed) || FPaths::IsSamePath(FPaths::ConvertRelativePathToFull(Root), Allowed))
+	{
+		OutError = TEXT("An isolated surface fixture requires its own root under tmp/material/generation.");
+		return false;
+	}
+	const auto Texture = IPluginManager::Get().FindPlugin(TEXT("ProjectTexture"));
+	if (!Texture.IsValid())
+	{
+		OutError = TEXT("Accepted pattern owner is unavailable.");
+		return false;
+	}
+	OutRequest.RecipeRoot = FPaths::Combine(Root, TEXT("recipes"));
+	OutRequest.OutputPackageRoot = TestPackageRoot;
+	OutRequest.OutputContentRoot = FPaths::Combine(Root, TEXT("content/Surfaces"));
+	OutRequest.ManifestRoot = FPaths::Combine(Root, TEXT("manifests"));
+	OutRequest.PatternManifestPath = FPaths::Combine(Texture->GetBaseDir(),
+		TEXT("Data/Manifests/Patterns/accepted.pattern-manifest.json"));
+	OutRequest.PatternContentRoot = Texture->GetContentDir();
+	OutRequest.TerrainLayoutReceiptPath = LayoutReceipt;
+	return ValidateRequest(OutRequest, false, false, OutError);
 }
 
 bool FProjectMaterialSurfaceGenerationService::Validate(
@@ -439,6 +469,26 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 		return false;
 	}
 	OutResult.Validated = Recipes.Num();
+	const bool bTestMutation = !bValidateOnly && Request.OutputPackageRoot == TestPackageRoot;
+	FString TestContentRoot = Request.OutputContentRoot;
+	FPaths::NormalizeDirectoryName(TestContentRoot);
+	if (bTestMutation)
+	{
+		if (FPaths::GetCleanFilename(TestContentRoot) != TEXT("Surfaces"))
+		{
+			OutResult.Error = TEXT("Test output content must end in Surfaces to match its admitted package root.");
+			return false;
+		}
+		for (const FProjectMaterialSurfaceRecipe& Recipe : Recipes)
+		{
+			FString PackageName, ObjectPath;
+			if (!FProjectMaterialSurfaceRecipeContract::ResolveOutputIdentity(
+				Recipe, Request.OutputPackageRoot, PackageName, ObjectPath, OutResult.Error) ||
+				!ProjectMaterialFixturePackage::CheckLoadedOrigin(PackageName,
+					FPaths::Combine(Request.OutputContentRoot, Recipe.RelativeFolder,
+						Recipe.MaterialId + FPackageName::GetAssetPackageExtension()), OutResult.Error)) return false;
+		}
+	}
 	TMap<FString, FProjectMaterialPatternDependency> Patterns;
 	FProjectMaterialTerrainLayoutContract Layout;
 	if (!PrepareInputs(Request, Recipes, Patterns, Layout, OutResult.Error))
@@ -450,6 +500,12 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 	if (!ProjectMaterialSurfaceManifest::Load(ManifestPath, Existing, OutResult.Error))
 	{
 		return false;
+	}
+	if (bTestMutation)
+	{
+		if (!ProjectMaterialFixtureDomain::Register(OutResult.Error)) return false;
+		FPackageName::RegisterMountPoint(TEXT("/ProjectMaterialTest/"),
+			FPaths::GetPath(TestContentRoot) + TEXT("/"));
 	}
 	TArray<FProjectMaterialSurfaceManifestRecord> Accepted;
 	TMap<FString, FString> AcceptedPackageHashes;
@@ -493,7 +549,7 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 			BuildRecipe.ParentObjectPath = TestParentPath;
 		}
 		const FProjectMaterialTerrainLayoutContract* TerrainLayout =
-			Recipe.Archetype == TEXT("terrain_metric") ? &Layout : nullptr;
+			FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype) ? &Layout : nullptr;
 		FProjectMaterialSurfaceManifestRecord Candidate = BuildRecord(
 			Recipe, *Pattern, ObjectPath, ParentHash, TerrainLayout, TEXT("pending"));
 		if (IsAcceptedSkip(Existing.Find(ObjectPath), Candidate, PackageFile))
@@ -528,7 +584,7 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 		}
 		UObject* Asset = nullptr;
 		TArray<FString> CompileErrors;
-		const TMap<FName, int32> Channels = Recipe.Archetype == TEXT("terrain_metric")
+		const TMap<FName, int32> Channels = FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype)
 			? Layout.SemanticChannels : TMap<FName, int32>();
 		const bool bBuilt = Recipe.ArtifactKind == EProjectMaterialSurfaceArtifactKind::Parent
 			? ProjectMaterialSurfaceBuilder::BuildParent(

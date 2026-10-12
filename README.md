@@ -3,12 +3,20 @@
 World Reborn
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM">
-    <img src="https://img.youtube.com/vi/eIJHYsPgNnM/maxresdefault.jpg" alt="ALIS - World Reborn trailer - watch on YouTube" width="320">
-  </a>
-  <a href="https://youtu.be/zZOI2uBskSA">
-    <img src="https://img.youtube.com/vi/zZOI2uBskSA/maxresdefault.jpg" alt="Build the Game - watch on YouTube" width="320">
-  </a>
+  <kbd>
+    <a href="https://www.youtube.com/watch?v=eIJHYsPgNnM" title="Watch the ALIS trailer on YouTube"><picture>
+      <source srcset="https://fall.is/assets/media/alis-trailer-loop.avif" type="image/avif">
+      <img src="https://img.youtube.com/vi/eIJHYsPgNnM/maxresdefault.jpg" alt="ALIS - World Reborn trailer - watch on YouTube" width="384">
+    </picture></a>
+    <br><br><b>World Reborn</b> - trailer<br><br>
+  </kbd>
+  <kbd>
+    <a href="https://youtu.be/zZOI2uBskSA" title="Watch the ALIS world generation video on YouTube"><picture>
+      <source srcset="https://fall.is/assets/media/alis-worldgen-loop.avif" type="image/avif">
+      <img src="https://img.youtube.com/vi/zZOI2uBskSA/maxresdefault.jpg" alt="Build the Game - watch on YouTube" width="384">
+    </picture></a>
+    <br><br><b>Build the Game</b> - world generation<br><br>
+  </kbd>
 </p>
 
 ALIS is an open-source Unreal Engine survival prototype that rebuilds real

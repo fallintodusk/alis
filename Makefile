@@ -84,6 +84,15 @@ ifeq (cinematics,$(firstword $(MAKECMDGOALS)))
   endif
 endif
 
+# Exact modifier UX: `make mirror force` is `make mirror MIRROR_FORCE=1`. Only
+# that one word is synthesized, so a misspelled modifier still fails.
+ifeq (mirror,$(firstword $(MAKECMDGOALS)))
+  ifneq ($(filter force,$(MAKECMDGOALS)),)
+    MIRROR_FORCE := 1
+    $(eval force:;@:)
+  endif
+endif
+
 # Default target
 help:
 	@echo "Alis Project - Available Commands:"
@@ -134,6 +143,7 @@ help:
 	@echo "    make mirror - Publish to default public mirror ($(DEFAULT_MIRROR_REMOTE_URL))"
 	@echo "    make mirror RTAG=v2.0.0 - Publish reviewed main and matching release tag"
 	@echo "    make mirror MIRROR_DRY_RUN=1 - Preview against default mirror baseline"
+	@echo "    make mirror force - Publish the current worktree, uncommitted and untracked files included"
 	@echo "    make mirror MIRROR_REMOTE_URL=<url> - Override mirror remote explicitly"
 	@echo "    make mirror MIRROR_DRY_RUN=1 MIRROR_EPHEMERAL_PREVIEW=1 - One-off local preview without remote"
 	@echo "    make mirror MIRROR_DEVELOPER_RELEASE_DIR=<dir> MIRROR_DEVELOPER_VERSION=<version> - Add developer payload"

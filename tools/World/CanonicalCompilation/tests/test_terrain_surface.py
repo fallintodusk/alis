@@ -91,6 +91,34 @@ def _overlay(delta: float = 0.0, surface_weights: dict | None = None) -> dict:
 
 
 class TerrainSurfaceTests(unittest.TestCase):
+    def test_narrow_water_between_samples_has_continuous_clearance(self) -> None:
+        # A 3 m ribbon between 30 m samples reproduces the admitted coverage gap.
+        profile = _profile()
+        profile["grid"]["sample_spacing"] = [30.0, 30.0]
+        profile["terrain_surface"]["water_conditioning_limits"] = {
+            "maximum_cut_m": 2.0,
+            "maximum_support_distance_m": 45.0,
+            "accepted_accuracy": ["fixture"],
+        }
+        terrain = _terrain()
+        cell = terrain[CELL_ID]
+        cell["bounds"] = [0.0, 0.0, 30.0, 30.0]
+        cell["sample_spacing"] = [30.0, 30.0]
+        base = [[12.0] * 4 for _ in range(4)]
+        cell["water_fit"] = {"core_samples": [[12.0] * 2 for _ in range(2)],
+                             "halo_window": {"samples": deepcopy(base)}}
+        cell["halo_window"]["samples"] = deepcopy(base)
+        compiled = _compiled()
+        water = compiled.by_owner[CELL_ID][0]
+        water["geometry"] = {"type": "LineString", "coordinates": [[0.0, 15.0], [30.0, 15.0]]}
+        water["attributes"].update(width_m=3.0)
+        water["attributes"]["surface_function"]["accuracy"] = "fixture"
+        overlay = _overlay()
+        overlay["terrain_patches"] = []
+        finalize_terrain_cells(terrain, compiled, profile, GRID_ID, overlay)
+        self.assertEqual([[10.0, 10.0], [10.0, 10.0]], cell["core_samples"])
+        self.assertEqual([[12.0, 12.0], [12.0, 12.0]], cell["water_fit"]["core_samples"])
+
     def test_surface_contract_is_explicit(self) -> None:
         profile = _profile()
         del profile["terrain_surface"]

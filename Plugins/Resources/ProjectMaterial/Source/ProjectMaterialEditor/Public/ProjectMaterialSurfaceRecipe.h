@@ -17,7 +17,8 @@ enum class EProjectMaterialSurfaceArtifactKind : uint8
 enum class EProjectMaterialProjectionFrame : uint8
 {
 	WorldMetricTriplanar2D,
-	ObjectMetricTriplanar2D
+	ObjectMetricTriplanar2D,
+	UVUnitMeter
 };
 
 struct FProjectMaterialSurfaceRecipe
@@ -66,4 +67,5 @@ public:
 		const FProjectMaterialTerrainLayoutContract* TerrainLayout);
 
 	static FString GetEngineCompatibilityIdentity();
+	static bool IsTerrainArchetype(const FString& Archetype);
 };

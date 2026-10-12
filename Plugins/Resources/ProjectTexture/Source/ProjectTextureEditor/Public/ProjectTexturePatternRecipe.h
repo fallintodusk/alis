@@ -23,6 +23,7 @@ struct FProjectTexturePatternExport
 
 struct FProjectTexturePatternRecipe
 {
+	FString SchemaVersion;
 	FString SourcePath;
 	FString RelativeFolder;
 	FString PatternId;

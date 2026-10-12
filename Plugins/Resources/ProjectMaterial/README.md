@@ -39,7 +39,7 @@ structure scales with declared families and unique reusable structure, not cells
 cities, colors, wetness, instance transforms, or consumer count.
 
 See [surface generation](docs/material_generation.md) for the owned contract and
-operation route.
+operation route, and [verified pitfalls](docs/pitfalls.md) for failure diagnosis.
 
 ## Content
 

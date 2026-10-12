@@ -32,6 +32,11 @@ Data/Patterns/Terrain/project_terrain_structure.pattern.json
 The catalog and render-target descriptor are persistent generated contracts; their
 pixels and runtime cache entries are disposable. The recipe and accepted manifest
 remain the authority. Generated resource cost scales with unique reusable structure,
-not world population or consumer count. No runtime Texture Graph, custom
-virtual-texture producer, disk cache, or per-city/per-cell output is part of this
-contract.
+not world population or consumer count. Explicit asynchronous bundle producers reuse
+the same owner admission, stable slots and cache; their contract is documented in
+[opt-in asynchronous bundle producers](docs/pattern_generation.md#opt-in-asynchronous-bundle-producers).
+Known asynchronous lifecycle failures and their regressions are recorded in
+[ProjectTexture pitfalls](docs/pitfalls.md).
+The default has no runtime Texture Graph dependency. Experimental native integration
+remains a private opt-in fixture, with no production enrollment. Custom virtual-texture
+producers, disk caches and per-city/per-cell outputs are outside this contract.

@@ -1,7 +1,7 @@
 # ALIS 3.0.0 Release Plan
 
-**Status:** frozen unsigned R5 machine gates accepted at a4167f43b91403d69da0ad011aa85d319c1453e6; operator walkthrough/review and R6 publication remain
-**Active concern:** review the verified unsigned workspace, perform the operator walkthrough, then authorize R6 steps individually; concerns 1 and 2 are done ([Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md))
+**Status:** CURRENT - R5 at a4167f43b91403d69da0ad011aa85d319c1453e6 is an accepted historical technical baseline; 3.0.0 is not feature-complete or authorized for publication
+**Active concern:** complete [World Surface Presentation](20261008-1543_world_improve_surface_materials.md) and [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md) through their current authority registers. Those own bounded development authorizations and remaining adoption gates. Both are required before final frozen R5, operator walkthrough, and R6 (D19-D22); publication remains unauthorized.
 **Scope:** release-level scope, sequencing, and gates for 3.0.0, plus the release-platform contract change in `scripts/ue/package/` (R4)  
 **Stable documentation owner:** [Package and Release Guide](../../docs/build/packaging_guide.md) and [package scripts README](../../scripts/ue/package/README.md) for release operations; each concern task names its own owners
 
@@ -12,7 +12,11 @@ Reviewers start with `## Reviewer brief`.
 
 ## Current state and next steps
 
-### Current frozen boundary: unsigned R5 accepted
+### Accepted historical baseline: unsigned R5
+
+**Baseline verdict:** R5 PASS for the recorded technical gate envelope, with the
+explicit INCONCLUSIVE performance decision retained. This is not feature-complete
+3.0.0 acceptance or publication authorization (D19/D22).
 
 The operator committed `a4167f43b91403d69da0ad011aa85d319c1453e6`.
 One `make release 3.0.0 RELEASE_SIGN=0 SOURCE_COMMIT=<that-full-SHA>
@@ -41,11 +45,35 @@ IoStore comparison: Shipping 2,077,142,532 bytes versus retained 2.0.0's
 5,102,176,124 bytes. Manhattan appears exactly once in chunk 11.
 Projection recovery P4 is satisfied and its task is done.
 
-Next: operator walkthrough/review of this exact unsigned candidate, then R6.
-Do not build, cook, regenerate or repeat R5 merely for task bookkeeping.
-Do not sign, push, tag, publish or promote without the operation's authorization.
-The sections below retain investigation context; this frozen receipt owns the
-current execution status.
+This accepted R5 is technical baseline evidence, not final acceptance of the
+expanded feature scope (D19). Retain its receipts and INCONCLUSIVE performance
+decision without reinterpreting them as proof of changed materials or geometry.
+The baseline workspace is not the candidate to sign or publish.
+
+Next: follow concern 3's current authority register and review record, rather than
+reopening its historical soil or runtime experiments. BrownEarth's scoped compacted-
+soil visual checkpoint is accepted and frozen; remaining road, water and building
+presentation and persistent adoption remain open. Its D33 authorizes a confirmed
+building-facing source correction and isolated verification only. Existing city
+meshes remain unmodified; the eventual affected-building update is a separate
+adoption boundary, not permission for canonical or full World regeneration.
+The accepted isolated Texture Graph/cache foundation is retained. Exact adopted
+sources, packaged material consumption and measured cost must be proved at their
+proper boundary; fixture acceptance does not authorize production activation.
+Concern 4 has bounded Q1 correctness evidence, with production integration
+and its remaining decisions still open. Both concerns must be completed and
+accepted before a new final frozen R5 and operator walkthrough; R6 remains
+blocked (D19). No release operation is authorized by this development work.
+
+Development uses owner-local tests, scratch editor/PIE previews, and focused
+integration (D20). Do not build, cook, regenerate or repeat R5 for bookkeeping
+or as a debugging loop. The existing 16.67 ms target and explicit INCONCLUSIVE
+policy remain unchanged (D22). No commit, sign, push, tag, publish, or promotion
+is authorized by this development routing (D21).
+
+The older execution narratives below retain historical evidence. This current
+scope and D19-D22 govern the next action; prior "next R5/R6" notes are not a
+current instruction or publication authorization.
 
 ### Closed investigation: busy-host performance
 
@@ -752,7 +780,7 @@ checked separately. Existing probe hashes are preserved, not relabelled as a
 future frozen candidate. Packaged performance, Shipping and final projection
 remain R5 properties.
 
-Current state: concern 1 is done; production Kazan and Manhattan use Mesh Terrain
+Historical concern/runtime state before the accepted baseline: concern 1 is done; production Kazan and Manhattan use Mesh Terrain
 ([record](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md)). Concern 2's
 generated terrain material is in production on both cities and its final development delta passed
 review, and the task is done. Generated texture and material identities now bind only the public
@@ -791,6 +819,8 @@ candidate, not for every local implementation iteration. The source engine (`UE_
 `5.8.3-release` and passed its smoke check; `UE_SOURCE_PATH` remains its single configured record
 (D15).
 
+Historical preparation sequence; current next actions are owned by `## Sequencing` below.
+
 | # | Step | Runs | Verified by | Starts when |
 |---|---|---|---|---|
 | 1 | Payload dependency closure owners | each owner in Pre-candidate items | the release audit accepts | owners decide selection or removal |
@@ -803,7 +833,7 @@ candidate, not for every local implementation iteration. The source engine (`UE_
 - Goal - Authority register - Non-goals
 - Release concerns - Pre-candidate items - Sequencing
 - Verified evidence
-- Release gates R0-R6 - Optional Water gate
+- Release gates R0-R6 - Required visual concerns and development boundary
 - R4 release-platform contract (decision, invariants, tasks, verification)
 - Documentation plan - Reviewer brief - Completion criteria - Review record
 
@@ -812,8 +842,10 @@ candidate, not for every local implementation iteration. The source engine (`UE_
 ALIS 3.0.0 publishes a signed Windows release. Its headline is a visible advance in the World core:
 Kazan and Manhattan terrain comes from the same canonical geography through the substrate the
 operator accepts in concern 1, shaded by a production generated terrain material from concern 2,
-with no city-specific code or manual setup. Release platforms become explicit release data instead
-of a side effect of the version number.
+with no city-specific code or manual setup. Required concern 3 improves all four world surface
+classes, and required concern 4 addresses road/water geometric alignment after its dedicated
+investigation (D19). Release platforms become explicit release data instead of a side effect
+of the version number. Publication remains a future gated outcome, not this step's authority.
 
 2.0.0 proved that a second city comes out of the same generic pipeline. 3.0.0 is major because it
 moves the foundation every generated city's terrain stands on (D1, D12). Packaging,
@@ -835,22 +867,25 @@ elsewhere; never restate or renumber them.
     material.
   - Reason: "while we can".
   - Date/source: 2026-09-23, operator conversation supplied in this session.
-- **D2** The next release is 3.0.0 with this scope and order: (A) Mesh Terrain migration first - a
+- **D2 [SUPERSEDED IN PART by D19 - Water optionality]** The next release is 3.0.0 with this scope and order: (A) Mesh Terrain migration first - a
   decisive same-Kazan experiment and, if it wins, production cutover; (B) Terrain Material v2,
   built against the substrate A selects; release integration inside one common 3.0.0 release
   document; Water optional, only if A and B close early. A settles the substrate before B freezes
   its final material contract.
   - Effect: two implementation tasks plus this router; no separate release-contract task.
+    The A/B order and common router remain binding; the optional-Water clause is
+    replaced by D19's required presentation concern.
   - Reason: not stated by the operator; the accepted proposal argued that perfecting a
     classic-Landscape material that may be retired immediately is waste.
   - Date/source: 2026-09-23; the operator accepted the proposed plan ("ok so prepare these todos
     ...").
-- **D3** Release integration is a section of this common 3.0.0 document, not its own task. This
+- **D3 [SUPERSEDED IN PART by D19 - optional Water gate]** Release integration is a section of this common 3.0.0 document, not its own task. This
   document owns what makes the release major, the exact included and excluded scope, sequencing,
   the optional Water gate, the final comparison against 2.0.0, release and platform constraints,
   and operator acceptance and promotion. A genuinely larger release-system problem found during
   implementation is split into its own task only then.
   - Effect: R4 owns the platform/version decoupling.
+    Common release ownership remains binding; optional Water admission is replaced by D19.
   - Reason: the operator proposed it ("so better for C - just common release 3.0.0 doc with
     details?").
   - Date/source: 2026-09-23.
@@ -868,10 +903,6 @@ elsewhere; never restate or renumber them.
   - Effect in this file: the required platform set has one explicit owner (R4, narrowed by D17). Both
     concern tasks carry the same decision.
   - Date/source: 2026-09-23, this session.
-- **D6** Three tasks live in `todo/00_current/`: this router, the Mesh Terrain task, and the
-  Terrain Material v2 task.
-  - Effect: Material v2 stays current while its final contract waits for D2's substrate gate.
-  - Date/source: 2026-09-23, this session ("I guess we need 3 todos in current").
 - **D7** Even though Mesh Terrain is Experimental, it is the long-term direction: after the test
   passes, the architecture wraps fully around it, with no legacy support and no legacy mentions.
   Operator's words: "even experimental it future long going goal so we will wrap around it our
@@ -961,6 +992,64 @@ elsewhere; never restate or renumber them.
   - Date/source: 2026-10-07, operator: "yes performance only need check when we
     do real release, not some arhcitectural check" and "so do fully without my confirmation".
 
+- **D19 [SUPERSEDED IN PART by D24 - read-only investigation timing]** Keep 3.0.0 CURRENT and not authorized for publication. The accepted R5
+  at `a4167f43b91403d69da0ad011aa85d319c1453e6` remains historical technical
+  baseline evidence. Add two required current todos: World Surface Presentation
+  and Road and Water Alignment. Both must be completed and accepted before a
+  new final frozen R5, operator walkthrough, final release approval, and R6.
+  Agree on todo 1 first, then investigate todo 2 separately.
+  - Supersedes: D2's Water optionality, D3's optional Water gate, and D6's
+    current-task roster. The original completed concerns remain accepted.
+  - Effect: concerns 3 and 4 are required; R6 is blocked. No release decision is
+    left open merely because the earlier baseline passed.
+  - Reason: 3.0.0 is not yet feature-complete; both visual improvements belong in it.
+  - Date/source: 2026-10-08, operator's corrected release structure and instructions.
+- **D20** Preserve ProjectTexture -> ProjectMaterial -> ProjectWorld black-box
+  boundaries. Material-only tuning must not trigger World regeneration,
+  canonical compilation, or broad rebuilds. A necessary first-time serialized
+  material-reference migration is permitted with focused proof and rollback.
+  Reuse the existing water, road, and building presentation research rather than
+  creating competing sources of truth. Development uses owner-local tests,
+  scratch editor/PIE previews, and focused integration; do not repeatedly
+  commit/rebuild/cook/regenerate the entire World to debug.
+  - Reason: preserve modularity and locality guarantees.
+  - Date/source: 2026-10-08, operator instructions.
+- **D21 [SUPERSEDED IN PART by D24 - bounded read-only editor evidence]** This step is planning/documentation only: prepare the two linked todos
+  and update this release router, then stop. Do not implement either concern,
+  run expensive verification, commit, tag, sign, push, or publish.
+  - Reason: review todo 1 before implementation, and investigate todo 2 separately.
+  - Date/source: 2026-10-08, operator instructions.
+- **D22** Preserve the existing 16.67 ms target and explicit INCONCLUSIVE
+  performance policy.
+  - Effect: D16/D18 and their stable performance owners remain unchanged.
+    Historical acceptance does not become absolute performance PASS, and PIE
+    evidence does not certify a final packaged candidate.
+  - Reason: not stated.
+  - Date/source: 2026-10-08, operator instructions.
+- **D23 [SUPERSEDED IN PART by D24 - bounded read-only editor evidence]** Audit the attached road/water alignment feedback against actual code,
+  architecture, goals, and previous agreements; fix the existing todos and refute
+  incorrect reviewer points.
+  - Effect: source-grounded planning corrections only in this step. D19-D22 remain
+    binding; reviewer feedback grants no implementation or release authority.
+  - Reason: not stated.
+  - Date/source: 2026-10-08, operator follow-up to audit and fix todos.
+- **D24** Update the alignment todo and run the read-only editor investigation now.
+  - Supersedes: D19's material-agreement prerequisite for this bounded investigation
+    and D21/D23's documentation-only limit for this step.
+  - Effect: permit bounded editor geometry/visual diagnostics without saved asset
+    changes, implementation, generation, broad gates, or release work. Concern 3's
+    agreement and both implementation gates remain open. Final R5/R6 and the
+    historical/performance/locality boundaries remain unchanged.
+  - Reason: not stated.
+  - Date/source: 2026-10-08, operator answer to the scope question.
+
+### No longer binding
+
+- **D6 [SUPERSEDED by D19]** Three tasks live in `todo/00_current/`: this router, the Mesh Terrain task, and the
+  Terrain Material v2 task.
+  - Effect: Material v2 stays current while its final contract waits for D2's substrate gate.
+  - Date/source: 2026-09-23, this session ("I guess we need 3 todos in current").
+
 ### Operator gates
 
 - **Q1 [CLOSED by D12]:** If the
@@ -1003,7 +1092,7 @@ elsewhere; never restate or renumber them.
 ## Non-goals
 
 - Linux: no Linux build ships until we gain a server (D10); its task stays parked.
-- Water presentation unless admitted through the Water gate below.
+- Publication or another release run during D21's planning step; R6 remains blocked by D19.
 - itch.io publication, unless separately authorized. The 2.0.0 attempt closed on the account
   allowance, and the publisher remains available.
 - Reopening 2.0.0 artifacts or verification.
@@ -1017,10 +1106,11 @@ elsewhere; never restate or renumber them.
 |---|---|---|---|
 | 1 | Terrain substrate: switch to Mesh Terrain (D12), proven on a same-Kazan comparison, then cutover | [Mesh Terrain migration](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md) | Done |
 | 2 | Generated production terrain material | [Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md) | Done; candidate proof per R2 |
+| 3 - Required | Terrain-first World Surface Presentation (D19-D20) | [World Surface Presentation](20261008-1543_world_improve_surface_materials.md) | CURRENT; BrownEarth bounded visual checkpoint PASS and frozen; remaining surface prototypes active under concern-local D31; persistent adoption and exact cooked acceptance OPEN |
+| 4 - Required | Road/terrain and water/terrain alignment, intersections, and layering (D19) | [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md) | CURRENT; Q1 owner-local correctness implemented and verified; production water acceptance, I5/I6 and Q2/Q3 OPEN |
 | Required | World release projection safety fix | [Projection recovery](../01_done/world/20260914-1215_audit_public_world_release_projection_recovery.md) | Done; frozen unsigned R5 accepted (D8) |
 | Required | World generation locality and identity correctness | [Generation locality](../01_done/world/20261002-1711_world_restore_generation_locality.md) | Done; independent R2 PASS before R5 (D8) |
-| Integration | Release-platform contract and final candidate | this file, R4-R6 | R4 any time after review; R5-R6 last |
-| Optional | Water presentation | [Water presentation](../02_backlog/world/20260825-1717_world_improve_water_presentation.md) | Only through the Water gate |
+| Integration | Release-platform contract and final candidate | this file, R4-R6 | R4 accepted; historical R5 retained; new final R5 after concerns 3/4; R6 blocked |
 
 ### Pre-candidate items
 
@@ -1067,18 +1157,20 @@ elsewhere; never restate or renumber them.
 
 ### Sequencing
 
-1. Concern 1 Phases 0-3 run first. Concern 2 T0-T2 (census, design, substrate-neutral lifecycle
-   changes proven in test roots) may run beside them.
-2. Concern 1 switches to Mesh Terrain (D12); a failed invariant starts its workaround loop, not a
-   rejection.
-3. Concern 1's production cutover and concern 2's production identity migration land in one
-   terrain regeneration. A separate material path migration would rewrite every terrain package a
-   second time: 428 external-actor packages reference the current terrain material today.
-4. R4 is independent of World work and can be implemented once reviewed.
-5. The World release projection safety fix (D8) lands before R5 step 4.
-6. The World generation-locality task, including its one combined realization of both cities,
-   lands before R5 (D8).
-7. R5 and R6 run last from one frozen source identity, on engine 5.8.3 (D13).
+1. Keep completed concerns 1/2, R4, projection recovery, and locality evidence as
+   accepted history. Do not repeat their production cutovers for bookkeeping.
+2. Review and agree on concern 3 first (D19/D21). Its todo owns material experiments,
+   consumer integration, any necessary reference migration, and visual acceptance.
+3. D24 permits a bounded read-only investigation of concern 4 now. Its todo compares
+   conformity with local feature-driven shaping, but selects no implementation;
+   obtain evidence-backed design approval before changing geometry.
+4. Complete and accept both concerns through their bounded owner-local development
+   routes (D20). No release package or full World regeneration is a debugging step.
+5. After both are accepted, prepare one new final frozen candidate under the existing
+   source/engine and release contracts, run final R5, and conduct its operator walkthrough.
+   Earlier receipts authenticate only their own unchanged boundaries, not new outputs.
+6. Only after that candidate and final release approval are accepted can R6 be
+   authorized operation by operation. No current publication authorization exists (D19/D21).
 
 ## Verified evidence
 
@@ -1221,19 +1313,21 @@ separate material package:
 - step 2: SM5/SM6 cook, archive/IoStore and package limits, packaged Kazan and Manhattan terrain
   render, frame/memory/hitch for both territories against the
   [World performance contract](../../scripts/ue/world/README.md#packaged-kazan-playable-tour-acceptance)
-  (Manhattan has no accepted frame measurement yet), and the Shipping Water proof. The Kazan
+  (historical Manhattan measurements do not certify the expanded candidate), and the Shipping Water proof. The Kazan
   runner now calls Manhattan's existing-package mode on its exact Development package after
   Kazan's three-run aggregate and before Shipping replaces it. Manhattan uses the same package
   and executable bytes, three runs, explicit non-interactive policy, and the shared 16.67 ms
-  base p95 aggregator. Focused fixtures pass; real packaged Manhattan acceptance awaits R5;
+  base p95 aggregator. Historical baseline acceptance is retained; the changed candidate
+  needs final packaged evidence under D19/D22;
 - step 4: payload composition that includes the v2 material and ProjectTexture authorities;
 - step 5: owner-attributed ProjectTexture and ProjectMaterial bytes, plus shader and PSO counts;
 - step 6: operator visual acceptance of the terrain material.
 
 ### R3 - supported-route blockers
 
-The projection safety implementation is committed, with its frozen-commit proof pending before
-R5 step 4 (D8). City17's SM5 fallback is accepted as legacy (D9). No shader error on a
+The projection safety implementation and its historical frozen-commit proof are accepted
+(D8). Final R5 reauthenticates the expanded candidate's applicable closure; the baseline
+does not certify new outputs. City17's SM5 fallback is accepted as legacy (D9). No shader error on a
 non-legacy route is suppressed. The packaged host allowance follows D16.
 
 ### R4 - release-platform contract
@@ -1241,6 +1335,12 @@ non-legacy route is suppressed. The packaged host allowance follows D16.
 See the R4 section below.
 
 ### R5 - final candidate (one frozen source identity)
+
+**NOT STARTED for the expanded scope.** The accepted historical baseline does not
+satisfy this final gate. Required concerns 3 and 4 must first be completed and accepted
+(D19). D21 authorizes no candidate build or release run now. Preserve the 16.67 ms
+target and explicit default-off INCONCLUSIVE policy (D22); any future residual-risk
+acceptance remains explicit and retains the original rejected evidence.
 
 1. Freeze a clean tree at the candidate commit.
 2. Run the World L4 release proof for both territories: package, IoStore, packaged render and
@@ -1277,6 +1377,10 @@ See the R4 section below.
 
 ### R6 - publication (operator-gated at every step)
 
+**BLOCKED:** concerns 3 and 4, a new final frozen R5, operator walkthrough, and final
+release approval remain outstanding (D19). The steps below are the future route,
+not authority to execute any of them. D21 forbids their execution in this step.
+
 1. With V11 fixed under R4, `make mirror RTAG=v3.0.0`.
 2. `make release 3.0.0` - approve, sign, verify.
 3. Upload every asset to the GitHub draft by hand. Confirm release immutability is enabled before
@@ -1289,16 +1393,28 @@ See the R4 section below.
 Nothing is published, mirrored, signed for release, or promoted without the operator's approval of
 that exact step.
 
-## Optional Water gate
+## Required visual concerns and development boundary
 
-Water joins 3.0.0 only when all of these hold:
+Concern 3 owns all surface-material execution, reusing the retained water, road,
+and building research linked in its todo. Those backlog records are provenance,
+not parallel active tasks. Concern 4 separately owns alignment investigation;
+its design remains pending. Neither a shader compile nor file creation closes
+either required concern (D19-D20).
 
-- R1 and R2 are accepted and no required 3.0.0 blocker remains;
-- the Water investigation finds a bounded change that reuses canonical Water authority and
-  ProjectMaterial, with no second geometry or material lifecycle;
-- it can pass its complete acceptance envelope without weakening the terrain evidence.
+During development, preserve accepted technical baseline evidence and use the
+smallest owner-local red/green check, isolated fixture, and matched editor/PIE
+preview. A same-path material tune changes Material authority only. A necessary
+first material-reference cutover must prove its bounded write set and rollback,
+not force geography dirty. Any eventual geometry correction follows its own
+changed-owner contract and declared proof depth. An unexpected cross-owner
+rebuild is an architectural finding, not permission for full regeneration.
 
-Otherwise Water stays the next World release concern.
+The existing [World layers](../../docs/testing/world_pipeline_layers.md) and
+[release preflight](../../scripts/ue/package/README.md#preparation-preflight-and-failure-triage)
+own gate selection. Final packaged behavior and performance remain future R5
+properties; fast development evidence cannot certify them. D21 bounds this
+session to document preparation and cheap documentation checks, except for D24's
+explicit bounded read-only editor investigation.
 
 ## R4 - release-platform contract
 
@@ -1356,8 +1472,10 @@ remain with their existing owners; this platform fix adds no second owner.
 
 ## Reviewer brief
 
-For the review of R4 before implementation, and of the R5 and R6 plan before the candidate. Review
-with the `architect` skill and the review contract. D1-D14 bind: a finding that contradicts one names
+Review concerns 3/4 and this corrected release boundary before implementation;
+review the final R5/R6 plan again before its future candidate. Use the `architect`
+skill and review contract. All binding authority-register entries apply, including
+D19-D24 and the explicit partial supersessions; a finding that contradicts one names
 it and argues with evidence. Judge against ALIS goals and standards: [VISION.md](../../VISION.md)
 (signed, verifiable releases), the [Package and Release Guide](../../docs/build/packaging_guide.md),
 the [package scripts README](../../scripts/ue/package/README.md),
@@ -1368,6 +1486,13 @@ the [package scripts README](../../scripts/ue/package/README.md),
 
 Investigate carefully, on the web wherever the fact is external, and cite primary sources:
 
+- **Required visual scope (D19-D24):** two linked CURRENT concerns, material
+  agreement and implementation gates retained, with D24's bounded read-only alignment
+  investigation permitted now. No competing material owners; historical R5 remains
+  distinct from final acceptance, with no publication authority.
+- **Locality and proof (D20/D22):** material-only tuning preserves World geography;
+  necessary first-reference migration has bounded proof/rollback. Fast editor/PIE
+  evidence stays development-only; target and INCONCLUSIVE policy are unchanged.
 - **Release policy (R4, D17):** verify one global owner, no SemVer-derived
   platform selection, Windows-only creation and unchanged recorded-format
   validation. Reject speculative scaffolding or a prerequisite refactor.
@@ -1386,13 +1511,20 @@ and smallest fix, with sources linked.
 ## Completion criteria
 
 - Concerns 1 and 2 reached `PASS` (D12).
+- Required concerns 3 and 4 are completed and accepted (D19); neither is closed
+  by the historical baseline or by its planning document.
 - R4 is implemented and verified, and the projection safety fix is done (D8).
-- The R5 candidate passed every step from one frozen source identity, with exact size and
-  performance evidence against 2.0.0.
+- A new final R5 after both visual concerns passed every required step from one frozen
+  source identity, with exact size and performance evidence against 2.0.0. Retain the
+  16.67 ms target and explicit INCONCLUSIVE decision semantics (D22).
 - The operator approved the candidate, and publication and promotion completed through R6.
 - Durable facts live in their stable owners, and this file is reduced to the outcome record.
 
 ## Review record
+
+The current authority register and sequencing govern next actions. Older rounds
+below preserve technical history, including their then-current next-step notes;
+they do not authorize replay or publication under the expanded scope.
 
 ### 2026-09-23 - initial investigation
 
@@ -1685,3 +1817,49 @@ and smallest fix, with sources linked.
   Independent corrected R2 returned PASS for the precommit scope. The overlay is precommit
   evidence; clean public checkout, map loads, packaged player, and R5 still require the eventual
   clean committed source.
+
+### 2026-10-08 - required visual concerns and historical baseline
+
+- **Authority:** D19-D22 added; D2/D3 partially superseded and D6 superseded by D19.
+- **Plan:** two required CURRENT todos linked; material work reuses retained consumer
+  research, while alignment remains queued with implementation decisions pending.
+- **Review:** independent architect R1 returned PATCH for active R2/R3 historical
+  wording and water-placeholder retirement. Both corrections were applied;
+  independent recheck returned PASS for the three-document planning scope.
+- **Verification:** ASCII, local links/fragments, unchanged baseline evidence,
+  decision-ID census, and diff hygiene checked. No implementation, runtime test,
+  expensive gate, staging, commit, or release operation performed.
+
+### 2026-10-08 - attached alignment review reconciled
+
+- **Authority:** D23 records the todo-audit request; D19-D22's required concerns,
+  historical baseline, final frozen R5/R6 block, locality, and performance policy
+  remain unchanged. The reviewer suggestion to make concern 4 required later is stale.
+- **Plan:** source-supported road sampling/width counterexamples become focused
+  investigation targets. Shared-sampler consumers and clamping/halo semantics are
+  explicit; water continuous-clearance and visible root causes remain unverified.
+  Material and geometry todos now carry a measured geometry/depth handoff.
+- **Review:** independent architect re-review returned PASS for the three-document
+  planning scope after the Manhattan recipe link was corrected. It does not approve
+  an alignment algorithm or certify runtime behavior.
+- **Verification:** ASCII, authority-ID census, 54 local links/fragments across the
+  new todos and touched release links, unchanged historical R5 evidence, expected
+  three-document dirty set, empty unchanged index, and diff hygiene checked.
+  No implementation, map measurement, staging, or release action.
+
+### 2026-10-08 - production comparison and bounded editor investigation
+
+- **Authority:** D24 permits read-only geometry/visual investigation now; narrow
+  timing/evidence supersessions preserve the original D19/D21/D23 statements.
+- **Plan:** concern 4 compares conformity and local feature-driven shaping against
+  measured constructed appearance, geographic fidelity, ownership, closure, and cost.
+  No feature-driven terrain implementation or new generation framework is approved.
+- **Evidence:** the alignment todo records a read-only two-cell Kazan probe: road
+  samples below terrain-preview collision by 1.65/2.05 m, water mesh samples below
+  it by 7.20/2.77 m, and four fixed lit captures with temporal-control limitations.
+  All 3,739 protected WorldData/Material/Texture files remain byte-identical; editor
+  exited without saving. This is partial investigation evidence, not candidate or
+  release acceptance. No release gate or publication action.
+- **Review/checks:** independent architect PASS for planning and bounded evidence
+  reporting; ASCII, authority IDs, 54 local links/fragments, preserved R5 definitions,
+  unchanged empty index, and diff hygiene checked. Implementation/R6 remain blocked.

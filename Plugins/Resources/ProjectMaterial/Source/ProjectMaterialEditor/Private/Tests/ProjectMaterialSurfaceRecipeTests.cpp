@@ -154,4 +154,34 @@ bool FProjectMaterialSurfaceRecipeKnownBadTest::RunTest(const FString& Parameter
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMaterialTerrainDetailRecipeTest,
+	"Project.Material.Generation.TerrainDetailRecipe",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectMaterialTerrainDetailRecipeTest::RunTest(const FString& Parameters)
+{
+	const FString Root = ProjectMaterialSurfaceRecipeTests::RecipeRoot();
+	const FString Path = FPaths::Combine(Root, TEXT("Terrain/M_ProjectTerrain.surface.json"));
+	FString Json, Error;
+	if (!TestTrue(TEXT("Read terrain control recipe"), FFileHelper::LoadFileToString(Json, *Path))) return false;
+	Json.ReplaceInline(TEXT("\"terrain_metric\""), TEXT("\"terrain_detail_metric\""));
+	Json.ReplaceInline(TEXT("\"BaseRoughness\":"),
+		TEXT("\"FineScaleMeters\": 1.0, \"BumpHeightCentimeters\": 0.15, \"FineColorStrength\": 0.12, \"BaseRoughness\":"));
+	FProjectMaterialSurfaceRecipe Recipe;
+	if (!TestTrue(TEXT("Closed terrain detail prototype parses"),
+		FProjectMaterialSurfaceRecipeContract::Parse(Json, Path, Root, Recipe, Error)))
+	{
+		AddInfo(Error);
+		return false;
+	}
+	TestEqual(TEXT("Terrain detail keeps canonical channel names"), Recipe.SemanticBindings.Num(), 2);
+	TestEqual(TEXT("Fine scale is independent of macro scale"), Recipe.Scalars.FindRef(TEXT("FineScaleMeters")), 1.0);
+	TestTrue(TEXT("Bump amplitude is explicit centimetres"), Recipe.Scalars.Contains(TEXT("BumpHeightCentimeters")));
+	const FString Excessive = Json.Replace(TEXT("\"BumpHeightCentimeters\": 0.15"),
+		TEXT("\"BumpHeightCentimeters\": 100.0"));
+	TestFalse(TEXT("Excessive visual height refuses"),
+		FProjectMaterialSurfaceRecipeContract::Parse(Excessive, Path, Root, Recipe, Error));
+	return true;
+}
+
 #endif

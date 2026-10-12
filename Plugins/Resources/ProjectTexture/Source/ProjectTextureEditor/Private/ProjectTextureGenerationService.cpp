@@ -4,12 +4,14 @@
 #include "ProjectTextureGenerationService.h"
 
 #include "ProjectTexturePatternBuilder.h"
+#include "ProjectTextureFixtureDomain.h"
 #include "ProjectTexturePatternManifest.h"
 #include "ProjectTexturePatternRecipe.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "Misc/PackagePath.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "PackageTools.h"
@@ -136,9 +138,8 @@ bool DiscoverRecipes(
 
 bool ResolvePackageFile(const FString& PackageName, FString& OutFilename, FString& OutError)
 {
-	OutFilename = FPackageName::LongPackageNameToFilename(
-		PackageName, FPackageName::GetAssetPackageExtension());
-	if (OutFilename.IsEmpty())
+	if (!FPackageName::TryConvertLongPackageNameToFilename(
+		PackageName, OutFilename, FPackageName::GetAssetPackageExtension()) || OutFilename.IsEmpty())
 	{
 		OutError = FString::Printf(TEXT("Could not resolve pattern package file: %s"), *PackageName);
 		return false;
@@ -356,12 +357,44 @@ bool FProjectTextureGenerationService::RegenerateInternal(
 		return false;
 	}
 	OutResult.Validated = Recipes.Num();
+	if (Request.OutputPackageRoot == TestPackageRoot)
+	{
+		// Retargeting a mount does not retarget the origin of cached UObjects.
+		// Admit every output before policy registration, replacement or manifest writes.
+		for (const FProjectTexturePatternRecipe& Recipe : Recipes)
+		{
+			FString PackageName, ObjectPath, MountedFile;
+			if (!FProjectTexturePatternRecipeContract::ResolveOutputIdentity(
+				Recipe, Request.OutputPackageRoot, PackageName, ObjectPath, OutResult.Error) ||
+				!ResolvePackageFile(PackageName, MountedFile, OutResult.Error)) return false;
+			const FString ExpectedFile=FPaths::Combine(Request.OutputContentRoot, Recipe.RelativeFolder,
+				Recipe.CatalogId + FPackageName::GetAssetPackageExtension());
+			if (!FPaths::IsSamePath(FPaths::ConvertRelativePathToFull(MountedFile),
+				FPaths::ConvertRelativePathToFull(ExpectedFile)))
+			{
+				OutResult.Error=FString::Printf(TEXT("Pattern fixture mounted output differs from the requested file: %s"), *PackageName);
+				return false;
+			}
+			if (const UPackage* Loaded=FindPackage(nullptr,*PackageName))
+			{
+				const FString Origin=Loaded->GetLoadedPath().GetLocalFullPath();
+				if (Loaded->IsDirty() || Origin.IsEmpty() || !FPaths::IsSamePath(
+					FPaths::ConvertRelativePathToFull(Origin),FPaths::ConvertRelativePathToFull(ExpectedFile)))
+				{
+					OutResult.Error=FString::Printf(TEXT("Pattern fixture package is dirty or loaded from a different or unknown file: %s"), *PackageName);
+					return false;
+				}
+			}
+		}
+	}
 	const FString ManifestPath = FPaths::Combine(Request.ManifestRoot, ManifestName);
 	TMap<FString, FProjectTexturePatternManifestRecord> Existing;
 	if (!ProjectTexturePatternManifest::Load(ManifestPath, Existing, OutResult.Error))
 	{
 		return false;
 	}
+	if (!bValidateOnly && Request.OutputPackageRoot == TestPackageRoot &&
+		!ProjectTextureFixtureDomain::Register(OutResult.Error)) return false;
 	TArray<FProjectTexturePatternManifestRecord> Accepted;
 	TSet<FString> AcceptedObjectPaths;
 	for (const FProjectTexturePatternRecipe& Recipe : Recipes)

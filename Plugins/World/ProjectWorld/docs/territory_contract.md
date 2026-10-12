@@ -263,6 +263,23 @@ weights. The Mesh Terrain adapter realizes that immutable final surface; it does
 not clamp or classify terrain. The Water mesh independently stays at canonical
 Water Z plus the profile-owned positive surface offset.
 
+Continuous hydro support uses the same regular canonical lattice. Every quad
+intersecting a Water footprint constrains its corners, including quads incident
+to halo-border samples; holes remain outside the footprint. Standing Water uses
+its fitted level. Flowing Water uses the feature's minimum finite knot height,
+which bounds affine realized triangles even where their interiors differ from
+the nearest-segment height function. This conservative support can be infeasible
+for a long sloping feature; it is not a terrain-refinement or road-grading law.
+Additional lowering requires explicit compiler-profile
+`terrain_surface.water_conditioning_limits`: maximum cut from immutable
+`water_fit`, maximum footprint support distance, and accepted function accuracy
+labels. Missing limits or exceeded limits refuse before any in-memory terrain
+cell is replaced. Authored patches cannot raise constrained samples above the
+support bound. Production policy acceptance and generated-authority promotion
+remain separate operations; an existing profile without limits is not permission
+to condition additional terrain. Water edits dirty the union of old/new footprint,
+transition and triangle-support influence, including shared halo nodes.
+
 Ribbon cell membership derives from the final quantized buffered surface
 footprint, not only its centerline. A footprint-only cell stores an explicit
 reference to the same feature-level centerline, width, and surface function;
@@ -488,7 +505,21 @@ surface Z, cell bounds, and relevant coordinate quantization. The enclosing
 all-feature artifact hash is not water identity; a road or building edit in the
 same cell cannot dirty unchanged water.
 Road cell input identity likewise covers only the terrain dependency and road
-semantics consumed by that cell. Adding another profile layer cannot invalidate
+semantics consumed by that cell. The ribbon builder and identity use one bounded
+source-segment projection: only segments within coordinate-quantization tolerance
+of consumed subdivision points affect tangents; absent context refuses without
+a global nearest-segment fallback. Width may consume adjacent terrain within the
+declared dependency halo, and every positive-area terrain dependency is hashed.
+An indexed cell context bounds lookup work. Identity calculation intersects
+ribbon footprints with cell rectangles; it does not construct finished meshes.
+Road realization intersects the same ribbon with canonical A,C,B / B,C,D terrain
+triangles, preserving full interior conformity and geometric normals/tangents.
+Width outside the admitted outer cell bounding rectangle is clipped; missing
+or overlapping interior coverage refuses before mesh emission. This preserves
+the existing terrain-drape and same-owner overlap policies; it does not infer
+junction connectivity or bridge/tunnel elevations. Source descriptions, compiled
+StaticMesh geometry and native collision require separate proofs.
+Adding another profile layer cannot invalidate
 an accepted layer merely because the aggregate profile document hash changed;
 the normalized layer contract remains that layer's behavior authority.
 Building cell input identity covers only intersecting logical Building geometry,
@@ -1263,6 +1294,12 @@ lattice and coordinate authority, not a competing v1 option.
   territory blockouts only: no interiors, doors, gameplay placement, or modular
   assembly is implied. Later selected-feature assembly must replace only the
   selected massing through its own admitted generator tuple.
+  Mesh emission uses UE-clockwise front faces with outward vertex normals;
+  double-sided query collision does not establish visible exterior facing.
+  Building input identity includes output revision 2 for this geometry
+  convention. Corrected emitted vertex order also changes mesh semantic identity.
+  This invalidates affected building outputs without changing canonical input,
+  actor ownership/tag domains, or unrelated generated layers.
 - Do not generate HLOD layers, proxy meshes, merged meshes, simplified
   meshes, or HLOD companion packages for `kazan_territory_v1`. HLOD adds a
   separate distant-representation build, storage, cook, and regeneration

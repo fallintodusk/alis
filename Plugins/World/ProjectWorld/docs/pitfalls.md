@@ -5,6 +5,37 @@ the area; add an entry after fixing a non-trivial bug.
 
 Format: Symptom / Root cause / Fix / File / Regression test.
 
+## Continuous alignment can fail despite matching mesh vertices
+
+**Symptom.** A road ribbon intersects terrain between its vertices, or a narrow
+water surface is occluded despite sampled water clearance. Nearby source-road
+changes can also retain an unchanged road input hash.
+
+**Root cause.** Bilinear centerline sampling does not represent the canonical
+terrain's two affine triangle planes or ribbon width. Lattice-point membership
+misses water contained between samples. A flowing function's local height does
+not bound every chord in a realized water triangle. Tangent context omitted from
+road identity permits reuse of geometry built from different inputs.
+
+**Fix.** Partition road ribbons at canonical triangle intersections and hash
+the same bounded tangent and neighboring terrain inputs. Canonical hydro support
+constrains corners of intersected quads under explicit quality limits and uses
+a conservative flowing-knot floor. Include old/new halo support in dirty closure.
+The [territory contract](territory_contract.md#geospatial-authority) owns policy
+and authority; whole-territory regeneration cannot repair missing input identity.
+
+**Files.** `Source/ProjectWorldRoadEditor/Private/ProjectWorldRoadRealization.cpp`,
+`Source/ProjectWorldRoadEditor/Private/ProjectWorldRoadSurface.cpp`,
+`Source/ProjectWorldEditor/Private/ProjectWorldTerrainSurface.cpp`, and
+`tools/World/CanonicalCompilation/app/terrain_water_coverage.py`.
+
+**Regression tests.** `Project.World.Realization.Road.FullFootprintConformity`
+(source, compiled fallback, save/reload and collision),
+`Project.World.Realization.Road.ConsumedGeometryIdentity`,
+`Project.World.Realization.Alignment.TriangleClearanceOracle`,
+`Project.World.Realization.Alignment.WaterTriangleEnvelope`, and
+`tools.World.CanonicalCompilation.tests.test_water_coverage.WaterCoverageTests`.
+
 ---
 
 ## 1. Route navigation volume looks mis-oriented on a diagonal road
@@ -1338,3 +1369,35 @@ and `scripts/ue/world/test/integration/uncooked_playable_tour_contract.ps1`.
 **Regression tests.** The uncooked receipt fixture requires the native startup
 error code. The actual two-city probe proves render-target correction precedes
 traversal and authenticates both real gameplay receipts.
+
+---
+
+## 47. Building collision and debug shading mask reversed exterior winding
+
+**Symptom.** A debug building is visible, but an opaque one-sided replacement
+shows dark interior surfaces or underlying terrain instead of its exterior walls
+and roof. Collision still blocks movement from both directions.
+
+**Root cause.** Conventional outward cross products are opposite UE's clockwise
+static-mesh front-face convention. Native normal recomputation follows emitted
+triangle winding. Double-sided query collision and debug shading do not prove
+exterior visibility. Geometry Scripting's default build-settings application can
+also recompute copied source normals; distinguish raw source from RenderData.
+
+**Fix.** The building triangle emitter reverses its authored order before vertex
+creation and derives outward normals from the native reverse cross. Ordered
+vertex emission changes mesh semantic identity. Building-owned input output
+revision 2 changes dirty-unit identity before the realization's early skip;
+reversing polygon instance order alone is insufficient. Canonical geometry,
+positions/bounds, actor tag domains and unrelated layers retain their contracts.
+Do not compensate with inverted material normals or a Two Sided material.
+
+**Files.** `Source/ProjectWorldBuildingEditor/Private/ProjectWorldBuildingMeshBuilder.cpp`
+and `Source/ProjectWorldBuildingEditor/Private/ProjectWorldBuildingRealization.cpp`.
+
+**Regression tests.** `Project.World.Realization.Buildings.ExteriorFacing`
+requires all twelve cube triangles and native/stored normal agreement.
+`Project.World.Realization.Buildings.ExteriorRender` checks one-sided native
+wall/roof depth, shader normals and a rejected away-facing camera in a transient
+fixture. Existing production outputs require their separately authorized affected
+building update; a fixture PASS does not mutate or certify those outputs.

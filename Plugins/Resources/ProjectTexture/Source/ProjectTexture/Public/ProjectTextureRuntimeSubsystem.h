@@ -6,12 +6,18 @@
 #include "CoreMinimal.h"
 #include "Engine/World.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "RHIResources.h"
+#include "Containers/Ticker.h"
+#include "ProjectTextureAsyncBundle.h"
 #include "ProjectTextureRuntimeSubsystem.generated.h"
 
 class FProjectTextureRuntimeCache;
 class UProjectTextureOutputSlot;
+class UProjectTextureRuntimeCatalog;
 class UTextureRenderTarget2D;
 class UWorld;
+class UProjectTextureBundleProducer;
+enum class EProjectTextureBundleRequest : uint8 { Pending, Ready, Rejected };
 
 struct PROJECTTEXTURE_API FProjectTextureRuntimeCacheDeleter
 {
@@ -63,12 +69,26 @@ public:
 
 	static void NotifyOutputSlotLoaded(UProjectTextureOutputSlot* OutputSlot);
 
+	// Explicit opt-in only; automatic generation continues to use the material producer.
+	EProjectTextureBundleRequest RequestBundle(UProjectTextureOutputSlot* Slot,
+		UProjectTextureBundleProducer* Producer, bool bPin, FString& Error);
+	bool ReleaseBundle(const FString& Identity, FString& Error);
+	bool CancelBundle(const FString& Identity, FString& Error);
+	int32 EvictReleasedBundles();
+	bool IsBundleReady(const UProjectTextureOutputSlot* Slot) const;
+
 private:
 	void HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues InitializationValues);
 	void HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 	void QueueOrGenerate(UProjectTextureOutputSlot* OutputSlot);
 	UWorld* FindGenerationWorld() const;
 	void ReleaseTransientTargets();
+	bool TickBundles(float Delta);
+	void ReleaseBundleResources(const FString& Identity);
+	void DrainBundles();
+	void ReconcileBundles();
+	bool AreOutputsReady(const UProjectTextureRuntimeCatalog* Catalog,
+		const TMap<FName, UTextureRenderTarget2D*>& Targets) const;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UProjectTextureOutputSlot>> PendingOutputs;
@@ -76,10 +96,17 @@ private:
 	UPROPERTY(Transient)
 	TMap<FString, TObjectPtr<UTextureRenderTarget2D>> TransientTargets;
 
-	TSet<FString> ReadyOutputs;
+	struct FReadyOutput
+	{
+		TWeakObjectPtr<UTextureRenderTarget2D> Target;
+		FTextureRHIRef Resource;
+	};
+	TMap<FString, FReadyOutput> ReadyOutputs;
 	TMap<FString, int32> NodeGenerationCounts;
 	TUniquePtr<FProjectTextureRuntimeCache, FProjectTextureRuntimeCacheDeleter> Cache;
 	FProjectTextureRuntimeTelemetry Telemetry;
 	FDelegateHandle WorldInitializedHandle;
 	FDelegateHandle WorldCleanupHandle;
+	UPROPERTY(Transient) TMap<FString, FProjectTextureAsyncBundle> Bundles;
+	FTSTicker::FDelegateHandle BundleTicker;
 };

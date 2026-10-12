@@ -146,22 +146,26 @@ Describe 'ProjectMaterial surface host transaction' -Tag 'Integration' {
         $objectRoot = Join-Path $script:OutputRoot 'Object'
         $holderRoot = Join-Path $script:TestRoot 'content\Referencers'
         New-Item -ItemType Directory -Path $holderRoot -Force | Out-Null
-        # A byte copy of the cube instance still references the cube's package path; nothing in
-        # this run loads or references the copy.
+        # The copied package carries parent and original-instance dependencies.
+        # Remove the original instance so only the unloaded holder references the parent.
         Copy-Item -LiteralPath (Join-Path $objectRoot 'MI_ProjectMetricCube.uasset') `
             -Destination (Join-Path $holderRoot 'MI_ReferenceHolder.uasset')
+        Remove-Item -LiteralPath (Join-Path $objectRoot 'MI_ProjectMetricCube.uasset')
 
         # The terrain instance is the unreferenced control; test packages are not used by World.
         Remove-Item -LiteralPath (Join-Path $script:RecipeRoot 'Object\MI_ProjectMetricCube.surface.json')
+        Remove-Item -LiteralPath (Join-Path $script:RecipeRoot 'Object\M_ProjectMetricSurface.surface.json')
         Remove-Item -LiteralPath (Join-Path $script:RecipeRoot 'Terrain\MI_ProjectTerrain_Default.surface.json')
         $cleanup = Invoke-Surface -CleanupOrphans
-        @($cleanup.retained_orphans) | Should -Be @('/ProjectMaterialTest/Surfaces/Object/MI_ProjectMetricCube')
-        Test-Path -LiteralPath (Join-Path $objectRoot 'MI_ProjectMetricCube.uasset') | Should -BeTrue
+        @($cleanup.retained_orphans | Sort-Object) | Should -Be @(
+            '/ProjectMaterialTest/Surfaces/Object/M_ProjectMetricSurface',
+            '/ProjectMaterialTest/Surfaces/Object/MI_ProjectMetricCube')
+        Test-Path -LiteralPath (Join-Path $objectRoot 'M_ProjectMetricSurface.uasset') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $script:OutputRoot 'Terrain\MI_ProjectTerrain_Default.uasset') |
             Should -BeFalse
         $log = Get-Content -LiteralPath (Join-Path $script:EvidenceRoot 'Current\commandlet.log') -Raw
         $log | Should -Match (
-            'orphan retained - package=/ProjectMaterialTest/Surfaces/Object/MI_ProjectMetricCube ' +
+            'orphan retained - package=/ProjectMaterialTest/Surfaces/Object/M_ProjectMetricSurface ' +
             'referencers=/ProjectMaterialTest/Referencers/MI_ReferenceHolder\(loaded=false\)')
         $log | Should -Match 'orphan deleted - package=/ProjectMaterialTest/Surfaces/Terrain/MI_ProjectTerrain_Default'
     }

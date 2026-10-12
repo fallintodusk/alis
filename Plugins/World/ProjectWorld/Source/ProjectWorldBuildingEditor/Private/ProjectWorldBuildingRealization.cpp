@@ -291,7 +291,8 @@ namespace ProjectWorldBuildingRealization
 		{
 			return false;
 		}
-		FString Identity(TEXT("project_building_cell_input_v2"));
+		// A winding correction changes compiled geometry with unchanged canonical input.
+		FString Identity(TEXT("project_building_cell_input_v2|output_revision=2"));
 		AppendToken(Identity, Cell.CellId);
 		AppendToken(Identity, Layer.ContractHash);
 		AppendNumber(Identity, Bundle.CoordinateQuantizationMeters);

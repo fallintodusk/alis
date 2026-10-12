@@ -42,17 +42,8 @@ bool FProjectWorldRoadLayerProducer::ValidateSettings(
 bool FProjectWorldRoadLayerProducer::HashUnitInputs(const FProjectWorldLayerInputs& Inputs,
 	FProjectWorldLayerUnitInputs& OutUnits, FString& OutError) const
 {
-	for (const FProjectWorldCanonicalCell& Cell : Inputs.Bundle.Cells)
-	{
-		FString Hash;
-		if (!ProjectWorldRoadRealization::HashCellInput(
-			Inputs.Bundle, Cell, Inputs.Layer, Hash, OutError))
-		{
-			return false;
-		}
-		OutUnits.HashByUnit.Add(Cell.CellId, Hash);
-	}
-	return true;
+	return ProjectWorldRoadRealization::HashUnitInputs(
+		Inputs.Bundle, Inputs.Layer, OutUnits.HashByUnit, OutError);
 }
 
 bool FProjectWorldRoadLayerProducer::Apply(const FProjectWorldLayerApplyContext& Context,

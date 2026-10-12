@@ -1,6 +1,13 @@
 # Improve Generated Road Presentation
 
-Status: uninvestigated
+Status: isolated material prototypes captured; production implementation not selected
+
+Current sequencing: the active World Surface Presentation concern permits isolated
+road samples independently of soil approval. A shared textureless opaque parent has
+matched BasicShape controls. A bounded reuse of the compacted soil bundle adds
+cloudy road detail without convincing asphalt aggregate; retain it as a rejected
+comparison, not a default. No road archetype or serialized reference migration is
+selected. Real generated-road views and a road-specific visual oracle remain required.
 
 ## Current gap
 

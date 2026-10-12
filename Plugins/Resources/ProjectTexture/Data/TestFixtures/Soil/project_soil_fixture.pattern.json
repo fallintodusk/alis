@@ -1,0 +1,52 @@
+{
+  "$schema": "../../Schemas/pattern-recipe.schema.json",
+  "schema_version": "4",
+  "pattern_id": "project_soil_fixture",
+  "catalog_id": "DA_ProjectSoilFixture",
+  "family": "soil_structure",
+  "compiler_version": "6",
+  "output_contract": "soil_structure_normal_masks_v1",
+  "seed": 1847,
+  "resolution_class": "high",
+  "nodes": [
+    {
+      "node_id": "soil_structure",
+      "algorithm": "soil_clump_structure_native",
+      "parents": [],
+      "output_layout": "soil_height_clump_grain_rgb_v1"
+    },
+    {
+      "node_id": "soil_normal",
+      "algorithm": "soil_normal_native",
+      "parents": [
+        "soil_structure"
+      ],
+      "output_layout": "soil_normal_rgb_v1"
+    },
+    {
+      "node_id": "soil_masks",
+      "algorithm": "soil_masks_native",
+      "parents": [
+        "soil_structure"
+      ],
+      "output_layout": "soil_cavity_roughness_pigment_rgb_v1"
+    }
+  ],
+  "exports": [
+    {
+      "slot": "Structure",
+      "node_id": "soil_structure",
+      "descriptor_id": "RT_ProjectSoilStructure"
+    },
+    {
+      "slot": "Normal",
+      "node_id": "soil_normal",
+      "descriptor_id": "RT_ProjectSoilNormal"
+    },
+    {
+      "slot": "Masks",
+      "node_id": "soil_masks",
+      "descriptor_id": "RT_ProjectSoilMasks"
+    }
+  ]
+}

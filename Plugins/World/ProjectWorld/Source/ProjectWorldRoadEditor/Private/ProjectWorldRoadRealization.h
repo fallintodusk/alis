@@ -13,9 +13,17 @@ struct FProjectWorldRealizationResult;
 class AActor;
 class UMaterialInterface;
 class UWorld;
+struct FMeshDescription;
 
 namespace ProjectWorldRoadRealization
 {
+	// Builds the same description used by Apply without creating or saving packages.
+	bool HashUnitInputs(const FProjectWorldCanonicalBundle& Bundle, const FProjectWorldRealizationLayer& Layer,
+		TMap<FString, FString>& OutUnits, FString& OutError);
+
+	bool BuildDescription(const FProjectWorldCanonicalBundle& Bundle,
+		const FProjectWorldCanonicalCell& Cell, const FProjectWorldRealizationLayer& Layer,
+		FMeshDescription& OutDescription, FVector& OutOrigin, FString& OutError);
 	bool ValidateSettings(const FString& NormalizedSettings, FString& OutError);
 	bool HashActorSemantic(const FString& CellId, const FString& MeshSemantic,
 		FString& OutHash);

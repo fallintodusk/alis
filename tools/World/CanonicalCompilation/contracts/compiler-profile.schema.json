@@ -66,7 +66,18 @@
           "maxItems": 2
         },
         "hydro_transition_radius_m": {"type": "number", "exclusiveMinimum": 0},
-        "water_clearance_m": {"type": "number", "minimum": 0}
+        "water_clearance_m": {"type": "number", "minimum": 0},
+        "water_conditioning_limits": {
+          "type": "object",
+          "required": ["maximum_cut_m", "maximum_support_distance_m", "accepted_accuracy"],
+          "properties": {
+            "maximum_cut_m": {"type": "number", "minimum": 0},
+            "maximum_support_distance_m": {"type": "number", "minimum": 0},
+            "accepted_accuracy": {"type": "array", "minItems": 1, "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },

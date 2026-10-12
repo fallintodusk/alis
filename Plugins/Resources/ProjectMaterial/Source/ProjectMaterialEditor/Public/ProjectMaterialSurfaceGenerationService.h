@@ -38,6 +38,9 @@ struct FProjectMaterialSurfaceGenerationResult
 class PROJECTMATERIALEDITOR_API FProjectMaterialSurfaceGenerationService final
 {
 public:
+	static bool MakeTestRequest(const FString& Root, const FString& LayoutReceipt,
+		FProjectMaterialSurfaceGenerationRequest& OutRequest, FString& OutError);
+
 	static bool Validate(
 		const FProjectMaterialSurfaceGenerationRequest& Request,
 		FProjectMaterialSurfaceGenerationResult& OutResult);

@@ -10,9 +10,10 @@ public class ProjectTexture : ModuleRules
 		{
 			"Core",
 			"CoreUObject",
-			"Engine"
+			"Engine",
+			"RHI"
 		});
 
-		PrivateDependencyModuleNames.Add("RenderCore");
+		PrivateDependencyModuleNames.AddRange(new[] { "RenderCore" });
 	}
 }

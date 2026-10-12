@@ -4,6 +4,7 @@
 #include "ProjectTextureRuntimeSubsystem.h"
 
 #include "ProjectTextureRuntimeCache.h"
+#include "ProjectTextureBundlePreflight.h"
 #include "ProjectTextureRuntimeCatalog.h"
 
 #include "Engine/Engine.h"
@@ -16,6 +17,7 @@
 #include "Misc/Parse.h"
 #include "HAL/PlatformTime.h"
 #include "RenderingThread.h"
+#include "TextureResource.h"
 #include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectTextureRuntime, Log, All);
@@ -99,6 +101,8 @@ void UProjectTextureRuntimeSubsystem::Initialize(FSubsystemCollectionBase& Colle
 {
 	Super::Initialize(Collection);
 	Cache.Reset(new FProjectTextureRuntimeCache());
+	BundleTicker = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UProjectTextureRuntimeSubsystem::TickBundles));
 	WorldInitializedHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
 		this, &UProjectTextureRuntimeSubsystem::HandlePostWorldInitialization);
 	WorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(
@@ -116,6 +120,8 @@ void UProjectTextureRuntimeSubsystem::Deinitialize()
 {
 	FWorldDelegates::OnPostWorldInitialization.Remove(WorldInitializedHandle);
 	FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle);
+	FTSTicker::RemoveTicker(BundleTicker);
+	DrainBundles();
 	ReleaseTransientTargets();
 	PendingOutputs.Reset();
 	ReadyOutputs.Reset();
@@ -228,18 +234,39 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 		return false;
 	}
 	UProjectTextureRuntimeCatalog* Catalog = OutputSlot->Catalog;
+	if (Bundles.Contains(Catalog->SemanticIdentity))
+	{
+		OutError = TEXT("This catalog is owned by an explicit bundle producer; default generation is refused.");
+		++Telemetry.Failures;
+		return false;
+	}
+	TMap<FName, UTextureRenderTarget2D*> ExportTargets;
+	if (!ProjectTextureBundlePreflight::Validate(OutputSlot, ExportTargets, OutError))
+	{
+		++Telemetry.Failures;
+		return false;
+	}
 	const FString OutputIdentity = Catalog->SemanticIdentity + TEXT(":") + OutputSlot->NodeId.ToString();
-	if (ReadyOutputs.Contains(OutputIdentity))
+	if (AreOutputsReady(Catalog, ExportTargets))
 	{
 		++Telemetry.CacheHits;
 		return true;
 	}
 	if (Catalog->SemanticIdentity.Len() != 64 || Catalog->Nodes.IsEmpty() ||
-		OutputSlot->SlotName != TEXT("Structure") || OutputSlot->NodeId.IsNone())
+		OutputSlot->NodeId.IsNone())
 	{
 		OutError = TEXT("Runtime texture catalog or output-slot identity is invalid.");
 		++Telemetry.Failures;
 		return false;
+	}
+	// A reload/replacement may preserve semantic bytes but lose the generated resource.
+	// Invalidate that catalog's hints; they cannot certify pixels in a different RT.
+	for (const auto& Node : Catalog->Nodes)
+	{
+		const FString Identity = Catalog->SemanticIdentity + TEXT(":") + Node.StructuralIdentity;
+		const auto* Entry = Cache->Find(Identity);
+		if (Entry && Entry->State == EProjectTextureCacheState::Ready) Cache->Fail(Identity);
+		ReadyOutputs.Remove(Catalog->SemanticIdentity + TEXT(":") + Node.NodeId.ToString());
 	}
 	Cache->SetBudgetBytes(Catalog->BudgetBytes);
 	const int32 GenerationsBeforeCold = Telemetry.Generations;
@@ -247,6 +274,22 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 	TMap<FName, UTextureRenderTarget2D*> NodeTargets;
 	TSet<FName> SeenNodes;
 	TArray<FString> AdmittedIdentities;
+	// Reserve the complete bounded DAG before touching any render target, including
+	// pinned residency from other catalogs. A per-node budget failure must not draw.
+	for (const auto& Node : Catalog->Nodes)
+	{
+		const FString Identity = Catalog->SemanticIdentity + TEXT(":") + Node.StructuralIdentity;
+		const auto Request = Cache->Request(Identity, TextureBytes(Node), ExportTargets.Contains(Node.NodeId), OutError);
+		ReconcileBundles();
+		if (Request != EProjectTextureCacheRequest::Generate)
+		{
+			if (OutError.IsEmpty()) OutError = TEXT("Bundle node is unexpectedly already admitted; generation refused.");
+			for (const auto& Admitted : AdmittedIdentities) Cache->Fail(Admitted);
+			++Telemetry.Failures;
+			return false;
+		}
+		AdmittedIdentities.Add(Identity);
+	}
 	for (const FProjectTextureRuntimeNodeDescriptor& Node : Catalog->Nodes)
 	{
 		if (Node.NodeId.IsNone() || Node.StructuralIdentity.Len() != 64 ||
@@ -271,26 +314,11 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 		}
 
 		const FString Identity = Catalog->SemanticIdentity + TEXT(":") + Node.StructuralIdentity;
-		const int64 Bytes = TextureBytes(Node);
-		const bool bExported = Node.NodeId == OutputSlot->NodeId;
-		const EProjectTextureCacheRequest Request = Cache->Request(
-			Identity, Bytes, bExported, OutError);
-		if (Request == EProjectTextureCacheRequest::Rejected)
-		{
-			break;
-		}
-		if (Request == EProjectTextureCacheRequest::Pending)
-		{
-			OutError = FString::Printf(
-				TEXT("Texture node %s is already being generated."), *Node.NodeId.ToString());
-			break;
-		}
-		AdmittedIdentities.Add(Identity);
-
+		const bool bExported = ExportTargets.Contains(Node.NodeId);
 		UTextureRenderTarget2D* Target = nullptr;
 		if (bExported)
 		{
-			Target = OutputSlot->GetRenderTarget();
+			Target = ExportTargets[Node.NodeId];
 		}
 		else
 		{
@@ -358,13 +386,20 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 		if (!Cache->Complete(Identity, CompleteError))
 		{
 			OutError = CompleteError;
+			for (const auto& Admitted : AdmittedIdentities) Cache->Fail(Admitted);
+			ReleaseTransientTargets();
 			++Telemetry.Failures;
 			return false;
 		}
 	}
-	ReadyOutputs.Add(OutputIdentity);
+	// Publish readiness together; sequential GPU draws are not a pixel rollback transaction.
+	for (const auto& Export : ExportTargets)
+	{
+		ReadyOutputs.Add(Catalog->SemanticIdentity + TEXT(":") + Export.Key.ToString(), FReadyOutput{Export.Value, Export.Value->GetResource()->TextureRHI});
+	}
 	ReleaseTransientTargets();
 	Cache->EvictUnpinned(MAX_int64);
+	ReconcileBundles();
 	Telemetry.ResidentBytes = Cache->GetResidentBytes();
 	Telemetry.PeakResidentBytes = Cache->GetPeakResidentBytes();
 	UE_LOG(LogProjectTextureRuntime, Display,
@@ -402,9 +437,22 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 bool UProjectTextureRuntimeSubsystem::IsOutputReady(
 	const UProjectTextureOutputSlot* OutputSlot) const
 {
-	return OutputSlot != nullptr && OutputSlot->Catalog != nullptr &&
-		ReadyOutputs.Contains(
-			OutputSlot->Catalog->SemanticIdentity + TEXT(":") + OutputSlot->NodeId.ToString());
+	TMap<FName, UTextureRenderTarget2D*> Targets;
+	FString Error;
+	return ProjectTextureBundlePreflight::Validate(OutputSlot, Targets, Error) &&
+		AreOutputsReady(OutputSlot->Catalog, Targets);
+}
+
+bool UProjectTextureRuntimeSubsystem::AreOutputsReady(const UProjectTextureRuntimeCatalog* Catalog,
+	const TMap<FName, UTextureRenderTarget2D*>& Targets) const
+{
+	for (const auto& Export : Targets)
+	{
+		const auto* Ready = ReadyOutputs.Find(Catalog->SemanticIdentity + TEXT(":") + Export.Key.ToString());
+		if (!Ready || Ready->Target.Get() != Export.Value || !Export.Value->GetResource() ||
+			Ready->Resource != Export.Value->GetResource()->TextureRHI) return false;
+	}
+	return !Targets.IsEmpty();
 }
 
 void UProjectTextureRuntimeSubsystem::ReleaseTransientTargets()

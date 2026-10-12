@@ -10,13 +10,18 @@ EProjectTextureCacheRequest FProjectTextureRuntimeCache::Request(
 	FString& OutError)
 {
 	OutError.Reset();
-	if (Identity.IsEmpty() || Bytes <= 0 || BudgetBytes <= 0)
+	if (Identity.IsEmpty() || Bytes <= 0 || BudgetBytes <= 0 || Bytes > BudgetBytes)
 	{
-		OutError = TEXT("Cache request identity, bytes, and budget must be positive.");
+		OutError = TEXT("Cache request requires an identity and a positive allocation within the byte budget.");
 		return EProjectTextureCacheRequest::Rejected;
 	}
 	if (FProjectTextureCacheEntry* Existing = Entries.Find(Identity))
 	{
+		if (Existing->State != EProjectTextureCacheState::Failed && Existing->ResidentBytes != Bytes)
+		{
+			OutError = TEXT("An immutable cache identity cannot change its resident allocation.");
+			return EProjectTextureCacheRequest::Rejected;
+		}
 		Existing->LastUse = ++UseCounter;
 		if (Existing->State == EProjectTextureCacheState::Ready)
 		{
@@ -28,6 +33,7 @@ EProjectTextureCacheRequest FProjectTextureRuntimeCache::Request(
 		}
 		if (Existing->State == EProjectTextureCacheState::Generating)
 		{
+			if (bPin) ++Existing->Pins;
 			return EProjectTextureCacheRequest::Pending;
 		}
 		ResidentBytes -= Existing->ResidentBytes;
@@ -37,6 +43,17 @@ EProjectTextureCacheRequest FProjectTextureRuntimeCache::Request(
 	const int64 Required = ResidentBytes + Bytes - BudgetBytes;
 	if (Required > 0)
 	{
+		int64 Available = 0;
+		for (const auto& Pair : Entries)
+		{
+			if (Pair.Value.Pins == 0 && Pair.Value.State == EProjectTextureCacheState::Ready)
+				Available += Pair.Value.ResidentBytes;
+		}
+		if (Available < Required)
+		{
+			OutError = TEXT("Pinned or generating residency prevents admission; accepted entries were preserved.");
+			return EProjectTextureCacheRequest::Rejected;
+		}
 		EvictUnpinned(Required);
 	}
 	if (ResidentBytes + Bytes > BudgetBytes)

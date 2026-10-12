@@ -2,6 +2,8 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectMaterialSurfaceBuilder.h"
+#include "ProjectMaterialSoilBuilder.h"
+#include "ProjectMaterialSurfaceParameters.h"
 
 #include "ProjectMaterialPatternAuthority.h"
 
@@ -17,6 +19,8 @@
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionPower.h"
@@ -168,14 +172,15 @@ UMaterialExpression* BuildTriplanarPattern(
 	const FProjectMaterialSurfaceRecipe& Recipe,
 	UTextureRenderTarget2D* Texture,
 	UMaterialExpression* PositionMeters,
-	FString& OutError)
+	FString& OutError,
+	const TCHAR* ScaleName = TEXT("PatternScaleMeters"))
 {
 	if (Texture == nullptr || Texture->SRGB || Texture->IsSRGB())
 	{
 		OutError = TEXT("Structure output must be a linear texture-data resource.");
 		return nullptr;
 	}
-	auto* PatternScale = Scalar(Material, Recipe, TEXT("PatternScaleMeters"), -1080, -700);
+	auto* PatternScale = Scalar(Material, Recipe, ScaleName, -1080, -700);
 	auto* Coordinates = CreateExpression<UMaterialExpressionDivide>(Material, -860, -600);
 	auto* PositionX = Mask(Material, Coordinates, 0, -640, -720);
 	auto* PositionY = Mask(Material, Coordinates, 1, -640, -620);
@@ -369,6 +374,12 @@ bool ProjectMaterialSurfaceBuilder::BuildParent(
 			*PatternDependency.OutputObjectPath);
 		return false;
 	}
+	if (Recipe.Archetype == TEXT("soil_uv"))
+	{
+		if (!ProjectMaterialSoilBuilder::Build(Material, Recipe, PatternDependency, OutCompileErrors, OutError)) return false;
+		OutAsset = Material;
+		return true;
+	}
 	UMaterialEditingLibrary::DeleteAllMaterialExpressions(Material);
 	auto* Coordinates = BuildCoordinates(Material, Recipe.ProjectionFrame, OutError);
 	auto* PatternSample = Coordinates == nullptr ? nullptr
@@ -390,7 +401,7 @@ bool ProjectMaterialSurfaceBuilder::BuildParent(
 	auto* DetailStrength = Scalar(Material, Recipe, TEXT("DetailStrength"), -400, -120);
 	auto* MacroAmount = CreateExpression<UMaterialExpressionMultiply>(Material, -160, -500);
 	auto* MacroBrightness = CreateExpression<UMaterialExpressionOneMinus>(Material, 40, -500);
-	UMaterialExpression* BaseColor = Recipe.Archetype == TEXT("terrain_metric")
+	UMaterialExpression* BaseColor = FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype)
 		? BuildTerrainColor(Material, Recipe, Cover, SemanticChannels, OutError)
 		: Vector(Material, Recipe, TEXT("BaseColor"), -160, -80);
 	auto* FinalColor = CreateExpression<UMaterialExpressionMultiply>(Material, 280, -180);
@@ -428,6 +439,43 @@ bool ProjectMaterialSurfaceBuilder::BuildParent(
 	DetailAmount->B.Connect(0, DetailStrength);
 	Slab->DiffuseAlbedo.Connect(0, FinalColor);
 	Slab->Roughness.Connect(0, Roughness);
+	const bool bDetail = Recipe.Archetype == TEXT("terrain_detail_metric");
+	if (bDetail)
+	{
+		auto* Fine = BuildTriplanarPattern(Material, Recipe, Pattern, Coordinates, OutError, TEXT("FineScaleMeters"));
+		auto* Height = Mask(Material, Fine, 2, 700, -700);
+		auto* Amplitude = Scalar(Material, Recipe, TEXT("BumpHeightCentimeters"), 700, -540);
+		auto* Bump = CreateExpression<UMaterialExpressionMultiply>(Material, 920, -620);
+		auto* Normal = CreateExpression<UMaterialExpressionMaterialFunctionCall>(Material, 1120, -620);
+		auto* ColorStrength = Scalar(Material, Recipe, TEXT("FineColorStrength"), 700, 600);
+		auto* ColorAmount = CreateExpression<UMaterialExpressionMultiply>(Material, 920, 540);
+		auto* FineBrightness = CreateExpression<UMaterialExpressionAdd>(Material, 1120, 540);
+		auto* DetailColor = CreateExpression<UMaterialExpressionMultiply>(Material, 1320, 540);
+		auto* Function = LoadObject<UMaterialFunction>(nullptr,
+			TEXT("/Engine/Functions/Engine_MaterialFunctions03/Procedurals/PerturbNormalLQ.PerturbNormalLQ"));
+		if (!Fine || !Height || !Amplitude || !Bump || !Normal || !ColorStrength ||
+			!ColorAmount || !FineBrightness || !DetailColor || !Function ||
+			!Normal->SetMaterialFunction(Function) || Normal->FunctionInputs.Num() != 1 ||
+			Normal->FunctionInputs[0].Input.InputName != TEXT("Bump"))
+		{
+			OutError = TEXT("Native terrain detail gradient function or expressions are unavailable.");
+			return false;
+		}
+		// Native world-space derivatives interpret bump amplitude in Unreal centimetres.
+		Bump->A.Connect(0, Height);
+		Bump->B.Connect(0, Amplitude);
+		Normal->FunctionInputs[0].Input.Connect(0, Bump);
+		Slab->Normal.Connect(0, Normal);
+		DetailCentered->Input.Connect(0, Height);
+		ColorAmount->A.Connect(0, DetailCentered);
+		ColorAmount->B.Connect(0, ColorStrength);
+		FineBrightness->A.Connect(0, ColorAmount);
+		FineBrightness->ConstB = 1.0f;
+		DetailColor->A.Connect(0, FinalColor);
+		DetailColor->B.Connect(0, FineBrightness);
+		Slab->DiffuseAlbedo.Connect(0, DetailColor);
+	}
+	Material->bTangentSpaceNormal = !bDetail;
 	UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData();
 	if (EditorData == nullptr)
 	{
@@ -467,6 +515,7 @@ bool ProjectMaterialSurfaceBuilder::BuildInstance(
 			*Recipe.ParentObjectPath);
 		return false;
 	}
+	if (!ProjectMaterialSurfaceParameters::Validate(Recipe, Parent, OutError)) return false;
 	UMaterialInstanceConstant* Instance = Cast<UMaterialInstanceConstant>(FindOrCreateAsset(
 		PackageName, Recipe.MaterialId, UMaterialInstanceConstant::StaticClass(), OutError));
 	if (Instance == nullptr)
@@ -477,25 +526,11 @@ bool ProjectMaterialSurfaceBuilder::BuildInstance(
 	UMaterialEditingLibrary::SetMaterialInstanceParent(Instance, Parent);
 	for (const TPair<FName, double>& ScalarValue : Recipe.Scalars)
 	{
-		float ParentValue = 0.0f;
-		if (!Parent->GetScalarParameterValue(FHashedMaterialParameterInfo(ScalarValue.Key), ParentValue))
-		{
-			OutError = FString::Printf(TEXT("Unknown surface scalar parameter: %s"),
-				*ScalarValue.Key.ToString());
-			return false;
-		}
 		Instance->SetScalarParameterValueEditorOnly(
 			FMaterialParameterInfo(ScalarValue.Key), ScalarValue.Value);
 	}
 	for (const TPair<FName, FLinearColor>& VectorValue : Recipe.Vectors)
 	{
-		FLinearColor ParentValue;
-		if (!Parent->GetVectorParameterValue(FHashedMaterialParameterInfo(VectorValue.Key), ParentValue))
-		{
-			OutError = FString::Printf(TEXT("Unknown surface vector parameter: %s"),
-				*VectorValue.Key.ToString());
-			return false;
-		}
 		Instance->SetVectorParameterValueEditorOnly(
 			FMaterialParameterInfo(VectorValue.Key), VectorValue.Value);
 	}
@@ -541,10 +576,15 @@ bool ProjectMaterialSurfaceBuilder::Verify(
 		OutError = TEXT("Reloaded surface parent is not an explicit Substrate material.");
 		return false;
 	}
+	if (Recipe.Archetype == TEXT("soil_uv"))
+		return ProjectMaterialSoilBuilder::Verify(Recipe, PatternDependency, Asset, OutError);
 	const TArray<UMaterialExpression*> Expressions = UMaterialEditingLibrary::GetMaterialExpressions(Material);
 	TSet<FName> Parameters;
 	int32 Slabs = 0;
 	int32 PatternSamples = 0;
+	int32 NativeNormals = 0;
+	const UMaterialExpressionMaterialFunctionCall* NativeNormal = nullptr;
+	const UMaterialExpressionSubstrateSlabBSDF* SurfaceSlab = nullptr;
 	TArray<int32> ChannelIndices;
 	for (const UMaterialExpression* Expression : Expressions)
 	{
@@ -553,6 +593,13 @@ bool ProjectMaterialSurfaceBuilder::Verify(
 			Parameters.Add(Parameter->ParameterName);
 		}
 		Slabs += Expression->IsA<UMaterialExpressionSubstrateSlabBSDF>() ? 1 : 0;
+		if (const auto* Slab = Cast<UMaterialExpressionSubstrateSlabBSDF>(Expression)) SurfaceSlab = Slab;
+		if (const auto* Function = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
+		{
+			NativeNormal = Function;
+			NativeNormals += Function->MaterialFunction && Function->MaterialFunction->GetPathName() ==
+				TEXT("/Engine/Functions/Engine_MaterialFunctions03/Procedurals/PerturbNormalLQ.PerturbNormalLQ") ? 1 : 100;
+		}
 		if (const auto* Sample = Cast<UMaterialExpressionTextureSample>(Expression))
 		{
 			PatternSamples += Sample->Texture != nullptr &&
@@ -563,13 +610,17 @@ bool ProjectMaterialSurfaceBuilder::Verify(
 			ChannelIndices.Add(Sample->ConstChannelIndex);
 		}
 	}
-	if (Slabs != 1 || PatternSamples != 3 ||
+	const bool bDetail = Recipe.Archetype == TEXT("terrain_detail_metric");
+	if (Slabs != 1 || PatternSamples != (bDetail ? 6 : 3) || NativeNormals != (bDetail ? 1 : 0) ||
+		(bDetail && (Material->bTangentSpaceNormal || !SurfaceSlab || !NativeNormal ||
+			SurfaceSlab->Normal.Expression != NativeNormal || NativeNormal->FunctionInputs.Num() != 1 ||
+			!NativeNormal->FunctionInputs[0].Input.Expression)) ||
 		Parameters.Num() != Recipe.Scalars.Num() + Recipe.Vectors.Num())
 	{
 		OutError = TEXT("Reloaded surface parent does not match the closed archetype shape.");
 		return false;
 	}
-	if (Recipe.Archetype == TEXT("terrain_metric"))
+	if (FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype))
 	{
 		ChannelIndices.Sort();
 		TArray<int32> Expected = {

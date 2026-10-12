@@ -1,0 +1,44 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "5",
+  "material_id": "MI_ProjectSoilFixture",
+  "artifact_kind": "instance",
+  "family": "surface_substrate",
+  "archetype": "soil_uv",
+  "compiler_version": "6",
+  "projection_frame": "uv_unit_meter",
+  "pattern": {
+    "pattern_id": "project_soil_fixture"
+  },
+  "semantic_bindings": [],
+  "scalars": {
+    "BaseRoughness": 0.84,
+    "PatternScaleMeters": 0.5,
+    "BumpHeightCentimeters": 0.35,
+    "RoughnessStrength": 0.26,
+    "AOInfluence": 0.45,
+    "GrainColorStrength": 0.35
+  },
+  "vectors": {
+    "SoilDarkColor": [
+      0.045,
+      0.021,
+      0.009,
+      1
+    ],
+    "SoilLightColor": [
+      0.15,
+      0.078,
+      0.032,
+      1
+    ],
+    "GrainColor": [
+      0.22,
+      0.15,
+      0.081,
+      1
+    ]
+  },
+  "binding_id": "soil.fixture",
+  "parent": "/ProjectMaterial/Surfaces/Soil/M_ProjectSoilFixture.M_ProjectSoilFixture"
+}

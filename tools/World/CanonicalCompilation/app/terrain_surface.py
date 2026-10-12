@@ -3,9 +3,11 @@ from __future__ import annotations
 import math
 from bisect import bisect_right
 from typing import Any
+from copy import deepcopy
 
 from .contracts import CompilerError, canonical_hash
 from .spatial import quantize
+from .terrain_water_coverage import support_bounds, _intersects
 
 
 SURFACE_ROLES = ("ground", "hydro_transition")
@@ -341,7 +343,10 @@ def _cell_has_water_influence(
         ) <= transition_radius_m
         for row, values in enumerate(samples)
         for column in range(len(values))
-    )
+    ) or _intersects(feature, (
+        sample_west - spacing_x, sample_north - len(samples) * spacing_y,
+        sample_west + len(samples[0]) * spacing_x, sample_north + spacing_y,
+    ))
 
 
 def water_surface_dirty_cells(
@@ -454,8 +459,8 @@ def _water_features_for_cell(
     cell_width = spacing_x * int(grid["cell_quads"][0])
     cell_height = spacing_y * int(grid["cell_quads"][1])
     halo = int(grid["halo_samples"])
-    influence_x = int(math.ceil((transition_radius_m + halo * spacing_x) / cell_width))
-    influence_y = int(math.ceil((transition_radius_m + halo * spacing_y) / cell_height))
+    influence_x = int(math.ceil((transition_radius_m + (halo + 1) * spacing_x) / cell_width))
+    influence_y = int(math.ceil((transition_radius_m + (halo + 1) * spacing_y) / cell_height))
     selected: list[dict[str, Any]] = []
     for feature in water_features:
         for intersecting_id in feature["intersecting_cell_ids"]:
@@ -479,6 +484,17 @@ def finalize_terrain_cells(
     profile: dict[str, Any],
     grid_identifier: str,
     overlay: dict[str, Any],
+) -> None:
+    candidate = deepcopy(terrain)
+    _finalize_terrain_cells(candidate, compiled, profile, grid_identifier, overlay)
+    for cell_id, cell in candidate.items():
+        terrain[cell_id].clear()
+        terrain[cell_id].update(cell)
+
+
+def _finalize_terrain_cells(
+    terrain: dict[str, dict[str, Any]], compiled: Any, profile: dict[str, Any],
+    grid_identifier: str, overlay: dict[str, Any],
 ) -> None:
     contract = validate_surface_contract(profile)
     if overlay["grid_id"] != grid_identifier:
@@ -516,6 +532,7 @@ def finalize_terrain_cells(
             prepared_water[feature["feature_id"]]
             for feature in cell_water_features
         ]
+        continuous_bounds = support_bounds(cell, cell_water_features, contract, height_step, halo, prepared_water)
         base_halo = cell["water_fit"]["halo_window"]["samples"]
         core_rows, core_columns = len(cell["water_fit"]["core_samples"]), len(cell["water_fit"]["core_samples"][0])
         west, _, _, north = (float(value) for value in cell["bounds"])
@@ -540,12 +557,13 @@ def finalize_terrain_cells(
                 water_height = min((_water_height(feature, point) for feature in covering), default=math.inf)
                 if math.isfinite(water_height):
                     water_height = quantize(water_height, height_step)
-                height = min(float(base_height), water_height - clearance)
+                support_bound = continuous_bounds[row][column]
+                height = min(float(base_height), water_height - clearance, support_bound)
                 for patch in overlay["terrain_patches"]:
                     if math.hypot(point[0] - patch["center"][0], point[1] - patch["center"][1]) <= patch["radius_m"]:
                         height += float(patch["delta_m"])
                 height = quantize(height, height_step)
-                if height > water_height - clearance + 1e-9:
+                if height > min(water_height - clearance, support_bound) + 1e-9:
                     raise CompilerError(
                         "authored_height_breaks_water_clearance",
                         "Authored terrain height breaks canonical Water clearance",

@@ -1,6 +1,14 @@
 # Improve Generated-World Water Presentation
 
-Status: researched; implementation not selected
+Status: researched; isolated native water prototype captured; implementation not selected
+
+Current sequencing: the active World Surface Presentation concern permits isolated
+water samples independently of soil approval. Native Substrate Single Layer Water
+has matched opaque-blue controls and depth/bed response in a BasicShape fixture.
+Its graph-only native volume-output projection resolves the installed ray-tracing
+compile error; the diagnostic is owned by ProjectMaterial pitfalls. No production
+archetype, city binding or adoption is selected. Soil packing, proxy images and
+shader instruction counts do not accept water resources or runtime cost.
 
 ## Current evidence
 
@@ -11,8 +19,8 @@ Status: researched; implementation not selected
   of the World water artifact inventory.
 - Water cell meshes serialize the material reference. Moving to a reusable
   material changes those mesh package bytes even when geometry is unchanged.
-- ProjectMaterial currently implements only its accepted terrain family. It
-  does not yet provide the researched water archetype.
+- ProjectMaterial provides terrain/object families and an isolated soil fixture.
+  It does not yet provide the researched water archetype.
 
 The prior artifact count and captures are not current authority. Recount the
 active manifest and capture a fresh solid-opaque control before implementation.

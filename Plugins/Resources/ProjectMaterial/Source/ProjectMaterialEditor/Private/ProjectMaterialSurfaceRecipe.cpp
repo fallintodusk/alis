@@ -18,6 +18,7 @@ namespace ProjectMaterialSurfaceRecipePrivate
 {
 	constexpr TCHAR Family[] = TEXT("surface_substrate");
 	constexpr TCHAR TerrainArchetype[] = TEXT("terrain_metric");
+	constexpr TCHAR TerrainDetailArchetype[] = TEXT("terrain_detail_metric");
 	constexpr TCHAR ObjectArchetype[] = TEXT("object_metric");
 
 	bool ValidateFields(
@@ -95,22 +96,33 @@ namespace ProjectMaterialSurfaceRecipePrivate
 
 	TMap<FString, FVector2D> ScalarContract(const FString& Archetype)
 	{
+		if (Archetype == TEXT("soil_uv")) return {
+			{TEXT("BaseRoughness"), {0.05, 1.0}}, {TEXT("PatternScaleMeters"), {0.05, 10.0}},
+			{TEXT("BumpHeightCentimeters"), {0.0, 2.0}}, {TEXT("RoughnessStrength"), {0.0, 1.0}},
+			{TEXT("AOInfluence"), {0.0, 1.0}}, {TEXT("GrainColorStrength"), {0.0, 1.0}}};
 		TMap<FString, FVector2D> Contract = {
 			{TEXT("BaseRoughness"), {0.0, 1.0}},
 			{TEXT("PatternScaleMeters"), {0.05, 100.0}},
 			{TEXT("MacroStrength"), {0.0, 1.0}},
 			{TEXT("DetailStrength"), {0.0, 1.0}}};
-		if (Archetype == TerrainArchetype)
+		if (FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Archetype))
 		{
 			Contract.Add(TEXT("HydroDarkening"), {0.0, 1.0});
 			Contract.Add(TEXT("SlopeContrast"), {0.01, 16.0});
+		}
+		if (Archetype == TerrainDetailArchetype)
+		{
+			Contract.Add(TEXT("FineScaleMeters"), {0.05, 10.0});
+			Contract.Add(TEXT("BumpHeightCentimeters"), {0.0, 1.0});
+			Contract.Add(TEXT("FineColorStrength"), {0.0, 1.0});
 		}
 		return Contract;
 	}
 
 	TArray<FString> VectorContract(const FString& Archetype)
 	{
-		return Archetype == TerrainArchetype
+		if (Archetype == TEXT("soil_uv")) return {TEXT("SoilDarkColor"), TEXT("SoilLightColor"), TEXT("GrainColor")};
+		return FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Archetype)
 			? TArray<FString>({TEXT("GroundColor"), TEXT("SteepGroundColor"), TEXT("HydroTint")})
 			: TArray<FString>({TEXT("BaseColor")});
 	}
@@ -222,7 +234,7 @@ namespace ProjectMaterialSurfaceRecipePrivate
 		const TCHAR* Kind = Recipe.ArtifactKind == EProjectMaterialSurfaceArtifactKind::Parent
 			? TEXT("parent") : TEXT("instance");
 		const TCHAR* Projection = Recipe.ProjectionFrame == EProjectMaterialProjectionFrame::WorldMetricTriplanar2D
-			? TEXT("world_metric_triplanar_2d") : TEXT("object_metric_triplanar_2d");
+			? TEXT("world_metric_triplanar_2d") : Recipe.ProjectionFrame == EProjectMaterialProjectionFrame::UVUnitMeter ? TEXT("uv_unit_meter") : TEXT("object_metric_triplanar_2d");
 		FString Semantics;
 		for (const FName Name : Recipe.SemanticBindings)
 		{
@@ -233,8 +245,9 @@ namespace ProjectMaterialSurfaceRecipePrivate
 			Semantics += Name.ToString();
 		}
 		FString Result = FString::Printf(
-			TEXT("schema=4|id=%s|kind=%s|binding=%s|family=%s|archetype=%s|compiler=%s|")
+			TEXT("schema=%s|id=%s|kind=%s|binding=%s|family=%s|archetype=%s|compiler=%s|")
 			TEXT("parent=%s|folder=%s|projection=%s|pattern=%s|semantics=%s"),
+			Recipe.Archetype == TEXT("soil_uv") ? TEXT("5") : TEXT("4"),
 			*Recipe.MaterialId,
 			Kind,
 			*Recipe.BindingId,
@@ -301,9 +314,10 @@ bool FProjectMaterialSurfaceRecipeContract::Parse(
 	{
 		return false;
 	}
-	if (SchemaPath != TEXT("../../Schemas/surface-recipe.schema.json") || SchemaVersion != TEXT("4") ||
-		OutRecipe.Family != Family || OutRecipe.CompilerVersion != TEXT("5") ||
-		(OutRecipe.Archetype != TerrainArchetype && OutRecipe.Archetype != ObjectArchetype))
+	if (SchemaPath != TEXT("../../Schemas/surface-recipe.schema.json") || (OutRecipe.Archetype == TEXT("soil_uv") ? (SchemaVersion != TEXT("5") || OutRecipe.CompilerVersion != TEXT("6"))
+			: (SchemaVersion != TEXT("4") || OutRecipe.CompilerVersion != TEXT("5"))) ||
+		OutRecipe.Family != Family ||
+		(!IsTerrainArchetype(OutRecipe.Archetype) && OutRecipe.Archetype != ObjectArchetype && OutRecipe.Archetype != TEXT("soil_uv")))
 	{
 		OutError = TEXT("Surface recipe uses an unsupported schema, family, archetype, or compiler version.");
 		return false;
@@ -341,16 +355,16 @@ bool FProjectMaterialSurfaceRecipeContract::Parse(
 		OutError = TEXT("artifact_kind must be parent or instance.");
 		return false;
 	}
-	const bool bTerrain = OutRecipe.Archetype == TerrainArchetype;
+	const bool bTerrain = IsTerrainArchetype(OutRecipe.Archetype);
 	if ((bTerrain && Projection != TEXT("world_metric_triplanar_2d")) ||
-		(!bTerrain && Projection != TEXT("object_metric_triplanar_2d")))
+		(!bTerrain && Projection != (OutRecipe.Archetype == TEXT("soil_uv") ? TEXT("uv_unit_meter") : TEXT("object_metric_triplanar_2d"))))
 	{
 		OutError = TEXT("Projection frame does not match the selected archetype.");
 		return false;
 	}
 	OutRecipe.ProjectionFrame = bTerrain
 		? EProjectMaterialProjectionFrame::WorldMetricTriplanar2D
-		: EProjectMaterialProjectionFrame::ObjectMetricTriplanar2D;
+		: OutRecipe.Archetype == TEXT("soil_uv") ? EProjectMaterialProjectionFrame::UVUnitMeter : EProjectMaterialProjectionFrame::ObjectMetricTriplanar2D;
 
 	const TSharedPtr<FJsonObject>* Pattern = nullptr;
 	if (!Root->TryGetObjectField(TEXT("pattern"), Pattern) || Pattern == nullptr ||
@@ -474,4 +488,10 @@ FString FProjectMaterialSurfaceRecipeContract::GetEngineCompatibilityIdentity()
 {
 	const FEngineVersion Version = FEngineVersion::Current();
 	return FString::Printf(TEXT("%d.%d"), Version.GetMajor(), Version.GetMinor());
+}
+
+bool FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(const FString& Archetype)
+{
+	return Archetype == ProjectMaterialSurfaceRecipePrivate::TerrainArchetype ||
+		Archetype == ProjectMaterialSurfaceRecipePrivate::TerrainDetailArchetype;
 }

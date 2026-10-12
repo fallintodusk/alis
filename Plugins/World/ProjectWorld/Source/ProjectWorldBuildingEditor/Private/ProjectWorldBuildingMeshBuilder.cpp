@@ -381,6 +381,9 @@ namespace ProjectWorldBuildingMeshBuilder
 			const FPolygonGroupID Group,
 			const FVector Positions[3])
 		{
+			// Authored positions describe outward conventional cross products. Emit
+			// UE clockwise order before creating vertices so output identity changes too.
+			const FVector Ordered[3] = {Positions[0], Positions[2], Positions[1]};
 			FStaticMeshAttributes Attributes(Description);
 			TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 			TVertexInstanceAttributesRef<FVector3f> Normals = Attributes.GetVertexInstanceNormals();
@@ -388,19 +391,19 @@ namespace ProjectWorldBuildingMeshBuilder
 			TVertexInstanceAttributesRef<float> BinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 			TVertexInstanceAttributesRef<FVector4f> Colors = Attributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector2f> UVs = Attributes.GetVertexInstanceUVs();
-			const FVector Normal = FVector::CrossProduct(Positions[1] - Positions[0], Positions[2] - Positions[0]).GetSafeNormal();
-			const FVector Tangent = (Positions[1] - Positions[0]).GetSafeNormal();
+			const FVector Normal = FVector::CrossProduct(Ordered[2] - Ordered[0], Ordered[1] - Ordered[0]).GetSafeNormal();
+			const FVector Tangent = (Ordered[1] - Ordered[0]).GetSafeNormal();
 			TArray<FVertexInstanceID> Instances;
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
 				const FVertexID Vertex = Description.CreateVertex();
-				VertexPositions[Vertex] = FVector3f(Positions[Corner]);
+				VertexPositions[Vertex] = FVector3f(Ordered[Corner]);
 				const FVertexInstanceID Instance = Description.CreateVertexInstance(Vertex);
 				Normals[Instance] = FVector3f(Normal);
 				Tangents[Instance] = FVector3f(Tangent);
 				BinormalSigns[Instance] = 1.0f;
 				Colors[Instance] = FVector4f(0.42f, 0.38f, 0.32f, 1.0f);
-				UVs.Set(Instance, 0, FVector2f(Positions[Corner].X, Positions[Corner].Y) * 0.001f);
+				UVs.Set(Instance, 0, FVector2f(Ordered[Corner].X, Ordered[Corner].Y) * 0.001f);
 				Instances.Add(Instance);
 			}
 			Description.CreatePolygon(Group, Instances);

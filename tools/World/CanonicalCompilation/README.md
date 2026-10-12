@@ -29,6 +29,7 @@ compiler does not supply legacy defaults or upgrade old inputs.
 | `app/membership.py` | Exact geometry-to-cell membership and fixture differential seam |
 | `app/terrain.py` | Pinned GDAL alignment plus core-and-halo cell extraction |
 | `app/terrain_surface.py` | Final Terrain -> Water -> hydro -> authored-patch surface projection and named semantic weights |
+| `app/terrain_water_coverage.py` | Continuous footprint/quad support and explicit water-conditioning quality refusal |
 | `app/raster_dependencies.py` | Exact bilinear source pixels and cell-local component dependencies |
 | `app/features.py` | Semantic ownership, cell representations, and overlays |
 | `app/buildings.py` | Logical Building association, coverage, and effective massing volumes |
@@ -137,6 +138,14 @@ terrain as `water_fit`, derives the final hydro-conditioned and authored terrain
 surface, and emits the `ground` and `hydro_transition` semantic weights. Surface-
 anchor resolution and Unreal realization consume this cell-local authority, not
 feature/control provenance and not a realized engine terrain actor.
+
+Continuous Water support and conditioning-policy authority are defined in the
+[territory contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#geospatial-authority).
+The compiler reuses prepared footprint bounds and segments, constrains incident
+quads including the shared halo support ring, and validates all candidate cells
+before replacing any input cell. Additional conditioning without accepted
+`terrain_surface.water_conditioning_limits` refuses explicitly. No production
+limits or constrained-triangle representation are implied by the implementation.
 
 P0 remains bounded to its original single-raster source. Territory profiles
 use an admitted multi-raster mosaic plus cell-local actual pixel dependencies,

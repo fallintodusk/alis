@@ -123,7 +123,7 @@ bool FProjectMaterialPatternAuthority::Resolve(
 	FString PackageSha256;
 	FString EngineCompatibility;
 	if (!ReadString(Match, TEXT("output_contract"), OutputContract, OutError) ||
-		OutputContract != TEXT("surface_structure_rgb_v1") ||
+		(OutputContract != TEXT("surface_structure_rgb_v1") && OutputContract != TEXT("soil_structure_normal_masks_v1")) ||
 		!ReadString(Match, TEXT("output_object_path"), OutputObjectPath, OutError) ||
 		!ReadString(Match, TEXT("semantic_identity"), SemanticIdentity, OutError) ||
 		!ReadString(Match, TEXT("package_sha256"), PackageSha256, OutError) ||

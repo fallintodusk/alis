@@ -85,4 +85,29 @@ bool FProjectTextureRuntimeFailureLifecycleTest::RunTest(const FString& Paramete
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectTextureRuntimeAdmissionIdentityTest,
+	"Project.Texture.Runtime.AdmissionIdentity",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectTextureRuntimeAdmissionIdentityTest::RunTest(const FString& Parameters)
+{
+	FProjectTextureRuntimeCache Cache(1024);
+	FString Error;
+	TestEqual(TEXT("Cold acquisition admits one generation."), Cache.Request(TEXT("bundle"), 256, true, Error), EProjectTextureCacheRequest::Generate);
+	TestEqual(TEXT("A concurrent acquisition shares generation."), Cache.Request(TEXT("bundle"), 256, true, Error), EProjectTextureCacheRequest::Pending);
+	TestEqual(TEXT("Both consumers retain their own pin."), Cache.Find(TEXT("bundle"))->Pins, 2);
+	TestEqual(TEXT("An immutable identity cannot change allocation."), Cache.Request(TEXT("bundle"), 512, false, Error), EProjectTextureCacheRequest::Rejected);
+	TestTrue(TEXT("The complete bundle becomes ready."), Cache.Complete(TEXT("bundle"), Error));
+	TestTrue(TEXT("First consumer releases."), Cache.Release(TEXT("bundle"), Error));
+	TestTrue(TEXT("Second consumer releases."), Cache.Release(TEXT("bundle"), Error));
+	TestEqual(TEXT("An oversized request refuses."), Cache.Request(TEXT("oversized"), 2048, false, Error), EProjectTextureCacheRequest::Rejected);
+	TestNotNull(TEXT("Impossible admission preserves the accepted bundle."), Cache.Find(TEXT("bundle")));
+	Cache.Request(TEXT("pinned"), 600, true, Error);
+	Cache.Complete(TEXT("pinned"), Error);
+	TestEqual(TEXT("Partial eviction cannot satisfy pinned pressure."), Cache.Request(TEXT("pressure"), 512, false, Error), EProjectTextureCacheRequest::Rejected);
+	TestNotNull(TEXT("An unsatisfiable request preserves unpinned accepted data."), Cache.Find(TEXT("bundle")));
+	return true;
+}
+
 #endif

@@ -105,6 +105,8 @@ When ownership, contracts, or extension shape are not already accepted:
 - state invariants, acceptance surfaces, execution envelopes, and stop conditions before expensive implementation;
 - use current official engine/tool documentation and the exact installed engine source when a native capability or behavior is material.
 
+Apply the mandatory [Native Engine First](../../../docs/architecture/principles.md#native-engine-first) selection rule before custom equivalents or extensions.
+
 Do not add a framework, compatibility layer, alternate transaction path, second authority, or generic abstraction without a concrete failed invariant that the existing boundary cannot satisfy.
 
 ## Implementation

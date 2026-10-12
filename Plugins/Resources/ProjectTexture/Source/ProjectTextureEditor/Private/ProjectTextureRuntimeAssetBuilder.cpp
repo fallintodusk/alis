@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectTextureRuntimeAssetBuilder.h"
+#include "ProjectTextureSoilBuilder.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditingLibrary.h"
@@ -247,6 +248,8 @@ bool ProjectTextureRuntimeAssetBuilder::Build(
 {
 	using namespace ProjectTextureRuntimeAssetBuilderPrivate;
 	OutAsset = nullptr;
+	if (Recipe.OutputContract == TEXT("soil_structure_normal_masks_v1"))
+		return ProjectTextureSoilBuilder::Build(Recipe, PackageName, OutAsset, OutError);
 	UPackage* Package = CreatePackage(*PackageName);
 	if (Package == nullptr || Recipe.Nodes.Num() != 2 || Recipe.Exports.Num() != 1)
 	{
@@ -332,6 +335,8 @@ bool ProjectTextureRuntimeAssetBuilder::Verify(
 	FString& OutError)
 {
 	using namespace ProjectTextureRuntimeAssetBuilderPrivate;
+	if (Recipe.OutputContract == TEXT("soil_structure_normal_masks_v1"))
+		return ProjectTextureSoilBuilder::Verify(Recipe, Asset, OutError);
 	UTextureRenderTarget2D* Target = Cast<UTextureRenderTarget2D>(Asset);
 	const UProjectTextureOutputSlot* Slot = Target != nullptr
 		? Cast<UProjectTextureOutputSlot>(Target->GetAssetUserDataOfClass(UProjectTextureOutputSlot::StaticClass()))
