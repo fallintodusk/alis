@@ -328,7 +328,8 @@ function Read-ShippingWaterProof {
         [double]$receipt.horizontal_displacement_cm + 1.0 -ge $minimumRequiredTravel -and
         $null -ne $receipt.PSObject.Properties['target_xy_error_cm'] -and
         [double]$receipt.target_xy_error_cm -le $allowedTargetError -and
-        [string]$receipt.capture_source -ceq 'SCS_BaseColor' -and
+        [string]$receipt.capture_source -ceq 'SCS_SceneColorSceneDepth' -and
+        [string]$receipt.capture_encoding -ceq 'visible_water_depth_mask_v1' -and
         [string]$receipt.capture_projection -ceq 'orthographic' -and
         [double]$receipt.capture_ortho_width_cm -eq 20000.0 -and
         [bool]$receipt.same_capture_session -and

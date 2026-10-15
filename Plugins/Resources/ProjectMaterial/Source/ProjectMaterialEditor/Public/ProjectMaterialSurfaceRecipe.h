@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 
-struct FProjectMaterialPatternDependency;
+struct FProjectMaterialSurfaceDependency;
 struct FProjectMaterialTerrainLayoutContract;
 
 enum class EProjectMaterialSurfaceArtifactKind : uint8
@@ -17,6 +17,7 @@ enum class EProjectMaterialSurfaceArtifactKind : uint8
 enum class EProjectMaterialProjectionFrame : uint8
 {
 	WorldMetricTriplanar2D,
+	WorldMetricXY2D,
 	ObjectMetricTriplanar2D,
 	UVUnitMeter
 };
@@ -62,10 +63,12 @@ public:
 	static FString ComputeArtifactSemanticIdentity(
 		const FProjectMaterialSurfaceRecipe& Recipe,
 		const FString& OutputObjectPath,
-		const FProjectMaterialPatternDependency& Pattern,
+		const FProjectMaterialSurfaceDependency& Pattern,
 		const FString& ParentPackageSha256,
 		const FProjectMaterialTerrainLayoutContract* TerrainLayout);
 
 	static FString GetEngineCompatibilityIdentity();
 	static bool IsTerrainArchetype(const FString& Archetype);
+	static bool IsMetricHeightArchetype(const FString& Archetype);
+	static bool RequiresDirectNaniteUsage(const FString& Archetype);
 };

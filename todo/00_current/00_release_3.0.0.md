@@ -52,14 +52,135 @@ The baseline workspace is not the candidate to sign or publish.
 
 Next: follow concern 3's current authority register and review record, rather than
 reopening its historical soil or runtime experiments. BrownEarth's scoped compacted-
-soil visual checkpoint is accepted and frozen; remaining road, water and building
-presentation and persistent adoption remain open. Its D33 authorizes a confirmed
-building-facing source correction and isolated verification only. Existing city
-meshes remain unmodified; the eventual affected-building update is a separate
-adoption boundary, not permission for canonical or full World regeneration.
+soil visual checkpoint is accepted and frozen. AsphaltMacro and RiverCalm are
+visually accepted defaults. D48 subsequently closes delegated Concrete judgment
+and material-only city adoption; exact final packaged acceptance remains open.
+D34's readiness boundary permits focused fixtures and one
+isolated cooked material proof. The operator's D43 decision subsequently authorizes
+required slice acceptance and Building-only city replacement, preserving canonical
+data, unrelated geometry and current materials. Other geometry and backend rollout
+remain gated. D36 completes D35's bounded reusable recipe/pattern refactor:
+JSON structural controls, shared physical shader families, selected instance textures,
+whole-request refusal, and stable owner docs/diagrams have focused proof and architect
+PASS. D37 adds exact isolated cooked resource/material replay and authenticated
+World consumer transport, with owner-local tests and architect PASS. Its reproduced
+Nanite usage defect is corrected and replayed. D38 adds native ground/hydro
+composition to the frozen soil detail; matched Kazan/Manhattan previews restore
+green rivers and retain land detail, with zero city saves and exact restoration.
+D39 authorizes material-only application to the existing cities. Accepted recipes
+now generate through ProjectTexture and ProjectMaterial, retaining the terrain path
+and default runtime backend. The reference-only transaction passed native save/reload,
+zero mesh-build, exact no-op and genuine saved-child rollback controls, plus independent
+architect review. Kazan and Manhattan adopted 553 road/water material references;
+all other checked World packages and canonical outputs remain unchanged. Actual
+compiled-city verification passed in actual PIE for both cities: 13 rendered views
+per city, shared runtime texture targets, and the frozen soil RGB maps unchanged.
+Cold-load reference replay passed with zero writes/builds and equal geometry hashes;
+the focused selected-layer locality guard passed tests and architect review.
+Production resource no-op replay generated zero assets and compiled zero shaders.
+Final independent architect review passed the bounded city material-layer integration.
+D40 live overlap diagnosis confirms existing terrain/Water burial and overlapping
+river-ribbon surfaces. The Water-owned compatible-plane correction is verified in
+focused source fixtures; current city geometry, nonconstant crossings and continuous
+terrain-conditioning acceptance remain under the alignment concern. D39 preservation
+does not certify those existing geometric defects as correct.
+D41 closes the demonstrated PIE/Simulate terrain flicker: native authoring meshes
+survived PIE duplication and competed with compiled terrain. The adapter now hides
+only tagged Editor-only source primitives in Game worlds. Exact native RED/GREEN,
+architect PASS, matched moving/negative controls and stable compiled readbacks in
+both cities pass with protected resource/World bytes unchanged. This requires no
+terrain regeneration, canonical compilation or material retuning. Water rollout,
+terrain conditioning and final release acceptance remain open; the authorized
+Building-only update is completed by D43 below.
+D42's autonomous sweep authenticates current city input/output scope and corrects
+the Building descriptor to match its revision-2 emission. Native saved-output
+baselines and the bounded synthetic cross-layer fixture are refreshed before
+rollout. D43 subsequently authorizes and completes only the Building replacement:
+312 mesh/actor pairs, 624 packages, two owner manifests, cold/no-op proof and
+both-city PIE exterior verification. Canonical, other layers, maps and materials
+remain unchanged. The native collision contract is retained, but one Manhattan
+roof changes by 1.42 cm in Nanite fallback collision; exact point equality is not
+claimed. No production conditioning policy or packaged product acceptance follows.
+Final packaged gameplay acceptance must include Building wall/roof collision and
+the recorded Manhattan fallback sample. Accepted Building outputs are reused while
+their consumed inputs remain equal; terrain-conditioning changes must reevaluate
+any Building cells that consume the changed canonical terrain.
+Packaged D38 semantics and final
+product approval remain separate; isolated cooked proof does not certify them.
+D33 authorizes a confirmed
+building-facing source correction and isolated verification only; D43 now completes
+its explicitly authorized affected-Building adoption boundary. This does not
+authorize canonical or full World regeneration or accept Concrete materials.
 The accepted isolated Texture Graph/cache foundation is retained. Exact adopted
 sources, packaged material consumption and measured cost must be proved at their
 proper boundary; fixture acceptance does not authorize production activation.
+D44 continues the operator's four-stage sweep. The existing selected transaction
+now accepts complete generated-consumer sets, with genuine saved-Water rollback
+and no-op proof. Generic encoded-normal triplanar materials and cold texture-load
+recovery have focused RED/GREEN and independent architect PASS. Both-city transient
+Concrete previews restore exact bindings and clean packages, but visual adoption
+is pending. Fresh isolated packaged proof authenticates the copied accepted
+material resources/live default targets, separate native aggregate/mip equality,
+and five cache recovery/budget tests. Its architect PASS does not certify real-city
+semantic channels, collision or frame pacing; isolated GPU timings remain diagnostic.
+Common Check `check-20261014T115834Z` and required canonical-authority Matrix
+`run-20261014T121414Z` pass. Matrix uses temporary generated-tree replacement
+under outer recovery with scratch manifest authority; all 6754 protected files
+match the post-D43 baseline after restoration. No fresh production canonical
+compilation ran. D45 authorizes and completes both selected Road/Water/Vegetation
+operations: 553 Road/Water mesh/actor pairs update, only four scope entries
+advance and Vegetation stays unchanged. Terrain, Buildings, canonical data and
+accepted materials remain byte-identical. Both cold no-ops and actual city
+previews preserve all 6758 accepted files. Remaining Water intersections are
+covered by candidate nonconstant source footprints. D47's native replay and
+saved actor-world comparison subsequently establish exact provenance for all
+45 detector-qualified contacts; it does not infer crossing connectivity.
+D46 separates 39 affine-equal and six unequal flagged contacts and
+measures bounded conservative-conditioning proposal costs without approving
+terrain changes. Its eight-arm packaged selected-resource comparison passes
+independent architect review, with a native refusal control and forty GPU
+profiles at actual 1280x720. It establishes retained selected-layer rendering and
+live cached material consumption; it cannot certify whole-city performance.
+Source triangle growth does not alone justify road optimization. The rollout
+does not close complete alignment or the required packaged city performance proof.
+D46 also corrects a ProjectMaterial C++ helper lookup collision; standard Editor
+build and two focused native material tests pass independent architect review.
+A clean both-city uncooked gameplay replay accepts movement, sampled collision,
+input and streaming with unchanged source/modules/authority during the run.
+Its native frame-budget results fail (31.42/29.98 ms frame p95); they remain PIE
+diagnostics, not packaged performance certification or a release PASS.
+D47 corrects a reproduced Water consumed-domain identity omission, with focused
+native geometry, actual-planner and saved-source replay proof. It changes no
+city output or canonical data. Corrected keys and Water output revision 3 require Water-only revalidation
+at its next acceptance boundary; D45 no-ops authenticate the prior keys.
+D47 also refreshes the isolated Concrete compiler identity and both-city preview
+evidence, with exact restoration and clean packages. The existing generic Building
+material-reference writer passes its saved/cold consumer fixture without geometry
+changes or mesh-build events; no new writer is introduced. Bounded baseline, soil
+and default-prototype work is closed in concern 3, while Concrete visual/adoption
+and final packaged acceptance retain their gates. Independent architect review
+passes each completed boundary; all 6758 protected files remain unchanged at D47.
+D48 delegates Concrete visual judgment to the agent. The selected Macro192
+building-massing recipe reuses the existing triplanar aggregate family, one Slab
+and shared generated Signals/Normal outputs. Installed UE capabilities and Epic
+guidance justify no additional shader layer. Current Check
+`check-20261015T094918Z` and canonical-authority Matrix `run-20261015T100212Z`
+pass; the temporary Matrix generated tree is restored exactly. Acceptance also
+corrects D47's missing Water output revision to 3 through native-recorded baselines,
+with unchanged geometry projection and no production Water writes.
+The existing material-only transaction adopts Concrete on 312 Building meshes;
+only those packages, two Building manifests and the active set change. Both cold
+no-ops report zero writes/builds and identical source/render/Nanite/collision data.
+Actual saved-binding PIE renders in both cities pass the scoped massing judgment,
+with ten views and 64 distinct motion frames each. Frozen soil/asphalt RGB stays
+equal, shared textures generate no warm pixels, and all 6763 post-adoption
+protected files retain their hashes after Editor exit. Current material adoption
+is complete for the four defaults; exact final packaged city consumption/cost,
+collision and full World acceptance remain open. Concrete is not finished facade
+presentation; PIE evidence does not replace packaged acceptance.
+Existing water-policy/crossing decisions, final city collision/performance,
+source freeze and operator walkthrough remain binding. Final R5/R6 have not run;
+the accepted historical baseline is untouched. No commit/publication is inferred.
 Concern 4 has bounded Q1 correctness evidence, with production integration
 and its remaining decisions still open. Both concerns must be completed and
 accepted before a new final frozen R5 and operator walkthrough; R6 remains
@@ -68,8 +189,8 @@ blocked (D19). No release operation is authorized by this development work.
 Development uses owner-local tests, scratch editor/PIE previews, and focused
 integration (D20). Do not build, cook, regenerate or repeat R5 for bookkeeping
 or as a debugging loop. The existing 16.67 ms target and explicit INCONCLUSIVE
-policy remain unchanged (D22). No commit, sign, push, tag, publish, or promotion
-is authorized by this development routing (D21).
+policy remain unchanged (D22). D39 authorizes only the concern's material application.
+No commit, sign, push, tag, publication or release promotion is authorized (D21).
 
 The older execution narratives below retain historical evidence. This current
 scope and D19-D22 govern the next action; prior "next R5/R6" notes are not a
@@ -1106,7 +1227,7 @@ elsewhere; never restate or renumber them.
 |---|---|---|---|
 | 1 | Terrain substrate: switch to Mesh Terrain (D12), proven on a same-Kazan comparison, then cutover | [Mesh Terrain migration](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md) | Done |
 | 2 | Generated production terrain material | [Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md) | Done; candidate proof per R2 |
-| 3 - Required | Terrain-first World Surface Presentation (D19-D20) | [World Surface Presentation](20261008-1543_world_improve_surface_materials.md) | CURRENT; BrownEarth bounded visual checkpoint PASS and frozen; remaining surface prototypes active under concern-local D31; persistent adoption and exact cooked acceptance OPEN |
+| 3 - Required | Terrain-first World Surface Presentation (D19-D20) | [World Surface Presentation](20261008-1543_world_improve_surface_materials.md) | CURRENT; four scoped defaults visually accepted and adopted through concern-local D48; exact final packaged city GPU/collision and full-surface acceptance OPEN |
 | 4 - Required | Road/terrain and water/terrain alignment, intersections, and layering (D19) | [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md) | CURRENT; Q1 owner-local correctness implemented and verified; production water acceptance, I5/I6 and Q2/Q3 OPEN |
 | Required | World release projection safety fix | [Projection recovery](../01_done/world/20260914-1215_audit_public_world_release_projection_recovery.md) | Done; frozen unsigned R5 accepted (D8) |
 | Required | World generation locality and identity correctness | [Generation locality](../01_done/world/20261002-1711_world_restore_generation_locality.md) | Done; independent R2 PASS before R5 (D8) |
@@ -1159,11 +1280,12 @@ elsewhere; never restate or renumber them.
 
 1. Keep completed concerns 1/2, R4, projection recovery, and locality evidence as
    accepted history. Do not repeat their production cutovers for bookkeeping.
-2. Review and agree on concern 3 first (D19/D21). Its todo owns material experiments,
-   consumer integration, any necessary reference migration, and visual acceptance.
-3. D24 permits a bounded read-only investigation of concern 4 now. Its todo compares
-   conformity with local feature-driven shaping, but selects no implementation;
-   obtain evidence-backed design approval before changing geometry.
+2. Retain concern 3's completed default-surface visual/adoption boundaries. Its
+   current authority register owns remaining packaged integration and acceptance;
+   do not restart completed material experiments or ask for Concrete judgment again.
+3. Concern 4's current register owns the implemented Q1 correctness and accepted
+   selected rollouts. Residual Water/source-quality/conditioning and ambiguous
+   crossing decisions remain open; initial D24 read-only timing is historical.
 4. Complete and accept both concerns through their bounded owner-local development
    routes (D20). No release package or full World regeneration is a debugging step.
 5. After both are accepted, prepare one new final frozen candidate under the existing
@@ -1397,8 +1519,8 @@ that exact step.
 
 Concern 3 owns all surface-material execution, reusing the retained water, road,
 and building research linked in its todo. Those backlog records are provenance,
-not parallel active tasks. Concern 4 separately owns alignment investigation;
-its design remains pending. Neither a shader compile nor file creation closes
+not parallel active tasks. Concern 4 separately owns alignment correctness and
+its residual source-quality/conditioning/crossing decisions. Neither a shader compile nor file creation closes
 either required concern (D19-D20).
 
 During development, preserve accepted technical baseline evidence and use the
@@ -1412,9 +1534,10 @@ rebuild is an architectural finding, not permission for full regeneration.
 The existing [World layers](../../docs/testing/world_pipeline_layers.md) and
 [release preflight](../../scripts/ue/package/README.md#preparation-preflight-and-failure-triage)
 own gate selection. Final packaged behavior and performance remain future R5
-properties; fast development evidence cannot certify them. D21 bounds this
-session to document preparation and cheap documentation checks, except for D24's
-explicit bounded read-only editor investigation.
+properties; fast development evidence cannot certify them. D21 retains the
+no-publication boundary. Subsequent implementation, isolated acceptance and
+selected adoption authority lives in the current concern registers; the initial
+documentation-only and D24 read-only timing is not the current execution limit.
 
 ## R4 - release-platform contract
 

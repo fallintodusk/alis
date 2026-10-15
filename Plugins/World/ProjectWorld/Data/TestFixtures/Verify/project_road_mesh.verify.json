@@ -4,7 +4,7 @@
   "verify": "Project.World.Realization.Verify.Road",
   "identity": {
     "producer_id": "project_road_mesh:v1",
-    "output_revision": 1,
+    "output_revision": 2,
     "pipeline_revision": 1,
     "comparison_contract_version": 1,
     "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
@@ -15,7 +15,7 @@
     ],
     "embedded": []
   },
-  "projection_sha256": "d088a9f78603bfa2453f0812875bb6c45cf11b40e23e57e339ab56e529ccb302",
+  "projection_sha256": "812b101ffd563d8d71cc444b91fbee26eaf0515d96964a73fb5421106ee64bc3",
   "records": [
     {
       "kind": "actor",
@@ -38,7 +38,7 @@
         "label": "ProjectWorld Roads cell_0",
         "name": "ProjectWorld_Road_cell_0",
         "spatially_loaded": "1",
-        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=road_grid,ProjectWorld.Road.v1,ProjectWorld.RoadCell=cell_0,ProjectWorld.RoadSemantic=416e270a6aa52f6498bdfe6ade2ab602f699e43cc3ef87fb5aac4b32967bc072",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=road_grid,ProjectWorld.Road.v1,ProjectWorld.RoadCell=cell_0,ProjectWorld.RoadSemantic=5cbbaa413aa2c75e2df4e418e219502c9d9081e6fcd1966788a570187e65ae47",
         "transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
       }
     },
@@ -63,7 +63,7 @@
         "label": "ProjectWorld Roads cell_1",
         "name": "ProjectWorld_Road_cell_1",
         "spatially_loaded": "1",
-        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=road_grid,ProjectWorld.Road.v1,ProjectWorld.RoadCell=cell_1,ProjectWorld.RoadSemantic=ca712396ae140d43946ae29c4927eab3d38243bb621cbda102974cd76a1d118c",
+        "tags": "ProjectWorld.Generated.v1,ProjectWorld.Grid=road_grid,ProjectWorld.Road.v1,ProjectWorld.RoadCell=cell_1,ProjectWorld.RoadSemantic=13507010f7d122386ca21ab787bf0ca0e2697c3a19fd671ee1a85eae0403ff05",
         "transform": "t=100000,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
       }
     },
@@ -77,10 +77,10 @@
         "body_trace": "CTF_UseComplexAsSimple",
         "distance_field": "0",
         "distance_field_resolution_scale": "0",
-        "mesh_description": "12f8ce13c6c95475e0fde47ebdec23173194ae32ec07e0ebe411d28ac5d23729",
+        "mesh_description": "e6fd6c2c7e974d8c65db5b7bcbe40b3b0922e2947ca2ea52dc96af801855e9bd",
         "nanite": "1",
         "navigation_data": "0",
-        "render_lod0": "d97a6a3b4155b764fa9fe85d107aff95d21c20d65366cb5e46e5226b20c94778",
+        "render_lod0": "dfa8c9e33ac45e382eb7ed0f94f1168035b9ba694072cd86b3cd11e66b4767a6",
         "source_models": "1",
         "static_materials": "Road=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
       }
@@ -95,10 +95,10 @@
         "body_trace": "CTF_UseComplexAsSimple",
         "distance_field": "0",
         "distance_field_resolution_scale": "0",
-        "mesh_description": "8df7aa8ba7ad2bd15139bde9530c103c12b6a2593f1078998bdfe0eedc88da97",
+        "mesh_description": "740ac6b685e629f58b0421a4cd46109e90c38426d772b30eebd608230bea37f7",
         "nanite": "1",
         "navigation_data": "0",
-        "render_lod0": "c4b7bf6e3a03cd15457d8b21b591e8be7ddb33daf47dbd81700e0fc8912556be",
+        "render_lod0": "2ee7c3be489acfed9920b3e1473a8fe246329469eb969f32ef16ba4f4ea4875c",
         "source_models": "1",
         "static_materials": "Road=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
       }

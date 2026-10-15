@@ -25,9 +25,8 @@ function Read-BgraImage {
     $source = [System.Drawing.Bitmap]::FromFile($resolved)
     $bitmap = $null
     try {
-        # SceneCapture base-color PNGs carry meaningful RGB with alpha 0. Drawing
-        # them through GDI+ alpha-composites those pixels to black; Clone keeps the
-        # source bytes intact for geometry/material classification.
+        # Numeric visibility masks carry meaningful RGB even with alpha 0.
+        # Clone preserves those bytes without GDI+ alpha compositing.
         $bitmap = $source.Clone(
             (New-Object System.Drawing.Rectangle(0, 0, $source.Width, $source.Height)),
             [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -79,6 +78,7 @@ if ($reference.Width -ne $repeat.Width -or $reference.Height -ne $repeat.Height)
 [long]$blueClassificationFlips = 0
 [double]$blueChannelDeltaSum = 0.0
 [int]$maximumBlueChannelDelta = 0
+[long]$invalidMaskPixels = 0
 
 for ($y = 0; $y -lt $reference.Height; ++$y) {
     $referenceRow = if ($reference.Stride -ge 0) { $y } else { $reference.Height - 1 - $y }
@@ -95,6 +95,12 @@ for ($y = 0; $y -lt $reference.Height; ++$y) {
         $repeatBlue = [int]$repeat.Bytes[$repeatOffset]
         $repeatGreen = [int]$repeat.Bytes[$repeatOffset + 1]
         $repeatRed = [int]$repeat.Bytes[$repeatOffset + 2]
+
+        if ($referenceRed -ne 0 -or $referenceGreen -ne 0 -or
+            $referenceBlue -notin @(0, 255) -or $repeatRed -ne 0 -or
+            $repeatGreen -ne 0 -or $repeatBlue -notin @(0, 255)) {
+            ++$invalidMaskPixels
+        }
 
         $referenceIsBlue = $referenceBlue -ge 80 -and
             $referenceBlue -ge ($referenceRed + 25) -and
@@ -133,6 +139,9 @@ $meanBlueChannelDelta = if ($blueBoth -gt 0) {
     [double]::PositiveInfinity
 }
 $failures = @()
+if ($invalidMaskPixels -gt 0) {
+    $failures += "visibility mask encoding is invalid at $invalidMaskPixels pixels"
+}
 if ($blueUnion -lt $MinimumBluePixels) {
     $failures += "blue pixel union $blueUnion is below $MinimumBluePixels"
 }
@@ -149,6 +158,7 @@ if (![string]::IsNullOrWhiteSpace($receiptDirectory)) {
 }
 $receipt = [ordered]@{
     schema_version = 1
+    capture_encoding = 'visible_water_depth_mask_v1'
     status = if ($failures.Count -eq 0) { 'accepted' } else { 'rejected' }
     reference = [ordered]@{
         path = $reference.Path
@@ -163,6 +173,7 @@ $receipt = [ordered]@{
         height = $reference.Height
     }
     metrics = [ordered]@{
+        invalid_mask_pixels = $invalidMaskPixels
         blue_pixel_union = $blueUnion
         blue_pixel_both = $blueBoth
         blue_classification_flips = $blueClassificationFlips

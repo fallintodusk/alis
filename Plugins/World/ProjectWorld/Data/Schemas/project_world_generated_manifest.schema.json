@@ -52,13 +52,29 @@
     "input_identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["compile_result_sha256", "presentation_profile_sha256", "runtime_profile_sha256", "map_package"],
+      "required": [
+        "compile_result_sha256",
+        "presentation_profile_sha256",
+        "runtime_profile_sha256",
+        "map_package"
+      ],
       "properties": {
-        "compile_result_sha256": {"$ref": "#/$defs/sha256_or_none"},
-        "presentation_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
-        "runtime_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
-        "authored_overlay_profile_sha256": {"$ref": "#/$defs/sha256_or_none"},
-        "map_package": {"type": "string", "minLength": 1}
+        "compile_result_sha256": {
+          "$ref": "#/$defs/sha256_or_none"
+        },
+        "presentation_profile_sha256": {
+          "$ref": "#/$defs/sha256_or_none"
+        },
+        "runtime_profile_sha256": {
+          "$ref": "#/$defs/sha256_or_none"
+        },
+        "authored_overlay_profile_sha256": {
+          "$ref": "#/$defs/sha256_or_none"
+        },
+        "map_package": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "layer_contract": {
@@ -69,7 +85,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "kind", "digest_kind", "digest"],
+        "required": [
+          "path",
+          "kind",
+          "digest_kind",
+          "digest"
+        ],
         "properties": {
           "path": {
             "description": "Normalized repository-relative path with forward slashes.",
@@ -77,30 +98,127 @@
             "pattern": "^[A-Za-z0-9_./ -]+$"
           },
           "kind": {
-            "enum": ["map", "external_actor", "external_object", "asset", "built_data", "hlod", "other"]
+            "enum": [
+              "map",
+              "external_actor",
+              "external_object",
+              "asset",
+              "built_data",
+              "hlod",
+              "other"
+            ]
           },
           "digest_kind": {
             "const": "sha256"
           },
-          "digest": {"$ref": "#/$defs/sha256"}
+          "digest": {
+            "$ref": "#/$defs/sha256"
+          }
         }
       }
     },
     "consumer_references": {
       "description": "Scope IDs that consume artifacts owned by this scope. Consumption never grants mutation rights.",
       "type": "array",
-      "items": {"type": "string", "pattern": "^(map|presentation|layer)_[a-z0-9_]+$"},
+      "items": {
+        "type": "string",
+        "pattern": "^(map|presentation|layer)_[a-z0-9_]+$"
+      },
       "uniqueItems": true
+    },
+    "material_adoption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_profile_sha256",
+        "geometry_profile_source_base64",
+        "role",
+        "resource",
+        "declaration"
+      ],
+      "properties": {
+        "presentation_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "geometry_profile_source_base64": {
+          "type": "string",
+          "minLength": 4,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+        },
+        "role": {
+          "enum": [
+            "road",
+            "building",
+            "water"
+          ]
+        },
+        "resource": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "object_path",
+            "package_sha256",
+            "semantic_identity",
+            "manifest_sha256"
+          ],
+          "properties": {
+            "object_path": {
+              "type": "string",
+              "pattern": "^/ProjectMaterial/Surfaces/.+\\..+$"
+            },
+            "package_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "semantic_identity": {
+              "$ref": "#/$defs/sha256"
+            },
+            "manifest_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "declaration": {
+          "type": "string",
+          "pattern": "^(road|building|water)\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+        }
+      }
     }
   },
   "allOf": [
     {
       "if": {
-        "properties": {"scope_id": {"pattern": "^layer_"}},
-        "required": ["scope_id"]
+        "properties": {
+          "scope_id": {
+            "pattern": "^layer_"
+          }
+        },
+        "required": [
+          "scope_id"
+        ]
       },
-      "then": {"required": ["layer_contract"]},
-      "else": {"not": {"required": ["layer_contract"]}}
+      "then": {
+        "required": [
+          "layer_contract"
+        ]
+      },
+      "else": {
+        "allOf": [
+          {
+            "not": {
+              "required": [
+                "layer_contract"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "material_adoption"
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "$defs": {
@@ -120,34 +238,65 @@
         "semantic_outputs"
       ],
       "properties": {
-        "realization_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-        "realization_profile_sha256": {"$ref": "#/$defs/sha256"},
-        "normalized_layer_contract_sha256": {"$ref": "#/$defs/sha256"},
-        "generator_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-        "generator_version": {"type": "integer", "minimum": 1},
-        "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+/$"},
+        "realization_profile_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "realization_profile_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "normalized_layer_contract_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "generator_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "generator_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "artifact_root": {
+          "type": "string",
+          "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+/$"
+        },
         "canonical_inputs": {
           "type": "array",
-          "items": {"$ref": "#/$defs/layer_input"}
+          "items": {
+            "$ref": "#/$defs/layer_input"
+          }
         },
         "dependency_inputs": {
           "type": "array",
-          "items": {"$ref": "#/$defs/layer_input"}
+          "items": {
+            "$ref": "#/$defs/layer_input"
+          }
         },
         "final_dirty_units": {
           "type": "array",
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "semantic_outputs": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["artifact_path", "semantic_sha256"],
+            "required": [
+              "artifact_path",
+              "semantic_sha256"
+            ],
             "properties": {
-              "artifact_path": {"type": "string", "pattern": "^[A-Za-z0-9_./ -]+$"},
-              "semantic_sha256": {"$ref": "#/$defs/sha256"}
+              "artifact_path": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_./ -]+$"
+              },
+              "semantic_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
             }
           }
         }
@@ -156,17 +305,32 @@
     "layer_input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["unit_id", "sha256"],
+      "required": [
+        "unit_id",
+        "sha256"
+      ],
       "properties": {
-        "unit_id": {"type": "string", "minLength": 1},
-        "sha256": {"$ref": "#/$defs/sha256"}
+        "unit_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
       }
     },
-    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
     "sha256_or_none": {
       "anyOf": [
-        {"$ref": "#/$defs/sha256"},
-        {"const": "none"}
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "const": "none"
+        }
       ]
     }
   }

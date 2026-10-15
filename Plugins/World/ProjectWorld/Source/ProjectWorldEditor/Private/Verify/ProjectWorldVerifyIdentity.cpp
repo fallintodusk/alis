@@ -171,6 +171,24 @@ namespace ProjectWorldVerifyIdentityDetail
 				}
 				Append(Text, P + TEXT("terrain.weights.") + WeightName.ToString(), Weights);
 			}
+			// An absent optional surface preserves existing regular-grid fixture identities.
+			if (!Terrain.RefinedQuads.IsEmpty())
+			{
+				Append(Text, P + TEXT("terrain.refined.count"), FString::FromInt(Terrain.RefinedQuads.Num()));
+				for (int32 Q=0; Q<Terrain.RefinedQuads.Num(); ++Q)
+				{
+					const auto& Quad = Terrain.RefinedQuads[Q];
+					const FString R = P + FString::Printf(TEXT("terrain.refined[%d]."), Q);
+					Append(Text, R + TEXT("coordinate"), FString::Printf(TEXT("%d,%d"), Quad.Coordinate.X, Quad.Coordinate.Y));
+					FString Vertices, Weights, Faces;
+					for (const FVector& V : Quad.Vertices) Vertices += Number(V.X)+TEXT(",")+Number(V.Y)+TEXT(",")+Number(V.Z)+TEXT(";");
+					for (const FVector2f& W : Quad.Weights) Weights += Number(W.X)+TEXT(",")+Number(W.Y)+TEXT(";");
+					for (const FIntVector& F : Quad.Triangles) Faces += FString::Printf(TEXT("%d,%d,%d;"),F.X,F.Y,F.Z);
+					Append(Text, R + TEXT("vertices"), Vertices);
+					Append(Text, R + TEXT("weights"), Weights);
+					Append(Text, R + TEXT("triangles"), Faces);
+				}
+			}
 		}
 		TArray<FString> FeatureIds;
 		Bundle.Features.GetKeys(FeatureIds);

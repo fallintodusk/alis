@@ -1,29 +1,64 @@
 {
   "$schema": "../../Schemas/surface-recipe.schema.json",
-  "schema_version": "4",
+  "schema_version": "9",
   "material_id": "MI_ProjectTerrain_Default",
   "artifact_kind": "instance",
-  "binding_id": "terrain.default",
   "family": "surface_substrate",
-  "archetype": "terrain_metric",
-  "compiler_version": "5",
-  "parent": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain",
-  "projection_frame": "world_metric_triplanar_2d",
+  "archetype": "terrain_height_masks_metric",
+  "compiler_version": "10",
+  "projection_frame": "world_metric_xy_2d",
   "pattern": {
-    "pattern_id": "project_terrain_structure"
+    "pattern_id": "project_ground_compacted"
   },
-  "semantic_bindings": ["ground", "hydro_transition"],
+  "semantic_bindings": [
+    "ground",
+    "hydro_transition"
+  ],
   "scalars": {
-    "BaseRoughness": 0.9,
-    "PatternScaleMeters": 96.0,
-    "MacroStrength": 0.12,
-    "DetailStrength": 0.12,
-    "HydroDarkening": 0.24,
-    "SlopeContrast": 1.35
+    "PatternScaleMeters": 0.5,
+    "GrainColorStrength": 0.14,
+    "RoughnessStrength": 0.12,
+    "BaseRoughness": 0.93,
+    "BumpHeightCentimeters": 0.8,
+    "AOInfluence": 0.03,
+    "MacroScaleMeters": 9.7,
+    "MacroBlendStartMeters": 5.0,
+    "MacroBlendEndMeters": 18.0,
+    "NearMacroStrength": 0.14,
+    "FarMacroStrength": 0.48,
+    "MacroRoughnessStrength": 0.08,
+    "AggregatePigmentStrength": 0.35,
+    "SecondaryScaleRatio": 1.73,
+    "CompositionContrast": 0.94,
+    "CompositionStrength": 1.0,
+    "HydroDarkening": 0.24
   },
   "vectors": {
-    "GroundColor": [0.05, 0.13, 0.025, 1.0],
-    "SteepGroundColor": [0.16, 0.075, 0.02, 1.0],
-    "HydroTint": [0.02, 0.05, 0.035, 1.0]
-  }
+    "SoilDarkColor": [
+      0.085,
+      0.065,
+      0.046,
+      1.0
+    ],
+    "SoilLightColor": [
+      0.24,
+      0.18,
+      0.12,
+      1.0
+    ],
+    "GrainColor": [
+      0.3,
+      0.26,
+      0.2,
+      1.0
+    ],
+    "HydroTint": [
+      0.02,
+      0.05,
+      0.035,
+      1.0
+    ]
+  },
+  "binding_id": "terrain.default",
+  "parent": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain"
 }

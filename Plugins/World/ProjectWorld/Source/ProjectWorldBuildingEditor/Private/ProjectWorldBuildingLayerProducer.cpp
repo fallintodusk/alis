@@ -15,6 +15,7 @@ FProjectWorldBuildingLayerProducer& FProjectWorldBuildingLayerProducer::Get()
 FProjectWorldBuildingLayerProducer::FProjectWorldBuildingLayerProducer()
 {
 	Declaration.GeneratorId = TEXT("project_building_massing");
+	Declaration.PresentationMaterialRole = TEXT("building");
 	Declaration.GeneratorVersion = 2;
 	Declaration.CanonicalSelectors = {TEXT("buildings")};
 	Declaration.SpatialOwnership = TEXT("cell_local");
@@ -105,8 +106,9 @@ bool FProjectWorldBuildingLayerProducer::CaptureArtifacts(const FProjectWorldLay
 	FProjectWorldLayerInventory& Inventory, FProjectWorldRealizationResult& OutResult,
 	FString& OutError) const
 {
+	UMaterialInterface* const* Material=Context.PresentationMaterials.Find(TEXT("building"));
 	if (!ProjectWorldBuildingInventory::Capture(&Context.World, Context.Inputs.Bundle,
-		Context.Inputs.Layer, Context.Inputs.AuthoredOverlays, Inventory, OutResult, OutError))
+		Context.Inputs.Layer, Context.Inputs.AuthoredOverlays, Inventory, OutResult, OutError,Material ? *Material : nullptr))
 	{
 		return false;
 	}

@@ -1,0 +1,47 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "7",
+  "material_id": "M_ProjectWaterSurface",
+  "artifact_kind": "parent",
+  "family": "surface_substrate",
+  "archetype": "single_layer_water",
+  "compiler_version": "8",
+  "projection_frame": "world_metric_xy_2d",
+  "semantic_bindings": [],
+  "scalars": {
+    "SurfaceRoughness": 0.13,
+    "WaterSpecular": 0.255,
+    "WaterPhaseG": 0.15,
+    "RippleTileMeters": 3.2,
+    "RippleSpeed": 0.025,
+    "RippleStrength": 0.22,
+    "LiveTimeEnabled": 1.0,
+    "PreviewSeconds": 0.0
+  },
+  "vectors": {
+    "WaterAlbedo": [
+      0.12,
+      0.16,
+      0.1,
+      1.0
+    ],
+    "WaterExtinction": [
+      0.002,
+      0.0018,
+      0.0026,
+      1.0
+    ],
+    "WaterSurfaceColor": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "BehindWaterScale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  }
+}

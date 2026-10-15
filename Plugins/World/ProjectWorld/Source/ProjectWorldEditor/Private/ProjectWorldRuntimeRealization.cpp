@@ -236,12 +236,15 @@ namespace ProjectWorldRuntimeRealization
 				OutError = TEXT("Runtime route endpoints must remain inside accepted canonical cells.");
 				return false;
 			}
+			double StartHeight = 0, EndHeight = 0;
+			if (!ProjectWorldGeneratedGeometry::SampleTerrain(*StartCell, Start.X, Start.Y, StartHeight, OutError) ||
+				!ProjectWorldGeneratedGeometry::SampleTerrain(*EndCell, End.X, End.Y, EndHeight, OutError)) return false;
 			OutStart = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
-				FVector(Start, ProjectWorldGeneratedGeometry::SampleTerrain(*StartCell, Start.X, Start.Y) + Profile.RouteSurfaceOffsetMeters));
+				FVector(Start, StartHeight + Profile.RouteSurfaceOffsetMeters));
 			OutEnd = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
-				FVector(End, ProjectWorldGeneratedGeometry::SampleTerrain(*EndCell, End.X, End.Y) + Profile.RouteSurfaceOffsetMeters));
+				FVector(End, EndHeight + Profile.RouteSurfaceOffsetMeters));
 			return true;
 		}
 
@@ -264,7 +267,8 @@ namespace ProjectWorldRuntimeRealization
 				return false;
 			}
 
-			const double TerrainHeight = ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Anchor.X, Anchor.Y);
+			double TerrainHeight = 0;
+			if (!ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Anchor.X, Anchor.Y, TerrainHeight, OutError)) return false;
 			OutLocation = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle,
 				FVector(Anchor, TerrainHeight + Profile.ProductSpawnHeightAboveTerrainMeters));

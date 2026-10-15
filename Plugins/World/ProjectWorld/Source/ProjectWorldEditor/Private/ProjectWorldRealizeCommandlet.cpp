@@ -94,6 +94,17 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	Request.ResultPath = FPaths::ConvertRelativePathToFull(*ResultPath);
 	Request.MapPackagePath = *MapPath;
 	Request.Mode = ParsedMode;
+	Request.bMaterialReferencesOnly=Switches.ContainsByPredicate([](const FString& Switch)
+	{ return Switch.Equals(TEXT("MaterialReferencesOnly"),ESearchCase::IgnoreCase); });
+	if (const FString* Selection = Parameters.Find(TEXT("ExecuteLayers")))
+	{
+		if (Selection->IsEmpty() || ParsedMode != EProjectWorldRealizationMode::Apply)
+		{
+			UE_LOG(LogProjectWorldRealization, Error, TEXT("Execution selection requires incremental Apply."));
+			return 2;
+		}
+		Selection->ParseIntoArray(Request.ExecutionLayerIds, TEXT(","), false);
+	}
 
 	Request.bFirstLayerApply = Switches.ContainsByPredicate([](const FString& Switch)
 	{

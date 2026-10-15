@@ -55,8 +55,8 @@ if ($Verify -eq 'Twin') {
 
 $testName = "Project.World.Realization.Verify.$Verify"
 $runner = Join-Path $repoRoot 'scripts\ue\test\unit\run_cpp_tests_safe.ps1'
-$step = if ($env:OVERNIGHT_STEP) { $env:OVERNIGHT_STEP } else { 'manual' }
-$runnerLog = Join-Path $repoRoot "scripts\ue\artifacts\overnight\step-$step\tests.log"
+$runnerDirectory = Join-Path $evidenceRoot 'runner'
+$runnerLog = Join-Path $runnerDirectory 'tests.log'
 
 function Invoke-ColdVerify {
     param(
@@ -67,7 +67,7 @@ function Invoke-ColdVerify {
 
     # Naming the expected test forces the cold path: a warm editor would run without the switch.
     & $runner -TestFilter $testName -ExpectedTestNames @($testName) -RequiredLogPatterns @($Marker) `
-        -ExtraArgs $Switch -TimeoutSeconds $TimeoutSeconds | Out-Host
+        -ExtraArgs $Switch -TimeoutSeconds $TimeoutSeconds -LogDirectory $runnerDirectory | Out-Host
     $exitCode = $LASTEXITCODE
     $copy = Join-Path $evidenceRoot $LogName
     if (Test-Path -LiteralPath $runnerLog -PathType Leaf) {

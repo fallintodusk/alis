@@ -1,0 +1,52 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "8",
+  "material_id": "M_ProjectMetricHeightFixture",
+  "artifact_kind": "parent",
+  "family": "surface_substrate",
+  "archetype": "height_masks_metric",
+  "compiler_version": "9",
+  "projection_frame": "world_metric_xy_2d",
+  "pattern": {
+    "pattern_id": "project_graded_fixture"
+  },
+  "semantic_bindings": [],
+  "scalars": {
+    "PatternScaleMeters": 0.5,
+    "GrainColorStrength": 0.14,
+    "RoughnessStrength": 0.12,
+    "BaseRoughness": 0.93,
+    "BumpHeightCentimeters": 0.8,
+    "AOInfluence": 0.03,
+    "MacroScaleMeters": 9.7,
+    "MacroBlendStartMeters": 5.0,
+    "MacroBlendEndMeters": 18.0,
+    "NearMacroStrength": 0.14,
+    "FarMacroStrength": 0.48,
+    "MacroRoughnessStrength": 0.08,
+    "AggregatePigmentStrength": 0.35,
+    "SecondaryScaleRatio": 1.73,
+    "CompositionContrast": 0.94,
+    "CompositionStrength": 1.0
+  },
+  "vectors": {
+    "SoilDarkColor": [
+      0.085,
+      0.065,
+      0.046,
+      1.0
+    ],
+    "SoilLightColor": [
+      0.24,
+      0.18,
+      0.12,
+      1.0
+    ],
+    "GrainColor": [
+      0.3,
+      0.26,
+      0.2,
+      1.0
+    ]
+  }
+}

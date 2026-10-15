@@ -16,4 +16,6 @@ bool Build(const FProjectTexturePatternRecipe& Recipe, const FString& PackageNam
 bool Verify(const FProjectTexturePatternRecipe& Recipe, UObject* Asset, FString& OutError);
 bool BuildDerivedMaterial(UMaterial* Material, UTextureRenderTarget2D* Parent,
 	int32 Size, bool bNormal, FString& OutError);
+bool VerifyDerivedMaterial(const UMaterial* Material,const UTextureRenderTarget2D* Parent,
+	int32 Size,bool bNormal,FString& OutError);
 }

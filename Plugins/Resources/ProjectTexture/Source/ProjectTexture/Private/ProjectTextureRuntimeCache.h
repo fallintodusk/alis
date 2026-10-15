@@ -37,7 +37,6 @@ public:
 	{
 	}
 
-	void SetBudgetBytes(int64 InBudgetBytes) { BudgetBytes = InBudgetBytes; }
 	EProjectTextureCacheRequest Request(
 		const FString& Identity,
 		int64 Bytes,
@@ -55,6 +54,7 @@ public:
 	}
 
 	int64 GetResidentBytes() const { return ResidentBytes; }
+	int64 GetBudgetBytes() const { return BudgetBytes; }
 	int64 GetPeakResidentBytes() const { return PeakResidentBytes; }
 
 private:

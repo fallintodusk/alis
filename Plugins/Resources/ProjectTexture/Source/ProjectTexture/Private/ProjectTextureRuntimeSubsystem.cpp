@@ -19,6 +19,7 @@
 #include "RenderingThread.h"
 #include "TextureResource.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UObjectThreadContext.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectTextureRuntime, Log, All);
 
@@ -91,6 +92,11 @@ void FProjectTextureRuntimeCacheDeleter::operator()(FProjectTextureRuntimeCache*
 
 UProjectTextureRuntimeSubsystem::~UProjectTextureRuntimeSubsystem() = default;
 
+int64 UProjectTextureRuntimeSubsystem::GetBudgetBytes() const
+{
+	return Cache ? Cache->GetBudgetBytes() : 0;
+}
+
 bool UProjectTextureRuntimeSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 	return Super::ShouldCreateSubsystem(Outer) && FApp::CanEverRender() &&
@@ -100,7 +106,15 @@ bool UProjectTextureRuntimeSubsystem::ShouldCreateSubsystem(UObject* Outer) cons
 void UProjectTextureRuntimeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	Cache.Reset(new FProjectTextureRuntimeCache());
+	if (GlobalBudgetBytes <= 0)
+	{
+		UE_LOG(LogProjectTextureRuntime, Error,
+			TEXT("[RuntimeCache::Initialize] Invalid GlobalBudgetBytes=%lld; generation disabled."), GlobalBudgetBytes);
+		return;
+	}
+	Cache.Reset(new FProjectTextureRuntimeCache(GlobalBudgetBytes));
+	UE_LOG(LogProjectTextureRuntime, Display,
+		TEXT("[RuntimeCache::Initialize] Fixed global_budget_bytes=%lld"), GlobalBudgetBytes);
 	BundleTicker = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateUObject(this, &UProjectTextureRuntimeSubsystem::TickBundles));
 	WorldInitializedHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
@@ -155,10 +169,36 @@ void UProjectTextureRuntimeSubsystem::HandlePostWorldInitialization(
 	{
 		return;
 	}
+	GeneratePendingOutputs();
+}
+
+void UProjectTextureRuntimeSubsystem::GeneratePendingOutputs()
+{
+	if (!IsInGameThread() || FUObjectThreadContext::Get().IsRoutingPostLoad) return;
+	UWorld* World = FindGenerationWorld();
+	if (World == nullptr) return;
 	TArray<TObjectPtr<UProjectTextureOutputSlot>> Outputs = MoveTemp(PendingOutputs);
 	PendingOutputs.Reset();
 	for (UProjectTextureOutputSlot* Output : Outputs)
 	{
+		const EObjectFlags LoadingFlags = RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects;
+		const UProjectTextureRuntimeCatalog* Catalog = Output ? Output->Catalog.Get() : nullptr;
+		bool bLoading = Output && Output->HasAnyFlags(LoadingFlags);
+		const auto* RequestedTarget = Output ? Output->GetRenderTarget() : nullptr;
+		bLoading |= RequestedTarget && RequestedTarget->HasAnyFlags(LoadingFlags);
+		if (Catalog)
+		{
+			bLoading |= Catalog->HasAnyFlags(LoadingFlags);
+			for (const auto& Slot : Catalog->OutputSlots)
+			{
+				const auto* Target = Slot ? Slot->GetRenderTarget() : nullptr;
+				bLoading |= Slot && Slot->HasAnyFlags(LoadingFlags);
+				bLoading |= Target && Target->HasAnyFlags(LoadingFlags);
+			}
+			for (const auto& Node : Catalog->Nodes)
+				bLoading |= Node.GeneratorMaterial && Node.GeneratorMaterial->HasAnyFlags(LoadingFlags);
+		}
+		if (bLoading) { PendingOutputs.AddUnique(Output); continue; }
 		FString Error;
 		if (!RequestOutput(World, Output, Error))
 		{
@@ -202,6 +242,13 @@ void UProjectTextureRuntimeSubsystem::QueueOrGenerate(UProjectTextureOutputSlot*
 	{
 		return;
 	}
+	// A sibling texture can still recreate its resource after a nested slot's PostLoad.
+	// The existing ticker drains this queue only after native loading has returned.
+	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		PendingOutputs.AddUnique(OutputSlot);
+		return;
+	}
 	if (UWorld* World = FindGenerationWorld())
 	{
 		FString Error;
@@ -225,11 +272,11 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 	const double RequestStartedSeconds = FPlatformTime::Seconds();
 	OutError.Reset();
 	++Telemetry.Requests;
-	if (!IsInGameThread() || OutputSlot == nullptr || OutputSlot->Catalog == nullptr ||
+	if (!IsInGameThread() || FUObjectThreadContext::Get().IsRoutingPostLoad || OutputSlot == nullptr || OutputSlot->Catalog == nullptr ||
 		OutputSlot->GetRenderTarget() == nullptr ||
 		WorldContextObject == nullptr || Cache == nullptr)
 	{
-		OutError = TEXT("Runtime texture generation requires the game thread, a world, slot, and catalog.");
+		OutError = TEXT("Runtime texture generation requires the game thread outside PostLoad, a world, slot, and catalog.");
 		++Telemetry.Failures;
 		return false;
 	}
@@ -268,7 +315,6 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 		if (Entry && Entry->State == EProjectTextureCacheState::Ready) Cache->Fail(Identity);
 		ReadyOutputs.Remove(Catalog->SemanticIdentity + TEXT(":") + Node.NodeId.ToString());
 	}
-	Cache->SetBudgetBytes(Catalog->BudgetBytes);
 	const int32 GenerationsBeforeCold = Telemetry.Generations;
 
 	TMap<FName, UTextureRenderTarget2D*> NodeTargets;

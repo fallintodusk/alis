@@ -10,6 +10,9 @@ Describe 'ProjectWorld descriptor producer fingerprints' {
         $source = 'Plugins/World/ProjectWorld/Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterRealization.cpp'
         $fixture = New-ProjectWorldProducerIdentityFixture -RepositoryRoot $repositoryRoot `
             -ProjectRoot $fixtureRoot -SourcePath @($source)
+        # Golden vectors and corruption controls use a fixed synthetic revision.
+        Edit-ProjectWorldDescriptorText -Path $fixture.Descriptors['project_water_mesh:v1'] `
+            -Pattern '"output_revision"\s*:\s*\d+' -Replacement '"output_revision": 1'
         $engine = 'e' * 64
     }
 

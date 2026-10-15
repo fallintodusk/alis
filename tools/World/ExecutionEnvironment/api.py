@@ -5,6 +5,7 @@ from .app.dependencies import dependency_lock_hash, verify_python_runtime
 from .app.geospatial import transform_points
 from .app.file_lock import exclusive_file_lock
 from .app.identity import execution_identity
+from .app.native_geometry import partition_triangles, validate_triangle_cover
 from .app.toolchain import bootstrap_tools, require_tools, run_tool
 
 
@@ -13,6 +14,8 @@ __all__ = [
     "bootstrap_tools",
     "dependency_lock_hash",
     "execution_identity",
+    "partition_triangles",
+    "validate_triangle_cover",
     "exclusive_file_lock",
     "require_tools",
     "run_tool",

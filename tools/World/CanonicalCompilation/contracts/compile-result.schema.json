@@ -8,7 +8,7 @@
     "$schema": {"type": "string"},
     "schema_version": {"const": 1},
     "operation_id": {"type": "string"},
-    "operation": {"enum": ["plan", "compile", "validate"]},
+    "operation": {"enum": ["plan", "compile", "validate", "refine"]},
     "status": {"enum": ["accepted", "rejected", "failed"]},
     "profile_id": {"type": ["string", "null"]},
     "inputs_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},

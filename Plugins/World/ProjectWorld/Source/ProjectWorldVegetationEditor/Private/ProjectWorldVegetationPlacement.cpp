@@ -153,7 +153,7 @@ namespace ProjectWorldVegetationRealization
 			return Point.X >= Bounds.X && Point.X < Bounds.Z && Point.Y >= Bounds.Y && Point.Y < Bounds.W;
 		}
 
-		void AddInstance(
+		bool AddInstance(
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldCanonicalCell& Cell,
 			const FVegetationSettings& Settings,
@@ -161,26 +161,27 @@ namespace ProjectWorldVegetationRealization
 			FProjectWorldVegetationPlacementStats& Stats,
 			const FString& StableId,
 			const FVector2D& CanonicalPoint,
-			TArray<FProjectWorldVegetationInstance>& OutInstances)
+			TArray<FProjectWorldVegetationInstance>& OutInstances, FString& OutError)
 		{
 			++Stats.CandidateCount;
 			switch (Exclusions.Classify(CanonicalPoint))
 			{
 			case EProjectWorldVegetationExclusion::Road:
 				++Stats.RoadExcludedCount;
-				return;
+				return true;
 			case EProjectWorldVegetationExclusion::Water:
 				++Stats.WaterExcludedCount;
-				return;
+				return true;
 			case EProjectWorldVegetationExclusion::AuthoredMask:
 				++Stats.AuthoredMaskExcludedCount;
-				return;
+				return true;
 			default:
 				break;
 			}
 			const FString Seed = FString::Printf(TEXT("%d|%s"), Settings.DeterministicSeed, *StableId);
-			const double Height = ProjectWorldGeneratedGeometry::SampleTerrain(Cell, CanonicalPoint.X, CanonicalPoint.Y) +
-				Settings.SurfaceOffsetMeters;
+			double Height = 0;
+			if (!ProjectWorldGeneratedGeometry::SampleTerrain(Cell, CanonicalPoint.X, CanonicalPoint.Y, Height, OutError)) return false;
+			Height += Settings.SurfaceOffsetMeters;
 			const FVector ActorOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
 			const FVector World = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(CanonicalPoint, Height));
@@ -194,16 +195,17 @@ namespace ProjectWorldVegetationRealization
 				FRotator(0.0, StableUnit(Seed + TEXT("|yaw")) * 360.0, 0.0),
 				World - ActorOrigin,
 				FVector(Scale));
+			return true;
 		}
 
-		void AddAreaInstances(
+		bool AddAreaInstances(
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldCanonicalCell& Cell,
 			const FProjectWorldCanonicalFeature& Feature,
 			const FVegetationSettings& Settings,
 			const FProjectWorldVegetationExclusionContext& Exclusions,
 			FProjectWorldVegetationPlacementStats& Stats,
-			TArray<FProjectWorldVegetationInstance>& OutInstances)
+			TArray<FProjectWorldVegetationInstance>& OutInstances, FString& OutError)
 		{
 			for (int32 PolygonIndex = 0; PolygonIndex < Feature.GeometryPolygons.Num(); ++PolygonIndex)
 			{
@@ -230,11 +232,12 @@ namespace ProjectWorldVegetationRealization
 							(GridY + 0.5) * Settings.AreaSpacingMeters + (StableUnit(Seed + TEXT("|y")) * 2.0 - 1.0) * Jitter);
 						if (InCell(Point, Cell.Bounds) && Polygon.Contains(FVector2d(Point.X, Point.Y)))
 						{
-							AddInstance(Bundle, Cell, Settings, Exclusions, Stats, StableId, Point, OutInstances);
+							if (!AddInstance(Bundle, Cell, Settings, Exclusions, Stats, StableId, Point, OutInstances, OutError)) return false;
 						}
 					}
 				}
 			}
+			return true;
 		}
 
 		bool HashResolvedCellInput(
@@ -344,15 +347,15 @@ namespace ProjectWorldVegetationRealization
 				{
 					if (InCell(Feature.GeometryPoints[Index], Cell.Bounds))
 					{
-						AddInstance(Bundle, Cell, Settings, Exclusions, Stats,
+						if (!AddInstance(Bundle, Cell, Settings, Exclusions, Stats,
 							FString::Printf(TEXT("point|%s|%d"), *Feature.FeatureId, Index),
-							Feature.GeometryPoints[Index], OutInstances);
+							Feature.GeometryPoints[Index], OutInstances, OutError)) return false;
 					}
 				}
 			}
 			else
 			{
-				AddAreaInstances(Bundle, Cell, Feature, Settings, Exclusions, Stats, OutInstances);
+				if (!AddAreaInstances(Bundle, Cell, Feature, Settings, Exclusions, Stats, OutInstances, OutError)) return false;
 			}
 		}
 		OutInstances.Sort([](const auto& Left, const auto& Right) { return Left.StableId < Right.StableId; });

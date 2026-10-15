@@ -99,6 +99,11 @@ class WaterIncrementalTests(unittest.TestCase):
         profile["$schema"] = "https://alis.world/schemas/world-compiler/compiler-profile-v1.json"
         profile["profile_id"] = "synthetic_water_incremental"
         profile["water_semantics"] = _water_semantics()
+        # Bound conditioning for all revisions of this coarse synthetic fixture.
+        profile["terrain_surface"]["water_conditioning_limits"] = {
+            "maximum_cut_m": 12.4, "maximum_support_distance_m": 639.21,
+            "accepted_accuracy": ["derived_not_surveyed", "low_confidence_point_fallback"],
+        }
         base_bundle = load_source_bundle(REPO_ROOT, compilation_root(), profile)
         water = [
             _water_feature(

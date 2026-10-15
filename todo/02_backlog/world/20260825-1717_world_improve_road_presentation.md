@@ -1,27 +1,23 @@
 # Improve Generated Road Presentation
 
-Status: isolated material prototypes captured; production implementation not selected
+Status: material scope implemented and adopted; final packaged acceptance is
+coordinated by [World Surface Presentation](../../00_current/20261008-1543_world_improve_surface_materials.md).
+This retained research record is not a parallel implementation task.
 
-Current sequencing: the active World Surface Presentation concern permits isolated
-road samples independently of soil approval. A shared textureless opaque parent has
-matched BasicShape controls. A bounded reuse of the compacted soil bundle adds
-cloudy road detail without convincing asphalt aggregate; retain it as a rejected
-comparison, not a default. No road archetype or serialized reference migration is
-selected. Real generated-road views and a road-specific visual oracle remain required.
+## Implemented scope
 
-## Current gap
+AsphaltMacro is visually accepted for default asphalt in both cities. Reusable
+aggregate recipes generate shared Signals/Normal outputs through ProjectTexture;
+ProjectMaterial owns shading, metric projection and appearance. ProjectWorld
+consumes the authenticated semantic binding. D39's material-reference transaction
+and cold replay preserve geometry without mesh builds. Earlier textureless and
+soil-based road samples remain rejected/historical controls, not selected defaults.
 
-Accepted generated road geometry uses a debug-quality surface. Presentation
-needs a reusable authenticated road material while topology, class widths,
-terrain drape, junctions, collision, and generated identity remain fixed.
+Road topology, class widths, terrain conformity and junction correctness belong
+to [Road and Water Alignment](../../00_current/20261008-1543_world_investigate_road_water_alignment.md).
+D45's separate geometry rollout is an accepted baseline and must not be repeated
+for appearance changes. Exact final packaged city cost remains open; isolated
+selected-resource timings do not certify the fixed frame budget.
 
-## Investigation boundary
-
-- Keep ProjectWorld as semantic consumer and ProjectMaterial as resource owner.
-- Diagnose topology or drape defects separately and stop if either reproduces.
-- Evaluate one material candidate with fixed ground, junction, boundary, and
-  aerial views.
-- Preserve package size and the fixed frame budget.
-- Use Kazan as the first fixture, never as a reusable-code branch.
-
-Start from [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture/README.md).
+Stable owners: [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture/README.md)
+and [material generation](../../../Plugins/Resources/ProjectMaterial/docs/material_generation.md).

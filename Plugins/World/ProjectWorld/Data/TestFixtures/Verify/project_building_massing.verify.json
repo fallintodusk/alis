@@ -4,7 +4,7 @@
   "verify": "Project.World.Realization.Verify.BuildingMassing",
   "identity": {
     "producer_id": "project_building_massing:v2",
-    "output_revision": 1,
+    "output_revision": 2,
     "pipeline_revision": 1,
     "comparison_contract_version": 1,
     "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
@@ -15,7 +15,7 @@
     ],
     "embedded": []
   },
-  "projection_sha256": "2fc1aeffe118665c2fe4bb47600d5ab9a8c52667813bf830465338b3701f5765",
+  "projection_sha256": "b72c8bfcca24253d9c646dcd8dda2a90ea866d3e0188d6aa758e8796a74b69ea",
   "records": [
     {
       "kind": "actor",
@@ -38,7 +38,7 @@
         "label": "ProjectWorld Buildings building_verify_test:a",
         "name": "ProjectWorld_Buildings_building_verify_test_a",
         "spatially_loaded": "1",
-        "tags": "ProjectWorld.BuildingCell=building_verify_test:a,ProjectWorld.BuildingMassing.v2,ProjectWorld.BuildingSemantic=335abce288b9aecd6e8b203e8fe3f5860821c55f44deda12fe0c21bec3edef7a,ProjectWorld.Cell=building_verify_test:a,ProjectWorld.Generated.v1,ProjectWorld.Grid=building_verify_test",
+        "tags": "ProjectWorld.BuildingCell=building_verify_test:a,ProjectWorld.BuildingMassing.v2,ProjectWorld.BuildingSemantic=969a858690b8f49a66e2fd7e578e1e3aa4aff9a88a8a9097d3488b2a72b9b0d8,ProjectWorld.Cell=building_verify_test:a,ProjectWorld.Generated.v1,ProjectWorld.Grid=building_verify_test",
         "transform": "t=0,-1000000,0;r=0,0,0,1000000;s=100000,100000,100000"
       }
     },
@@ -63,7 +63,7 @@
         "label": "ProjectWorld Buildings building_verify_test:b",
         "name": "ProjectWorld_Buildings_building_verify_test_b",
         "spatially_loaded": "1",
-        "tags": "ProjectWorld.BuildingCell=building_verify_test:b,ProjectWorld.BuildingMassing.v2,ProjectWorld.BuildingSemantic=4ff409c9260d32e65fcdc90aec97e6d00d69f9378fd2ef4023952e118f2c9cad,ProjectWorld.Cell=building_verify_test:b,ProjectWorld.Generated.v1,ProjectWorld.Grid=building_verify_test",
+        "tags": "ProjectWorld.BuildingCell=building_verify_test:b,ProjectWorld.BuildingMassing.v2,ProjectWorld.BuildingSemantic=660a059012973cd71c211d46b9e5ed970bb1d49e6ed8dff3e5e92718310c1ade,ProjectWorld.Cell=building_verify_test:b,ProjectWorld.Generated.v1,ProjectWorld.Grid=building_verify_test",
         "transform": "t=1000000,-1000000,0;r=0,0,0,1000000;s=100000,100000,100000"
       }
     },
@@ -77,10 +77,10 @@
         "body_trace": "CTF_UseComplexAsSimple",
         "distance_field": "0",
         "distance_field_resolution_scale": "0",
-        "mesh_description": "422b7477a49aaa14d33579cba40bc6d10f9842edf0590f698cffe9f12985a38c",
+        "mesh_description": "22debf057f6d4f40caecc35aa39e95ae08f168ead5e958a66e3f7f49bff692b3",
         "nanite": "1",
         "navigation_data": "0",
-        "render_lod0": "740f9f6db6a9942485890ff82a9574d98f63e6cd6d582cf82ee85c085e658f0b",
+        "render_lod0": "77b3d72c5db7fd669187f542fdc938369d9ef33f1a72382ab0515cace14216fe",
         "source_models": "1",
         "static_materials": "Building=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
       }
@@ -95,10 +95,10 @@
         "body_trace": "CTF_UseComplexAsSimple",
         "distance_field": "0",
         "distance_field_resolution_scale": "0",
-        "mesh_description": "55eaa80f1cc4e3dc42602ce26b3961465263de37c2897101789b795ee18df799",
+        "mesh_description": "e088081e95533a3d61494ef461c552ddd690c492dfd16d25eb4279cdf3a337a1",
         "nanite": "1",
         "navigation_data": "0",
-        "render_lod0": "9243f052475e1cf470401656599f70b3b9d8a18c73be64195039cd6873ae8117",
+        "render_lod0": "00709916089cfc2947471e15962e975f924d5ef54098937c1f7ef3217f2d913d",
         "source_models": "1",
         "static_materials": "Building=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
       }

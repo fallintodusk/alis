@@ -224,6 +224,69 @@ bool ProjectTextureSoilBuilder::BuildDerivedMaterial(UMaterial* Material,
 	return Finish(Material, Derived(Material, Parent, Size, bNormal), OutError);
 }
 
+bool ProjectTextureSoilBuilder::VerifyDerivedMaterial(const UMaterial* M,const UTextureRenderTarget2D* Parent,
+	int32 Size,bool bNormal,FString& Error)
+{
+	using namespace ProjectTextureSoilBuilderPrivate;
+	if (!M || !Parent || Size<=0) { Error=TEXT("Derived material has no bounded parent."); return false; }
+	auto IsConstant=[](const E* N,float V)
+	{
+		const auto* C=Cast<UMaterialExpressionConstant>(N); return C && FMath::IsNearlyEqual(C->R,V,1.e-6f);
+	};
+	auto IsScaled=[](const UMaterialExpressionMultiply* N,float V)
+	{
+		return N && N->A.Expression && !N->B.Expression && FMath::IsNearlyEqual(N->ConstB,V,1.e-6f);
+	};
+	E* Root=M->GetEditorOnlyData()->EmissiveColor.Expression;
+	if (bNormal)
+	{
+		const auto* Add=Cast<UMaterialExpressionAdd>(Root);
+		const auto* Half=Add ? Cast<UMaterialExpressionMultiply>(Add->A.Expression) : nullptr;
+		const auto* Unit=Half ? Cast<UMaterialExpressionNormalize>(Half->A.Expression) : nullptr;
+		const auto* XYZ=Unit ? Cast<UMaterialExpressionAppendVector>(Unit->VectorInput.Expression) : nullptr;
+		const auto* XY=XYZ ? Cast<UMaterialExpressionAppendVector>(XYZ->A.Expression) : nullptr;
+		const auto* X=XY ? Cast<UMaterialExpressionMultiply>(XY->A.Expression) : nullptr;
+		const auto* Y=XY ? Cast<UMaterialExpressionMultiply>(XY->B.Expression) : nullptr;
+		if (!Add || !IsConstant(Add->B.Expression,.5f) || !IsScaled(Half,.5f) || !XYZ || !XY ||
+			!IsConstant(XYZ->B.Expression,1) || !IsScaled(X,.025f*Size/2) || !IsScaled(Y,.025f*Size/2) ||
+			!Cast<UMaterialExpressionSubtract>(X->A.Expression) || !Cast<UMaterialExpressionSubtract>(Y->A.Expression))
+		{ Error=TEXT("Derived normal is not the coherent encoded central-difference route."); return false; }
+	}
+	else
+	{
+		const auto* RGB=Cast<UMaterialExpressionAppendVector>(Root);
+		const auto* RG=RGB ? Cast<UMaterialExpressionAppendVector>(RGB->A.Expression) : nullptr;
+		const auto* AO=RG ? Cast<UMaterialExpressionOneMinus>(RG->A.Expression) : nullptr;
+		const auto* Cavity=AO ? Cast<UMaterialExpressionClamp>(AO->Input.Expression) : nullptr;
+		const auto* Excess=Cavity ? Cast<UMaterialExpressionMultiply>(Cavity->Input.Expression) : nullptr;
+		const auto* Rough=RG ? Cast<UMaterialExpressionClamp>(RG->B.Expression) : nullptr;
+		const auto* Sum=Rough ? Cast<UMaterialExpressionAdd>(Rough->Input.Expression) : nullptr;
+		const auto* Compaction=Sum ? Cast<UMaterialExpressionMultiply>(Sum->A.Expression) : nullptr;
+		const auto* Grain=Sum ? Cast<UMaterialExpressionMultiply>(Sum->B.Expression) : nullptr;
+		const auto* Pigment=RGB ? Cast<UMaterialExpressionClamp>(RGB->B.Expression) : nullptr;
+		const auto* PigmentSum=Pigment ? Cast<UMaterialExpressionAdd>(Pigment->Input.Expression) : nullptr;
+		const auto* Macro=PigmentSum ? Cast<UMaterialExpressionMultiply>(PigmentSum->A.Expression) : nullptr;
+		const auto* Micro=PigmentSum ? Cast<UMaterialExpressionMultiply>(PigmentSum->B.Expression) : nullptr;
+		if (!RG || !IsScaled(Excess,3) || !Cast<UMaterialExpressionAdd>(Excess->A.Expression) ||
+			!IsScaled(Compaction,.65f) || !IsScaled(Grain,.35f) || !IsScaled(Macro,.75f) || !IsScaled(Micro,.25f))
+		{ Error=TEXT("Derived masks do not preserve independent cavity, roughness and pigment routes."); return false; }
+	}
+	TSet<E*> Visited; TArray<E*> Queue{Root}; int32 Samples=0;
+	while (!Queue.IsEmpty())
+	{
+		auto* N=Queue.Pop(); if (!N || Visited.Contains(N)) continue; Visited.Add(N);
+		if (const auto* S=Cast<UMaterialExpressionTextureSampleParameter2D>(N))
+		{
+			if (S->ParameterName!=TEXT("ParentStructure") || S->Texture!=Parent || S->SamplerType!=SAMPLERTYPE_LinearColor || !S->Coordinates.Expression)
+			{ Error=TEXT("Derived output samples a foreign or disconnected filtered parent."); return false; }
+			++Samples;
+		}
+		for (FExpressionInputIterator It{N};It;++It) Queue.Add(It->Expression);
+	}
+	if (Samples!=(bNormal ? 4 : 5)) { Error=TEXT("Derived output has incomplete neighboring-height coverage."); return false; }
+	return true;
+}
+
 bool ProjectTextureSoilBuilder::Build(const FProjectTexturePatternRecipe& Recipe,
 	const FString& PackageName, UObject*& OutAsset, FString& OutError)
 {
@@ -318,6 +381,7 @@ bool ProjectTextureSoilBuilder::Verify(const FProjectTexturePatternRecipe& Recip
 				OutError = TEXT("Reloaded soil ownership metadata is invalid."); return false;
 			}
 		}
+		if (Index && !VerifyDerivedMaterial(M,Catalog->OutputSlots[0]->GetRenderTarget(),ExpectedSize,Index==1,OutError)) return false;
 	}
 	return true;
 }

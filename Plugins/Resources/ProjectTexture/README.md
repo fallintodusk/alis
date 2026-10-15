@@ -2,6 +2,10 @@
 
 Reusable texture resources and structural surface-pattern authority.
 
+## Documentation
+
+- [Contracts, architecture and diagrams](docs/README.md)
+
 ## Ownership
 
 ProjectTexture owns patterns that can be reused by multiple material families: macro

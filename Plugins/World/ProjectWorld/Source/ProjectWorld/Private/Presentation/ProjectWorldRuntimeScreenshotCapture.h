@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 
 class APlayerController;
+class UPrimitiveComponent;
 class UWorld;
 
 namespace ProjectWorldRuntimeScreenshotCapture
@@ -20,6 +21,9 @@ namespace ProjectWorldRuntimeScreenshotCapture
 		float FieldOfViewDegrees = 70.0f;
 		float OrthographicWidthCentimeters = 0.0f;
 		bool bIsolateBaseColor = false;
+		bool bUseShowOnlyComponents = false;
+		TArray<TWeakObjectPtr<UPrimitiveComponent>> ShowOnlyComponents;
+		float DepthFarClipCentimeters = 0.0f;
 	};
 
 	class FCaptureSession
@@ -34,6 +38,7 @@ namespace ProjectWorldRuntimeScreenshotCapture
 		bool Initialize(UWorld& World, const FCaptureSpec& Spec, FString& OutError);
 		bool WarmUp(int32 FrameCount, FString& OutError);
 		bool Capture(const FString& Path, FString& OutError);
+		bool CaptureDepth(TArray<float>& OutDepth, FString& OutError);
 		void Reset();
 
 		const FString& GetSessionId() const;

@@ -19,3 +19,9 @@ Ownership:
 logic. `ProjectWorldData` owns Kazan production data and generated packages.
 Only `Content/Authored/`, profiles, controls, and source/compiler fixtures are
 tracked here; TestData has no L3 durable authority.
+
+The synthetic territory twin is a deliberately sloped, two-cell stress fixture.
+Its compiler profile declares finite Water conditioning limits measured against
+that fixture's heights and sample spacing. These test limits are not city policy
+and must not be copied into production profiles. Changing them changes the
+fixture identity and requires fresh saved-output verification.

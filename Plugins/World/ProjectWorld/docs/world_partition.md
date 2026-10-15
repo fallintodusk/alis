@@ -76,6 +76,15 @@ evidence subject, never by searching for compiled sections or the runtime
 terrain role. The role on compiled-section descriptors serves tools that read
 descriptors without loading actors.
 
+The adapter suppresses its tagged source actors' Editor-only primitives in Game
+worlds, including PIE and Simulate. Native Editor-only flags strip authoring data
+from cooked targets but do not alone prevent drawing after PIE duplication. The
+partition checks existing sources at BeginPlay and listens to the owning world's
+post-registration event for streamed sources; EndPlay removes that listener.
+Editor visibility and compiled render/collision components remain unchanged.
+This runtime presentation correction does not require new terrain geometry or
+canonical compilation.
+
 The terrain channel ABI is semantic at the ProjectWorld boundary and private at
 the adapter boundary. Canonical names describe only facts their derivation
 proves. The current terrain surface uses `ground` and `hydro_transition`; slope
@@ -226,6 +235,13 @@ Useful native diagnostics include `wp.Editor.DumpActorDescs`,
 `wp.Runtime.DumpStreamingSources`, and the `wp.Runtime.ToggleDraw*` family.
 Diagnostic output does not replace the applicable static, commandlet, packaged,
 or authority receipt.
+
+Cold Editor map loading must restore the partition's MeshPartitionEditorComponent
+and produce drawn preview sections. A compiled gameplay readiness result does not
+prove that Editor path. If previews are absent, inspect the adapter's PostLoad and
+PostActorCreated restoration and owning-world availability before regenerating
+terrain. Restoration requires an owning world and excludes Game worlds; the absence of
+a world during an earlier callback is not evidence that saved geometry is stale.
 
 ## Scope boundaries
 

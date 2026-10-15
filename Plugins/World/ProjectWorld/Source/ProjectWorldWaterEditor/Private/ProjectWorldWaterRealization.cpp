@@ -9,6 +9,8 @@
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldWaterMeshBuilder.h"
+#include "ProjectWorldWaterCellMesh.h"
+#include "ProjectWorldWaterSourceContext.h"
 
 #include "AssetCompilingManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -220,26 +222,6 @@ namespace ProjectWorldWaterRealization
 			return true;
 		}
 
-		TArray<FString> WaterFeatureIds(
-			const FProjectWorldCanonicalBundle& Bundle,
-			const FProjectWorldCanonicalCell& Cell)
-		{
-			TSet<FString> UniqueIds;
-			UniqueIds.Append(Cell.OwnedFeatureIds);
-			UniqueIds.Append(Cell.ReferencedFeatureIds);
-			TArray<FString> Result;
-			for (const FString& FeatureId : UniqueIds)
-			{
-				const FProjectWorldCanonicalFeature* Feature = Bundle.Features.Find(FeatureId);
-				if (Feature != nullptr && Feature->FeatureClass == TEXT("water") && Feature->WaterSurface.bValid)
-				{
-					Result.Add(FeatureId);
-				}
-			}
-			Result.Sort();
-			return Result;
-		}
-
 		AStaticMeshActor* FindCellActor(UWorld* World, const FString& CellId, FString& OutError)
 		{
 			AStaticMeshActor* Result = nullptr;
@@ -261,63 +243,16 @@ namespace ProjectWorldWaterRealization
 			return Result;
 		}
 
-		bool BuildCellMesh(
-			const FProjectWorldCanonicalBundle& Bundle,
-			const FProjectWorldCanonicalCell& Cell,
-			const TMap<FString, FProjectWorldPreparedWaterSurface>& PreparedSurfaces,
-			double SurfaceOffsetMeters,
-			FMeshDescription& OutDescription,
-			FVector& OutOrigin,
-			FString& OutSemantic,
-			int32& OutTriangles,
-			FString& OutError)
+		bool SaveExternalActor(AActor* Actor)
 		{
-			TArray<FString> SemanticParts;
-			bool bHasMesh = false;
-			for (const FString& FeatureId : WaterFeatureIds(Bundle, Cell))
-			{
-				const FProjectWorldPreparedWaterSurface* PreparedSurface = PreparedSurfaces.Find(FeatureId);
-				if (PreparedSurface == nullptr)
-				{
-					OutError = FString::Printf(TEXT("Water feature was not prepared: %s"), *FeatureId);
-					return false;
-				}
-				FProjectWorldWaterMeshBuildResult Surface;
-				if (!ProjectWorldWaterMeshBuilder::BuildCellSurface(
-					Bundle,
-					Cell,
-					Bundle.Features.FindChecked(FeatureId),
-					*PreparedSurface,
-					SurfaceOffsetMeters,
-					Surface,
-					OutError))
-				{
-					return false;
-				}
-				if (Surface.TriangleCount == 0)
-				{
-					continue;
-				}
-				if (!bHasMesh)
-				{
-					OutDescription = MoveTemp(Surface.MeshDescription);
-					OutOrigin = Surface.ActorOrigin;
-					bHasMesh = true;
-				}
-				else
-				{
-					FStaticMeshOperations::AppendMeshDescription(
-						Surface.MeshDescription,
-						OutDescription,
-						FStaticMeshOperations::FAppendSettings());
-				}
-				OutTriangles += Surface.TriangleCount;
-				SemanticParts.Add(FeatureId + TEXT(":") + Surface.SemanticDigest);
-			}
-			return !bHasMesh || HashText(
-				TEXT("project_water_cell_mesh_v1|") + Cell.CellId + TEXT("|") +
-				FString::Join(SemanticParts, TEXT("|")),
-				OutSemantic);
+			UPackage* Package = Actor != nullptr ? Actor->GetExternalPackage() : nullptr;
+			if (Package == nullptr) return false;
+			const FString Filename = FPackageName::LongPackageNameToFilename(
+				Package->GetName(), FPackageName::GetAssetPackageExtension());
+			IFileManager::Get().MakeDirectory(*FPaths::GetPath(Filename), true);
+			FSavePackageArgs Arguments;
+			Arguments.SaveFlags = SAVE_NoError;
+			return UPackage::SavePackage(Package, nullptr, *Filename, Arguments);
 		}
 
 		bool RemoveCellOutput(UWorld* World, AStaticMeshActor* Actor, const FString& PackageName)
@@ -360,7 +295,8 @@ namespace ProjectWorldWaterRealization
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+		UMaterialInterface* PreparedMaterial)
 	{
 		const FProjectWorldRealizationLayer* Layer = nullptr;
 		FWaterSettings Settings;
@@ -379,16 +315,21 @@ namespace ProjectWorldWaterRealization
 			return false;
 		}
 		const bool bWholeDirty = Inventory->FinalDirtyUnits.Contains(TEXT("*"));
-		UMaterial* WaterMaterial = nullptr;
-		if (!BuildMaterial(*Layer, bWholeDirty, WaterMaterial, OutError))
+		UMaterialInterface* WaterMaterial=PreparedMaterial;
+		if (WaterMaterial && (WaterMaterial->GetOutermost()->IsDirty() || WaterMaterial->GetBlendMode()!=BLEND_Opaque ||
+			(!WaterMaterial->GetShadingModels().HasShadingModel(MSM_DefaultLit) && !WaterMaterial->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))))
+		{OutError=TEXT("Prepared water presentation is dirty or incompatible with opaque water geometry."); return false;}
+		UMaterial* Diagnostic=nullptr;
+		if (!WaterMaterial && !BuildMaterial(*Layer, bWholeDirty, Diagnostic, OutError))
 		{
 			return false;
 		}
+		if (!WaterMaterial) WaterMaterial=Diagnostic;
 		TMap<FString, AStaticMeshActor*> CellActors;
 		TSet<FString> CellsWithAssets;
 		TSet<FString> DirtyCells;
 		TSet<FString> DirtyFeatureIds;
-		TMap<FString, FVector4d> FeatureDomainBounds;
+		const auto FeatureDomainBounds=ProjectWorldWaterSourceContext::PreparationBounds(Bundle);
 		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 		{
 			const FString AssetName = TEXT("SM_ProjectWorldWater_") + SanitizeToken(Cell.CellId);
@@ -399,20 +340,7 @@ namespace ProjectWorldWaterRealization
 				return false;
 			}
 			CellActors.Add(Cell.CellId, Actor);
-			const TArray<FString> CellFeatureIds = WaterFeatureIds(Bundle, Cell);
-			for (const FString& FeatureId : CellFeatureIds)
-			{
-				FVector4d* Bounds = FeatureDomainBounds.Find(FeatureId);
-				if (Bounds == nullptr)
-				{
-					FeatureDomainBounds.Add(FeatureId, Cell.Bounds);
-					continue;
-				}
-				Bounds->X = FMath::Min(Bounds->X, Cell.Bounds.X);
-				Bounds->Y = FMath::Min(Bounds->Y, Cell.Bounds.Y);
-				Bounds->Z = FMath::Max(Bounds->Z, Cell.Bounds.Z);
-				Bounds->W = FMath::Max(Bounds->W, Cell.Bounds.W);
-			}
+			const TArray<FString> CellFeatureIds = ProjectWorldWaterSourceContext::FeatureIds(Bundle, Cell);
 			const bool bExpectedSurface = !CellFeatureIds.IsEmpty();
 			const bool bAssetExists = IFileManager::Get().FileExists(*FPackageName::LongPackageNameToFilename(
 				PackageName,
@@ -467,10 +395,11 @@ namespace ProjectWorldWaterRealization
 			FVector ActorOrigin = FVector::ZeroVector;
 			FString Semantic;
 			int32 TriangleCount = 0;
-			if (!BuildCellMesh(
+			if (!ProjectWorldWaterCellMesh::Build(
 				Bundle,
 				Cell,
 				PreparedSurfaces,
+				ProjectWorldWaterSourceContext::FeatureIds(Bundle, Cell),
 				Settings.SurfaceOffsetMeters,
 				Description,
 				ActorOrigin,
@@ -564,6 +493,14 @@ namespace ProjectWorldWaterRealization
 			Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			Component->SetCanEverAffectNavigation(false);
 			Actor->MarkPackageDirty();
+			const bool bMapPackageIsTemporary =
+				World->PersistentLevel->GetPackage()->GetName().StartsWith(TEXT("/Temp/"));
+			if (!bMapPackageIsTemporary && !SaveExternalActor(Actor))
+			{
+				OutError = FString::Printf(TEXT("Cannot save water cell actor: %s"), *Cell.CellId);
+				return false;
+			}
+			++OutResult.SelfSavedActorMutationCount;
 			OutResult.MutableProducerMetric(TEXT("project_water_mesh"), TEXT("triangles_written")) += TriangleCount;
 			if (bUpdatingActor)
 			{

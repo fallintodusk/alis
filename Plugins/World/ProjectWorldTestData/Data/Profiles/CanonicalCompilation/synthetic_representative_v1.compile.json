@@ -30,7 +30,12 @@
     "contract_version": 1,
     "roles": ["ground", "hydro_transition"],
     "hydro_transition_radius_m": 60.0,
-    "water_clearance_m": 0.0
+    "water_clearance_m": 0.0,
+    "water_conditioning_limits": {
+      "maximum_cut_m": 7.2,
+      "maximum_support_distance_m": 390.52,
+      "accepted_accuracy": ["low_confidence_point_fallback"]
+    }
   },
   "water_semantics": {
     "policy_id": "synthetic_representative_water_v1",

@@ -343,7 +343,7 @@ bool FProjectMaterialTerrainDetailFixtureTest::RunTest(const FString& Parameters
 	UMaterialInstanceConstant* Fixture = nullptr;
 	if (!TestTrue(TEXT("Reload fixture authority after refusal controls"), ProjectMaterialPreviewAuthority::Load(
 		Candidate, CandidateRoot, LayoutPath, Authenticated, Fixture, Error, Root))) return false;
-	FProjectMaterialPatternDependency Pattern;
+	FProjectMaterialSurfaceDependency Pattern;
 	FProjectMaterialTerrainLayoutContract Layout;
 	if (!TestTrue(TEXT("Resolve accepted pattern"), FProjectMaterialPatternAuthority::Resolve(Authenticated.PatternId,
 		Request.PatternManifestPath, Request.PatternPackageRoot, Request.PatternContentRoot, Pattern, Error)) ||

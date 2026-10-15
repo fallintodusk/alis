@@ -2,8 +2,13 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectMaterialSurfaceBuilder.h"
-#include "ProjectMaterialSoilBuilder.h"
+#include "ProjectMaterialHeightMasksSurface.h"
+#include "ProjectMaterialMetricHeightSurface.h"
+#include "ProjectMaterialSingleLayerWater.h"
+#include "ProjectMaterialAggregateSurface.h"
 #include "ProjectMaterialSurfaceParameters.h"
+#include "ProjectMaterialPatternBindings.h"
+#include "Misc/ScopeExit.h"
 
 #include "ProjectMaterialPatternAuthority.h"
 
@@ -29,6 +34,7 @@
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionVertexNormalWS.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
@@ -188,9 +194,9 @@ UMaterialExpression* BuildTriplanarPattern(
 	auto* Xy = CreateExpression<UMaterialExpressionAppendVector>(Material, -420, -720);
 	auto* Xz = CreateExpression<UMaterialExpressionAppendVector>(Material, -420, -600);
 	auto* Yz = CreateExpression<UMaterialExpressionAppendVector>(Material, -420, -480);
-	auto* SampleXy = CreateExpression<UMaterialExpressionTextureSample>(Material, -180, -720);
-	auto* SampleXz = CreateExpression<UMaterialExpressionTextureSample>(Material, -180, -600);
-	auto* SampleYz = CreateExpression<UMaterialExpressionTextureSample>(Material, -180, -480);
+	auto* SampleXy = CreateExpression<UMaterialExpressionTextureSampleParameter2D>(Material, -180, -720);
+	auto* SampleXz = CreateExpression<UMaterialExpressionTextureSampleParameter2D>(Material, -180, -600);
+	auto* SampleYz = CreateExpression<UMaterialExpressionTextureSampleParameter2D>(Material, -180, -480);
 	auto* WorldNormal = CreateExpression<UMaterialExpressionVertexNormalWS>(Material, -860, -340);
 	UMaterialExpression* ProjectionNormal = WorldNormal;
 	UMaterialExpressionTransform* LocalNormal = nullptr;
@@ -244,6 +250,7 @@ UMaterialExpression* BuildTriplanarPattern(
 	for (UMaterialExpressionTextureSample* Sample : {SampleXy, SampleXz, SampleYz})
 	{
 		Sample->Texture = Texture;
+		CastChecked<UMaterialExpressionTextureSampleParameter2D>(Sample)->ParameterName = TEXT("PatternStructure");
 		Sample->SamplerType = SAMPLERTYPE_LinearColor;
 	}
 	SampleXy->Coordinates.Connect(0, Xy);
@@ -346,7 +353,7 @@ UMaterialExpression* BuildTerrainColor(
 
 bool ProjectMaterialSurfaceBuilder::BuildParent(
 	const FProjectMaterialSurfaceRecipe& Recipe,
-	const FProjectMaterialPatternDependency& PatternDependency,
+	const FProjectMaterialSurfaceDependency& PatternDependency,
 	const FString& PackageName,
 	const TMap<FName, int32>& SemanticChannels,
 	UObject*& OutAsset,
@@ -361,6 +368,25 @@ bool ProjectMaterialSurfaceBuilder::BuildParent(
 	{
 		return false;
 	}
+	// Declare vertex-factory use before compilation; Editor auto-repair cannot run in Game.
+	if (Recipe.Archetype != TEXT("single_layer_water")) Material->SetUsageByFlag(MATUSAGE_Nanite, true);
+	ON_SCOPE_EXIT
+	{
+		if (OutAsset) Material->GetOutermost()->GetMetaData().SetValue(Material,
+			TEXT("ProjectPatternOutputContract"), *ProjectMaterialPatternBindings::Contract(PatternDependency));
+	};
+	if (Recipe.Archetype == TEXT("single_layer_water"))
+	{
+		if (!ProjectMaterialSingleLayerWater::Build(Material, Recipe, OutCompileErrors, OutError)) return false;
+		OutAsset = Material;
+		return true;
+	}
+	if (Recipe.Archetype == TEXT("aggregate_metric"))
+	{
+		if (!ProjectMaterialAggregateSurface::Build(Material, Recipe, PatternDependency, OutCompileErrors, OutError)) return false;
+		OutAsset = Material;
+		return true;
+	}
 	UTextureRenderTarget2D* Pattern = LoadObject<UTextureRenderTarget2D>(
 		nullptr, *PatternDependency.OutputObjectPath);
 	UProjectTextureOutputSlot* OutputSlot = Pattern != nullptr
@@ -374,11 +400,16 @@ bool ProjectMaterialSurfaceBuilder::BuildParent(
 			*PatternDependency.OutputObjectPath);
 		return false;
 	}
-	if (Recipe.Archetype == TEXT("soil_uv"))
+	if (Recipe.Archetype == TEXT("height_masks_uv"))
 	{
-		if (!ProjectMaterialSoilBuilder::Build(Material, Recipe, PatternDependency, OutCompileErrors, OutError)) return false;
+		if (!ProjectMaterialHeightMasksSurface::Build(Material, Recipe, PatternDependency, OutCompileErrors, OutError)) return false;
 		OutAsset = Material;
 		return true;
+	}
+	if (FProjectMaterialSurfaceRecipeContract::IsMetricHeightArchetype(Recipe.Archetype))
+	{
+		if (!ProjectMaterialMetricHeightSurface::Build(Material, Recipe, PatternDependency, OutCompileErrors, OutError, SemanticChannels)) return false;
+		OutAsset = Material; return true;
 	}
 	UMaterialEditingLibrary::DeleteAllMaterialExpressions(Material);
 	auto* Coordinates = BuildCoordinates(Material, Recipe.ProjectionFrame, OutError);
@@ -503,6 +534,7 @@ bool ProjectMaterialSurfaceBuilder::BuildParent(
 
 bool ProjectMaterialSurfaceBuilder::BuildInstance(
 	const FProjectMaterialSurfaceRecipe& Recipe,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const FString& PackageName,
 	UObject*& OutAsset,
 	FString& OutError)
@@ -516,6 +548,8 @@ bool ProjectMaterialSurfaceBuilder::BuildInstance(
 		return false;
 	}
 	if (!ProjectMaterialSurfaceParameters::Validate(Recipe, Parent, OutError)) return false;
+	TArray<ProjectMaterialPatternBindings::FBinding> Bindings;
+	if (!ProjectMaterialPatternBindings::ValidateParent(Recipe, Pattern, Parent, Bindings, OutError)) return false;
 	UMaterialInstanceConstant* Instance = Cast<UMaterialInstanceConstant>(FindOrCreateAsset(
 		PackageName, Recipe.MaterialId, UMaterialInstanceConstant::StaticClass(), OutError));
 	if (Instance == nullptr)
@@ -524,6 +558,8 @@ bool ProjectMaterialSurfaceBuilder::BuildInstance(
 	}
 	Instance->ClearParameterValuesEditorOnly();
 	UMaterialEditingLibrary::SetMaterialInstanceParent(Instance, Parent);
+	for (const auto& Binding : Bindings)
+		Instance->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(Binding.Parameter), Binding.Target);
 	for (const TPair<FName, double>& ScalarValue : Recipe.Scalars)
 	{
 		Instance->SetScalarParameterValueEditorOnly(
@@ -546,7 +582,7 @@ bool ProjectMaterialSurfaceBuilder::BuildInstance(
 
 bool ProjectMaterialSurfaceBuilder::Verify(
 	const FProjectMaterialSurfaceRecipe& Recipe,
-	const FProjectMaterialPatternDependency& PatternDependency,
+	const FProjectMaterialSurfaceDependency& PatternDependency,
 	const TMap<FName, int32>& SemanticChannels,
 	UObject* Asset,
 	FString& OutError)
@@ -559,6 +595,9 @@ bool ProjectMaterialSurfaceBuilder::Verify(
 		OutError = TEXT("Reloaded surface ownership metadata is invalid.");
 		return false;
 	}
+	const auto* Surface = Cast<UMaterialInterface>(Asset);
+	if (FProjectMaterialSurfaceRecipeContract::RequiresDirectNaniteUsage(Recipe.Archetype) && (!Surface || !Surface->GetUsageByFlag(MATUSAGE_Nanite)))
+	{ OutError = TEXT("Reloaded geometry surface lacks its cooked Nanite usage."); return false; }
 	if (Recipe.ArtifactKind == EProjectMaterialSurfaceArtifactKind::Instance)
 	{
 		const UMaterialInstanceConstant* Instance = Cast<UMaterialInstanceConstant>(Asset);
@@ -568,7 +607,7 @@ bool ProjectMaterialSurfaceBuilder::Verify(
 			OutError = TEXT("Reloaded surface instance parent does not match the recipe.");
 			return false;
 		}
-		return true;
+		return ProjectMaterialPatternBindings::VerifyInstance(Recipe, PatternDependency, Instance, OutError);
 	}
 	const UMaterial* Material = Cast<UMaterial>(Asset);
 	if (Material == nullptr || !Material->HasSubstrateFrontMaterialConnected())
@@ -576,8 +615,14 @@ bool ProjectMaterialSurfaceBuilder::Verify(
 		OutError = TEXT("Reloaded surface parent is not an explicit Substrate material.");
 		return false;
 	}
-	if (Recipe.Archetype == TEXT("soil_uv"))
-		return ProjectMaterialSoilBuilder::Verify(Recipe, PatternDependency, Asset, OutError);
+	if (Recipe.Archetype == TEXT("height_masks_uv"))
+		return ProjectMaterialHeightMasksSurface::Verify(Recipe, PatternDependency, Asset, OutError);
+	if (FProjectMaterialSurfaceRecipeContract::IsMetricHeightArchetype(Recipe.Archetype))
+		return ProjectMaterialMetricHeightSurface::Verify(Recipe, PatternDependency, Asset, OutError, SemanticChannels);
+	if (Recipe.Archetype == TEXT("single_layer_water"))
+		return ProjectMaterialSingleLayerWater::Verify(Recipe, Asset, OutError);
+	if (Recipe.Archetype == TEXT("aggregate_metric"))
+		return ProjectMaterialAggregateSurface::Verify(Recipe, PatternDependency, Asset, OutError);
 	const TArray<UMaterialExpression*> Expressions = UMaterialEditingLibrary::GetMaterialExpressions(Material);
 	TSet<FName> Parameters;
 	int32 Slabs = 0;

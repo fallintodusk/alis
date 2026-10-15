@@ -3,7 +3,7 @@
 #include "ProjectMaterialSurfaceGenerationService.h"
 #include "ProjectMaterialPatternAuthority.h"
 #include "ProjectMaterialFixtureDomain.h"
-#include "ProjectMaterialSoilBuilder.h"
+#include "ProjectMaterialHeightMasksSurface.h"
 #include "ProjectMaterialSurfaceRecipe.h"
 #include "ProjectTextureFixtureDomain.h"
 #include "ProjectTextureGenerationService.h"
@@ -208,7 +208,7 @@ bool FProjectMaterialSoilSampleTest::RunTest(const FString& Parameters)
 	FProjectMaterialSurfaceGenerationResult Repeat;
 	TestTrue(TEXT("Unchanged sample material skips"),FProjectMaterialSurfaceGenerationService::RegenerateTestMount(Material,Repeat));
 	TestEqual(TEXT("No second material write"),Repeat.Generated,0);
-	FProjectMaterialPatternDependency P;
+	FProjectMaterialSurfaceDependency P;
 	TestTrue(TEXT("Exact package bytes authenticated"),FProjectMaterialPatternAuthority::Resolve(TEXT("project_soil_fixture"),Material.PatternManifestPath,
 		Material.PatternPackageRoot,Material.PatternContentRoot,P,Error));
 	FProjectMaterialSurfaceRecipe Recipe;
@@ -217,9 +217,9 @@ bool FProjectMaterialSoilSampleTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Parse sample recipe"),FProjectMaterialSurfaceRecipeContract::Parse(Json,ParentFile,Material.RecipeRoot,Recipe,Error));
 	UObject* Parent=LoadObject<UObject>(nullptr,TEXT("/ProjectMaterialTest/Surfaces/Soil/M_ProjectSoilFixture.M_ProjectSoilFixture"));
 	RT->GetOutermost()->SetDirtyFlag(true);
-	TestFalse(TEXT("Dirty loaded source refuses consumer verification"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestFalse(TEXT("Dirty loaded source refuses consumer verification"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	RT->GetOutermost()->SetDirtyFlag(false);
-	TestTrue(TEXT("Original authenticated source verifies"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestTrue(TEXT("Original authenticated source verifies"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	auto* ParentMaterial=CastChecked<UMaterial>(Parent);
 	auto* Slab=CastChecked<UMaterialExpressionSubstrateSlabBSDF>(ParentMaterial->GetEditorOnlyData()->FrontMaterial.Expression);
 	UMaterialExpressionTextureSample* NormalSample=nullptr;
@@ -235,30 +235,30 @@ bool FProjectMaterialSoilSampleTest::RunTest(const FString& Parameters)
 	}
 	if (!TestNotNull(TEXT("Normal route sample"),NormalSample) || !TestNotNull(TEXT("Masks route sample"),MasksSample)) return false;
 	Swap(NormalSample->Texture,MasksSample->Texture);
-	TestFalse(TEXT("Swapped normal and masks bindings refuse semantic verification"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestFalse(TEXT("Swapped normal and masks bindings refuse semantic verification"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	Swap(NormalSample->Texture,MasksSample->Texture);
 	for (auto* Expression : UMaterialEditingLibrary::GetMaterialExpressions(ParentMaterial))
 		if (auto* Channel=Cast<UMaterialExpressionComponentMask>(Expression); Channel && Channel->G && Channel->Input.Expression==MasksSample) RoughnessChannel=Channel;
 	if (!TestNotNull(TEXT("Roughness channel route"),RoughnessChannel)) return false;
 	RoughnessChannel->R=true; RoughnessChannel->G=false;
-	TestFalse(TEXT("Cavity routed as roughness refuses semantic verification"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestFalse(TEXT("Cavity routed as roughness refuses semantic verification"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	RoughnessChannel->R=false; RoughnessChannel->G=true;
 	UMaterialExpressionMultiply* NormalDecode=nullptr;
 	for (auto* Expression : UMaterialEditingLibrary::GetMaterialExpressions(ParentMaterial))
 		if (auto* Multiply=Cast<UMaterialExpressionMultiply>(Expression); Multiply && Multiply->A.Expression==NormalSample) NormalDecode=Multiply;
 	if (!TestNotNull(TEXT("Normal RGB decode route"),NormalDecode)) return false;
 	NormalDecode->A.OutputIndex=1;
-	TestFalse(TEXT("Single texture channel cannot masquerade as normal RGB"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestFalse(TEXT("Single texture channel cannot masquerade as normal RGB"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	NormalDecode->A.OutputIndex=0;
-	TestTrue(TEXT("Restored semantic routes verify"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestTrue(TEXT("Restored semantic routes verify"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	for (FExpressionInput* Input : {&Slab->Normal,&Slab->DiffuseAlbedo,&Slab->Roughness,&Slab->F0})
 	{
 		const auto Saved=*Input;
 		Input->Expression=nullptr;
-		TestFalse(TEXT("Disconnected native PBR input refuses reload verification"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+		TestFalse(TEXT("Disconnected native PBR input refuses reload verification"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 		*Input=Saved;
 	}
-	TestTrue(TEXT("Restored native PBR connections verify"),ProjectMaterialSoilBuilder::Verify(Recipe,P,Parent,Error));
+	TestTrue(TEXT("Restored native PBR connections verify"),ProjectMaterialHeightMasksSurface::Verify(Recipe,P,Parent,Error));
 	// A resource replacement has the same object and semantic identity but empty pixels.
 	// It must invalidate every sibling's warm hint rather than report a false cache hit.
 	auto* Replaced=C->OutputSlots[1]->GetRenderTarget();

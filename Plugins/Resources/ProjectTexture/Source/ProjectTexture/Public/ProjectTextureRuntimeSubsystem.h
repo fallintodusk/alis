@@ -48,7 +48,7 @@ struct PROJECTTEXTURE_API FProjectTextureRuntimeTelemetry
 	int64 PeakResidentBytes = 0;
 };
 
-UCLASS()
+UCLASS(Config=Engine)
 class PROJECTTEXTURE_API UProjectTextureRuntimeSubsystem final : public UEngineSubsystem
 {
 	GENERATED_BODY()
@@ -66,6 +66,7 @@ public:
 
 	bool IsOutputReady(const UProjectTextureOutputSlot* OutputSlot) const;
 	const FProjectTextureRuntimeTelemetry& GetTelemetry() const { return Telemetry; }
+	int64 GetBudgetBytes() const;
 
 	static void NotifyOutputSlotLoaded(UProjectTextureOutputSlot* OutputSlot);
 
@@ -78,9 +79,14 @@ public:
 	bool IsBundleReady(const UProjectTextureOutputSlot* Slot) const;
 
 private:
+	// One engine-lifetime policy; catalogs bound their own operations, not this cache.
+	UPROPERTY(Config)
+	int64 GlobalBudgetBytes = 32 * 1024 * 1024;
+
 	void HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues InitializationValues);
 	void HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 	void QueueOrGenerate(UProjectTextureOutputSlot* OutputSlot);
+	void GeneratePendingOutputs();
 	UWorld* FindGenerationWorld() const;
 	void ReleaseTransientTargets();
 	bool TickBundles(float Delta);

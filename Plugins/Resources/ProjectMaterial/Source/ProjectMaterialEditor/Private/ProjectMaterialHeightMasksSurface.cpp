@@ -1,7 +1,9 @@
 // Copyright ALIS. All Rights Reserved.
 // License terms: see repository root LICENSE.
 
-#include "ProjectMaterialSoilBuilder.h"
+#include "ProjectMaterialHeightMasksSurface.h"
+#include "ProjectMaterialExpressionUtils.h"
+#include "ProjectMaterialPatternBindings.h"
 #include "ProjectMaterialSurfaceRecipe.h"
 #include "ProjectMaterialPatternAuthority.h"
 #include "ProjectTextureRuntimeCatalog.h"
@@ -22,31 +24,19 @@
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
 
-namespace ProjectMaterialSoilBuilderPrivate
+namespace ProjectMaterialHeightMasksSurfacePrivate
 {
 using E = UMaterialExpression;
-template <class T> T* Node(UMaterial* M)
-{
-	return CastChecked<T>(UMaterialEditingLibrary::CreateMaterialExpression(M, T::StaticClass()));
-}
-E* Scalar(UMaterial* M, const FProjectMaterialSurfaceRecipe& R, const TCHAR* Name)
-{
-	auto* N = Node<UMaterialExpressionScalarParameter>(M);
-	N->ParameterName = Name; N->DefaultValue = R.Scalars[FName(Name)]; return N;
-}
-E* Vector(UMaterial* M, const FProjectMaterialSurfaceRecipe& R, const TCHAR* Name)
-{
-	auto* N = Node<UMaterialExpressionVectorParameter>(M);
-	N->ParameterName = Name; N->DefaultValue = R.Vectors[FName(Name)]; return N;
-}
-E* Constant(UMaterial* M, float V)
-{
-	auto* N = Node<UMaterialExpressionConstant>(M); N->R = V; return N;
-}
+using namespace ProjectMaterialExpressionUtils;
+
+
+
+
 E* Channel(UMaterial* M, E* A, int32 C)
 {
 	auto* N = Node<UMaterialExpressionComponentMask>(M);
@@ -128,52 +118,29 @@ bool VerifyRoutes(const UMaterial* M, const UMaterialExpressionSubstrateSlabBSDF
 		IsChannel(XY->B.Expression,Decode,1) && IsChannel(Z->Input.Expression,Decode,2);
 }
 
-bool Resolve(const FProjectMaterialPatternDependency& P, TArray<UTextureRenderTarget2D*>& Out, FString& Error)
+bool Resolve(const FProjectMaterialSurfaceDependency& P,TArray<UTextureRenderTarget2D*>& Out,FString& Error)
 {
-	if (P.OutputContract != TEXT("soil_structure_normal_masks_v1"))
-	{
-		Error = TEXT("Soil material requires its reviewed three-output contract."); return false;
-	}
-	auto* Primary = LoadObject<UTextureRenderTarget2D>(nullptr, *P.OutputObjectPath);
-	auto* Slot = Primary ? Cast<UProjectTextureOutputSlot>(Primary->GetAssetUserDataOfClass(UProjectTextureOutputSlot::StaticClass())) : nullptr;
-	auto* C = Slot ? Slot->Catalog.Get() : nullptr;
-	if (!C || C->OutputContract != FName(P.OutputContract) || C->SemanticIdentity != P.SemanticIdentity ||
-		C->PatternId != FName(P.PatternId) || C->OutputSlots.Num() != 3 || C->Nodes.Num() != 3 ||
-		C->GetOutermost() != Primary->GetOutermost() || Primary->GetOutermost()->IsDirty())
-	{
-		Error = TEXT("Loaded soil bundle is dirty, foreign, or does not match authenticated identity."); return false;
-	}
-	const TArray<FName> Names = {TEXT("Structure"),TEXT("Normal"),TEXT("Masks")};
-	for (int32 Index=0; Index<3; ++Index)
-	{
-		auto* S = C->OutputSlots[Index].Get(); auto* RT = S ? S->GetRenderTarget() : nullptr;
-		if (!RT || S->Catalog != C || S->SlotName != Names[Index] || S->NodeId != C->Nodes[Index].NodeId ||
-			RT->GetOutermost() != Primary->GetOutermost() || RT->RenderTargetFormat != RTF_RGBA8 || RT->IsSRGB() ||
-			RT->SizeX != Primary->SizeX || RT->SizeY != Primary->SizeY || !RT->bAutoGenerateMips ||
-			RT->AddressX != TA_Wrap || RT->AddressY != TA_Wrap || RT->Filter != TF_Trilinear)
-		{
-			Error = TEXT("Soil sibling slot or native texture contract is invalid."); return false;
-		}
-		Out.Add(RT);
-	}
-	if (Out[0] != Primary) { Error = TEXT("Soil primary is not the Structure output."); return false; }
-	return true;
+    TArray<ProjectMaterialPatternBindings::FBinding> Bindings;
+    if (P.OutputContract!=TEXT("soil_structure_normal_masks_v1") || !ProjectMaterialPatternBindings::Resolve(P,Bindings,Error)) return false;
+    for (const auto& B : Bindings) Out.Add(B.Target);
+    return true;
 }
 }
 
-bool ProjectMaterialSoilBuilder::Build(UMaterial* M, const FProjectMaterialSurfaceRecipe& R,
-	const FProjectMaterialPatternDependency& P, TArray<FString>& OutErrors, FString& OutError)
+bool ProjectMaterialHeightMasksSurface::Build(UMaterial* M, const FProjectMaterialSurfaceRecipe& R,
+	const FProjectMaterialSurfaceDependency& P, TArray<FString>& OutErrors, FString& OutError)
 {
-	using namespace ProjectMaterialSoilBuilderPrivate;
+	using namespace ProjectMaterialHeightMasksSurfacePrivate;
 	TArray<UTextureRenderTarget2D*> Targets;
 	if (!Resolve(P, Targets, OutError)) return false;
 	UMaterialEditingLibrary::DeleteAllMaterialExpressions(M);
 	// BasicShapes plane is 100 cm wide. A UV unit spans one metre in this fixture.
 	E* UV = Div(M, Node<UMaterialExpressionTextureCoordinate>(M), Scalar(M,R,TEXT("PatternScaleMeters")));
 	TArray<E*> Samples;
-	for (auto* RT : Targets)
+	const TCHAR* Roles[]={TEXT("SurfaceStructure"),TEXT("SurfaceNormal"),TEXT("SurfaceMasks")};
+	for (int32 Index=0; Index<Targets.Num(); ++Index)
 	{
-		auto* S = Node<UMaterialExpressionTextureSample>(M); S->Texture = RT;
+		auto* S = Node<UMaterialExpressionTextureSampleParameter2D>(M); S->ParameterName=Roles[Index]; S->Texture = Targets[Index];
 		S->SamplerType = SAMPLERTYPE_LinearColor; S->Coordinates.Connect(0,UV); Samples.Add(S);
 	}
 	E* Color = Lerp(M,Vector(M,R,TEXT("SoilDarkColor")),Vector(M,R,TEXT("SoilLightColor")),Channel(M,Samples[2],2));
@@ -203,10 +170,10 @@ bool ProjectMaterialSoilBuilder::Build(UMaterial* M, const FProjectMaterialSurfa
 	M->MarkPackageDirty(); return true;
 }
 
-bool ProjectMaterialSoilBuilder::Verify(const FProjectMaterialSurfaceRecipe& R,
-	const FProjectMaterialPatternDependency& P, const UObject* Asset, FString& OutError)
+bool ProjectMaterialHeightMasksSurface::Verify(const FProjectMaterialSurfaceRecipe& R,
+	const FProjectMaterialSurfaceDependency& P, const UObject* Asset, FString& OutError)
 {
-	using namespace ProjectMaterialSoilBuilderPrivate;
+	using namespace ProjectMaterialHeightMasksSurfacePrivate;
 	TArray<UTextureRenderTarget2D*> Targets;
 	if (!Resolve(P,Targets,OutError)) return false;
 	const auto* M=Cast<UMaterial>(Asset);

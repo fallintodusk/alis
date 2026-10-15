@@ -1,0 +1,63 @@
+{
+  "$schema": "../../Schemas/pattern-recipe.schema.json",
+  "schema_version": "6",
+  "pattern_id": "project_road_aggregate",
+  "catalog_id": "DA_ProjectRoadAggregate",
+  "family": "aggregate_surface",
+  "compiler_version": "8",
+  "output_contract": "aggregate_signals_normal_v1",
+  "seed": 0,
+  "resolution_class": "medium",
+  "nodes": [
+    {
+      "node_id": "aggregate_signals",
+      "algorithm": "particle_signals_native",
+      "parents": [],
+      "output_layout": "aggregate_height_pigment_roughness_rgb_v1"
+    },
+    {
+      "node_id": "aggregate_normal",
+      "algorithm": "aggregate_normal_native",
+      "parents": [
+        "aggregate_signals"
+      ],
+      "output_layout": "aggregate_normal_rgb_v1"
+    }
+  ],
+  "exports": [
+    {
+      "slot": "Signals",
+      "node_id": "aggregate_signals",
+      "descriptor_id": "RT_ProjectRoadSignals"
+    },
+    {
+      "slot": "Normal",
+      "node_id": "aggregate_normal",
+      "descriptor_id": "RT_ProjectRoadNormal"
+    }
+  ],
+  "structure": {
+    "WarpFrequency": 12,
+    "FineFrequency": 96,
+    "CoarseFrequency": 48,
+    "MicroFrequency": 192,
+    "PatchFrequency": 6,
+    "WarpAmplitude": 0.003,
+    "GrainRadius": 0.48,
+    "GrainRadiusVariation": 0.32,
+    "GrainContrast": 1.4,
+    "FineOccupancyThreshold": 0.3,
+    "FineOccupancyContrast": 1.6,
+    "CoarseOccupancyThreshold": 0.55,
+    "CoarseOccupancyContrast": 2,
+    "FineReliefBase": 0.65,
+    "FineReliefVariation": 0.35,
+    "CoarseRadiusFactor": 2,
+    "CoarseMix": 0.12,
+    "HeightAggregate": 0.65,
+    "HeightMicro": 0.22,
+    "PigmentAggregate": 1.2,
+    "PigmentPatch": 0.15,
+    "RoughnessMicroMix": 0.3
+  }
+}

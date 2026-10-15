@@ -27,11 +27,48 @@
     "materials": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["road", "building", "cloud"],
+      "required": [
+        "road",
+        "building",
+        "cloud"
+      ],
       "properties": {
-        "road": { "$ref": "#/$defs/engineAsset" },
-        "building": { "$ref": "#/$defs/engineAsset" },
-        "cloud": { "$ref": "#/$defs/engineAsset" }
+        "road": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/engineAsset"
+            },
+            {
+              "type": "string",
+              "pattern": "^road\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+            }
+          ]
+        },
+        "building": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/engineAsset"
+            },
+            {
+              "type": "string",
+              "pattern": "^building\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+            }
+          ]
+        },
+        "cloud": {
+          "$ref": "#/$defs/engineAsset"
+        },
+        "water": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/engineAsset"
+            },
+            {
+              "type": "string",
+              "pattern": "^water\\.[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+            }
+          ]
+        }
       }
     },
     "outdoor_environment": {
@@ -46,12 +83,34 @@
         "fixed_exposure_ev100"
       ],
       "properties": {
-        "sun_rotation": { "$ref": "#/$defs/rotator" },
-        "sun_intensity_lux": { "type": "number", "minimum": 1000, "maximum": 120000 },
-        "sky_light_intensity": { "type": "number", "minimum": 0, "maximum": 10 },
-        "fog_density": { "type": "number", "minimum": 0, "maximum": 0.05 },
-        "fog_height_falloff": { "type": "number", "minimum": 0.001, "maximum": 2 },
-        "fixed_exposure_ev100": { "type": "number", "minimum": -10, "maximum": 20 }
+        "sun_rotation": {
+          "$ref": "#/$defs/rotator"
+        },
+        "sun_intensity_lux": {
+          "type": "number",
+          "minimum": 1000,
+          "maximum": 120000
+        },
+        "sky_light_intensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "fog_density": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.05
+        },
+        "fog_height_falloff": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 2
+        },
+        "fixed_exposure_ev100": {
+          "type": "number",
+          "minimum": -10,
+          "maximum": 20
+        }
       }
     },
     "capture_viewpoints": {
@@ -70,12 +129,31 @@
           "fov_degrees"
         ],
         "properties": {
-          "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
-          "location_normalized": { "$ref": "#/$defs/normalizedPoint" },
-          "height_m": { "type": "number", "minimum": 1, "maximum": 5000 },
-          "look_at_normalized": { "$ref": "#/$defs/normalizedPoint" },
-          "look_at_height_m": { "type": "number", "minimum": -1000, "maximum": 5000 },
-          "fov_degrees": { "type": "number", "minimum": 20, "maximum": 120 }
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "location_normalized": {
+            "$ref": "#/$defs/normalizedPoint"
+          },
+          "height_m": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "look_at_normalized": {
+            "$ref": "#/$defs/normalizedPoint"
+          },
+          "look_at_height_m": {
+            "type": "number",
+            "minimum": -1000,
+            "maximum": 5000
+          },
+          "fov_degrees": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 120
+          }
         }
       }
     }
@@ -89,13 +167,21 @@
       "type": "array",
       "minItems": 2,
       "maxItems": 2,
-      "items": { "type": "number", "minimum": -1, "maximum": 2 }
+      "items": {
+        "type": "number",
+        "minimum": -1,
+        "maximum": 2
+      }
     },
     "rotator": {
       "type": "array",
       "minItems": 3,
       "maxItems": 3,
-      "items": { "type": "number", "minimum": -360, "maximum": 360 }
+      "items": {
+        "type": "number",
+        "minimum": -360,
+        "maximum": 360
+      }
     }
   }
 }

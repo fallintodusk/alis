@@ -7,13 +7,13 @@
 #include "ProjectMaterialSurfaceRecipe.h"
 
 class UObject;
-struct FProjectMaterialPatternDependency;
+struct FProjectMaterialSurfaceDependency;
 
 namespace ProjectMaterialSurfaceBuilder
 {
 bool BuildParent(
 	const FProjectMaterialSurfaceRecipe& Recipe,
-	const FProjectMaterialPatternDependency& Pattern,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const FString& PackageName,
 	const TMap<FName, int32>& SemanticChannels,
 	UObject*& OutAsset,
@@ -22,13 +22,14 @@ bool BuildParent(
 
 bool BuildInstance(
 	const FProjectMaterialSurfaceRecipe& Recipe,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const FString& PackageName,
 	UObject*& OutAsset,
 	FString& OutError);
 
 bool Verify(
 	const FProjectMaterialSurfaceRecipe& Recipe,
-	const FProjectMaterialPatternDependency& Pattern,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const TMap<FName, int32>& SemanticChannels,
 	UObject* Asset,
 	FString& OutError);

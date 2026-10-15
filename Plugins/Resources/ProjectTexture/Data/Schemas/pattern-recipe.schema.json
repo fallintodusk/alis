@@ -255,6 +255,627 @@
           }
         }
       }
+    },
+    {
+      "title": "ProjectTexture native particle pattern recipe v6",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema_version",
+        "pattern_id",
+        "catalog_id",
+        "family",
+        "compiler_version",
+        "output_contract",
+        "seed",
+        "resolution_class",
+        "nodes",
+        "exports",
+        "structure"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "../../Schemas/pattern-recipe.schema.json"
+        },
+        "schema_version": {
+          "const": "6"
+        },
+        "pattern_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "catalog_id": {
+          "type": "string",
+          "pattern": "^DA_[A-Za-z0-9_]+$"
+        },
+        "family": {
+          "const": "aggregate_surface"
+        },
+        "compiler_version": {
+          "const": "8"
+        },
+        "output_contract": {
+          "const": "aggregate_signals_normal_v1"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "resolution_class": {
+          "const": "medium"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "node_id",
+                "algorithm",
+                "parents",
+                "output_layout"
+              ],
+              "properties": {
+                "node_id": {
+                  "const": "aggregate_signals"
+                },
+                "algorithm": {
+                  "const": "particle_signals_native"
+                },
+                "parents": {
+                  "const": []
+                },
+                "output_layout": {
+                  "const": "aggregate_height_pigment_roughness_rgb_v1"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "node_id",
+                "algorithm",
+                "parents",
+                "output_layout"
+              ],
+              "properties": {
+                "node_id": {
+                  "const": "aggregate_normal"
+                },
+                "algorithm": {
+                  "const": "aggregate_normal_native"
+                },
+                "parents": {
+                  "const": [
+                    "aggregate_signals"
+                  ]
+                },
+                "output_layout": {
+                  "const": "aggregate_normal_rgb_v1"
+                }
+              }
+            }
+          ]
+        },
+        "exports": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "slot",
+                "node_id",
+                "descriptor_id"
+              ],
+              "properties": {
+                "slot": {
+                  "const": "Signals"
+                },
+                "node_id": {
+                  "const": "aggregate_signals"
+                },
+                "descriptor_id": {
+                  "type": "string",
+                  "pattern": "^RT_[A-Za-z0-9_]+$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "slot",
+                "node_id",
+                "descriptor_id"
+              ],
+              "properties": {
+                "slot": {
+                  "const": "Normal"
+                },
+                "node_id": {
+                  "const": "aggregate_normal"
+                },
+                "descriptor_id": {
+                  "type": "string",
+                  "pattern": "^RT_[A-Za-z0-9_]+$"
+                }
+              }
+            }
+          ]
+        },
+        "structure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "WarpFrequency",
+            "FineFrequency",
+            "CoarseFrequency",
+            "MicroFrequency",
+            "PatchFrequency",
+            "WarpAmplitude",
+            "GrainRadius",
+            "GrainRadiusVariation",
+            "GrainContrast",
+            "FineOccupancyThreshold",
+            "FineOccupancyContrast",
+            "CoarseOccupancyThreshold",
+            "CoarseOccupancyContrast",
+            "FineReliefBase",
+            "FineReliefVariation",
+            "CoarseRadiusFactor",
+            "CoarseMix",
+            "HeightAggregate",
+            "HeightMicro",
+            "PigmentAggregate",
+            "PigmentPatch",
+            "RoughnessMicroMix"
+          ],
+          "properties": {
+            "WarpFrequency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "FineFrequency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "CoarseFrequency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "MicroFrequency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "PatchFrequency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "WarpAmplitude": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.05
+            },
+            "GrainRadius": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 2
+            },
+            "GrainRadiusVariation": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "GrainContrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "FineOccupancyThreshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "FineOccupancyContrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "CoarseOccupancyThreshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "CoarseOccupancyContrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "FineReliefBase": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "FineReliefVariation": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "CoarseRadiusFactor": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 8
+            },
+            "CoarseMix": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "HeightAggregate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "HeightMicro": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "PigmentAggregate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "PigmentPatch": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "RoughnessMicroMix": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "ProjectTexture graded-particle bundle v7",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema_version",
+        "pattern_id",
+        "catalog_id",
+        "family",
+        "compiler_version",
+        "output_contract",
+        "seed",
+        "resolution_class",
+        "nodes",
+        "exports",
+        "structure"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "../../Schemas/pattern-recipe.schema.json"
+        },
+        "schema_version": {
+          "const": "7"
+        },
+        "pattern_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "catalog_id": {
+          "type": "string",
+          "pattern": "^DA_[A-Za-z0-9_]+$"
+        },
+        "family": {
+          "const": "graded_particles"
+        },
+        "compiler_version": {
+          "const": "9"
+        },
+        "output_contract": {
+          "const": "soil_structure_normal_masks_v1"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "resolution_class": {
+          "const": "medium"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "node_id",
+              "algorithm",
+              "parents",
+              "output_layout"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+              },
+              "algorithm": {
+                "enum": [
+                  "graded_particles_native",
+                  "graded_filter_native",
+                  "soil_normal_native",
+                  "soil_masks_native"
+                ]
+              },
+              "parents": {
+                "type": "array",
+                "maxItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                }
+              },
+              "output_layout": {
+                "enum": [
+                  "soil_height_clump_grain_rgb_v1",
+                  "soil_normal_rgb_v1",
+                  "soil_cavity_roughness_pigment_rgb_v1",
+                  "soil_raw_height_occupancy_grain_rgb_v1"
+                ]
+              }
+            }
+          },
+          "maxItems": 4
+        },
+        "exports": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "slot",
+              "node_id",
+              "descriptor_id"
+            ],
+            "properties": {
+              "slot": {
+                "enum": [
+                  "Structure",
+                  "Normal",
+                  "Masks"
+                ]
+              },
+              "node_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+              },
+              "descriptor_id": {
+                "type": "string",
+                "pattern": "^RT_[A-Za-z0-9_]+$"
+              }
+            }
+          }
+        },
+        "structure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "PatchFrequency",
+            "MicroFrequency",
+            "LargeFrequency",
+            "MediumFrequency",
+            "SmallFrequency",
+            "GrainFrequency",
+            "BaseMicroHeight",
+            "FacetStrength",
+            "LargeProfile",
+            "MediumProfile",
+            "SmallProfile",
+            "GrainProfile",
+            "LargeDensity",
+            "MediumDensity",
+            "SmallDensity",
+            "GrainDensity",
+            "LargeHeight",
+            "MediumHeight",
+            "SmallHeight",
+            "GrainHeight",
+            "EdgeMicroHeight",
+            "AggregateSurfaceGrain",
+            "RaisedGrainHeight"
+          ],
+          "properties": {
+            "PatchFrequency": {
+              "type": "integer",
+              "enum": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256
+              ]
+            },
+            "MicroFrequency": {
+              "type": "integer",
+              "enum": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256
+              ]
+            },
+            "LargeFrequency": {
+              "type": "integer",
+              "enum": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256
+              ]
+            },
+            "MediumFrequency": {
+              "type": "integer",
+              "enum": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256
+              ]
+            },
+            "SmallFrequency": {
+              "type": "integer",
+              "enum": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256
+              ]
+            },
+            "GrainFrequency": {
+              "type": "integer",
+              "enum": [
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256
+              ]
+            },
+            "BaseMicroHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "FacetStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "LargeProfile": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 4
+            },
+            "MediumProfile": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 4
+            },
+            "SmallProfile": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 4
+            },
+            "GrainProfile": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 4
+            },
+            "LargeDensity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MediumDensity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "SmallDensity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "GrainDensity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "LargeHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MediumHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "SmallHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "GrainHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "EdgeMicroHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "AggregateSurfaceGrain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "RaisedGrainHeight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
     }
   ]
 }

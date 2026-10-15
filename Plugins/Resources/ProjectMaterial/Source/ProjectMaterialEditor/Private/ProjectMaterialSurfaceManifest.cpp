@@ -36,7 +36,7 @@ namespace ProjectMaterialSurfaceManifestPrivate
 			TEXT("binding_id"), TEXT("family"),
 			TEXT("archetype"), TEXT("compiler_version"), TEXT("pattern_id"),
 			TEXT("pattern_object_path"), TEXT("pattern_output_contract"),
-			TEXT("pattern_semantic_identity"), TEXT("pattern_package_sha256"),
+			TEXT("pattern_semantic_identity"), TEXT("pattern_package_sha256"), TEXT("native_resources"),
 			TEXT("dependency_object_path"), TEXT("dependency_package_sha256"),
 			TEXT("terrain_layout_receipt_sha256"), TEXT("output_object_path"),
 			TEXT("semantic_identity"), TEXT("package_sha256"), TEXT("compiler_fingerprint"),
@@ -113,11 +113,6 @@ bool ProjectMaterialSurfaceManifest::Load(
 			!ReadString(*Object, TEXT("family"), Record.Family, OutError) ||
 			!ReadString(*Object, TEXT("archetype"), Record.Archetype, OutError) ||
 			!ReadString(*Object, TEXT("compiler_version"), Record.CompilerVersion, OutError) ||
-			!ReadString(*Object, TEXT("pattern_id"), Record.PatternId, OutError) ||
-			!ReadString(*Object, TEXT("pattern_object_path"), Record.PatternObjectPath, OutError) ||
-			!ReadString(*Object, TEXT("pattern_output_contract"), Record.PatternOutputContract, OutError) ||
-			!ReadString(*Object, TEXT("pattern_semantic_identity"), Record.PatternSemanticIdentity, OutError) ||
-			!ReadString(*Object, TEXT("pattern_package_sha256"), Record.PatternPackageSha256, OutError) ||
 			!ReadString(*Object, TEXT("output_object_path"), Record.OutputObjectPath, OutError) ||
 			!ReadString(*Object, TEXT("semantic_identity"), Record.SemanticIdentity, OutError) ||
 			!ReadString(*Object, TEXT("package_sha256"), Record.PackageSha256, OutError) ||
@@ -126,14 +121,41 @@ bool ProjectMaterialSurfaceManifest::Load(
 		{
 			return false;
 		}
+		const bool bNative = Record.Archetype == TEXT("single_layer_water");
+		if (bNative)
+		{
+			const TSharedPtr<FJsonObject>* Resources = nullptr;
+			if (!(*Object)->TryGetObjectField(TEXT("native_resources"), Resources) || !Resources || (*Resources)->Values.Num()!=4)
+			{
+				OutError=TEXT("Native river manifest requires four authenticated direct resources."); return false;
+			}
+			for (const auto& Resource : (*Resources)->Values)
+			{
+				FString Digest;
+				if (!Resource.Value->TryGetString(Digest) || !IsSha256(Digest))
+				{
+					OutError=TEXT("Native resource digest is invalid."); return false;
+				}
+				Record.NativeResourceHashes.Add(FString(Resource.Key.ToView()),Digest);
+			}
+			for (const TCHAR* Field : {TEXT("pattern_id"), TEXT("pattern_object_path"), TEXT("pattern_output_contract"), TEXT("pattern_semantic_identity"), TEXT("pattern_package_sha256")})
+			{
+				if ((*Object)->HasField(Field)) { OutError=TEXT("Native river manifest cannot claim a ProjectTexture pattern."); return false; }
+			}
+		}
+		else if ((*Object)->HasField(TEXT("native_resources")) ||
+			!ReadString(*Object,TEXT("pattern_id"),Record.PatternId,OutError) ||
+			!ReadString(*Object,TEXT("pattern_object_path"),Record.PatternObjectPath,OutError) ||
+			!ReadString(*Object,TEXT("pattern_output_contract"),Record.PatternOutputContract,OutError) ||
+			!ReadString(*Object,TEXT("pattern_semantic_identity"),Record.PatternSemanticIdentity,OutError) ||
+			!ReadString(*Object,TEXT("pattern_package_sha256"),Record.PatternPackageSha256,OutError)) return false;
 		(*Object)->TryGetStringField(TEXT("binding_id"), Record.BindingId);
 		(*Object)->TryGetStringField(TEXT("dependency_object_path"), Record.DependencyObjectPath);
 		(*Object)->TryGetStringField(TEXT("dependency_package_sha256"), Record.DependencyPackageSha256);
 		(*Object)->TryGetStringField(
 			TEXT("terrain_layout_receipt_sha256"), Record.TerrainLayoutReceiptSha256);
 		if (!IsSha256(Record.RecipeSha256) || !IsSha256(Record.RecipeSourceSha256) ||
-			!IsSha256(Record.PatternSemanticIdentity) ||
-			!IsSha256(Record.PatternPackageSha256) || !IsSha256(Record.SemanticIdentity) ||
+			(!bNative && (!IsSha256(Record.PatternSemanticIdentity) || !IsSha256(Record.PatternPackageSha256))) || !IsSha256(Record.SemanticIdentity) ||
 			!IsSha256(Record.PackageSha256) || !IsSha256(Record.CompilerFingerprint) ||
 			(!Record.DependencyObjectPath.IsEmpty() != !Record.DependencyPackageSha256.IsEmpty()) ||
 			(!Record.DependencyPackageSha256.IsEmpty() && !IsSha256(Record.DependencyPackageSha256)) ||
@@ -182,11 +204,21 @@ FString ProjectMaterialSurfaceManifest::Serialize(
 		Object->SetStringField(TEXT("family"), Record.Family);
 		Object->SetStringField(TEXT("archetype"), Record.Archetype);
 		Object->SetStringField(TEXT("compiler_version"), Record.CompilerVersion);
-		Object->SetStringField(TEXT("pattern_id"), Record.PatternId);
-		Object->SetStringField(TEXT("pattern_object_path"), Record.PatternObjectPath);
-		Object->SetStringField(TEXT("pattern_output_contract"), Record.PatternOutputContract);
-		Object->SetStringField(TEXT("pattern_semantic_identity"), Record.PatternSemanticIdentity);
-		Object->SetStringField(TEXT("pattern_package_sha256"), Record.PatternPackageSha256);
+		if (Record.NativeResourceHashes.IsEmpty())
+		{
+			Object->SetStringField(TEXT("pattern_id"), Record.PatternId);
+			Object->SetStringField(TEXT("pattern_object_path"), Record.PatternObjectPath);
+			Object->SetStringField(TEXT("pattern_output_contract"), Record.PatternOutputContract);
+			Object->SetStringField(TEXT("pattern_semantic_identity"), Record.PatternSemanticIdentity);
+			Object->SetStringField(TEXT("pattern_package_sha256"), Record.PatternPackageSha256);
+		}
+		else
+		{
+			auto Resources=MakeShared<FJsonObject>(); TArray<FString> Paths;
+			Record.NativeResourceHashes.GetKeys(Paths); Paths.Sort();
+			for (const FString& Path : Paths) Resources->SetStringField(Path,Record.NativeResourceHashes.FindChecked(Path));
+			Object->SetObjectField(TEXT("native_resources"),Resources);
+		}
 		if (!Record.DependencyObjectPath.IsEmpty())
 		{
 			Object->SetStringField(TEXT("dependency_object_path"), Record.DependencyObjectPath);

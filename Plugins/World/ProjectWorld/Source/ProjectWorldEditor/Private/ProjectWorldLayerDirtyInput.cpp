@@ -7,6 +7,7 @@
 
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Utilities/ProjectSha256.h"
@@ -129,7 +130,7 @@ namespace ProjectWorldLayerDirtyInput
 			!HasOnlyFields(Root, {
 				TEXT("$schema"), TEXT("schema_version"), TEXT("realization_profile_id"),
 				TEXT("producer_fingerprints"), TEXT("base_layers"),
-				TEXT("identity_dirty_layers"), TEXT("operator_additions")}, OutError) ||
+				TEXT("identity_dirty_layers"), TEXT("operator_additions"), TEXT("material_reference_artifacts"), TEXT("material_reference_changed_roles")}, OutError) ||
 			!Root->TryGetStringField(TEXT("$schema"), Schema) ||
 			!ProjectWorldSchemaReference::ResolvesToCanonical(
 				Path,
@@ -234,6 +235,46 @@ namespace ProjectWorldLayerDirtyInput
 					return false;
 				}
 				LayerUnits.Add(Unit);
+			}
+		}
+		const TArray<TSharedPtr<FJsonValue>>* References = nullptr;
+		const TArray<TSharedPtr<FJsonValue>>* ChangedRoles = nullptr;
+		if (Root->HasField(TEXT("material_reference_changed_roles")))
+		{
+			if (!Root->HasField(TEXT("material_reference_artifacts")) || !Root->TryGetArrayField(TEXT("material_reference_changed_roles"),ChangedRoles))
+			{ OutErrorCode=TEXT("material-reference-input"); OutError=TEXT("Changed material roles require explicit membership."); return false; }
+			for (const auto& Value : *ChangedRoles)
+			{
+				FString Role;
+				if (!Value.IsValid() || !Value->TryGetString(Role) || (Role!=TEXT("road") && Role!=TEXT("building") && Role!=TEXT("water")) || OutInput.MaterialReferenceChangedRoles.Contains(FName(Role)))
+				{ OutErrorCode=TEXT("material-reference-input"); OutError=TEXT("Invalid or duplicate changed material role."); return false; }
+				OutInput.MaterialReferenceChangedRoles.Add(FName(Role));
+			}
+		}
+		if (Root->HasField(TEXT("material_reference_artifacts")))
+		{
+			if (!Root->TryGetArrayField(TEXT("material_reference_artifacts"), References) || !References || References->IsEmpty())
+			{ OutErrorCode=TEXT("material-reference-input"); OutError=TEXT("Material references require explicit layer membership."); return false; }
+			for (const auto& Value : *References)
+			{
+				const auto Layer=Value.IsValid() ? Value->AsObject() : nullptr;
+				FString Id; const TArray<TSharedPtr<FJsonValue>>* Artifacts=nullptr;
+				if (!Layer.IsValid() || !HasOnlyFields(Layer,{TEXT("layer_id"),TEXT("artifacts")},OutError) ||
+					!Layer->TryGetStringField(TEXT("layer_id"),Id) || !OutInput.BaseLayers.Contains(Id) ||
+					OutInput.MaterialReferenceArtifacts.Contains(Id) || !Layer->TryGetArrayField(TEXT("artifacts"),Artifacts))
+				{ OutErrorCode=TEXT("material-reference-input"); OutError=TEXT("Invalid or duplicate material layer membership."); return false; }
+				auto& Rows=OutInput.MaterialReferenceArtifacts.Add(Id); TSet<FString> Seen;
+				for (const auto& Item : *Artifacts)
+				{
+					const auto Record=Item.IsValid() ? Item->AsObject() : nullptr; FProjectWorldLayerArtifactInventory A;
+					if (!Record.IsValid() || !HasOnlyFields(Record,{TEXT("path"),TEXT("kind"),TEXT("digest"),TEXT("semantic_sha256")},OutError) ||
+						!Record->TryGetStringField(TEXT("path"),A.Path) || A.Path.IsEmpty() || !FPaths::IsRelative(A.Path) || A.Path.Contains(TEXT(":")) || A.Path.Contains(TEXT("..")) || A.Path.Contains(TEXT("\\")) || A.Path.StartsWith(TEXT("/")) || Seen.Contains(A.Path) ||
+						!Record->TryGetStringField(TEXT("kind"),A.Kind) || (A.Kind!=TEXT("asset") && A.Kind!=TEXT("external_actor")) ||
+						!Record->TryGetStringField(TEXT("digest"),A.Digest) || !IsSha256(A.Digest) ||
+						!Record->TryGetStringField(TEXT("semantic_sha256"),A.SemanticHash) || !IsSha256(A.SemanticHash))
+					{ OutErrorCode=TEXT("material-reference-input"); OutError=TEXT("Invalid material-reference artifact identity."); return false; }
+					Seen.Add(A.Path); Rows.Add(MoveTemp(A));
+				}
 			}
 		}
 		if (!FProjectSha256::HashFile(Path, OutInput.InputHash))

@@ -4,15 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-struct FProjectMaterialPatternDependency
-{
-	FString PatternId;
-	FString OutputContract;
-	FString OutputObjectPath;
-	FString SemanticIdentity;
-	FString PackageSha256;
-};
+#include "ProjectMaterialSurfaceDependency.h"
 
 class FProjectMaterialPatternAuthority final
 {
@@ -22,6 +14,6 @@ public:
 		const FString& ManifestPath,
 		const FString& PatternPackageRoot,
 		const FString& PatternContentRoot,
-		FProjectMaterialPatternDependency& OutDependency,
+		FProjectMaterialSurfaceDependency& OutDependency,
 		FString& OutError);
 };

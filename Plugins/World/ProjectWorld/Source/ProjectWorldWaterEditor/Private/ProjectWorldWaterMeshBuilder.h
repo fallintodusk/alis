@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "MeshDescription.h"
+#include "Curve/GeneralPolygon2.h"
 
 struct FProjectWorldCanonicalBundle;
 struct FProjectWorldCanonicalCell;
@@ -22,10 +23,15 @@ struct FProjectWorldWaterMeshBuildResult
 struct FProjectWorldPreparedWaterSurface
 {
 	TArray<FVector2D> TriangleVertices;
+	TArray<UE::Geometry::FGeneralPolygon2d> Footprints;
 };
 
 namespace ProjectWorldWaterMeshBuilder
 {
+	void AppendTriangle(FMeshDescription& Description, const FVector Positions[3]);
+
+	bool PreparePolygons(const TArray<UE::Geometry::FGeneralPolygon2d>& Polygons,
+		FProjectWorldPreparedWaterSurface& OutSurface, FString& OutError);
 	double EvaluateSurfaceZ(
 		const FProjectWorldCanonicalFeature& Feature,
 		const FVector2D& CanonicalPoint,

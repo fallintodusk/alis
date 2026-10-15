@@ -222,6 +222,11 @@ namespace ProjectWorldWaterMeshBuilder
 		}
 	}
 
+	void AppendTriangle(FMeshDescription& Description, const FVector Positions[3])
+	{
+		AddTriangle(Description, FPolygonGroupID(0), Positions);
+	}
+
 	double EvaluateSurfaceZ(
 		const FProjectWorldCanonicalFeature& Feature,
 		const FVector2D& CanonicalPoint,
@@ -252,10 +257,24 @@ namespace ProjectWorldWaterMeshBuilder
 		{
 			return false;
 		}
+		return PreparePolygons(Polygons, OutSurface, OutError);
+	}
+
+	bool PreparePolygons(const TArray<FGeneralPolygon2d>& Polygons,
+		FProjectWorldPreparedWaterSurface& OutSurface, FString& OutError)
+	{
+		OutSurface = {};
+		OutSurface.Footprints = Polygons;
 		for (const FGeneralPolygon2d& Polygon : Polygons)
 		{
 			TArray<FVector2d> Vertices;
-			for (const FIndex3i& Triangle : ConstrainedDelaunayTriangulateWithVertices(Polygon, Vertices))
+			const TArray<FIndex3i> Triangles = ConstrainedDelaunayTriangulateWithVertices(Polygon, Vertices);
+			if (Triangles.IsEmpty() && FMath::Abs(Polygon.SignedArea()) > UE_DOUBLE_SMALL_NUMBER)
+			{
+				OutError = TEXT("GeometryAlgorithms could not triangulate the water footprint.");
+				return false;
+			}
+			for (const FIndex3i& Triangle : Triangles)
 			{
 				OutSurface.TriangleVertices.Add(FVector2D(Vertices[Triangle.A]));
 				OutSurface.TriangleVertices.Add(FVector2D(Vertices[Triangle.B]));
@@ -323,6 +342,13 @@ namespace ProjectWorldWaterMeshBuilder
 						Bundle.HeightQuantizationMeters) + SurfaceOffsetMeters;
 					Local[Corner] = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 						Bundle, FVector(CanonicalXY.X, CanonicalXY.Y, Z)) - OutResult.ActorOrigin;
+				}
+				// Reject exact degeneracy on the float vertices that will be emitted.
+				// Quantization can collapse CDT edges even after a successful union.
+				const FVector3f A(Local[0]), B(Local[1]), C(Local[2]);
+				if (FVector3f::CrossProduct(B - A, C - A).Z == 0.0f)
+				{
+					continue;
 				}
 				// Unreal treats clockwise triangles as front-facing. Keep the authored +Z
 				// vertex normals, but reverse counter-clockwise XY triangles so the

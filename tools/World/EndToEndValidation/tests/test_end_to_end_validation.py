@@ -591,9 +591,11 @@ class EndToEndValidationTests(unittest.TestCase):
                             "path": profile_path_value.relative_to(REPO_ROOT).as_posix(),
                             "sha256": acceptance.file_hash(profile_path_value),
                         },
+                        # Invalid profile evidence must reach the refusal guard,
+                        # without asking the contract reader to authenticate it.
                         "profile_input_contract": acceptance.validation_profile_contract(
                             profile_path_value
-                        ),
+                        ) if profile_path_value == validation_path else {"files": []},
                         "common_checks": {
                             "receipt": str(common_path),
                             "receipt_sha256": acceptance.file_hash(common_path),

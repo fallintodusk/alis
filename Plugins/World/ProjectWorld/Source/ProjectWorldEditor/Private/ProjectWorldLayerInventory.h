@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+class UMaterialInterface;
 
 struct FProjectWorldCanonicalBundle;
 struct FProjectWorldAuthoredOverlaySet;
@@ -29,5 +30,6 @@ namespace ProjectWorldLayerInventory
 		const FProjectWorldRealizationProfile& Profile,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError);
+		FString& OutError,
+		const TMap<FName,UMaterialInterface*>& PresentationMaterials={});
 }

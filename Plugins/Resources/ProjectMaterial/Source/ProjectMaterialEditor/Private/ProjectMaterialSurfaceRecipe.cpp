@@ -96,7 +96,34 @@ namespace ProjectMaterialSurfaceRecipePrivate
 
 	TMap<FString, FVector2D> ScalarContract(const FString& Archetype)
 	{
-		if (Archetype == TEXT("soil_uv")) return {
+		if (Archetype == TEXT("terrain_height_masks_metric"))
+		{
+			auto Contract=ScalarContract(TEXT("height_masks_metric"));
+			Contract.Add(TEXT("HydroDarkening"), {0,1});
+			return Contract;
+		}
+		if (Archetype == TEXT("height_masks_metric"))
+		{
+			auto Contract=ScalarContract(TEXT("height_masks_uv"));
+			Contract.Append(TMap<FString,FVector2D>{{TEXT("MacroScaleMeters"),{.05,1000}},
+				{TEXT("MacroBlendStartMeters"),{0,1000}},{TEXT("MacroBlendEndMeters"),{.01,10000}},
+				{TEXT("NearMacroStrength"),{0,1}},{TEXT("FarMacroStrength"),{0,1}},
+				{TEXT("MacroRoughnessStrength"),{0,1}},{TEXT("AggregatePigmentStrength"),{0,1}},
+				{TEXT("SecondaryScaleRatio"),{.05,16}},{TEXT("CompositionContrast"),{0,1}},
+				{TEXT("CompositionStrength"),{0,1}}});
+			return Contract;
+		}
+		if (Archetype == TEXT("aggregate_metric")) return {
+			{TEXT("TileMeters"), {0.05, 10.0}}, {TEXT("TextureMipBias"), {-2.0, 2.0}},
+			{TEXT("ReliefStrength"), {0.0, 2.0}}, {TEXT("SurfaceRoughness"), {0.05, 1.0}},
+			{TEXT("RoughnessVariation"), {0.0, 1.0}}, {TEXT("MacroMeters"), {1.0, 1000.0}},
+			{TEXT("MacroContrast"), {0.0, 1.0}}, {TEXT("MacroRoughness"), {0.0, 1.0}}};
+		if (Archetype == TEXT("single_layer_water")) return {
+			{TEXT("SurfaceRoughness"), {0.02, 1.0}}, {TEXT("WaterSpecular"), {0.0, 1.0}},
+			{TEXT("WaterPhaseG"), {-0.99, 0.99}}, {TEXT("RippleTileMeters"), {0.05, 100.0}},
+			{TEXT("RippleSpeed"), {0.0, 1.0}}, {TEXT("RippleStrength"), {0.0, 2.0}},
+			{TEXT("LiveTimeEnabled"), {1.0, 1.0}}, {TEXT("PreviewSeconds"), {0.0, 0.0}}};
+		if (Archetype == TEXT("height_masks_uv")) return {
 			{TEXT("BaseRoughness"), {0.05, 1.0}}, {TEXT("PatternScaleMeters"), {0.05, 10.0}},
 			{TEXT("BumpHeightCentimeters"), {0.0, 2.0}}, {TEXT("RoughnessStrength"), {0.0, 1.0}},
 			{TEXT("AOInfluence"), {0.0, 1.0}}, {TEXT("GrainColorStrength"), {0.0, 1.0}}};
@@ -121,7 +148,10 @@ namespace ProjectMaterialSurfaceRecipePrivate
 
 	TArray<FString> VectorContract(const FString& Archetype)
 	{
-		if (Archetype == TEXT("soil_uv")) return {TEXT("SoilDarkColor"), TEXT("SoilLightColor"), TEXT("GrainColor")};
+		if (Archetype == TEXT("terrain_height_masks_metric")) return {TEXT("SoilDarkColor"), TEXT("SoilLightColor"), TEXT("GrainColor"), TEXT("HydroTint")};
+		if (Archetype == TEXT("aggregate_metric")) return {TEXT("BinderColor"),TEXT("AggregateColor")};
+		if (Archetype == TEXT("single_layer_water")) return {TEXT("WaterAlbedo"), TEXT("WaterExtinction"), TEXT("WaterSurfaceColor"), TEXT("BehindWaterScale")};
+		if (Archetype == TEXT("height_masks_uv") || Archetype == TEXT("height_masks_metric")) return {TEXT("SoilDarkColor"), TEXT("SoilLightColor"), TEXT("GrainColor")};
 		return FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Archetype)
 			? TArray<FString>({TEXT("GroundColor"), TEXT("SteepGroundColor"), TEXT("HydroTint")})
 			: TArray<FString>({TEXT("BaseColor")});
@@ -234,7 +264,8 @@ namespace ProjectMaterialSurfaceRecipePrivate
 		const TCHAR* Kind = Recipe.ArtifactKind == EProjectMaterialSurfaceArtifactKind::Parent
 			? TEXT("parent") : TEXT("instance");
 		const TCHAR* Projection = Recipe.ProjectionFrame == EProjectMaterialProjectionFrame::WorldMetricTriplanar2D
-			? TEXT("world_metric_triplanar_2d") : Recipe.ProjectionFrame == EProjectMaterialProjectionFrame::UVUnitMeter ? TEXT("uv_unit_meter") : TEXT("object_metric_triplanar_2d");
+			? TEXT("world_metric_triplanar_2d") : Recipe.ProjectionFrame == EProjectMaterialProjectionFrame::WorldMetricXY2D
+			? TEXT("world_metric_xy_2d") : Recipe.ProjectionFrame == EProjectMaterialProjectionFrame::UVUnitMeter ? TEXT("uv_unit_meter") : TEXT("object_metric_triplanar_2d");
 		FString Semantics;
 		for (const FName Name : Recipe.SemanticBindings)
 		{
@@ -247,7 +278,7 @@ namespace ProjectMaterialSurfaceRecipePrivate
 		FString Result = FString::Printf(
 			TEXT("schema=%s|id=%s|kind=%s|binding=%s|family=%s|archetype=%s|compiler=%s|")
 			TEXT("parent=%s|folder=%s|projection=%s|pattern=%s|semantics=%s"),
-			Recipe.Archetype == TEXT("soil_uv") ? TEXT("5") : TEXT("4"),
+			Recipe.Archetype == TEXT("terrain_height_masks_metric") ? TEXT("9") : Recipe.Archetype == TEXT("height_masks_metric") ? TEXT("8") : (Recipe.Archetype == TEXT("single_layer_water") || Recipe.Archetype == TEXT("aggregate_metric") || Recipe.Archetype == TEXT("height_masks_uv")) ? TEXT("7") : TEXT("4"),
 			*Recipe.MaterialId,
 			Kind,
 			*Recipe.BindingId,
@@ -314,10 +345,14 @@ bool FProjectMaterialSurfaceRecipeContract::Parse(
 	{
 		return false;
 	}
-	if (SchemaPath != TEXT("../../Schemas/surface-recipe.schema.json") || (OutRecipe.Archetype == TEXT("soil_uv") ? (SchemaVersion != TEXT("5") || OutRecipe.CompilerVersion != TEXT("6"))
+	const bool bWater = OutRecipe.Archetype == TEXT("single_layer_water");
+	const bool bAggregate = OutRecipe.Archetype == TEXT("aggregate_metric");
+	const bool bSemanticHeight = OutRecipe.Archetype == TEXT("terrain_height_masks_metric");
+	const bool bMetricHeight = IsMetricHeightArchetype(OutRecipe.Archetype);
+	if (SchemaPath != TEXT("../../Schemas/surface-recipe.schema.json") || (bSemanticHeight ? (SchemaVersion != TEXT("9") || OutRecipe.CompilerVersion != TEXT("10")) : bMetricHeight ? (SchemaVersion != TEXT("8") || OutRecipe.CompilerVersion != TEXT("9")) : (bWater || bAggregate || OutRecipe.Archetype == TEXT("height_masks_uv")) ? (SchemaVersion != TEXT("7") || OutRecipe.CompilerVersion != TEXT("8"))
 			: (SchemaVersion != TEXT("4") || OutRecipe.CompilerVersion != TEXT("5"))) ||
 		OutRecipe.Family != Family ||
-		(!IsTerrainArchetype(OutRecipe.Archetype) && OutRecipe.Archetype != ObjectArchetype && OutRecipe.Archetype != TEXT("soil_uv")))
+		(!IsTerrainArchetype(OutRecipe.Archetype) && OutRecipe.Archetype != ObjectArchetype && OutRecipe.Archetype != TEXT("height_masks_uv") && !bMetricHeight && !bWater && !bAggregate))
 	{
 		OutError = TEXT("Surface recipe uses an unsupported schema, family, archetype, or compiler version.");
 		return false;
@@ -356,21 +391,29 @@ bool FProjectMaterialSurfaceRecipeContract::Parse(
 		return false;
 	}
 	const bool bTerrain = IsTerrainArchetype(OutRecipe.Archetype);
-	if ((bTerrain && Projection != TEXT("world_metric_triplanar_2d")) ||
-		(!bTerrain && Projection != (OutRecipe.Archetype == TEXT("soil_uv") ? TEXT("uv_unit_meter") : TEXT("object_metric_triplanar_2d"))))
+	if ((bTerrain && !bMetricHeight && Projection != TEXT("world_metric_triplanar_2d")) ||
+		((bWater || bMetricHeight) && Projection != TEXT("world_metric_xy_2d")) ||
+		(bAggregate && Projection != TEXT("world_metric_xy_2d") && Projection != TEXT("world_metric_triplanar_2d")) ||
+		(!bTerrain && !bWater && !bAggregate && !bMetricHeight && Projection != (OutRecipe.Archetype == TEXT("height_masks_uv") ? TEXT("uv_unit_meter") : TEXT("object_metric_triplanar_2d"))))
 	{
 		OutError = TEXT("Projection frame does not match the selected archetype.");
 		return false;
 	}
-	OutRecipe.ProjectionFrame = bTerrain
+	OutRecipe.ProjectionFrame = bMetricHeight ? EProjectMaterialProjectionFrame::WorldMetricXY2D : bTerrain || (bAggregate && Projection==TEXT("world_metric_triplanar_2d"))
 		? EProjectMaterialProjectionFrame::WorldMetricTriplanar2D
-		: OutRecipe.Archetype == TEXT("soil_uv") ? EProjectMaterialProjectionFrame::UVUnitMeter : EProjectMaterialProjectionFrame::ObjectMetricTriplanar2D;
+		: bWater || bAggregate || bMetricHeight ? EProjectMaterialProjectionFrame::WorldMetricXY2D
+		: OutRecipe.Archetype == TEXT("height_masks_uv") ? EProjectMaterialProjectionFrame::UVUnitMeter : EProjectMaterialProjectionFrame::ObjectMetricTriplanar2D;
 
 	const TSharedPtr<FJsonObject>* Pattern = nullptr;
-	if (!Root->TryGetObjectField(TEXT("pattern"), Pattern) || Pattern == nullptr ||
+	if (bWater && Root->HasField(TEXT("pattern")))
+	{
+		OutError = TEXT("Native river resources are not a ProjectTexture pattern.");
+		return false;
+	}
+	if (!bWater && (!Root->TryGetObjectField(TEXT("pattern"), Pattern) || Pattern == nullptr ||
 		(*Pattern)->Values.Num() != 1 ||
 		!ReadRequiredString(*Pattern, TEXT("pattern_id"), OutRecipe.PatternId, OutError) ||
-		!IsSafeIdentifier(OutRecipe.PatternId))
+		!IsSafeIdentifier(OutRecipe.PatternId)))
 	{
 		if (OutError.IsEmpty())
 		{
@@ -402,6 +445,10 @@ bool FProjectMaterialSurfaceRecipeContract::Parse(
 		!ReadVectors(Root, OutRecipe.Archetype, OutRecipe.Vectors, OutError))
 	{
 		return false;
+	}
+	if (bMetricHeight && OutRecipe.Scalars[TEXT("MacroBlendEndMeters")]<=OutRecipe.Scalars[TEXT("MacroBlendStartMeters")])
+	{
+		OutError=TEXT("Macro distance interval must have a positive length."); return false;
 	}
 
 	FString AbsoluteRoot = FPaths::ConvertRelativePathToFull(RecipeRoot);
@@ -455,7 +502,7 @@ bool FProjectMaterialSurfaceRecipeContract::ResolveOutputIdentity(
 FString FProjectMaterialSurfaceRecipeContract::ComputeArtifactSemanticIdentity(
 	const FProjectMaterialSurfaceRecipe& Recipe,
 	const FString& OutputObjectPath,
-	const FProjectMaterialPatternDependency& Pattern,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const FString& ParentPackageSha256,
 	const FProjectMaterialTerrainLayoutContract* TerrainLayout)
 {
@@ -466,7 +513,7 @@ FString FProjectMaterialSurfaceRecipeContract::ComputeArtifactSemanticIdentity(
 		? FString::Printf(TEXT("%s:%d:%s"), *TerrainLayout->LayoutId, TerrainLayout->LayoutVersion,
 			*TerrainLayout->LayoutSha256)
 		: FString();
-	return FProjectMaterialCompilerIdentity::ComputeStringSha256(FString::Printf(
+	FString Identity = FString::Printf(
 		TEXT("recipe=%s|family=%s|archetype=%s|compiler=%s|pattern=%s:%s:%s|")
 		TEXT("parent=%s:%s|layout=%s|output=%s|engine=%s|fingerprint=%s"),
 		*Recipe.RecipeSha256,
@@ -481,7 +528,14 @@ FString FProjectMaterialSurfaceRecipeContract::ComputeArtifactSemanticIdentity(
 		*Layout,
 		*OutputObjectPath,
 		*GetEngineCompatibilityIdentity(),
-		*FProjectMaterialCompilerIdentity::GetCompilerFingerprint()));
+		*FProjectMaterialCompilerIdentity::GetCompilerFingerprint());
+	if (!Pattern.NativeResourceHashes.IsEmpty())
+	{
+		TArray<FString> Paths;
+		Pattern.NativeResourceHashes.GetKeys(Paths); Paths.Sort();
+		for (const FString& Path : Paths) Identity += TEXT("|native_resource=") + Path + TEXT(":") + Pattern.NativeResourceHashes.FindChecked(Path);
+	}
+	return FProjectMaterialCompilerIdentity::ComputeStringSha256(Identity);
 }
 
 FString FProjectMaterialSurfaceRecipeContract::GetEngineCompatibilityIdentity()
@@ -493,5 +547,17 @@ FString FProjectMaterialSurfaceRecipeContract::GetEngineCompatibilityIdentity()
 bool FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(const FString& Archetype)
 {
 	return Archetype == ProjectMaterialSurfaceRecipePrivate::TerrainArchetype ||
-		Archetype == ProjectMaterialSurfaceRecipePrivate::TerrainDetailArchetype;
+		Archetype == ProjectMaterialSurfaceRecipePrivate::TerrainDetailArchetype ||
+		Archetype == TEXT("terrain_height_masks_metric");
+}
+
+bool FProjectMaterialSurfaceRecipeContract::IsMetricHeightArchetype(const FString& Archetype)
+{
+	return Archetype == TEXT("height_masks_metric") || Archetype == TEXT("terrain_height_masks_metric");
+}
+
+bool FProjectMaterialSurfaceRecipeContract::RequiresDirectNaniteUsage(const FString& Archetype)
+{
+	return Archetype == TEXT("aggregate_metric") || IsMetricHeightArchetype(Archetype) ||
+		Archetype == TEXT("height_masks_uv");
 }

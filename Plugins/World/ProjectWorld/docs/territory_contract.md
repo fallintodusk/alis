@@ -499,6 +499,14 @@ final canonical terrain surface, including its canonical Water fit and surface
 semantics. A Water geometry or surface-Z change therefore dirties only affected
 Mesh Terrain cells and their declared dependants. A same-path material content
 change is not part of this geography identity and dirties no terrain geography.
+The optional [sparse canonical surface](../../../../tools/World/CanonicalCompilation/terrain_refinement.md)
+is authenticated as the selected cell's terrain artifact, retaining its original
+grid base. Complete selected quads use final affine triangles for placement and
+triangle consumers; missing replacement coverage refuses. Outside these quads,
+placement retains its existing clamped bilinear behavior. Navigation bounds and
+fixture identity include the final representation. This disposable API does not
+authorize production terrain conditioning or change the ordinary compiler's
+lineage and promotion rules. Unreal adapters may not add hidden deformation.
 Water cell input identity is a deterministic hash of only water semantics
 consumed by that cell: membership, geometry, width, surface function/version,
 surface Z, cell bounds, and relevant coordinate quantization. The enclosing
@@ -512,8 +520,9 @@ a global nearest-segment fallback. Width may consume adjacent terrain within the
 declared dependency halo, and every positive-area terrain dependency is hashed.
 An indexed cell context bounds lookup work. Identity calculation intersects
 ribbon footprints with cell rectangles; it does not construct finished meshes.
-Road realization intersects the same ribbon with canonical A,C,B / B,C,D terrain
-triangles, preserving full interior conformity and geometric normals/tangents.
+Road realization intersects the same ribbon with final canonical terrain
+triangles (A,C,B / B,C,D in unrefined quads), preserving full interior conformity
+and geometric normals/tangents.
 Width outside the admitted outer cell bounding rectangle is clipped; missing
 or overlapping interior coverage refuses before mesh emission. This preserves
 the existing terrain-drape and same-owner overlap policies; it does not infer
@@ -528,6 +537,14 @@ artifact, intersecting authored building masks, quantization, and the normalized
 building-layer contract. A volume that crosses a cell boundary participates in
 each affected cell; an unrelated road, water, vegetation, or authored overlay
 does not dirty it.
+
+Building massing retains native complex-as-simple, double-sided query/physics
+collision. Physics triangles derive from the compiled collision LOD, including
+Nanite fallback simplification, rather than the source MeshDescription. A winding
+correction can preserve every source coordinate while changing that approximation.
+Source equality, compiled bounds, collision configuration and actual physics
+responses therefore require distinct claims and proofs; exact pre/post collision
+point equality must never be inferred from source hashes or unchanged settings.
 
 Canonical Compilation terminates provider building-part and relation semantics.
 ProjectWorld receives one provider-neutral logical Building whose outline owns
@@ -1310,6 +1327,27 @@ lattice and coordinate authority, not a competing v1 option.
   authored LOD chain. Mesh Terrain uses its accepted collision, Nanite, and
   fallback section variants; foliage remains instance-owned and uses
   Nanite-enabled static meshes. None of these paths authorizes HLOD.
+- Water composes overlapping constant-plane footprints within each cell through
+  native GeometryAlgorithms polygon union before triangulation. Compatibility is
+  exact emitted Z: standing levels remain unquantized; flowing knots must all
+  quantize to the same height under the existing canonical height step. Preserve
+  holes, cell clipping and every source identity, including fully covered inputs.
+  Native boolean/triangulation failures refuse rather than copying overlapping
+    inputs. After feature emission, exact horizontal float-Z pieces also compose
+    through native polygon union and checked constrained triangulation. This
+    includes local plateaus of globally nonconstant features. Validate coverage
+    after float emission before replacing the candidate; preserve holes, source
+    identities, exact plane heights and nonhorizontal triangles. No overlap means
+    no mesh replacement. Unequal levels and true slopes retain independent
+    geometry and are reported. These operations do not infer connectivity, bend
+    water or condition terrain. Final triangles and shared seams need separate
+    proof; a mixed plateau-transition intersection is not an equal-plane case.
+  Water unit identity includes each consumed feature's preparation bounds across
+  its consuming canonical cells: native triangulation consumes this domain before
+  per-cell clipping. Realization and hashing share the Water-owned context
+  calculation. A changed preparation domain invalidates affected Water units;
+  unconsumed sources and other-cell membership changes that retain the domain do
+  not. Changes to the unit's own consumed feature membership remain inputs.
 - Keep generated content profile-owned, persistent, and transactionally
   replaceable.
 - Protect authored overlays during Apply and clean reconstruction.

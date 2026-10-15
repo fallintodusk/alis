@@ -6,6 +6,8 @@
 #include "Presentation/ProjectWorldScreenshotValidation.h"
 
 #include "Components/SceneCaptureComponent2D.h"
+#include "Components/PrimitiveComponent.h"
+#include "Camera/CameraTypes.h"
 #include "Engine/SceneCapture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
@@ -16,6 +18,7 @@
 #include "ImageUtils.h"
 #include "Misc/Paths.h"
 #include "RenderingThread.h"
+#include "UnrealClient.h"
 
 struct ProjectWorldRuntimeScreenshotCapture::FCaptureSession::FState
 {
@@ -55,7 +58,8 @@ bool ProjectWorldRuntimeScreenshotCapture::FCaptureSession::Initialize(
 	Candidate->Spec = Spec;
 	Candidate->SessionId = FGuid::NewGuid().ToString(EGuidFormats::Digits);
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
-	RenderTarget->RenderTargetFormat = RTF_RGBA8_SRGB;
+	RenderTarget->RenderTargetFormat = Spec.CaptureSource==SCS_SceneDepth ? RTF_R32f :
+        Spec.CaptureSource==SCS_SceneColorSceneDepth ? RTF_RGBA32f : RTF_RGBA8_SRGB;
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->bAutoGenerateMips = false;
 	RenderTarget->InitAutoFormat(1920, 1080);
@@ -82,11 +86,30 @@ bool ProjectWorldRuntimeScreenshotCapture::FCaptureSession::Initialize(
 	{
 		Capture->ProjectionType = ECameraProjectionMode::Orthographic;
 		Capture->OrthoWidth = Spec.OrthographicWidthCentimeters;
+		if ((Spec.CaptureSource==SCS_SceneDepth || Spec.CaptureSource==SCS_SceneColorSceneDepth) &&
+            Spec.DepthFarClipCentimeters>1.0f)
+		{
+			FMinimalViewInfo View;
+			View.ProjectionMode=ECameraProjectionMode::Orthographic;
+			View.OrthoWidth=Spec.OrthographicWidthCentimeters;
+			View.AspectRatio=1920.0f/1080.0f;
+			View.OrthoNearClipPlane=1.0f;
+			View.OrthoFarClipPlane=Spec.DepthFarClipCentimeters;
+			Capture->bAutoCalculateOrthoPlanes=false;
+			Capture->bUpdateOrthoPlanes=false;
+			Capture->bUseCustomProjectionMatrix=true;
+			Capture->CustomProjectionMatrix=View.CalculateProjectionMatrix();
+		}
 	}
 	else
 	{
 		Capture->ProjectionType = ECameraProjectionMode::Perspective;
 		Capture->FOVAngle = Spec.FieldOfViewDegrees;
+	}
+	if (Spec.bUseShowOnlyComponents)
+	{
+		Capture->PrimitiveRenderMode=ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+		Capture->ShowOnlyComponents=Spec.ShowOnlyComponents;
 	}
 	if (Spec.bIsolateBaseColor)
 	{
@@ -123,6 +146,26 @@ bool ProjectWorldRuntimeScreenshotCapture::FCaptureSession::WarmUp(
 		CaptureComponent->CaptureScene();
 		FlushRenderingCommands();
 	}
+	return true;
+}
+
+bool ProjectWorldRuntimeScreenshotCapture::FCaptureSession::CaptureDepth(
+	TArray<float>& OutDepth, FString& OutError)
+{
+	OutDepth.Reset();
+	if (!IsInitialized() || (State->Spec.CaptureSource!=SCS_SceneDepth &&
+        State->Spec.CaptureSource!=SCS_SceneColorSceneDepth))
+	{OutError=TEXT("Numeric depth capture requires an initialized native float-depth session.");return false;}
+	State->CaptureActor->GetCaptureComponent2D()->CaptureScene();
+	FlushRenderingCommands();
+	TArray<FLinearColor> Pixels;
+	FReadSurfaceDataFlags Flags(RCM_MinMax); Flags.SetLinearToGamma(false);
+	if (!State->RenderTarget->GameThread_GetRenderTargetResource()->ReadLinearColorPixels(Pixels,Flags) ||
+		Pixels.Num()!=1920*1080)
+	{OutError=TEXT("Native float depth readback failed or returned incomplete dimensions.");return false;}
+	OutDepth.Reserve(Pixels.Num());
+	for (const auto& Pixel : Pixels)
+        OutDepth.Add(State->Spec.CaptureSource==SCS_SceneDepth ? Pixel.R : Pixel.A);
 	return true;
 }
 

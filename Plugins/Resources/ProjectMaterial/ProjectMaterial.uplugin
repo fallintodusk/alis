@@ -37,6 +37,10 @@
 		{
 			"Name": "MeshPartition",
 			"Enabled": true
+		},
+		{
+			"Name": "Water",
+			"Enabled": true
 		}
 	]
 }

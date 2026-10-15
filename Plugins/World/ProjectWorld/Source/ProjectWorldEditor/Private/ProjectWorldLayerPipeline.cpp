@@ -32,12 +32,62 @@ namespace
 
 namespace ProjectWorldLayerPipeline
 {
+	bool ValidateExecutionSelection(const FProjectWorldRealizationProfile& Profile,
+		const TArray<FString>& SelectedIds, const TArray<FProjectWorldLayerInventory>& Inventories,
+		FString& OutError, bool bRequireCleanGeometricDependencies)
+	{
+		TSet<FString> Seen;
+		for (const FString& Id : SelectedIds)
+		{
+			const FProjectWorldRealizationLayer* Layer = FindLayer(Profile, Id);
+			if (Layer == nullptr || !Layer->IsGenerated() || Seen.Contains(Id) ||
+				!Inventories.ContainsByPredicate([&Id](const auto& Item) { return Item.LayerId == Id; }))
+			{
+				OutError = FString::Printf(TEXT("Unknown, duplicate or unauthenticated execution owner: %s"), *Id);
+				return false;
+			}
+			Seen.Add(Id);
+			if (!bRequireCleanGeometricDependencies) continue;
+			for (const FProjectWorldRealizationLayer& Consumer : Profile.Layers)
+			{
+				if (Consumer.DependsOn.Contains(Id) && !SelectedIds.Contains(Consumer.LayerId))
+				{
+					OutError = FString::Printf(TEXT("Execution selection requires consumer closure: %s -> %s"), *Id, *Consumer.LayerId);
+					return false;
+				}
+			}
+			TArray<FString> Dependencies = Layer->DependsOn;
+			TSet<FString> Visited;
+			while (!Dependencies.IsEmpty())
+			{
+				const FString DependencyId = Dependencies.Pop(EAllowShrinking::No);
+				if (Visited.Contains(DependencyId)) continue;
+				Visited.Add(DependencyId);
+				const auto* Inventory = Inventories.FindByPredicate(
+					[&DependencyId](const auto& Item) { return Item.LayerId == DependencyId; });
+				const auto* Dependency = FindLayer(Profile, DependencyId);
+				if (Inventory == nullptr || Dependency == nullptr ||
+					(!SelectedIds.Contains(DependencyId) && !Inventory->FinalDirtyUnits.IsEmpty()))
+				{
+					OutError = FString::Printf(TEXT("Execution owner %s requires accepted clean dependency %s"), *Id, *DependencyId);
+					return false;
+				}
+				Dependencies.Append(Dependency->DependsOn);
+			}
+		}
+		return true;
+	}
+
 	bool ApplyLayers(UWorld& World, const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlays,
 		const TMap<FName, UMaterialInterface*>& PresentationMaterials,
 		FProjectWorldRealizationResult& OutResult, FString& OutError)
 	{
+		if (!ValidateExecutionSelection(Profile, OutResult.ExecutionLayerIds, OutResult.LayerInventories, OutError))
+		{
+			return false;
+		}
 		TArray<const IProjectWorldLayerProducer*> Producers;
 		if (!ProjectWorldLayerProducerRegistry::GetAll(Producers, OutError))
 		{
@@ -45,6 +95,7 @@ namespace ProjectWorldLayerPipeline
 		}
 		for (const FString& LayerId : Profile.TopologicalLayerIds)
 		{
+			if (!OutResult.ExecutionLayerIds.IsEmpty() && !OutResult.ExecutionLayerIds.Contains(LayerId)) continue;
 			const FProjectWorldRealizationLayer* Layer = FindLayer(Profile, LayerId);
 			if (Layer == nullptr || !Layer->IsGenerated())
 			{

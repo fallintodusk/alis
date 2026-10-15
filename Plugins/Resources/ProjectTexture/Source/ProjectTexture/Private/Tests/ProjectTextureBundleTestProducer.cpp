@@ -7,7 +7,13 @@
 
 bool UProjectTextureBundleTestProducer::Validate(const UProjectTextureRuntimeCatalog* Catalog, FString& Error) const
 {
-	return Catalog && Catalog->Nodes.Num() == 3 && Catalog->Nodes[0].Width == 8;
+	if (!Catalog || (Catalog->Nodes.Num()!=3 && Catalog->Nodes.Num()!=4) || Catalog->OutputSlots.Num()!=3) return false;
+	for (const auto& Slot : Catalog->OutputSlots)
+	{
+		const auto* N=Catalog->Nodes.FindByPredicate([&](const auto& Node){return Node.NodeId==Slot->NodeId;});
+		if (!N || N->Width!=OutputSize || N->Height!=OutputSize) return false;
+	}
+	return true;
 }
 
 bool UProjectTextureBundleTestProducer::Begin(FString& Error)
@@ -19,7 +25,7 @@ bool UProjectTextureBundleTestProducer::Begin(FString& Error)
 		Target->RenderTargetFormat = RTF_RGBA8;
 		Target->SRGB = false; Target->bForceLinearGamma = true;
 		Target->ClearColor = FLinearColor(.2f + .1f * I, .5f, .7f, 1);
-		Target->InitAutoFormat(8, 8); Target->UpdateResourceImmediate(true);
+		Target->InitAutoFormat(OutputSize, OutputSize); Target->UpdateResourceImmediate(true);
 		Outputs.Add(Target);
 	}
 	Fence.BeginFence(FRenderCommandFence::ESyncDepth::RHIThread);

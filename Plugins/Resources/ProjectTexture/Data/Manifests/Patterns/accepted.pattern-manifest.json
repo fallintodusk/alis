@@ -3,6 +3,51 @@
 	"schema_version": 3,
 	"records": [
 		{
+			"recipe_path": "Aggregate/project_concrete_aggregate.pattern.json",
+			"recipe_sha256": "c96c464521eaa80b7471a806f04611c7770a5c46b0aeba7a545ebe8c0487f394",
+			"recipe_source_sha256": "19cadbdef7a7323e329068687c8ddea2e2c39968707cf91252e307138dda9c6c",
+			"pattern_id": "project_concrete_aggregate",
+			"family": "aggregate_surface",
+			"algorithm": "runtime_dag_native",
+			"compiler_version": "8",
+			"output_contract": "aggregate_signals_normal_v1",
+			"output_object_path": "/ProjectTexture/Patterns/Aggregate/DA_ProjectConcreteAggregate.RT_ProjectConcreteSignals",
+			"semantic_identity": "7fe5f093b722ded69455d80e5c6fa1ef21a461343aabc55a3d6177120e3f2698",
+			"package_sha256": "b8df2779bb3ef9f1e0c912ffaf549cd42e805cb6b82643b38d260a84d5222afb",
+			"compiler_fingerprint": "96d1f6f9a9141971897098f8a8032a2e50211b9bb915ef57e36d762f62bdce55",
+			"engine_compatibility": "5.8"
+		},
+		{
+			"recipe_path": "Aggregate/project_road_aggregate.pattern.json",
+			"recipe_sha256": "71d2bce7beea5e29dd0047bbd734b1ebf9b5cb1bbfc19a4bbb0bafe45e32b23c",
+			"recipe_source_sha256": "d5e14bdc736c937e5538b3d441d588802e1d3d057ac48dbf5b4ab33c5722c328",
+			"pattern_id": "project_road_aggregate",
+			"family": "aggregate_surface",
+			"algorithm": "runtime_dag_native",
+			"compiler_version": "8",
+			"output_contract": "aggregate_signals_normal_v1",
+			"output_object_path": "/ProjectTexture/Patterns/Aggregate/DA_ProjectRoadAggregate.RT_ProjectRoadSignals",
+			"semantic_identity": "0f0cbd20490cd63e2a7681ad5874f5219215d96858208ab7a930694bec2eb6b6",
+			"package_sha256": "56f24bc08820a7f7d45bfc3cbfeb4be9e9199ac2341d137b1512fff071884118",
+			"compiler_fingerprint": "96d1f6f9a9141971897098f8a8032a2e50211b9bb915ef57e36d762f62bdce55",
+			"engine_compatibility": "5.8"
+		},
+		{
+			"recipe_path": "Ground/project_ground_compacted.pattern.json",
+			"recipe_sha256": "83f3f3c7d408aabca21421e61becd7590056e13f09fbbad59ee82bb16ab06e93",
+			"recipe_source_sha256": "a9cc8cb99069ec8bcdb99a06af76a2b0a6bb60541a3f0de5661d2e974c16ae68",
+			"pattern_id": "project_ground_compacted",
+			"family": "graded_particles",
+			"algorithm": "graded_particles_native",
+			"compiler_version": "9",
+			"output_contract": "soil_structure_normal_masks_v1",
+			"output_object_path": "/ProjectTexture/Patterns/Ground/DA_ProjectGroundCompacted.RT_ProjectGroundStructure",
+			"semantic_identity": "43c76876aa81d8882002a9468a2ad2e4625da6dd7af1d86ac559f0f68f127d30",
+			"package_sha256": "5560ae3d0082ade293018ad60a2b3a06f486d4a05437364eb9f208ab22824320",
+			"compiler_fingerprint": "96d1f6f9a9141971897098f8a8032a2e50211b9bb915ef57e36d762f62bdce55",
+			"engine_compatibility": "5.8"
+		},
+		{
 			"recipe_path": "Terrain/project_terrain_structure.pattern.json",
 			"recipe_sha256": "bc83f9e395c4d8dd0052590ca73956cb44f469fe6114a9f880540d48581a3d33",
 			"recipe_source_sha256": "7fe40d289d805c5185a12caad93a4aca8e4e42586055a9b446b5f14d90f8b698",
@@ -12,9 +57,9 @@
 			"compiler_version": "5",
 			"output_contract": "surface_structure_rgb_v1",
 			"output_object_path": "/ProjectTexture/Patterns/Terrain/DA_ProjectTerrainStructureCatalog.RT_ProjectTerrainStructure",
-			"semantic_identity": "d748edbc40a1ce1f1a872579bc3c10c49b67437ab7c01e29a3a6ae6f274c90e5",
-			"package_sha256": "7e9f63047ba9513790cf42e0622f21c0b1bc5b9fa1189516df5ea80124999e27",
-			"compiler_fingerprint": "8379365a0036dcf6c2bb6b196c8e16410bc0104d37376a54a52d7d51ada5f0a0",
+			"semantic_identity": "99c82ca2da7a8e6aa34a2680023b8a29b7cfbf4b03c4fdccecd579688f7451d6",
+			"package_sha256": "b1a188d4303887e062e797ad2c95f2955df49595007c5d2fc2c6772f054cfe91",
+			"compiler_fingerprint": "96d1f6f9a9141971897098f8a8032a2e50211b9bb915ef57e36d762f62bdce55",
 			"engine_compatibility": "5.8"
 		}
 	]

@@ -297,12 +297,25 @@ def verify_manifest_provenance(
 
     A map-owned scope must match its leg's WHOLE identity tuple, selected by
     its own map_package - not merely carry hashes that exist somewhere in the
-    accepted evidence. The shared presentation scope owns no map, so its
+    accepted evidence. Only the existing host's authenticated material-adoption
+    bridge permits a presentation-digest difference. The shared presentation scope owns no map, so its
     provenance is derived from the presentation input its consumer maps
     actually used, which must be unanimous.
     """
     problems: list[str] = []
     by_id = {scope.get("scope_id"): scope for scope in scopes}
+
+    def compatible(scope: dict[str, Any], target_id: str, declared: str | None, gated: str | None) -> bool:
+        bridge = scope.get("presentation_compatibility") or {}
+        owner = by_id.get(bridge.get("map_scope_id")) or {}
+        return bool(
+            declared and gated and owner.get("owning_layer") == "map"
+            and owner.get("input_identity", {}).get("map_package") == scope.get("input_identity", {}).get("map_package")
+            and owner.get("input_identity", {}).get("presentation_profile_sha256") == declared
+            and bridge.get("geometry_profile_sha256") == declared
+            and bridge.get("current_profile_sha256") == gated
+            and target_id in bridge.get("validated_scope_ids", [])
+        )
 
     for scope in scopes:
         scope_id = scope.get("scope_id")
@@ -322,11 +335,15 @@ def verify_manifest_provenance(
                     problems.append(f"{scope_id} consumer {consumer_id} maps to no accepted leg")
                     continue
                 expected.add(record["presentation_profile_sha256"])
+                declared = _digest_or_none(identity.get("presentation_profile_sha256"))
+                gated = record["presentation_profile_sha256"]
+                if declared != gated and not compatible(consumer, scope_id, declared, gated):
+                    problems.append(f"{scope_id}.presentation_profile_sha256 consumer {consumer_id} lacks authenticated compatibility")
             if len(expected) > 1:
                 problems.append(f"{scope_id} consumers disagree on the presentation input that was gated")
             elif expected:
                 declared = _digest_or_none(identity.get("presentation_profile_sha256"))
-                if declared is None or declared not in expected:
+                if declared is None:
                     problems.append(
                         f"{scope_id}.presentation_profile_sha256 is not the input its consumer maps were gated with"
                     )
@@ -342,7 +359,9 @@ def verify_manifest_provenance(
         for field in (IDENTITY_FIELDS if layer == "map" else LAYER_IDENTITY_FIELDS):
             declared = _digest_or_none(identity.get(field))
             gated = record.get(field)
-            if declared != gated:
+            if declared != gated and not (
+                field == "presentation_profile_sha256" and compatible(scope, scope_id, declared, gated)
+            ):
                 problems.append(
                     f"{scope_id}.{field} does not match the accepted leg for {map_package}"
                 )
@@ -454,8 +473,13 @@ def accept(
         post_receipt = evidence_root / "post_package_audit.json"
 
         with _content_mutation_lock():
+            owner_presentation = next(
+                settings["presentation_profile"] for settings in profile["profiles"].values()
+                if settings["world_data_plugin"] == authority_owner
+            )
             pre_audit = _run_audit(
-                powershell, logs, "pre_package_audit", pre_receipt, authority_owner
+                powershell, logs, "pre_package_audit", pre_receipt, authority_owner,
+                presentation_profile=REPO_ROOT / owner_presentation,
             )
             document["pre_package_audit"] = {
                 "receipt": str(pre_receipt),
@@ -532,7 +556,8 @@ def accept(
             }
 
             post_audit = _run_audit(
-                powershell, logs, "post_package_audit", post_receipt, authority_owner
+                powershell, logs, "post_package_audit", post_receipt, authority_owner,
+                presentation_profile=REPO_ROOT / owner_presentation,
             )
             document["post_package_audit"] = {
                 "receipt": str(post_receipt),
@@ -582,6 +607,7 @@ def _run_audit(
     receipt: Path,
     world_data_plugin: str,
     allow_rejected_receipt: bool = False,
+    presentation_profile: Path | None = None,
 ) -> dict[str, Any]:
     try:
         _run(
@@ -597,6 +623,7 @@ def _run_audit(
                 world_data_plugin,
                 "-EvidencePath",
                 str(receipt),
+                *(["-PresentationProfile", str(presentation_profile)] if presentation_profile is not None else []),
             ],
             logs,
             timeout=1800,

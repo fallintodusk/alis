@@ -416,3 +416,52 @@ function Invoke-ProjectWorldPostApplyBuilders {
             -BuilderArtifacts @($receipts[1].builder_artifacts) -ProjectRoot $ProjectRoot)
     }
 }
+
+function Get-ProjectWorldLayerCandidate {
+    param(
+        [Parameter(Mandatory = $true)][string]$ProjectRoot,
+        [Parameter(Mandatory = $true)][object]$Inventory,
+        [Parameter(Mandatory = $true)][string]$ArtifactRootPath,
+        [AllowEmptyCollection()][string[]]$LayerExternalRoots = @(),
+        [Parameter(Mandatory = $true)][string]$ProfileId,
+        [Parameter(Mandatory = $true)][string]$ProfileHash
+    )
+    $declaredRecords = @($inventory.artifacts | ForEach-Object {
+        [ordered]@{
+            path = [string]$_.path
+            kind = [string]$_.kind
+            digest_kind = [string]$_.digest_kind
+            digest = [string]$_.digest
+        }
+    })
+    $records = @(Get-ProjectWorldExactLayerArtifactRecords `
+        -ProjectRoot $projectRoot `
+        -ArtifactRootPath $ArtifactRootPath `
+        -Inventory $declaredRecords `
+        -AllowedExternalRoots $layerExternalRoots)
+    $semanticOutputs = @($inventory.artifacts | ForEach-Object {
+        if ([string]$_.semantic_sha256 -notmatch '^[a-f0-9]{64}$') {
+            throw "Layer artifact has no valid semantic identity: $($_.path)"
+        }
+        [ordered]@{
+            artifact_path = [string]$_.path
+            semantic_sha256 = [string]$_.semantic_sha256
+        }
+    })
+    $contract = [ordered]@{
+        realization_profile_id = [string]$ProfileId
+        realization_profile_sha256 = $ProfileHash
+        normalized_layer_contract_sha256 = [string]$inventory.normalized_layer_contract_sha256
+        generator_id = [string]$inventory.generator_id
+        generator_version = [int]$inventory.generator_version
+        artifact_root = [string]$inventory.artifact_root
+        canonical_inputs = @($inventory.canonical_inputs)
+        dependency_inputs = @($inventory.dependency_inputs)
+        final_dirty_units = @($inventory.final_dirty_units)
+        semantic_outputs = $semanticOutputs
+    }
+    return [pscustomobject]@{
+        Records = $records
+        Contract = $contract
+    }
+}

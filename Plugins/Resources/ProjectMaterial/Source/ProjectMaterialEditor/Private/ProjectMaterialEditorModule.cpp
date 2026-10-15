@@ -34,18 +34,19 @@ FAutoConsoleCommand GenerateFixture(TEXT("project.material.fixture.generate"),
 			bAccepted ? TEXT("FIXTURE_READY") : TEXT("REFUSED"), Result.Generated, Result.Skipped, Result.ShaderCompiles, *Result.Error);
 	}));
 FAutoConsoleCommand ApplyFixture(TEXT("project.material.preview.fixture"),
-	TEXT("Transient terrain fixture: <candidate> <candidate-root> <fixture-root> <component> <slot> <layout>"),
+	TEXT("Transient fixture: <candidate> <candidate-root> <fixture-root> <component> <slot> <layout> [pattern-fixture-root]"),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		FString Error;
 		int32 Slot = INDEX_NONE;
-		if (Args.Num() != 6 || !LexTryParseString(Slot, *Args[4]))
+		if ((Args.Num() != 6 && Args.Num() != 7) || !LexTryParseString(Slot, *Args[4]))
 		{
 			UE_LOG(LogProjectMaterialPreview, Warning, TEXT("REFUSED: expected candidate, candidate root, fixture root, component, slot and layout."));
 			return;
 		}
 		UMeshComponent* Component = FindObject<UMeshComponent>(nullptr, *Args[3]);
-		const bool bApplied = Session.ApplyFixtureRecipeFile(Args[0], Args[1], Args[2], Args[5], Component, Slot, Error);
+		const bool bApplied = Session.ApplyFixtureRecipeFile(Args[0], Args[1], Args[2], Args[5], Component, Slot, Error,
+			Args.Num() == 7 ? Args[6] : FString());
 		UE_LOG(LogProjectMaterialPreview, Display, TEXT("%s: fixture=%s component=%s slot=%d detail=%s"),
 			bApplied ? TEXT("APPLIED_FIXTURE") : TEXT("REFUSED"), *Args[2], *Args[3], Slot, *Error);
 	}));

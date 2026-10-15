@@ -4,7 +4,7 @@
   "kind": "producer",
   "generator_id": "project_building_massing",
   "generator_version": 2,
-  "output_revision": 1,
+  "output_revision": 2,
   "data_inputs": [],
   "modules": ["ProjectWorldBuildingEditor"]
 }

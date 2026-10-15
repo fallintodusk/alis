@@ -50,7 +50,8 @@ bool FProjectMaterialSurfacePreview::ApplyRecipeFile(const FString& Path, const 
 }
 
 bool FProjectMaterialSurfacePreview::ApplyFixtureRecipeFile(const FString& Path, const FString& RecipeRoot,
-	const FString& FixtureRoot, const FString& LayoutReceipt, UMeshComponent* Component, int32 Slot, FString& OutError)
+	const FString& FixtureRoot, const FString& LayoutReceipt, UMeshComponent* Component, int32 Slot, FString& OutError,
+	const FString& PatternTestRoot)
 {
 	if (!CheckTarget(Component, Slot, OutError)) return false;
 	FProjectMaterialSurfaceRecipe Recipe, Accepted;
@@ -62,7 +63,18 @@ bool FProjectMaterialSurfacePreview::ApplyFixtureRecipeFile(const FString& Path,
 		return false;
 	}
 	if (!ProjectMaterialPreviewAuthority::Load(
-		Path, RecipeRoot, LayoutReceipt, Recipe, Fixture, OutError, FixtureRoot)) return false;
+		Path, RecipeRoot, LayoutReceipt, Recipe, Fixture, OutError, FixtureRoot, PatternTestRoot)) return false;
+	UMaterialInterface* Binding = IsActive() ? Original.Get() : Component->GetMaterial(Slot);
+	const auto* RenderInstance = Cast<UMaterialInstanceDynamic>(Binding);
+	if (Binding == Fixture || (RenderInstance && RenderInstance->Parent == Fixture))
+	{
+		return ApplyValidated(Recipe, Fixture, Fixture, Component, Slot, OutError);
+	}
+	if (!FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype))
+	{
+		OutError = TEXT("Non-terrain fixture preview requires its own authenticated renderer binding.");
+		return false;
+	}
 	const auto Plugin = IPluginManager::Get().FindPlugin(TEXT("ProjectMaterial"));
 	if (!Plugin.IsValid())
 	{
@@ -93,6 +105,20 @@ bool FProjectMaterialSurfacePreview::ApplyValidated(const FProjectMaterialSurfac
 		OutError = TEXT("Selected renderer does not consume this accepted material instance.");
 		return false;
 	}
+	TArray<FMaterialParameterInfo> TextureParameters;
+	TArray<FGuid> TextureIds;
+	CandidateParent->GetAllTextureParameterInfo(TextureParameters, TextureIds);
+	TArray<TPair<FMaterialParameterInfo, UTexture*>> AuthenticatedTextures;
+	for (const auto& Parameter : TextureParameters)
+	{
+		UTexture* Texture = nullptr;
+		if (!CandidateParent->GetTextureParameterValue(Parameter, Texture) || !Texture)
+		{
+			OutError = TEXT("Authenticated preview texture binding is unavailable.");
+			return false;
+		}
+		AuthenticatedTextures.Emplace(Parameter, Texture);
+	}
 	UMaterialInstanceDynamic* Candidate = UMaterialInstanceDynamic::Create(CandidateParent, GetTransientPackage());
 	if (!Candidate)
 	{
@@ -100,6 +126,9 @@ bool FProjectMaterialSurfacePreview::ApplyValidated(const FProjectMaterialSurfac
 		return false;
 	}
 	if (RenderInstance) Candidate->CopyParameterOverrides(RenderInstance);
+	// Renderer controls remain transient; structural resources belong to the
+	// authenticated candidate, even when the original MID has texture overrides.
+	for (const auto& Texture : AuthenticatedTextures) Candidate->SetTextureParameterValueByInfo(Texture.Key, Texture.Value);
 	for (const auto& Value : Recipe.Scalars) Candidate->SetScalarParameterValue(Value.Key, Value.Value);
 	for (const auto& Value : Recipe.Vectors) Candidate->SetVectorParameterValue(Value.Key, Value.Value);
 	if (!IsActive())

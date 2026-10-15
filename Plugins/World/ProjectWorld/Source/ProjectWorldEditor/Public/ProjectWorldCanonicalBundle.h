@@ -69,6 +69,14 @@ struct FProjectWorldCanonicalFeature
 	// PROJECTWORLD_PRODUCER_END project_building_massing
 };
 
+struct FProjectWorldCanonicalTerrainQuad
+{
+	FIntPoint Coordinate = FIntPoint::ZeroValue;
+	TArray<FVector> Vertices;
+	TArray<FVector2f> Weights;
+	TArray<FIntVector> Triangles;
+};
+
 struct FProjectWorldCanonicalTerrain
 {
 	FString ArtifactHash;
@@ -87,6 +95,7 @@ struct FProjectWorldCanonicalTerrain
 	FString SurfaceContractHash;
 	TArray<FName> SurfaceRoles;
 	TMap<FName, TArray<float>> SurfaceWeights;
+	TArray<FProjectWorldCanonicalTerrainQuad> RefinedQuads;
 };
 
 struct FProjectWorldCanonicalCell

@@ -11,6 +11,7 @@ struct FProjectWorldLayerInventory;
 struct FProjectWorldRealizationLayer;
 struct FProjectWorldRealizationResult;
 class UWorld;
+class UMaterialInterface;
 
 namespace ProjectWorldBuildingInventory
 {
@@ -21,5 +22,6 @@ namespace ProjectWorldBuildingInventory
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldLayerInventory& Inventory,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError);
+		FString& OutError,
+		UMaterialInterface* ExpectedMaterial=nullptr);
 }

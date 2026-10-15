@@ -421,10 +421,9 @@ bool FProjectWorldShippingWaterProofGate::InitializeWaterCapture(FString& OutErr
 	ProjectWorldRuntimeScreenshotCapture::FCaptureSpec Spec;
 	Spec.CameraLocation = CaptureCameraLocation;
 	Spec.CameraRotation = FRotator(-90.0f, 0.0f, 0.0f);
-	Spec.CaptureSource = SCS_BaseColor;
-	Spec.SourceIdentity = TEXT("canonical_water_base_color");
+	Spec.CaptureSource = SCS_SceneColorSceneDepth;
+	Spec.SourceIdentity = TEXT("canonical_water_visibility");
 	Spec.OrthographicWidthCentimeters = ShippingWaterCaptureOrthoWidthCentimeters;
-	Spec.bIsolateBaseColor = true;
 	return WaterCaptureSession.Initialize(*ProductWorld.Get(), Spec, OutError) &&
 		WaterCaptureSession.WarmUp(3, OutError);
 }
@@ -542,7 +541,8 @@ void FProjectWorldShippingWaterProofGate::WriteResult(
 	Root->SetArrayField(TEXT("capture_camera_location_cm"), ShippingWaterVectorValue(CaptureCameraLocation));
 	Root->SetArrayField(TEXT("capture_camera_rotation_deg"),
 		ShippingWaterVectorValue(FVector(-90.0, 0.0, 0.0)));
-	Root->SetStringField(TEXT("capture_source"), TEXT("SCS_BaseColor"));
+	Root->SetStringField(TEXT("capture_source"), TEXT("SCS_SceneColorSceneDepth"));
+	Root->SetStringField(TEXT("capture_encoding"), TEXT("visible_water_depth_mask_v1"));
 	Root->SetStringField(TEXT("capture_projection"), TEXT("orthographic"));
 	Root->SetNumberField(TEXT("capture_ortho_width_cm"), ShippingWaterCaptureOrthoWidthCentimeters);
 	Root->SetStringField(TEXT("capture_session_id"), WaterCaptureSession.GetSessionId());

@@ -4,10 +4,12 @@
 #include "ProjectMaterialSurfaceGenerationService.h"
 
 #include "ProjectMaterialPatternAuthority.h"
+#include "ProjectMaterialPatternBindings.h"
 #include "ProjectMaterialCompilerIdentity.h"
 #include "ProjectMaterialFixturePackage.h"
 #include "ProjectMaterialFixtureDomain.h"
 #include "ProjectMaterialSurfaceBuilder.h"
+#include "ProjectMaterialSingleLayerWater.h"
 #include "ProjectMaterialSurfaceManifest.h"
 #include "ProjectMaterialSurfaceRecipe.h"
 #include "ProjectMaterialTerrainLayoutContract.h"
@@ -49,8 +51,7 @@ bool ValidateRequest(
 	FString& OutError)
 {
 	if (Request.RecipeRoot.IsEmpty() || Request.OutputContentRoot.IsEmpty() ||
-		Request.ManifestRoot.IsEmpty() || Request.PatternManifestPath.IsEmpty() ||
-		Request.PatternContentRoot.IsEmpty() || Request.TerrainLayoutReceiptPath.IsEmpty())
+		Request.ManifestRoot.IsEmpty())
 	{
 		OutError = TEXT("Surface recipe, output, manifest, pattern, and layout inputs are required.");
 		return false;
@@ -165,7 +166,7 @@ bool DiscoverRecipes(
 		}
 		return Left.MaterialId < Right.MaterialId;
 	});
-	TSet<FString> ParentPaths;
+	TMap<FString, const FProjectMaterialSurfaceRecipe*> Parents;
 	for (const FProjectMaterialSurfaceRecipe& Recipe : OutRecipes)
 	{
 		if (Recipe.ArtifactKind != EProjectMaterialSurfaceArtifactKind::Parent)
@@ -176,15 +177,17 @@ bool DiscoverRecipes(
 		FString ObjectPath;
 		FProjectMaterialSurfaceRecipeContract::ResolveOutputIdentity(
 			Recipe, Request.OutputPackageRoot, PackageName, ObjectPath, OutError);
-		ParentPaths.Add(ObjectPath);
+		Parents.Add(ObjectPath, &Recipe);
 	}
 	for (const FProjectMaterialSurfaceRecipe& Recipe : OutRecipes)
 	{
-		if (Recipe.ArtifactKind == EProjectMaterialSurfaceArtifactKind::Instance &&
-			!ParentPaths.Contains(Recipe.ParentObjectPath.Replace(
-				TEXT("/ProjectMaterial/Surfaces/"), *(Request.OutputPackageRoot + TEXT("/")))))
+		if (Recipe.ArtifactKind != EProjectMaterialSurfaceArtifactKind::Instance) continue;
+		const auto* Parent = Parents.Find(Recipe.ParentObjectPath.Replace(
+			TEXT("/ProjectMaterial/Surfaces/"), *(Request.OutputPackageRoot + TEXT("/"))));
+		if (!Parent || (*Parent)->Family != Recipe.Family || (*Parent)->Archetype != Recipe.Archetype ||
+			(*Parent)->ProjectionFrame != Recipe.ProjectionFrame)
 		{
-			OutError = FString::Printf(TEXT("Surface instance parent is not declared: %s"),
+			OutError = FString::Printf(TEXT("Surface instance parent is undeclared or incompatible: %s"),
 				*Recipe.ParentObjectPath);
 			return false;
 		}
@@ -194,7 +197,7 @@ bool DiscoverRecipes(
 
 bool SaveAndReload(
 	const FProjectMaterialSurfaceRecipe& Recipe,
-	const FProjectMaterialPatternDependency& Pattern,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const TMap<FName, int32>& SemanticChannels,
 	const FString& PackageName,
 	const FString& ObjectPath,
@@ -243,7 +246,7 @@ bool SaveAndReload(
 
 FProjectMaterialSurfaceManifestRecord BuildRecord(
 	const FProjectMaterialSurfaceRecipe& Recipe,
-	const FProjectMaterialPatternDependency& Pattern,
+	const FProjectMaterialSurfaceDependency& Pattern,
 	const FString& ObjectPath,
 	const FString& ParentHash,
 	const FProjectMaterialTerrainLayoutContract* Layout,
@@ -262,6 +265,7 @@ FProjectMaterialSurfaceManifestRecord BuildRecord(
 	Record.PatternOutputContract = Pattern.OutputContract;
 	Record.PatternSemanticIdentity = Pattern.SemanticIdentity;
 	Record.PatternPackageSha256 = Pattern.PackageSha256;
+	Record.NativeResourceHashes = Pattern.NativeResourceHashes;
 	Record.DependencyObjectPath = Recipe.ParentObjectPath;
 	Record.DependencyPackageSha256 = ParentHash;
 	Record.TerrainLayoutReceiptSha256 = Layout != nullptr ? Layout->ReceiptSha256 : FString();
@@ -375,7 +379,7 @@ bool HandleOrphans(
 bool PrepareInputs(
 	const FProjectMaterialSurfaceGenerationRequest& Request,
 	const TArray<FProjectMaterialSurfaceRecipe>& Recipes,
-	TMap<FString, FProjectMaterialPatternDependency>& OutPatterns,
+	TMap<FString, FProjectMaterialSurfaceDependency>& OutPatterns,
 	FProjectMaterialTerrainLayoutContract& OutLayout,
 	FString& OutError)
 {
@@ -384,14 +388,21 @@ bool PrepareInputs(
 	{
 		if (!OutPatterns.Contains(Recipe.PatternId))
 		{
-			FProjectMaterialPatternDependency Pattern;
-			if (!FProjectMaterialPatternAuthority::Resolve(
+			FProjectMaterialSurfaceDependency Pattern;
+			const bool bResolved = Recipe.Archetype == TEXT("single_layer_water")
+				? ProjectMaterialSingleLayerWater::ResolveResources(Pattern, OutError)
+				: FProjectMaterialPatternAuthority::Resolve(
 				Recipe.PatternId, Request.PatternManifestPath, Request.PatternPackageRoot,
-				Request.PatternContentRoot, Pattern, OutError))
+				Request.PatternContentRoot, Pattern, OutError);
+			if (!bResolved)
 			{
 				return false;
 			}
 			OutPatterns.Add(Recipe.PatternId, MoveTemp(Pattern));
+		}
+		if (!ProjectMaterialPatternBindings::ValidateSource(Recipe, OutPatterns.FindChecked(Recipe.PatternId), OutError))
+		{
+			return false;
 		}
 		bNeedsTerrainLayout |= FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(Recipe.Archetype);
 	}
@@ -489,7 +500,7 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 						Recipe.MaterialId + FPackageName::GetAssetPackageExtension()), OutResult.Error)) return false;
 		}
 	}
-	TMap<FString, FProjectMaterialPatternDependency> Patterns;
+	TMap<FString, FProjectMaterialSurfaceDependency> Patterns;
 	FProjectMaterialTerrainLayoutContract Layout;
 	if (!PrepareInputs(Request, Recipes, Patterns, Layout, OutResult.Error))
 	{
@@ -512,7 +523,7 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 	TSet<FString> AcceptedObjectPaths;
 	for (const FProjectMaterialSurfaceRecipe& Recipe : Recipes)
 	{
-		const FProjectMaterialPatternDependency* Pattern = Patterns.Find(Recipe.PatternId);
+		const FProjectMaterialSurfaceDependency* Pattern = Patterns.Find(Recipe.PatternId);
 		if (Pattern == nullptr)
 		{
 			OutResult.Error = FString::Printf(
@@ -590,7 +601,7 @@ bool FProjectMaterialSurfaceGenerationService::RegenerateInternal(
 			? ProjectMaterialSurfaceBuilder::BuildParent(
 				BuildRecipe, *Pattern, PackageName, Channels, Asset, CompileErrors, OutResult.Error)
 			: ProjectMaterialSurfaceBuilder::BuildInstance(
-				BuildRecipe, PackageName, Asset, OutResult.Error);
+				BuildRecipe, *Pattern, PackageName, Asset, OutResult.Error);
 		if (!bBuilt)
 		{
 			return false;

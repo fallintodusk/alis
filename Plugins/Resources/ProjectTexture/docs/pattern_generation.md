@@ -45,6 +45,15 @@ without actual Ready pixels cannot prove pattern quality.
 
 The cache has one writer per structural identity, explicit generating/ready/failed
 states, pin counts, a byte budget, and least-recently-used eviction of unpinned entries.
+`UProjectTextureRuntimeSubsystem` reads `GlobalBudgetBytes` once from native Engine
+configuration at initialization; its bounded default is 32 MiB. The cache policy
+does not change when a catalog loads or requests an output. Nonpositive configured
+budgets disable generation and report an error. An isolated fixture can set its
+own envelope through `[/Script/ProjectTexture.ProjectTextureRuntimeSubsystem]`.
+Catalog `BudgetBytes` bounds that catalog's generation operation, including an
+explicit adapter's conservative peak. Admission must fit both this envelope and
+the global cache's available residency. Catalogs cannot raise or lower global
+policy. Choosing a production memory envelope requires actual workload evidence.
 An intermediate DAG target may be recycled after its descendants are complete. The
 current 512x512 RGBA8 mip chain occupies 1,398,100 resident bytes; the two-node DAG
 peaks at 2,796,200 bytes while both nodes are live.
@@ -56,6 +65,15 @@ cache hit, resource reuse, and resident/peak bytes. Ready follows the existing
 render-thread flush, but this timing does not claim GPU-complete latency. The
 proof flag changes no recipe, identity, generated asset, or cache policy.
 
+Automatic slot notifications during native PostLoad enter the existing pending
+queue. Its existing ticker drains only outside PostLoad, after the catalog,
+exported targets and generator materials finish their load phases. A nested
+slot's callback is too early: a sibling texture can subsequently recreate and
+clear its resource. Direct default requests during PostLoad refuse without
+generation. Explicit requests after load retain the existing synchronous route;
+no second cache or generator owns this scheduling boundary. Resource recreation
+invalidates Ready and the next request regenerates the affected catalog.
+
 Shape, frequency, seed, graph topology, and output layout belong here. Tint, roughness,
 blend weight, wetness, metric scale, and per-output influence remain ProjectMaterial
 parameters and do not change pattern identity.
@@ -63,6 +81,32 @@ parameters and do not change pattern identity.
 Unknown fields, algorithms, versions, path escapes, or out-of-range structural values
 fail before mutation. A new kernel requires a reviewed algorithm and schema/compiler
 version; recipes cannot add Unreal nodes.
+
+## Filtered graded-particle bundle
+
+The `graded_particles` profile admits a bounded native particle composition through
+the [recipe schema](../Data/Schemas/pattern-recipe.schema.json). Its raw kernel uses
+four periodic Voronoi/Cellnoise populations with independent density, profile and
+relief controls. The seed changes the consumed native position phase. Recipes own
+structural variation; material recipes own palettes and world-metric shading.
+
+The four-node DAG contains a private raw stage, the native SpiralBlur filter, and
+the shared normal/mask derivations. Only Structure, Normal and Masks are exported
+through `soil_structure_normal_masks_v1`. The native filter package digest participates
+in the filter and dependent identities. Derived masks retain their independent
+pigment field; neither directional light nor cast shadows are baked into the outputs.
+
+The raw stage uses a transient runtime target. The filter's serialized texture
+default references the existing Structure export; the runtime binds its actual raw
+parent before drawing. There is no fourth persistent raw render target. Explicit
+bundle producers resolve exported descriptors by slot node identity, including when
+private intermediates and public exports have different dimensions.
+
+`Data/TestFixtures/GradedParticles/` owns the isolated contract and generation
+fixture. Its captured source checks compare actual generated RGB to the accepted
+compacted-earth reference; loaded graph checks reject swapped derivations, foreign
+parents and altered addressing. These fixture checks do not enroll a production
+recipe or activate the optional Texture Graph backend.
 
 ## Soil bundle
 
@@ -123,11 +167,56 @@ outside the production recipe census. Schema/compiler implementation fingerprint
 change when their owner changes; that does not authorize regenerating production
 resources or any World output during fixture development.
 
+ProjectTextureEditor uses Epic's AssetReferenceRestrictions plugin to keep the
+disposable texture fixture domain outside production asset references. The
+ProjectTexture plugin descriptor declares that dependency for Editor targets
+only. This reference-policy dependency does not participate in runtime texture
+generation, caching or World rendering.
+
 For test-mount validation and mutation, every requested output must resolve through
 the actual mount to its declared physical file. An already loaded package must be clean and
 originate from that same known file. Mismatched mounts, dirty packages and foreign
 or unknown loaded origins refuse before fixture policy registration, package writes
 or manifest promotion. Retargeting a mount cannot retarget cached UObjects.
+
+## Aggregate bundle
+
+The closed `aggregate_surface` family exports Signals and Normal through
+`aggregate_signals_normal_v1`. Its tracked recipe schema fixes the two-node
+topology and channel layouts. Signals carries shading height, pigment structure
+and roughness structure; Normal is the encoded unit vector derived from Signals R
+through Epic's NormalFromHeightmap. This ABI is separate from the three-output
+soil bundle and does not fabricate an unused masks slot.
+
+`Data/TestFixtures/Aggregate/` defines the default particle pattern used by asphalt.
+The v6 recipe/v8 compiler admits an implemented native seed phase and explicit
+bounded structural controls. The schema owns their names and limits; frequency
+controls are integer tile periods. Unsupported fields and resolutions refuse
+before package creation. Both
+outputs use same-package 512-square linear RGBA8 targets with full mips, wrap
+addressing and trilinear filtering. ProjectMaterial owns their physical sampling
+scale, palette and final roughness. The fixture's reference normal ratio is an
+encoding calibration, not terrain displacement or collision.
+
+The reusable `particle_signals_native` kernel consumes the recipe's particle
+populations, radii, warp, relief and pigment/roughness composition. Every structural
+control and seed participates in deterministic identity. Connected native values
+are checked on reload; missing, disconnected or altered controls fail acceptance.
+A new pattern identifier alone does not create a new shape. Surface names and
+per-object identities are not reasons to introduce new producers or allocate
+unique bundles. The normal's fixed reference slope remains an encoding convention;
+it does not choose a consumer's physical scale or change geometry.
+
+The production [concrete aggregate recipe](../Data/Patterns/Aggregate/project_concrete_aggregate.pattern.json)
+selects the same native kernel and output ABI with a distinct structural recipe.
+Its catalog is shared across building consumers. Building identity and material
+palette do not allocate additional structural bundles.
+
+Both ordinary material-DAG generation and explicit producer admission use the
+existing ProjectTexture catalog, sharing and budget boundary. Admitting this
+output ABI does not establish that any particular experimental adapter implements
+it. A native adapter must authenticate and prove its exact graph separately;
+Editor source equality does not establish packaged execution or GPU cost.
 
 ## Opt-in asynchronous bundle producers
 

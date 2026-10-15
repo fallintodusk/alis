@@ -8,5 +8,5 @@ namespace ProjectMaterialPreviewAuthority
 {
 bool Load(const FString& Path, const FString& Root, const FString& LayoutReceipt,
 	FProjectMaterialSurfaceRecipe& OutRecipe, UMaterialInstanceConstant*& OutBaseline, FString& OutError,
-	const FString& FixtureRoot = FString());
+	const FString& FixtureRoot = FString(), const FString& PatternTestRoot = FString());
 }

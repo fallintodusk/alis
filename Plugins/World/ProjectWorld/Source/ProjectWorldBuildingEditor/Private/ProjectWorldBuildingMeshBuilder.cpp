@@ -365,15 +365,15 @@ namespace ProjectWorldBuildingMeshBuilder
 			});
 		}
 
-		double BaseHeight(
+		bool BaseHeight(
 			const FProjectWorldCanonicalBundle& Bundle,
-			const FPreparedBuilding& Building)
+			const FPreparedBuilding& Building, double& OutHeight, FString& OutError)
 		{
 			const FVector2d Center = Building.Bounds.Center();
 			const FProjectWorldCanonicalCell* Cell = OwnerCell(Bundle, *Building.Feature);
-			return Cell != nullptr
-				? ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Center.X, Center.Y)
-				: Bundle.HeightOriginMeters;
+			if (Cell != nullptr) return ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Center.X, Center.Y, OutHeight, OutError);
+			OutHeight = Bundle.HeightOriginMeters;
+			return true;
 		}
 
 		void AddTriangle(
@@ -498,14 +498,15 @@ namespace ProjectWorldBuildingMeshBuilder
 			}
 		}
 
-		void AddMassing(
+		bool AddMassing(
 			FProjectWorldBuildingMeshBuildResult& Result,
 			const FPolygonGroupID Group,
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldCanonicalCell& Cell,
-			const FPreparedBuilding& Building)
+			const FPreparedBuilding& Building, FString& OutError)
 		{
-			const double Base = BaseHeight(Bundle, Building);
+			double Base = 0;
+			if (!BaseHeight(Bundle, Building, Base, OutError)) return false;
 			for (const FPreparedBuilding::FVolume& Volume : Building.Volumes)
 			{
 				const double Bottom = Base + Volume.MinHeightMeters;
@@ -521,6 +522,7 @@ namespace ProjectWorldBuildingMeshBuilder
 					}
 				}
 			}
+			return true;
 		}
 
 		// The mesh semantic domain versions the emitted cell-mesh identity format, which is a
@@ -700,7 +702,7 @@ namespace ProjectWorldBuildingMeshBuilder
 			{
 			case EAdmissionState::Accepted:
 				++OutResult.Stats.AcceptedFragmentCount;
-				AddMassing(OutResult, Group, Bundle, Cell, Building);
+				if (!AddMassing(OutResult, Group, Bundle, Cell, Building, OutError)) return false;
 				break;
 			case EAdmissionState::Duplicate:
 				++OutResult.Stats.DuplicateFragmentCount;

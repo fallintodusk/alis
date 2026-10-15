@@ -10,6 +10,7 @@
 Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot 'generated_layer_manifest.ps1')
+. (Join-Path $PSScriptRoot 'material_reference_operation.ps1')
 
 . (Join-Path $PSScriptRoot 'generator_fingerprint.ps1')
 
@@ -214,6 +215,7 @@ function Test-ProjectWorldManifestDocument {
         throw 'Manifest schema identity is invalid for its authority root.'
     }
     if ([int]$Manifest.schema_version -ne 1) { throw 'Manifest schema_version is unsupported.' }
+    Test-ProjectWorldMaterialAdoption -Manifest $Manifest
     if ([string]$Manifest.scope_id -notmatch '^(map|presentation|layer)_[a-z0-9_]+$') {
         throw "Manifest scope_id is invalid: $($Manifest.scope_id)"
     }

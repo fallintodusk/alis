@@ -3,6 +3,10 @@
 ProjectMaterial owns reusable material appearance and the Editor-only compiler that
 produces closed material families from reviewed surface recipes.
 
+## Documentation
+
+- [Contracts, architecture and diagrams](docs/README.md)
+
 ## Ownership
 
 Canonical data owns world facts and semantics. ProjectMaterial maps those semantics

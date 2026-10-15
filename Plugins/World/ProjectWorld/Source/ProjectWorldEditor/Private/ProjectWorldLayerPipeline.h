@@ -8,9 +8,13 @@ struct FProjectWorldAuthoredOverlaySet;
 struct FProjectWorldCanonicalBundle;
 struct FProjectWorldRealizationProfile;
 struct FProjectWorldRealizationResult;
+struct FProjectWorldLayerInventory;
 
 namespace ProjectWorldLayerPipeline
 {
+	bool ValidateExecutionSelection(const FProjectWorldRealizationProfile& Profile,
+		const TArray<FString>& SelectedIds, const TArray<FProjectWorldLayerInventory>& Inventories,
+		FString& OutError, bool bRequireCleanGeometricDependencies = true);
 	bool ApplyLayers(UWorld& World, const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlays,

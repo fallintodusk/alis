@@ -4,7 +4,9 @@
 #include "ProjectMaterialCompilerIdentity.h"
 #include "ProjectMaterialFixturePackage.h"
 #include "ProjectMaterialPatternAuthority.h"
+#include "ProjectMaterialSingleLayerWater.h"
 #include "ProjectMaterialSurfaceBuilder.h"
+#include "ProjectMaterialPatternBindings.h"
 #include "ProjectMaterialSurfaceManifest.h"
 #include "ProjectMaterialSurfaceParameters.h"
 #include "ProjectMaterialSurfaceRecipe.h"
@@ -40,7 +42,7 @@ bool AuthenticatePackage(const FString& ObjectPath, const FString& Expected, con
 
 bool Load(const FString& Path, const FString& Root, const FString& LayoutReceipt,
 	FProjectMaterialSurfaceRecipe& OutRecipe, UMaterialInstanceConstant*& OutBaseline, FString& OutError,
-	const FString& FixtureRoot)
+	const FString& FixtureRoot, const FString& PatternTestRoot)
 {
 	OutBaseline = nullptr;
 	FString Json;
@@ -57,11 +59,33 @@ bool Load(const FString& Path, const FString& Root, const FString& LayoutReceipt
 	}
 	FString PackageRoot = TEXT("/ProjectMaterial/Surfaces");
 	FString FixtureManifest;
+	FString BaselineRecipeRoot;
+	if (!PatternTestRoot.IsEmpty() && FixtureRoot.IsEmpty())
+	{ OutError=TEXT("An isolated pattern root requires an isolated material authority."); return false; }
+	FString PatternPackageRoot=TEXT("/ProjectTexture");
+	FString PatternContentRoot;
+	FString PatternManifestPath;
+	if (!PatternTestRoot.IsEmpty())
+	{
+		const FString Allowed=FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(),TEXT("tmp/texture/generation")));
+		const FString Selected=FPaths::ConvertRelativePathToFull(PatternTestRoot);
+		if (!FPaths::IsUnderDirectory(Selected,Allowed) || FPaths::IsSamePath(Selected,Allowed))
+		{ OutError=TEXT("Pattern preview root escapes the disposable texture generation owner."); return false; }
+		PatternPackageRoot=TEXT("/ProjectTextureTest");
+		PatternContentRoot=FPaths::Combine(Selected,TEXT("content"));
+		PatternManifestPath=FPaths::Combine(Selected,TEXT("manifests/accepted.pattern-manifest.json"));
+	}
 	if (!FixtureRoot.IsEmpty())
 	{
 		FProjectMaterialSurfaceGenerationRequest Request;
 		FProjectMaterialSurfaceGenerationResult Validated;
 		if (!FProjectMaterialSurfaceGenerationService::MakeTestRequest(FixtureRoot, LayoutReceipt, Request, OutError)) return false;
+		if (!PatternTestRoot.IsEmpty())
+		{
+			Request.PatternPackageRoot=PatternPackageRoot;
+			Request.PatternContentRoot=PatternContentRoot;
+			Request.PatternManifestPath=PatternManifestPath;
+		}
 		FString Mounted;
 		FString Expected = FPaths::Combine(Request.OutputContentRoot, TEXT("__probe"));
 		if (!FPackageName::TryConvertLongPackageNameToFilename(FString(TEXT("/ProjectMaterialTest/Surfaces/__probe")), Mounted) ||
@@ -76,6 +100,7 @@ bool Load(const FString& Path, const FString& Root, const FString& LayoutReceipt
 			return false;
 		}
 		PackageRoot = Request.OutputPackageRoot;
+		BaselineRecipeRoot = Request.RecipeRoot;
 		FixtureManifest = FPaths::Combine(Request.ManifestRoot, TEXT("accepted.surface-manifest.json"));
 		OutRecipe.ParentObjectPath.ReplaceInline(TEXT("/ProjectMaterial/Surfaces/"), *(PackageRoot + TEXT("/")));
 	}
@@ -108,13 +133,26 @@ bool Load(const FString& Path, const FString& Root, const FString& LayoutReceipt
 	}
 	if (!AuthenticatePackage(Object, Instance->PackageSha256, PackageRoot, OutError) ||
 		!AuthenticatePackage(Parent->OutputObjectPath, Parent->PackageSha256, PackageRoot, OutError)) return false;
-	FProjectMaterialPatternDependency Pattern;
-	if (!FProjectMaterialPatternAuthority::Resolve(OutRecipe.PatternId,
-		FPaths::Combine(TexturePlugin->GetBaseDir(), TEXT("Data/Manifests/Patterns/accepted.pattern-manifest.json")),
-		TEXT("/ProjectTexture"), TexturePlugin->GetContentDir(), Pattern, OutError)) return false;
+	FProjectMaterialSurfaceDependency Pattern;
+	if (PatternManifestPath.IsEmpty())
+	{
+		PatternManifestPath=FPaths::Combine(TexturePlugin->GetBaseDir(),TEXT("Data/Manifests/Patterns/accepted.pattern-manifest.json"));
+		PatternContentRoot=TexturePlugin->GetContentDir();
+	}
+	const bool bWater=OutRecipe.Archetype==TEXT("single_layer_water");
+	const bool bResolved=bWater ? ProjectMaterialSingleLayerWater::ResolveResources(Pattern,OutError) : FProjectMaterialPatternAuthority::Resolve(OutRecipe.PatternId,
+		PatternManifestPath,PatternPackageRoot,PatternContentRoot,Pattern,OutError);
+	if (!bResolved) return false;
+	bool bNativeMatches=Pattern.NativeResourceHashes.Num()==Parent->NativeResourceHashes.Num() && Pattern.NativeResourceHashes.Num()==Instance->NativeResourceHashes.Num();
+	for (const auto& Pair : Pattern.NativeResourceHashes)
+		bNativeMatches &= Parent->NativeResourceHashes.FindRef(Pair.Key)==Pair.Value && Instance->NativeResourceHashes.FindRef(Pair.Key)==Pair.Value;
+	if (bWater && !bNativeMatches)
+	{
+		OutError=TEXT("Preview native resource identity differs from the accepted parent."); return false;
+	}
 	if (Pattern.OutputObjectPath != Instance->PatternObjectPath ||
 		Pattern.OutputContract != Instance->PatternOutputContract ||
-		Parent->PatternObjectPath != Pattern.OutputObjectPath || Parent->PatternOutputContract != Pattern.OutputContract)
+		Parent->PatternOutputContract != Pattern.OutputContract)
 	{
 		OutError = TEXT("Preview pattern contract differs from the accepted material graph.");
 		return false;
@@ -139,8 +177,25 @@ bool Load(const FString& Path, const FString& Root, const FString& LayoutReceipt
 	}
 	FProjectMaterialSurfaceRecipe ParentRecipe = OutRecipe;
 	ParentRecipe.ArtifactKind = EProjectMaterialSurfaceArtifactKind::Parent;
-	if (!ProjectMaterialSurfaceBuilder::Verify(OutRecipe, Pattern, Layout.SemanticChannels, OutBaseline, OutError) ||
-		!ProjectMaterialSurfaceBuilder::Verify(ParentRecipe, Pattern, Layout.SemanticChannels, OutBaseline->Parent, OutError) ||
+	if (bWater || FProjectMaterialSurfaceRecipeContract::IsMetricHeightArchetype(OutRecipe.Archetype) ||
+		!FProjectMaterialSurfaceRecipeContract::IsTerrainArchetype(OutRecipe.Archetype))
+	{
+		if (BaselineRecipeRoot.IsEmpty()) BaselineRecipeRoot=FPaths::Combine(MaterialPlugin->GetBaseDir(),TEXT("Data/SurfaceRecipes"));
+		const FString ParentSource=FPaths::ConvertRelativePathToFull(FPaths::Combine(BaselineRecipeRoot,Parent->RecipePath));
+		FString ParentJson;
+		if (!FPaths::IsUnderDirectory(ParentSource,FPaths::ConvertRelativePathToFull(BaselineRecipeRoot)) ||
+			!FFileHelper::LoadFileToString(ParentJson,*ParentSource) ||
+			!FProjectMaterialSurfaceRecipeContract::Parse(ParentJson,ParentSource,BaselineRecipeRoot,ParentRecipe,OutError) ||
+			ParentRecipe.ArtifactKind!=EProjectMaterialSurfaceArtifactKind::Parent || ParentRecipe.Archetype!=OutRecipe.Archetype || ParentRecipe.RecipeSourceSha256!=Parent->RecipeSourceSha256)
+		{
+			OutError=TEXT("Preview native parent source is not the accepted recipe."); return false;
+		}
+	}
+	FProjectMaterialSurfaceDependency ParentPattern=Pattern;
+	if (!bWater && Parent->PatternObjectPath!=Pattern.OutputObjectPath &&
+		!FProjectMaterialPatternAuthority::Resolve(Parent->PatternId,PatternManifestPath,PatternPackageRoot,PatternContentRoot,ParentPattern,OutError)) return false;
+	if (!ProjectMaterialPatternBindings::VerifyBindings(OutRecipe, Pattern, OutBaseline, OutError) ||
+		!ProjectMaterialSurfaceBuilder::Verify(ParentRecipe, ParentPattern, Layout.SemanticChannels, OutBaseline->Parent, OutError) ||
 		!ProjectMaterialSurfaceParameters::Validate(OutRecipe, OutBaseline, OutError)) return false;
 	return true;
 }

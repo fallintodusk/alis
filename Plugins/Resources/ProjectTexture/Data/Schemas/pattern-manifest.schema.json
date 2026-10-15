@@ -64,7 +64,9 @@
         "family": {
           "enum": [
             "surface_structure",
-            "soil_structure"
+            "soil_structure",
+            "aggregate_surface",
+            "graded_particles"
           ]
         },
         "algorithm": {
@@ -78,7 +80,8 @@
         "output_contract": {
           "enum": [
             "surface_structure_rgb_v1",
-            "soil_structure_normal_masks_v1"
+            "soil_structure_normal_masks_v1",
+            "aggregate_signals_normal_v1"
           ]
         },
         "output_object_path": {

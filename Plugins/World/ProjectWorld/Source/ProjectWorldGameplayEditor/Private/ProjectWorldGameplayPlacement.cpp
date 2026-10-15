@@ -397,8 +397,9 @@ namespace ProjectWorldGameplayPlacement
 				: ProviderError.ToString();
 			return false;
 		}
-		const double Height = ProjectWorldGeneratedGeometry::SampleTerrain(
-			*Cell, Placement.EastingMeters, Placement.NorthingMeters) + Placement.SurfaceOffsetMeters;
+		double Height = 0;
+		if (!ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Placement.EastingMeters, Placement.NorthingMeters, Height, OutError)) return false;
+		Height += Placement.SurfaceOffsetMeters;
 		const FVector Location = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 			Bundle, FVector(Placement.EastingMeters, Placement.NorthingMeters, Height));
 		OutTransform = FTransform(FRotator(0.0, Placement.YawDegrees, 0.0), Location);

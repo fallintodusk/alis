@@ -23,10 +23,12 @@ struct FProjectWorldRealizationRequest
 	FString RealizationProfilePath;
 	FString TransientRealizationProfileRoot;
 	FString LayerDirtyInputPath;
+	TArray<FString> ExecutionLayerIds;
 	FString MapPackagePath;
 	FString ResultPath;
 	EProjectWorldRealizationMode Mode = EProjectWorldRealizationMode::Validate;
 	bool bFirstLayerApply = false;
+	bool bMaterialReferencesOnly = false;
 	int32 MaxRoadFeatures = 1;
 	int32 MaxBuildingFeatures = 4;
 };
@@ -68,6 +70,8 @@ struct FProjectWorldLayerInventory
 	TArray<FString> FinalDirtyUnits;
 	TArray<FProjectWorldLayerArtifactInventory> Artifacts;
 	TMap<FString, int64> Metrics;
+	FName MaterialReferenceRole;
+	TArray<FProjectWorldLayerInputInventory> MaterialGeometryInputs;
 	TOptional<FProjectWorldPostApplyBuilder> PostApplyBuilder;
 };
 
@@ -82,6 +86,14 @@ struct FProjectWorldAuthoredAnchorEvidence
 	double VerticalTotalErrorMeters = 0.0;
 	bool bSurfaceSnapped = false;
 	bool bPlaces = false;
+};
+
+struct FProjectWorldPresentationMaterialIdentity
+{
+	FString ObjectPath;
+	FString PackageSha256;
+	FString SemanticIdentity;
+	FString ManifestSha256;
 };
 
 struct FProjectWorldRealizationResult
@@ -99,6 +111,7 @@ struct FProjectWorldRealizationResult
 	FString TerrainMaterialPackageSha256;
 	FString TerrainMaterialSemanticIdentity;
 	FString TerrainMaterialManifestSha256;
+	TMap<FName,FProjectWorldPresentationMaterialIdentity> PresentationMaterialBindings;
 	FString RuntimeProfileId;
 	FString RuntimeProfileHash;
 	FString RuntimeProfileKind;
@@ -190,6 +203,7 @@ struct FProjectWorldRealizationResult
 	bool bRuntimeStructuralBudgetsPassed = false;
 	TArray<FProjectWorldAuthoredAnchorEvidence> AuthoredAnchors;
 	TArray<FProjectWorldLayerInventory> LayerInventories;
+	TArray<FString> ExecutionLayerIds;
 
 	int32 ExitCode() const;
 };

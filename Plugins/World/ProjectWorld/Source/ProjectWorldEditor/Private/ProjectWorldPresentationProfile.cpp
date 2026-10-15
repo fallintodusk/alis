@@ -8,6 +8,7 @@
 
 #include "Dom/JsonObject.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/Package.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -118,6 +119,32 @@ namespace ProjectWorldPresentationProfile
 		{
 			return Path.StartsWith(TEXT("/Engine/")) && Path.Contains(TEXT("."));
 		}
+		bool IsSurfaceDeclaration(const FString& Value,const TCHAR* Role)
+		{
+			if (IsEngineMaterialPath(Value)) return true;
+			TArray<FString> Parts; Value.ParseIntoArray(Parts,TEXT("."),false);
+			if (Parts.Num()<2 || Parts[0]!=Role) return false;
+			for (const auto& Part : Parts)
+				if (!IsIdentifierToken(Part) || Part[0]<TEXT('a') || Part[0]>TEXT('z')) return false;
+			return true;
+		}
+		bool ResolveSurface(const FString& Declaration,const TCHAR* Role,FProjectWorldPresentationResources& R,
+			UMaterialInterface*& Material,FString& Error)
+		{
+			Material=nullptr;
+			if (IsEngineMaterialPath(Declaration))
+			{
+				Material=LoadObject<UMaterialInterface>(nullptr,*Declaration);
+				if (!Material || Material->GetOutermost()->IsDirty()) {Error=TEXT("Native presentation material is missing or dirty."); return false;}
+				return true;
+			}
+			FProjectWorldMaterialReference Ref;
+			if (!ProjectWorldPresentationMaterialBinding::Resolve(Declaration,Ref,Error)) return false;
+			const auto Expected=FString(Role)==TEXT("water") ? MSM_SingleLayerWater : MSM_DefaultLit;
+			if (!Ref.Material->GetShadingModels().HasShadingModel(Expected) || Ref.Material->GetBlendMode()!=BLEND_Opaque)
+			{Error=TEXT("Accepted surface material is incompatible with its declared presentation role."); return false;}
+			Material=Ref.Material; R.MaterialBindings.Add(Role,MoveTemp(Ref)); return true;
+		}
 	}
 
 	bool Load(
@@ -172,16 +199,22 @@ namespace ProjectWorldPresentationProfile
 
 		const TSharedPtr<FJsonObject>* Materials = nullptr;
 		if (!Root->TryGetObjectField(TEXT("materials"), Materials) || Materials == nullptr ||
-			!HasOnlyFields(*Materials, {TEXT("road"), TEXT("building"), TEXT("cloud")}, OutError) ||
+			!HasOnlyFields(*Materials, {TEXT("road"), TEXT("building"), TEXT("cloud"),TEXT("water")}, OutError) ||
 			!RequireString(*Materials, TEXT("road"), OutProfile.RoadMaterialPath, OutError) ||
 			!RequireString(*Materials, TEXT("building"), OutProfile.BuildingMaterialPath, OutError) ||
 			!RequireString(*Materials, TEXT("cloud"), OutProfile.CloudMaterialPath, OutError) ||
-			!IsEngineMaterialPath(OutProfile.RoadMaterialPath) ||
-			!IsEngineMaterialPath(OutProfile.BuildingMaterialPath) ||
+			!IsSurfaceDeclaration(OutProfile.RoadMaterialPath,TEXT("road")) ||
+			!IsSurfaceDeclaration(OutProfile.BuildingMaterialPath,TEXT("building")) ||
 			!IsEngineMaterialPath(OutProfile.CloudMaterialPath))
 		{
 			OutErrorCode = TEXT("presentation-profile-material");
 			return false;
+		}
+		if ((*Materials)->HasField(TEXT("water")) &&
+			(!RequireString(*Materials,TEXT("water"),OutProfile.WaterMaterialPath,OutError) ||
+			 !IsSurfaceDeclaration(OutProfile.WaterMaterialPath,TEXT("water"))))
+		{
+			OutErrorCode=TEXT("presentation-profile-material"); return false;
 		}
 
 		const TSharedPtr<FJsonObject>* Environment = nullptr;
@@ -264,24 +297,31 @@ namespace ProjectWorldPresentationProfile
 		return true;
 	}
 
+	TMap<FName,UMaterialInterface*> GetMaterials(const FProjectWorldPresentationResources& R)
+	{
+		return {{TEXT("terrain"),R.TerrainMaterial},{TEXT("road"),R.RoadMaterial},
+			{TEXT("building"),R.BuildingMaterial},{TEXT("water"),R.WaterMaterial}};
+	}
 	bool ResolveResources(
 		const FProjectWorldPresentationProfile& Profile,
 		FProjectWorldPresentationResources& OutResources,
 		FString& OutError)
 	{
-		if (!ProjectWorldPresentationMaterialBinding::ResolveTerrain(OutResources, OutError))
+		OutResources={};
+		FProjectWorldPresentationResources Candidate;
+		if (!ProjectWorldPresentationMaterialBinding::ResolveTerrain(Candidate, OutError))
 		{
 			return false;
 		}
-		OutResources.RoadMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.RoadMaterialPath);
-		OutResources.BuildingMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.BuildingMaterialPath);
-		OutResources.CloudMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.CloudMaterialPath);
-		if (OutResources.RoadMaterial == nullptr || OutResources.BuildingMaterial == nullptr ||
-			OutResources.CloudMaterial == nullptr)
+		if (!ResolveSurface(Profile.RoadMaterialPath,TEXT("road"),Candidate,Candidate.RoadMaterial,OutError) ||
+			!ResolveSurface(Profile.BuildingMaterialPath,TEXT("building"),Candidate,Candidate.BuildingMaterial,OutError) ||
+			(!Profile.WaterMaterialPath.IsEmpty() && !ResolveSurface(Profile.WaterMaterialPath,TEXT("water"),Candidate,Candidate.WaterMaterial,OutError))) return false;
+		Candidate.CloudMaterial = LoadObject<UMaterialInterface>(nullptr, *Profile.CloudMaterialPath);
+		if (Candidate.CloudMaterial == nullptr || Candidate.CloudMaterial->GetOutermost()->IsDirty())
 		{
 			OutError = TEXT("One or more approved presentation materials could not be loaded.");
 			return false;
 		}
-		return true;
+		OutResources=MoveTemp(Candidate); return true;
 	}
 }

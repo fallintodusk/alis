@@ -30,7 +30,12 @@
     "contract_version": 1,
     "roles": ["ground", "hydro_transition"],
     "hydro_transition_radius_m": 60.0,
-    "water_clearance_m": 0.0
+    "water_clearance_m": 0.0,
+    "water_conditioning_limits": {
+      "maximum_cut_m": 6.0,
+      "maximum_support_distance_m": 1.42,
+      "accepted_accuracy": ["derived_not_surveyed"]
+    }
   },
   "water_semantics": {
     "policy_id": "synthetic_territory_twin_v1",

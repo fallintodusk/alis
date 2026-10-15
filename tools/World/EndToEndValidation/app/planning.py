@@ -171,14 +171,23 @@ def plan_for_paths(paths: list[str], repo_root: Path = REPO_ROOT, base: str | No
             candidates.add("ProjectWorldData")
 
     l4_required = any(_shipping_boundary(path) for path in changed)
-    matrix_mode = "full" if upstream_replay_required(changed, base, repo_root) else "canonical_authority"
+    matrix_modes = {}
+    for profile_id in matrices:
+        validation_paths = [
+            path for path in profile_inputs[profile_id]
+            if "/Data/Profiles/EndToEndValidation/" in path and path.endswith(".validation.json")
+        ]
+        needs_full = len(validation_paths) != 1 or upstream_replay_required(
+            changed, base, repo_root, validation_profile=repo_root / validation_paths[0],
+        )
+        matrix_modes[profile_id] = "full" if needs_full else "canonical_authority"
     return {
         "changed_path_count": len(changed),
         "inner_loop": "L0",
         "l1_required": l1_required,
         "l1_reason": "cross-component world seam changed" if l1_required else "none",
         "l2_matrices": sorted(matrices, key=_matrix_order),
-        "l2_matrix_modes": {profile_id: matrix_mode for profile_id in matrices},
+        "l2_matrix_modes": matrix_modes,
         "l2_reason": (
             "authenticated shared inputs changed" if shared_changed
             else "profile-specific inputs changed" if matrices

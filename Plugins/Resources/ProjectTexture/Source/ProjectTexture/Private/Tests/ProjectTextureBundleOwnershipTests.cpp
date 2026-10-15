@@ -73,10 +73,11 @@ public:
 		Test->TestTrue(TEXT("Other-world cleanup preserves pinned RHI."), Before == Target->GetResource()->TextureRHI);
 		Test->TestTrue(TEXT("Consumer one releases."), Owner->ReleaseBundle(Catalog->SemanticIdentity, Error));
 		Test->TestTrue(TEXT("Consumer two releases."), Owner->ReleaseBundle(Catalog->SemanticIdentity, Error));
+		Test->TestEqual(TEXT("Explicit eviction releases the unpinned bundle."), Owner->EvictReleasedBundles(), 1);
 		TStrongObjectPtr<UProjectTextureRuntimeCatalog> Default(MakeCatalog('f'));
 		Test->TestTrue(TEXT("Different catalog uses unchanged default producer."), Owner->RequestOutput(GEngine->GetCurrentPlayWorld(), Default->OutputSlots[0], Error));
-		Test->TestFalse(TEXT("Default eviction invalidates opt-in readiness."), Owner->IsBundleReady(Catalog->OutputSlots[0]));
-		Test->TestNull(TEXT("Default eviction releases physical target."), Target->GetResource());
+		Test->TestFalse(TEXT("Explicit eviction invalidates opt-in readiness."), Owner->IsBundleReady(Catalog->OutputSlots[0]));
+		Test->TestNull(TEXT("Explicit eviction releases physical target."), Target->GetResource());
 		TStrongObjectPtr<UProjectTextureBundleTestProducer> Replacement(NewObject<UProjectTextureBundleTestProducer>());
 		Replacement->Identity = Default->SemanticIdentity;
 		auto* DefaultResource = Default->OutputSlots[0]->GetRenderTarget()->GetResource();

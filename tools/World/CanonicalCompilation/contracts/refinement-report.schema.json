@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/refinement-report-v1.json",
+  "type": "object",
+  "required": ["$schema", "schema_version", "base_result_sha256", "inputs_hash", "changed_cells", "base_lineage_retained", "production_adoption"],
+  "properties": {
+    "$schema": {"type": "string"}, "schema_version": {"const": 1},
+    "base_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "changed_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "base_lineage_retained": {"const": true}, "production_adoption": {"const": false}
+  }, "additionalProperties": false
+}

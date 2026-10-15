@@ -35,10 +35,11 @@ namespace ProjectWorldAnchorPlacement
 					OutError = TEXT("Canonical terrain has no qualified vertical provenance.");
 					return false;
 				}
-				const double Height = ProjectWorldGeneratedGeometry::SampleTerrain(
+				double Height = 0;
+				if (!ProjectWorldGeneratedGeometry::SampleTerrain(
 					Cell,
 					Point.X,
-					Point.Y);
+					Point.Y, Height, OutError)) return false;
 				if (bSampled && FMath::Abs(Height - OutHeight) > SeamTolerance)
 				{
 					OutError = TEXT("Canonical terrain disagrees across a shared cell edge.");

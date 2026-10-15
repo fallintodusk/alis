@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldGeneratedGeometry.h"
+#include "ProjectWorldTerrainSurface.h"
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldRealizationService.h"
@@ -35,12 +36,36 @@ namespace ProjectWorldGeneratedGeometry
 		return Name.Left(96);
 	}
 
-	double SampleTerrain(
+	bool SampleTerrain(
 		const FProjectWorldCanonicalCell& Cell,
 		double X,
-		double Y)
+		double Y, double& OutHeight, FString& OutError)
 	{
 		const FProjectWorldCanonicalTerrain& Terrain = Cell.Terrain;
+		if (!FMath::IsFinite(X) || !FMath::IsFinite(Y) || Terrain.SamplesX < 2 || Terrain.SamplesY < 2 ||
+			Terrain.SampleSpacing.X <= 0 || Terrain.SampleSpacing.Y <= 0 || Terrain.HeightsMeters.Num() != Terrain.SamplesX * Terrain.SamplesY)
+		{ OutError = TEXT("Terrain placement query has an invalid grid or coordinate."); return false; }
+		for (const auto& Quad : Terrain.RefinedQuads)
+		{
+			const double Column = (X - Terrain.Bounds.X) / Terrain.SampleSpacing.X;
+			const double Row = FProjectWorldCanonicalLoader::TerrainSampleRow(Terrain, Y);
+			if (Column < Quad.Coordinate.X || Column > Quad.Coordinate.X + 1 || Row < Quad.Coordinate.Y || Row > Quad.Coordinate.Y + 1) continue;
+			for (const FIntVector& Face : Quad.Triangles)
+			{
+				if (!Quad.Vertices.IsValidIndex(Face.X) || !Quad.Vertices.IsValidIndex(Face.Y) || !Quad.Vertices.IsValidIndex(Face.Z))
+				{ OutError = TEXT("Refined placement query has an invalid triangle."); return false; }
+				FProjectWorldSurfaceTriangle T{{Quad.Vertices[Face.X], Quad.Vertices[Face.Y], Quad.Vertices[Face.Z]}};
+				bool bInside = true;
+				for (int32 I=0; I<3; ++I)
+				{
+					const FVector D = T.Points[(I+1)%3] - T.Points[I];
+					bInside &= D.X * (Y - T.Points[I].Y) - D.Y * (X - T.Points[I].X) >= -1e-8;
+				}
+				if (bInside) return ProjectWorldTerrainSurface::Height(T, FVector2D(X, Y), OutHeight, OutError);
+			}
+			OutError = TEXT("Refined placement query has missing final-surface coverage.");
+			return false;
+		}
 		const double SampleX = FMath::Clamp(
 			(X - Terrain.Bounds.X) / Terrain.SampleSpacing.X,
 			0.0,
@@ -59,10 +84,12 @@ namespace ProjectWorldGeneratedGeometry
 		{
 			return Terrain.HeightsMeters[Row * Terrain.SamplesX + Column];
 		};
-		return FMath::Lerp(
+		OutHeight = FMath::Lerp(
 			FMath::Lerp(HeightAt(X0, Y0), HeightAt(X1, Y0), FracX),
 			FMath::Lerp(HeightAt(X0, Y1), HeightAt(X1, Y1), FracX),
 			FracY);
+		if (!FMath::IsFinite(OutHeight)) { OutError = TEXT("Terrain placement query produced a nonfinite height."); return false; }
+		return true;
 	}
 
 	double MeasureCoordinateRoundTrip(

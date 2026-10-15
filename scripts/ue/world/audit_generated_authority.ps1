@@ -17,7 +17,8 @@ param(
     [string]$WorldDataPlugin,
     [string]$ManifestRoot,
     [string[]]$GeneratedRoots,
-    [string]$EvidencePath
+    [string]$EvidencePath,
+    [string]$PresentationProfile
 )
 
 Set-StrictMode -Version Latest
@@ -141,6 +142,23 @@ try {
         }
 
         $activeScopeIds = @($active.Manifests.Keys | Sort-Object)
+        $compatibility = @{}
+        if ($PresentationProfile) {
+            $profilePath = [IO.Path]::GetFullPath($PresentationProfile)
+            $dataPrefix = [IO.Path]::GetFullPath($worldDataRoots.DataRoot).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+            if (-not $profilePath.StartsWith($dataPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+                throw 'Presentation compatibility input must belong to the audited world-data owner.'
+            }
+            foreach ($scopeId in $activeScopeIds) {
+                $map = $active.Manifests[$scopeId]
+                if ([string]$map.owning_layer -cne 'map') { continue }
+                $bridge = Get-ProjectWorldPresentationCompatibility -ActiveSet $active -MapScopeId $scopeId `
+                    -CandidatePath $profilePath -MaterialManifestPath (Join-Path $ProjectRoot `
+                        'Plugins/Resources/ProjectMaterial/Data/Manifests/Surfaces/accepted.surface-manifest.json')
+                if ($null -ne $bridge) { $compatibility[[string]$map.input_identity.map_package] = $bridge }
+            }
+            Add-AuditCheck 'presentation_compatibility' $true 'Current presentation retains authenticated geometry inputs and accepted material destinations.'
+        }
         $consumerProblems = [System.Collections.Generic.List[string]]::new()
         foreach ($scopeId in $activeScopeIds) {
             foreach ($consumer in @($active.Manifests[$scopeId].consumer_references)) {
@@ -217,7 +235,7 @@ try {
             $manifestEntry = $active.Record.scopes | Where-Object { $_.scope_id -eq $scopeId }
             $producerId = Get-ProjectWorldManifestProducerId -Manifest $manifest
             $expectedFingerprint = $currentFingerprints[$producerId]
-            $scopeSummaries += [ordered]@{
+            $summary = [ordered]@{
                 scope_id = $scopeId
                 manifest_path = [string]$manifestEntry.manifest_path
                 manifest_sha256 = [string]$manifestEntry.manifest_sha256
@@ -237,6 +255,11 @@ try {
                 generator_fingerprint_is_current = ($null -ne $expectedFingerprint -and
                     [string]$manifest.generator_fingerprint -eq [string]$expectedFingerprint)
             }
+            $mapPackage = [string]$manifest.input_identity.map_package
+            if ($compatibility.ContainsKey($mapPackage)) {
+                $summary['presentation_compatibility'] = $compatibility[$mapPackage]
+            }
+            $scopeSummaries += $summary
         }
         Add-AuditCheck 'artifacts_intact' ($artifactProblems.Count -eq 0) $(
             if ($artifactProblems.Count -eq 0) { "$totalArtifacts artifacts verified byte-identical ($totalBytes bytes)." }

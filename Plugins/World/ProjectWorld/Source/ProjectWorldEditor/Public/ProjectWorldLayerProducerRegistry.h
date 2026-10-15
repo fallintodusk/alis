@@ -53,6 +53,7 @@ struct FProjectWorldLayerProducerDeclaration
 	TOptional<int32> DependencyHaloCells;
 	TOptional<TArray<FString>> PermittedDependencies;
 	FProjectWorldLayerActorOwnership OwnedActors;
+	FName PresentationMaterialRole;
 	TOptional<FProjectWorldPostApplyBuilder> PostApplyBuilder;
 };
 
@@ -77,6 +78,10 @@ public:
 		FString& OutError) const = 0;
 	virtual bool Delete(const FProjectWorldLayerApplyContext& Context,
 		FProjectWorldRealizationResult& OutResult, FString& OutError) const;
+	virtual bool UpdateMaterialReferences(const FProjectWorldLayerApplyContext& Context,
+		const TArray<FProjectWorldLayerArtifactInventory>& AcceptedArtifacts,
+		FProjectWorldLayerInventory& Inventory, FProjectWorldRealizationResult& Result,
+		bool bApply, FString& OutError) const;
 };
 
 namespace ProjectWorldLayerProducerRegistry

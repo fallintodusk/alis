@@ -9,7 +9,7 @@ public class ProjectWorldWaterEditor : ModuleRules
 		{
 			"Core", "CoreUObject", "Engine", "Json", "MeshDescription",
 			"StaticMeshDescription", "GeometryCore", "GeometryAlgorithms",
-			"AssetRegistry", "ProjectCore", "ProjectWorldEditor", "RHI", "UnrealEd"
+			"AssetRegistry", "FileUtilities", "ProjectCore", "ProjectWorldEditor", "RHI", "UnrealEd"
 		});
 	}
 }

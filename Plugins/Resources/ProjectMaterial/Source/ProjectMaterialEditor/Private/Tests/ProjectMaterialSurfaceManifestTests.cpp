@@ -2,6 +2,10 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectMaterialSurfaceManifest.h"
+#include "ProjectMaterialSurfaceRecipe.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 #include "HAL/FileManager.h"
 #include "Misc/AutomationTest.h"
@@ -49,6 +53,29 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FProjectMaterialSurfaceManifestContractTest::RunTest(const FString& Parameters)
 {
+	const FString DataRoot=FPaths::Combine(FPaths::ProjectPluginsDir(),TEXT("Resources/ProjectMaterial/Data"));
+	FString SchemaJson;
+	TSharedPtr<FJsonObject> Schema;
+	if (!FFileHelper::LoadFileToString(SchemaJson,*FPaths::Combine(DataRoot,TEXT("Schemas/surface-manifest.schema.json"))) ||
+		!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(SchemaJson),Schema)) return false;
+	const auto Properties=Schema->GetObjectField(TEXT("$defs"))->GetObjectField(TEXT("record"))->GetObjectField(TEXT("properties"));
+	for (const TCHAR* Folder : {TEXT("SurfaceRecipes"),TEXT("TestFixtures")})
+	{
+		const FString RecipeRoot=FPaths::Combine(DataRoot,Folder); TArray<FString> Files;
+		IFileManager::Get().FindFilesRecursive(Files,*RecipeRoot,TEXT("*.surface.json"),true,false,false);
+		for (const FString& File : Files)
+		{
+			FString Json,Error; FProjectMaterialSurfaceRecipe Recipe;
+			if (!FFileHelper::LoadFileToString(Json,*File) || !FProjectMaterialSurfaceRecipeContract::Parse(Json,File,RecipeRoot,Recipe,Error))
+			{ AddError(Error); return false; }
+			for (const auto& Field : TMap<FString,FString>{{TEXT("archetype"),Recipe.Archetype},{TEXT("compiler_version"),Recipe.CompilerVersion}})
+			{
+				const auto& Values=Properties->GetObjectField(Field.Key)->GetArrayField(TEXT("enum"));
+				TestTrue(TEXT("Every compiled recipe fits the public manifest transport contract"),
+					Values.ContainsByPredicate([&](const auto& V){return V->AsString()==Field.Value;}));
+			}
+		}
+	}
 	const auto B = ProjectMaterialSurfaceManifestTests::Record(
 		TEXT("/ProjectMaterial/Surfaces/Terrain/MI_B.MI_B"), TEXT("terrain.secondary"));
 	const auto A = ProjectMaterialSurfaceManifestTests::Record(

@@ -13,9 +13,12 @@ bool ProjectTextureBundlePreflight::Validate(const UProjectTextureOutputSlot* Re
 		OutError = TEXT("Invalid runtime texture catalog identity."); return false;
 	}
 	const bool bSoil = C->OutputContract == TEXT("soil_structure_normal_masks_v1");
-	if ((!bSoil && C->OutputContract != TEXT("surface_structure_rgb_v1")) ||
-		(bSoil && (C->OutputSlots.Num() != 3 || C->Nodes.Num() != 3)) ||
-		(!bSoil && !C->OutputSlots.IsEmpty()))
+	const bool bAggregate=C->OutputContract==TEXT("aggregate_signals_normal_v1");
+	const int32 ExportStart=bSoil && C->Nodes.Num()==4 ? 1 : 0;
+	if ((!bSoil && !bAggregate && C->OutputContract != TEXT("surface_structure_rgb_v1")) ||
+		(bSoil && (C->OutputSlots.Num() != 3 || (C->Nodes.Num() != 3 && C->Nodes.Num()!=4))) ||
+		(bAggregate && (C->OutputSlots.Num()!=2 || C->Nodes.Num()!=2)) ||
+		(!bSoil && !bAggregate && !C->OutputSlots.IsEmpty()))
 	{
 		OutError = TEXT("Unsupported runtime texture bundle contract."); return false;
 	}
@@ -34,17 +37,19 @@ bool ProjectTextureBundlePreflight::Validate(const UProjectTextureOutputSlot* Re
 		for (int32 Size = N.Width; Size > 0; Size /= 2) PeakBytes += int64(Size) * Size * 4;
 		Seen.Add(N.NodeId); Identities.Add(N.StructuralIdentity);
 	}
+	if (ExportStart && (!C->Nodes[0].ParentNodeIds.IsEmpty() || C->Nodes[1].ParentNodeIds!=TArray<FName>{C->Nodes[0].NodeId}))
+	{ OutError=TEXT("Filtered bundle raw stage or structure dependency is invalid."); return false; }
 	if (PeakBytes > C->BudgetBytes || C->BudgetBytes <= 0)
 	{
 		OutError = TEXT("Runtime bundle peak exceeds its generation budget."); return false;
 	}
 	TArray<const UProjectTextureOutputSlot*> Slots;
-	if (bSoil)
+	if (bSoil || bAggregate)
 	{
 		for (UProjectTextureOutputSlot* Slot : C->OutputSlots) Slots.Add(Slot);
 	}
 	else Slots.Add(Requested);
-	const TArray<FName> Names = bSoil ? TArray<FName>{TEXT("Structure"), TEXT("Normal"), TEXT("Masks")}
+	const TArray<FName> Names = bAggregate ? TArray<FName>{TEXT("Signals"),TEXT("Normal")} : bSoil ? TArray<FName>{TEXT("Structure"), TEXT("Normal"), TEXT("Masks")}
 		: TArray<FName>{TEXT("Structure")};
 	bool bFound = false;
 	for (int32 Index = 0; Index < Slots.Num(); ++Index)
@@ -55,7 +60,7 @@ bool ProjectTextureBundlePreflight::Validate(const UProjectTextureOutputSlot* Re
 		if (!RT || !N || Slot->Catalog != C || Slot->SlotName != Names[Index] ||
 			OutTargets.Contains(Slot->NodeId) || RT->GetOutermost() != C->GetOutermost() ||
 			RT->GetAssetUserDataOfClass(UProjectTextureOutputSlot::StaticClass()) != Slot ||
-			(bSoil && (N != &C->Nodes[Index] || (Index > 0 && N->ParentNodeIds != TArray<FName>{C->Nodes[0].NodeId}))))
+			((bSoil || bAggregate) && (N != &C->Nodes[Index+ExportStart] || (Index > 0 && N->ParentNodeIds != TArray<FName>{C->Nodes[ExportStart].NodeId}))))
 		{
 			OutError = TEXT("Invalid or foreign runtime output slot."); return false;
 		}

@@ -25,3 +25,22 @@ This adapter does not define or reinterpret World semantics, accept authored
 changes in generated packages, or become a required dependency of ProjectWorld.
 The surrounding contract and relationship graph belong to
 [ProjectWorld architecture](../ProjectWorld/docs/architecture/README.md).
+
+## Final-surface realization and fidelity
+
+The adapter consumes ProjectWorld's typed final terrain triangles, including
+optional complete-quad canonical refinement. The canonical producer owns that
+representation and its quality policy; the adapter only realizes it. It retains
+unrefined grid vertex ordering/UVs, carries semantic weights to inserted vertices,
+and rejects conflicting attributes at coincident vertices. Source capture checks
+all final vertices, triangles and role weights rather than only grid samples.
+
+For refined cells the audit checks complete compiled CPU triangle coverage and
+affine heights at triangle-intersection vertices. Missing, duplicate or
+overlapping faces and stale interiors fail even when original grid corners
+match. A native spatial tree bounds candidate lookup. The audit's Nanite-enabled
+section still exposes CPU fallback buffers; those buffers alone do not certify
+GPU clusters. `Project.World.Realization.MeshTerrain.RefinedSurface` separately
+captures actual Nanite and explicitly selected fallback depth and queries
+compiled collision. Packaged/city performance and physics acceptance remain
+separate from this disposable Editor fixture.

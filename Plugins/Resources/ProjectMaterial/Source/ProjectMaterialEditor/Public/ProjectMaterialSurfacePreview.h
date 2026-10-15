@@ -23,7 +23,8 @@ public:
 	bool ApplyRecipeFile(const FString& Path, const FString& RecipeRoot,
 		const FString& LayoutReceipt, UMeshComponent* Component, int32 Slot, FString& OutError);
 	bool ApplyFixtureRecipeFile(const FString& Path, const FString& RecipeRoot, const FString& FixtureRoot,
-		const FString& LayoutReceipt, UMeshComponent* Component, int32 Slot, FString& OutError);
+		const FString& LayoutReceipt, UMeshComponent* Component, int32 Slot, FString& OutError,
+		const FString& PatternTestRoot = FString());
 	bool Revert(FString& OutError);
 	bool IsActive() const;
 

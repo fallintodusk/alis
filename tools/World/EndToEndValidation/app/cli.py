@@ -174,7 +174,9 @@ def main(argv: list[str] | None = None) -> int:
             return 3
         try:
             changed = changed_paths(args.changed_base)
-            require_world_only_changes(changed, args.changed_base, REPO_ROOT)
+            require_world_only_changes(
+                changed, args.changed_base, REPO_ROOT, validation_profile=resolved_profile_path,
+            )
             selected = {name: settings for name, settings in profile["profiles"].items()
                 if settings.get("canonical_authority")}
             if not selected:

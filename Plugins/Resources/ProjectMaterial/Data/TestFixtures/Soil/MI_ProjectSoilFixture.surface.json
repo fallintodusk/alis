@@ -1,11 +1,11 @@
 {
   "$schema": "../../Schemas/surface-recipe.schema.json",
-  "schema_version": "5",
+  "schema_version": "7",
   "material_id": "MI_ProjectSoilFixture",
   "artifact_kind": "instance",
   "family": "surface_substrate",
-  "archetype": "soil_uv",
-  "compiler_version": "6",
+  "archetype": "height_masks_uv",
+  "compiler_version": "8",
   "projection_frame": "uv_unit_meter",
   "pattern": {
     "pattern_id": "project_soil_fixture"

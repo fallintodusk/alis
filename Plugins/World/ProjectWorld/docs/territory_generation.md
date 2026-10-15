@@ -49,6 +49,19 @@ binding and the private mapping from canonical surface names to MeshPartition
 channels. Same-path material tuning changes ProjectMaterial authority without
 changing canonical geography or rebuilding unchanged Mesh Terrain sections.
 
+The presentation profile declares each road/building material once: an Engine
+reference or a logical ProjectMaterial binding for that surface role. Optional
+water presentation uses the same consumer. A requested binding authenticates
+accepted package/parent bytes, loaded-file origins and clean loaded state. Missing
+or incompatible bindings refuse without a diagnostic fallback. The resolved
+references reach both realization and saved/effective layer inspection.
+
+Prepared water presentation does not invoke the generator-local diagnostic graph.
+Existing diagnostic packages remain enrolled until an explicit referencer census
+and retirement transaction. Changing a serialized reference on existing meshes
+requires the reference-only rollout boundary; ordinary geometric Apply is not a
+material-debugging route.
+
 ProjectWorld has no dependency on ProjectMaterialEditor. The adapter communicates
 its channel layout and build policy through a schema-validated plain-data receipt,
 so richer terrain appearance can evolve without importing material-editor code into

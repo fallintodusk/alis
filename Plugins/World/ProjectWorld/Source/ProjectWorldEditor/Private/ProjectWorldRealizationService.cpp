@@ -12,6 +12,7 @@
 #include "ProjectWorldLayerPipeline.h"
 #include "ProjectWorldLayerProducerRegistry.h"
 #include "ProjectWorldLayerDirtyInput.h"
+#include "ProjectWorldMaterialReferencePipeline.h"
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldPresentationProfile.h"
 #include "ProjectWorldPresentationRealization.h"
@@ -344,6 +345,11 @@ int32 FProjectWorldRealizationService::Run(
 	OutResult.TerrainMaterialPackageSha256 = PresentationResources.TerrainMaterialPackageSha256;
 	OutResult.TerrainMaterialSemanticIdentity = PresentationResources.TerrainMaterialSemanticIdentity;
 	OutResult.TerrainMaterialManifestSha256 = PresentationResources.TerrainMaterialManifestSha256;
+	for (const auto& Binding : PresentationResources.MaterialBindings)
+	{
+		const auto& R=Binding.Value;
+		OutResult.PresentationMaterialBindings.Add(Binding.Key,{R.ObjectPath,R.PackageSha256,R.SemanticIdentity,R.ManifestSha256});
+	}
 	OutResult.RuntimeProfileId = RuntimeProfile.ProfileId;
 	OutResult.RuntimeProfileHash = RuntimeProfile.ProfileHash;
 	OutResult.RuntimeProfileKind = RuntimeProfile.ProfileKind;
@@ -383,6 +389,24 @@ int32 FProjectWorldRealizationService::Run(
 			TEXT("Layer dirty closure is invalid."),
 			PresentationError);
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return OutResult.ExitCode();
+	}
+	OutResult.ExecutionLayerIds = Request.ExecutionLayerIds;
+	if (Request.bMaterialReferencesOnly) OutResult.OperationId+=TEXT(":materials");
+	const bool bSelectedApply = !Request.ExecutionLayerIds.IsEmpty();
+	if (Request.bMaterialReferencesOnly && (!bSelectedApply || !bNeedsDirtyInput || Request.bFirstLayerApply ||
+		Request.Mode!=EProjectWorldRealizationMode::Apply || !LayerDirtyInput.OperatorAdditions.IsEmpty()) ||
+		(!Request.bMaterialReferencesOnly && !LayerDirtyInput.MaterialReferenceArtifacts.IsEmpty()))
+	{
+		Reject(OutResult,TEXT("material-reference-mode"),TEXT("Material membership requires explicit reference-only incremental execution."));
+		return OutResult.ExitCode();
+	}
+	if (bSelectedApply && (Request.Mode != EProjectWorldRealizationMode::Apply || Request.bFirstLayerApply ||
+		!ProjectWorldLayerPipeline::ValidateExecutionSelection(
+			RealizationProfile, Request.ExecutionLayerIds, OutResult.LayerInventories, PresentationError,!Request.bMaterialReferencesOnly)))
+	{
+		Reject(OutResult, TEXT("realization-execution-selection"),
+			TEXT("Execution selection requires existing authority and clean dependencies."), PresentationError);
 		return OutResult.ExitCode();
 	}
 
@@ -449,6 +473,12 @@ int32 FProjectWorldRealizationService::Run(
 
 	bool bExistingMap = false;
 	FString EditorError;
+	if (bSelectedApply && !FPaths::FileExists(FPackageName::LongPackageNameToFilename(
+		Request.MapPackagePath, FPackageName::GetMapPackageExtension())))
+	{
+		Reject(OutResult, TEXT("editor-selected-map"), TEXT("Selected execution cannot create a shared map."));
+		return OutResult.ExitCode();
+	}
 	UWorld* World = LoadOrCreateWorld(Request.MapPackagePath, bExistingMap, EditorError);
 	if (World == nullptr || !World->IsPartitionedWorld())
 	{
@@ -457,6 +487,52 @@ int32 FProjectWorldRealizationService::Run(
 		return OutResult.ExitCode();
 	}
 	OutResult.bWorldPartition = true;
+	if (bSelectedApply)
+	{
+		// The leaf owner persists its own assets/actors. Shared owners are read-only
+		// and their accepted files are authenticated again by the transaction host.
+		TArray<FWorldPartitionReference> SelectedActorReferences;
+		if (UWorldPartition* Partition = World->GetWorldPartition(); Partition != nullptr && Partition->IsInitialized())
+		{
+			Partition->LoadAllActors(SelectedActorReferences);
+		}
+		const auto Materials=ProjectWorldPresentationProfile::GetMaterials(PresentationResources);
+		if (World->PersistentLevel->GetPackage()->IsDirty() ||
+			ProjectWorldPartitionPolicy::CountHLODLayerReferences(World) > 0)
+		{
+			Reject(OutResult, TEXT("editor-selected-shared-state"), TEXT("Selected execution cannot repair shared map state."));
+			return OutResult.ExitCode();
+		}
+		if (Request.bMaterialReferencesOnly)
+		{
+			if (!ProjectWorldMaterialReferencePipeline::Apply(*World,Bundle,RealizationProfile,AuthoredOverlaySet,
+				LayerDirtyInput,Materials,OutResult,EditorError) || World->PersistentLevel->GetPackage()->IsDirty())
+			{
+				Reject(OutResult,TEXT("material-reference-update"),TEXT("Material-only execution failed; transaction must restore."),EditorError);
+				return OutResult.ExitCode();
+			}
+			OutResult.Status=TEXT("accepted");
+			OutResult.Message=TEXT("Material references updated; geometry identities and pending geometry work are preserved.");
+			OutResult.DurationSeconds=FPlatformTime::Seconds()-StartSeconds;
+			return 0;
+		}
+		if (!ProjectWorldLayerPipeline::ApplyLayers(*World, Bundle, RealizationProfile,
+			AuthoredOverlaySet, Materials, OutResult, EditorError) ||
+			ProjectWorldSavePolicy::RequiresBroadWorldSave(OutResult, bExistingMap, false) ||
+			World->PersistentLevel->GetPackage()->IsDirty() ||
+			!ProjectWorldLayerInventory::CaptureArtifacts(World, Bundle, RealizationProfile,
+				AuthoredOverlaySet, OutResult, EditorError,Materials) ||
+			!ProjectWorldSemanticEvidence::Capture(World, OutResult, EditorError))
+		{
+			Reject(OutResult, TEXT("geometry-selected-apply"),
+				TEXT("Selected execution failed or requested a shared save; transaction must restore."), EditorError);
+			return OutResult.ExitCode();
+		}
+		OutResult.Status = TEXT("accepted");
+		OutResult.Message = TEXT("Selected leaf owners are accepted; unselected work and full World acceptance remain pending.");
+		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+		return 0;
+	}
 	bool bPartitionPolicyChanged =
 		ProjectWorldPartitionPolicy::CountHLODLayerReferences(World) > 0;
 	if (!ProjectWorldPartitionPolicy::DisableHLOD(World, EditorError))
@@ -524,10 +600,7 @@ int32 FProjectWorldRealizationService::Run(
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
 			return OutResult.ExitCode();
 		}
-		const TMap<FName, UMaterialInterface*> Materials{
-			{TEXT("terrain"), PresentationResources.TerrainMaterial},
-			{TEXT("road"), PresentationResources.RoadMaterial},
-			{TEXT("building"), PresentationResources.BuildingMaterial}};
+		const auto Materials=ProjectWorldPresentationProfile::GetMaterials(PresentationResources);
 		if (bNeedsLayerPlan && !ProjectWorldLayerPipeline::ApplyLayers(
 			*World, Bundle, RealizationProfile, AuthoredOverlaySet, Materials, OutResult, EditorError))
 		{
@@ -596,7 +669,7 @@ int32 FProjectWorldRealizationService::Run(
 		RealizationProfile,
 		AuthoredOverlaySet,
 		OutResult,
-		EditorError))
+		EditorError,ProjectWorldPresentationProfile::GetMaterials(PresentationResources)))
 	{
 		Reject(OutResult, TEXT("save-layer-inventory"), TEXT("Cannot authenticate generated layer artifacts."), EditorError);
 		OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
@@ -650,6 +723,7 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetNumberField(TEXT("schema_version"), 2);
 	Root->SetStringField(TEXT("operation_id"), Result.OperationId);
 	Root->SetStringField(TEXT("operation"), TEXT("unreal_world_realization"));
+	Root->SetBoolField(TEXT("material_reference_only"),Request.bMaterialReferencesOnly);
 	Root->SetStringField(TEXT("status"), Result.Status);
 	Root->SetStringField(TEXT("input_compile_result"), FPaths::ConvertRelativePathToFull(Request.CompileResultPath));
 	Root->SetStringField(TEXT("input_sha256"), Result.CompileResultHash);
@@ -659,6 +733,17 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("terrain_material_package_sha256"), Result.TerrainMaterialPackageSha256);
 	Root->SetStringField(TEXT("terrain_material_semantic_identity"), Result.TerrainMaterialSemanticIdentity);
 	Root->SetStringField(TEXT("terrain_material_manifest_sha256"), Result.TerrainMaterialManifestSha256);
+	TSharedRef<FJsonObject> MaterialBindings=MakeShared<FJsonObject>();
+	for (const auto& Binding : Result.PresentationMaterialBindings)
+	{
+		TSharedRef<FJsonObject> R=MakeShared<FJsonObject>();
+		R->SetStringField(TEXT("object_path"),Binding.Value.ObjectPath);
+		R->SetStringField(TEXT("package_sha256"),Binding.Value.PackageSha256);
+		R->SetStringField(TEXT("semantic_identity"),Binding.Value.SemanticIdentity);
+		R->SetStringField(TEXT("manifest_sha256"),Binding.Value.ManifestSha256);
+		MaterialBindings->SetObjectField(Binding.Key.ToString(),R);
+	}
+	Root->SetObjectField(TEXT("presentation_material_bindings"),MaterialBindings);
 	Root->SetStringField(TEXT("runtime_profile"), Result.RuntimeProfileId);
 	Root->SetStringField(TEXT("runtime_profile_sha256"), Result.RuntimeProfileHash);
 	Root->SetStringField(TEXT("runtime_profile_kind"), Result.RuntimeProfileKind);
@@ -675,6 +760,12 @@ bool FProjectWorldRealizationService::WriteResult(
 	Root->SetStringField(TEXT("realization_profile"), Result.RealizationProfileId);
 	Root->SetStringField(TEXT("realization_profile_sha256"), Result.RealizationProfileHash);
 	Root->SetStringField(TEXT("layer_dirty_input_sha256"), Result.LayerDirtyInputHash);
+	if (!Result.ExecutionLayerIds.IsEmpty())
+	{
+		TArray<TSharedPtr<FJsonValue>> SelectedOwners;
+		for (const FString& Id : Result.ExecutionLayerIds) SelectedOwners.Add(MakeShared<FJsonValueString>(Id));
+		Root->SetArrayField(TEXT("execution_layer_ids"), SelectedOwners);
+	}
 	TArray<TSharedPtr<FJsonValue>> LayerInventories;
 	for (const FProjectWorldLayerInventory& Inventory : Result.LayerInventories)
 	{
@@ -688,6 +779,7 @@ bool FProjectWorldRealizationService::WriteResult(
 		Layer->SetNumberField(TEXT("generator_version"), Inventory.GeneratorVersion);
 		Layer->SetStringField(TEXT("generator_fingerprint"), Inventory.GeneratorFingerprint);
 		Layer->SetStringField(TEXT("artifact_root"), Inventory.ArtifactRoot);
+		if (!Inventory.MaterialReferenceRole.IsNone()) Layer->SetStringField(TEXT("material_reference_role"),Inventory.MaterialReferenceRole.ToString());
 		auto StringArray = [](const TArray<FString>& Values)
 		{
 			TArray<TSharedPtr<FJsonValue>> ResultValues;
@@ -710,6 +802,7 @@ bool FProjectWorldRealizationService::WriteResult(
 			return ResultInputs;
 		};
 		Layer->SetArrayField(TEXT("canonical_inputs"), InputArray(Inventory.CanonicalInputs));
+		if (!Inventory.MaterialGeometryInputs.IsEmpty()) Layer->SetArrayField(TEXT("material_geometry_inputs"),InputArray(Inventory.MaterialGeometryInputs));
 		Layer->SetArrayField(TEXT("dependency_inputs"), InputArray(Inventory.DependencyInputs));
 		Layer->SetArrayField(TEXT("final_dirty_units"), StringArray(Inventory.FinalDirtyUnits));
 		TArray<TSharedPtr<FJsonValue>> Artifacts;

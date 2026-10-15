@@ -1,64 +1,34 @@
 # Improve Generated-World Water Presentation
 
-Status: researched; isolated native water prototype captured; implementation not selected
+Status: material scope implemented and adopted; final packaged acceptance is
+coordinated by [World Surface Presentation](../../00_current/20261008-1543_world_improve_surface_materials.md).
+This retained research record is not a parallel implementation task.
 
-Current sequencing: the active World Surface Presentation concern permits isolated
-water samples independently of soil approval. Native Substrate Single Layer Water
-has matched opaque-blue controls and depth/bed response in a BasicShape fixture.
-Its graph-only native volume-output projection resolves the installed ray-tracing
-compile error; the diagnostic is owned by ProjectMaterial pitfalls. No production
-archetype, city binding or adoption is selected. Soil packing, proxy images and
-shader instruction counts do not accept water resources or runtime cost.
+## Implemented scope
 
-## Current evidence
+RiverCalm is visually accepted for calm river water in both cities. ProjectMaterial
+owns its recipe and shared native Single Layer Water shader family, reusing Epic's
+wave functions and normal resource. It does not invent a ProjectTexture dependency
+where the selected physical family needs none. ProjectWorld consumes the accepted
+semantic binding instead of building its former opaque-blue local shader.
 
-- ProjectWorld currently owns a generator-local, solid opaque blue
-  `M_ProjectWorldWater` placeholder through `BuildMaterial()`.
-- The water realization profile keeps `material_shading_model`, surface offset,
-  and non-Nanite policy in the layer contract; the generated material is part
-  of the World water artifact inventory.
-- Water cell meshes serialize the material reference. Moving to a reusable
-  material changes those mesh package bytes even when geometry is unchanged.
-- ProjectMaterial provides terrain/object families and an isolated soil fixture.
-  It does not yet provide the researched water archetype.
+D39's reference-only transaction, saved-child rollback and cold replay preserve
+mesh geometry/build data and separate geometry lineage from material adoption.
+Material-only appearance changes do not advance geometry identities or require
+World/canonical regeneration. Optional obsolete diagnostic-package cleanup is not
+a prerequisite for adopting the accepted material.
 
-The prior artifact count and captures are not current authority. Recount the
-active manifest and capture a fresh solid-opaque control before implementation.
+World-space animation remains continuous across cells. WaterBody lifecycle,
+simulation, WPO/displacement, foam, flow maps, underwater behavior, buoyancy and a
+second geometry authority remain outside this release material scope.
 
-## Accepted candidate
+## Remaining boundary
 
-If this concern is selected, the retained W1 candidate is one textureless
-ProjectMaterial-owned Single Layer Water parent/default instance, consumed by
-ProjectWorld through a closed `water.default` binding. ProjectWorldData keeps
-only polygons, elevations, behavior, and sourced semantic facts.
+Intersections and shoreline conditioning belong to
+[Road and Water Alignment](../../00_current/20261008-1543_world_investigate_road_water_alignment.md).
+Attractive water does not accept those geometric defects. Exact final packaged
+city water-pass/frame cost, streaming and release acceptance remain open in the
+current concern; earlier isolated shader statistics are not a performance PASS.
 
-The first candidate excludes Epic Water lifecycle, WaterBody actors, WPO,
-displacement, foam, flow maps, underwater behavior, buoyancy, Niagara, custom
-HLSL, and a second geometry authority. World-space animation must remain
-continuous across cell boundaries.
-
-## Migration boundary
-
-- Remove the local graph builder only after the reusable material exists and
-  authenticates successfully.
-- Separate material identity from water geometry dirty identity so later
-  same-path tuning does not rewrite World geometry or advance its manifests.
-- Perform the first reference cutover as an explicit material-reference
-  migration. Preserve mesh description, topology, bounds, transforms,
-  collision, navigation, and actor/map package identity where those packages
-  do not store the changed reference.
-- Recount every affected mesh and prove rollback before mutation; do not reuse
-  historical counts as a gate.
-
-## Remaining acceptance
-
-1. Select Water against the other presentation backlog work.
-2. Capture a fresh control and exact active artifact/reference census.
-3. Add focused material-generation, binding, inventory, locality, migration,
-   and rollback regressions.
-4. Compare matched shore, oblique, aerial, and cross-cell views against W1.
-5. Prove unchanged canonical geometry, packaged streaming behavior, package
-   impact, and the fixed packaged frame budget before promotion.
-
-Start from [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture/README.md)
-and [ProjectMaterial](../../../Plugins/Resources/ProjectMaterial/README.md).
+Stable owners: [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture/README.md)
+and [material generation](../../../Plugins/Resources/ProjectMaterial/docs/material_generation.md).

@@ -28,9 +28,9 @@ FProjectMaterialSurfaceRecipe TerrainRecipe()
 
 // Provenance stands for everything a producer records about how it made its output: its semantic
 // identity (which carries its compiler fingerprint) and the exact package bytes.
-FProjectMaterialPatternDependency Pattern(const TCHAR* Contract, const TCHAR* ObjectPath, TCHAR Provenance)
+FProjectMaterialSurfaceDependency Pattern(const TCHAR* Contract, const TCHAR* ObjectPath, TCHAR Provenance)
 {
-	FProjectMaterialPatternDependency Dependency;
+	FProjectMaterialSurfaceDependency Dependency;
 	Dependency.PatternId = TEXT("project_terrain_structure");
 	Dependency.OutputContract = Contract;
 	Dependency.OutputObjectPath = ObjectPath;
@@ -62,7 +62,7 @@ bool FProjectMaterialSurfaceIdentityFirewallTest::RunTest(const FString& Paramet
 	const FProjectMaterialSurfaceRecipe Recipe = TerrainRecipe();
 	const FString Output = TEXT("/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain");
 	const TCHAR* Contract = TEXT("surface_structure_rgb_v1");
-	auto Identity = [&](const FProjectMaterialPatternDependency& PatternDependency,
+	auto Identity = [&](const FProjectMaterialSurfaceDependency& PatternDependency,
 		const FProjectMaterialTerrainLayoutContract& TerrainLayout)
 	{
 		return FProjectMaterialSurfaceRecipeContract::ComputeArtifactSemanticIdentity(

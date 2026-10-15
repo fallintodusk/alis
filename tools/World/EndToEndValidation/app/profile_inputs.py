@@ -116,20 +116,37 @@ def _authored_package_inputs(repo_root: Path, profile_paths: set[Path]) -> set[P
     return result
 
 
-def profile_input_files(validation_profile: Path, repo_root: Path) -> list[Path]:
+def profile_input_files(
+    validation_profile: Path, repo_root: Path, *, canonical_only: bool = False,
+) -> list[Path]:
     validation_profile = validation_profile.resolve()
     if not validation_profile.is_relative_to(repo_root.resolve()) or not validation_profile.is_file():
         raise ProfileInputError(f"Validation profile is outside the repository: {validation_profile}")
     profile = _read_object(validation_profile)
+    settings_by_name = profile.get("profiles")
+    if not isinstance(settings_by_name, dict):
+        raise ProfileInputError(f"Validation profile entries are unavailable: {validation_profile}")
+    if canonical_only:
+        settings_by_name = {
+            name: settings for name, settings in settings_by_name.items()
+            if isinstance(settings, dict) and settings.get("canonical_authority") is True
+        }
+        if not settings_by_name:
+            raise ProfileInputError(f"Validation profile has no canonical authority: {validation_profile}")
     files = {validation_profile}
     source_profiles: set[Path] = set()
     compiler_profiles: set[Path] = set()
     realization_profiles: set[Path] = set()
     authored_overlay_profiles: set[Path] = set()
 
-    for settings in profile.get("profiles", {}).values():
+    for settings in settings_by_name.values():
         if not isinstance(settings, dict):
             continue
+        if canonical_only and any(
+            not isinstance(settings.get(field), str) or not settings[field]
+            for field in ("source_profile_path", "compiler_profile_path")
+        ):
+            raise ProfileInputError(f"Canonical authority has incomplete input references: {validation_profile}")
         for field in (
             "source_profile_path",
             "compiler_profile_path",
@@ -139,6 +156,8 @@ def profile_input_files(validation_profile: Path, repo_root: Path) -> list[Path]
             "authored_overlay_profile",
             "authored_overlay_sabotage_profile",
         ):
+            if canonical_only and field not in ("source_profile_path", "compiler_profile_path"):
+                continue
             value = settings.get(field)
             if isinstance(value, str) and value:
                 path = _repo_file(repo_root, value)
@@ -157,7 +176,10 @@ def profile_input_files(validation_profile: Path, repo_root: Path) -> list[Path]
         for field in ("source_profile", "authored_overlay", "fixture_features", "budget_profile", "control_profile"):
             value = compiler.get(field)
             if isinstance(value, str) and value:
-                files.add(_repo_file(repo_root, value))
+                path = _repo_file(repo_root, value)
+                files.add(path)
+                if field == "source_profile":
+                    source_profiles.add(path)
 
     for source_path in source_profiles:
         source = _read_object(source_path)

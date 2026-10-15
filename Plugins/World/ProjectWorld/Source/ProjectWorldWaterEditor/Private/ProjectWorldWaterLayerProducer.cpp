@@ -2,6 +2,7 @@
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldWaterRealization.h"
+#include "ProjectWorldWaterSourceContext.h"
 #include "Utilities/ProjectSha256.h"
 
 #include "Components/StaticMeshComponent.h"
@@ -9,6 +10,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "EngineUtils.h"
 #include "MaterialShared.h"
+#include "Misc/PackageName.h"
 
 namespace
 {
@@ -55,7 +57,7 @@ namespace
 	}
 
 	bool HashCellInput(const FProjectWorldCanonicalBundle& Bundle,
-		const FProjectWorldCanonicalCell& Cell, FString& OutHash)
+		const FProjectWorldCanonicalCell& Cell, const TMap<FString,FVector4d>& Domains, FString& OutHash)
 	{
 		TSet<FString> FeatureIds;
 		FeatureIds.Append(Cell.OwnedFeatureIds);
@@ -81,6 +83,14 @@ namespace
 				continue;
 			}
 			AppendToken(Identity, Feature->FeatureId);
+			if (Feature->WaterSurface.bValid)
+			{
+				const FVector4d* Bounds=Domains.Find(FeatureId);
+				if (!Bounds) return false;
+				AppendToken(Identity,TEXT("preparation_domain_v1"));
+				AppendNumber(Identity,Bounds->X); AppendNumber(Identity,Bounds->Y);
+				AppendNumber(Identity,Bounds->Z); AppendNumber(Identity,Bounds->W);
+			}
 			AppendNumber(Identity, Feature->WidthMeters);
 			AppendToken(Identity, Feature->WaterSurface.bValid ? TEXT("1") : TEXT("0"));
 			AppendToken(Identity, Feature->WaterSurface.SurfaceGroupId);
@@ -124,6 +134,7 @@ FProjectWorldWaterLayerProducer& FProjectWorldWaterLayerProducer::Get()
 FProjectWorldWaterLayerProducer::FProjectWorldWaterLayerProducer()
 {
 	Declaration.GeneratorId = TEXT("project_water_mesh");
+	Declaration.PresentationMaterialRole = TEXT("water");
 	Declaration.GeneratorVersion = 1;
 	Declaration.CanonicalSelectors = {TEXT("water")};
 	Declaration.SpatialOwnership = TEXT("cell_local");
@@ -146,10 +157,11 @@ bool FProjectWorldWaterLayerProducer::ValidateSettings(
 bool FProjectWorldWaterLayerProducer::HashUnitInputs(const FProjectWorldLayerInputs& Inputs,
 	FProjectWorldLayerUnitInputs& OutUnits, FString& OutError) const
 {
+	const auto Domains=ProjectWorldWaterSourceContext::PreparationBounds(Inputs.Bundle);
 	for (const FProjectWorldCanonicalCell& Cell : Inputs.Bundle.Cells)
 	{
 		FString Hash;
-		if (!HashCellInput(Inputs.Bundle, Cell, Hash))
+		if (!HashCellInput(Inputs.Bundle, Cell, Domains, Hash))
 		{
 			OutError = FString::Printf(TEXT("Cannot hash water input for cell: %s"), *Cell.CellId);
 			return false;
@@ -163,8 +175,9 @@ bool FProjectWorldWaterLayerProducer::Apply(const FProjectWorldLayerApplyContext
 	FProjectWorldLayerInventory& Inventory, FProjectWorldRealizationResult& OutResult,
 	FString& OutError) const
 {
+	UMaterialInterface* const* Material=Context.PresentationMaterials.Find(TEXT("water"));
 	if (!ProjectWorldWaterRealization::Apply(
-		&Context.World, Context.Inputs.Bundle, Context.Inputs.Profile, OutResult, OutError))
+		&Context.World, Context.Inputs.Bundle, Context.Inputs.Profile, OutResult, OutError,Material ? *Material : nullptr))
 	{
 		return false;
 	}
@@ -181,12 +194,17 @@ bool FProjectWorldWaterLayerProducer::CaptureArtifacts(const FProjectWorldLayerA
 	{
 		CanonicalCellIds.Add(Cell.CellId);
 	}
+	UMaterialInterface* const* Material=Context.PresentationMaterials.Find(TEXT("water"));
+	UMaterialInterface* Expected=Material ? *Material : nullptr;
 	FString MaterialSemantic;
-	if (!HashText(TEXT("project_water_material_v3|") + Inventory.NormalizedLayerContractHash,
+	const FString LocalMaterial=Inventory.ArtifactRoot+TEXT("M_ProjectWorldWater");
+	// Existing local diagnostic packages remain enrolled until explicit reference-census retirement.
+	if ((!Expected || IFileManager::Get().FileExists(*FPackageName::LongPackageNameToFilename(LocalMaterial,FPackageName::GetAssetPackageExtension()))) &&
+		(!HashText(TEXT("project_water_material_v3|") + Inventory.NormalizedLayerContractHash,
 		MaterialSemantic) ||
 		!ProjectWorldLayerProducerRegistry::AddPackageArtifact(
 			Inventory.ArtifactRoot + TEXT("M_ProjectWorldWater"), TEXT("asset"),
-			MaterialSemantic, Inventory, OutError))
+			MaterialSemantic, Inventory, OutError)))
 	{
 		return false;
 	}
@@ -214,9 +232,12 @@ bool FProjectWorldWaterLayerProducer::CaptureArtifacts(const FProjectWorldLayerA
 		else if (Mesh->GetStaticMaterials().IsEmpty()) Failure = TEXT("water material slot is missing");
 		else if (Mesh->GetStaticMaterials()[0].MaterialInterface == nullptr)
 			Failure = TEXT("water material is missing");
-		else if (!Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_DefaultLit) ||
+		else if ((!Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_DefaultLit) &&
+			!Mesh->GetStaticMaterials()[0].MaterialInterface->GetShadingModels().HasShadingModel(MSM_SingleLayerWater)) ||
 			Mesh->GetStaticMaterials()[0].MaterialInterface->GetBlendMode() != BLEND_Opaque)
-			Failure = TEXT("material is not solid opaque Default Lit");
+			Failure = TEXT("material is not compatible opaque water shading");
+		else if (Expected && (Mesh->GetStaticMaterials()[0].MaterialInterface!=Expected || Component->GetMaterial(0)!=Expected))
+			Failure=TEXT("saved or effective water material differs from the resolved presentation binding");
 		if (!Failure.IsEmpty())
 		{
 			OutError = FString::Printf(TEXT("Persistent water ownership is invalid for cell %s: %s"),

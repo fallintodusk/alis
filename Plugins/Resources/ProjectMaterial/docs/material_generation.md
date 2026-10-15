@@ -3,8 +3,10 @@
 ## Contract
 
 ProjectMaterial compiles closed surface recipes into persistent Unreal assets. The
-terrain/object recipe schema is v4 with graph compiler v5; the isolated soil
-variant uses schema v5 with graph compiler v6. The schema owns the admitted
+terrain/object recipe schema is v4 with graph compiler v5. Aggregate PBR,
+height/normal/masks PBR and native SingleLayerWater recipes use schema v7 with
+graph compiler v8. Metric height/mask composition uses schema v8 and graph compiler
+v9. Semantic metric terrain uses schema v9 and graph compiler v10. The schema owns the admitted
 fields and values:
 
 - `Data/Schemas/surface-recipe.schema.json`
@@ -15,14 +17,30 @@ deterministically map to `/ProjectMaterial/Surfaces/`. Unknown fields, unsupport
 families or archetypes, path escapes, duplicate identities, unowned parents, and
 unmatched semantic bindings fail before mutation.
 
-Surface recipes name only a stable ProjectTexture `pattern_id`. The compiler resolves
+Generated-pattern surface recipes name a stable ProjectTexture `pattern_id`. The compiler resolves
 that ID through the accepted ProjectTexture manifest and authenticates the resolved
 output path, output contract, semantic identity, and exact package bytes. It depends
-on a named output ABI (`surface_structure_rgb_v1` for terrain/object or
-`soil_structure_normal_masks_v1` for soil), not a concrete ProjectTexture algorithm
+on a named output ABI (`surface_structure_rgb_v1` for terrain/object,
+`soil_structure_normal_masks_v1` for height/masks PBR, or
+`aggregate_signals_normal_v1` for aggregate PBR), not a concrete ProjectTexture algorithm
 or compiler version. The accepted ProjectMaterial manifest records the full resolved
 dependency. Additive ProjectTexture recipe, algorithm, compiler, and other producer-only
 manifest fields do not change this consumer projection.
+
+`single_layer_water` consumes a fixed set of Epic Water/Engine resources instead of a
+generated pattern. It rejects a `pattern` field and does not read a ProjectTexture
+manifest or create a texture cache entry. ProjectMaterial remains the compiler
+and material authority; Epic owns the native texture and material functions.
+
+Surface variety belongs to recipes and instances sharing reusable shader parents.
+Compiler families express physical shading and output ABI requirements, such as
+opaque Substrate Slab versus SingleLayerWater, rather than every surface's content
+name. Reuse native material functions or cohesive compiler helpers for common
+projection, normal orientation and macro composition. A new asphalt, earth or
+concrete style does not itself justify another builder, compiler or cache.
+The admitted asphalt and river graphs expose their palettes and appearance controls
+through JSON; their presence does not establish recipe-driven structural generation.
+ProjectTexture owns that separate contract.
 
 Terrain recipes also consume the plain-data Mesh Terrain layout receipt. The compiler
 maps semantic names to adapter channel indices only at this boundary. ProjectWorld
@@ -32,7 +50,11 @@ The terrain manifest's `terrain_layout_receipt_sha256` stores the receipt's auth
 `receipt_sha256` payload identity, not a SHA-256 of the JSON serialization bytes. The
 compiler verifies that identity against the receipt payload before using it.
 
-`world_metric_triplanar_2d` projects the reusable tile in world metres for terrain.
+`world_metric_triplanar_2d` projects the reusable tile in world metres for terrain
+and the aggregate family on stationary walls, roofs and slopes.
+`world_metric_xy_2d` projects in world XY metres for `aggregate_metric` and
+`single_layer_water` and `height_masks_metric`. It is a distinct admitted frame,
+not a triplanar alias.
 `object_metric_triplanar_2d` projects it in local metres for movable objects so motion
 does not change the pattern. The `terrain_metric` and `object_metric` archetypes use
 three axis samples of the same stable runtime render target. ProjectTexture owns
@@ -58,9 +80,46 @@ the appearance toward exposed ground, while `hydro_transition` can darken and we
 surface. Neither rule asserts canonical grass or rock semantics. CanonicalCompilation
 remains the owner of world facts.
 
+## Metric height/mask PBR composition
+
+`height_masks_metric` consumes the same authenticated three-output bundle as the
+UV sample below. Its world-metric projection samples two tile scales and a broad
+macro scale. Native HeightLerp selects the aggregate composition; secondary normal
+slopes account for the secondary physical scale. Geometry normals and detail
+normals are composed through the installed native world-normal function. Palette,
+roughness, cavity influence and the distance-dependent macro contribution are
+independent recipe controls. Mip filtering remains active at every distance.
+
+The parent keeps one opaque Substrate Slab and shared texture parameters. Macro
+and detail samples reuse the same resources. Appearance edits require no source
+texture generation, displacement or World geometry changes. The closed graph
+verifier compares connected native expressions, samplers and defaults against the
+recipe without recompiling or saving during verification. The complete parent and
+instance examples are under `Data/TestFixtures/MetricHeight/`.
+
+The positive macro-distance interval is validated before graph construction.
+This family consumes no canonical land-cover channels and does not assert universal
+soil semantics. Packaged candidate cost and the actual consuming terrain remain
+separate acceptance surfaces.
+
+`terrain_height_masks_metric` reuses that detail graph and the same three outputs
+inside the existing `ground`/`hydro_transition` composition. It requires the terrain
+layout receipt and native Mesh Partition channel receivers. Pure ground retains the
+original soil diffuse response; hydro weights select the recipe's `HydroTint`, with
+the existing `HydroDarkening` transition. One Substrate Slab, the normal frame and
+source maps remain unchanged. The direct `height_masks_metric` family is a scoped
+compacted-ground material, not a semantic replacement for `terrain.default`.
+
+The native channel texture and custom primitive data belong to the terrain adapter.
+A transient terrain override must retain the actual renderer's channel texture and
+primitive context; the parent expression's default void array is not canonical data.
+Bind only ProjectTexture's structural slots from the authenticated pattern. Do not
+overwrite terrain context while copying or authenticating those structural bindings.
+Actual compiled-channel rendering and packaged consumption remain separate proofs.
+
 ## Isolated soil PBR sample
 
-`soil_uv` with projection `uv_unit_meter` consumes the authenticated three-output
+`height_masks_uv` with projection `uv_unit_meter` consumes the authenticated three-output
 [soil bundle](../../ProjectTexture/docs/pattern_generation.md#soil-bundle). It is a
 closed opaque Substrate Slab, with three linear texture samples. It does not consume
 Mesh Terrain semantic channels. `Data/TestFixtures/Soil/` provides its parent and
@@ -93,12 +152,85 @@ Generation uses the existing ProjectMaterial compiler and fixture authority.
 Material and source package authentication, connected texture/channel routes,
 parameter defaults, linear samplers and exact sibling bindings are verified after
 save/reload. Texture membership alone cannot establish normal, roughness, cavity
-or pigment routing. No
-parallel material compiler or persistent live writer is introduced. The transient
-JSON preview command below remains the authenticated terrain operation; its soil
-extension is not verified. Isolated soil diagnostics may tune native MIDs on the
-frozen JSON-compiled sample without saving. Such values are provisional controls,
-not persistent recipe acceptance or a proved soil JSON hot-update loop.
+or pigment routing. No parallel material compiler or persistent live writer is
+introduced. Authenticated fixture preview has parameter/rejection/revert coverage
+for metric height/mask instances, including the semantic terrain variant and
+independent parent/instance defaults. Real terrain evaluation also requires the
+adapter's actual channel texture and primitive context; an isolated control does
+not establish their rendered content. Reversible native city overrides and
+persistent recipe/backend adoption remain distinct acceptance boundaries.
+
+## Metric aggregate surfaces
+
+`aggregate_metric` consumes `aggregate_signals_normal_v1`. Its closed world-XY
+graph uses the generated Signals and Normal outputs with a separate broad
+pigment/roughness sample of the same Signals texture. Epic's
+BlendAngleCorrectedNormals aligns the decoded detail with the geometry normal;
+one opaque Substrate Slab receives the final shading inputs. This does not
+displace vertices or change collision.
+
+The same physical family also admits world-metric triplanar projection. Its
+encoded-normal adapter samples the existing linear output in three planes,
+decodes it, preserves derivative signs, reverses only each outward axis and
+blends against geometric normals. Pigment and roughness use the same projection
+with an independently scaled macro sample. This is a projection choice, not a
+Concrete-specific generator or another output/cache authority. XY remains the
+cheaper accepted road route; parent and instance projection must agree.
+
+The tested installed Epic WorldAlignedNormal route expects signed normals after
+native normal-sampler decoding. Merely compiling it with a LinearColor texture
+object does not decode ALIS's encoded RGB output. Flat and signed-flat rendered
+controls distinguish that mismatch. Do not change the shared texture ABI to
+accommodate a shader function. Native expression-based adaptation belongs here;
+six-axis, slope and independently expected directional-normal proof accompany
+any adoption. A generated aggregate variation is not exact replay of another
+source algorithm merely because its palette looks similar.
+
+`Data/TestFixtures/Asphalt/` owns its isolated parent and instance recipes.
+Loaded source admission requires a clean matching same-package catalog and
+complete linear/mip/wrap/filter descriptors. Disk hashes cannot authenticate
+unsaved loaded texture changes. Save/reload verification checks connected metric,
+palette, roughness, macro and normal routes, including recipe defaults.
+Public ABI admission and Editor source fidelity are separate from opt-in backend
+execution, mixed-producer memory policy and packaged frame-cost acceptance.
+
+Instances may select a different authenticated pattern from their shared parent's
+default when its output ABI is compatible. The selected stable slots override the
+parent texture parameters. Save/reload verification checks effective textures,
+scalars and vectors, including inherited values. A content name or appearance
+variation does not create a new shader family. The existing height/masks family's
+palette parameter names remain its admitted ABI; its UV fixture is not the frozen
+BrownEarth world-projection candidate.
+
+The production [Concrete parent](../Data/SurfaceRecipes/Aggregate/M_ProjectAggregateTriplanar.surface.json)
+and [default instance](../Data/SurfaceRecipes/Aggregate/MI_ProjectConcrete_Default.surface.json)
+use this triplanar family for stationary building massing. The instance publishes
+the semantic binding consumed by World presentation profiles. Fine relief and broad
+pigment/roughness variation share the same generated bundle and one Slab; ordinary
+mip filtering retains distance filtering without an additional shading layer.
+These defaults provide concrete massing, not facade geometry or material diversity.
+
+## Native river sample
+
+`Data/TestFixtures/River/` defines the parent and instance for a world-metric calm
+river. They are outside the production census. The opaque Single Layer Water
+graph uses Epic's WaterTextureWaves, DeriveNormalZ and BlendAngleCorrectedNormals
+with its native softened water normal texture. It reproduces the connected wave,
+world-normal and optical routes through the existing surface compiler. It does
+not alter water geometry or canonical elevation.
+
+The compiler refuses dirty loaded native packages before writing. Accepted
+manifests authenticate the exact native resource paths and disk hashes instead
+of pattern provenance. Native resource bytes participate in this material's
+artifact identity because its graph consumes them. Save/reload verification
+checks connected normal, optical, metric, time and parameter-default routes;
+merely finding the expected expression classes is insufficient.
+
+Transient JSON preview authenticates the accepted parent recipe and its native
+resources independently of the edited instance parameters. Persistent generation
+uses the same standalone writer and rollback boundary as other surfaces. Editor
+compiler acceptance does not establish packaged water-pass cost or authorize
+serialized World material-reference migration.
 
 ## Semantic identity
 
@@ -154,6 +286,13 @@ bundle bound to its operation id, which only the host's `RestorePrevious` mode r
 `Validate` is read-only: it accepts only when a regeneration would skip every output and
 leave the manifest bytes unchanged.
 
+Before writing or accepting an unchanged skip, whole-request preflight checks
+declared parent/instance family and projection compatibility, every selected
+output ABI, loaded package origin and clean state, and complete source descriptors.
+A later invalid source refuses before an earlier parent is saved. Dirty in-memory
+resources cannot pass solely because their disk hashes still match. This preflight
+does not replace the host's rollback for failures during actual saving.
+
 Normal generation reports orphaned compiler outputs without deleting them. Explicit
 `-CleanupOrphans` removes only packages inside `Content/Surfaces/` that no on-disk
 package references. The commandlet does not gather the Asset Registry at startup, so
@@ -208,6 +347,11 @@ selected-slot override representation, removing only padding created by preview.
 and world-cleanup events discard the preview; external binding changes are reported
 and preserved. Existing dirty package state is neither cleared nor saved.
 
+Copied renderer MID controls cannot retarget structural textures: preview explicitly
+binds the authenticated candidate's effective texture parameters after copying
+overrides. Missing authenticated textures refuse before the visible binding changes.
+The original MID and its overrides are retained exactly for revert.
+
 Use real fixed-camera rendered captures to verify the selected component. An
 Editor view may render a different transient binding from the saved terrain
 provider. After opening a map, establish the rendered baseline and stable binding
@@ -250,7 +394,7 @@ The Editor commands are:
 
 ```text
 project.material.fixture.generate "<fixture-root>" "<layout-receipt.json>"
-project.material.preview.fixture "<candidate.surface.json>" "<candidate-recipe-root>" "<fixture-root>" "<loaded-mesh-component-path>" 0 "<layout-receipt.json>"
+project.material.preview.fixture "<candidate.surface.json>" "<candidate-recipe-root>" "<fixture-root>" "<loaded-mesh-component-path>" 0 "<layout-receipt.json>" ["<pattern-fixture-root>"]
 project.material.preview.revert
 ```
 
@@ -266,20 +410,27 @@ Fixture preview validates the unchanged compiled fixture through the current own
 then authenticates its instance, parent, pattern, bytes, channels and mount. It checks
 the instance and parent packages' loaded file origins against the authenticated files;
 mount selection alone cannot authenticate cached UObjects. It separately
-authenticates the selected renderer's accepted production terrain binding. Substitution
-admits compatible terrain contracts only and reuses the transient override/revert lifecycle.
+authenticates the selected renderer binding. A renderer already bound to the fixture's
+authenticated instance can preview that family's parameter changes directly. The
+optional pattern fixture root is confined to `tmp/texture/generation/<run>/` and
+requires the material fixture authority; it does not retarget production authority.
+Native water needs no pattern fixture root or terrain layout; pass `unused` in the
+layout position for that non-terrain family. Substitution on a production terrain
+renderer still admits compatible terrain contracts only and separately authenticates
+its original accepted production binding. Non-terrain fixture substitution on
+another renderer refuses. Both routes reuse the same transient override/revert lifecycle.
 `FIXTURE_READY`, `APPLIED_FIXTURE`, `REFUSED` and `RESTORED` are the terminal results;
 console dispatch is not proof. The ordinary production preview still requires its own
 accepted instance. Fixture saving authenticates disposable assets, not production adoption
 or persistent updates of retained live consumer references.
 
-Generated surface families sample the accepted ProjectTexture runtime output directly.
+Generated-pattern surface families sample the accepted ProjectTexture runtime output directly.
 The expensive structural DAG runs once per unique identity; visible consumers perform
-bounded triplanar texture samples rather than repeating that procedural work per pixel.
+bounded texture samples rather than repeating that procedural work per pixel.
 Runtime pixels and cache entries are disposable adapter state, never material or world
 authority.
 
-The current design does not add Material Cache, RVT, runtime Texture Graph, custom
+The material consumer adds no Material Cache, RVT, Texture Graph dependency, custom
 virtual-texture producers, or persistent disk caches. Add another cache layer only for
 a measured duty the ProjectTexture cache does not already own.
 

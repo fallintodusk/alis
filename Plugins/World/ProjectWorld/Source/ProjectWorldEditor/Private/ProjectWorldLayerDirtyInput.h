@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectWorldRealizationService.h"
 
 struct FProjectWorldLayerBaseIdentity
 {
@@ -19,6 +20,8 @@ struct FProjectWorldLayerDirtyInput
 	TMap<FString, FProjectWorldLayerBaseIdentity> BaseLayers;
 	TSet<FString> IdentityDirtyLayers;
 	TMap<FString, TSet<FString>> OperatorAdditions;
+	TMap<FString, TArray<FProjectWorldLayerArtifactInventory>> MaterialReferenceArtifacts;
+	TSet<FName> MaterialReferenceChangedRoles;
 };
 
 namespace ProjectWorldLayerDirtyInput

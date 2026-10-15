@@ -38,8 +38,18 @@ bool Register(FString& OutError)
 	auto* Settings = GetMutableDefault<UAssetReferencingPolicySettings>();
 	if (bRegistered)
 	{
-		if (Settings->AdditionalDomains.ContainsByPredicate([](const auto& Rule)
-			{ return FARPDomainDefinitionByContentRoot::StaticStruct()->CompareScriptStruct(&Rule, &OwnedRule, 0); })) return true;
+		const int32 Index=Settings->AdditionalDomains.IndexOfByPredicate([](const auto& Rule)
+			{ return FARPDomainDefinitionByContentRoot::StaticStruct()->CompareScriptStruct(&Rule, &OwnedRule, 0); });
+		if (Index!=INDEX_NONE)
+		{
+			if (!OwnedRule.CanReferenceTheseDomains.Contains(TEXT("ProjectTextureFixture")) &&
+				Settings->AdditionalDomains.ContainsByPredicate([](const auto& Rule){ return Rule.DomainName==TEXT("ProjectTextureFixture"); }))
+			{
+				OwnedRule.CanReferenceTheseDomains.Add(TEXT("ProjectTextureFixture"));
+				Settings->AdditionalDomains[Index]=OwnedRule; Refresh();
+			}
+			return true;
+		}
 		OutError = TEXT("Fixture reference policy changed externally; generation refused.");
 		return false;
 	}
@@ -62,7 +72,8 @@ bool Register(FString& OutError)
 	Path.Path = Root;
 	Rule.ContentRoots.Add(Path);
 	Rule.CanReferenceTheseDomains.Add(TEXT("ProjectTexture"));
-	Rule.CanReferenceTheseDomains.Add(TEXT("ProjectTextureFixture"));
+	if (Settings->AdditionalDomains.ContainsByPredicate([](const auto& Existing){ return Existing.DomainName==TEXT("ProjectTextureFixture"); }))
+		Rule.CanReferenceTheseDomains.Add(TEXT("ProjectTextureFixture"));
 	// This process-only rule never saves config or grants production domains access.
 	OwnedRule = Rule;
 	PolicySettings = Settings;

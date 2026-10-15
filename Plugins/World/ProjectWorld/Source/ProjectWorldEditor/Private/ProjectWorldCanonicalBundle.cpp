@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldCanonicalRefinement.h"
 #include "ProjectWorldGeometryParsing.h"
 #include "ProjectWorldWaterContractParsing.h"
 
@@ -500,6 +501,7 @@ bool FProjectWorldCanonicalLoader::Load(
 		FString TerrainFullPath;
 		FString FeatureFullPath;
 		TSharedPtr<FJsonObject> TerrainObject;
+		TSharedPtr<FJsonObject> RefinementObject;
 		TSharedPtr<FJsonObject> FeatureObject;
 		TArray<FString> DocumentFeatureIds;
 		if (TerrainDescriptor == nullptr || FeatureDescriptor == nullptr ||
@@ -509,7 +511,14 @@ bool FProjectWorldCanonicalLoader::Load(
 			!ResolveOwnedOutputPath(OutputRoot, FeaturePath, FeatureFullPath) ||
 			!LoadJsonObject(TerrainFullPath, TerrainObject, OutValidation) ||
 			!LoadJsonObject(FeatureFullPath, FeatureObject, OutValidation) ||
+			!ProjectWorldCanonicalRefinement::ResolveBase(OutputRoot, TerrainObject, RefinementObject,
+				[&Descriptors](const FString& Path, const FString& Hash, int64 Size)
+				{
+					const auto* D = Descriptors.Find(Path);
+					return D != nullptr && D->Sha256 == Hash && D->ByteSize == Size;
+				}, OutValidation) ||
 			!ParseTerrain(TerrainObject, OutBundle.GridId, Cell.CellId, OutBundle.CellQuads, Cell.Terrain, OutValidation) ||
+			!ProjectWorldCanonicalRefinement::Parse(RefinementObject, OutBundle.GridId, Cell.CellId, Cell.Terrain, OutValidation) ||
 			!ParseFeatures(
 				FeatureObject,
 				OutBundle.GridId,
@@ -565,7 +574,7 @@ bool FProjectWorldCanonicalLoader::Load(
 		}
 	}
 
-	return true;
+	return ProjectWorldCanonicalRefinement::ValidateSeams(OutBundle, OutValidation);
 }
 
 namespace ProjectWorldCanonical

@@ -46,9 +46,9 @@ EProjectTextureBundleRequest UProjectTextureRuntimeSubsystem::RequestBundle(
 		return EProjectTextureBundleRequest::Rejected;
 	}
 	auto* Catalog = Slot->Catalog.Get();
-	if (Catalog->OutputContract != TEXT("soil_structure_normal_masks_v1"))
+	if (Catalog->OutputContract != TEXT("soil_structure_normal_masks_v1") && Catalog->OutputContract!=TEXT("aggregate_signals_normal_v1"))
 	{
-		Error = TEXT("Explicit producers currently support only the complete three-output soil bundle.");
+		Error = TEXT("Explicit producers require a complete admitted soil or aggregate bundle.");
 		return EProjectTextureBundleRequest::Rejected;
 	}
 	const FString Identity = Catalog->SemanticIdentity;
@@ -56,6 +56,12 @@ EProjectTextureBundleRequest UProjectTextureRuntimeSubsystem::RequestBundle(
 	if (Producer->GetStructuralIdentity() != Identity || !Producer->Validate(Catalog, Error) || Peak <= 0)
 	{
 		if (Error.IsEmpty()) Error = TEXT("Producer does not authenticate this structural identity and allocation.");
+		++Telemetry.Failures;
+		return EProjectTextureBundleRequest::Rejected;
+	}
+	if (Peak > Catalog->BudgetBytes)
+	{
+		Error = TEXT("Producer peak reservation exceeds its catalog generation envelope.");
 		++Telemetry.Failures;
 		return EProjectTextureBundleRequest::Rejected;
 	}
@@ -96,7 +102,6 @@ EProjectTextureBundleRequest UProjectTextureRuntimeSubsystem::RequestBundle(
 			return EProjectTextureBundleRequest::Rejected;
 		}
 	}
-	Cache->SetBudgetBytes(Catalog->BudgetBytes);
 	const auto Request = Cache->Request(BundleKey(Identity), Peak, bPin, Error);
 	// Reconcile physical ownership before admitting another GPU allocation.
 	ReconcileBundles();
@@ -140,6 +145,7 @@ EProjectTextureBundleRequest UProjectTextureRuntimeSubsystem::RequestBundle(
 bool UProjectTextureRuntimeSubsystem::TickBundles(float Delta)
 {
 	if (!Cache) return true;
+	GeneratePendingOutputs();
 	for (auto& Pair : Bundles)
 	{
 		auto& B = Pair.Value;
@@ -165,9 +171,14 @@ bool UProjectTextureRuntimeSubsystem::TickBundles(float Delta)
 			}
 			const auto Sources = B.Producer->GetOutputs();
 			bool Valid = Sources.Num() == B.Targets.Num() && !Sources.IsEmpty();
+			TArray<const FProjectTextureRuntimeNodeDescriptor*> ExportDescriptors;
 			for (int32 I = 0; Valid && I < Sources.Num(); ++I)
 			{
-				const auto& N = B.Catalog->Nodes[I];
+				const auto* Slot=B.Catalog->OutputSlots[I].Get();
+				const auto* Descriptor=B.Catalog->Nodes.FindByPredicate([Slot](const auto& Node){return Slot && Node.NodeId==Slot->NodeId;});
+				if (!Descriptor) { Valid=false; break; }
+				ExportDescriptors.Add(Descriptor);
+				const auto& N = *Descriptor;
 				UE_LOG(LogProjectTextureBundles, Display, TEXT("[Bundle::Source] index=%d size=%dx%d expected=%dx%d format=%d srgb=%d resource=%d rhi=%d count=%d targets=%d same=%d"),
 					I, Sources[I] ? Sources[I]->SizeX : 0, Sources[I] ? Sources[I]->SizeY : 0,
 					N.Width, N.Height,
@@ -190,7 +201,7 @@ bool UProjectTextureRuntimeSubsystem::TickBundles(float Delta)
 			for (int32 I = 0; I < Sources.Num(); ++I)
 			{
 				auto* Target = B.Targets[I].Get();
-				const auto& N = B.Catalog->Nodes[I];
+				const auto& N = *ExportDescriptors[I];
 				Target->RenderTargetFormat = RTF_RGBA8;
 				Target->bAutoGenerateMips = true;
 				Target->AddressX = Target->AddressY = TA_Wrap;

@@ -6,6 +6,7 @@
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldRealizationService.h"
 #include "ProjectWorldRuntimeProfile.h"
+#include "ProjectWorldRuntimeNavigation.h"
 #include "ProjectWorldRuntimeRealization.h"
 #include "ProjectWorldStaticPartitionAudit.h"
 #include "Tests/ProjectWorldSchemaTestUtilities.h"
@@ -21,6 +22,7 @@
 #include "NavMesh/RecastNavMesh.h"
 #include "NavigationInvokerComponent.h"
 #include "NavigationSystem.h"
+#include <limits>
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -400,6 +402,29 @@ bool FProjectWorldStaticPartitionCellSpanTest::RunTest(const FString& Parameters
 		TEXT("Invalid bounds cannot manufacture a passing cell assignment."),
 		ProjectWorldStaticPartitionAudit::CountIntersectedCells(FBox(ForceInit), 128),
 		0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldRefinedNavigationBoundsTest,
+	"Project.World.Realization.Runtime.RefinedNavigationBounds",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldRefinedNavigationBoundsTest::RunTest(const FString&)
+{
+	FProjectWorldRuntimeProfile Profile;
+	Profile.NavigationPaddingMeters=1; Profile.NavigationHeightMeters=2;
+	FProjectWorldCanonicalBundle Bundle=ProjectWorldRuntimeTests::MakeBundle(Profile);
+	for (auto& Cell : Bundle.Cells) for (double& Height : Cell.Terrain.HeightsMeters) Height=12;
+	FBox OldBounds, Bounds; FString Error;
+	TestTrue(TEXT("Original grid bounds can be evaluated."), ProjectWorldRuntimeNavigation::GetTerritoryDomainBounds(Bundle,Profile,OldBounds,Error));
+	auto& Quad=Bundle.Cells[0].Terrain.RefinedQuads.AddDefaulted_GetRef();
+	Quad.Vertices={FVector(15,15,10)};
+	const FVector FinalPoint=FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle,Quad.Vertices[0]);
+	TestFalse(TEXT("The known-bad original bounds exclude the final low terrain."),OldBounds.IsInsideOrOn(FinalPoint));
+	TestTrue(TEXT("Final surface contributes navigation extrema."),ProjectWorldRuntimeNavigation::GetTerritoryDomainBounds(Bundle,Profile,Bounds,Error));
+	TestTrue(TEXT("Navigation contains the final surface, with configured padding."),Bounds.IsInsideOrOn(FinalPoint));
+	Quad.Vertices[0].Z=std::numeric_limits<double>::quiet_NaN();
+	TestFalse(TEXT("Unknown final height cannot manufacture navigation bounds."),ProjectWorldRuntimeNavigation::GetTerritoryDomainBounds(Bundle,Profile,Bounds,Error));
 	return true;
 }
 

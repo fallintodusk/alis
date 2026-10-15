@@ -19,6 +19,7 @@ struct FProjectMaterialSurfaceManifestRecord
 	FString PatternOutputContract;
 	FString PatternSemanticIdentity;
 	FString PatternPackageSha256;
+	TMap<FString, FString> NativeResourceHashes;
 	FString DependencyObjectPath;
 	FString DependencyPackageSha256;
 	FString TerrainLayoutReceiptSha256;

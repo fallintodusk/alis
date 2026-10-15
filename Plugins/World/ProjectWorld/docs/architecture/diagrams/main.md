@@ -21,6 +21,9 @@ flowchart LR
     Leaves -->|generated packages and manifests| Runtime
     Adapter -->|shared MPD and compiled sections| MeshPartition[Epic MeshPartition]
     Material[ProjectMaterial authority] -->|material object path, saved bytes authenticated| Adapter
+    Material -->|accepted semantic role, saved resource identity| Editor
+    Registry -->|declared reference-only capability| Presentation[Existing material slots]
+    Presentation -->|same geometry, separate adoption provenance| Runtime
     MeshPartition -->|generated package and manifest| Runtime
     Runtime -->|World Partition and streaming APIs| Unreal[Unreal runtime]
     Fixtures[ProjectWorldTestData] -->|synthetic contract inputs| Editor

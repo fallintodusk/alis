@@ -27,6 +27,11 @@
 	],
 	"Plugins": [
 		{
+			"Name": "AssetReferenceRestrictions",
+			"Enabled": true,
+			"TargetAllowList": ["Editor"]
+		},
+		{
 			"Name": "ProjectCore",
 			"Enabled": true
 		}

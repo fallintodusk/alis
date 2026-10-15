@@ -1,0 +1,40 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "7",
+  "material_id": "MI_ProjectConcrete_Default",
+  "artifact_kind": "instance",
+  "family": "surface_substrate",
+  "archetype": "aggregate_metric",
+  "compiler_version": "8",
+  "projection_frame": "world_metric_triplanar_2d",
+  "pattern": {
+    "pattern_id": "project_concrete_aggregate"
+  },
+  "semantic_bindings": [],
+  "scalars": {
+    "TileMeters": 0.8,
+    "TextureMipBias": 0,
+    "ReliefStrength": 1.5,
+    "SurfaceRoughness": 0.83,
+    "RoughnessVariation": 0.12,
+    "MacroMeters": 192,
+    "MacroContrast": 0.65,
+    "MacroRoughness": 0.06
+  },
+  "vectors": {
+    "BinderColor": [
+      0.19,
+      0.195,
+      0.2,
+      1
+    ],
+    "AggregateColor": [
+      0.28,
+      0.285,
+      0.29,
+      1
+    ]
+  },
+  "binding_id": "building.default_concrete",
+  "parent": "/ProjectMaterial/Surfaces/Aggregate/M_ProjectAggregateTriplanar.M_ProjectAggregateTriplanar"
+}

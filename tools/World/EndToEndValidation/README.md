@@ -66,6 +66,14 @@ fresh compilation, and its receipt reports those upstream proofs as absent.
 The promoted bundle omits the compiler's observational `metrics.json`; the
 canonical byte budget derives from the authenticated compile-result output
 inventory.
+
+Matrix isolation uses scratch manifest authority and an outer backup/recovery
+transaction. Generated candidate packages temporarily occupy the profile's actual
+content/package root; this is not a separate permanent city copy. The route restores
+the exact pre-run generated tree before returning, including on rejection, and
+authenticates the restoration. Do not inspect the active city tree as an accepted
+baseline during that window. Run Matrix once at its required slice boundary; use
+owner-local fixtures and live material previews for ordinary development.
 On a builder run, the child receipt records producer artifacts before the
 post-apply Mesh Partition builder. The final manifest also owns its compiled
 section artifacts. The Matrix profile records both counts. An isolated clean
@@ -79,9 +87,20 @@ omits allocation-only actor GUIDs, names, and labels from the authenticated
 saved projections. Only external actor
 package paths in the affected map and terrain scopes may be reallocated on the
 clean leg; other paths and all paths on unchanged and locality Applies stay fixed.
-The changed-path gate refuses the canonical route for source, compiler,
-execution-environment, upstream profile, control, budget, or promoted
-authority changes. Both routes require the current common Check and exact
+The changed-path gate refuses the canonical route for shared source, compiler
+or execution-environment implementation changes, and for consumed upstream
+profiles, source files, controls, budgets or promoted authority changes. The
+planner and CLI use the same selected canonical-authority input closure for
+each Matrix. A synthetic-only compiler input still invalidates L1 and Common
+Check, but does not require production source replay when the selected authority
+does not consume it. There is no TestData exemption: an authority that references
+that input requires full replay. Missing history or an unreadable authority
+input selects full replay or refusal. Promoted data under each selected authority
+owner remains conservatively protected, including newly added bundle files.
+Upstream component `tests/` edits invalidate the common proof identity rather
+than production generation; shared implementation and contract edits still
+require full replay.
+Both routes require the current common Check and exact
 generated-tree restoration.
 The canonical route does not scan or apply a budget to the unused raw-source
 cache. Its World-only check name does not claim source or compiler replay.
@@ -157,6 +176,16 @@ requires its declared profile ID to match the Matrix claim. The territory
 run must match the explicitly supplied Acceptance profile. Entries that share one
 world-data owner must resolve to the same presentation profile ID and hash;
 one world-data owner admits only one active presentation scope.
+
+Material-only adoption deliberately preserves original geometry-profile lineage.
+Acceptance supplies the pinned current presentation profile to both read-only
+authority audits. The existing World host authenticates original profile bytes,
+unchanged protected fields and accepted material destinations, then exports a
+map/scope-specific compatibility bridge. Provenance accepts a presentation-digest
+difference only through that exact original/current pair. Shared presentation
+requires evidence for every consumer. Compile, runtime, authored and map inputs,
+producer freshness and artifact integrity remain strict. This does not admit an
+ungated map or authorize regenerating geometry to update a provenance hash.
 
 For every world-data owner, explicit source and compiler paths are mandatory
 and must resolve inside the owning plugin's descriptor-derived `Data/`

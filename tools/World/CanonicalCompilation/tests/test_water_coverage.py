@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
 import jsonschema
 
-from .test_terrain_surface import CELL_ID, GRID_ID, _compiled, _overlay, _profile, _terrain
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
+
+from World.CanonicalCompilation.tests.test_terrain_surface import CELL_ID, GRID_ID, _compiled, _overlay, _profile, _terrain
 from World.CanonicalCompilation.app.contracts import CompilerError
 from World.CanonicalCompilation.app.terrain_surface import finalize_terrain_cells, water_surface_dirty_cells
 from World.CanonicalCompilation.app.terrain_water_coverage import support_bounds

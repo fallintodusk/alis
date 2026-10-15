@@ -5,6 +5,7 @@
 class UMaterialInterface;
 class UWorld;
 struct FProjectWorldCanonicalBundle;
+struct FProjectWorldCanonicalCell;
 struct FProjectWorldLayerInventory;
 struct FProjectWorldRealizationResult;
 namespace UE::Geometry
@@ -14,6 +15,10 @@ namespace UE::Geometry
 
 namespace ProjectWorldMeshTerrainProducer
 {
+	bool BuildCellMesh(const FProjectWorldCanonicalBundle& Bundle, const FProjectWorldCanonicalCell& Cell,
+		UE::Geometry::FDynamicMesh3& Mesh, FString& Error);
+	bool MatchesCellMesh(const FProjectWorldCanonicalBundle& Bundle, const FProjectWorldCanonicalCell& Cell,
+		const UE::Geometry::FDynamicMesh3& Mesh, FString& Error);
 	extern const TCHAR* SharedDefinitionObjectPath;
 	extern const FName GroundChannel;
 	extern const FName HydroTransitionChannel;

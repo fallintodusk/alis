@@ -1,14 +1,14 @@
 {
     "$schema":  "../../../ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json",
     "schema_version":  1,
-    "transaction_id":  "55cd7cfbc822435daef408e73eb21e4c",
-    "accepted_operation_id":  "55cd7cfbc822435daef408e73eb21e4c",
-    "prior_active_set_sha256":  "e2c1f747c1ba82d481b1b6cf8b9920eb9ffd677eb64eae6204c2d2ea73a69691",
+    "transaction_id":  "9d954ca2a54f4fa5ab318583831e1e12",
+    "accepted_operation_id":  "9d954ca2a54f4fa5ab318583831e1e12",
+    "prior_active_set_sha256":  "9a1a65a029ae23a2229631c8c6487a34acf939ba82018f34634dea425033ed4c",
     "scopes":  [
                    {
                        "scope_id":  "layer_kazan_territory_v1_buildings",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_buildings.22.json",
-                       "manifest_sha256":  "e2710a3a4a73c842fdf81ca2a5696b76589ebfe4eb129deb368f9c615e709443"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_buildings.24.json",
+                       "manifest_sha256":  "90d6be4839da2df720cdeef30df57a00812856fe7a8f0faeb296fcacf6d471ed"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_gameplay",
@@ -17,8 +17,8 @@
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_roads",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.23.json",
-                       "manifest_sha256":  "b7c8f8a87c643044a18cf56e26dc634e1bf3f9166221e41f54e1bc47ca2f4e71"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.25.json",
+                       "manifest_sha256":  "c171ef419ab3797674e8fb5ca65e6fe6b111876825a49e4578788615185c8c6a"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_terrain",
@@ -32,18 +32,18 @@
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_water",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.40.json",
-                       "manifest_sha256":  "a458367f8170dc253bf6edf87f7f481c0658f8bb03937220b66d123b74082508"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.42.json",
+                       "manifest_sha256":  "81f1d0478e3fd2d9174f1b03a594c714259d02a9e5bc68317be195ca6e554c8b"
                    },
                    {
                        "scope_id":  "layer_manhattan_showcase_v1_buildings",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_buildings.8.json",
-                       "manifest_sha256":  "fd64b6b46669f287bb84085dca06e38611b3304440f46ec05686e849e7aedad6"
+                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_buildings.10.json",
+                       "manifest_sha256":  "8d59a99a54bcaac20bd202d6e2d3b536295db61f1478449430d0be5f9238be32"
                    },
                    {
                        "scope_id":  "layer_manhattan_showcase_v1_roads",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_roads.8.json",
-                       "manifest_sha256":  "0b866c324fe19c14ed9fd90c50e101cf49a0b6cdd06cd4771cbe09a60258e363"
+                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_roads.10.json",
+                       "manifest_sha256":  "e8595f418e7e18be8402dd957d2e33c668018de649281bfc47543e212cec9717"
                    },
                    {
                        "scope_id":  "layer_manhattan_showcase_v1_terrain",
@@ -57,8 +57,8 @@
                    },
                    {
                        "scope_id":  "layer_manhattan_showcase_v1_water",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_water.15.json",
-                       "manifest_sha256":  "64011a17c82f48b350916cde182b29bd22f2cbae68aea04ce8baeb6806ce974b"
+                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_water.17.json",
+                       "manifest_sha256":  "6315f2ede700a2a42e9dffa84543a45f68edef48e2cc678c35167288466f6028"
                    },
                    {
                        "scope_id":  "map_showcase_manhattan_l_projectworldmanhattanshowcase",

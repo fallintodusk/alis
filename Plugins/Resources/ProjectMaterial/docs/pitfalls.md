@@ -1,5 +1,120 @@
 # ProjectMaterial pitfalls
 
+## Semantic metric preview rejected independent instance values
+
+**Symptom:** A generated terrain instance was valid, but authenticated preview
+rejected its appearance when roughness differed from the shader parent's default.
+
+**Root cause:** Preview treated every terrain family as the accepted inline
+triplanar template. Metric graph verification instead compares connected graph
+defaults, so substituting the instance recipe for the parent recipe was incorrect.
+
+**Fix:** Authenticate the actual saved parent recipe for both metric height/mask
+families, independently of edited instance values. Keep the accepted inline
+triplanar verification path scoped to its real templates.
+
+**Regression test:** `Project.Material.HeightMasks.AuthenticatedMetricSample`
+generates distinct parent/instance defaults, tunes the instance, rejects invalid
+JSON without replacing the last good consumer, reverts and validates saved assets.
+
+## Compacted-ground detail replaced terrain semantics
+
+**Symptom:** A matched river becomes brown after a full-terrain soil override, while
+the same water material over the original terrain remains green.
+
+**Root cause:** The isolated metric soil family consumes no canonical terrain channels.
+Applying it everywhere discards ground/hydro composition. Native SingleLayerWater
+also samples scene color behind water, so terrain changes affect the water result.
+The color comparison alone does not prove a geometric clearance defect.
+
+**Fix:** Use `terrain_height_masks_metric` for semantic terrain composition, reusing
+the original three detail maps and one Slab. Authenticate the native channel layout
+and retain the actual renderer channel texture and primitive context. Keep the direct
+metric family scoped to compacted-ground samples. Preserve accepted water parameters.
+
+**Regression tests:** `Project.Material.HeightMasks.SemanticTerrainRecipe` and
+`Project.Material.HeightMasks.AuthenticatedMetricSample`. Actual compiled-channel
+rendering, packaged consumption and product visual acceptance are separate checks.
+
+## A generated geometry instance repaired its usage flag in the Editor
+
+**Symptom:** A city road preview dirtied its accepted asphalt instance when Unreal
+automatically added Nanite usage. The same missing flag selects a fallback in Game.
+
+**Root cause:** The family graph and texture bindings were correct, but generation
+had not declared its vertex-factory use before compilation. In UE 5.8, constant
+instances derive their own usage flags from the parent during native updates.
+
+**Fix:** Declare Nanite use on opaque geometry parents before compilation. Use the
+normal native instance update; authenticate direct generated-bundle parent and
+instance flags, including refusal of an explicit false override. Preserve the
+real accepted triplanar preview contract, whose compiled section instances belong
+to Mesh Partition. Single Layer Water retains its non-Nanite
+geometry contract. Do not rely on Editor auto-repair or add per-instance compilers.
+
+**Regression tests:** `Project.Material.Asphalt.AuthenticatedSample` and
+`Project.Material.HeightMasks.AuthenticatedMetricSample`. City verification must
+also prove no usage warning and no dirtied generated material packages.
+
+## Fixture cleanup held packages across owner regeneration
+
+**Symptom:** An authenticated sample crashed inside native package unload at cleanup.
+
+**Root cause:** Raw package pointers survived an owner save/unload/reload and garbage
+collection. Multiple output slots could also insert the same package more than once.
+
+**Fix:** Retain unique owned package names, resolve the currently loaded packages
+at cleanup, and unload that live set. Do not pin obsolete packages across owner reload.
+
+**Regression tests:** The same two authenticated samples exercise regeneration,
+refusal, reload and normal test shutdown.
+
+## Shared helpers collided in a Unity build
+
+**Symptom:** The normal Editor build reported duplicate `Mask` helpers when
+Unreal combined aggregate and water source files. Renamed compiler files also
+failed the matching-header-first check.
+
+**Root cause:** Anonymous namespaces from separate files shared a translation
+unit, while imported expression helpers made lookup ambiguous. Adaptive builds
+of individual modified files did not exercise that combined translation unit.
+
+**Fix:** Each compiler implementation uses its own named private namespace and
+function-local imports. Each source includes its matching header first.
+
+**Regression proof:** The normal project build, with the combined material module,
+and focused authenticated aggregate/water material tests.
+
+## A material instance inherited the wrong structural source
+
+**Symptom:** A valid appearance recipe selected another compatible pattern but its
+saved instance still sampled the parent's default. World-XY recipes also parsed
+into the object projection enum, losing the declared frame in semantic identity.
+
+**Root cause:** Instance generation set scalar/vector values only, while the parser
+treated every non-triplanar spelling as object projection. Disk-only source checks
+also deferred loaded-source refusal until individual builds.
+
+**Fix:** Admit world XY explicitly. Authenticate compatible source slots, bind the
+recipe-selected textures on instances and verify effective values after reload.
+Validate every source and declared parent family before output writes or skips.
+Preview authenticates saved bindings separately from edited candidate values.
+
+**Files:** [pattern bindings](../Source/ProjectMaterialEditor/Private/ProjectMaterialPatternBindings.cpp),
+[recipe contract](../Source/ProjectMaterialEditor/Private/ProjectMaterialSurfaceRecipe.cpp),
+[generation service](../Source/ProjectMaterialEditor/Private/ProjectMaterialSurfaceGenerationService.cpp)
+and [preview authority](../Source/ProjectMaterialEditor/Private/ProjectMaterialPreviewAuthority.cpp).
+
+**Regression tests:** `Project.Material.Asphalt.AuthenticatedSample` covers shared
+parents, independent selected patterns, edited preview values, known-wrong binding
+and scalar refusal, and a later dirty source with zero earlier output writes.
+`Project.Material.Preview.LiveRecipeRevert` retains the actual accepted triplanar
+inline-source content route without forcing a production material migration.
+`Project.Material.River.AuthenticatedNativeSample` covers live JSON/MID preview and
+exact restoration on an authenticated water fixture, without a fabricated terrain
+layout dependency. The aggregate test exercises the same public fixture operation
+with an independently bound pattern and repeated parameter preview.
+
 ## A custom scratch mount had no native reference domain
 
 **Symptom:** An otherwise valid live fixture intermittently failed automatic asset
@@ -419,3 +534,21 @@ and reports both the rejection and the rollback failure.
 
 **Regression tests:** the host cases for a failed orphan deletion with recovery, in both
 the surface and pattern tests.
+
+## Adaptive unity compilation makes an aggregate helper ambiguous
+
+**Symptom:** The standard Editor build fails with C2668 on `Unit()` in the aggregate
+surface builder after the adaptive working set changes.
+
+**Root cause:** Unity compilation places the projection's anonymous-namespace helper
+and the surface builder's private helper in one translation unit. The surface builder's
+unqualified call imports both overload candidates.
+
+**Fix:** Qualify the surface helper with its owning private namespace. Do not disable
+unity compilation or change the material graph to resolve C++ name lookup.
+
+**File:** [aggregate surface builder](../Source/ProjectMaterialEditor/Private/ProjectMaterialAggregateSurface.cpp).
+
+**Regression proof:** the standard Editor build reproduces C2668 and then succeeds
+with the qualified call. `Project.Material.Aggregate.TriplanarContract` exercises
+the retained material projection contract.

@@ -2,6 +2,8 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectTexturePatternRecipe.h"
+#include "ProjectTextureGradedParticleControls.h"
+#include "ProjectTextureParticleControls.h"
 
 #include "Dom/JsonObject.h"
 #include "Misc/EngineVersion.h"
@@ -70,6 +72,8 @@ bool ReadNodes(
 	int32 Seed,
 	const FString& ResolutionClass,
 	bool bSoil,
+	bool bAggregate,
+	bool bGraded,
 	TArray<FProjectTexturePatternNode>& OutNodes,
 	FString& OutError)
 {
@@ -127,7 +131,14 @@ bool ReadNodes(
 			(Node.Algorithm == TEXT("soil_clump_structure_native") && Node.OutputLayout == TEXT("soil_height_clump_grain_rgb_v1") && Node.Parents.IsEmpty()) ||
 			(Node.Algorithm == TEXT("soil_normal_native") && Node.OutputLayout == TEXT("soil_normal_rgb_v1") && Node.Parents.Num() == 1) ||
 			(Node.Algorithm == TEXT("soil_masks_native") && Node.OutputLayout == TEXT("soil_cavity_roughness_pigment_rgb_v1") && Node.Parents.Num() == 1));
-		if (bSoil ? !bSoilNode : (!bBasis && !bGround))
+		const bool bAggregateNode=bAggregate && ((Node.Algorithm==TEXT("particle_signals_native") && Node.OutputLayout==TEXT("aggregate_height_pigment_roughness_rgb_v1") && Node.Parents.IsEmpty()) ||
+			(Node.Algorithm==TEXT("aggregate_normal_native") && Node.OutputLayout==TEXT("aggregate_normal_rgb_v1") && Node.Parents.Num()==1));
+		const bool bGradedNode=bGraded && (
+			(Node.Algorithm==TEXT("graded_particles_native") && Node.OutputLayout==TEXT("soil_raw_height_occupancy_grain_rgb_v1") && Node.Parents.IsEmpty()) ||
+			(Node.Algorithm==TEXT("graded_filter_native") && Node.OutputLayout==TEXT("soil_height_clump_grain_rgb_v1") && Node.Parents.Num()==1) ||
+			(Node.Algorithm==TEXT("soil_normal_native") && Node.OutputLayout==TEXT("soil_normal_rgb_v1") && Node.Parents.Num()==1) ||
+			(Node.Algorithm==TEXT("soil_masks_native") && Node.OutputLayout==TEXT("soil_cavity_roughness_pigment_rgb_v1") && Node.Parents.Num()==1));
+		if (bGraded ? !bGradedNode : bAggregate ? !bAggregateNode : bSoil ? !bSoilNode : (!bBasis && !bGround))
 		{
 			OutError = TEXT("Runtime node uses an unsupported algorithm, layout, or parent cardinality.");
 			return false;
@@ -151,13 +162,15 @@ bool ReadExports(
 	const TSharedPtr<FJsonObject>& Root,
 	const TArray<FProjectTexturePatternNode>& Nodes,
 	bool bSoil,
+	bool bAggregate,
+	bool bGraded,
 	TArray<FProjectTexturePatternExport>& OutExports,
 	FString& OutError)
 {
 	const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
-	const TArray<FString> Slots = bSoil ? TArray<FString>{TEXT("Structure"), TEXT("Normal"), TEXT("Masks")}
+	const TArray<FString> Slots = bAggregate ? TArray<FString>{TEXT("Signals"),TEXT("Normal")} : (bSoil || bGraded) ? TArray<FString>{TEXT("Structure"), TEXT("Normal"), TEXT("Masks")}
 		: TArray<FString>{TEXT("Structure")};
-	const TArray<FString> Layouts = bSoil ? TArray<FString>{TEXT("soil_height_clump_grain_rgb_v1"),
+	const TArray<FString> Layouts = bAggregate ? TArray<FString>{TEXT("aggregate_height_pigment_roughness_rgb_v1"),TEXT("aggregate_normal_rgb_v1")} : (bSoil || bGraded) ? TArray<FString>{TEXT("soil_height_clump_grain_rgb_v1"),
 		TEXT("soil_normal_rgb_v1"), TEXT("soil_cavity_roughness_pigment_rgb_v1")}
 		: TArray<FString>{TEXT("surface_structure_rgb_v1")};
 	if (!Root->TryGetArrayField(TEXT("exports"), Values) || !Values || Values->Num() != Slots.Num())
@@ -195,6 +208,18 @@ bool ReadExports(
 		OutError = TEXT("Soil requires one coherent structure parent and its two derived outputs.");
 		return false;
 	}
+	if (bAggregate && (Nodes.Num()!=2 || Nodes[0].OutputLayout!=Layouts[0] || Nodes[1].OutputLayout!=Layouts[1] ||
+		Nodes[0].NodeId!=TEXT("aggregate_signals") || Nodes[1].NodeId!=TEXT("aggregate_normal") ||
+		OutExports[0].NodeId!=Nodes[0].NodeId || OutExports[1].NodeId!=Nodes[1].NodeId || Nodes[1].Parents!=TArray<FString>{Nodes[0].NodeId}))
+	{
+		OutError=TEXT("Aggregate requires a signals parent and its coherent normal output."); return false;
+	}
+	if (bGraded && (Nodes.Num()!=4 || Nodes[0].Algorithm!=TEXT("graded_particles_native") ||
+		Nodes[1].Algorithm!=TEXT("graded_filter_native") || Nodes[2].Algorithm!=TEXT("soil_normal_native") ||
+		Nodes[3].Algorithm!=TEXT("soil_masks_native") || Nodes[1].Parents!=TArray<FString>{Nodes[0].NodeId} ||
+		Nodes[2].Parents!=TArray<FString>{Nodes[1].NodeId} || Nodes[3].Parents!=TArray<FString>{Nodes[1].NodeId} ||
+		OutExports[0].NodeId!=Nodes[1].NodeId || OutExports[1].NodeId!=Nodes[2].NodeId || OutExports[2].NodeId!=Nodes[3].NodeId))
+	{ OutError=TEXT("Graded particles require a private raw stage and three coherent filtered exports."); return false; }
 	return true;
 }
 
@@ -206,6 +231,7 @@ FString Normalize(const FProjectTexturePatternRecipe& Recipe)
 		*Recipe.SchemaVersion, *Recipe.PatternId, *Recipe.CatalogId, *Recipe.Family, *Recipe.Algorithm,
 		*Recipe.CompilerVersion, *Recipe.OutputContract, Recipe.Seed,
 		*Recipe.ResolutionClass, *Recipe.RelativeFolder);
+	Result += ProjectTextureParticleControls::Normalize(Recipe.StructureControls);
 	for (const FProjectTexturePatternNode& Node : Recipe.Nodes)
 	{
 		Result += FString::Printf(TEXT("|node:%s:%s:%s:%s"), *Node.NodeId, *Node.Algorithm,
@@ -240,7 +266,7 @@ bool FProjectTexturePatternRecipeContract::Parse(
 	if (!ValidateFields(Root,
 		{TEXT("$schema"), TEXT("schema_version"), TEXT("pattern_id"), TEXT("catalog_id"),
 		 TEXT("family"), TEXT("compiler_version"), TEXT("output_contract"), TEXT("seed"),
-		 TEXT("resolution_class"), TEXT("nodes"), TEXT("exports")},
+		 TEXT("resolution_class"), TEXT("nodes"), TEXT("exports"), TEXT("structure")},
 		TEXT("pattern recipe"), OutError))
 	{
 		return false;
@@ -269,7 +295,11 @@ bool FProjectTexturePatternRecipeContract::Parse(
 		OutRecipe.CompilerVersion == TEXT("6") && OutRecipe.OutputContract == TEXT("soil_structure_normal_masks_v1");
 	const bool bTerrain = Schema == SchemaVersion && OutRecipe.Family == Family &&
 		OutRecipe.CompilerVersion == CompilerVersion && OutRecipe.OutputContract == OutputContract;
-	if (SchemaPath != TEXT("../../Schemas/pattern-recipe.schema.json") || (!bSoil && !bTerrain) ||
+	const bool bAggregate=Schema==TEXT("6") && OutRecipe.Family==TEXT("aggregate_surface") && OutRecipe.CompilerVersion==TEXT("8") &&
+		OutRecipe.OutputContract==TEXT("aggregate_signals_normal_v1") && Seed<=255 && OutRecipe.ResolutionClass==TEXT("medium");
+	const bool bGraded=Schema==TEXT("7") && OutRecipe.Family==TEXT("graded_particles") && OutRecipe.CompilerVersion==TEXT("9") &&
+		OutRecipe.OutputContract==TEXT("soil_structure_normal_masks_v1") && Seed<=255 && OutRecipe.ResolutionClass==TEXT("medium");
+	if (SchemaPath != TEXT("../../Schemas/pattern-recipe.schema.json") || (!bSoil && !bTerrain && !bAggregate && !bGraded) ||
 		!IsSafeIdentifier(OutRecipe.PatternId) || !IsSafeIdentifier(OutRecipe.CatalogId) ||
 		!OutRecipe.CatalogId.StartsWith(TEXT("DA_")) ||
 		(OutRecipe.ResolutionClass != TEXT("low") && OutRecipe.ResolutionClass != TEXT("medium") &&
@@ -278,13 +308,39 @@ bool FProjectTexturePatternRecipeContract::Parse(
 		OutError = TEXT("Pattern recipe uses an unsupported schema, identity, family, output, or resolution.");
 		return false;
 	}
+	if (bGraded ? !ProjectTextureGradedParticleControls::Parse(Root,OutRecipe.StructureControls,OutError) :
+		bAggregate ? !ProjectTextureParticleControls::Parse(Root,OutRecipe.StructureControls,OutError) : Root->HasField(TEXT("structure")))
+	{
+		if (OutError.IsEmpty()) OutError=TEXT("Structural controls are not admitted by this pattern family.");
+		return false;
+	}
 	OutRecipe.SchemaVersion = Schema;
-	OutRecipe.Algorithm = Algorithm;
+	OutRecipe.Algorithm = bGraded ? TEXT("graded_particles_native") : Algorithm;
 	OutRecipe.Seed = static_cast<int32>(Seed);
-	if (!ReadNodes(Root, OutRecipe.Seed, OutRecipe.ResolutionClass, bSoil, OutRecipe.Nodes, OutError) ||
-		!ReadExports(Root, OutRecipe.Nodes, bSoil, OutRecipe.Exports, OutError))
+	if (!ReadNodes(Root, OutRecipe.Seed, OutRecipe.ResolutionClass, bSoil, bAggregate, bGraded, OutRecipe.Nodes, OutError) ||
+		!ReadExports(Root, OutRecipe.Nodes, bSoil, bAggregate, bGraded, OutRecipe.Exports, OutError))
 	{
 		return false;
+	}
+
+	if (bAggregate || bGraded)
+	{
+		FString FilterIdentity;
+		if (bGraded && !ProjectTextureGradedParticleControls::NativeFilterIdentity(FilterIdentity,OutError)) return false;
+		FString Parent;
+		TMap<FString,FString> ConsumedParents;
+		for (int32 I=0;I<OutRecipe.Nodes.Num();++I)
+		{
+			auto& N=OutRecipe.Nodes[I];
+			if (bGraded)
+			{
+				Parent.Reset();
+				for (const auto& P : N.Parents) Parent+=ConsumedParents.FindChecked(P);
+			}
+			N.StructuralIdentity=ComputeStringSha256(N.StructuralIdentity+ProjectTextureParticleControls::Normalize(OutRecipe.StructureControls)+Parent+(I==1 ? FilterIdentity : FString()));
+			ConsumedParents.Add(N.NodeId,N.StructuralIdentity);
+			Parent=N.StructuralIdentity;
+		}
 	}
 
 	FString AbsoluteRoot = FPaths::ConvertRelativePathToFull(RecipeRoot);
@@ -305,6 +361,7 @@ bool FProjectTexturePatternRecipeContract::Parse(
 	}
 	OutRecipe.SourcePath = RelativePath.Replace(TEXT("\\"), TEXT("/"));
 	OutRecipe.NormalizedSemantics = Normalize(OutRecipe);
+	if (bGraded) OutRecipe.NormalizedSemantics+=TEXT("|native_filter_stage=")+OutRecipe.Nodes[1].StructuralIdentity;
 	OutRecipe.RecipeSha256 = ComputeStringSha256(OutRecipe.NormalizedSemantics);
 	return OutRecipe.RecipeSha256.Len() == 64 &&
 		FProjectSha256::HashNormalizedText(Json, OutRecipe.RecipeSourceSha256);

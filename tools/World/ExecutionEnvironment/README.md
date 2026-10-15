@@ -36,3 +36,18 @@ canonical-grid water membership; its executable hash is part of the lock.
 Downloaded runtimes and receipts stay under ignored
 `tmp/world/execution_environment/` storage and are not ALIS redistributable
 payloads.
+
+## Native geometry boundary
+
+`api.partition_triangles` and `api.validate_triangle_cover` use the GEOS C API
+already pinned in the toolchain lock. The adapter verifies the installation,
+owns a reentrant context and releases geometries and its DLL search-directory
+handle. It exposes polygon partition, constrained triangulation and geometric
+coverage validation, without Water, terrain, feature or quality policy. Native
+failure is explicit; there is no unconstrained triangulation fallback or second
+dependency installation.
+
+Native tools and capability probes use disconnected standard input. Editor
+processes can inherit an invalid Windows stdin handle; forwarding it to a child
+process can fail before any native operation. The exact detached-handle
+regression is `tests/test_native_process.py`.

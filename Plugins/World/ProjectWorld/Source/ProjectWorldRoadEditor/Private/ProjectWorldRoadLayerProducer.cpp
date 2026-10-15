@@ -18,6 +18,7 @@ FProjectWorldRoadLayerProducer& FProjectWorldRoadLayerProducer::Get()
 FProjectWorldRoadLayerProducer::FProjectWorldRoadLayerProducer()
 {
 	Declaration.GeneratorId = TEXT("project_road_mesh");
+	Declaration.PresentationMaterialRole = TEXT("road");
 	Declaration.GeneratorVersion = 1;
 	Declaration.CanonicalSelectors = {TEXT("roads")};
 	Declaration.SpatialOwnership = TEXT("cell_local");
@@ -65,6 +66,8 @@ bool FProjectWorldRoadLayerProducer::CaptureArtifacts(const FProjectWorldLayerAp
 	FString& OutError) const
 {
 	TSet<FString> ExpectedCells;
+	UMaterialInterface* const* Material=Context.PresentationMaterials.Find(TEXT("road"));
+	UMaterialInterface* Expected=Material ? *Material : nullptr;
 	for (const FProjectWorldCanonicalCell& Cell : Context.Inputs.Bundle.Cells)
 	{
 		bool bExpected = false;
@@ -101,6 +104,9 @@ bool FProjectWorldRoadLayerProducer::CaptureArtifacts(const FProjectWorldLayerAp
 		else if (It->bEnableAutoLODGeneration) Failure = TEXT("actor permits HLOD generation");
 		else if (It->GetHLODLayer() != nullptr) Failure = TEXT("actor has an HLOD layer");
 		else if (Component->CanEverAffectNavigation()) Failure = TEXT("road affects navigation");
+		else if (Expected && (Mesh->GetStaticMaterials().IsEmpty() ||
+			Mesh->GetStaticMaterials()[0].MaterialInterface!=Expected || Component->GetMaterial(0)!=Expected))
+			Failure=TEXT("saved or effective road material differs from the resolved presentation binding");
 		if (!Failure.IsEmpty())
 		{
 			OutError = FString::Printf(TEXT("Persistent road ownership is invalid for cell %s: %s"),

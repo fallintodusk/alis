@@ -2,7 +2,9 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectTextureRuntimeAssetBuilder.h"
+#include "ProjectTextureGradedParticleBuilder.h"
 #include "ProjectTextureSoilBuilder.h"
+#include "ProjectTextureAggregateBuilder.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditingLibrary.h"
@@ -248,8 +250,12 @@ bool ProjectTextureRuntimeAssetBuilder::Build(
 {
 	using namespace ProjectTextureRuntimeAssetBuilderPrivate;
 	OutAsset = nullptr;
+	if (Recipe.Family == TEXT("graded_particles"))
+		return ProjectTextureGradedParticleBuilder::Build(Recipe,PackageName,OutAsset,OutError);
 	if (Recipe.OutputContract == TEXT("soil_structure_normal_masks_v1"))
 		return ProjectTextureSoilBuilder::Build(Recipe, PackageName, OutAsset, OutError);
+	if (Recipe.OutputContract == TEXT("aggregate_signals_normal_v1"))
+		return ProjectTextureAggregateBuilder::Build(Recipe, PackageName, OutAsset, OutError);
 	UPackage* Package = CreatePackage(*PackageName);
 	if (Package == nullptr || Recipe.Nodes.Num() != 2 || Recipe.Exports.Num() != 1)
 	{
@@ -335,8 +341,12 @@ bool ProjectTextureRuntimeAssetBuilder::Verify(
 	FString& OutError)
 {
 	using namespace ProjectTextureRuntimeAssetBuilderPrivate;
+	if (Recipe.Family == TEXT("graded_particles"))
+		return ProjectTextureGradedParticleBuilder::Verify(Recipe,Asset,OutError);
 	if (Recipe.OutputContract == TEXT("soil_structure_normal_masks_v1"))
 		return ProjectTextureSoilBuilder::Verify(Recipe, Asset, OutError);
+	if (Recipe.OutputContract == TEXT("aggregate_signals_normal_v1"))
+		return ProjectTextureAggregateBuilder::Verify(Recipe, Asset, OutError);
 	UTextureRenderTarget2D* Target = Cast<UTextureRenderTarget2D>(Asset);
 	const UProjectTextureOutputSlot* Slot = Target != nullptr
 		? Cast<UProjectTextureOutputSlot>(Target->GetAssetUserDataOfClass(UProjectTextureOutputSlot::StaticClass()))

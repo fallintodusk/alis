@@ -38,11 +38,6 @@
         "family",
         "archetype",
         "compiler_version",
-        "pattern_id",
-        "pattern_object_path",
-        "pattern_output_contract",
-        "pattern_semantic_identity",
-        "pattern_package_sha256",
         "output_object_path",
         "semantic_identity",
         "package_sha256",
@@ -72,13 +67,19 @@
             "terrain_metric",
             "terrain_detail_metric",
             "object_metric",
-            "soil_uv"
+            "height_masks_uv",
+            "single_layer_water",
+            "aggregate_metric",
+            "height_masks_metric",
+            "terrain_height_masks_metric"
           ]
         },
         "compiler_version": {
           "enum": [
             "5",
-            "6"
+            "8",
+            "9",
+            "10"
           ]
         },
         "pattern_id": {
@@ -92,7 +93,8 @@
         "pattern_output_contract": {
           "enum": [
             "surface_structure_rgb_v1",
-            "soil_structure_normal_masks_v1"
+            "soil_structure_normal_masks_v1",
+            "aggregate_signals_normal_v1"
           ]
         },
         "pattern_semantic_identity": {
@@ -126,6 +128,17 @@
         "engine_compatibility": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "native_resources": {
+          "type": "object",
+          "minProperties": 4,
+          "maxProperties": 4,
+          "additionalProperties": {
+            "$ref": "#/$defs/sha256"
+          },
+          "propertyNames": {
+            "pattern": "^/(Engine|Water)/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+          }
         }
       },
       "dependentRequired": {
@@ -135,7 +148,66 @@
         "dependency_package_sha256": [
           "dependency_object_path"
         ]
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "archetype": {
+                "const": "single_layer_water"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "native_resources"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "pattern_id"
+                  ]
+                },
+                {
+                  "required": [
+                    "pattern_object_path"
+                  ]
+                },
+                {
+                  "required": [
+                    "pattern_output_contract"
+                  ]
+                },
+                {
+                  "required": [
+                    "pattern_semantic_identity"
+                  ]
+                },
+                {
+                  "required": [
+                    "pattern_package_sha256"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "pattern_id",
+              "pattern_object_path",
+              "pattern_output_contract",
+              "pattern_semantic_identity",
+              "pattern_package_sha256"
+            ],
+            "not": {
+              "required": [
+                "native_resources"
+              ]
+            }
+          }
+        }
+      ]
     }
   }
 }

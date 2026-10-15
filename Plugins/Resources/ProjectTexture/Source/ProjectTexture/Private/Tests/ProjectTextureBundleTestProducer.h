@@ -12,9 +12,11 @@ class UProjectTextureBundleTestProducer final : public UProjectTextureBundleProd
 public:
 	FString Identity;
 	int32 Starts = 0;
+	int64 PeakBytes = 1024 * 1024;
 	bool bOmitSibling = false;
+	int32 OutputSize = 8;
 	virtual FString GetStructuralIdentity() const override { return Identity; }
-	virtual int64 GetPeakBytes() const override { return 1024 * 1024; }
+	virtual int64 GetPeakBytes() const override { return PeakBytes; }
 	virtual bool Validate(const UProjectTextureRuntimeCatalog* Catalog, FString& Error) const override;
 	virtual bool Begin(FString& Error) override;
 	virtual EProjectTextureProducerState Poll(float Delta, FString& Error) override;

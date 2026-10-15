@@ -4,6 +4,7 @@
 #include "ProjectWorldMeshTerrainAuditCommandlet.h"
 
 #include "ProjectWorldMeshTerrainProducer.h"
+#include "ProjectWorldMeshTerrainSurfaceFidelity.h"
 #include "ProjectWorldMeshTerrainTransformer.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldTerrainRuntimeRole.h"
@@ -46,6 +47,7 @@ namespace
 		FString Actor;
 		FBoxSphereBounds Bounds;
 		TArray<FVector> Vertices;
+		TArray<FIntVector> Triangles;
 	};
 
 	struct FHeightProbeResult
@@ -82,6 +84,7 @@ namespace
 		TMap<FIntPoint, double> ExpectedHeights;
 		for (const FProjectWorldCanonicalCell& Cell : Bundle.Cells)
 		{
+			if (!Cell.Terrain.RefinedQuads.IsEmpty()) continue;
 			for (int32 Row = 0; Row < Cell.Terrain.SamplesY; ++Row)
 			{
 				for (int32 Column = 0; Column < Cell.Terrain.SamplesX; ++Column)
@@ -233,7 +236,7 @@ namespace
 	bool BuildSurfaceProbe(
 		const AActor* Section,
 		const UStaticMeshComponent* Component,
-		FSurfaceProbe& OutProbe)
+		FSurfaceProbe& OutProbe, bool bIncludeTriangles)
 	{
 		const UStaticMesh* Mesh = Component != nullptr ? Component->GetStaticMesh() : nullptr;
 		const FStaticMeshRenderData* RenderData = Mesh != nullptr ? Mesh->GetRenderData() : nullptr;
@@ -254,6 +257,11 @@ namespace
 		{
 			OutProbe.Vertices.Add(Component->GetComponentTransform().TransformPosition(
 				FVector(Positions.VertexPosition(Index))));
+		}
+		if (bIncludeTriangles)
+		{
+			const auto Indices = RenderData->LODResources[0].IndexBuffer.GetArrayView();
+			for (int32 I=0; I+2<Indices.Num(); I+=3) OutProbe.Triangles.Add(FIntVector(Indices[I],Indices[I+1],Indices[I+2]));
 		}
 		return true;
 	}
@@ -348,6 +356,7 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 	TArray<TSharedPtr<FJsonValue>> BaseIdentityTags;
 	TArray<FSurfaceProbe> NaniteSurfaces;
 	TArray<FSurfaceProbe> FallbackSurfaces;
+	const bool bHasRefinements = Bundle.Cells.ContainsByPredicate([](const auto& C) { return !C.Terrain.RefinedQuads.IsEmpty(); });
 	int32 PartitionCount = 0;
 	for (TActorIterator<UE::MeshPartition::AMeshPartition> It(World); It; ++It)
 	{
@@ -389,7 +398,7 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 				StaticMeshes.AddUnique(Mesh);
 				FSurfaceProbe Probe;
 				if ((Variant == TEXT("nanite") || Variant == TEXT("fallback")) &&
-					BuildSurfaceProbe(Section, Component, Probe))
+					BuildSurfaceProbe(Section, Component, Probe, bHasRefinements))
 				{
 					(Variant == TEXT("nanite") ? NaniteSurfaces : FallbackSurfaces).Add(MoveTemp(Probe));
 				}
@@ -487,6 +496,21 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 		Bundle, NaniteSurfaces, HeightToleranceCentimeters);
 	const FHeightProbeResult FallbackHeight = CompareCanonicalHeights(
 		Bundle, FallbackSurfaces, HeightToleranceCentimeters);
+	FProjectWorldMeshTerrainSurfaceFidelity RefinedNanite, RefinedFallback;
+	const auto CompareRefined = [&](const TArray<FSurfaceProbe>& Surfaces, FProjectWorldMeshTerrainSurfaceFidelity& Result)
+	{
+		TArray<FProjectWorldSurfaceTriangle> Faces;
+		for (const auto& Surface : Surfaces) for (const auto& Triangle : Surface.Triangles)
+		{
+			if (!Surface.Vertices.IsValidIndex(Triangle.X) || !Surface.Vertices.IsValidIndex(Triangle.Y) || !Surface.Vertices.IsValidIndex(Triangle.Z)) return false;
+			Faces.Add(FProjectWorldSurfaceTriangle{{FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,Surface.Vertices[Triangle.X]),
+				FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,Surface.Vertices[Triangle.Y]),
+				FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,Surface.Vertices[Triangle.Z])}});
+		}
+		return ProjectWorldMeshTerrainProducer::CompareRefinedSurface(Bundle,Faces,HeightToleranceCentimeters*0.01,Result,Error);
+	};
+	if (bHasRefinements && (!CompareRefined(NaniteSurfaces,RefinedNanite) || !CompareRefined(FallbackSurfaces,RefinedFallback)))
+		Failures.Add(TEXT("Compiled refinement fidelity failed: ") + Error);
 	if (NaniteHeight.MismatchedSamples > 0 ||
 		NaniteHeight.MatchedSamples != NaniteHeight.ExpectedSamples)
 	{
@@ -639,6 +663,12 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 	Receipt->SetNumberField(TEXT("fallback_height_matched_samples"), FallbackHeight.MatchedSamples);
 	Receipt->SetNumberField(TEXT("fallback_height_mismatched_samples"), FallbackHeight.MismatchedSamples);
 	Receipt->SetNumberField(TEXT("fallback_height_maximum_error_cm"), FallbackHeight.MaximumErrorCentimeters);
+	Receipt->SetNumberField(TEXT("refined_nanite_expected_triangles"),RefinedNanite.ExpectedTriangles);
+	Receipt->SetNumberField(TEXT("refined_nanite_mismatched_triangles"),RefinedNanite.MismatchedTriangles);
+	Receipt->SetNumberField(TEXT("refined_nanite_maximum_height_error_cm"),RefinedNanite.MaximumErrorMeters*100);
+	Receipt->SetNumberField(TEXT("refined_fallback_expected_triangles"),RefinedFallback.ExpectedTriangles);
+	Receipt->SetNumberField(TEXT("refined_fallback_mismatched_triangles"),RefinedFallback.MismatchedTriangles);
+	Receipt->SetNumberField(TEXT("refined_fallback_maximum_height_error_cm"),RefinedFallback.MaximumErrorMeters*100);
 	Receipt->SetArrayField(TEXT("sections"), SectionsJson);
 	TArray<TSharedPtr<FJsonValue>> BuilderArtifacts;
 	for (const TSharedPtr<FJsonValue>& SectionValue : SectionsJson)

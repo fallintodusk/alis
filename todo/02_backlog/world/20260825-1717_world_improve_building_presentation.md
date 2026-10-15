@@ -1,53 +1,30 @@
 # Improve Generated Building Presentation
 
-Status: researched; isolated massing prototype captured; implementation not selected
+Status: material scope implemented and adopted; final packaged acceptance is
+coordinated by [World Surface Presentation](../../00_current/20261008-1543_world_improve_surface_materials.md).
+This retained research record is not a parallel implementation task.
 
-Current sequencing: the active World Surface Presentation concern permits isolated
-building samples independently of soil approval. A textureless neutral Substrate
-Slab instance shares its parent with the road sample; matched BasicShape massing
-controls show lit wall/roof readability. These proxies do not establish generated
-building appearance or select a production implementation. City visual evaluation
-and material-assignment locality proof remain required.
+## Implemented scope
 
-## Current evidence
+- D48's delegated visual judgment accepts Concrete Macro192 for default building
+  massing in Kazan and Manhattan. ProjectMaterial owns its authenticated recipe,
+  shared triplanar aggregate family and semantic binding; ProjectTexture owns the
+  shared generated Signals/Normal bundle and cache.
+- The existing reference-only transaction updates 312 Building mesh material
+  slots without mesh builds, actor writes or geometry changes. Cold reload/replay
+  retains source/render/Nanite/collision identities and writes nothing.
+- Both-city saved-binding PIE views and motion retain fine relief and broad
+  variation. These are simple concrete masses, not facades, windows, district
+  styles, landmarks or additional sourced building semantics.
+- D43's separate winding correction is an accepted geometry baseline. Material
+  changes do not repeat that rollout or canonical compilation.
 
-- Kazan currently realizes `project_building_massing:v2` as cell-owned Nanite
-  StaticMeshes while its presentation profile selects Unreal's debug
-  `VertexColorMaterial`.
-- The active v2 producer already consumes logical buildings and effective
-  volumes, including admitted `building:part` geometry. The earlier v1
-  part-admission limitation is superseded and must not be carried forward.
-- `ProjectWorldBuildingRealization::Apply()` can leave a geometry-current mesh
-  untouched before material reassignment. A future material-only change needs
-  its own assignment/locality proof rather than forcing geometry dirty.
-- ProjectMaterial provides terrain/object families and an isolated soil fixture;
-  it does not yet provide a reusable building-massing material.
+## Remaining boundary
 
-The old package census and visual captures are not current authority. Recount
-the active manifests and capture a fresh control before implementation.
+Exact final packaged city material cost and gameplay collision, including the
+retained Manhattan fallback sample, remain with the current presentation concern
+and release plan. No separate building-material implementation remains here.
 
-## Accepted candidate
-
-The smallest retained candidate is one universal, textureless Default-Lit
-building-massing material owned by ProjectMaterial and selected through a
-ProjectWorld semantic binding. It may improve wall/roof readability, but it
-must not invent facade, district, landmark, roof-shape, or height semantics.
-
-Keep canonical footprints, effective volumes, heights, generated geometry,
-cell ownership, Nanite, collision, actor identity, and manifest semantics
-unchanged. Kazan is the first fixture, never a reusable-code branch.
-
-## Remaining acceptance
-
-1. Select this concern against the other presentation backlog work.
-2. Recount active Building artifacts and capture matched player, oblique, and
-   aerial control views.
-3. Add focused tests proving material assignment on both geometry mutation and
-   geometry no-op paths without rebuilding unchanged mesh descriptions.
-4. Generate and authenticate the reusable material through ProjectMaterial;
-   ProjectWorld owns only binding, validation, and assignment.
-5. Prove visual improvement, unchanged geometry/authority, package-size impact,
-   and the fixed packaged frame budget before promotion.
-
-Start from [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture/README.md)
-and [ProjectMaterial](../../../Plugins/Resources/ProjectMaterial/README.md).
+Stable owners: [ProjectWorld architecture](../../../Plugins/World/ProjectWorld/docs/architecture/README.md),
+[material generation](../../../Plugins/Resources/ProjectMaterial/docs/material_generation.md)
+and [pattern generation](../../../Plugins/Resources/ProjectTexture/docs/pattern_generation.md).

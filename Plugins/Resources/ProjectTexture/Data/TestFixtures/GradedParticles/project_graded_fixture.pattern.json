@@ -1,0 +1,47 @@
+{
+  "$schema": "../../Schemas/pattern-recipe.schema.json",
+  "schema_version": "7",
+  "pattern_id": "project_graded_fixture",
+  "catalog_id": "DA_ProjectGradedFixture",
+  "family": "graded_particles",
+  "compiler_version": "9",
+  "output_contract": "soil_structure_normal_masks_v1",
+  "seed": 0,
+  "resolution_class": "medium",
+  "structure": {
+    "PatchFrequency": 4,
+    "MicroFrequency": 128,
+    "LargeFrequency": 16,
+    "MediumFrequency": 32,
+    "SmallFrequency": 64,
+    "GrainFrequency": 128,
+    "BaseMicroHeight": 0.055,
+    "FacetStrength": 0.95,
+    "LargeProfile": 0.38,
+    "MediumProfile": 0.42,
+    "SmallProfile": 0.55,
+    "GrainProfile": 0.8,
+    "LargeDensity": 0.14,
+    "MediumDensity": 0.48,
+    "SmallDensity": 0.72,
+    "GrainDensity": 0.48,
+    "LargeHeight": 0.42,
+    "MediumHeight": 0.30,
+    "SmallHeight": 0.18,
+    "GrainHeight": 0.11,
+    "EdgeMicroHeight": 0.04,
+    "AggregateSurfaceGrain": 0.055,
+    "RaisedGrainHeight": 0.075
+  },
+  "nodes": [
+    {"node_id": "graded_raw", "algorithm": "graded_particles_native", "parents": [], "output_layout": "soil_raw_height_occupancy_grain_rgb_v1"},
+    {"node_id": "graded_structure", "algorithm": "graded_filter_native", "parents": ["graded_raw"], "output_layout": "soil_height_clump_grain_rgb_v1"},
+    {"node_id": "graded_normal", "algorithm": "soil_normal_native", "parents": ["graded_structure"], "output_layout": "soil_normal_rgb_v1"},
+    {"node_id": "graded_masks", "algorithm": "soil_masks_native", "parents": ["graded_structure"], "output_layout": "soil_cavity_roughness_pigment_rgb_v1"}
+  ],
+  "exports": [
+    {"slot": "Structure", "node_id": "graded_structure", "descriptor_id": "RT_ProjectGradedStructure"},
+    {"slot": "Normal", "node_id": "graded_normal", "descriptor_id": "RT_ProjectGradedNormal"},
+    {"slot": "Masks", "node_id": "graded_masks", "descriptor_id": "RT_ProjectGradedMasks"}
+  ]
+}

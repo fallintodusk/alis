@@ -10,6 +10,7 @@ struct FProjectWorldRealizationProfile;
 struct FProjectWorldRealizationResult;
 class AActor;
 class UWorld;
+class UMaterialInterface;
 
 namespace ProjectWorldWaterRealization
 {
@@ -19,7 +20,8 @@ namespace ProjectWorldWaterRealization
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRealizationProfile& Profile,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError);
+		FString& OutError,
+		UMaterialInterface* PreparedMaterial=nullptr);
 
 	bool ReadActorIdentity(
 		const AActor* Actor,

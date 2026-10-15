@@ -133,6 +133,12 @@ namespace ProjectWorldRuntimeNavigation
 				MinimumHeightMeters = FMath::Min(MinimumHeightMeters, HeightMeters);
 				MaximumHeightMeters = FMath::Max(MaximumHeightMeters, HeightMeters);
 			}
+			for (const auto& Quad : Cell.Terrain.RefinedQuads) for (const FVector& Vertex : Quad.Vertices)
+			{
+				if (Vertex.ContainsNaN()) { OutError = TEXT("Final terrain navigation bounds contain nonfinite refinement."); return false; }
+				MinimumHeightMeters = FMath::Min(MinimumHeightMeters, Vertex.Z);
+				MaximumHeightMeters = FMath::Max(MaximumHeightMeters, Vertex.Z);
+			}
 			OutBounds += FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle, FVector(Cell.Bounds.X, Cell.Bounds.Y, 0.0));
 			OutBounds += FProjectWorldCanonicalLoader::CanonicalToUnreal(

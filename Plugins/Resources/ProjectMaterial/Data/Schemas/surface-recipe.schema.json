@@ -342,7 +342,7 @@
       ]
     },
     {
-      "title": "ProjectMaterial isolated soil UV v5",
+      "title": "ProjectMaterial isolated soil UV v7",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -364,7 +364,7 @@
           "const": "../../Schemas/surface-recipe.schema.json"
         },
         "schema_version": {
-          "const": "5"
+          "const": "7"
         },
         "material_id": {
           "type": "string",
@@ -384,10 +384,10 @@
           "const": "surface_substrate"
         },
         "archetype": {
-          "const": "soil_uv"
+          "const": "height_masks_uv"
         },
         "compiler_version": {
-          "const": "6"
+          "const": "8"
         },
         "parent": {
           "type": "string",
@@ -473,6 +473,880 @@
               "$ref": "#/$defs/color"
             },
             "GrainColor": {
+              "$ref": "#/$defs/color"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_kind": {
+                "const": "parent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "material_id": {
+                "pattern": "^M_(?!I_)[A-Za-z0-9_]+$"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parent"
+                  ]
+                },
+                {
+                  "required": [
+                    "binding_id"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "parent",
+              "binding_id"
+            ],
+            "properties": {
+              "material_id": {
+                "pattern": "^MI_[A-Za-z0-9_]+$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "ProjectMaterial native river v7",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema_version",
+        "material_id",
+        "artifact_kind",
+        "family",
+        "archetype",
+        "compiler_version",
+        "projection_frame",
+        "semantic_bindings",
+        "scalars",
+        "vectors"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "../../Schemas/surface-recipe.schema.json"
+        },
+        "schema_version": {
+          "const": "7"
+        },
+        "material_id": {
+          "type": "string",
+          "pattern": "^M(I)?_[A-Za-z0-9_]+$"
+        },
+        "artifact_kind": {
+          "enum": [
+            "parent",
+            "instance"
+          ]
+        },
+        "binding_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "family": {
+          "const": "surface_substrate"
+        },
+        "archetype": {
+          "const": "single_layer_water"
+        },
+        "compiler_version": {
+          "const": "8"
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^/ProjectMaterial/Surfaces/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "projection_frame": {
+          "const": "world_metric_xy_2d"
+        },
+        "semantic_bindings": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "scalars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "SurfaceRoughness",
+            "WaterSpecular",
+            "WaterPhaseG",
+            "RippleTileMeters",
+            "RippleSpeed",
+            "RippleStrength",
+            "LiveTimeEnabled",
+            "PreviewSeconds"
+          ],
+          "properties": {
+            "SurfaceRoughness": {
+              "type": "number",
+              "minimum": 0.02,
+              "maximum": 1
+            },
+            "WaterSpecular": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "WaterPhaseG": {
+              "type": "number",
+              "minimum": -0.99,
+              "maximum": 0.99
+            },
+            "RippleTileMeters": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 100
+            },
+            "RippleSpeed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "RippleStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "LiveTimeEnabled": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1
+            },
+            "PreviewSeconds": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0
+            }
+          }
+        },
+        "vectors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "WaterAlbedo",
+            "WaterExtinction",
+            "WaterSurfaceColor",
+            "BehindWaterScale"
+          ],
+          "properties": {
+            "WaterAlbedo": {
+              "$ref": "#/$defs/color"
+            },
+            "WaterExtinction": {
+              "$ref": "#/$defs/color"
+            },
+            "WaterSurfaceColor": {
+              "$ref": "#/$defs/color"
+            },
+            "BehindWaterScale": {
+              "$ref": "#/$defs/color"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_kind": {
+                "const": "parent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "material_id": {
+                "pattern": "^M_(?!I_)[A-Za-z0-9_]+$"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parent"
+                  ]
+                },
+                {
+                  "required": [
+                    "binding_id"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "parent",
+              "binding_id"
+            ],
+            "properties": {
+              "material_id": {
+                "pattern": "^MI_[A-Za-z0-9_]+$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "ProjectMaterial Aggregate PBR Recipe v7",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema_version",
+        "material_id",
+        "artifact_kind",
+        "family",
+        "archetype",
+        "compiler_version",
+        "projection_frame",
+        "pattern",
+        "semantic_bindings",
+        "scalars",
+        "vectors"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "../../Schemas/surface-recipe.schema.json"
+        },
+        "schema_version": {
+          "const": "7"
+        },
+        "material_id": {
+          "type": "string",
+          "pattern": "^M(I)?_[A-Za-z0-9_]+$"
+        },
+        "artifact_kind": {
+          "enum": [
+            "parent",
+            "instance"
+          ]
+        },
+        "binding_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "family": {
+          "const": "surface_substrate"
+        },
+        "archetype": {
+          "const": "aggregate_metric"
+        },
+        "compiler_version": {
+          "const": "8"
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^/ProjectMaterial/Surfaces/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "projection_frame": {
+          "enum": ["world_metric_xy_2d", "world_metric_triplanar_2d"]
+        },
+        "semantic_bindings": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "scalars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "TileMeters",
+            "TextureMipBias",
+            "ReliefStrength",
+            "SurfaceRoughness",
+            "RoughnessVariation",
+            "MacroMeters",
+            "MacroContrast",
+            "MacroRoughness"
+          ],
+          "properties": {
+            "TileMeters": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 10
+            },
+            "TextureMipBias": {
+              "type": "number",
+              "minimum": -2,
+              "maximum": 2
+            },
+            "ReliefStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "SurfaceRoughness": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            },
+            "RoughnessVariation": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MacroMeters": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "MacroContrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MacroRoughness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "vectors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "BinderColor",
+            "AggregateColor"
+          ],
+          "properties": {
+            "BinderColor": {
+              "$ref": "#/$defs/color"
+            },
+            "AggregateColor": {
+              "$ref": "#/$defs/color"
+            }
+          }
+        },
+        "pattern": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pattern_id"
+          ],
+          "properties": {
+            "pattern_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_kind": {
+                "const": "parent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "material_id": {
+                "pattern": "^M_(?!I_)[A-Za-z0-9_]+$"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parent"
+                  ]
+                },
+                {
+                  "required": [
+                    "binding_id"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "parent",
+              "binding_id"
+            ],
+            "properties": {
+              "material_id": {
+                "pattern": "^MI_[A-Za-z0-9_]+$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "ProjectMaterial metric height-mask composition v8",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema_version",
+        "material_id",
+        "artifact_kind",
+        "family",
+        "archetype",
+        "compiler_version",
+        "projection_frame",
+        "pattern",
+        "semantic_bindings",
+        "scalars",
+        "vectors"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "../../Schemas/surface-recipe.schema.json"
+        },
+        "schema_version": {
+          "const": "8"
+        },
+        "material_id": {
+          "type": "string",
+          "pattern": "^M(I)?_[A-Za-z0-9_]+$"
+        },
+        "artifact_kind": {
+          "enum": [
+            "parent",
+            "instance"
+          ]
+        },
+        "binding_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "family": {
+          "const": "surface_substrate"
+        },
+        "archetype": {
+          "const": "height_masks_metric"
+        },
+        "compiler_version": {
+          "const": "9"
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^/ProjectMaterial/Surfaces/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "projection_frame": {
+          "const": "world_metric_xy_2d"
+        },
+        "pattern": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pattern_id"
+          ],
+          "properties": {
+            "pattern_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            }
+          }
+        },
+        "semantic_bindings": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "scalars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "BaseRoughness",
+            "PatternScaleMeters",
+            "BumpHeightCentimeters",
+            "RoughnessStrength",
+            "AOInfluence",
+            "GrainColorStrength",
+            "MacroScaleMeters",
+            "MacroBlendStartMeters",
+            "MacroBlendEndMeters",
+            "NearMacroStrength",
+            "FarMacroStrength",
+            "MacroRoughnessStrength",
+            "AggregatePigmentStrength",
+            "SecondaryScaleRatio",
+            "CompositionContrast",
+            "CompositionStrength"
+          ],
+          "properties": {
+            "BaseRoughness": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            },
+            "PatternScaleMeters": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 10
+            },
+            "BumpHeightCentimeters": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "RoughnessStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "AOInfluence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "GrainColorStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MacroScaleMeters": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1000
+            },
+            "MacroBlendStartMeters": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "MacroBlendEndMeters": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 10000
+            },
+            "NearMacroStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "FarMacroStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MacroRoughnessStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "AggregatePigmentStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "SecondaryScaleRatio": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 16
+            },
+            "CompositionContrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "CompositionStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "vectors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "SoilDarkColor",
+            "SoilLightColor",
+            "GrainColor"
+          ],
+          "properties": {
+            "SoilDarkColor": {
+              "$ref": "#/$defs/color"
+            },
+            "SoilLightColor": {
+              "$ref": "#/$defs/color"
+            },
+            "GrainColor": {
+              "$ref": "#/$defs/color"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_kind": {
+                "const": "parent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "material_id": {
+                "pattern": "^M_(?!I_)[A-Za-z0-9_]+$"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parent"
+                  ]
+                },
+                {
+                  "required": [
+                    "binding_id"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "parent",
+              "binding_id"
+            ],
+            "properties": {
+              "material_id": {
+                "pattern": "^MI_[A-Za-z0-9_]+$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "ProjectMaterial semantic metric terrain v9",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "schema_version",
+        "material_id",
+        "artifact_kind",
+        "family",
+        "archetype",
+        "compiler_version",
+        "projection_frame",
+        "pattern",
+        "semantic_bindings",
+        "scalars",
+        "vectors"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "../../Schemas/surface-recipe.schema.json"
+        },
+        "schema_version": {
+          "const": "9"
+        },
+        "material_id": {
+          "type": "string",
+          "pattern": "^M(I)?_[A-Za-z0-9_]+$"
+        },
+        "artifact_kind": {
+          "enum": [
+            "parent",
+            "instance"
+          ]
+        },
+        "binding_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "family": {
+          "const": "surface_substrate"
+        },
+        "archetype": {
+          "const": "terrain_height_masks_metric"
+        },
+        "compiler_version": {
+          "const": "10"
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^/ProjectMaterial/Surfaces/[A-Za-z0-9_/]+\\.[A-Za-z0-9_]+$"
+        },
+        "projection_frame": {
+          "const": "world_metric_xy_2d"
+        },
+        "pattern": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pattern_id"
+          ],
+          "properties": {
+            "pattern_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            }
+          }
+        },
+        "semantic_bindings": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {
+              "const": "ground"
+            },
+            {
+              "const": "hydro_transition"
+            }
+          ],
+          "items": false
+        },
+        "scalars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "BaseRoughness",
+            "PatternScaleMeters",
+            "BumpHeightCentimeters",
+            "RoughnessStrength",
+            "AOInfluence",
+            "GrainColorStrength",
+            "MacroScaleMeters",
+            "MacroBlendStartMeters",
+            "MacroBlendEndMeters",
+            "NearMacroStrength",
+            "FarMacroStrength",
+            "MacroRoughnessStrength",
+            "AggregatePigmentStrength",
+            "SecondaryScaleRatio",
+            "CompositionContrast",
+            "CompositionStrength",
+            "HydroDarkening"
+          ],
+          "properties": {
+            "BaseRoughness": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            },
+            "PatternScaleMeters": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 10
+            },
+            "BumpHeightCentimeters": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "RoughnessStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "AOInfluence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "GrainColorStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MacroScaleMeters": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1000
+            },
+            "MacroBlendStartMeters": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "MacroBlendEndMeters": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 10000
+            },
+            "NearMacroStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "FarMacroStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "MacroRoughnessStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "AggregatePigmentStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "SecondaryScaleRatio": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 16
+            },
+            "CompositionContrast": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "CompositionStrength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "HydroDarkening": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "vectors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "SoilDarkColor",
+            "SoilLightColor",
+            "GrainColor",
+            "HydroTint"
+          ],
+          "properties": {
+            "SoilDarkColor": {
+              "$ref": "#/$defs/color"
+            },
+            "SoilLightColor": {
+              "$ref": "#/$defs/color"
+            },
+            "GrainColor": {
+              "$ref": "#/$defs/color"
+            },
+            "HydroTint": {
               "$ref": "#/$defs/color"
             }
           }

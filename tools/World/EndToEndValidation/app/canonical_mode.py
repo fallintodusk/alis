@@ -4,6 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from .profile_inputs import ProfileInputError, profile_input_files
+
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -16,6 +18,7 @@ UPSTREAM_ROOTS = (
     "tools/World/CanonicalCompilation/",
     "tools/World/ExecutionEnvironment/",
 )
+UPSTREAM_TEST_ROOTS = tuple(root + "tests/" for root in UPSTREAM_ROOTS)
 UPSTREAM_DATA_PARTS = (
     ("Data", "Profiles", "SourceIngestion"),
     ("Data", "Profiles", "CanonicalCompilation"),
@@ -65,17 +68,46 @@ def _validation_profile_upstream_changed(path: str, base: str | None, repo_root:
 
 
 def upstream_replay_required(
-    paths: list[str], base: str | None = None, repo_root: Path = REPO_ROOT
+    paths: list[str], base: str | None = None, repo_root: Path = REPO_ROOT,
+    *, validation_profile: Path | None = None,
 ) -> bool:
+    authority_inputs = None
+    canonical_roots = ()
+    if validation_profile is not None and base is not None:
+        try:
+            profile_path = validation_profile.resolve().relative_to(repo_root.resolve()).as_posix()
+            if _validation_profile_upstream_changed(profile_path, base, repo_root):
+                return True
+            authority_inputs = frozenset(
+                path.relative_to(repo_root.resolve()).as_posix()
+                for path in profile_input_files(validation_profile, repo_root, canonical_only=True)
+            )
+            document = json.loads(validation_profile.read_text(encoding="utf-8"))
+            owners = {
+                settings["world_data_plugin"] for settings in document["profiles"].values()
+                if settings.get("canonical_authority") is True
+            }
+            if any(not isinstance(owner, str) or Path(owner).name != owner for owner in owners):
+                return True
+            canonical_roots = tuple(f"Plugins/World/{owner}/Data/Canonical/" for owner in owners)
+        except (ProfileInputError, OSError, ValueError, KeyError, TypeError, AttributeError):
+            return True
     for path in paths:
         normalized = path.replace("\\", "/")
-        if normalized.startswith(UPSTREAM_ROOTS) and not normalized.endswith(".md"):
+        if (normalized.startswith(UPSTREAM_ROOTS) and not normalized.endswith(".md")
+                and not normalized.startswith(UPSTREAM_TEST_ROOTS)):
+            return True
+        if authority_inputs is not None and (
+            normalized in authority_inputs and normalized != profile_path
+            or normalized.startswith(canonical_roots)
+        ):
             return True
         parts = tuple(normalized.split("/"))
         if len(parts) >= 5 and parts[:2] == ("Plugins", "World"):
             relative = parts[3:]
             if any(relative[:len(prefix)] == prefix for prefix in UPSTREAM_DATA_PARTS):
-                return True
+                if authority_inputs is None:
+                    return True
             if relative[:3] == ("Data", "Profiles", "EndToEndValidation") and normalized.endswith(".validation.json"):
                 if _validation_profile_upstream_changed(normalized, base, repo_root):
                     return True
@@ -83,9 +115,14 @@ def upstream_replay_required(
 
 
 def require_world_only_changes(
-    paths: list[str], base: str | None = None, repo_root: Path = REPO_ROOT
+    paths: list[str], base: str | None = None, repo_root: Path = REPO_ROOT,
+    *, validation_profile: Path | None = None,
 ) -> None:
-    upstream = sorted(path for path in paths if upstream_replay_required([path], base, repo_root))
+    if not upstream_replay_required(paths, base, repo_root, validation_profile=validation_profile):
+        return
+    upstream = sorted(path for path in paths if upstream_replay_required(
+        [path], base, repo_root, validation_profile=validation_profile,
+    ))
     if upstream:
         raise CanonicalModeError(
             "Changed source or canonical inputs require the full Matrix: " + ", ".join(upstream)

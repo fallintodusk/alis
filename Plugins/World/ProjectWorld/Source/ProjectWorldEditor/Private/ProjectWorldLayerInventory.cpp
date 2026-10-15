@@ -206,7 +206,8 @@ namespace ProjectWorldLayerInventory
 		const FProjectWorldRealizationProfile& Profile,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+		const TMap<FName,UMaterialInterface*>& PresentationMaterials)
 	{
 		TArray<const IProjectWorldLayerProducer*> Producers;
 		if (World == nullptr || !ProjectWorldLayerProducerRegistry::GetAll(Producers, OutError))
@@ -214,9 +215,9 @@ namespace ProjectWorldLayerInventory
 			if (OutError.IsEmpty()) OutError = TEXT("Cannot capture layers without an editor world.");
 			return false;
 		}
-		const TMap<FName, UMaterialInterface*> EmptyMaterials;
 		for (const FString& LayerId : Profile.TopologicalLayerIds)
 		{
+			if (!OutResult.ExecutionLayerIds.IsEmpty() && !OutResult.ExecutionLayerIds.Contains(LayerId)) continue;
 			const FProjectWorldRealizationLayer* Layer = Profile.Layers.FindByPredicate(
 				[&LayerId](const FProjectWorldRealizationLayer& Candidate)
 				{ return Candidate.LayerId == LayerId; });
@@ -246,7 +247,7 @@ namespace ProjectWorldLayerInventory
 			Inventory->Artifacts.Reset();
 			const FProjectWorldLayerInputs Inputs{Bundle, Profile, *Layer, AuthoredOverlaySet};
 			const FProjectWorldLayerApplyContext Context{
-				*World, Inputs, Inventory->FinalDirtyUnits, EmptyMaterials};
+				*World, Inputs, Inventory->FinalDirtyUnits, PresentationMaterials};
 			if (!(*Producer)->CaptureArtifacts(Context, *Inventory, OutResult, OutError))
 			{
 				return false;

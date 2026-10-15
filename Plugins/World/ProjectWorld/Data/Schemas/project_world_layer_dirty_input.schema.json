@@ -4,20 +4,44 @@
   "title": "ProjectWorld Layer Dirty Operation Input",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schema_version", "realization_profile_id", "producer_fingerprints", "base_layers", "identity_dirty_layers", "operator_additions"],
+  "required": [
+    "$schema",
+    "schema_version",
+    "realization_profile_id",
+    "producer_fingerprints",
+    "base_layers",
+    "identity_dirty_layers",
+    "operator_additions"
+  ],
   "properties": {
-    "$schema": {"type": "string", "pattern": "project_world_layer_dirty_input\\.schema\\.json$"},
-    "schema_version": {"const": 2},
-    "realization_profile_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "$schema": {
+      "type": "string",
+      "pattern": "project_world_layer_dirty_input\\.schema\\.json$"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "realization_profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
     "producer_fingerprints": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["layer_id", "generator_fingerprint"],
+        "required": [
+          "layer_id",
+          "generator_fingerprint"
+        ],
         "properties": {
-          "layer_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-          "generator_fingerprint": {"$ref": "#/$defs/sha256"}
+          "layer_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "generator_fingerprint": {
+            "$ref": "#/$defs/sha256"
+          }
         }
       }
     },
@@ -26,13 +50,24 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["layer_id", "normalized_layer_contract_sha256", "canonical_inputs"],
+        "required": [
+          "layer_id",
+          "normalized_layer_contract_sha256",
+          "canonical_inputs"
+        ],
         "properties": {
-          "layer_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-          "normalized_layer_contract_sha256": {"$ref": "#/$defs/sha256"},
+          "layer_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "normalized_layer_contract_sha256": {
+            "$ref": "#/$defs/sha256"
+          },
           "canonical_inputs": {
             "type": "array",
-            "items": {"$ref": "#/$defs/input"}
+            "items": {
+              "$ref": "#/$defs/input"
+            }
           }
         }
       }
@@ -40,35 +75,118 @@
     "identity_dirty_layers": {
       "type": "array",
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[a-z0-9_]+$"}
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$"
+      }
     },
     "operator_additions": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["layer_id", "units"],
+        "required": [
+          "layer_id",
+          "units"
+        ],
         "properties": {
-          "layer_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "layer_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
           "units": {
             "type": "array",
             "minItems": 1,
             "uniqueItems": true,
-            "items": {"type": "string", "minLength": 1}
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
+      }
+    },
+    "material_reference_artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "layer_id",
+          "artifacts"
+        ],
+        "properties": {
+          "layer_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "kind",
+                "digest",
+                "semantic_sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^Plugins/[A-Za-z0-9_./ -]+\\.uasset$"
+                },
+                "kind": {
+                  "enum": [
+                    "asset",
+                    "external_actor"
+                  ]
+                },
+                "digest": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "semantic_sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "material_reference_changed_roles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "road",
+          "building",
+          "water"
+        ]
       }
     }
   },
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
     "input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["unit_id", "sha256"],
+      "required": [
+        "unit_id",
+        "sha256"
+      ],
       "properties": {
-        "unit_id": {"type": "string", "minLength": 1},
-        "sha256": {"$ref": "#/$defs/sha256"}
+        "unit_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
       }
     }
   }

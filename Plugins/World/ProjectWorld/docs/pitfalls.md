@@ -851,8 +851,31 @@ compiler and realization profiles.
 vertical order, authored-patch order, clearance, and dry-Terrain locality;
 `Project.World.Realization.Layers.PersistentWater` pins the metric offset and
 Water geometry contract;
+`Project.World.Water.CoplanarRibbonComposition` pins native equal-plane union,
+final quantized disjointness, holes, seams, source provenance and height preservation;
 `scripts/ue/world/test/water_temporal_stability.ps1` rejects repeated-pose Water pixel
 classification flips and color drift.
+
+**Additional cause: overlapping ribbon caps.** A single Water actor can contain
+multiple coplanar surfaces when independent buffered flow branches are appended.
+An actor/asset duplicate census cannot detect this. Equal constant-plane footprints
+are composed by the Water cell builder through native polygon union; different or
+nonconstant height functions remain explicit unresolved cases. Inspect final
+triangles, not just source actor counts. MeshPartition's virtual-texture fallback
+component is also not a second visible terrain plane: native setup disables its
+main pass, depth pass, ray-tracing visibility and shadows. Verify those actual flags
+before deleting an apparent duplicate component.
+
+**Additional cause: PIE authoring/compiled overlap.** Native MeshProviderModifier
+marks its DynamicMeshComponent Editor-only, but that flag does not hide the PIE
+copy. Coincident authoring and compiled surfaces can produce identical sampled
+depths while their shading competes during camera motion. Equal depth therefore
+does not exclude double drawing. The Mesh Terrain partition hides only its tagged
+source actors' Editor-only primitives at Game-world startup and registration.
+`Project.World.Realization.MeshTerrain.AuthoringVisibility` covers the native
+provider default, Game/PIE suppression, Editor preservation, late registration,
+unrelated/runtime primitive exclusion and listener cleanup. Use matched moving
+views and renderer-isolation controls, not only actor/asset duplicate keys.
 
 ---
 
@@ -1392,8 +1415,12 @@ reversing polygon instance order alone is insufficient. Canonical geometry,
 positions/bounds, actor tag domains and unrelated layers retain their contracts.
 Do not compensate with inverted material normals or a Two Sided material.
 
-**Files.** `Source/ProjectWorldBuildingEditor/Private/ProjectWorldBuildingMeshBuilder.cpp`
-and `Source/ProjectWorldBuildingEditor/Private/ProjectWorldBuildingRealization.cpp`.
+**Files.** `Source/ProjectWorldBuildingEditor/Private/ProjectWorldBuildingMeshBuilder.cpp`,
+`Source/ProjectWorldBuildingEditor/Private/ProjectWorldBuildingRealization.cpp`,
+`Data/Producers/project_building_massing.json`, and its normalized saved-output
+baseline under `Data/TestFixtures/Verify/`. The cell identity and declared producer
+revision must both reflect changed emission; changing only the cell digest leaves
+incorrect producer attribution.
 
 **Regression tests.** `Project.World.Realization.Buildings.ExteriorFacing`
 requires all twelve cube triangles and native/stored normal agreement.
@@ -1401,3 +1428,149 @@ requires all twelve cube triangles and native/stored normal agreement.
 wall/roof depth, shader normals and a rejected away-facing camera in a transient
 fixture. Existing production outputs require their separately authorized affected
 building update; a fixture PASS does not mutate or certify those outputs.
+
+## 48. Water updates require a broad save without owned actor persistence
+
+**Symptom.** Selected Road/Water/Vegetation execution writes Water meshes but
+refuses at the shared World save guard, despite unchanged canonical inputs.
+
+**Root cause.** Water updated external actors without saving their packages or
+reporting self-saved mutations. Broad orchestration had previously supplied the
+missing persistence step; a clean selected no-op did not exercise this defect.
+
+**Fix.** The Water owner saves each changed external actor through Unreal's native
+package writer before reporting success, using the established Road/Building
+pattern. Failed saves refuse; the shared-map guard stays intact. Unchanged
+semantics still write nothing. This does not change canonical water functions.
+
+**File.** `Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterRealization.cpp`.
+**Regression.** `Project.World.Water.PreparedPresentation` requires owned actor
+persistence. Selected changed-output acceptance must include actual mesh/actor
+saves, child rejection with byte-exact rollback, cold replay and zero-write no-op;
+an unchanged selected fixture alone cannot prove that persistence boundary.
+
+## 49. Water preparation context changes output without dirtying its cell
+
+**Symptom.** Changing another cell's reference to a shared Water feature changes
+triangles in an existing cell, while incremental planning keeps that cell clean.
+
+**Root cause.** Native CDT preparation clips each feature to the combined bounds
+of its consuming cells before triangulation. Hashing only the local cell and
+feature omits a consumed input; identical feature coordinates do not imply an
+identical prepared triangulation.
+
+**Fix.** Water realization and input hashing share the feature preparation-domain
+calculation. Each valid consumed feature contributes those bounds to the unit
+identity. Unconsumed features and other-cell membership changes preserving the
+domain do not invalidate the unit; its own consumed membership remains an input.
+The persisted unit-input identity is an output contract. Its correction advances
+Water's declared output revision and the affected Water/Pipeline verify baselines,
+even when saved geometry projections remain equal. It requires Water-only
+revalidation at the appropriate acceptance boundary; it does not change canonical
+authority or justify regenerating unrelated layers.
+
+**Files.** `Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterSourceContext.h`,
+`ProjectWorldWaterLayerProducer.cpp` and `ProjectWorldWaterRealization.cpp`.
+
+**Regression tests.** `Project.World.Water.PreparationDomainIdentity` witnesses a
+native geometry change and its input-identity change, with unchanged-context
+controls. `Project.World.Realization.Layers.WaterPreparationDomain` exercises the
+actual planner under unchanged shared contracts/fingerprints, selecting the
+affected Water cell and leaving Terrain clean. `Project.World.Water.SourceEmissionReplay`
+authenticates native replay against saved source descriptions without Apply.
+
+## 50. A physical Water material invalidates a debug-color visibility oracle
+
+**Symptom.** A valid dark or green river fails a temporal gate that recognizes only
+blue BaseColor, or two empty captures appear stable and are mistaken for Water proof.
+
+**Root cause.** Single Layer Water appearance comes from physical scattering and
+reflection; the accepted material's BaseColor is black. Albedo is not a geometry
+label. Clear depth can also match between captures, while synchronous fixture
+captures do not establish that newly created scene state has rendered across frames.
+
+**Fix.** Use paired full-scene and identified-Water native HDR/depth capture views,
+float alpha readback and a shared projection. Bound candidates by Water geometry
+and keep clear depth outside those bounds. Encode numeric visible-Water masks,
+reject membership changes and retain actual materials. Keep normal FinalColor
+inspection separate. Exact coplanar duplicates still need geometry/renderer proof.
+
+**Files.** `Source/ProjectWorld/Private/Presentation/ProjectWorldWaterVisibilityCapture.cpp`,
+`ProjectWorldRuntimeScreenshotCapture.cpp`, `ProjectWorldShippingWaterProofGate.cpp`,
+and `scripts/ue/world/test/water_temporal_stability.ps1`.
+
+**Regression.** `Project.World.Presentation.WaterVisibilityCapture` uses native
+latent frame progression and real RiverCalm. It checks stable coverage, empty
+background, an opaque occluder, a 0.05 cm competitor, membership refusal/recovery,
+unchanged binding and settled same-tick capture startup. The verifier's Pester
+tests reject colored beauty pixels, visibility flips and a stable empty mask.
+
+## 51. Whole-feature classification misses emitted horizontal Water overlaps
+
+**Symptom.** Two ribbons produce coincident horizontal faces in a cell although
+one source has a slope elsewhere, so the constant-feature union leaves them both.
+
+**Root cause.** A globally nonconstant source can emit a local plateau. Compatibility
+must be evaluated on final geometry as well as on whole-feature input classification.
+
+**Fix.** The Water owner groups final horizontal triangles by exact float height,
+unions their XY coverage and checks native constrained-triangulation success.
+Measure emitted float positions with double subtraction/cross products; float
+products can erase the area of a valid long thin face. Check native tessellation
+coverage separately, then bound emission-area drift by the actual coordinate
+rounding errors. Reject collapsed or reversed faces before replacement. Preserve holes, true slopes,
+unequal heights and every input source identity. Failure leaves the original
+description unchanged; disjoint geometry is a byte-preserving no-op. Advance the
+owning output revision and verifier identities before affected-output acceptance.
+Do not snap unequal planes or reinterpret mixed plateau-transition contacts as
+proven source connectivity. Pre-composition feature triangle ranges are historical
+attribution evidence, not final composed triangle ranges.
+
+**Files.** `Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterHorizontalComposition.cpp`
+and `ProjectWorldWaterCellMesh.cpp`.
+
+**Regression.** `Project.World.Water.LocalPlateauComposition` reproduces the
+feature-wide classification defect. `Project.World.Water.HorizontalPieces` checks
+holes, shared borders, retained slopes, float coverage, no-op identity and invalid
+input refusal. `Project.World.Water.HorizontalFloatPrecision` rejects the
+known-bad float-area calculation on a valid thin face.
+`Project.World.Water.CompositionCandidateReplay` authenticates selected city inputs,
+requires a nonempty candidate and measures qualified exact-horizontal overlaps
+without changing saved geometry. `Project.World.Water.CityCandidateCensus` builds
+all city Water candidates in memory and compares saved triangle positions/order;
+it verifies package-byte/dirty-state preservation and reports affected scope,
+not persistence or final rendered acceptance.
+`Project.World.Water.CoplanarRibbonComposition` retains the original
+constant-feature composition controls. Saved production outputs need their own
+transactional revalidation; fixture success does not promote them.
+
+## 52. Grid-corner checks cannot certify a refined terrain interior
+
+**Symptom.** Canonical grid samples match while a narrow Water footprint remains
+above the actual triangulated ground, or a final-surface probe reports no faces
+although compiled rendering and collision hit them.
+
+**Root cause.** Sparse replacement can change a quad's interior without moving
+its original corners. Placement must query the replacement triangles, and
+compiled acceptance must measure full coverage and affine interior heights.
+For a projected spatial probe, native 3D box intersection also rejects boxes
+with zero Z thickness; a flat XY tree needs a 2D overlap predicate.
+
+**Fix.** Load the canonical final representation once, refuse missing replacement
+coverage, retain bilinear placement outside selected quads, and include final
+vertices in navigation bounds and fixture identity. Check complete source
+topology/weights and compiled triangle intersections. Use native XY box
+intersection for broad-phase pruning. Verify actual Nanite/fallback pixels and
+collision separately; CPU fallback data alone does not prove Nanite rendering.
+
+**Files.** `Source/ProjectWorldEditor/Private/ProjectWorldCanonicalRefinement.cpp`,
+`ProjectWorldGeneratedGeometry.cpp`, `ProjectWorldRuntimeNavigation.cpp`, and
+`ProjectWorldMeshTerrain`'s `ProjectWorldMeshTerrainSurfaceFidelity.cpp`.
+
+**Regression.** `Project.World.Terrain.RefinedQueries` distinguishes nonplanar
+triangle interpolation from bilinear interpolation and rejects authenticated
+coverage, weight, duplicate-vertex and cracked-edge controls.
+`Project.World.Realization.MeshTerrain.RefinedSurface` rejects stale/missing/
+duplicate faces, checks actual compiled buffers, renders both proxy types and
+measures collision. `Project.World.Realization.Runtime.RefinedNavigationBounds`
+rejects bounds derived from the original grid alone.

@@ -119,7 +119,7 @@ bool FProjectMaterialPatternAuthorityTest::RunTest(const FString& Parameters)
 			ProjectMaterialPatternAuthorityTests::Manifest(
 				SemanticIdentity, PackageSha256, EngineCompatibility),
 			*ManifestPath));
-	FProjectMaterialPatternDependency Dependency;
+	FProjectMaterialSurfaceDependency Dependency;
 	TestTrue(TEXT("Pattern ID resolves through the accepted manifest and package bytes."),
 		FProjectMaterialPatternAuthority::Resolve(
 			Recipe.PatternId, ManifestPath, TEXT("/ProjectTexture"), ContentRoot, Dependency, Error));

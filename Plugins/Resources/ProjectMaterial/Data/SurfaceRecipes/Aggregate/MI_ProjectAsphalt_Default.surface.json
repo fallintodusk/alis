@@ -1,0 +1,40 @@
+{
+  "$schema": "../../Schemas/surface-recipe.schema.json",
+  "schema_version": "7",
+  "material_id": "MI_ProjectAsphalt_Default",
+  "artifact_kind": "instance",
+  "family": "surface_substrate",
+  "archetype": "aggregate_metric",
+  "compiler_version": "8",
+  "projection_frame": "world_metric_xy_2d",
+  "pattern": {
+    "pattern_id": "project_road_aggregate"
+  },
+  "semantic_bindings": [],
+  "scalars": {
+    "TileMeters": 0.32,
+    "TextureMipBias": 0,
+    "ReliefStrength": 0.7,
+    "SurfaceRoughness": 0.86,
+    "RoughnessVariation": 0.18,
+    "MacroMeters": 32,
+    "MacroContrast": 0.3,
+    "MacroRoughness": 0.06
+  },
+  "vectors": {
+    "BinderColor": [
+      0.045,
+      0.046,
+      0.045,
+      1
+    ],
+    "AggregateColor": [
+      0.056,
+      0.058,
+      0.056,
+      1
+    ]
+  },
+  "binding_id": "road.default_asphalt",
+  "parent": "/ProjectMaterial/Surfaces/Aggregate/M_ProjectAggregateSurface.M_ProjectAggregateSurface"
+}

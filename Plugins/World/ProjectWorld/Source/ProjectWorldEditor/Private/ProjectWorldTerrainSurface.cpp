@@ -77,6 +77,18 @@ namespace ProjectWorldTerrainSurface
 			FProjectWorldCanonicalLoader::TerrainRowNorthing(T, Y), T.HeightsMeters[Y * T.SamplesX + X]); };
 		for (int32 Y = Y0; Y <= Y1; ++Y) for (int32 X = X0; X <= X1; ++X)
 		{
+			const auto* Quad = T.RefinedQuads.FindByPredicate([&](const auto& Q) { return Q.Coordinate == FIntPoint(X, Y); });
+			if (Quad != nullptr)
+			{
+				if (Quad->Triangles.IsEmpty()) { Error = TEXT("Refined terrain has no replacement coverage."); return false; }
+				for (const FIntVector& Face : Quad->Triangles)
+				{
+					if (!Quad->Vertices.IsValidIndex(Face.X) || !Quad->Vertices.IsValidIndex(Face.Y) || !Quad->Vertices.IsValidIndex(Face.Z))
+					{ Error = TEXT("Refined terrain triangle index is invalid."); return false; }
+					Out.Add(FProjectWorldSurfaceTriangle{{Quad->Vertices[Face.X], Quad->Vertices[Face.Y], Quad->Vertices[Face.Z]}});
+				}
+				continue;
+			}
 			const FVector A = Point(X, Y), B = Point(X + 1, Y), C = Point(X, Y + 1), D = Point(X + 1, Y + 1);
 			Out.Add(FProjectWorldSurfaceTriangle{{A, C, B}});
 			Out.Add(FProjectWorldSurfaceTriangle{{B, C, D}});

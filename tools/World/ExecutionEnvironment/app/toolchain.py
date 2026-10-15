@@ -137,6 +137,7 @@ def run_tool(repo_root: Path, tool: str, arguments: list[str]) -> str:
         [str(executable), *arguments],
         cwd=repo_root,
         env=env,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -175,6 +176,7 @@ def _probe_components(repo_root: Path, lock: dict[str, Any], install_root: Path)
             [str(executable), *component["version_probe"]],
             cwd=repo_root,
             env=env,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -187,7 +189,7 @@ def _probe_components(repo_root: Path, lock: dict[str, Any], install_root: Path)
         capabilities: list[str] = []
         if component["component_id"] == "gdal":
             formats = subprocess.run(
-                [str(executable), "--formats"], cwd=repo_root, env=env, capture_output=True,
+                [str(executable), "--formats"], cwd=repo_root, env=env, stdin=subprocess.DEVNULL, capture_output=True,
                 text=True, encoding="utf-8", errors="replace", check=False,
             )
             if formats.returncode != 0 or "GTiff" not in formats.stdout or "COG" not in formats.stdout:

@@ -1,4 +1,5 @@
 #include "ProjectWorldMeshTerrainProducer.h"
+#include "ProjectWorldMeshTerrainAuthoringRole.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
@@ -36,10 +37,10 @@ namespace ProjectWorldMeshTerrainProducer
 
 	namespace
 	{
-		const FName AuthoringTag(TEXT("ProjectWorld.MeshTerrain.Authoring.v1"));
+		const FName AuthoringTag(ProjectWorldMeshTerrainAuthoringRole::Tag());
 		const FName PartitionTag(TEXT("ProjectWorld.MeshTerrain.Partition.v1"));
 		const FString OwnedTagNamespace(TEXT("ProjectWorld.MeshTerrain."));
-		const FString CellTagPrefix(TEXT("ProjectWorld.MeshTerrain.Cell="));
+		const FString CellTagPrefix(ProjectWorldMeshTerrainAuthoringRole::CellPrefix());
 		const FString InputTagPrefix(TEXT("ProjectWorld.MeshTerrain.Input="));
 		const FString MaterialTagPrefix(TEXT("ProjectWorld.MeshTerrain.Material="));
 		const FString ProducerTagPrefix(TEXT("ProjectWorld.MeshTerrain.Producer="));
@@ -432,48 +433,6 @@ namespace ProjectWorldMeshTerrainProducer
 			return true;
 		}
 
-		UE::Geometry::FDynamicMesh3 BuildCellMesh(
-			const FProjectWorldCanonicalBundle& Bundle,
-			const FProjectWorldCanonicalCell& Cell)
-		{
-			using namespace UE::Geometry;
-			FDynamicMesh3 Mesh;
-			Mesh.EnableVertexUVs(FVector2f::ZeroVector);
-			for (int32 Row = 0; Row < Cell.Terrain.SamplesY; ++Row)
-			{
-				for (int32 Column = 0; Column < Cell.Terrain.SamplesX; ++Column)
-				{
-					const int32 Index = Row * Cell.Terrain.SamplesX + Column;
-					const FVector Position = FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(
-						Cell.Terrain.Bounds.X + Column * Cell.Terrain.SampleSpacing.X,
-						FProjectWorldCanonicalLoader::TerrainRowNorthing(Cell.Terrain, Row),
-						Cell.Terrain.HeightsMeters[Index]));
-					const int32 VertexId = Mesh.AppendVertex(FVector3d(Position));
-					Mesh.SetVertexUV(VertexId, FVector2f(
-						static_cast<float>(Column) / static_cast<float>(Cell.Terrain.SamplesX - 1),
-						static_cast<float>(Row) / static_cast<float>(Cell.Terrain.SamplesY - 1)));
-				}
-			}
-			ProjectWorldMeshTerrainProducer::AppendRendererFacingGridTriangles(
-				Mesh, Cell.Terrain.SamplesX, Cell.Terrain.SamplesY);
-			Mesh.EnableAttributes();
-			CopyVertexUVsToOverlay(Mesh, *Mesh.Attributes()->PrimaryUV());
-			Mesh.Attributes()->SetNumWeightLayers(Cell.Terrain.SurfaceRoles.Num());
-			for (int32 LayerIndex = 0; LayerIndex < Cell.Terrain.SurfaceRoles.Num(); ++LayerIndex)
-			{
-				FDynamicMeshWeightAttribute* Attribute = Mesh.Attributes()->GetWeightLayer(LayerIndex);
-				const FName Role = Cell.Terrain.SurfaceRoles[LayerIndex];
-				Attribute->SetName(Role);
-				Attribute->Initialize();
-				const TArray<float>& Weights = Cell.Terrain.SurfaceWeights.FindChecked(Role);
-				for (int32 VertexId = 0; VertexId < Weights.Num(); ++VertexId)
-				{
-					Attribute->SetValue(VertexId, &Weights[VertexId]);
-				}
-			}
-			return Mesh;
-		}
-
 		UE::MeshPartition::AMeshPartition* FindPartition(UWorld* World)
 		{
 			for (TActorIterator<UE::MeshPartition::AMeshPartition> It(World); It; ++It)
@@ -660,7 +619,9 @@ namespace ProjectWorldMeshTerrainProducer
 				BaseActor->SetIsSpatiallyLoaded(true);
 				Provider->SetIgnoreChanged(true);
 				Provider->SetAffectedMeshPartition(Partition);
-				Provider->SetMesh(BuildCellMesh(Bundle, Cell));
+				UE::Geometry::FDynamicMesh3 FinalMesh;
+				if (!BuildCellMesh(Bundle, Cell, FinalMesh, OutError)) return false;
+				Provider->SetMesh(MoveTemp(FinalMesh));
 				Provider->SetMaterial(0, Material != nullptr ? Material : Definition->GetMaterial());
 				if (Existing == nullptr)
 				{
@@ -784,7 +745,7 @@ namespace ProjectWorldMeshTerrainProducer
 					It->Tags, CellId, Cell->Terrain.ArtifactHash, MaterialPath,
 					Inventory.GeneratorFingerprint) ||
 					!It->GetIsSpatiallyLoaded() || Provider == nullptr || Provider->GetAffectedMeshPartition() != Partition ||
-					Mesh == nullptr || Mesh->VertexCount() != Cell->Terrain.SamplesX * Cell->Terrain.SamplesY ||
+					Mesh == nullptr || !MatchesCellMesh(Bundle, *Cell, *Mesh, OutError) ||
 					Mesh->Attributes() == nullptr || Mesh->Attributes()->NumWeightLayers() != 2)
 				{
 					OutError = FString::Printf(

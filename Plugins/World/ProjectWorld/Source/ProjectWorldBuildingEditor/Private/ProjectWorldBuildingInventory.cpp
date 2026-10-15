@@ -71,7 +71,8 @@ namespace ProjectWorldBuildingInventory
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldLayerInventory& Inventory,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+		UMaterialInterface* ExpectedMaterial)
 	{
 		Inventory.Artifacts.Reset();
 		TSet<FString> ExpectedCells;
@@ -120,6 +121,9 @@ namespace ProjectWorldBuildingInventory
 			else if (Component->GetCollisionEnabled() != ECollisionEnabled::QueryAndPhysics)
 				OwnershipFailure = TEXT("building collision is not query-and-physics");
 			else if (Component->CanEverAffectNavigation()) OwnershipFailure = TEXT("building affects navigation");
+			else if (ExpectedMaterial && (Mesh->GetStaticMaterials().IsEmpty() ||
+				Mesh->GetStaticMaterials()[0].MaterialInterface!=ExpectedMaterial || Component->GetMaterial(0)!=ExpectedMaterial))
+				OwnershipFailure=TEXT("saved or effective building material differs from the resolved presentation binding");
 			else if (!It->GetIsSpatiallyLoaded()) OwnershipFailure = TEXT("actor is not spatially loaded");
 			else if (!It->IsPackageExternal()) OwnershipFailure = TEXT("actor is not OFPA/external");
 			else if (It->bEnableAutoLODGeneration) OwnershipFailure = TEXT("actor permits HLOD generation");

@@ -94,6 +94,19 @@ base: World expectation edits keep `canonical_authority`; source/compiler
 reference or upstream budget edits select `full`. An unreadable base copy
 selects `full`.
 
+Upstream data classification follows the selected canonical-authority consumer
+closure separately for each Matrix. A changed synthetic compiler fixture remains
+part of L1 and the Common Check identity; it does not force reacquisition or
+compilation of production sources that do not consume it. The planner and CLI
+share this guard. An authority referencing TestData inputs still requires full
+replay when those inputs change. Shared source/compiler/execution implementation
+changes, changed authority selection, unavailable history and unreadable consumed
+inputs retain full replay or refusal. Promoted data under the selected authority
+owner remains conservatively protected. This changes acceptance routing only;
+it neither weakens realization dependencies nor authorizes persistent promotion.
+Upstream component `tests/` edits require fresh proof checks without claiming
+changed production generation. Implementation and schema edits retain full replay.
+
 ## Impact-Driven Development
 
 ### Uncooked gameplay admission

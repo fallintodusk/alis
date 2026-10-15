@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectWorldPresentationMaterialBinding.h"
 
 class UMaterialInterface;
 
@@ -24,6 +25,7 @@ struct FProjectWorldPresentationProfile
 	FString RoadMaterialPath;
 	FString BuildingMaterialPath;
 	FString CloudMaterialPath;
+	FString WaterMaterialPath;
 	FRotator SunRotation = FRotator::ZeroRotator;
 	float SunIntensityLux = 0.0f;
 	float SkyLightIntensity = 0.0f;
@@ -43,10 +45,13 @@ struct FProjectWorldPresentationResources
 	UMaterialInterface* RoadMaterial = nullptr;
 	UMaterialInterface* BuildingMaterial = nullptr;
 	UMaterialInterface* CloudMaterial = nullptr;
+	UMaterialInterface* WaterMaterial = nullptr;
+	TMap<FName,FProjectWorldMaterialReference> MaterialBindings;
 };
 
 namespace ProjectWorldPresentationProfile
 {
+	TMap<FName,UMaterialInterface*> GetMaterials(const FProjectWorldPresentationResources& Resources);
 	bool Load(
 		const FString& Path,
 		FProjectWorldPresentationProfile& OutProfile,

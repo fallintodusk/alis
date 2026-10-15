@@ -1,9 +1,60 @@
 # World Surface Presentation
 
-**Status:** CURRENT - BrownEarth frozen; D32 surface diagnosis and D33 building-owner isolated correction verified; remaining-surface visual selection, production adoption and comparative GPU benefit OPEN
-**Scope:** approved compacted dry-soil candidate in reversible Kazan/Manhattan previews and independent default-surface proxies; persistent adoption remains gated
+**Status:** CURRENT - all four default surfaces visually accepted and adopted in both cities; exact final packaged city acceptance OPEN
+**Scope:** recipe-owned surface integration and authorized Building/Road/Water corrections in Kazan/Manhattan; terrain conditioning, unknown crossings, optional backend activation and release acceptance remain gated
 **Release:** required 3.0.0 concern; release authority stays in the [release plan](00_release_3.0.0.md#authority-register)  
 **Stable documentation owners:** [material generation](../../Plugins/Resources/ProjectMaterial/docs/material_generation.md), [pattern generation](../../Plugins/Resources/ProjectTexture/docs/pattern_generation.md), and [World territory contract](../../Plugins/World/ProjectWorld/docs/territory_contract.md)
+
+## Remaining work - exact packaged city acceptance
+
+**Marker:** IN PROGRESS under D49 - retain this starting evidence; do not infer
+unaccepted policy, performance or release decisions from implementation authority.
+**Starting evidence recorded:** 2026-10-15, in the earlier documentation-only
+stub. D49 supersedes that timing; the review record distinguishes new execution
+from this retained starting evidence.
+
+**Goal:** establish the remaining packaged-runtime material, collision and GPU
+acceptance for the exact final Kazan/Manhattan candidate, preserving accepted art
+and dependency-local generation.
+
+Known starting point:
+
+- BrownEarth, AsphaltMacro, RiverCalm and Concrete Macro192 are visually accepted
+  within their default scopes and adopted in both cities. Concrete is building
+  massing, not finished facades. No further artistic cycle is currently required.
+- D48 updates 312 Building material bindings through the existing transaction:
+  zero mesh builds/actor writes, exact cold geometry identities and zero repeat
+  writes. Both cities have ten saved-binding PIE views and 64 motion frames;
+  all 6763 protected paths match after Editor exit. Frozen soil/asphalt RGB matches.
+- Existing owners remain ProjectTexture -> ProjectMaterial -> World. The default
+  runtime producer is retained; optional native Texture Graph backend activation
+  is not approved. Shared live targets need no per-building texture bundles.
+- D46's isolated eight-arm packaged comparison is accepted, but does not certify
+  complete cities. D48's exact Concrete production binding is proved in PIE;
+  its exact final packaged consumption/cost remains open. Shader statistics and
+  9,786,700-byte PIE cache accounting are not total GPU memory or frame-cost proof.
+- The existing uncooked city route reported frame p95 31.42/29.98 ms. Those failed
+  PIE budget diagnostics neither prove a packaged regression nor certify success.
+  The target remains 16.67 ms with the explicit INCONCLUSIVE policy preserved.
+- D43's Manhattan roof fallback collision sample changed by about 1.42 cm;
+  retained collision configuration is not globally identical physics geometry.
+  Road source triangles increased about 2.7 times; measure before optimizing.
+- Evidence: `tmp/world/completion_d48/{closure,adoption-cold,render-proof}.json`,
+  both-city media under that run, and the retained D43/D46 records below. Current
+  Check/Matrix receipts pass their bounded scopes; do not rerun them for bookkeeping.
+
+Remaining acceptance must use the smallest route for exact saved
+materials/live cached outputs, both-city streaming and wall/roof gameplay collision,
+water-pass and total-frame GPU cost, artifact identities and recovery. Separate
+isolated diagnostics from final packaged city certification; identify prerequisites
+and permitted source-freeze/operator gates before selecting expensive commands.
+
+Final R5, operator walkthrough and R6 remain release-router work after both required
+concerns are accepted. The historical R5 stays untouched; no commit, production
+backend switch, broad regeneration, signing, tagging or publication follows from
+this record. Use the existing
+[World proof layers](../../docs/testing/world_pipeline_layers.md) and
+[package preflight](../../scripts/ue/package/README.md#preparation-preflight-and-failure-triage).
 
 ## Contents
 
@@ -284,14 +335,142 @@ geometry while making repeated appearance tuning an owner-local operation.
 Release inclusion, final frozen R5/R6 gates, the historical baseline, and performance
 policy are owned by release-plan D19-D22. This task does not authorize those operations.
 
+- **D34** Continue toward production acceptance with the supplied D34 mission.
+  - Effect: freeze BrownEarth, AsphaltMacro and RiverCalm as selected visual
+    candidates; close further artistic iteration. Authorize a read-only affected-
+    building census, transactional dry-run/rollback proof, authenticated recipe
+    and semantic-binding preparation, focused owner implementation and isolated
+    cooked-game consumption/GPU proof. Reuse existing generation/cache owners.
+    Stop before the first persistent city-output mutation unless separately
+    authorized. Building rollout, material migration and production backend
+    activation are not inferred from visual acceptance. No canonical compilation,
+    full Matrix, full World regeneration, release signing, tagging or publication.
+  - Source: operator "let's go further" with the bounded D34 mission, 2026-10-12.
+
+- **D35** Prioritize reusable patterns over surface-specific C++ implementations.
+  - Effect: investigate the actual asphalt/soil/river compiler paths for content
+    hardcoding. Structural styles and material appearances must be authored through
+    meaningful recipes and shared native capabilities, without one builder per
+    surface name. Preserve the accepted appearances, existing owners/cache and D34's
+    city-mutation boundary. This is a scalability requirement, not acceptance of
+    an unrestricted graph language or a replacement generation framework.
+  - Source: operator concern about hardcoded builders and "patterns, not exact code
+    for millions surfaces", 2026-10-12.
+
+- **D36** Implement the reusable contract fully, with architect review, installed
+  UE/native research, and stable documentation/diagrams for fresh agents.
+  - Effect: complete bounded T2a implementation and owner-local verification.
+    Preserve frozen appearances, existing cache/transactions and D34's stop before
+    persistent city mutation. This does not authorize backend activation, canonical
+    compilation, full World regeneration, Matrix or release operations.
+  - Source: operator "refactor fully and properly" using architect, web, UE sources
+    and project docs, 2026-10-12/13.
+
 ### Operator gates
 
-- **Q1 [PARTIALLY AUTHORIZED by D10]:** Bounded T0a development, local material
-  prototypes and isolated persistence evaluation are authorized. Remaining
-  production implementation/migration/adoption requires an operator decision.
-- **Q2 [OPEN - NON-BLOCKING]:** Which matched visual candidate is accepted for
-  persistent adoption? Present evidence after prototypes; do not infer approval
-  from a successful shader compile.
+- **D39** Apply only the material presentation layer to the existing generated
+  Kazan and Manhattan cities. Preserve the generated geometry and black-box layering.
+  - Effect: authorize the material-only integration, authenticated resource/binding
+    updates, focused proof and recovery through existing owners. Do not include
+    building winding rollout, canonical compilation, full World regeneration or
+    release operations in this material application. Preserve production backend
+    selection and distinguish engineering verification from final product approval.
+  - Source: operator clarification of the city-mutation question, 2026-10-13:
+    "city already generated, only need apply materials layer".
+
+- **D42** Execute the proposed remaining city-integration sweep autonomously.
+  - Effect: current-input census, required producer attribution/baseline fixes,
+    disposable integration and rollback verification, Concrete preparation and
+    remaining alignment-policy analysis. Keep accepted appearances frozen and
+    preserve the proposal's explicit first persistent geometry-rollout gate.
+    Existing material-only authorization remains D39; no release operation or
+    production Water conditioning limit is inferred.
+  - Source: operator "agreed, do full sweep please bro", 2026-10-13.
+
+- **D43** Authorize building-only slice acceptance and persistent rollout in
+  Kazan and Manhattan for the prepared revision-2 winding candidate.
+  - Effect: execute the required acceptance and existing transactional replacement
+    of affected Building outputs, retaining terrain, roads, water, canonical data
+    and current materials. Verify both cities and preserve the remaining geometry,
+    visual and release gates. No other layer rollout or publication is authorized.
+  - Source: operator response "Authorize building-only acceptance and rollout",
+    2026-10-13.
+
+- **D44** Complete the remaining World stages in one autonomous sweep with
+  independent architect review at each completed boundary: Road/Water correctness,
+  Concrete city presentation, exact packaged verification and final release gates.
+  - Effect: implement and verify the existing owner-local work, prepare dependency-
+    local city integration and visually recheck both maps. The existing operator
+    decisions on water distortion/source quality, ambiguous crossings, persistent
+    visual adoption, frozen source and operator walkthrough remain binding; no
+    numeric terrain policy, commit, signing or publication authority is inferred.
+  - Source: operator "do 1-4 in one sweep", 2026-10-14.
+
+- **D45** Authorize the prepared selected Road/Water rollout in Kazan and Manhattan.
+  - Effect: execute the existing transaction for Roads/Water and dependent
+    Vegetation, preserving Terrain, Buildings, canonical data and accepted
+    materials. Apply road conformity and compatible-plane water union only;
+    terrain conditioning and unknown crossings retain their separate gates.
+    Verify saved outputs, cold no-op, both-city visuals and independent architect
+    review. No release, commit or publication is authorized.
+  - Source: operator "Authorize selected Road/Water rollout", 2026-10-14.
+
+- **D46** Continue the next autonomous completion run with independent architect
+  verification: residual Water/shoreline investigation and measured packaged
+  resource cost before road optimization.
+  - Effect: freeze D45 outputs and accepted appearances. Use existing native
+    owners for read-only diagnosis and disposable packaged resource comparisons.
+    Exact emitter provenance, conditioning/source-quality decisions, Concrete
+    adoption and final release gates remain separate. No numeric terrain policy,
+    additional persistent geometry rollout, commit or publication is inferred.
+  - Source: operator "do next huge run with architect verifications", 2026-10-14.
+
+- **D47** Continue the autonomous sweep toward closing both current concerns.
+  - Effect: finish remaining owner-local diagnosis, correct demonstrated defects,
+    verify the real consumers and reconcile stable/current documentation. Preserve
+    the explicit water-policy, crossing, persistent-adoption and release gates;
+    a request to finish does not supply their missing numeric or visual decisions.
+  - Source: operator "fully close these todos" and "fully autonomous sweep",
+    2026-10-15.
+
+- **D48** Delegate the Concrete visual judgment to the agent and permit focused
+  material refinement if a critical visual gap remains, including distance
+  composition. Check installed UE plugins/source and current Epic guidance.
+  - Effect: self-review matched city evidence and improve the existing recipe/
+    physical family when justified. This supersedes the requirement for another
+    human Concrete appearance choice at Q2; existing material-only D39 authority
+    and its transactional acceptance route remain applicable. No geometry,
+    terrain-quality policy, backend or release gate is changed.
+  - Source: operator's answer to the prepared Q2 Concrete comparison,
+    "check on your own", 2026-10-15.
+
+- **D49** Execute the remaining work in one coordinated pass toward moving the
+  completed concerns to done.
+  - Effect: investigate the retained stubs, implement justified owner-local
+    corrections, verify real consumers and packaged city acceptance, reconcile
+    documentation and close only work whose criteria actually pass. Existing
+    numeric shoreline/source-quality, crossing, performance-risk and final release
+    decisions remain explicit boundaries; this request supplies no missing values.
+    Preserve accepted materials, unrelated outputs and operator-owned Git state.
+  - Source: operator "do all remaining in one pass to move todo to done",
+    2026-10-15. Supersedes the preceding stub-only timing for this work.
+
+D42 continues the readiness work beyond material-only implementation. D39 remains
+the existing material-application authority. Building and Road/Water geometry
+rollouts retain the proposed explicit gate except the bounded operations
+authorized by D43 and D45; reviewer PASS does not authorize other operations or close
+final product/release acceptance.
+
+- **Q1 [MATERIAL-ONLY IMPLEMENTATION AUTHORIZED by D39]:** Apply the selected material
+  presentation through existing resource and binding owners, with focused proof and
+  rollback. Building geometry rollout and native-backend activation remain outside
+  this authorization. Do not require another permission for routine material steps.
+- **Q2 [DEFAULT-SURFACE VISUAL AND MATERIAL ADOPTION CLOSED by D48]:** BrownEarth,
+  AsphaltMacro, RiverCalm and Concrete Macro192 are accepted within their compacted
+  ground, default asphalt, calm river and building-massing scopes. D48 delegated
+  the Concrete decision; both-city pixels, transactional adoption and cold replay
+  now pass. This accepts neither finished facades nor arbitrary surface/backend
+  variants. Exact final packaged city cost, collision and release gates remain open.
 - **Q2a [SCOPED PASS by D29]:** BrownEarth on the original cheaper composition is
   accepted as compacted dry soil for transient city evaluation. Preserve linear
   SoilDarkColor (0.085, 0.065, 0.046), SoilLightColor (0.24, 0.18, 0.12), and
@@ -348,7 +527,7 @@ policy are owned by release-plan D19-D22. This task does not authorize those ope
 
 ## Verified evidence
 
-### Verified facts
+### Initial investigation facts (2026-10-08; superseded where review records say so)
 
 1. [Terrain instance recipe](../../Plugins/Resources/ProjectMaterial/Data/SurfaceRecipes/Terrain/MI_ProjectTerrain_Default.surface.json)
    currently selects the metric terrain archetype. Its scale is 96 m and macro/detail
@@ -445,7 +624,7 @@ policy are owned by release-plan D19-D22. This task does not authorize those ope
     support testing native material AO, not claiming an untested AO texture already
     affects this material. Normal perturbation does not replace pore occlusion.
 
-### Inferences and unverified areas
+### Initial investigation inferences and unverified areas
 
 T0a establishes the explicitly triggered JSON -> ProjectMaterial -> transient live
 instance loop and rejection/revert behavior. Its pattern Ready event preceded the
@@ -457,15 +636,15 @@ The operator reports the accepted technical baseline; this task does not rerun i
 
 ## Current architecture and source of truth
 
-| Black box | Contract and responsibility | Expected change |
+| Black box | Contract and responsibility | Current implementation state |
 |---|---|---|
-| ProjectTexture | Accepted reusable structural outputs; pattern shape, readiness, and cache | The isolated three-output soil fixture uses its native builder/runtime/cache; accepted terrain resources remain unchanged |
-| ProjectMaterial | Recipes, closed graphs, generated parents/instances, authenticated surface manifest | In-editor instance preview seam and its proof first; terrain appearance and minimal closed lit/water archetypes when needed |
+| ProjectTexture | Accepted reusable structural outputs; pattern shape, readiness, and cache | Shared production ground, road and concrete bundles use the existing default runtime/cache; native Texture Graph remains opt-in |
+| ProjectMaterial | Recipes, closed graphs, generated parents/instances, authenticated surface manifest | Four adopted defaults use shared physical families, native expressions and the proven transient live-preview seam |
 | ProjectDefinitionGenerator / ProjectPlacementEditor | Definition detection/regeneration and definition actor synchronization | Untouched; reuse orchestration ideas without routing surfaces through DataAsset generation or replacing World actors |
-| ProjectWorldEditor | Semantic resource selection and authentication | Extend existing default binding/profile admission, not graph compilation |
-| Road/Building/Water editor leaves | Material assignment to owned mesh outputs | Material-only assignment, validation, inventory, and locality proofs |
+| ProjectWorldEditor | Semantic resource selection and authentication | Authenticated semantic bindings and existing transactional material-reference operation |
+| Road/Building/Water editor leaves | Material assignment to owned mesh outputs | Saved material-only adoption and cold geometry/no-build/no-op proof in both cities |
 | ProjectWorldMeshTerrain | Existing terrain channels, shared definition, geometry realization | Untouched; retain terrain material object path and channel layout |
-| ProjectWorldData | Concrete profiles and serialized generated references | Only necessary presentation selections/material references and their owned inventory |
+| ProjectWorldData | Concrete profiles and serialized generated references | Four default selections adopted; only necessary reference-bearing packages and owner inventories change |
 | SourceIngestion / CanonicalCompilation | Geographic authority | Untouched, including generated canonical bundles |
 
 The [World structure](../../Plugins/World/ProjectWorld/docs/architecture/structure.md)
@@ -489,7 +668,7 @@ their existing task records rather than leaving duplicate unresolved material wo
 
 ## Problem and root cause
 
-The capability gap is material presentation, not missing geography. Existing terrain
+The initial capability gap was material presentation, not missing geography. Existing terrain
 appearance controls can be tuned; simple reusable defaults for the other surfaces
 are absent from the closed compiler and binding contract. Serialized reference changes
 also currently reach geometry-building paths. Shader tuning cannot repair that locality
@@ -614,8 +793,9 @@ settings. Do not change global rendering settings to make the candidate pass.
 
 ## Implementation tasks
 
-T0a and local prototypes are authorized by D10. Persistent production adoption and
-the production binding/migration tasks remain gated by Q1/Q2:
+These tasks retain their execution sequence. D39 authorizes material-only adoption;
+D48 closes the four scoped default visual/binding decisions. Exact final packaged
+city acceptance and separately named backend/geometry policies remain open:
 
 - [X] **T0a - One-recipe in-editor loop, before material complexity:** expose a
   narrow ProjectMaterial-owned preview operation for an existing instance recipe.
@@ -643,7 +823,7 @@ the production binding/migration tasks remain gated by Q1/Q2:
   an isolated mount before production saving is proposed. The existing commandlet
   remains the supported fallback for structural changes until equivalent live-editor
   proof exists. Do not remove its production guard to make preview work.
-- [ ] **T0 - Baseline:** inventory current materials/references and record dirty state.
+- [X] **T0 - Baseline [D29-D45 bounded city evidence retained]:** inventory current materials/references and record dirty state.
   Capture fixed player-height, close-ground, oblique, aerial, slope, neighboring-cell,
   shore, road, and building views on existing maps. Hold lighting, exposure, camera,
   resolution, and RHI fixed. Store run-specific receipts/captures separately under
@@ -652,10 +832,10 @@ the production binding/migration tasks remain gated by Q1/Q2:
   geometric findings to [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md).
   A geometrically correct boundary remains a presentation candidate here. Do not
   require a geometry correction to prototype materials on otherwise valid surfaces.
-- [ ] **T1 - Soil sample, then approved terrain prototype (D12/D13):** T1b rejected
+- [X] **T1 - Soil sample and terrain prototype [BrownEarth compacted-soil scope complete by D29/D30; D39 applied]:** T1b rejected
   parameter-only appearance; T1c's implementation passed but its derivative-noise
   appearance is insufficient. Preserve that evidence, not its landscape-first order.
-  - **T1d - Source units [PARTIAL - D25 grain semantics corrected in private 512/1024 candidates; visual acceptance and production promotion open]:** specify and review the smallest closed soil kernel and
+  - **T1d - Source units [bounded source contract complete; accepted BrownEarth maps frozen]:** specify and review the smallest closed soil kernel and
     compact/independent-mask candidate contracts at ProjectTexture's boundary.
     Before further custom shape work, inspect installed Vector Noise Voronoi seed
     position/distance with Cellnoise, native remaps, height-to-normal functions,
@@ -695,7 +875,7 @@ the production binding/migration tasks remain gated by Q1/Q2:
     Substrate Slab and coherent normal space, with constant dielectric F0.
     Native anti-tiling is conditional on simpler composition remaining inadequate;
     measure extra sampling and normal orientation, not only smooth screenshots.
-    Terrain slope/projection application still waits for Q2a.
+    D29 subsequently closes Q2a for BrownEarth's scoped city evaluation.
     Public contract or plugin-dependency changes
     require one independent architect review at that boundary, closed at PASS.
     Implement in isolated roots
@@ -707,7 +887,7 @@ the production binding/migration tasks remain gated by Q1/Q2:
     independent controls and the channel/encoding checks above. Contract on RGBA
     only after proving a varying alpha field survives generation and filtering.
     Keep the accepted terrain pattern unchanged.
-  - **T1e - Separate normal [PARTIAL - preserved maps/mips and D29 moderate-slope reorientation verified; exact packaged adoption open]:** generate it from that same bounded height field, using
+  - **T1e - Separate normal [bounded map/mip and D29 slope proof complete; final city package acceptance belongs to T6]:** generate it from that same bounded height field, using
     native height-neighbor operations; compare flat-height/flat-normal controls and
     known axis ramps. Test tiling, finite/unit-length vectors, decode, mips, generation
     identity, cold/warm reuse and refusal without partial readiness. The LQ screen-
@@ -735,7 +915,7 @@ the production binding/migration tasks remain gated by Q1/Q2:
     require their own acceptance; persistent adoption remains gated.
     Retain completed investigations. D19's bounded-cycle authorization is not a
     requirement to spend more cycles after a reviewable candidate is prepared.
-  - **T1h - Native runtime and extension feasibility [bounded cache/PBR PASS; adoption and comparative GPU cost OPEN]:**
+  - **T1h - Native runtime and extension feasibility [bounded D23/D37/D44 proof complete; comparative speedup inconclusive, production activation unapproved]:**
     1. Finish installed-source tracing before code integration. Distinguish Runtime
        module declarations from initialization/evaluation compiled into Game.
        Inspect async completion, graph serialization/shader cooking, allocation,
@@ -784,7 +964,7 @@ the production binding/migration tasks remain gated by Q1/Q2:
     Preserve geometry normals for slope/projection semantics, perturb shading only,
     and prove exact revert plus unchanged World/canonical output inventory.
     Persistent adoption still requires Q2. T0b is not a prerequisite.
-- [ ] **T2 - Default prototypes [PARTIAL - D31 native aggregate/concrete bundles, water wave utility and bounded city trials; final visual acceptance and production archetypes open]:** reuse the retained consumer candidates. Add only
+- [X] **T2 - Default prototypes [bounded reusable families complete by D36; Concrete visual/adoption decision stays T3/T6]:** reuse the retained consumer candidates. Add only
   necessary closed archetypes to ProjectMaterial's schema/parser/builder/reload checks,
   identity, manifest, and direct payload consumers. Textureless archetypes must model
   an absent pattern dependency truthfully; do not fabricate a pattern ID, runtime
@@ -795,31 +975,60 @@ the production binding/migration tasks remain gated by Q1/Q2:
   and its three connected wave samples without production activation. If detail becomes
   necessary, static cell meshes need continuous world-metric coordinates; do not
   blindly reuse object-local projection or terrain-only semantic channels.
-- [ ] **T3 - Visual approval:** apply candidates transiently to PIE components, not
+- [X] **T3 - Visual approval [four scoped defaults accepted; Concrete Macro192 self-reviewed under D48]:** apply candidates transiently to PIE components, not
   shared generated meshes/packages. Prove discard/reload restores original appearance.
   For soil, Q2a precedes these landscape trials. Show matched A/B views for both
   cities and get Q2 answered before persistent cutover.
-- [ ] **T4 - Binding integration:** extend the existing manifest resolution for closed
+- [X] **T2a - Reusable source/material contract [D36 bounded engineering PASS]:**
+  generalize the admitted aggregate source into a bounded native particle-pattern
+  recipe. Expose meaningful composition controls consumed by the kernel; keep seed
+  fixed unless its effect is implemented and proved. Retain a documented normal
+  reference ratio. Include every consumed structural input in identity, while color,
+  scale and final roughness remain ProjectMaterial inputs. Reuse native parameterized
+  Texture Graph and material functions through existing owners where the established
+  runtime envelope fits. Share projection/normal/macro composition between physical
+  shader families; no new builder per content name or arbitrary expression JSON.
+  - Preserve the frozen default recipe's exact source bytes and rendered appearance.
+    First prove the default and a materially different parameterized recipe. Multiple
+    appearance recipes must share unchanged shader parents and structural bundles;
+    do not assign an independent generated pattern to every World object.
+  - Implemented schema-v6/compiler-v8 native particle controls and consumed seed;
+    22 bounded controls participate in connected graph verification and identities.
+    Schema-v7/compiler-v8 material families are aggregate_metric, height_masks_uv
+    and single_layer_water. Shared native helpers and authenticated instance source
+    bindings replace content-named builders. Default pixels are exact; matched
+    rendered references, source variation, persistence and refusal checks passed.
+  - Architect preflight PATCH was reproduced RED and fixed GREEN; completed review
+    returned PASS. Runtime/backend enrollment and production promotion remain gated.
+- [X] **T4 - Binding integration [D39 terrain/road/water and D48 Concrete applied]:** after the reusable contract is recorded and proved,
+  extend the existing manifest resolution for closed
   default bindings and replace obsolete road/building path restrictions and water
   placeholder validators/settings at their owners. Update direct schema, profiles,
   inspectors, verify inventories, and tests; remove obsolete local water graph ownership
   after successful authentication. Keep surface offsets/geometric settings fixed.
-  Census each generated `M_ProjectWorldWater` package and its referencers. Retire
-  it through the same owning transaction only after accepted consumers no longer
-  reference it; include deletion and restoration in the exact allowed write set.
-- [ ] **T5 - Material-only migration:** separate reference changes from geometry dirty
-  decisions in the three leaf owners. First prove already-current and newly-created
+  Optional orphan/diagnostic artifact retirement is deferred; it is not a required
+  material adoption step. Any later removal must census referencers and use the
+  owning cleanup/transaction route with exact deletion/restoration proof.
+- [X] **T5 - Material-only migration [D39 road/water and D48 Building transaction PASS]:** separate reference changes from geometry dirty
+  decisions in presentation owners. First prove already-current and newly-created
   mesh cases in small isolated fixtures. Preserve geometry build data; save only changed
   material-bearing packages/inventories through the existing World transaction.
-  There is no existing material-only host operation: extend only the necessary
-  selection/assignment seam in `scripts/ue/world/realize_canonical_world.ps1`
-  and its layer dispatch, rather than creating an independent mesh-resave writer.
-  Test injected failure and exact restoration before any production cutover.
-- [ ] **T6 - Adoption and close:** census the actual affected references, adopt only
+  The existing realization host now exposes `-MaterialReferencesOnly`, dispatched
+  through the producer registry's declared role and two-pass owner validation.
+  It retains prior geometry lineage and consumer/artifact ordering, with separate
+  material adoption provenance. Native refusal, save/reload, no-op and real saved-child
+  rollback passed before city application. D48 additionally proves Building cold
+  save/reload and adoption without geometry mutation or a new writer.
+- [ ] **T6 - Adoption and close [four defaults applied and rendered; exact final packaged city GPU/collision and full-surface acceptance OPEN]:** census the actual affected references, adopt only
   necessary changes under D3 after visual acceptance, authenticate saved/reloaded defaults,
   and prove a subsequent same-path tune changes zero World output bytes. Run focused
   owner tests, matched PIE checks, and independent R2. Update durable owners and reconcile
   material portions of retained backlog records. Report any unproved promotion boundary.
+  Final packaged city acceptance must separately exercise Building query/physics
+  collision at representative exterior walls and roofs, including the D43 Manhattan
+  roof sample. Record misses, hit positions/normals and gameplay capsule response
+  against the consumed source geometry; retain the measured fallback bias without
+  claiming exact physics equality or silently introducing a new fidelity tolerance.
 
 ## Test-first and verification plan
 
@@ -913,7 +1122,8 @@ promise filesystem atomicity, or persist a shader fallback for recovery.
 ## Completion criteria
 
 - Isolated soil maps and native PBR sample are accepted at Q2a before landscape trials.
-- All four surface classes have operator-accepted matched PIE evidence on both cities.
+- All four surface classes have accepted matched PIE evidence on both cities;
+  D48 delegates Concrete judgment to the agent within default-massing scope.
 - Adopted default materials are recipe-owned, compile, save/reload, and authenticate.
 - Invariants 1-7 have the bounded evidence above; unexpected propagation is resolved.
 - Necessary one-time reference changes are inventoried and recoverable; subsequent
@@ -923,6 +1133,969 @@ promise filesystem atomicity, or persist a shader fallback for recovery.
   readiness remains with the release router and its final frozen candidate.
 
 ## Review record
+
+### 2026-10-15 - D49 Water packaged-proof correction and remaining acceptance
+
+- D49 supersedes the earlier stub-only timing. Accepted BrownEarth, AsphaltMacro,
+  RiverCalm and Concrete remain frozen. The selected production runtime backend,
+  saved city bindings and geometry are unchanged by this stage.
+- Investigation found a stale acceptance oracle: Single Layer Water's black
+  BaseColor is not a visible-water label. Requiring debug-blue albedo rejects the
+  accepted physical material. Repeated empty captures cannot substitute for proof.
+  The existing native screenshot owner now supports float depth; a Water-specific
+  capture composes full-scene and identified-Water views without replacing
+  materials, hiding actors or changing geometry.
+- Both views use native HDR/depth with the same orthographic projection. Float
+  depth equality within identified Water bounds encodes blue visible Water and
+  black occlusion/background. Clear depth is outside those bounds. Registered
+  Water membership must remain exact; unknown/lost state refuses. Normal product
+  FinalColor inspection stays separate. Exactly coplanar duplicates still require
+  geometric/renderer evidence and cannot be disproved by this mask.
+- `Project.World.Presentation.WaterVisibilityCapture` is GREEN using native latent
+  engine-frame progression and actual RiverCalm: 1,658,880 reference/repeat pixels,
+  zero flips; opaque half-occlusion leaves 829,440; a competing surface 0.05 cm
+  above Water leaves zero. Membership refusal writes no image, restoration
+  recovers, the material pointer is unchanged, missing Water refuses and the
+  legacy beauty oracle refuses. Settled Water also passes Shipping's same-tick
+  Initialize/WarmUp/Capture envelope. Initial synchronous fixture attempts were
+  invalid because rendering flushes do not advance the engine frame; they do not
+  establish a categorical SceneDepth engine limitation.
+- The Shipping consumer and existing temporal verifier use the explicit
+  `visible_water_depth_mask_v1` encoding. Four exact Pester cases pass: stable
+  zero-alpha RGB mask, real occlusion flips, colored-beauty refusal and stable-empty
+  refusal. Actual native PNGs pass the same verifier. Independent architect review
+  is PASS for this bounded implementation; exact packaged execution remains open.
+- Evidence: `tmp/world/completion_d49/visibility-final/tests.log`,
+  `water-mask-pester-final.xml`, `native-mask-verifier.json`, and native images
+  under `tmp/world/water_visibility/227F9544439A01968BB06AAAA30F5A0C/`.
+- A separate acceptance defect is corrected without rewriting World lineage.
+  Material-only adoption intentionally keeps the original geometry presentation
+  digest; direct comparison with the current material profile falsely rejects it.
+  The existing host's protected-profile/adoption check now exports read-only,
+  exact-map/scope compatibility for Acceptance. Python consumes this evidence only
+  for presentation identity; it does not reconstruct profile compatibility.
+  Compile/runtime/authored inputs, unknown maps, current producer identity and
+  artifact integrity remain strict. Shared presentation requires every consumer.
+- Focused provenance RED fails the old digest join. GREEN: 37 combined Python
+  tests, five final focused bridge tests, and 16 Pester tests. Existing protected
+  cloud/environment/camera/profile, original-byte authentication and retargeted-
+  instance refusal controls remain green. Real read-only city audit authenticates
+  original `de1a9230...` -> current `4a444ea3...` for both maps, including three
+  accepted adoption destinations each. All 3096 artifacts are intact. The audit
+  correctly remains rejected only for the two stale Water producer scopes; no
+  authority or artifact is rewritten. Independent architect PASS closes this
+  bounded acceptance-tool correction. Evidence: `adoption-city-audit.json`,
+  `adoption-python-final.log`, `adoption-python-focused.log`, `adoption-pester.xml`
+  under `tmp/world/completion_d49/`.
+- Residual Water geometry is owned by the alignment concern. Its new horizontal-
+  composition candidate is not a production rollout. Do not cook a purported final
+  city candidate while knowingly unresolved source/output/policy boundaries would
+  immediately invalidate it. Exact packaged materials, representative Building
+  wall/roof physics, water-pass/total GPU cost and both-city Matrix coverage remain
+  T6 work. The current Matrix profile does not include Manhattan. Adding its
+  source/compiler/authority references selects full upstream-profile proof under
+  the existing planner; a later base or silent reference exemption is not valid.
+  Prepare that boundary with a correct-grid sabotage fixture once the final Water
+  candidate is ready, then perform its actual required gate once. No profile
+  expansion or expensive acceptance is performed in this development stage.
+  The 16.67 ms target and explicit INCONCLUSIVE
+  policy remain unchanged; no new waiver or release approval is inferred.
+- Final protected inventory retains all 6763 paths/hashes and the exact operator
+  index. Both edited verify baselines differ only in Water revision, with unchanged
+  projections. Schema, PowerShell syntax, changed-document ASCII/local-link checks
+  and `git diff --check` pass. Three bounded engineering boundaries have independent
+  architect PASS: Water composition, native visibility proof and material-adoption
+  provenance. Their success is not a final packaged-city or release PASS. Both
+  required concerns stay CURRENT until their actual remaining gates are closed.
+
+### 2026-10-15 - D48 Concrete visual decision and material-only adoption
+
+- D48 closes the delegated visual decision with Concrete Macro192 as the default
+  building-massing candidate. Matched disposable city comparisons retain fine
+  aggregate relief while adding restrained broad variation. This is concrete
+  massing, not finished facades. Installed Epic DetailTexturing/Distance_Blend
+  assets and current world-aligned/Substrate guidance were checked; the existing
+  triplanar aggregate family already supplies the required two scales and one
+  Slab. No extra shader layer, content-specific builder or new cache is warranted.
+  Appearance values live in the accepted recipes.
+- One production pattern recipe, a shared triplanar parent recipe and its Concrete
+  instance are added through the existing authorities. Safe native generation
+  emits one new pattern and two new materials; eight existing material packages
+  refresh for the already-reviewed D46 compiler fingerprint. All 13 changed
+  resource/manifest paths are authenticated. Soil/asphalt/river appearance recipes
+  and the default runtime backend remain unchanged; native Texture Graph is not
+  activated in production.
+- Acceptance first refused a source-state change during a gate; a frozen rerun
+  passed all 11 affected existing tests. The next Twin comparison correctly found
+  the D47 Water consumed-input correction missing its owner output revision.
+  Water revision 3 and native-recorded Water/Twin baselines now authenticate it.
+  Water's geometry projection is unchanged; Twin changes only the Water keys,
+  embedded revision and aggregate projection. The retained RED receipts remain
+  available; no guard or baseline was hand-edited to pass.
+- Final Common Check `check-20261015T094918Z` and canonical-authority Matrix
+  `run-20261015T100212Z` pass. Check includes 226 Pester and 80 native realization
+  tests. Matrix's temporary fixture replacement restores all 6557 pre-adoption
+  World/canonical files. This is one slice acceptance boundary, not a development
+  regeneration loop or a production canonical compilation.
+- D39's existing reference-only transaction applies `building.default_concrete`
+  to 171 Kazan and 141 Manhattan meshes. Exactly 315 World paths change: 312
+  existing Building mesh packages, two new Building scope manifests and the active
+  set. No actors, maps, other geometry or canonical outputs change. Existing
+  geometry input lineage is retained with separate authenticated material adoption.
+  All 312 cold source/render/Nanite/collision identities match; mesh builds, actor
+  writes and both cold-replay writes are zero. No new writer was needed.
+- Fresh native PIE then consumes those saved production bindings and live generated
+  textures, with no preview substitution or PNG imports. Ten views and 64 distinct
+  motion frames per city are captured; stills and sampled motion frames are inspected.
+  Near relief and broad city variation pass
+  for default massing. Collision-supported 170 cm cameras mostly frame wall/sky;
+  they are not a street gameplay/collision certification. Loaded Building counts
+  are 15/16, not a claim that every city building was rendered. The broader component
+  census proves accepted bindings/shared references, not visibility of each component.
+- Frozen ground and asphalt RGB readbacks match their accepted controls. Native
+  cold/warm proofs cover all three structural identities, with shared resources,
+  zero warm generations and 9,786,700 peak cache bytes in each city. Concrete uses
+  283 pixel instructions, 12 texture samples and three samplers; those statistics
+  and PIE captures are not packaged GPU/frame-pacing acceptance. Content/map
+  packages stay clean; after Editor exit all 6763 accepted protected paths match
+  the post-adoption inventory. Git staging is unchanged; no cook or release ran.
+- Receipts and directly inspectable media: `tmp/world/completion_d48/`, including
+  `adoption-cold.json`, `render-proof.json`, `concrete-saved-cities.png` and each
+  `production/<city>/concrete-motion.mp4`. Native adoption/cold receipts are under
+  `Saved/Validation/WorldRealization/d48-concrete/`. Stable resource owners and the
+  three retained presentation backlog records now reflect implemented ownership.
+- Concrete visual/binding adoption is closed. Exact final packaged city materials,
+  collision/GPU, Water geometry/source-quality policy, source freeze and R5/R6 stay
+  open. Water revision-3 revalidation remains at its next appropriate Water boundary;
+  this material operation does not stamp or regenerate unchanged Water outputs.
+- Independent architect PASS closes this completed production-integration boundary
+  after inspecting native receipts, resource/package authentication, both cold
+  no-ops, final saved city pixels/motion and all 6763 protected paths. No required
+  PATCH remains within default Concrete massing; final product/release gates are
+  explicitly outside this verdict.
+
+### 2026-10-15 - D47 exact Water provenance and consumed-domain identity
+
+- Native `Project.World.Water.SourceEmissionReplay` authenticates fresh tracked
+  canonical ZIP extraction and complete loader validation, then replays existing
+  Water preparation/emission without Apply or asset saving. All 318 saved source
+  triangles match vertex/corner/triangle order in the two selected cells. External
+  comparison with the saved actor-world scan also matches every world-space
+  corner; the native test alone does not authenticate the saved actor origin.
+- This closes exact emitter attribution for the detector's 45 retained contacts:
+  Kazan `grid_413718bc833994e5:x4:y-6`, ways `1290267745` / `1290267747` (21);
+  Manhattan `grid_36784852dea14f43:x6:y6`, ways `1448214217` / `605476565` (24).
+  IDs have the `alis:osm:way:` prefix. The 39 affine-equal contacts are horizontal;
+  the six unequal contacts remain distinct. This is bounded detector attribution,
+  not inferred source connectivity or an approved nonconstant-union algorithm.
+- A faithful native RED fixture proves that extending another consuming cell's
+  preparation domain changes emitted triangles in the original cell while its
+  previous input hash stays equal. Water hashing and realization now share the
+  existing feature/domain calculation; valid consumed domains enter unit identity.
+  No geometry algorithm or source Water function changes.
+- The standard Editor build and three exact native tests pass:
+  `Project.World.Water.PreparationDomainIdentity`,
+  `Project.World.Realization.Layers.WaterPreparationDomain` and
+  `Project.World.Water.SourceEmissionReplay`. The actual planner selects the
+  affected original Water cell under unchanged shared contracts/fingerprints,
+  rejects wildcard broadening and leaves Terrain clean. Unconsumed valid sources
+  and other-cell membership changes retaining the domain keep the unit unchanged.
+- Corrected keys and Water output revision 3 require one-time Water-only revalidation at its next acceptance
+  boundary. D45's prior cold no-ops authenticate the prior keys; they are not fresh
+  no-op evidence for this correction. Existing saved geometry still exactly
+  matches native replay; no city outputs or manifests were rewritten. All 6758
+  protected files retain their accepted hashes. The stable territory contract and
+  Water pitfall own the consumed-context invariant.
+- Independent architect PASS closes this bounded correction and source attribution
+  after inspecting the final compiled tests, current package/canonical pins and
+  corrected stable wording. It does not approve the remaining geometry/policy gates.
+- A further read-only same-XY chain evaluates the canonical triangle convention,
+  canonical Water function and saved Water triangles at the ten retained probes.
+  Kazan's selected shore has canonical terrain 57.4547 m over saved Water 50.25 m
+  (7.2047 m); Manhattan has 21.0314 m over 18.05 m (2.9814 m). The first disparity
+  is already in canonical terrain, not introduced solely by Mesh Terrain preview.
+  Kazan's high triangle corner lies 5.94 m outside the footprint; its other two
+  corners are at the 50 m Water level. Manhattan's narrow feature lies between
+  grid samples, with all three terrain corners outside its footprint. Its Water
+  function retains `low_confidence_point_fallback`; the height gap does not prove
+  the sourced Water level is wrong. Eight broad-water controls have 0.25 m clearance.
+  This bounded source diagnostic does not sample compiled collision or establish
+  a city/global maximum. Evidence: `tmp/world/completion_d47/height-chain.json`.
+- Fresh Concrete city checks retain the current compiler authentication. The old
+  D44 fixture correctly refuses after D46 changes its compiler fingerprint,
+  restoring exact bindings with clean packages. The existing safe host generates
+  only two new disposable material assets (one shader compile), reusing the
+  unchanged D44 texture bundle; production resources are not regenerated.
+  Both-city PIE replays pass with 15/16 Building consumers, 28 captures each,
+  64 distinct motion frames each, shared targets, exact override restoration and
+  zero dirty packages. Ground-eye cameras now aim at a collision-visible wall
+  rather than beneath a raised wall. Near detail is visible; distant massing
+  remains uniform and dark city shadows persist. This is not Concrete adoption
+  or measured gameplay frame pacing. Reviewable images, clips and receipts are in
+  `tmp/world/completion_d47/concrete/`. Prototype tasks T0/T1/T2 are reconciled as
+  complete within their accepted scope; T3/T4/T6 keep their actual remaining gates.
+- `Project.World.Realization.Buildings.MaterialReferences` passes against the
+  existing generic reference-only writer; no new Building writer or production
+  logic is needed. The first fixture fails a fresh-build/cold-load identity
+  comparison. Its untouched-material control demonstrates that transition before
+  any replacement, with identical saved package bytes. The corrected consumer
+  fixture starts from cold saved outputs, then proves refusal/validation leave
+  bytes unchanged, material save/reload retains exact source/render/collision
+  identity, zero native mesh-build events and zero writes on repeat. It does not
+  claim identical newly built versus first-cold collision. The failed evidence is
+  retained in `building-material/`; final proof is `building-material-cold/` under
+  `tmp/world/completion_d47/`. The new test uses the current native Nanite usage API.
+- Independent architect PASS closes the refreshed preview and isolated Building
+  reference-consumer boundary. The joined `tmp/world/completion_d47/closure.json`
+  authenticates four final native test logs, native source attribution, the
+  same-XY diagnosis, both city capture/clip receipts and all 6758 protected files.
+  Git staging remains unchanged. Q2 Concrete visual approval is presented with
+  the fresh comparison; no decision is inferred from agent self-review. Remaining
+  policy, production adoption, packaged city and release gates are still open.
+- Evidence: `tmp/world/water_source_replay/{domain-red,domain-final,planner-green,source-final}/tests.log`,
+  `exact-attribution.json` and the pinned native `source-emission.json` receipt.
+  The 39/6 geometry decision, numeric conditioning policy, Concrete adoption,
+  final packaged city acceptance and frozen R5/R6 remain open. Do not repeat
+  accepted material artwork, D43/D45 rollout or D46 packaged-resource reviews.
+
+### 2026-10-14 - D46 residual diagnosis and packaged selected-resource proof
+
+- Independent architect PASS closes the bounded read-only diagnosis. The existing
+  detector qualifies 45 contacts above 1 cm2 with near/crossing height within
+  1 mm; it is not a census of every sliver or possible contact. Tightening the
+  affine-plane equality classification to 1e-6 cm yields 39 equal pairs and six
+  unequal pairs: Kazan 15/6, Manhattan 24/0. The four small unequal cases inside
+  the previous 1 mm tolerance must not be silently merged as exact duplicates.
+- Canonical IDs found at an overlap centroid are covering candidates, not exact
+  per-triangle emitted provenance. Shared canonical coordinates do not establish
+  OSM node identity or connectivity. Equal emitted affine planes also do not
+  imply equal canonical nearest-segment functions. Native full-cell replay and
+  source-emission matching are the smallest next attribution proof; no alternate
+  geometry builder or production algorithm is introduced by this diagnosis.
+- Ten bounded 4x4 existing-lattice probes reuse the canonical owner's support
+  calculation. Its conservative global-minimum-knot proposal would additionally
+  lower selected shore controls by 11.2 m in Kazan and 17.2 m in Manhattan;
+  four large-water controls in each city require zero additional lowering.
+  These are proposal costs, not actual intrusion heights or global maxima.
+  Diagnostic wide limits are not production policy. A full-array probe was
+  stopped without writes when its CPU cost was excessive; no broad compilation
+  or acceptance gate was used to obtain these bounded measurements.
+- No new Water algorithm is approved. Local affine-piece overlap reduction is
+  a proposal extending the current retained-nonconstant contract. Preserve the
+  six unequal contacts, provenance and existing emitted float heights; evaluating
+  the canonical function at newly clipped vertices can change those heights.
+  Conditioning quality limits, crossing interpretation and rollout stay gated.
+- Packaged-cost candidate reuses the existing private fixture, current cache
+  owner and native profiling. Four real city mesh selections have authenticated
+  pre-D45 bytes recovered from the existing local LFS cache and exact D45 bytes;
+  HEAD is not substituted for accepted-before authority. Eight unchanged mesh
+  copies are the only new geometry inputs. Cameras use the same current reference
+  bounds, unit scale and accepted material family in each before/after pair.
+  The fixture enables the project's Lumen, reflection, VSM and hardware-ray-
+  tracing methods, but remains a selected-resource envelope, not full-city
+  streaming/gameplay or final 16.67 ms acceptance.
+- Independent architect PASS closes the packaged selected-resource comparison.
+  All eight before/after arms pass with `WITH_EDITOR=0`, exact source triangle
+  counts and accepted AsphaltMacro/RiverCalm live ProjectTexture targets, without
+  PNG import. Forty native Graphics profiles and actual screenshots establish
+  1280x720, Lumen hardware ray tracing and VSM, despite larger launch arguments.
+  Matched images show the isolated layers rendered in the fixture; they are not
+  player-eye city appearance or collision acceptance.
+- Median total Graphics GPU times from five profiles per arm, before -> after:
+  Kazan Road 2.89 -> 2.84 ms, Manhattan Road 2.92 -> 2.82 ms;
+  Kazan Water 3.13 -> 3.25 ms, Manhattan Water 3.00 -> 3.05 ms.
+  Water pass inclusive medians are 0.268 -> 0.424 ms and 0.206 -> 0.217 ms;
+  nested passes must not be summed. No source-count-based road optimization or
+  speedup claim follows from these bounded, variable measurements. Whole-city
+  16.67 ms and frame-pacing acceptance remain UNVERIFIED/INCONCLUSIVE.
+- Native object Exclusive resource sizes for Road decrease from 359458 -> 151542
+  and 397868 -> 170532 bytes despite source counts increasing 4572 -> 12486 and
+  6006 -> 17242. Water counts decrease 246 -> 174 and 278 -> 201. Object resource
+  sizes are not total GPU residency; no city memory-budget conclusion is drawn.
+- The invalid-asset control rejects before consumer setup, writes `valid=false`
+  and releases native bundle bytes to zero. It exposed a duplicate release in the
+  private fixture's failure branch; cleanup now has one owner and preserves the
+  original refusal reason. OS exit code zero is not used as refusal proof. All
+  nine final host receipts authenticate unchanged executable/container bytes and
+  all 940 pinned fixture inputs. Native bundle release is not default-cache eviction.
+- The first cook's runtime exposed the native ray-tracing Skin Cache guard.
+  One replacement cook adds the required fixture setting; the refusal cleanup
+  fix then uses skip-cook restaging. No further cook or production regeneration
+  follows from an Editor-only compilation correction.
+- The real uncooked gameplay route reproduced an adaptive unity build C2668:
+  aggregate projection and surface helpers both offered unqualified `Unit()`.
+  The surface call is now explicitly qualified with its existing private owner;
+  the standard Editor rebuild succeeds without changing the generated graph.
+  The compiler fingerprint advances for this source change; existing material
+  outputs are retained, and the packaged comparison remains evidence for the
+  authenticated copied outputs/runtime inputs, not a newly regenerated compiler
+  candidate. `Project.Material.Asphalt.AuthenticatedSample` and
+  `Project.Material.Aggregate.TriplanarContract` pass against the rebuilt Editor,
+  using exact native RHI tests and scratch-generated fixtures. Independent
+  architect PASS closes this compilation correction. Adaptive UBT excluded the
+  edited file from the GREEN unity bucket; identical bucket replay is not claimed.
+  Explicit namespace lookup removes the observed ambiguity by inspection.
+- Both initial real-menu/possessed-player traversals pass their native correctness
+  checks, including Terrain/Road/Building collision, center streaming out/back,
+  pause-menu input and collision sliding. The outer admission rejects because
+  the agent edited progress docs during the run: source-state hashes differ,
+  while generated authority hashes match. Retain this failure; do not weaken the
+  source guard or claim formal gameplay admission from the rejected run.
+  The subsequent existing-route replay holds source inputs fixed and is accepted:
+  `tmp/world/playable_tour/uncooked/fb44efb636e24d6285d826afde62ee10/admission.json`.
+  Source-state, Editor/module and generated authority checks pass; both cities
+  retain zero streaming failures. This is uncooked gameplay admission, not a
+  final frozen release candidate or packaged collision-fidelity acceptance.
+- Initial actual PIE captures show retained accepted ground/road appearance and
+  outward building massing, but uneven Kazan water/shore coverage remains visible.
+  They do not accept Concrete or complete water alignment. At the nominal
+  2560x1440 High PIE traversal, native viewport preparation authenticates that
+  size; temporary screenshot capture uses 1920x1080 and restores it. Final replay
+  Kazan frame/GPU p95 are 31.42/10.30 ms (6531 samples) and Manhattan 29.98/9.76 ms
+  (7093 samples). Native performance receipts reject the 16.67 ms frame budget;
+  that failure is preserved, not converted to a performance PASS. This uncooked
+  envelope cannot establish packaged performance or attribute the cost to roads.
+- Closure: all 940 fixture inputs and 6758 protected production files match their
+  accepted hashes. The only production source correction is C++ helper lookup;
+  production material resources and all geography stay unchanged. Final progress
+  documentation is reconciled after the accepted run; it is not source-freeze or
+  release authority. Evidence joins are in `tmp/world/completion_d46/receipts/closure.json`.
+  Next: native emitter attribution and an approved Water representation/quality
+  decision, Concrete visual adoption, then actual packaged city collision/GPU
+  and frozen R5/R6 gates. Do not repeat the accepted material or D45 rollout review.
+- Evidence: `tmp/world/completion_d46/receipts/` and source-pinned disposable
+  fixture inputs. D45 outputs, production recipes/resources and staging stay
+  unchanged. The previous rollout review is closed; no full World regeneration,
+  canonical compilation, Matrix, production adoption or release ran.
+
+### 2026-10-14 - D45 selected Road/Water rollout
+
+- D45 authorizes both existing selected transactions, not a full World rebuild.
+  Native Apply and normal process exit accept 306 Kazan and 247 Manhattan
+  Road/Water mesh/actor pairs. Exactly 1106 existing packages change, four new
+  Road/Water scope manifests are added and the active set advances: 1111 paths.
+  Only four Road/Water scope entries advance. Dependent Vegetation is reevaluated
+  and remains byte-identical, with zero instances written. Terrain, Buildings,
+  canonical data, map/presentation outputs and accepted material resources remain
+  unchanged. Material adoption provenance is retained exactly.
+- Fresh cold selected no-op in each city accepts with zero mutations and saves.
+  The complete 6758-file post-Apply inventory remains byte-identical through
+  cold replay, both-city Editor/PIE inspection and clean Editor shutdown. These
+  checks reuse the accepted D44 Check/Matrix and rollback proof; no broad gate,
+  production canonical compilation, cook or release is repeated.
+- Saved source inventory verifies all 293 Road and 260 Water meshes and their
+  accepted material bindings. Road source triangles are 629264 in Kazan and
+  1199592 in Manhattan, about 2.7 times the historical meshes due to conformity
+  splits. This is a measured performance qualification, not city GPU acceptance.
+  Water has 11826/13513 triangles and no degenerate XY or exact duplicate triangles.
+- Both cities have 66 native PIE captures including 64 motion frames, 210 hidden
+  authoring components, and four 1280x720 context views. Native motion frames are
+  860x271 with a 482-pixel scene width; exported clips are diagnostic movement,
+  not high-resolution shimmer or gameplay frame-pacing proof. Roads are visibly
+  more continuous, but shore intrusions, road/water contacts, dark shadows and
+  massing/base context still limit final World appearance. The source-road eye
+  view is not a character walking/collision test. No visual gate is inferred.
+- The existing source overlap diagnostic drops Manhattan's flagged Water pairs
+  from 319 to 24; Kazan retains 21. Every flagged contact centroid is covered by
+  two candidate canonical features including a nonconstant height function;
+  D46 qualifies the still-unverified exact emitted-triangle provenance.
+  Kazan drains `1290267745`/`1290267747` span 53.7-56.4/53.7-54.8 m; Manhattan
+  rivers `605476565`/`1448214217` span 0-0/0-2 m. Native retained-feature logs
+  agree. These are real residual intersections, not scan precision artifacts;
+  no constant-versus-constant union regression is demonstrated. The nonconstant
+  junction and terrain-conditioning gates remain open.
+- Evidence: `tmp/world/full_sweep_d44/rollout/proof.json`, its authenticated
+  before/after inventories and `visual/` captures/scans/attribution; native
+  Apply/no-op receipts in `Saved/Validation/WorldRealization/d44-selected/`.
+  Independent final rollout architect review returns PASS with no required PATCH;
+  it independently authenticates bytes, manifests, no-ops, pixels and residual
+  overlap areas. This bounded review is closed. Concrete adoption,
+  packaged city collision/performance, frozen source, operator walkthrough and
+  R5/R6 remain open. Staging and HEAD are unchanged; no commit/publication ran.
+
+### 2026-10-14 - D44 World completion sweep in progress
+
+- Scope: Road/Water correctness and existing selected transaction, Concrete through
+  ProjectTexture/ProjectMaterial recipes, actual both-city Editor/PIE visual proof,
+  exact packaged runtime/performance and final release preparation. Accepted D41
+  visibility and D43 Buildings remain baselines; no unrelated artistic cycle reopens.
+- Full incremental Apply would rewrite stale presentation tags and metadata in
+  the current cities. Using the historical profile would revert accepted material
+  declarations. Extend the existing selected route to complete generated-consumer
+  sets instead; preserve its authentication, shared identity, byte audit and recovery.
+- Focused host and compiled native RED reproduce rejection of a complete
+  Road/Water/Vegetation set. The small guard correction allows selected dirty
+  dependencies, requires consumer closure and retains clean external dependencies.
+  Eight host tests and the native ExecutionClosure fixture pass after an incremental
+  build. Native topology execution, carried work and refusal-without-owner-calls are
+  measured. The existing ExecutionSelection regression also passes.
+- A real historical selected Water update exposed missing external-actor saves;
+  Water now owns that persistence using the existing Road/Building native pattern.
+  Shared-map/broad-save refusal remains intact. PreparedPresentation passes.
+  The rejected child saved two Water meshes and two actors, then exact rollback
+  restored 196 fixture files. Successful Apply changes only those four packages,
+  the Water scope and active set; cold no-op preserves all 197 accepted files.
+  Road/Vegetation remain unchanged and pending Building work stays carried.
+  Independent architect PASS closes this selected changed-output boundary.
+- Concrete: installed Epic world-aligned functions compile with actual accepted
+  texture targets, but rendered encoded/signed-flat controls expose the selected
+  native normal route's ABI mismatch. A small generic ProjectMaterial triplanar
+  adapter preserves the texture ABI and cache. Its exact save/reload, source,
+  outward-sign refusal and no-op contract passes; the frozen XY asphalt regression
+  also passes. A new bounded recipe candidate uses existing structural controls;
+  it is not claimed as exact D32 source replay. Sixteen actual rendered axis/slope
+  controls agree with independent decoded/oriented normals within 0.000773 per
+  component; eight known-bad relief controls are rejected. The saved graph rejects
+  a disconnected outward-axis sign. Independent architect PASS closes this bounded
+  generic projection contract, preserving the accepted XY shader family.
+- Live cold loading exposed premature sibling generation during native PostLoad:
+  a later texture UpdateResource could replace already-ready generated targets.
+  ProjectTexture now defers that work through its existing pending queue/ticker
+  until catalog, materials and requested/sibling targets finish loading. Explicit
+  PostLoad generation refuses. Original-runtime RED reproduces premature work and
+  readiness timeout; final GREEN checks 262144 raw RGBA8 normals, literal flat
+  control, maximum unit error 0.004856, resource recreation/recovery, warm reuse
+  and unchanged package bytes. Independent architect PASS closes the lifecycle fix.
+  Fresh CacheReuse/BudgetAndPins/FailureLifecycle, cold TwoNodeGeneration and
+  standalone-Game BundleOwnership pass. Earlier city/no-Game test envelopes remain
+  unqualified diagnostics; their assertions were not loosened.
+- Both-city transient previews use 15 Kazan and 16 Manhattan streamed Building
+  consumers, matched cameras, shared generated outputs, 64-frame movement, exact
+  override-array restoration and clean packages. Collision-supported ground-eye
+  views use compiled terrain plus 170 cm. The default spawn camera is aerial,
+  not a ground-level player view. Close Concrete detail and city-scale variation
+  are visible, but dark city shadows and possible base/terrain gaps limit visual
+  acceptance. These images do not establish a newly attributed geometry cause,
+  full-city coverage, motion frame pacing or persistent Concrete approval.
+- Fresh isolated cooked Game consumes byte-identical copied production soil,
+  asphalt and river material packages through live default ProjectTexture targets,
+  without imported readbacks. A separate native Texture Graph aggregate replay
+  matches default Signals/Normal RGB at all ten mips. Five packaged ownership,
+  failure, cancellation, shutdown and mixed-budget tests pass; source pins and
+  executable/containers remain unchanged. Independent architect PASS closes this
+  bounded packaged boundary. Native bundle release is separate from production
+  default-target eviction. The flat fixture lacks actual MeshTerrain semantic
+  channels and cannot accept BrownEarth's city appearance or Concrete adoption.
+  Isolated graphics profiles are 3.05/2.88/3.38 ms; Water inclusive pass is 0.199 ms
+  and depth prepass 0.077 ms at 1280x720, with GI/reflections disabled. These are
+  single-frame diagnostics, not city 16.67 ms acceptance or comparative speedup.
+- Production Water conditioning policy is absent in both cities. Conservative
+  minimum-knot cuts are not approved numeric limits. Known road conformity and
+  compatible Water plane composition proceed separately from terrain conditioning,
+  nonconstant crossings and optional road grading. Release closure cannot infer
+  acceptance of those remaining exceptions.
+- Current scratch/evidence: `tmp/world/full_sweep_d44/` and native transaction
+  receipts in `Saved/Validation/WorldRealization/d44-selected-mutation/`. All 6754
+  protected post-D43 files were freshly rehashed unchanged after fixture recovery.
+  Synthetic-only fixture compilation and isolated runtime cook/replay ran. No
+  production canonical compilation or durable city rollout has run. The fresh
+  Common Check `check-20261014T115834Z` passes all eight suites; the required
+  canonical-authority Matrix `run-20261014T121414Z` passes realization, no-op,
+  locality, rejection/recovery and clean saved-projection comparison. Matrix
+  authority is transient; its generated tree temporarily occupies the actual
+  package root under outer backup/recovery. All 6754 post-D43 protected files
+  match exactly after restoration. This is one shared-source acceptance boundary,
+  not the material-iteration workflow or permission to update durable city outputs.
+- Current authenticated census: Road has 420 changed consumed-input units and
+  stale revision-1 outputs; Water has 420 units with stale revision-1 outputs.
+  Existing saved inventory contains 293 Road and 260 Water mesh/actor pairs.
+  Dependent Vegetation is selected for correct reevaluation; exact writes are
+  determined by the existing planner, not these inventory counts. Canonical
+  output bytes and accepted Terrain/Building consumed inputs/revisions match.
+  Historical native input rows are explicitly retained/qualified, not described
+  as a fresh post-Apply delta. Existing host preflight authenticates both selected
+  operations, carried bytes, full profiles and historical material geometry lineage.
+  Inputs and receipts are under the D44 scratch root; no selected Apply ran.
+- Independent final readiness architect review returns PASS for the bounded
+  preparation. It independently rehashes all 6754 protected files with zero
+  mismatches and confirms the selected consumer closure, accepted gates and empty
+  staging. No required PATCH remains in this reviewed scope. This does not approve
+  persistent rollout, Concrete adoption or final release acceptance.
+- The preparation checkpoint stopped at retained D34 approval, later granted
+  for the selected operation by D45. Concrete visual/
+  cooked adoption, water distortion/source-quality and crossing decisions, real-city
+  packaged collision/performance, frozen source/operator walkthrough and R5/R6
+  remain open. No commit, staging, signing, publication or production backend
+  activation is inferred from the completed engineering proofs.
+
+### 2026-10-14 - D43 feedback reconciliation
+
+- Reviewer PASS is supported by fresh read-only manifest/source verification and
+  the complete 6754-file post-rollout snapshot, with zero changed files. No producer,
+  output, backend, conditioning policy or accepted artwork needs another patch.
+- Dependency-aware acceptance tooling preserves full replay/refusal for changed
+  consumed production inputs, producer implementation, promoted authority, missing
+  history and unreadable inputs. Synthetic policies remain fixture-only and
+  Check-authenticated. Isolated Matrix expectations do not adopt Road/Water outputs.
+- The accepted 312 Building outputs are a baseline, not a permanent freeze. Building
+  HashCellInput consumes the owning canonical terrain artifact and the builder
+  samples its height. Unrelated Road/Water/material changes do not invalidate them;
+  an actual consumed terrain change requires affected Building reevaluation, with
+  writes only when its realized output changes. Existing ownership remains intact.
+- The measured Manhattan collision-point difference remains explicit and is carried
+  into T6's final packaged gameplay/physics evidence. Source positions and retained
+  configuration do not establish globally unchanged physics or packaged fidelity.
+- No new rollout, broad acceptance run, cook or release gate is authorized by the
+  reviewer. Concrete adoption, Road/Water alignment and final packaged/release
+  acceptance retain their existing operator gates. The completed D43 review stays
+  closed. A separate acceptance-tool scalability correction evaluates a safe
+  changed inventory once before producing per-path refusal diagnostics: RED
+  measured 11 canonical-context loads for 11 safe paths; GREEN measures one,
+  with mixed-inventory refusal retaining its exact offending paths. Fresh consumer-
+  scope and planning verification passes all 36 tests; independent architect PASS
+  confirms a 624-path safe inventory needs one history/closure read. No new cache
+  or ownership boundary is introduced. The changed guard/tests invalidate the
+  Common Check identity for future candidates; D43 Check/Matrix receipts remain
+  accepted for their original source candidate, not this later tool edit. Use
+  focused proof now and the next required slice-boundary gate for fresh acceptance.
+
+### 2026-10-13 - D43 authorized Building-only rollout and city verification
+
+- Required Common Check is accepted at
+  `Saved/Validation/WorldPipeline/check-20261013T181824Z/result.json` (8 suites).
+  CanonicalCompilation 96, EndToEndValidation 134, World host Pester 224 and native
+  realization 77 tests pass, including refusal/recovery and restored two-cell proof.
+  Test-only upstream edits remain Check-authenticated without becoming producing
+  compiler identity. No production canonical compilation or source acquisition ran.
+- The canonical-authority Matrix is accepted at
+  `Saved/Validation/WorldPipeline/run-20261013T183250Z/result.json`. The existing
+  route has no Building-selected acceptance mode, so it used an isolated Kazan
+  full-layer candidate, then restored every production byte. The initial attempt
+  rejected three stale profile expectations; current native results justify only
+  Water artifact count 290, Water triangles 11826 and Road triangles 629264.
+  Focused all-leg diagnostics, refreshed Check and one replacement Matrix pass.
+  These fixture expectations do not promote Road/Water city geometry. No cook ran.
+- Existing transactional selected-Building Apply updated 171 Kazan and 141
+  Manhattan mesh/actor pairs, with zero created/removed outputs. Exactly 624
+  existing Building packages changed; only their two active scopes advanced
+  (Kazan 22 -> 23, Manhattan 8 -> 9), with two new immutable manifests. Canonical,
+  terrain, road, water, vegetation, gameplay, shared maps and materials are retained.
+  Carried dirty Road/Water/Vegetation work was not executed or claimed current.
+- Both selected-Building no-op replays write zero outputs. Cold native save/reload
+  projections retain map identity, actor GUIDs/transforms, material bindings and
+  collision configuration. All 312 source surfaces (3705194 triangles) retain
+  exact winding-insensitive coordinate hashes and source bounds; current compiled
+  bounds equal unchanged source bounds. This does not prove old/new physics equality.
+- Actual PIE verifies one-sided walls and roofs in both cities using a transient
+  native control material, because the retained vertex-color material is two-sided.
+  Source-facet depth max error is 0.002381 cm in Kazan and 0.000359 cm in Manhattan;
+  hidden-renderer negative controls reject. Original component bindings are restored.
+  All 210 observed terrain authoring proxies per city stay hidden in Game worlds.
+- Collision is separately measured against authenticated original mesh payloads.
+  Six Kazan samples match; five of six Manhattan samples match. One Manhattan roof
+  moves 1.417786 cm in the native simplified collision representation (source bias
+  6.646258 -> 5.228472 cm). Exact old collision-point equality FAIL remains explicit.
+  Same-current-mesh clones match exactly, separating this from registration timing.
+  Compiled fallback LOD hashes/counts change with unchanged Nanite Auto/error 1.0
+  and LODForCollision 0 settings; native physics consumes this LOD, not source data.
+  BlockAll QueryAndPhysics/complex-as-simple/double-sided contracts remain retained;
+  separated rays and three disabled-collision controls reject. No tolerance waiver,
+  full-fidelity fallback policy, copied stale physics data or collision migration
+  is inferred. Packaged/global collision fidelity remains unverified.
+- Both cities have 19 sampled moving PIE frames and two native 1920x1080 context
+  captures. Inspected exterior massing is visible with retained soil/asphalt/river
+  appearance. These are visual smoke, not Concrete adoption or frame-pacing proof.
+  Existing Water intrusion/shore/crossing concerns remain under alignment.
+- Owned background Editors stop PIE, report zero dirty content/map packages and
+  exit normally. The final post-Apply snapshot matches all 6754 files exactly.
+  Receipt root: `tmp/world/building_rollout_d43/receipts/`; city evidence and
+  `*-building-motion/`, `*-building-context/` are under the same task root.
+  Native Apply/no-op/cold receipts: `Saved/Validation/WorldRealization/d43-buildings/`.
+  Required native fallback proof semantics are owned by the territory contract.
+- Independent architect review: PASS for bounded D43; accepted source,
+  locality and native query/physics contract remain distinct from the failed exact
+  collision-point subclaim. Concrete adoption, Road/Water rollout/conditioning,
+  exact final packaged GPU acceptance and frozen R5/R6 remain open. No staging,
+  commit, push, release signing, tagging or publication occurred.
+
+### 2026-10-13 - D42 affected-output sweep and attribution correction
+
+- Read-only native Validate succeeds for both cities. Comparing its actual input
+  hashes to authenticated active manifests finds 420 changed Road units and 420
+  changed Building units; Water has an output-only producer revision. Terrain,
+  Vegetation and gameplay inputs remain equal. Empty Validate dirty lists are not
+  a rollout plan. Existing meshes total 312 Building, 293 Road and 260 Water pairs.
+- Building emission/cell identity already uses revision 2, but its descriptor
+  remained revision 1. Exact BuildingMassing verify reproduced changed saved
+  output at the same verification identity. The descriptor is corrected and
+  Building, Road and Water baselines are recorded by their native owner writer;
+  fresh exact comparisons and BaselineRules pass. Only the Building producer
+  fingerprint changes in this sweep's metadata correction.
+- The two-cell cross-layer twin refused without the current Water quality policy.
+  A read-only fixture diagnostic measured a 6 m conservative cut and sqrt(2) m
+  support extent at 1 m spacing. Only the synthetic compiler profile now admits
+  those bounded stress inputs. The schema rejection of an initially misnamed field
+  is retained as diagnostic evidence; only the schema-correct profile compiled.
+  Map, Mesh Terrain and Pipeline fixture baselines are recorded against the changed
+  fixture identity. Fresh saved/reloaded cross-layer comparison passes for Map,
+  Mesh Terrain and Pipeline; the two-cell transaction restores prior TestData.
+- Prepared separate Building-only city transaction inputs under
+  `tmp/world/integration_sweep_d42/inputs/`; they are not executed. Road/Water are
+  non-leaf owners because Vegetation depends on their canonical inputs. The
+  existing full incremental route retains the complete profile and required dirty
+  closure; do not remove dependencies or bypass the leaf guard. Reevaluation is
+  not necessarily package regeneration: unchanged Vegetation semantics skip writes.
+- Real-city support diagnostics refuse without policy. Selected conservative
+  minimum-knot support cuts reach 15.7 m in Kazan and 4 m in Manhattan. These are
+  analytical bounds, not accepted edits or the earlier measured rendered intrusion.
+  Current canonical Road attributes do not contain bridge/tunnel/layer metadata.
+  Source crossing order, conditioning policy and final product acceptance remain open.
+- Evidence: `tmp/world/integration_sweep_d42/`. Native owner comparisons use the
+  rebuilt current binaries. The initial default test attempt could not link against
+  the running Editor's DLLs and ran no test; the owned clean background Editor was
+  closed, incremental build passed, and subsequent exact tests used CompileMode None.
+- The acceptance planner initially classified the synthetic-only compiler-profile
+  edit as production upstream work. A focused RED test reproduced that false full
+  replay. Planner and canonical CLI now use the same per-Matrix authority input
+  closure. Synthetic evidence still invalidates L1/Common Check; shared compiler
+  changes, actual consumed inputs, promoted authority, missing history and unreadable
+  inputs remain full replay/refusal. An authority deliberately consuming TestData
+  is not exempt. The actual D42 plan selects `kazan_territory_v1 (canonical_authority)`;
+  no Common Check or Matrix has been launched by the planner or this correction.
+- Independent architect reviews accept the bounded saved-output preparation and
+  the distinct planner correction. The latter's 45 focused Python tests pass;
+  46 existing owner-selection/manifest/snapshot/commit-order Pester checks pass
+  in disposable projects, including rejection and recovery refusal controls.
+  These are focused host recovery proofs, not an injected live-city rollout or
+  production acceptance. The review's scratch-hierarchy cleanup is applied and
+  its six consumer-scope tests rechecked. The accepted stage review is closed.
+- Final byte audit matches all 1,458 protected resource/manifest files and 5,958
+  generated World packages. Both canonical inventories remain authenticated.
+  MCP confirms the background Kazan Editor has no dirty map/content packages.
+  Building-only city replacement remains at the retained D34/D42 operator gate;
+  Concrete city visuals and exact final packaged GPU acceptance are not completed.
+
+### 2026-10-13 - D41 PIE terrain visibility correction
+
+- The accepted material appearances remain frozen. Moving native PIE captures
+  prove Editor-only terrain authoring meshes were competing with compiled terrain;
+  coincident sampled depth and no identical-asset duplicates did not exclude this.
+- The existing Mesh Terrain partition suppresses only authenticated authoring
+  Editor-only primitives in Game worlds, including startup and late registration.
+  Exact native RED/GREEN, architect PASS, both-city movement/negative controls,
+  repeated compiled BaseColor/depth/normal stability, Simulate and clean restoration
+  verify the correction. Protected resource/World package bytes remain unchanged.
+- No material recipe, geometry, resource cache, production setting or city output
+  migration is needed for this fix. Remaining Water alignment and building rollout
+  remain with their owners and gates; D39 material integration is not reopened.
+
+### 2026-10-13 - D40 geometry overlap investigation
+
+- Accepted BrownEarth, AsphaltMacro and RiverCalm appearances remain frozen. Live
+  MCP isolation found terrain/Water intrusion and positive-area ribbon self-overlap,
+  without identical-asset duplicate actors or a demonstrated material regression.
+  D41 subsequently proves differently represented authoring/compiled terrain can
+  still compete; the earlier duplicate census did not exclude that renderer path.
+- The Water owner composes compatible constant-plane footprints in focused fixtures;
+  this changes its geometry output identity only. No city resources, material bindings,
+  canonical data or unrelated geometry were written during this investigation.
+- Current city flicker is not closed by the source fix. Affected Water realization,
+  nonconstant junction decisions and accepted terrain-conditioning limits remain in
+  the [alignment investigation](20261008-1543_world_investigate_road_water_alignment.md).
+  D39's material-only preservation PASS remains valid within its original scope.
+
+### 2026-10-13 - D39 material-only city application
+
+- Applied accepted resource recipes through the existing ProjectTexture and
+  ProjectMaterial hosts: three pattern assets, eight material assets, four shader
+  compilations. Kept the terrain object path and default ProjectTexture runtime
+  producer. Private native Texture Graph production activation remains excluded.
+- The reference-only transaction saved 306 Kazan and 247 Manhattan road/water
+  meshes, zero actor packages and zero mesh builds. The other 5,405 checked World
+  packages, both canonical bundles and 44 frozen soil evidence files are exact.
+  Existing geometry fingerprints are preserved, not recertified as current.
+- Native fixture save/reload, actual saved-child rejection/rollback, exact no-op,
+  authenticated bindings, six selection tests and thirteen profile/provenance
+  tests passed. Road/water reference changes are independent of geometric leaf
+  restrictions; ordinary geometry still retains those restrictions.
+- Rendered 13 views per city in actual PIE, including player, slope/seam,
+  road/water context and city overview. Actual compiled MeshPartition sections
+  consume the saved terrain material and native ground/hydro channel array.
+  Observed 210/214 terrain, 26/36 road and 23/36 water consumers in Kazan/Manhattan.
+  Shared soil and asphalt runtime targets were reused; all three soil RGB maps
+  match the frozen source exactly in both cities. Cold/warm logs prove two shared
+  identities, no warm node generation and a 6,990,500-byte isolated cache peak.
+  These are resource/cache receipts, not total city GPU/frame certification.
+- Soil, asphalt and river visually retain the accepted improvement in city views.
+  Dark Manhattan shadows, distance repetition, road/shore geometry and existing
+  building-facing defects remain separate concerns. High-altitude cloud-obscured
+  views are diagnostic, not ground-quality evidence. No new motion claim.
+- Fixed a direct-consumer regression: selected geometry now authenticates original
+  profile bytes and accepted declarations/object paths after material adoption.
+  Current native material authentication permits changed appearance bytes at the
+  same path; historical adoption remains unchanged. Full Apply uses current inputs.
+  Read-only selected-building preflight passes on actual Kazan authority; no
+  building child or geometry rollout was executed.
+- Evidence: `tmp/world/surface_presentation/integration_d39/receipts/`, actual
+  native results at `Saved/Validation/WorldRealization/d39-city-materials/`,
+  and city captures under `integration_d39/{kazan,manhattan}/`.
+- Both actual city cold replays passed with zero writes/builds and equal geometry
+  hashes, using durable inline source recovery without the original scratch profile.
+  The protected 5,958 World packages, including external actors, remain exact;
+  a direct 1,458-file generated/resource/manifest snapshot is also unchanged.
+  Production host repeats generated zero assets (three texture and eight material
+  records skipped), with zero shader compilations and unchanged resource authority.
+  Focused selected-layer bridge architect recheck returned PASS. The large host
+  remains orchestration only (990 lines, net downward versus HEAD); source/profile
+  and candidate-provenance behavior lives in its small existing sibling helpers.
+- Exact native `Project.World.Presentation.SemanticResourceContract` replay passed
+  against the generated production resources. Final independent architect review
+  verified protected hashes, cold replay, resource no-ops and decoded city soil
+  pixels, returning PASS for D39's material-layer integration. This boundary is
+  closed; do not reopen artwork/refactor reviews or rerun the World pipeline.
+  Kazan remains open in the background/offscreen Editor, MCP responds, PIE is
+  stopped and native clean-package assertions pass.
+- Concrete, exact final packaged semantics/GPU cost and alignment acceptance remain open;
+  no canonical compilation, Matrix, city geometry regeneration or release run.
+
+### 2026-10-13 - D38 semantic terrain integration
+
+- Matched water-only and combined-soil controls in both cities reproduced a real
+  presentation mismatch: direct compacted-ground shading discarded canonical
+  ground/hydro channels and changed native SingleLayerWater's behind-water color.
+  The color control is not a geometry-clearance measurement.
+- `terrain_height_masks_metric` wraps the same frozen detail graph in the existing
+  native ground/hydro composition. The same three ProjectTexture maps, BrownEarth
+  palette, normal frame and one Slab remain. Layout admission is explicit; no new
+  mask generator, canonical authority or texture cache was introduced.
+- Exact SemanticTerrainRecipe and AuthenticatedMetricSample tests cover missing
+  layout refusal before writes, saved/reloaded native channels, wrong hydro index
+  rejection and no-op generation. The isolated material host generated two assets
+  from the existing source bundle, with one shader parent compilation.
+- Real native renderer overrides retained the original MeshPartitionChannelTexture
+  and component primitive context. Matched existing/generated/restored captures
+  cover player, slope, road, water and full-map aerial views in Kazan and Manhattan.
+  Actual inspected images retain compacted-soil detail on land and green river water.
+  The final restoration receipts cover 480 Kazan and 391 Manhattan components,
+  exact bindings/overrides/bounds, zero saves and clean map reloads.
+- Independent architect identified one shared preview consumer defect: semantic
+  metric verification borrowed instance defaults instead of the saved parent recipe.
+  AuthenticatedMetricSample reproduced the failure with roughness .91 versus .93.
+  The correction loads the authenticated parent for both metric families. GREEN
+  also proves .89 live tuning, invalid JSON last-good preservation and exact revert.
+  The final exact test also preserves the native channel texture pointer through
+  the public fixture preview operation. Independent architect recheck returned
+  PASS and closed this source/Editor boundary; no further review loop is required.
+- The city visuals use authenticated disposable materials and reversible native
+  component overrides. They do not certify persistent bindings, corrected existing
+  building outputs, production backend activation or packaged semantic terrain.
+  D37 cooked evidence covers its exact direct material candidate only.
+
+Evidence: `tmp/world/surface_presentation/integration_d37/`, especially
+`kazan-semantic-final/`, `manhattan-semantic-final/`, `receipts/semantic-host/`
+and `receipts/semantic-preview-red/` / `semantic-context-final-green/`.
+Final standalone generation and validation receipts are `semantic-final-host/`
+and `semantic-final-validate/`: two isolated outputs, then zero writes/compiles.
+Final protected audit verifies 6,151 packages, 493 unchanged non-schema owner Data
+files, all 44 frozen soil inputs, both compile receipts and 1,276 canonical outputs,
+plus unchanged HEAD and index. Stable docs/diagrams and release routing are updated.
+T5/T6, corrected-city Concrete and remaining production/visual gates stay open.
+
+### 2026-10-13 - D37 exact resources and binding integration
+
+- The normal Unity build reproduced a D36 defect: compiler helper collisions and
+  missing matching-header-first includes. Named private namespaces and correct
+  include order fix the real build without changing accepted shading.
+- ProjectTexture owns the graded native particle recipe and four private nodes
+  exporting the existing three-output soil ABI. Twenty-three bounded controls
+  participate in identity. The frozen Structure/Normal/Masks RGB data is exact;
+  all 27 lower cooked mip readbacks also match the preserved source. Raw generation
+  stays private and export descriptors resolve by NodeId rather than array position.
+- ProjectMaterial owns the metric height/mask family: native HeightLerp at two
+  physical scales, shared macro masks and native world-normal orientation. Its
+  palette and composition remain the frozen BrownEarth values. Matched cooked
+  reference/repeat rendering verifies the graph within ordinary render variation;
+  it does not establish pixel-identical shaded frames or city performance.
+- The isolated cooked replay exercises live cached GPU targets, direct material
+  consumers, shared requests, full mip chains, release and recovery. Missing native
+  siblings reject before draws. The four existing default-cache regressions passed.
+  GPU snapshots remain local fixture evidence; the city 16.67 ms verdict is
+  INCONCLUSIVE, with no claimed backend speedup or production activation.
+- T4 generalizes the existing World manifest reader and transports one authenticated
+  resource per role to assignment and artifact capture. It introduces no
+  ProjectMaterialEditor dependency. Dirty instance/parent and source-origin checks
+  refuse before use; missing requested bindings do not fall back to Engine assets.
+  Water receives a prepared native material instead of compiling another graph.
+  Existing local diagnostic artifacts stay enrolled until an accepted retirement
+  census. Saved/reloaded water inspection accepts the exact reference and rejects
+  an incorrect override. Architect returned PASS and closed the earlier unsaved-map
+  fixture qualification after the existing partitioned fixture route proved it.
+- The first combined Kazan preview exposed missing Nanite usage on an asphalt
+  instance. Editor auto-repair dirtied it; installed UE source confirms Game can
+  fall back instead. Parent usage declaration and saved instance authentication
+  passed focused generation/reload/refusal tests and exact cooked Nanite replay.
+  Final city previews restored cleanly without auto-repair. The texture maps and
+  artwork remain frozen; neither compilation nor API dispatch counts as visual PASS.
+- T5 remains a distinct reference-only transaction boundary. Preserve prior accepted
+  geometry fingerprints and inputs, including pending road work; never stamp current
+  producer code onto unrebuilt geometry. Restrict profile edits to material fields,
+  refuse missing/unowned outputs, preserve mesh build/collision data, and prove
+  no-op replay plus injected recovery before adoption. The architect accepted this
+  seam as a proposal, not implemented acceptance or rollout authorization.
+
+Evidence is confined to `tmp/world/surface_presentation/integration_d37/`. Current
+city outputs, canonical data, frozen baseline, index and release are protected.
+T4 production cutover, T5/T6, corrected-city Concrete, Q1/Q2 and alignment acceptance
+remain open. Do not mark this concern complete from the bounded engineering PASS.
+
+### 2026-10-13 - D36 reusable-pattern implementation and architect PASS
+
+D36 completes T2a within isolated resource-owner scope. Particle recipes expose
+22 bounded native controls and an implemented seed phase; their consumed values
+participate in both structural identities and connected-graph verification. The
+default Signals and Normal each match all 786,432 frozen D32 RGB bytes. A JSON-only
+seed/coarse-population variant changes 262,140 Signals pixels and 261,775 Normal
+pixels of 262,144, retaining finite unit normals through the existing runtime owner.
+This proves meaningful recipe variation, not universal soil or arbitrary graph support.
+
+Material compilation uses reusable aggregate_metric, height_masks_uv and
+single_layer_water families with shared native expression/projection/normal helpers.
+Three differently authored instances share two shader parents in the isolated
+host fixture; two aggregate instances share one parent with compatible independently
+selected bundles. The parsed world-XY frame is now truthful. Instance save/reload
+checks effective texture/scalar/vector values, while preview separates edited
+parameters from the saved baseline. Existing accepted inline-source terrain parents
+remain verifiable for preview; no production retargeting or compatibility compiler
+was added. The UV height/masks fixture is not relabeled as frozen BrownEarth.
+
+The architect found a real late-refusal defect: a valid parent was saved before a
+later dirty instance source failed. Exact RED reproduced one unwanted package;
+whole-request loaded-source/ABI and declared-parent preflight now refuses before
+writing or skipping. GREEN proves zero cold writes, warm Validate/Regenerate refusal
+and unchanged accepted manifest bytes. The completed independent architect recheck
+returned PASS with no required findings; this review stage is closed.
+
+Thirteen distinct exact native tests passed across particle admission/source output,
+aggregate/water/height-masks material compilation, recipe known-bad/identity contracts,
+the existing terrain asset compiler, authenticated terrain-detail fixture, live
+preview/revert, refusal preservation and manifest schema consistency. The existing
+public fixture operation now supports an authenticated fixture's own renderer,
+including water without a fabricated terrain layout. Known-wrong copied MID
+textures are restored to authenticated candidate textures; exact original MID
+overrides remain intact on revert. This consumer PATCH was reproduced RED and
+verified GREEN for aggregate and native water, then independently closed at PASS.
+The final schema check also corrected the public manifest compiler-version enum
+to admitted versions 5/8; the native manifest test prevents recipe/schema drift.
+The Editor build passed. The isolated
+host generated two pattern packages and five material assets with two shader-parent
+compiles. No public cache or Texture Graph runtime contract changed in D36.
+
+Matched actual Editor renders compared the refactored asphalt/water families with
+retained D32 native graph construction at fixed controls. Five reference comparisons
+had RGB mean absolute errors 0.59-1.14 bytes, within repeated-capture temporal
+variation (0.60-1.30 bytes). The JSON-only structural variant differed visibly,
+including 4.66 bytes MAE in the grazing close view. These are controlled fixture
+preservation checks, not new artistic acceptance or GPU/city-performance proof.
+An initial capture while simulation was active was too dark and discarded; the
+accepted captures use the restored Editor world and matched manual exposure.
+Cleanup left no owned actors, dirty content packages or dirty map packages. The
+same offscreen Editor remains running without a foreground window.
+
+The final compiled console route was also exercised through live MCP with an
+isolated aggregate fixture: JSON diagnostic palette -> authenticated transient MID
+-> actual grazing pixels -> exact original binding. Diagnostic RGB MAE was 70.72
+bytes; reverted MAE was 0.88 bytes. The accepted fixture manifest and all five
+material packages retained their hashes. This diagnostic pink is not an artistic
+candidate. `live-json-pixels.json` and `live-json-deltas.json` record the proof.
+
+Final scope verification retains all 44 frozen BrownEarth inputs and 10,781
+protected files byte-identical. Six deliberately changed schema/fixture inputs
+are listed separately; production resources and World/canonical artifacts are
+unchanged. Thirteen recipe documents and 18 owner/router documents pass schema,
+link and ASCII checks. Public manifest schema checks use a declared test-mount
+projection; native fixture authority separately authenticates actual confined
+paths and physical package hashes. Git staging remains empty and unchanged.
+
+Evidence: `tmp/world/surface_presentation/refactor_d36/` holds RED/GREEN logs,
+source-comparison.json, host receipts, rendered-comparison.json, rendered-deltas.json
+and editor-restored.json under their maps/captures/receipts directories. Durable
+contracts and Mermaid diagrams live in each resource owner's docs/architecture,
+reached through its README chain; native references cover Epic Material Instances,
+Material Functions and Texture Graph, checked against installed UE 5.8.3 APIs.
+
+Compiler source fingerprints still cover an owner's admitted source set and can
+stale multiple resource artifacts at eventual promotion. This refactor does not
+claim a fully minimal acceptance planner or authorize production regeneration.
+T4/T5, exact final-candidate cooked replay, Concrete city acceptance, building
+rollout and Q1/Q2 adoption remain open. The 16.67 ms target and INCONCLUSIVE policy
+are unchanged. No canonical compile, World regeneration, Matrix, cook, release,
+production mutation, staging or commit ran in D36.
+
+### 2026-10-12 - D34 isolated preparation and D35 reusable-pattern correction
+
+Production city outputs remain unchanged. The read-only building census is
+`tmp/world/surface_presentation/production_d34/receipts/building-census.json`:
+420 building cells need the winding-revision update; 312 nonempty cells own 624
+mesh/actor packages and 108 cells are empty. Kazan has 171 pairs, Manhattan 141.
+The current road implementation also marks all 420 road units dirty. Ordinary
+Apply would therefore perform unrelated road work; it is not the building route.
+Terrain, water and vegetation input inventories are unchanged in this census.
+
+The existing transaction now supports explicit geometric leaf selection while
+retaining full inventories and pending unselected work. The building-only isolated
+fixture accepted selection without dispatching roads. An accepted native child
+followed by a host-authentication failure restored the disposable output set and
+removed its accepted child receipt. Selector Pester 5/5, existing rollback Pester
+9/9, and exact `Project.World.Realization.Layers.ExecutionSelection` passed.
+Receipts/logs are under `production_d34/receipts/` and `production_d34/logs/`.
+The geometric selector is not a material-reference-only migration mode.
+
+Authenticated aggregate/asphalt and native river fixture recipes compile through
+their existing owners. Connected-route, loaded-source/descriptor refusal,
+save/reload and warm no-write checks passed; the independent architect accepted
+these bounded corrections. The two generated asphalt RGB maps match the frozen
+source byte-for-byte. RiverCalm consumes authenticated Epic resources and creates
+no fictitious ProjectTexture cache entry. The old public soil compiler is not
+relabeled as the exact frozen BrownEarth source.
+
+The isolated packaged replacement actually renders BrownEarth, AsphaltMacro and
+RiverCalm through live cached outputs; no imported PNG supplies the material.
+Two soil and two asphalt consumers share those targets and detach before release.
+All three cooked BrownEarth source maps match the frozen RGB bytes exactly:
+2,359,296 compared bytes, maximum error zero. The initial empty captures and their
+timings are rejected, recorded in `receipts/initial-render-rejected.json`.
+The replacement's 1280x720 GPU snapshots were 2.13/1.99/2.04 ms respectively;
+RiverCalm's SingleLayerWater pass was 0.192 ms and its depth prepass 0.077 ms.
+These inclusive pass measurements must not be summed with nested timings.
+City frame pacing, p95 and the 16.67 ms acceptance remain INCONCLUSIVE.
+
+This packaged result used a diagnostic 64 MiB catalog clone and exposed a real
+policy defect: RequestOutput and RequestBundle replaced one global cache budget
+with the arriving catalog's budget. The native 32 MiB reservation was pinned when
+the 16 MiB asphalt catalog lowered that global limit. MixedProducerBudget RED
+reproduced both shrinking and raising policy. The correction fixes one native
+configured budget at initialization and retains catalog budgets as per-operation
+envelopes. MixedProducerBudget GREEN, BundleOwnership, BundleFailureRecovery and
+the correctly routed Editor TwoNodeGeneration passed. The independent architect
+accepted the cache-policy correction. A Game-context TwoNodeGeneration invocation
+matched no test and is not regression evidence. Invalid global configuration is
+fail-closed in source but has not been runtime-tested. This source correction is
+not yet replayed in the exact cooked fixture;
+the diagnostic clone must be removed and authenticated mixed reuse proved before
+production readiness. Native pool release to zero does not establish zero total
+GPU residency; other default-source outputs remain accounted separately.
+
+D35's independent architect verdict is PATCH for content extensibility, retaining
+the bounded engineering receipts. The asphalt material's palette, scale, roughness
+and macro influences already come from JSON and share parents/cache outputs.
+Millions of consumers do not require millions of builders. However, aggregate
+particle frequencies, populations, warp and normal reference ratio are compiled
+constants; the schema fixes seed zero and one 512-square composition. New
+structural styles still require C++ changes. Separate graph builders also repeat
+native projection/normal/composition helpers. T2a owns the next bounded correction;
+renaming builders alone does not satisfy D35.
+
+Preserve all accepted visual values and outputs. Do not start another artistic
+iteration, arbitrary graph interpreter, cache, service or per-surface compiler.
+Use recipes selecting reusable native patterns and physical shader families.
+T4/T5 reference-only preparation, exact cooked final-candidate replay, Concrete
+city evaluation and Q1/Q2 production gates remain open. No production migration,
+building rollout, canonical compile, full World run, Matrix or release occurred.
+The final D35 scope check passed: all 44 frozen BrownEarth inputs and 3,790
+protected World data, production material/texture content and canonical-compiler
+files retain their recorded hashes. Markdown links and ASCII checks passed;
+the operator-owned Git index remains empty and unchanged. Receipt:
+`tmp/world/surface_presentation/production_d34/receipts/d35-frozen-scope.json`.
 
 ### 2026-10-12 - D32 diagnosis and D33 building-owner correction
 

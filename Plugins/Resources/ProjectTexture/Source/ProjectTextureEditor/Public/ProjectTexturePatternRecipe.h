@@ -34,6 +34,7 @@ struct FProjectTexturePatternRecipe
 	FString OutputContract;
 	int32 Seed = 0;
 	FString ResolutionClass;
+	TMap<FName, double> StructureControls;
 	TArray<FProjectTexturePatternNode> Nodes;
 	TArray<FProjectTexturePatternExport> Exports;
 	FString NormalizedSemantics;

@@ -80,6 +80,73 @@ manifests. `-DirtyUnit <layer_id>=<unit_id>` may add operator work but cannot
 remove computed work or dependency closure. The commandlet emits exact
 per-layer inventories; the wrapper rejects missing, extra, overlapping, or
 out-of-owner artifacts before publishing anything.
+
+`-ExecuteLayer <layer-id>` bounds a geometric incremental Apply to explicitly
+selected generated owners. The selection must include every generated consumer
+of each selected owner, recursively, and execute in the full profile topology.
+Dependencies inside that set may be dirty; all transitive dependencies outside
+it must be authenticated and clean. Existing leaf selection is the smallest set.
+The route requires an accepted map and unchanged canonical, presentation, runtime,
+authored-overlay and complete realization profile identities. First-time enrollment,
+reconstruction, Delete, changed shared inputs and incomplete consumer closure refuse.
+Keep the complete profile and inventories: unselected dirty units remain pending
+work, not certified clean output. Selection is not a way to retire a layer.
+
+The scoped route saves only selected owner packages. It does not run global
+partition, HLOD, runtime-route, presentation, authored-overlay or stale-output
+writers. An owner requesting a broad save or dirtying the persistent map is
+rejected. The host authenticates the child selection and proves unchanged map
+and carried layer bytes before publishing only selected layer manifests.
+Carried manifest entries retain their accepted identities. Full owned-root
+snapshots remain the rollback boundary, including a failure after an accepted
+child but before candidate authentication. A scoped accepted receipt proves the
+selected operation; it does not certify the pending full World.
+
+### Material references without geometric realization
+
+Use `-Mode Apply -MaterialReferencesOnly -ExecuteLayer <owner-ids>` for accepted
+existing road, water or building presentation owners. Keep the complete accepted
+canonical, realization, runtime and authored-overlay inputs. The producer registry
+declares the material role; unsupported owners refuse. Geometric dependency and
+consumer-closure restrictions do not apply to references that leave geometry unchanged.
+
+Only road, water and building declarations may change in the presentation profile.
+Cloud, environment, cameras and profile identity must remain unchanged. First
+adoption requires `-PriorPresentationProfile <exact-prior-source>` when the original
+source is no longer available at the candidate path. Subsequent operations recover
+authenticated original bytes from the existing map's accepted layer manifests.
+
+The native operation validates all selected owners before saving, updates existing
+material slots in place, retains diagnostic materials and preserves actor, mesh,
+render, Nanite and collision geometry. It does not call geometric Apply, build
+meshes, replace actors or save the shared map. The existing lock, snapshot, journal
+and publication route owns recovery. Layer manifests preserve geometry lineage and
+record material adoption separately; a repeat with equal resources makes no package
+or authority writes. This acceptance does not recertify pending geometric changes.
+
+Same-path terrain appearance changes belong to ProjectMaterial generation and need
+no World reference update. Reload and inspect actual compiled terrain consumers;
+Editor preview sections alone cannot establish runtime material consumption.
+
+After adoption, ordinary selected geometric execution authenticates the original
+geometry-profile bytes and protected presentation fields, and requires every material
+declaration to equal the map's accepted binding. The current ProjectMaterial manifest
+must still resolve each adopted declaration to the same object path. Native resolution
+authenticates current instance/parent bytes and loaded state before the writer. A
+retargeted instance requires the reference-only route; same-path appearance changes do
+not. Selected geometry retains historical adoption provenance while updating only its
+own geometry lineage. Full Apply uses the current profile and does not copy historical
+adoption. Existing geometric dependency and consumer-closure restrictions remain in force.
+
+For final read-only acceptance, the audit's `-PresentationProfile <current-profile>`
+option reuses this same compatibility check and exports the exact original/
+current profile hashes, map/scope membership and accepted binding destinations.
+The original geometry input identity remains unchanged. Acceptance consumes that
+authenticated bridge only for the presentation digest; it still requires each
+map's exact compile, runtime and authored inputs, current producer fingerprints
+and intact artifacts. Historical resource hashes do not invalidate accepted
+same-path appearance tuning. The audit profile must belong to its world-data owner.
+
 The registered generator pairs are complete contracts, not ID-only dispatch.
 Mesh Terrain owns compiled terrain sections derived from the final canonical surface, Water owns
 water-only canonical cell semantics, Roads own terrain-dependent road fragments,
@@ -326,12 +393,16 @@ The same Shipping transaction also runs the focused Water proof in the backgroun
 It reuses the packaged playable-tour driver's simulated `APlayerController::InputKey`
 events and accepts travel relative to the actual start-to-target distance and declared
 arrival radius. After the character reaches the accepted Water viewpoint, one persistent
-runtime `SceneCapture2D` and render target write both images from an unchanged top-down
-orthographic pose anchored to the canonical Water XY. UE's built-in `SCS_BaseColor`
-capture preserves real Water/terrain depth while excluding sky and lighting from the
-blue classifier. No debug material, Water-only actor list, or alternate geometry path is
-used. The existing `water_temporal_stability.ps1` verifier reads base-color BGRA without
-alpha composition and gates that pair with unchanged thresholds. The same Shipping
+pair of native `SceneCapture2D` sessions writes both masks from an unchanged top-down
+orthographic pose anchored to the canonical Water XY. `SCS_SceneColorSceneDepth`
+captures float depth in alpha through the normal Water render path. One view includes
+the full scene; the other uses native `ShowOnlyComponents` for the identified Water.
+Matching depths inside Water bounds encode visible Water as blue and other pixels as
+black. The far clear plane lies outside those bounds. Registered Water membership
+must remain identical across captures; additions or removals refuse. This changes
+capture views without replacing materials, hiding actors or rebuilding geometry.
+The existing `water_temporal_stability.ps1` verifier rejects any other RGB encoding,
+then gates coverage/temporal flips with the retained thresholds. The same Shipping
 process then writes one target-centered perspective `SCS_FinalColorLDR` image using
 normal product show flags; it has no second numerical verifier and is inspected directly
 for player-visible Water presentation. This route uses `RenderOffScreen` and never sends
@@ -340,9 +411,31 @@ input to the operator's Windows desktop. Before the cook,
 the configured Unreal XY maps inside the expected Water feature in the exact compile
 result authenticated by the active Water manifest. The Shipping receipt binds the
 target-relative travel calculation, actual pawn error, persistent capture-session
-identity, BaseColor pair, and FinalColor camera contract. The composite hashes all three
-images. BaseColor owns automated geometry/occlusion stability; inspection of the exact
-FinalColor PNG owns the normal product-appearance claim.
+identity, numeric-mask encoding, paired visibility masks, and FinalColor camera
+contract. The composite hashes all three images. Depth-derived masks check observed
+coverage/occlusion stability; they cannot establish the absence of exactly coplanar
+duplicate geometry. That requires separate producer/renderer evidence. Inspection of
+the exact FinalColor PNG owns the normal product-appearance claim.
+
+```mermaid
+flowchart LR
+    W[Unchanged World and material bindings] --> F[Full-scene HDR and depth]
+    W --> O[Water-only capture view]
+    F --> D[Compare float depths within Water bounds]
+    O --> D
+    D --> M[Binary visible-Water mask]
+    M --> V[Coverage and temporal verifier]
+    W --> C[Normal FinalColor capture]
+    C --> I[Visual inspection]
+```
+
+`Project.World.Presentation.WaterVisibilityCapture` advances real engine frames
+between fixture setup and controls. Repeated `CaptureScene` calls plus a rendering
+flush do not advance the engine frame. The test also checks Shipping's same-tick
+capture initialization against already-settled Water, opaque occlusion, a 0.05 cm
+competitor, clear-background rejection, membership refusal and exact material binding.
+Use native [GPUDump](https://dev.epicgames.com/documentation/unreal-engine/gpudump-viewer-tool-in-unreal-engine?lang=en-US)
+when a capture sees no Water draw; API success and matching empty images are not proof.
 
 The operator-review package is replaced transactionally at
 `Saved/PackageRelease/KazanPlayableTour/Candidate/`; its immediate predecessor is

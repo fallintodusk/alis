@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Presentation/ProjectWorldPlayableTourDriver.h"
 #include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
+#include "Presentation/ProjectWorldWaterVisibilityCapture.h"
 
 class ACharacter;
 class APlayerController;
@@ -71,7 +72,7 @@ private:
 	TWeakObjectPtr<UWorld> ProductWorld;
 	TWeakObjectPtr<APlayerController> PlayerController;
 	TWeakObjectPtr<ACharacter> PlayerCharacter;
-	ProjectWorldRuntimeScreenshotCapture::FCaptureSession WaterCaptureSession;
+	FProjectWorldWaterVisibilityCapture WaterCaptureSession;
 	ProjectWorldRuntimeScreenshotCapture::FCaptureSession FinalColorCaptureSession;
 	FTSTicker::FDelegateHandle TickerHandle;
 	FVector StartPlayerLocation = FVector::ZeroVector;
