@@ -41,6 +41,7 @@ bool ProjectWorldProductRouteConfig::ParseCommandLine(
 {
 	OutConfig.bRestorePreviewFlight = FParse::Param(
 		FCommandLine::Get(), TEXT("ProjectWorldProductRouteRestorePreviewFlight"));
+	OutConfig.bMaterialEvidence = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldProductMaterialEvidence"));
 	OutConfig.bRequireGameplayInteraction = !FParse::Param(
 		FCommandLine::Get(), TEXT("ProjectWorldProductRouteSkipInteraction"));
 	OutConfig.bForceFreshVsm = FParse::Param(FCommandLine::Get(), TEXT("ProjectWorldProductVsmFreshControl"));
@@ -55,6 +56,16 @@ bool ProjectWorldProductRouteConfig::ParseCommandLine(
 		return false;
 	}
 	FString EdgeText;
+	const bool bHasBuildingReference = ParseProductRouteValue(
+		TEXT("ProjectWorldProductBuildingReference="), OutConfig.BuildingReferencePath);
+	const bool bHasBuildingHash = ParseProductRouteValue(
+		TEXT("ProjectWorldProductBuildingReferenceHash="), OutConfig.BuildingReferenceHash);
+	if (bHasBuildingReference != bHasBuildingHash || (bHasBuildingReference &&
+		(FPaths::IsRelative(OutConfig.BuildingReferencePath) || !IsProductRouteSha256(OutConfig.BuildingReferenceHash))))
+	{
+		OutError = TEXT("Building surface reference requires an absolute path and paired SHA-256.");
+		return false;
+	}
 	if (!ParseProductRouteValue(TEXT("ProjectWorldProductOperation="), OutConfig.OperationId) ||
 		!ParseProductRouteValue(TEXT("ProjectWorldProductResult="), OutConfig.ResultPath) ||
 		!ParseProductRouteValue(TEXT("ProjectWorldProductMap="), OutConfig.MapPackage) ||

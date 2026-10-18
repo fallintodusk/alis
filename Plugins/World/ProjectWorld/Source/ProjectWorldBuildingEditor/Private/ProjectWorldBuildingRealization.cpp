@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldBuildingRealization.h"
+#include "ProjectWorldCivilGrade.h"
 
 #include "ProjectWorldAuthoredOverlay.h"
 #include "ProjectWorldBuildingMeshBuilder.h"
@@ -314,7 +315,11 @@ namespace ProjectWorldBuildingRealization
 			}
 			AppendToken(Identity, Feature.FeatureId);
 			AppendToken(Identity, Feature.OwnerCellId);
-			AppendToken(Identity, Owner->Terrain.ArtifactHash);
+			FString GradeIdentity;
+			if (!ProjectWorldCivilGrade::Validate(Bundle, Feature, GradeIdentity, OutError)) return false;
+			AppendToken(Identity, Feature.CivilGrade.IsSet() ? GradeIdentity : Owner->Terrain.ArtifactHash);
+			if (!Feature.CivilGrade.IsSet() && !Owner->Terrain.RefinedQuads.IsEmpty())
+				AppendToken(Identity, TEXT("owner_cell_clamped_final_surface_v2"));
 			AppendToken(Identity, Feature.GeometryType);
 			AppendNumber(Identity, Feature.HeightMeters);
 			for (const FProjectWorldCanonicalBuildingVolume& Volume : Feature.BuildingVolumes)

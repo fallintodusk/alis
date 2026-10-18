@@ -19,6 +19,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
 #include "RHI.h"
@@ -27,6 +28,12 @@
 #include "WorldPartition/WorldPartition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldShippingWaterProof, Log, All);
+
+bool ProjectWorldShippingWaterProofContract::IsProductMapPackage(const FString& MapPackage)
+{
+	return MapPackage.StartsWith(TEXT("/ProjectWorldData/Generated/")) &&
+		FPackageName::IsValidLongPackageName(MapPackage);
+}
 
 namespace
 {
@@ -209,7 +216,7 @@ bool FProjectWorldShippingWaterProofGate::ParseConfig(FString& OutError)
 		!IsShippingWaterAsciiToken(Config.MachineProfileId) ||
 		!IsShippingWaterSha256(Config.RuntimeProfileHash) || Config.TargetLocation.ContainsNaN() ||
 		FVector2D(Config.TargetLocation).IsNearlyZero() ||
-		!Config.MapPackage.StartsWith(TEXT("/ProjectWorldData/Generated/Territory/")))
+		!ProjectWorldShippingWaterProofContract::IsProductMapPackage(Config.MapPackage))
 	{
 		OutError = TEXT("The Shipping Water proof identity, paths, map, hash, or target are invalid.");
 		return false;

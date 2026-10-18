@@ -23,10 +23,10 @@ Describe 'World realization runtime profile contract' {
             [System.Text.Encoding]::UTF8)
         $worldScript = Join-Path $repoRoot 'scripts/ue/world/realize_canonical_world.ps1'
         $dataRoot = Join-Path $repoRoot 'Plugins/World/ProjectWorldData/Data'
-        # Every arm uses an evidence path the wrapper refuses before its first
-        # write, so an admitted runtime profile stops at that later refusal.
+        # A sibling of the allowed scratch root must still be refused before
+        # writing, so an admitted runtime profile stops at that later refusal.
         $refusedEvidence = Join-Path $repoRoot (
-            'tmp/world/runtime_profile_contract/' + [System.Guid]::NewGuid().ToString('N') + '/validate.json')
+            'tmp/world_sibling/runtime_profile_contract/' + [System.Guid]::NewGuid().ToString('N') + '/validate.json')
 
         function Invoke-KazanValidate([string]$RuntimeProfile) {
             & $worldScript `

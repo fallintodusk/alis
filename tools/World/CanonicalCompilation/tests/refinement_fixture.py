@@ -4,12 +4,14 @@ from copy import deepcopy
 from pathlib import Path
 import sys
 import shutil
+import json
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
-from World.CanonicalCompilation.api import prepare_terrain_refinement
+from World.CanonicalCompilation.refinement.api import prepare_terrain_refinement
 from World.CanonicalCompilation.app.artifacts import output_descriptor
-from World.CanonicalCompilation.app.contracts import canonical_hash, file_hash, read_json, write_json
+from World.CanonicalCompilation.app.contracts import canonical_hash, file_hash, read_json
+from World.CanonicalCompilation.refinement.app.contracts import write_json
 from World.CanonicalCompilation.tests.test_terrain_refinement import fixture
 
 PREFIX = "https://alis.world/schemas/world-compiler/"
@@ -100,9 +102,9 @@ def invalid_candidate(destination: Path, name: str, mutate):
     coverage["cells"][0].update(sha256=file_hash(manifest_path), byte_size=manifest_path.stat().st_size)
     coverage["artifact_descriptors"][0].update(content_hash=file_hash(path), byte_size=path.stat().st_size)
     write_json(bad / "canonical/coverage.json", coverage)
-    result = read_json(bad / "compile_result.json")
-    result["outputs"] = [output_descriptor("compiler_document", p, bad) for p in sorted(bad.rglob("*.json")) if p.name != "compile_result.json"]
-    write_json(bad / "compile_result.json", result)
+    result = read_json(bad / "refinement_result.json")
+    result["outputs"] = [output_descriptor("compiler_document", p, bad) for p in sorted(bad.rglob("*.json")) if p.name != "refinement_result.json"]
+    write_json(bad / "refinement_result.json", result)
 
 
 def main(destination: Path):
@@ -145,6 +147,13 @@ def main(destination: Path):
     for name, mutation in (("bad_coverage", missing), ("bad_weights", weights),
                            ("bad_duplicate", duplicate), ("bad_crack", crack)):
         invalid_candidate(destination, name, mutation)
+
+    bad_kind = destination / "bad_kind"
+    shutil.copytree(destination / "candidate", bad_kind)
+    result_path = bad_kind / "refinement_result.json"
+    result = read_json(result_path)
+    result["$schema"] = PREFIX + "compile-result-v1.json"
+    result_path.write_text(json.dumps(result), encoding="ascii")
 
 
 if __name__ == "__main__":

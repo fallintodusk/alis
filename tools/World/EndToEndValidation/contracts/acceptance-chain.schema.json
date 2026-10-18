@@ -36,6 +36,17 @@
       }
     },
     "pre_package_audit": {"$ref": "#/$defs/auditReference"},
+    "selected_completion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["receipt", "receipt_sha256", "target_result_sha256", "reader_implementation_sha256"],
+      "properties": {
+        "receipt": {"type": "string"},
+        "receipt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "target_result_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reader_implementation_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
     "post_package_audit": {"$ref": "#/$defs/auditReference"},
     "package": {
       "type": "object",
@@ -96,6 +107,7 @@
         "required": ["world_data_plugin", "pre_package_audit", "post_package_audit", "package", "presentation_gate", "environment"],
         "properties": {
           "errors": {"maxItems": 0},
+          "selected_completion": {"required": ["canonical_sha256"]},
           "e2e_runs": {"minProperties": 1, "maxProperties": 1, "required": ["kazan_territory_v1"]}
         }
       }

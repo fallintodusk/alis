@@ -11,6 +11,7 @@ class UWorld;
 namespace ProjectWorldProductRouteCollision
 {
 	int32 CountBlockingPrimitives(const AActor& Actor);
+	bool ProbeActorCollision(const AActor& Actor, const AActor* IgnoredActor);
 	bool SelectFirstBlockingGroundLocation(
 		const TArray<FHitResult>& OrderedHits,
 		float CapsuleHalfHeight,

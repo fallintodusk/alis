@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/civil-grade-reference-v1.json",
+  "type": "object",
+  "required": ["$schema", "version", "model", "base_feature_sha256", "terrain_artifacts"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/civil-grade-reference-v1.json"},
+    "version": {"const": 1},
+    "model": {"const": "preserve_accepted_grid_grade_not_structure_classification"},
+    "base_feature_sha256": {"$ref": "#/$defs/hash"},
+    "terrain_artifacts": {"type": "object", "minProperties": 1,
+      "propertyNames": {"minLength": 1}, "additionalProperties": {"$ref": "#/$defs/hash"}}
+  },
+  "additionalProperties": false,
+  "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+}

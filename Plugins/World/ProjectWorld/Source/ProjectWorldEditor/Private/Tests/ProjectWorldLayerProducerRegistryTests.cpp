@@ -273,7 +273,7 @@ bool FProjectWorldLayerHostBoundaryTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Capture reports two owned actors."),
 		Result.LayerInventories[0].Metrics.FindRef(TEXT("cell_actors")), int64(2));
 	FProjectWorldRealizationRequest Request;
-	Request.CompileResultPath = TEXT("probe-compile.json");
+	Request.CompileResultPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world/locality/s1/inputs/probe-compile.json"));
 	Request.ResultPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world/locality/s1/probe-result.json"));
 	if (!TestTrue(TEXT("The generic host writes a result."),
 		FProjectWorldRealizationService::WriteResult(Request, Result)))

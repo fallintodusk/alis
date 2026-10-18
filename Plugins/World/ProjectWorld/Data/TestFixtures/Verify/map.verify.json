@@ -9,7 +9,7 @@
     "comparison_contract_version": 1,
     "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
     "fixture_inputs": [
-      {"name": "canonical:features:grid_24b9032e5f87005d:x0:y0", "sha256": "a137d6d7a5f1635bc67e4a5d66385d80cb8163c411f8094582d53e5799e3ba28"},
+      {"name": "canonical:features:grid_24b9032e5f87005d:x0:y0", "sha256": "288b7e84a1f4b95e8cf95ea1cf429854ad349a921b65a1fa3f9d6d166d969b06"},
       {"name": "canonical:features:grid_24b9032e5f87005d:x1:y0", "sha256": "616adfd766b175e56d1741e071604fa64e009d239cc6ae07d4d456b2d81a7e0a"},
       {"name": "canonical:grid", "sha256": "ffe770e05f09997e233546c732e550b9763ae7d9b531832260e748feafcc7338"},
       {"name": "canonical:terrain:grid_24b9032e5f87005d:x0:y0", "sha256": "46a6b7140973660393d29115e8895d80636e4f0a65ec5994b3d87305719db980"},

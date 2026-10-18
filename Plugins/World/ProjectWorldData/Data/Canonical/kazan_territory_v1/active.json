@@ -44,5 +44,22 @@
     "path": "bundles/75b8eefd6a99e53ff0db65ad9efaccf029759bd098dbe5e4b8e8651565a287b8.zip",
     "byte_size": 13980898,
     "sha256": "995fb0fb1d6550925efaf55111a6936e600658d0b9cb3938461a3e6cac47b8dc"
+  },
+  "selected_refinement": {
+    "kind": "surface_relationships_v1",
+    "base_result_sha256": "482036eee48050095686129a069e3fff00b99a8ffd0e45916e00f3c645b89c68",
+    "inputs_hash": "802742173d20a9e22123d57282e865faa0dd19fa4f36b9bf93c21a566eab6fba",
+    "result_sha256": "6bc19c8d4eff2f905d03bd7ec2b997f879c6bf65c847e058fad6ebd66170f0a8",
+    "output_count": 641,
+    "implementation_sha256": "93c561857441d780cad4fb0dd784f8049797c8554c9db61ca3aa0ebb882378aa",
+    "source_context_identity": "0c742351e586eb84636d6ae266ce23c362a9927874b3f9ae747065142799285c",
+    "execution_identity": "8ca3528447b236ff2aba68d53403087dc7ac88566f0785c79e5c89700ad3be2a",
+    "bundle": {
+      "format": "deterministic_zip_v1",
+      "path": "refinements/175021f04e0df3cd68cae5a458b796a2684c8cf85f3b18fc2791b11de6dc9b14.zip",
+      "byte_size": 13983923,
+      "sha256": "542cbfcda76ec86ac416ca865f69c5096d0e6fb0cb3d0eb4f4df6ab66af9ea15"
+    },
+    "effective_identity": "efe82fc63b5fe3dfc31d9429c99618ece4058f3bf809f506b6e6921c4d9763ad"
   }
 }

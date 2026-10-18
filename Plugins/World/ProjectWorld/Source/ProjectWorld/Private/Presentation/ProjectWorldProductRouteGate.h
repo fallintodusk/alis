@@ -13,6 +13,8 @@ class AActor;
 class ACharacter;
 class APlayerController;
 class IInteractionService;
+class FProjectWorldProductBuildingEvidence;
+class FJsonObject;
 class UActorComponent;
 class UCharacterMovementComponent;
 class UWorld;
@@ -20,6 +22,7 @@ class UWorld;
 class FProjectWorldProductRouteGate
 {
 public:
+	FProjectWorldProductRouteGate();
 	~FProjectWorldProductRouteGate();
 
 	void StartIfRequested();
@@ -84,6 +87,8 @@ private:
 	TWeakObjectPtr<UCharacterMovementComponent> CharacterMovement;
 	TSharedPtr<IInteractionService> InteractionService;
 	TUniquePtr<FProjectWorldProductTerrainAcceptance> TerrainAcceptance;
+	TUniquePtr<FProjectWorldProductBuildingEvidence> BuildingEvidence;
+	TSharedPtr<FJsonObject> MaterialEvidence;
 	FDelegateHandle InteractionHandle;
 	FTSTicker::FDelegateHandle TickerHandle;
 	FVector CenterLocation = FVector::ZeroVector;

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import http.client
 import os
+import re
 import shutil
+import stat
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -15,9 +17,13 @@ LEDGER_SCHEMA = "https://alis.world/schemas/world-source/source-ledger-v1.json"
 
 
 def verify_source_file(source: dict[str, Any], path: Path) -> dict[str, Any]:
-    if not path.is_file():
+    try:
+        info = path.stat()
+    except FileNotFoundError:
         raise IngestionError("missing_payload", "Source payload is missing", source_id=source["source_id"])
-    size = path.stat().st_size
+    if not stat.S_ISREG(info.st_mode):
+        raise IngestionError("invalid_payload", "Source payload is not a regular file", source_id=source["source_id"])
+    size = info.st_size
     if size != source["expected_bytes"]:
         raise IngestionError(
             "wrong_size", "Source payload byte size differs", source_id=source["source_id"], actual=size
@@ -66,12 +72,22 @@ def _download(source: dict[str, Any], target: Path) -> None:
 
 
 def source_cache_path(cache_root: Path, source: dict[str, Any]) -> Path:
-    return cache_root / "sha256" / source["hashes"]["sha256"] / source["file_name"]
+    digest, name = source["hashes"]["sha256"], source["file_name"]
+    if not re.fullmatch(r"[a-f0-9]{64}", digest) or any(c in name for c in "/\\:") or name in {"", ".", ".."}:
+        raise IngestionError("invalid_source_path", "Source payload must name one file in its SHA-256 directory")
+    directory = (cache_root / "sha256" / digest).resolve()
+    target = (directory / name).resolve()
+    if target.parent != directory:
+        raise IngestionError("invalid_source_path", "Source payload escapes its SHA-256 directory")
+    return target
 
 
 def materialize_sources(
     profile: dict[str, Any], profile_path: Path, repo_root: Path, cache_root: Path
 ) -> dict[str, Path]:
+    from ..retention.api import validate_cache_root
+    if any(source["adapter"] != "synthetic_json" for source in profile["sources"]):
+        validate_cache_root(repo_root, cache_root)
     paths: dict[str, Path] = {}
     for source in profile["sources"]:
         if source["adapter"] == "synthetic_json":
@@ -82,8 +98,12 @@ def materialize_sources(
             with exclusive_file_lock(lock_path):
                 try:
                     verify_source_file(source, path)
-                except IngestionError:
-                    _download(source, path)
+                except IngestionError as error:
+                    if error.code not in {"missing_payload", "wrong_size", "wrong_hash"}:
+                        raise
+                    from ..retention.api import recover_source
+                    if not recover_source(repo_root, source, path):
+                        _download(source, path)
         verify_source_file(source, path)
         paths[source["source_id"]] = path
     return paths

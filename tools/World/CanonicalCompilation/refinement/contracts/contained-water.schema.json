@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/contained-water-v1.json",
+  "title": "Contained source Ground quantile Water model, not an operating Waterline",
+  "type": "object",
+  "required": ["$schema", "function_id", "function_version", "vertical_basis", "accuracy", "level_m", "spill_level_m", "sample_count", "quantile", "quantization_m", "ground_tin_sha256", "context_sha256", "wet_geometry_sha256", "baseline_function_sha256", "mapped_geometry_sha256", "footprint_model"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/contained-water-v1.json"},
+    "function_id": {"const": "contained_ground_quantile"},
+    "function_version": {"const": 1},
+    "vertical_basis": {"const": "qualified_ground_tin"},
+    "accuracy": {"const": "derived_not_surveyed"},
+    "level_m": {"type": "number"},
+    "spill_level_m": {"type": "number"},
+    "sample_count": {"type": "integer", "minimum": 1},
+    "quantile": {"type": "number", "minimum": 0, "maximum": 1},
+    "quantization_m": {"type": "number", "exclusiveMinimum": 0},
+    "ground_tin_sha256": {"$ref": "#/$defs/hash"},
+    "context_sha256": {"$ref": "#/$defs/hash"},
+    "wet_geometry_sha256": {"$ref": "#/$defs/hash"},
+    "baseline_function_sha256": {"$ref": "#/$defs/hash"},
+    "mapped_geometry_sha256": {"$ref": "#/$defs/hash"},
+    "footprint_model": {"enum": ["mapped_containment", "observed_ground_component"]}
+  },
+  "additionalProperties": false,
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

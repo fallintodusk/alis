@@ -12,8 +12,79 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldEvidenceInputIsolationTest,
+	"Project.World.Realization.EvidenceInputIsolation",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldEvidenceInputIsolationTest::RunTest(const FString& Parameters)
+{
+	const FString Root = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(),
+		TEXT("tmp/world/realization_evidence"), FGuid::NewGuid().ToString(EGuidFormats::Digits)));
+	ON_SCOPE_EXIT { IFileManager::Get().DeleteDirectory(*Root, false, true); };
+	const FString Input = Root / TEXT("inputs/compile_result.json");
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(Input), true);
+	FFileHelper::SaveStringToFile(TEXT("{}"), *Input);
+	UProjectWorldRealizeCommandlet* Commandlet = NewObject<UProjectWorldRealizeCommandlet>();
+	AddExpectedError(TEXT("ProjectWorldRealizeCommandlet::Main"), EAutomationExpectedErrorFlags::Contains, 6);
+	for (int32 Index = 0; Index < 6; ++Index)
+	{
+		const FString Output = Index == 0 ? Input : Index == 1 ? Root / TEXT("inputs/canonical/cell.json")
+			: Index == 5 ? Root / TEXT("evidence/result.log") : Root / FString::Printf(TEXT("evidence/result%d.json"), Index);
+		const FString Profile = Index == 2 ? Output : Index == 3 ? FPaths::ChangeExtension(Output, TEXT("log"))
+			: Index == 4 ? Output + TEXT(".tmp") : Root / TEXT("profile.json");
+		IFileManager::Get().MakeDirectory(*FPaths::GetPath(Profile), true);
+		IFileManager::Get().MakeDirectory(*FPaths::GetPath(Output), true);
+		FFileHelper::SaveStringToFile(TEXT("{}"), *Profile);
+		if (Index < 2) FFileHelper::SaveStringToFile(TEXT("{}"), *Output);
+		TMap<FString, TArray<uint8>> Snapshots;
+		for (const FString& Protected : {Input, Profile})
+			TestTrue(TEXT("Fixture input bytes are readable."), FFileHelper::LoadFileToArray(Snapshots.FindOrAdd(Protected), *Protected));
+		if (Index == 1) FFileHelper::LoadFileToArray(Snapshots.FindOrAdd(Output), *Output);
+		const FString Params = FString::Printf(TEXT("-CompileResult=\"%s\" -Result=\"%s\" -RuntimeProfile=\"%s\" "
+			"-Map=/ProjectWorldTestData/Generated/P0/L_ProjectWorldSynthetic -Mode=delete"), *Input, *Output, *Profile);
+		TestEqual(TEXT("Aliased input or sidecar refuses before realization."), Commandlet->Main(Params), 2);
+		FProjectWorldRealizationRequest WriteRequest;
+		WriteRequest.CompileResultPath = Input;
+		WriteRequest.ResultPath = Output;
+		WriteRequest.RuntimeProfilePath = Profile;
+		TestFalse(TEXT("Direct result writing preserves the same isolation boundary."),
+			FProjectWorldRealizationService::WriteResult(WriteRequest, FProjectWorldRealizationResult()));
+		for (const auto& Snapshot : Snapshots)
+		{
+			TArray<uint8> Bytes;
+			TestTrue(TEXT("Protected input still exists."), FFileHelper::LoadFileToArray(Bytes, *Snapshot.Key));
+			TestTrue(TEXT("Refusal preserves exact protected bytes."), Bytes == Snapshot.Value);
+			FFileHelper::SaveArrayToFile(Snapshot.Value, *Snapshot.Key);
+		}
+		if (Index >= 3) TestFalse(TEXT("Refusal emits no sidecar-alias evidence."), IFileManager::Get().FileExists(*Output));
+	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldEvidencePathTest,
+	"Project.World.Realization.EvidencePaths",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldEvidencePathTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("Existing owned validation evidence stays valid."), UProjectWorldRealizeCommandlet::IsSafeResultPath(
+		FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization/fixture/result.json"))));
+	TestTrue(TEXT("Disposable World diagnostics stay in project tmp."), UProjectWorldRealizeCommandlet::IsSafeResultPath(
+		FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world/refinement/fixture/result.json"))));
+	for (const TCHAR* Unsafe : {TEXT("Content/result.json"), TEXT("tmp/world_sibling/result.json"),
+		TEXT("tmp/world/../../Content/result.json"), TEXT("tmp/other/result.json")})
+	{
+		TestFalse(FString::Printf(TEXT("Unowned evidence destination refuses: %s"), Unsafe),
+			UProjectWorldRealizeCommandlet::IsSafeResultPath(FPaths::Combine(FPaths::ProjectDir(), Unsafe)));
+	}
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldSavePolicyTest,
@@ -205,7 +276,7 @@ bool FProjectWorldCommandletBoundaryTest::RunTest(const FString& Parameters)
 {
 	UProjectWorldRealizeCommandlet* Commandlet = NewObject<UProjectWorldRealizeCommandlet>();
 	const FString MissingCompile = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation/MissingCompileResult.json"));
-	const FString UnsafeResult = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world/unsafe_realization.json"));
+	const FString UnsafeResult = FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/other/unsafe_realization.json"));
 	const FString MapPackage = TEXT("/ProjectWorldTestData/Generated/P0/L_ProjectWorldSynthetic");
 	const FString SafeResult = FPaths::Combine(
 		FPaths::ProjectSavedDir(),

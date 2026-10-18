@@ -11,6 +11,7 @@ Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot 'generated_layer_manifest.ps1')
 . (Join-Path $PSScriptRoot 'material_reference_operation.ps1')
+. (Join-Path $PSScriptRoot 'canonical_input_compatibility.ps1')
 
 . (Join-Path $PSScriptRoot 'generator_fingerprint.ps1')
 
@@ -171,9 +172,12 @@ function Get-ProjectWorldScopeArtifactRecords {
 }
 
 function Assert-ProjectWorldManifestRootLayout {
-    param([Parameter(Mandatory = $true)][string]$ManifestRoot)
+    param([Parameter(Mandatory = $true)][string]$ManifestRoot,[string]$RecoveryActiveSetSha256='')
     if (-not (Test-Path -LiteralPath $ManifestRoot -PathType Container)) { return }
     foreach ($entry in Get-ChildItem -LiteralPath $ManifestRoot -Force) {
+        if ($entry.Name -ceq 'active_set.json.tmp' -and -not $entry.PSIsContainer -and
+            $RecoveryActiveSetSha256 -cmatch '^[a-f0-9]{64}$' -and
+            (Get-ProjectWorldFileSha256 $entry.FullName) -ceq $RecoveryActiveSetSha256) {continue}
         $allowed = ($entry.Name -in @('active_set.json', 'journal.json', 'authority.lock')) -or
             ($entry.PSIsContainer -and $entry.Name -in @('scopes', 'archive'))
         if (-not $allowed) {
@@ -296,9 +300,10 @@ function Test-ProjectWorldManifestDocument {
 function Read-ProjectWorldActiveSet {
     param(
         [Parameter(Mandatory = $true)][string]$ManifestRoot,
-        [string]$ProjectRoot = ''
+        [string]$ProjectRoot = '',
+        [string]$RecoveryActiveSetSha256 = ''
     )
-    Assert-ProjectWorldManifestRootLayout -ManifestRoot $ManifestRoot
+    Assert-ProjectWorldManifestRootLayout -ManifestRoot $ManifestRoot -RecoveryActiveSetSha256 $RecoveryActiveSetSha256
     $schemaReferences = Get-ProjectWorldManifestSchemaReferences `
         -ManifestRoot $ManifestRoot `
         -ProjectRoot $ProjectRoot
@@ -338,6 +343,10 @@ function Read-ProjectWorldActiveSet {
         }
         Test-ProjectWorldManifestDocument -Manifest $manifest -ExpectedSchema $schemaReferences.Manifest
         $manifests[$scope.scope_id] = $manifest
+    }
+    if ($null -ne $active.PSObject.Properties['canonical_input_compatibility']) {
+        Test-ProjectWorldCanonicalCompatibilitySet -Compatibilities @($active.canonical_input_compatibility) `
+            -Manifests $manifests -ManifestRoot $ManifestRoot
     }
     return [pscustomobject]@{
         Path = $activePath
@@ -587,6 +596,9 @@ function Test-ProjectWorldJournal {
             throw 'Recovery journal candidate path violates the frozen grammar; recovery fails closed.'
         }
     }
+    if ($null -ne $Journal.PSObject.Properties['canonical_selection_transition'] -and
+        ([string]$Journal.operation -cne 'apply' -or $null -eq $Journal.PSObject.Properties['execution_layers'] -or
+         @($Journal.execution_layers).Count -eq 0)) {throw 'Canonical transition requires an existing selected Apply journal.'}
 }
 
 function Test-ProjectWorldProspectiveSet {
@@ -659,7 +671,8 @@ function Publish-ProjectWorldActiveSet {
         [string]$ProjectRoot = '',
         [AllowEmptyCollection()][string[]]$RetiredScopeIds = @(),
         [object]$PriorActiveSet = $null,
-        [scriptblock]$BeforeCommit = $null
+        [scriptblock]$BeforeCommit = $null,
+        [object]$CanonicalInputCompatibility = $null
     )
     $priorGenerations = @{}
     foreach ($candidate in $CandidateManifests) {
@@ -667,12 +680,18 @@ function Publish-ProjectWorldActiveSet {
         $priorGenerations[$scopeId] = Get-ProjectWorldHighestManifestGeneration `
             -ManifestRoot $ManifestRoot -ScopeId $scopeId
     }
-    [void](Test-ProjectWorldProspectiveSet `
+    $prospective = Test-ProjectWorldProspectiveSet `
         -CandidateManifests $CandidateManifests `
         -RetiredScopeIds $RetiredScopeIds `
         -PriorActiveSet $PriorActiveSet `
-        -PriorGenerations $priorGenerations)
-    if ($CandidateManifests.Count -eq 0 -and $RetiredScopeIds.Count -eq 0) {
+        -PriorGenerations $priorGenerations
+    $compatibilities = @(Get-ProjectWorldCanonicalCompatibilities -PriorActiveSet $PriorActiveSet `
+        -Replacement $CanonicalInputCompatibility -RetiredScopeIds $RetiredScopeIds)
+    Test-ProjectWorldCanonicalCompatibilitySet -Compatibilities $compatibilities -Manifests $prospective -ManifestRoot $ManifestRoot
+    $priorCompatibilities = @(Get-ProjectWorldCanonicalCompatibilities -PriorActiveSet $PriorActiveSet)
+    $sameCompatibility = (ConvertTo-Json -InputObject (ConvertTo-ProjectWorldSortedValue $compatibilities) -Depth 24 -Compress) -ceq
+        (ConvertTo-Json -InputObject (ConvertTo-ProjectWorldSortedValue $priorCompatibilities) -Depth 24 -Compress)
+    if ($CandidateManifests.Count -eq 0 -and $RetiredScopeIds.Count -eq 0 -and $sameCompatibility) {
         if ($null -eq $PriorActiveSet) {
             throw 'An empty candidate set cannot initialize manifest authority.'
         }
@@ -725,6 +744,7 @@ function Publish-ProjectWorldActiveSet {
         prior_active_set_sha256 = $priorSha
         scopes = @($entries | Sort-Object -Property { $_.scope_id })
     }
+    if ($compatibilities.Count -gt 0) { $record['canonical_input_compatibility'] = $compatibilities }
     $target = Join-Path $ManifestRoot 'active_set.json'
     $staging = "$target.tmp"
     # LF-only for the same reason as Write-ProjectWorldJson: this record's own
@@ -790,12 +810,16 @@ function Invoke-ProjectWorldTransactionRecovery {
         Get-ProjectWorldFileSha256 -Path $activePath
     }
     else { 'none' }
+    if ($null -ne $journal.PSObject.Properties['canonical_selection_transition']) {
+        Resolve-ProjectWorldCanonicalJournalState -ProjectRoot $ProjectRoot -ManifestRoot $ManifestRoot `
+            -ContentRoot $ContentRoot -Journal $journal -RestorePrior | Out-Null
+    }
     if ($journal.phase -eq 'publishing' -and $currentSha -eq $journal.expected_active_set_sha256) {
         # Completion is claimed ONLY after the published authority fully
         # validates: active set, every referenced manifest, and every
         # artifact in the mutation scope set. A validation failure
         # preserves the snapshot; it never reports completion.
-        $published = Read-ProjectWorldActiveSet -ManifestRoot $ManifestRoot -ProjectRoot $ProjectRoot
+        $published = Read-ProjectWorldActiveSet -ManifestRoot $ManifestRoot -ProjectRoot $ProjectRoot -RecoveryActiveSetSha256 $journal.expected_active_set_sha256
         # Exact operation semantics: mutation scopes absent from the
         # committed active set must equal the declared retired set for a
         # delete, and must not exist at all for any other operation.
@@ -874,6 +898,9 @@ function Invoke-ProjectWorldTransactionRecovery {
         -MapPackage $journal.map_package `
         -GeneratedPackageRoot $generatedPackageRoot `
         -Records $records
+    if ($null -ne $journal.PSObject.Properties['canonical_selection_transition']) {
+        Assert-ProjectWorldCanonicalRollback -ProjectRoot $ProjectRoot -ManifestRoot $ManifestRoot -Journal $journal
+    }
     foreach ($candidate in @($journal.candidate_manifest_paths)) {
         $candidateFull = Join-Path $ManifestRoot ($candidate.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
         if (Test-Path -LiteralPath $candidateFull -PathType Leaf) {

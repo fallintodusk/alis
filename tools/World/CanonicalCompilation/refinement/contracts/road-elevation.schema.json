@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/road-elevation-v1.json",
+  "title": "Disposable canonical Road elevation candidate",
+  "type": "object",
+  "required": ["$schema", "schema_version", "interpolation", "coordinate_rule", "height_rule", "model", "source_feature_id", "source_points", "length_m", "width_m", "triangles", "consumed_feature_sha256", "consumed_terrain", "implementation_sha256", "execution_identity"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/road-elevation-v1.json"},
+    "schema_version": {"const": 1},
+    "interpolation": {"const": "affine_uv_triangles_v1"},
+    "coordinate_rule": {"const": "source_arclength_m_signed_lateral_left_m"},
+    "height_rule": {"const": "canonical_absolute_m_without_presentation_offset"},
+    "model": {"const": "source_abutment_support_candidate_not_surveyed"},
+    "source_feature_id": {"type": "string", "minLength": 1},
+    "source_points": {"type": "array", "minItems": 2, "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}},
+    "length_m": {"type": "number", "exclusiveMinimum": 0},
+    "width_m": {"type": "number", "exclusiveMinimum": 0},
+    "triangles": {
+      "type": "array", "minItems": 2, "maxItems": 4096,
+      "items": {"type": "array", "minItems": 3, "maxItems": 3,
+                "items": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}}
+    },
+    "consumed_feature_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "consumed_terrain": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+    "implementation_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "execution_identity": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

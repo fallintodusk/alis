@@ -35,6 +35,9 @@
         {"const": "none"}
       ]
     },
+    "canonical_input_compatibility": {
+      "type": "array", "items": {"$ref": "#/$defs/canonical_compatibility"}
+    },
     "scopes": {
       "type": "array",
       "minItems": 0,
@@ -51,6 +54,97 @@
           },
           "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
         }
+      }
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "scope_pin": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scope_id","manifest_path","manifest_sha256"],
+      "properties": {
+        "scope_id": {"type": "string", "pattern": "^map_[a-z0-9_]+$"},
+        "manifest_path": {"type": "string", "pattern": "^scopes/map_[a-z0-9_]+\\.[0-9]+\\.json$"},
+        "manifest_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "map_identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compile_result_sha256","presentation_profile_sha256","runtime_profile_sha256","authored_overlay_profile_sha256","map_package"],
+      "properties": {
+        "compile_result_sha256": {"$ref": "#/$defs/hash"},
+        "presentation_profile_sha256": {"$ref": "#/$defs/hash"},
+        "runtime_profile_sha256": {"type": "string", "pattern": "^([a-f0-9]{64}|none)$"},
+        "authored_overlay_profile_sha256": {"$ref": "#/$defs/hash"},
+        "map_package": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+$"}
+      }
+    },
+    "changed_inputs": {
+      "type": "object", "additionalProperties": false,
+      "required": ["before_count","after_count","changed_units"],
+      "properties": {
+        "before_count": {"type": "integer", "minimum": 0}, "after_count": {"type": "integer", "minimum": 0},
+        "changed_units": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "compatible_layer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["accepted","normalized_layer_contract_sha256","generator_id","generator_version","artifact_root",
+        "before_canonical_inputs_sha256","after_canonical_inputs_sha256","before_dependency_inputs_sha256","after_dependency_inputs_sha256","changes"],
+      "properties": {
+        "accepted": {
+          "type": "object", "additionalProperties": false,
+          "required": ["accepted_manifest_path","accepted_manifest_sha256","accepted_generator_fingerprint","current_generator_fingerprint"],
+          "properties": {
+            "accepted_manifest_path": {"type": "string", "pattern": "^scopes/layer_[a-z0-9_]+\\.[0-9]+\\.json$"},
+            "accepted_manifest_sha256": {"$ref": "#/$defs/hash"},
+            "accepted_generator_fingerprint": {"$ref": "#/$defs/hash"},
+            "current_generator_fingerprint": {"$ref": "#/$defs/hash"}
+          }
+        },
+        "normalized_layer_contract_sha256": {"$ref": "#/$defs/hash"},
+        "generator_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "generator_version": {"type": "integer", "minimum": 1},
+        "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/[A-Za-z0-9_/]+/$"},
+        "before_canonical_inputs_sha256": {"$ref": "#/$defs/hash"}, "after_canonical_inputs_sha256": {"$ref": "#/$defs/hash"},
+        "before_dependency_inputs_sha256": {"$ref": "#/$defs/hash"}, "after_dependency_inputs_sha256": {"$ref": "#/$defs/hash"},
+        "changes": {
+          "type": "object", "additionalProperties": false, "required": ["canonical_inputs","dependency_inputs"],
+          "properties": {"canonical_inputs": {"$ref": "#/$defs/changed_inputs"}, "dependency_inputs": {"$ref": "#/$defs/changed_inputs"}}
+        }
+      }
+    },
+    "canonical_compatibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind","prior_active_set_sha256","base_canonical_authority_sha256","map_scope_id","accepted_map",
+        "map_generator_fingerprint","base_map_input_identity","effective_map_input_identity","realization_profile_sha256",
+        "input_selection_sha256","selected_scope_ids","candidate","shared_native_inputs_sha256","shared_geometry_inputs_sha256","layers"],
+      "properties": {
+        "kind": {"const": "feature_refinement_inputs_v1"},
+        "prior_active_set_sha256": {"$ref": "#/$defs/hash"}, "base_canonical_authority_sha256": {"$ref": "#/$defs/hash"},
+        "map_scope_id": {"type": "string", "pattern": "^map_[a-z0-9_]+$"},
+        "accepted_map": {"$ref": "#/$defs/scope_pin"}, "map_generator_fingerprint": {"$ref": "#/$defs/hash"},
+        "base_map_input_identity": {"$ref": "#/$defs/map_identity"}, "effective_map_input_identity": {"$ref": "#/$defs/map_identity"},
+        "realization_profile_sha256": {"$ref": "#/$defs/hash"}, "input_selection_sha256": {"$ref": "#/$defs/hash"},
+        "shared_native_inputs_sha256": {"$ref": "#/$defs/hash"},
+        "shared_geometry_inputs_sha256": {"$ref": "#/$defs/hash"},
+        "selected_scope_ids": {"type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^layer_[a-z0-9_]+$"}},
+        "candidate": {
+          "type": "object", "additionalProperties": false,
+          "required": ["base_authority_id","base_result_sha256","result_sha256","active_sha256","effective_identity","bundle_sha256",
+            "inputs_hash","implementation_sha256","source_context_identity","execution_identity"],
+          "properties": {
+            "base_authority_id": {"type": "string", "minLength": 1},
+            "base_result_sha256": {"$ref": "#/$defs/hash"}, "result_sha256": {"$ref": "#/$defs/hash"},
+            "active_sha256": {"$ref": "#/$defs/hash"}, "effective_identity": {"$ref": "#/$defs/hash"},
+            "bundle_sha256": {"$ref": "#/$defs/hash"}, "inputs_hash": {"$ref": "#/$defs/hash"},
+            "implementation_sha256": {"$ref": "#/$defs/hash"}, "source_context_identity": {"$ref": "#/$defs/hash"},
+            "execution_identity": {"$ref": "#/$defs/hash"}
+          }
+        },
+        "layers": {"type": "object", "minProperties": 1, "additionalProperties": false,
+          "patternProperties": {"^layer_[a-z0-9_]+$": {"$ref": "#/$defs/compatible_layer"}}}
       }
     }
   }

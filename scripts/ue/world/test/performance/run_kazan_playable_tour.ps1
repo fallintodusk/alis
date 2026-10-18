@@ -43,6 +43,8 @@ $finalPackage = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour\C
 $previousFinalPackage = Join-Path $projectRoot 'Saved\PackageRelease\KazanPlayableTour\PreviousCandidate'
 . (Join-Path $PSScriptRoot 'project_world_performance_evidence.ps1')
 . (Join-Path $PSScriptRoot 'project_world_product_route_arguments.ps1')
+. (Join-Path $PSScriptRoot 'project_world_shipping_water_proof.ps1')
+. (Join-Path $PSScriptRoot 'project_world_building_evidence.ps1')
 
 function Assert-PlayableTour {
     param(
@@ -245,6 +247,9 @@ function Invoke-PlayableTourGame {
         $routeParameters.CsvPath = $CsvPath; $routeParameters.SamplePath = $SamplePath
         $routeParameters.ScreenshotPath = $ScreenshotPath
     }
+    if ($Configuration -ceq 'Shipping') {
+        $routeParameters.BuildingReferencePath = $script:buildingReferencePath
+    }
     $arguments = @(Get-ProjectWorldProductRouteArguments @routeParameters)
     $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
         -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
@@ -256,103 +261,21 @@ function Invoke-PlayableTourGame {
 }
 
 function Invoke-ShippingWaterProof {
-    param(
-        [Parameter(Mandatory = $true)][string]$Executable,
-        [Parameter(Mandatory = $true)][string]$ResultPath,
-        [Parameter(Mandatory = $true)][string]$ReferencePath,
-        [Parameter(Mandatory = $true)][string]$RepeatPath,
-        [Parameter(Mandatory = $true)][string]$ProductPath
-    )
-    $arguments = @(
-        '-ProjectMenuPlayAutoExperience=KazanTerritory',
-        '-ProjectMenuPlayAutoMode=SinglePlayer',
-        '-ProjectWorldShippingWaterProof',
-        "-ProjectWorldShippingWaterOperation=$operationId",
-        "-ProjectWorldShippingWaterResult=$ResultPath",
-        "-ProjectWorldShippingWaterReference=$ReferencePath",
-        "-ProjectWorldShippingWaterRepeat=$RepeatPath",
-        "-ProjectWorldShippingWaterProduct=$ProductPath",
-        "-ProjectWorldShippingWaterMap=$mapPackage",
-        '-ProjectWorldShippingWaterRuntime=kazan_territory_512_1536_v1',
-        "-ProjectWorldShippingWaterRuntimeHash=$script:runtimeProfileHash",
-        '-ProjectWorldShippingWaterMachine=rtx4070_primary',
-        ('-ProjectWorldShippingWaterTarget={0},{1},0' -f `
-            $shippingWaterTargetXCentimeters.ToString('0.###', [Globalization.CultureInfo]::InvariantCulture), `
-            $shippingWaterTargetYCentimeters.ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)),
-        '-ResX=2560', '-ResY=1440', '-Windowed', '-ForceRes',
-        '-RenderOffScreen', '-novsync', '-unattended', '-nosplash', '-NoMessaging'
-    )
-    $process = Start-Process -FilePath $Executable -ArgumentList $arguments `
-        -WorkingDirectory (Split-Path -Parent $Executable) -WindowStyle Hidden -PassThru
-    if (-not $process.WaitForExit($GameTimeoutSeconds * 1000)) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        throw 'Shipping Water proof process exceeded the bounded timeout.'
-    }
-    return $process.ExitCode
+    param([string]$Executable, [string]$ResultPath, [string]$ReferencePath,
+          [string]$RepeatPath, [string]$ProductPath)
+    Invoke-ProjectWorldShippingWaterProof -Executable $Executable -ResultPath $ResultPath `
+        -ReferencePath $ReferencePath -RepeatPath $RepeatPath -ProductPath $ProductPath `
+        -OperationId $operationId -Experience KazanTerritory -MapPackage $mapPackage `
+        -RuntimeProfileId kazan_territory_512_1536_v1 -RuntimeProfileHash $script:runtimeProfileHash `
+        -Target @($shippingWaterTargetXCentimeters, $shippingWaterTargetYCentimeters) `
+        -GameTimeoutSeconds $GameTimeoutSeconds
 }
 
 function Read-ShippingWaterProof {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    Assert-PlayableTour (Test-Path -LiteralPath $Path -PathType Leaf) `
-        'Shipping Water proof receipt is missing.'
-    $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
-    $start = @($receipt.start_player_location_cm)
-    $target = @($receipt.requested_water_target_cm)
-    $allowedTargetError = [double]$receipt.allowed_target_xy_error_cm
-    $requestedTargetDistance = [double]$receipt.requested_target_distance_cm
-    $minimumRequiredTravel = $requestedTargetDistance - $allowedTargetError
-    $computedTargetDistance = if ($start.Count -eq 3 -and $target.Count -eq 3) {
-        [Math]::Sqrt(
-            [Math]::Pow([double]$target[0] - [double]$start[0], 2) +
-            [Math]::Pow([double]$target[1] - [double]$start[1], 2))
-    }
-    else { [double]::NaN }
-    Assert-PlayableTour (
-        [string]$receipt.status -ceq 'accepted' -and
-        [string]$receipt.operation_id -ceq $operationId -and
-        [string]$receipt.map_package -ceq $mapPackage -and
-        [string]$receipt.runtime_profile_sha256 -ceq $script:runtimeProfileHash -and
-        [string]$receipt.build_configuration -ceq 'Shipping' -and
-        [string]$receipt.gpu_adapter -ceq 'NVIDIA GeForce RTX 4070' -and
-        [string]$receipt.rhi -ceq 'D3D12' -and
-        [bool]$receipt.project_loading_provenance -and
-        [bool]$receipt.preview_flight -and
-        [string]$receipt.pawn_class -ceq '/Script/ProjectCharacter.DefinitionCharacter' -and
-        [string]$receipt.input_method -ceq `
-            'APlayerController::InputKey/FInputKeyEventArgs::CreateSimulated' -and
-        [int]$receipt.input_event_count -gt 0 -and
-        [int]$receipt.waypoints_reached -ge 1 -and
-        [double]$receipt.ascent_cm -gt 4000.0 -and
-        $requestedTargetDistance -gt $allowedTargetError -and
-        [Math]::Abs($requestedTargetDistance - $computedTargetDistance) -le 1.0 -and
-        [double]$receipt.horizontal_displacement_cm + 1.0 -ge $minimumRequiredTravel -and
-        $null -ne $receipt.PSObject.Properties['target_xy_error_cm'] -and
-        [double]$receipt.target_xy_error_cm -le $allowedTargetError -and
-        [string]$receipt.capture_source -ceq 'SCS_SceneColorSceneDepth' -and
-        [string]$receipt.capture_encoding -ceq 'visible_water_depth_mask_v1' -and
-        [string]$receipt.capture_projection -ceq 'orthographic' -and
-        [double]$receipt.capture_ortho_width_cm -eq 20000.0 -and
-        [bool]$receipt.same_capture_session -and
-        -not [string]::IsNullOrWhiteSpace([string]$receipt.capture_session_id) -and
-        [string]$receipt.reference_capture_session_id -ceq [string]$receipt.capture_session_id -and
-        [string]$receipt.repeat_capture_session_id -ceq [string]$receipt.capture_session_id -and
-        [int]$receipt.capture_session_written_image_count -eq 2 -and
-        [bool]$receipt.reference_captured -and
-        [bool]$receipt.repeat_captured -and
-        [string]$receipt.final_color_capture_source -ceq 'SCS_FinalColorLDR' -and
-        [string]$receipt.final_color_capture_projection -ceq 'perspective' -and
-        [double]$receipt.final_color_field_of_view_degrees -eq 70.0 -and
-        -not [string]::IsNullOrWhiteSpace([string]$receipt.final_color_capture_session_id) -and
-        [int]$receipt.final_color_capture_session_written_image_count -eq 1 -and
-        [bool]$receipt.final_color_captured) `
-        'Shipping Water proof receipt failed its product/input/capture contract.'
-    Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.reference_screenshot) -PathType Leaf) `
-        'Shipping Water reference screenshot is missing.'
-    Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.repeat_screenshot) -PathType Leaf) `
-        'Shipping Water repeat screenshot is missing.'
-    Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.final_color_screenshot) -PathType Leaf) `
-        'Shipping Water final-color screenshot is missing.'
-    return $receipt
+    param([string]$Path)
+    Read-ProjectWorldShippingWaterProof -Path $Path -OperationId $operationId `
+        -MapPackage $mapPackage -RuntimeProfileId kazan_territory_512_1536_v1 `
+        -RuntimeProfileHash $script:runtimeProfileHash
 }
 
 function Assert-PlayableTourNormalExit {
@@ -406,6 +329,7 @@ function Read-PlayableTourCorrectness {
         "$Configuration product-route receipt failed its identity/correctness contract."
     Assert-PlayableTour (Test-Path -LiteralPath ([string]$receipt.screenshot) -PathType Leaf) `
         "$Configuration product-route screenshot is missing."
+    if ($Configuration -ceq 'Shipping') { Assert-ProjectWorldBuildingEvidence -Receipt $receipt }
     return $receipt
 }
 
@@ -668,6 +592,10 @@ try {
     New-Item -ItemType Directory -Path $shippingRoot -Force | Out-Null
     $shippingCorrectnessPath = Join-Path $shippingRoot 'product-route.json'
     $shippingLogPath = Join-Path $shippingRoot 'game.log'
+    $script:buildingReferencePath = New-ProjectWorldBuildingReference -ProjectRoot $projectRoot `
+        -MapPackage $mapPackage -RuntimeProfileHash $runtimeProfileHash -EvidenceRoot $shippingRoot `
+        -RealizationProfile (Join-Path $projectRoot `
+            'Plugins/World/ProjectWorldData/Data/Profiles/Realization/kazan_territory_v1.realization.json')
     Assert-PlayableTourSourceState -ExpectedSourceHash $sourceStateHash `
         -ExpectedRuntimeHash $runtimeProfileHash -Stage 'before Shipping packaging'
     Invoke-PlayableTourPackage -OutputRoot $shippingPackage -Configuration 'Shipping'
@@ -714,11 +642,19 @@ try {
     $shippingPackageHash = Get-ProjectWorldPackagePayloadDigest -Path $finalPackage
     $shippingExecutableHash = (Get-FileHash -LiteralPath $shippingExecutable `
         -Algorithm SHA256).Hash.ToLowerInvariant()
+    $manhattanShippingEvidence = @(& (Join-Path $PSScriptRoot 'run_manhattan_showcase_prototype.ps1') `
+        -ExistingShippingPackageRoot $finalPackage -ExpectedPackagePayloadSha256 $shippingPackageHash `
+        -ExpectedExecutableSha256 $shippingExecutableHash -GameTimeoutSeconds $GameTimeoutSeconds)
+    Assert-PlayableTour ($LASTEXITCODE -eq 0 -and $manhattanShippingEvidence.Count -eq 1 -and
+        (Test-Path -LiteralPath $manhattanShippingEvidence[0] -PathType Leaf)) `
+        'Manhattan gameplay/Water did not accept the final shared Shipping package.'
 
     $artifactPaths = [ordered]@{
         development_performance_aggregate = $developmentAggregatePath
         manhattan_development_performance = $manhattanPerformancePath
+        manhattan_shipping_proof = $manhattanShippingEvidence[0]
         shipping_correctness = $shippingCorrectnessPath
+        shipping_building_reference = $script:buildingReferencePath
         shipping_product_screenshot = [string]$shippingCorrectness.screenshot
         shipping_water_proof = $shippingWaterResultPath
         shipping_water_viewpoint_authority = $waterAuthorityPath
@@ -809,6 +745,11 @@ try {
         } else { $null }
     }
 
+    $shippingReviewInput = Join-Path $workRoot 'shipping-review-input.json'
+    [IO.File]::WriteAllText($shippingReviewInput, ($composite | ConvertTo-Json -Depth 14))
+    & python (Join-Path $projectRoot 'scripts/ue/package/release_shipping.py') `
+        --receipt $shippingReviewInput --source-root $projectRoot | Out-Null
+    Assert-PlayableTour ($LASTEXITCODE -eq 0) 'Both-city Shipping artifact authentication failed.'
     if ($AcceptInconclusivePerformance) {
         $reviewInput = Join-Path $workRoot 'performance-review-input.json'
         [IO.File]::WriteAllText($reviewInput, ($composite | ConvertTo-Json -Depth 12))

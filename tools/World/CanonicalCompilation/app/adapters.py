@@ -5,6 +5,7 @@ from typing import Any
 
 from .contracts import CompilerError
 from .spatial import transform_geometry
+from .surface_context import surface_context
 
 
 SOURCE_ID = re.compile(r"^(node|way|relation)/(\d+)$")
@@ -160,10 +161,13 @@ def adapt_feature(
     else:
         return None, "unsupported_feature_class"
     source_identity = feature["provider_feature_id"]
+    geometry = projected_geometry or transform_geometry(feature["geometry"], grid)
+    if feature_class in {"road", "water"}:
+        attributes["surface_context"] = surface_context(feature["properties"], feature_class, geometry)
     return {
         "feature_id": canonical_feature_id(namespace, source_identity),
         "feature_class": feature_class,
-        "geometry": projected_geometry or transform_geometry(feature["geometry"], grid),
+        "geometry": geometry,
         "attributes": attributes,
         "source_refs": [{
             "snapshot_id": snapshot["snapshot_id"],

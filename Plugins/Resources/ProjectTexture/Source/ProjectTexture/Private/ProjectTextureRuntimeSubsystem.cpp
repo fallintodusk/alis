@@ -470,12 +470,12 @@ bool UProjectTextureRuntimeSubsystem::RequestOutput(
 		UE_LOG(LogProjectTextureRuntime, Display,
 			TEXT("[RuntimeCache::ColdWarmProof] identity=%s node=%s cold_request_to_ready_ms=%.6f ")
 			TEXT("warm_request_to_ready_ms=%.6f cold_node_generations=%d warm_node_generations=%d ")
-			TEXT("warm_cache_hits=%d same_resource=%d warm_ready=%d resident_bytes=%lld peak_bytes=%lld"),
+			TEXT("warm_cache_hits=%d same_resource=%d warm_ready=%d resident_bytes=%lld peak_bytes=%lld target=%s"),
 			*Catalog->SemanticIdentity, *OutputSlot->NodeId.ToString(),
 			ColdMilliseconds, WarmMilliseconds, ColdNodeGenerations,
 			Telemetry.Generations - GenerationsBeforeWarm, Telemetry.CacheHits - HitsBeforeWarm,
 			ResourceBeforeWarm == OutputSlot->GetRenderTarget() ? 1 : 0, bWarmReady ? 1 : 0,
-			Telemetry.ResidentBytes, Telemetry.PeakResidentBytes);
+			Telemetry.ResidentBytes, Telemetry.PeakResidentBytes, *GetPathNameSafe(OutputSlot->GetRenderTarget()));
 	}
 	return true;
 }

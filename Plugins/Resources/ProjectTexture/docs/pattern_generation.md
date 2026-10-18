@@ -61,7 +61,9 @@ peaks at 2,796,200 bytes while both nodes are live.
 Packaged Development runs can opt into `-ProjectTextureColdWarmProof`. The
 runtime log records the first output request-to-Ready duration, immediately
 requests the same slot again, and records the warm duration, generation counts,
-cache hit, resource reuse, and resident/peak bytes. Ready follows the existing
+cache hit, resource reuse, and resident/peak bytes. The record includes the output
+target UObject path for correlation with engine material-parameter readback; it
+does not claim rendered pixel consumption. Ready follows the existing
 render-thread flush, but this timing does not claim GPU-complete latency. The
 proof flag changes no recipe, identity, generated asset, or cache policy.
 

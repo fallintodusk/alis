@@ -18,6 +18,7 @@ from .contracts import (
 )
 from .execution import REPO_ROOT, execute
 from .canonical_mode import require_world_only_changes
+from .immutable_canonical import MODE as IMMUTABLE_MODE, selected_profiles, snapshot_selection
 from .planning import changed_paths
 from .validation import _validate_bootstrap, validate
 
@@ -31,12 +32,37 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--profile", required=True)
     run.add_argument("--bootstrap-preflight", required=True)
     run.add_argument("--check-result", required=True)
-    run.add_argument("--from-canonical-authority", action="store_true")
+    selection = run.add_mutually_exclusive_group()
+    selection.add_argument("--from-canonical-authority", action="store_true")
+    selection.add_argument("--from-immutable-canonical", action="store_true")
     run.add_argument("--changed-base")
+    plan = subcommands.add_parser("plan")
+    plan.add_argument("--base", default="HEAD")
+    plan.add_argument("--from-immutable-canonical", action="store_true")
+    inputs = subcommands.add_parser("refinement-inputs")
+    inputs.add_argument("--profile", required=True)
+    inputs.add_argument("--changed-base", required=True)
+    inputs.add_argument("--candidate", action="append", required=True, metavar="PROFILE=PATH")
+    inputs.add_argument("--bootstrap-preflight", required=True)
+    verify_inputs = subcommands.add_parser("verify-refinement-inputs")
+    verify_inputs.add_argument("--profile", required=True)
+    verify_inputs.add_argument("--selection", required=True)
+    verify_inputs.add_argument("--bootstrap-preflight", required=True)
+    target = subcommands.add_parser('refinement-target')
+    target.add_argument('--profile', required=True)
+    target.add_argument('--selection', required=True)
+    target.add_argument('--check-result', required=True)
+    target.add_argument('--base-run', required=True)
+    target.add_argument('--execute-layer', action='append', required=True)
+    target.add_argument('--bootstrap-preflight', required=True)
+    verify_target = subcommands.add_parser('verify-refinement-target')
+    verify_target.add_argument('--request', required=True)
+    verify_target.add_argument('--bootstrap-preflight', required=True)
     accept = subcommands.add_parser("accept")
     accept.add_argument("--run", required=True)
     accept.add_argument("--profile", required=True)
     accept.add_argument("--bootstrap-preflight", required=True)
+    accept.add_argument('--completion-evidence')
     enroll = subcommands.add_parser("enroll")
     enroll.add_argument("--run", required=True)
     enroll.add_argument("--profile", required=True)
@@ -101,6 +127,21 @@ def _prune_work_runs(
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.operation in {'refinement-target', 'verify-refinement-target'}:
+        from .refinement_target import run_target, verify_request
+        try:
+            from .contracts import read_json, validate_against
+            validate_against(read_json(Path(args.bootstrap_preflight)), 'bootstrap-preflight.schema.json')
+            code, outcome = run_target(args) if args.operation == 'refinement-target' else (0, verify_request(Path(args.request)))
+        except Exception as error:
+            code, outcome = 3, {'status': 'rejected', 'code': getattr(error, 'code', 'refinement_target_failed'), 'message': str(error)}
+        print(json.dumps(outcome, ensure_ascii=True), file=sys.stdout if code == 0 else sys.stderr)
+        return code
+    if args.operation in {"refinement-inputs", "verify-refinement-inputs"}:
+        return _refinement_inputs(args)
+    if args.operation == "plan":
+        from .planning import main as plan_main
+        return plan_main(["--base", args.base, *(["--from-immutable-canonical"] if args.from_immutable_canonical else [])])
     if args.operation == "enroll":
         from .enrollment import enroll
 
@@ -115,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         from .acceptance import accept
 
         try:
-            outcome = accept(args.run, args.profile, args.bootstrap_preflight)
+            outcome = accept(args.run, args.profile, args.bootstrap_preflight, completion_evidence=args.completion_evidence)
         except ValidationFailure as error:
             print(json.dumps({"status": "rejected", "code": error.code, "message": str(error)}), file=sys.stderr)
             return 3
@@ -165,20 +206,23 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "rejected", "code": error.code, "message": str(error)}), file=sys.stderr)
         return 3
     profile_id = profile["profile_id"]
-    mode = "canonical_authority" if args.from_canonical_authority else "full"
+    mode = IMMUTABLE_MODE if args.from_immutable_canonical else "canonical_authority" if args.from_canonical_authority else "full"
     changed = []
-    if mode == "canonical_authority":
+    immutable_selection = None
+    if mode != "full":
         if not args.changed_base:
             print(json.dumps({"status": "rejected", "code": "canonical_mode_base_missing",
                 "message": "Canonical Matrix requires --changed-base for the reviewed change"}), file=sys.stderr)
             return 3
         try:
             changed = changed_paths(args.changed_base)
-            require_world_only_changes(
-                changed, args.changed_base, REPO_ROOT, validation_profile=resolved_profile_path,
-            )
-            selected = {name: settings for name, settings in profile["profiles"].items()
-                if settings.get("canonical_authority")}
+            if mode == IMMUTABLE_MODE:
+                immutable_selection = snapshot_selection(REPO_ROOT, profile, args.changed_base, resolved_profile_path)
+            else:
+                require_world_only_changes(
+                    changed, args.changed_base, REPO_ROOT, validation_profile=resolved_profile_path,
+                )
+            selected = selected_profiles(profile)
             if not selected:
                 raise ValidationFailure("canonical_mode_authority_missing", "No profile has promoted canonical authority")
             profile = {**profile, "profiles": selected}
@@ -204,6 +248,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         execution["changed_base"] = args.changed_base if mode != "full" else None
         execution["changed_paths"] = changed
+        if immutable_selection is not None:
+            execution["immutable_canonical_selection"] = immutable_selection
         if validation_profile_contract(resolved_profile_path) != initial_profile_contract:
             raise ValidationFailure(
                 "validation_profile_changed_during_run",
@@ -237,3 +283,37 @@ def main(argv: list[str] | None = None) -> int:
     stream = sys.stdout if exit_code == 0 else sys.stderr
     print(json.dumps({"status": result["status"], "result": str(result_path)}, ensure_ascii=True), file=stream)
     return exit_code
+
+
+def _refinement_inputs(args: argparse.Namespace) -> int:
+    from .contracts import read_json
+    from .refinement_selection import snapshot_candidates, validate_candidates
+
+    try:
+        resolved = profile_path(args.profile)
+        profile = load_profile(resolved)
+        if args.operation == "refinement-inputs":
+            candidates = {}
+            for value in args.candidate:
+                name, separator, path = value.partition("=")
+                if not separator or not name or not path or name in candidates:
+                    raise ValidationFailure("refinement_candidate_unproven", "Candidates require unique PROFILE=PATH entries")
+                candidates[name] = (REPO_ROOT / path).resolve()
+            result = snapshot_candidates(REPO_ROOT, profile, args.changed_base, resolved, candidates)
+        else:
+            selection_path = (REPO_ROOT / args.selection).resolve()
+            if not selection_path.is_relative_to((REPO_ROOT / "tmp").resolve()) or not selection_path.is_file():
+                raise ValidationFailure("refinement_candidate_unproven", "Input selection must be an existing repository tmp file")
+            before = file_hash(selection_path)
+            selected = read_json(selection_path)
+            if selected.get("base_selection", {}).get("validation_profile_path") != resolved.relative_to(REPO_ROOT).as_posix():
+                raise ValidationFailure("refinement_candidate_unproven", "Input selection belongs to another validation profile")
+            validate_candidates(REPO_ROOT, profile, selected)
+            if file_hash(selection_path) != before:
+                raise ValidationFailure("refinement_candidate_unproven", "Input selection changed during verification")
+            result = {"status": "accepted", "selection_sha256": before, "candidates": selected["candidates"]}
+    except ValidationFailure as error:
+        print(json.dumps({"status": "rejected", "code": error.code, "message": str(error)}), file=sys.stderr)
+        return 3
+    print(json.dumps(result, ensure_ascii=True))
+    return 0

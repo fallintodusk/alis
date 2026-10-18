@@ -47,6 +47,31 @@
     },
     "compile_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "output_count": {"type": "integer", "minimum": 1},
+    "selected_refinement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "base_result_sha256", "inputs_hash", "result_sha256", "output_count", "implementation_sha256", "source_context_identity", "execution_identity", "effective_identity", "bundle"],
+      "properties": {
+        "kind": {"const": "surface_relationships_v1"},
+        "base_result_sha256": {"$ref": "#/$defs/hash"},
+        "inputs_hash": {"$ref": "#/$defs/hash"},
+        "result_sha256": {"$ref": "#/$defs/hash"},
+        "output_count": {"type": "integer", "minimum": 1},
+        "implementation_sha256": {"$ref": "#/$defs/hash"},
+        "source_context_identity": {"$ref": "#/$defs/hash"},
+        "execution_identity": {"$ref": "#/$defs/hash"},
+        "effective_identity": {"$ref": "#/$defs/hash"},
+        "bundle": {
+          "type": "object", "additionalProperties": false,
+          "required": ["format", "path", "byte_size", "sha256"],
+          "properties": {
+            "format": {"const": "deterministic_zip_v1"},
+            "path": {"type": "string", "pattern": "^refinements/[0-9a-f]{64}\\.zip$"},
+            "byte_size": {"type": "integer", "minimum": 1},
+            "sha256": {"$ref": "#/$defs/hash"}
+          }
+        }
+      }
+    },
     "bundle": {
       "type": "object",
       "additionalProperties": false,
@@ -58,5 +83,6 @@
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     }
-  }
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
 }

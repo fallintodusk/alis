@@ -841,6 +841,8 @@ def execute(
     common_checks: dict[str, Any],
     mode: str = "full",
 ) -> dict[str, Any]:
+    if mode not in {"full", "canonical_authority", "immutable_canonical"}:
+        raise ValidationFailure("matrix_mode_invalid", "Unknown World acceptance operation")
     powershell = _powershell()
     preflight = read_json(preflight_path)
     validate_against(preflight, "bootstrap-preflight.schema.json")
@@ -974,7 +976,7 @@ def execute(
         "environment": {
             **({key: value for key, value in common_checks["environment"].items()
                 if key not in {"immutable_cache_bytes", "network_transfer_bytes"}}
-                if mode == "canonical_authority" else common_checks["environment"]),
+                if mode != "full" else common_checks["environment"]),
             **({"immutable_cache_bytes": tree_size(cache_root),
                 "network_transfer_bytes": max(0, tree_size(cache_root) - cache_before)}
                 if mode == "full" else {}),

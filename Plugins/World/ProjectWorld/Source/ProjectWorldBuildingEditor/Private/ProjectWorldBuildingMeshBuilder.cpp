@@ -371,7 +371,10 @@ namespace ProjectWorldBuildingMeshBuilder
 		{
 			const FVector2d Center = Building.Bounds.Center();
 			const FProjectWorldCanonicalCell* Cell = OwnerCell(Bundle, *Building.Feature);
-			if (Cell != nullptr) return ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Center.X, Center.Y, OutHeight, OutError);
+			FString GradeIdentity;
+			if (!ProjectWorldCivilGrade::Validate(Bundle, *Building.Feature, GradeIdentity, OutError)) return false;
+			if (Cell != nullptr) return ProjectWorldGeneratedGeometry::SampleTerrain(*Cell, Center.X, Center.Y, OutHeight, OutError,
+				Building.Feature->CivilGrade.IsSet() ? EProjectWorldTerrainQuery::ImmutableGrid : EProjectWorldTerrainQuery::FinalSurface);
 			OutHeight = Bundle.HeightOriginMeters;
 			return true;
 		}

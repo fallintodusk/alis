@@ -4,6 +4,7 @@
 #include "ProjectWorldWaterContractParsing.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldContainedWaterParsing.h"
 
 #include "Dom/JsonObject.h"
 
@@ -66,19 +67,28 @@ namespace ProjectWorldWaterContractParsing
 			const TSharedPtr<FJsonObject>* Function = nullptr;
 			if (!Attributes->TryGetObjectField(TEXT("surface_function"), Function) ||
 				Function == nullptr || !Function->IsValid() ||
-				!ReadRequiredString(*Function, TEXT("function_id"), OutSurface.FunctionId, Validation) ||
-				!(*Function)->TryGetNumberField(TEXT("function_version"), OutSurface.FunctionVersion))
+				!ReadRequiredString(*Function, TEXT("function_id"), OutSurface.FunctionId, Validation))
 			{
 				return Reject(
 					Validation,
 					TEXT("Canonical water function identity is incomplete."),
 					TEXT("surface_function"));
 			}
+			const auto VersionValue = (*Function)->TryGetField(TEXT("function_version"));
+			double Version = 0;
+			if (!VersionValue.IsValid() || VersionValue->Type != EJson::Number ||
+				!VersionValue->TryGetNumber(Version) || Version != 1.0)
+			{
+				return Reject(Validation, TEXT("Canonical water function needs the current numeric integer version."), TEXT("function_version"));
+			}
+			OutSurface.FunctionVersion = 1;
 			const bool bSupportedStanding = OutSurface.Behavior == TEXT("standing") &&
-				OutSurface.FunctionId == TEXT("standing_polygon_quantile") &&
+				(OutSurface.FunctionId == TEXT("standing_polygon_quantile") ||
+				 OutSurface.FunctionId == TEXT("contained_ground_quantile")) &&
 				OutSurface.FunctionVersion == 1;
 			const bool bSupportedFlowing = OutSurface.Behavior == TEXT("flowing") &&
-				OutSurface.FunctionId == TEXT("rolling_quantile_l1_isotonic") &&
+				(OutSurface.FunctionId == TEXT("rolling_quantile_l1_isotonic") ||
+				 OutSurface.FunctionId == TEXT("constrained_flowing_knots")) &&
 				OutSurface.FunctionVersion == 1;
 			if (!bSupportedStanding && !bSupportedFlowing)
 			{
@@ -89,6 +99,12 @@ namespace ProjectWorldWaterContractParsing
 			}
 			if (OutSurface.Behavior == TEXT("standing"))
 			{
+				if (OutSurface.FunctionId == TEXT("contained_ground_quantile") &&
+					(OutSurface.Geometry != TEXT("polygon") || OutSurface.Role != TEXT("area") ||
+					 !ProjectWorldContainedWaterParsing::Read(*Function)))
+					return Reject(Validation, TEXT("Contained Water model or provenance is invalid."), TEXT("surface_function"));
+				if (OutSurface.FunctionId == TEXT("contained_ground_quantile"))
+					OutSurface.ContainmentSpillMeters = (*Function)->GetNumberField(TEXT("spill_level_m"));
 				return (*Function)->TryGetNumberField(TEXT("level_m"), OutSurface.LevelMeters) &&
 					FMath::IsFinite(OutSurface.LevelMeters)
 					? true
@@ -106,6 +122,9 @@ namespace ProjectWorldWaterContractParsing
 				const TArray<TSharedPtr<FJsonValue>>* Knot = nullptr;
 				double Values[3] = {};
 				if (!KnotValue->TryGetArray(Knot) || Knot == nullptr || Knot->Num() != 3 ||
+					!(*Knot)[0].IsValid() || (*Knot)[0]->Type != EJson::Number ||
+					!(*Knot)[1].IsValid() || (*Knot)[1]->Type != EJson::Number ||
+					!(*Knot)[2].IsValid() || (*Knot)[2]->Type != EJson::Number ||
 					!(*Knot)[0]->TryGetNumber(Values[0]) ||
 					!(*Knot)[1]->TryGetNumber(Values[1]) ||
 					!(*Knot)[2]->TryGetNumber(Values[2]) ||

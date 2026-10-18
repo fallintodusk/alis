@@ -39,17 +39,24 @@ namespace ProjectWorldGeneratedGeometry
 	bool SampleTerrain(
 		const FProjectWorldCanonicalCell& Cell,
 		double X,
-		double Y, double& OutHeight, FString& OutError)
+		double Y, double& OutHeight, FString& OutError, EProjectWorldTerrainQuery Query)
 	{
 		const FProjectWorldCanonicalTerrain& Terrain = Cell.Terrain;
 		if (!FMath::IsFinite(X) || !FMath::IsFinite(Y) || Terrain.SamplesX < 2 || Terrain.SamplesY < 2 ||
 			Terrain.SampleSpacing.X <= 0 || Terrain.SampleSpacing.Y <= 0 || Terrain.HeightsMeters.Num() != Terrain.SamplesX * Terrain.SamplesY)
 		{ OutError = TEXT("Terrain placement query has an invalid grid or coordinate."); return false; }
+		// Owner clamping precedes representation selection so final queries cannot
+		// escape a selected edge and silently sample its immutable base instead.
+		X = FMath::Clamp(X, Terrain.Bounds.X, Terrain.Bounds.X + (Terrain.SamplesX - 1) * Terrain.SampleSpacing.X);
+		Y = FMath::Clamp(Y, Terrain.Bounds.W - (Terrain.SamplesY - 1) * Terrain.SampleSpacing.Y, Terrain.Bounds.W);
+		const double SampleX = FMath::Clamp(
+			(X - Terrain.Bounds.X) / Terrain.SampleSpacing.X, 0.0, static_cast<double>(Terrain.SamplesX - 1));
+		const double SampleY = FMath::Clamp(
+			FProjectWorldCanonicalLoader::TerrainSampleRow(Terrain, Y), 0.0, static_cast<double>(Terrain.SamplesY - 1));
 		for (const auto& Quad : Terrain.RefinedQuads)
 		{
-			const double Column = (X - Terrain.Bounds.X) / Terrain.SampleSpacing.X;
-			const double Row = FProjectWorldCanonicalLoader::TerrainSampleRow(Terrain, Y);
-			if (Column < Quad.Coordinate.X || Column > Quad.Coordinate.X + 1 || Row < Quad.Coordinate.Y || Row > Quad.Coordinate.Y + 1) continue;
+			if (Query == EProjectWorldTerrainQuery::ImmutableGrid) break;
+			if (SampleX < Quad.Coordinate.X || SampleX > Quad.Coordinate.X + 1 || SampleY < Quad.Coordinate.Y || SampleY > Quad.Coordinate.Y + 1) continue;
 			for (const FIntVector& Face : Quad.Triangles)
 			{
 				if (!Quad.Vertices.IsValidIndex(Face.X) || !Quad.Vertices.IsValidIndex(Face.Y) || !Quad.Vertices.IsValidIndex(Face.Z))
@@ -66,14 +73,6 @@ namespace ProjectWorldGeneratedGeometry
 			OutError = TEXT("Refined placement query has missing final-surface coverage.");
 			return false;
 		}
-		const double SampleX = FMath::Clamp(
-			(X - Terrain.Bounds.X) / Terrain.SampleSpacing.X,
-			0.0,
-			static_cast<double>(Terrain.SamplesX - 1));
-		const double SampleY = FMath::Clamp(
-			FProjectWorldCanonicalLoader::TerrainSampleRow(Terrain, Y),
-			0.0,
-			static_cast<double>(Terrain.SamplesY - 1));
 		const int32 X0 = FMath::FloorToInt(SampleX);
 		const int32 Y0 = FMath::FloorToInt(SampleY);
 		const int32 X1 = FMath::Min(X0 + 1, Terrain.SamplesX - 1);

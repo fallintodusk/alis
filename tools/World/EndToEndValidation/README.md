@@ -5,6 +5,9 @@ Gate selection is defined by
 `check` and `run` are slice gates and never package. `accept` is the L4
 milestone/release gate and is the only command here that packages.
 
+For a saved World with carried base scopes and selected-child scopes, use the
+[frozen execution evidence reader](frozen_evidence.md) before final acceptance.
+
 Owns profile-scoped cross-layer acceptance runs. It composes the public Source
 Ingestion and Canonical Compilation commands with the supported Unreal world
 commandlet and release packager. It does not implement ingestion, compilation,
@@ -43,6 +46,114 @@ both optional run flags for the full source-to-World replay.
 L3 output names candidate owners only; promotion still requires an intentional
 generated-package or manifest change.
 
+## Immutable artifact-consumer acceptance
+
+The explicit `immutable_canonical` operation accepts current downstream behavior
+against an unchanged, authenticated canonical baseline. It is separate from
+certifying today's source-to-canonical compiler. Select it with:
+
+```powershell
+python -S tools/World/EndToEndValidation/bootstrap.py plan --base <slice-base> --from-immutable-canonical
+python -S tools/World/EndToEndValidation/bootstrap.py run `
+  --profile <validation-profile> --check-result <current-common-check-result> `
+  --from-immutable-canonical --changed-base <slice-base>
+```
+
+Admission verifies the selected source/compiler profiles, controls, budgets and
+active authority against the true slice base, then authenticates every bundle
+output and the frozen producing result/run contract. The strict selection
+contract records historical producer identities separately from the current
+reader identity. The current two-city profile needs both current World legs;
+old single-city receipts cannot cover it. Changed geographic inputs, authority,
+missing history, altered payloads or stale consuming implementation refuse.
+
+Acquisition, base compilation and canonical promotion are neither executed nor
+certified by this operation. Current Common Check and the same isolated World
+Apply/no-op/locality/rejection/reconstruction/restoration requirements still
+apply. A post-canonical refinement additionally owns its own result, consumed
+identities and focused native correctness proof. This operation does not activate
+refinement, accept source-quality policy, or authorize geography mutation.
+
+The existing `canonical_authority` guard and default `full` selection remain
+strict. Use `full` whenever accepting fresh ingestion/base-compiler output or
+changed geographic inputs. An unused producer edit can coexist with immutable
+artifact consumption, but receives no producer certification from that receipt.
+Unavailable historical raw bytes remain a gap for fresh historical replay.
+
+The base-only immutable reader refuses a selected refinement rather than
+recording only its original compile identity. `refinement-inputs` admits explicit repository-tmp child
+candidates against the same unchanged historical base selection. It authenticates
+the effective archive/result and current child/source/native identities, then
+freezes base and candidate pins separately. Source acquisition, base compilation
+and production promotion are not performed. This input snapshot is not a World
+acceptance result: selected-owner integration and coordinated recovery remain
+required before activation. Existing `run` modes cannot silently use that snapshot
+as a completed immutable or full compiler gate.
+
+```powershell
+python -S tools/World/EndToEndValidation/bootstrap.py refinement-inputs `
+  --profile <validation-profile> --changed-base <slice-base> `
+  --candidate <profile-name>=<tmp-authority-candidate>
+python -S tools/World/EndToEndValidation/bootstrap.py verify-refinement-inputs `
+  --profile <validation-profile> --selection <tmp-input-selection.json>
+```
+
+The first command emits the [input selection](contracts/refinement-candidate-selection.schema.json)
+on stdout; the caller retains it under repository `tmp/`. Verification reconstructs
+that selection and returns its exact byte hash only after final pin and producer
+checks. Neither command runs World, Common Check, Matrix or promotion. Duplicate
+candidate names, another validation profile and changed selection bytes refuse.
+
+### Selected-refinement target acceptance
+
+`refinement-target` requires the exact current input selection, current Common Check
+and an accepted immutable-base Matrix from that same Check. It runs only the selected
+World dependency closure on the existing accepted map through the supported host.
+The [target request](contracts/refinement-target-request.schema.json) binds those
+inputs. Verification runs before mutation and again after complete restoration.
+
+```powershell
+python -S tools/World/EndToEndValidation/bootstrap.py refinement-target `
+  --profile <validation-profile> --selection <tmp-input-selection.json> `
+  --check-result <current-check-result> --base-run <immutable-base-run-id> `
+  --execute-layer <owner> --execute-layer <dependent-owner>
+```
+
+The target proves a real post-canonical-CAS failed-commit recovery, successful saved
+pair publication, cold authority audit, and cold no-op without a new child selection.
+It uses the existing [outer recovery owner](../../../scripts/ue/generated_content/README.md#canonical-selection-participant)
+to restore both original pointers and the complete World path/byte inventory. An
+interrupted target retains the existing outer marker and snapshots for its normal
+recovery entry point. It requires project Unreal processes to be closed during saved
+acceptance; ordinary material preview remains an independent live-Editor loop.
+
+An accepted `refinement_selected` result certifies this bounded target. It does not
+replace the unchanged-base regression envelope, authorize geographic policy, certify
+packaged performance or count as a full Matrix/package provenance receipt. Existing
+base-only `run` and final acceptance commands remain strict about their own modes.
+Do not relabel the target as fresh base compilation or source replay.
+
+```mermaid
+flowchart LR
+    P[Selected immutable provider bytes] --> I[SourceIngestion]
+    I --> D[Two verified durable raw copies]
+    I --> C[Base canonical compiler]
+    C --> B[Accepted canonical bundle and historical lineage]
+    B --> W[Current World consumers]
+    B --> R[Canonical refinement child]
+    R --> F[Distinct final-surface candidate and identity]
+    F --> W
+    B --> A[Immutable artifact-consumer acceptance]
+    W --> A
+```
+
+Current proof identities are conservative over the maintained reader/helper
+closure. They may invalidate checks for an unused implementation edit; that does
+not authorize acquisition or regeneration. An exact call-graph dependency engine
+is not required for this separation.
+
+## Execution and evidence
+
 `check` bootstraps the pinned environment and runs the common Python,
 PowerShell lifecycle, architecture, failure, and Unreal realization suites
 once. Each `run` verifies and pins that same accepted check receipt and refuses
@@ -52,13 +163,13 @@ configuration, C++ Build.cs, pinned tool locks, immutable TestData inputs and
 authored fixtures, plus the exact territory Matrix input closure that
 the current suites read. It does not hash the whole future production profile
 namespace. Generated packages and durable manifests are excluded because
-Matrix and L3 own those lifecycles. The full route then runs isolated synthetic and Kazan
-source/compile matrices, and executes six realization legs: full Apply,
+Matrix and L3 own those lifecycles. The full route then runs isolated synthetic,
+Kazan and Manhattan source/compile matrices, and executes six realization legs: full Apply,
 unchanged Apply, road-locality Apply, one-cell incremental Apply, deliberately
 rejected overlay resolution, and clean reconstruction. It compares D0-D3 semantics, requires
 the generated tree to roll back byte-for-byte after rejection, and requires
 every protected authored package hash to remain identical across all legs.
-The canonical-authority route selects the production profile only. It
+The canonical-authority route selects the production entries only. It
 validates and materializes the current promoted bundle, then executes full
 Apply, unchanged Apply, road-locality Apply, deliberately rejected overlay
 resolution, and clean reconstruction. It performs no source acquisition or
@@ -100,7 +211,7 @@ owner remains conservatively protected, including newly added bundle files.
 Upstream component `tests/` edits invalidate the common proof identity rather
 than production generation; shared implementation and contract edits still
 require full replay.
-Both routes require the current common Check and exact
+All routes require the current common Check and exact
 generated-tree restoration.
 The canonical route does not scan or apply a budget to the unused raw-source
 cache. Its World-only check name does not claim source or compiler replay.
@@ -125,8 +236,14 @@ its own evidence kind to five receipts and its own disposable Matrix work to
 two runs. It never sweeps another tool's `tmp/` ownership.
 
 The supported `kazan_territory_v1.validation.json` Matrix binds the Mesh
-Terrain twin to the production 210-cell terrain/water/road/vegetation topology
-and exact generated-layer inventory.
+Terrain twin to both production cities and their exact generated-layer inventories.
+Its Kazan and Manhattan entries authenticate their own source, compiler, canonical
+authority, runtime and authored-overlay inputs. They share the data owner's one
+presentation contract. Each rejection leg uses the city's own grid and an absent
+semantic feature so it reaches anchor resolution rather than a wrong-grid refusal.
+Full replay applies the provider-payload ceiling separately to each profile's
+authenticated consumed source snapshots. Unrelated cache residency does not define
+admission; cache-size and acquisition-growth metrics remain bootstrap diagnostics.
 `enroll` authenticates its
 accepted Matrix and current transitive profile closure, then executes the one
 recoverable L3 transaction that may persist those exact production packages
@@ -197,7 +314,9 @@ root. Final acceptance derives the durable authority owner
 from `package.required_map`, passes it to both audits, and records it in
 `acceptance_chain.json`.
 
-Commandlet realization is structural evidence because it runs with `-NullRHI`.
+Commandlet realization is structural evidence. The selected terrain adapter can
+require a rendering RHI even for commandlet geometry checks; that does not make
+those checks gameplay frame-performance measurements.
 Rendered performance acceptance must use the packaged non-NullRHI map, a pinned
 camera and resolution, a fixed warmup and sample window, and p95 frame time. Its
 receipt records the executable, build, machine, GPU, driver, RHI, scalability,
@@ -248,6 +367,11 @@ the planner's full L1, Matrix, promotion or packaged acceptance.
 |---|---|
 | `contracts/` | Validation profile and final receipt contracts |
 | `app/checks.py` | One authenticated common test/toolchain check |
+| `app/immutable_canonical.py` | Explicit unchanged-artifact admission and current consumer proof |
+| `app/refinement_selection.py` | Explicit new-child input admission with retained immutable base lineage |
+| `app/refinement_target.py` | Current selected-child saved/cold/recovery acceptance over the immutable-base gate |
+| `app/completion.py` | Retained base/selected-target/actual-rollout handoff for final acceptance |
+| `app/completion_metadata.py` | Closed schema-only successor and exact producing-source equivalence |
 | `app/execution.py` | Profile matrices and owned map/material backup lifecycle |
 | `app/layered_validation.py` | Layer topology, dirty locality, and exact artifact evidence |
 | `app/enrollment.py` | Authenticated, locked L3 durable enrollment and audit |
@@ -260,6 +384,12 @@ the planner's full L1, Matrix, promotion or packaged acceptance.
 The profile is the stable acceptance SOT. Generated receipts are evidence,
 never editable inputs. Raw provider payloads, normalized caches, compiler
 outputs, package staging, and logs remain ignored.
+
+City sabotage profiles must pass the native overlay loader before testing the
+missing-feature refusal. JSON Schema acceptance alone does not prove that a
+control reaches its intended guard. The focused native regression is
+`Project.World.Realization.Authored.SabotageContracts`; it reads both selected
+city controls and requires the exact missing-feature resolution error.
 
 Clean-map validation derives each owner from its validated UE plugin
 descriptor and owns the selected generated maps and declared layer artifacts.

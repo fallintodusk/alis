@@ -1,20 +1,67 @@
 # Road and Water Alignment
 
-**Status:** CURRENT - Q4 disposable constant-polygon refinement verified; production Water acceptance, I5/I6 and Q2/Q3/Q5 remain open
+**Status:** CURRENT - D17 Bridge/drain rollout and independent packaged material-development proof PASS; bank/fountain geography and final certification remain OPEN
 **Scope:** terrain/road/water geometric alignment, intersections, and layering  
 **Release:** required 3.0.0 concern; release authority stays in the [release plan](00_release_3.0.0.md#authority-register)  
 **Stable documentation owners:** [World territory contract](../../Plugins/World/ProjectWorld/docs/territory_contract.md), [World pitfalls](../../Plugins/World/ProjectWorld/docs/pitfalls.md), and the owner identified by the dedicated investigation
 
 ## Remaining work - residual Water correctness
 
-**Marker:** IN PROGRESS under D11/D12 - constrained canonical refinement is the
-selected investigation direction; low-confidence cases remain unchanged. The
+**Current accepted boundary:** Common Check `check-20261017T042825Z`, immutable-base
+Matrix `run-20261017T044937Z`, and selected-child target
+`refinement-20261017T054131Z` pass their distinct scopes. The lasting transaction
+`1d33c88f8ffe47669800348becdcb001` changes three Kazan Road/Water mesh/actor pairs.
+Only Road/Water scope manifests advance; cold replay writes zero. Terrain,
+Buildings, Manhattan, materials and the Git index remain protected. Retained
+execution reading and actual saved-city PIE checks pass. The presentation concern
+closes its independent exact packaged material-development proof under D52; this
+retains the geographic hold and does not certify a final release.
+This closes neither the bank/fountain source ambiguity nor final release acceptance.
+
+**Marker:** D17 continues engineering under the geographic release hold. Complete
+the source-aware investigation and independently reviewed correction below;
+do not ask again for a blanket defect waiver. Water 5 rollout and bounded runtime
+measurements are complete under D16 and release-plan D27. D56 stays accepted.
+Q5 geographic correctness and final source-bound certification remain OPEN.
+**Resume here:** [Qualified Ground admission and local-surface continuation](#qualified-ground-admission-and-exact-local-collar---active-continuation).
+The observed/raster source-admission boundary has 16 GREEN tests and architect
+PASS; reuse its current BG1 receipts, not historical unsupported receipts.
+The two-quad, twelve-quad and street-face fountain hypotheses remain unadopted
+after measured ordinary-footway/interface consequences. The active continuation
+below closes the owner-clamped query defect and identifies coarse-grid aliasing
+at four real Road witnesses. The five-object native source field, its complete
+support, exact seam controls and dependency census are retained; the bounded
+fine-grid comparisons below do not yet close real-city neighboring seams or joint
+Water containment. The pure Ground constructor and its typed UE query/source-mesh
+proof are closed. D60 additionally closes fresh-selection producer binding and
+the captured convex-weight edge refusal. Its exact observed-basin/native-CDT
+join preserves final wet coverage and passes bounded native collision probes;
+the regional Ground policy and city-quality acceptance remain open. The later
+Ground-first scene closes actual Road/Building source-consumption proof and its
+sampled native collision. Start with the connected-land source gaps and regional
+policy at the active continuation, not another narrow zero-interface patch or
+replay of the accepted typed-consumer tests. The two fixed park blends fail
+measured Road quality; a wider publishable source model is still unselected.
+Preserve the explicitly multi-level entrance case as unknown. Older
+default-scale heights are different diagnostic evidence; their
+four-centre mask is not a certificate for a widened downsampling kernel.
+Do not rerun SourceIngestion, build a whole-cell Ground swap or introduce a
+maintained publisher before the source-interface and consumer evidence closes.
+Low-confidence cases remain
+unchanged unless their source policy becomes defensible. The
 [D12 implementation proposal](#d12-constrained-canonical-refinement---approved-disposable-scope)
-is approved for disposable implementation by D13. Accepted production stays frozen; remaining policy and
-exact output acceptance are not assumed complete.
+is implemented under D13. D14 authorizes necessary production integration after
+its own source/quality and acceptance gates pass; it does not declare them passed.
 **Starting evidence recorded:** 2026-10-15, in the earlier documentation-only
 stub. D11 supersedes that timing. The knowledge below is the D45-D48 starting
 point; the review record separately owns new investigation and implementation.
+Current D14 investigation expands the selected Kazan mixed-overlap inventory to
+seven positive-area contacts; the older six-contact count below is explicitly
+detector-qualified. Native revision-5 replay and independent geometry analysis
+resolve those seven and the 39 equal-height contacts. Another 21 Kazan contacts
+belong to a different, unequal-height source pair and remain unresolved.
+That was the D14 candidate state. D58 adopted Water revision 5; the D17 selected
+rollout above subsequently advances only its two affected Kazan Water cells.
 
 **Goal:** resolve the remaining Water overlap/shoreline defects in Kazan and
 Manhattan without disturbing accepted materials or unrelated generated layers.
@@ -237,8 +284,82 @@ preserve an implausible cross-slope; grading remains a candidate, not a requirem
   - Source: operator's explicit answer "Approve disposable implementation",
     2026-10-15.
 
+- **D14** Complete this concern under the release router's D25 FULL GO.
+  - Effect: investigate the real source-shaped Q5 candidates, implement necessary
+    canonical/Water/consumer corrections, and perform gated dependency-local
+    production transactions and packaged acceptance autonomously. Q4 stays closed.
+    The release router owns the technical-quality delegation, independent review,
+    preserved operator/performance boundaries and final unsigned certification.
+    Unresolved source/crossing risks require evidence and explicit disposition;
+    neither an exclusion nor a reviewer PASS manufactures release acceptance.
+  - Source: operator's FULL GO attachment and autonomous completion request,
+    2026-10-16; see [release authority](00_release_3.0.0.md#authority-register).
+
 Release inclusion, the historical R5, final frozen R5/R6, and unchanged performance
 policy are owned by release-plan D19-D22, not this investigation.
+
+- **D15** Implement the release router's D26 dependency and recovery correction.
+  - Effect: authenticate immutable accepted canonical consumption separately from
+    fresh source/base compilation; retain Q4's child identity and correctness
+    proof, strict upstream replay and unchanged geographic selection. Preserve
+    accepted city outputs, source pins and Q5 limits. Complete the bounded exact
+    raw search and durable retention/recovery contract before replacement pins.
+    A scoped Water release-exception proposal remains evidence, not acceptance;
+    the operator retains the final risk decision.
+  - Source: operator's source-recovery reinvestigation and architecture correction,
+    2026-10-16; [release authority](00_release_3.0.0.md#authority-register).
+
+- **D16** Resume full completion under release-plan D27. Reuse D56's accepted
+  dependency/source boundary and its receipts. Perform the gated revision-5
+  Water transaction, actual city consequence checks and independent packaged
+  verification. Preserve low-confidence cases, the rejected bank decision and
+  the operator's final geographic-risk authority. Do not stop at another
+  intermediate PASS or create a duplicate concern.
+  - Source: operator's resume-and-complete request, 2026-10-16;
+    [release authority](00_release_3.0.0.md#authority-register).
+
+- **D17** Keep the geographic release hold temporarily and continue the original
+  FULL GO through source-aware geographic surface reconciliation. Do not accept
+  a blanket exception or stop engineering at the hold.
+  - Effect: audit the four measured defect classes and their surviving source
+    semantics; inspect native UE and established terrain methods; prepare this
+    existing todo through investigate-change; obtain independent architect review
+    at the canonical/consumer boundary before broad implementation. Implement
+    justified general rules, focused fixtures and real-city verification, then
+    deploy only affected outputs through the existing acceptance/transaction route.
+    Continue independent packaging, collision and performance work. D58's frozen
+    proof remains bounded to its recorded candidate until consumed inputs change.
+  - Constraints: preserve original sources, provenance, accepted geography,
+    materials and Git state during investigation/candidates. Prefer explicit
+    evidence, supported topology/geometry, then defensible bounded and identified
+    model inference. Never invent elevations/connectivity or unsafe cut/fill
+    limits; do not silently reinterpret missing historical tags. No parallel
+    terrain authority, generic solver framework without demonstrated need,
+    repeated full-city development regeneration or premature publication.
+  - Supersedes: D16 review record's proposed hold-versus-waiver next step. Q5
+    remains open; escalate only a specific ambiguity demonstrated irreducible
+    from available evidence and accepted engineering constraints.
+  - Reason: procedural generation should resolve defensible geographic
+    relationships automatically rather than request a decision for every crossing.
+  - Source: operator's Q5 answer and stages A-E, 2026-10-16.
+
+- **D18** Continue FULL GO by evaluating and applying valid source-model review
+  findings, preserving the accepted bounded Ground proofs.
+  - Effect: compare an evidence-backed regional Ground/retained-terrain transition
+    with broader qualified Ground adoption and any explicitly permitted unsupported
+    disposition. Identified deterministic interpolation is a game-world model,
+    not surveyed elevation. The historical DSM is immutable input, not a blanket
+    requirement to freeze erroneous civil grades or force a tiny matching seam.
+    Obtain independent architect review before selecting a regional policy/contract;
+    implement and measure through the existing canonical refinement and consumers.
+    Audit original-feature binding at its actual acceptance owner and keep generated
+    test evidence outside public source. Continue actual geography, transaction and
+    technical release verification; no intermediate PASS closes the whole concern.
+  - Constraints: D14/D17 quality, source, dependency-local and operator boundaries
+    remain. No automatic 47.8 km2 replacement, fabricated waterline, unknown-source
+    fill, arbitrary cut/grade relaxation, parallel authority or public R6 action.
+  - Source: operator's "do bro fully" request to evaluate/apply the attached review,
+    2026-10-17. Technical findings still require repository and measured evidence.
 
 ### Operator gates
 
@@ -249,7 +370,7 @@ policy are owned by release-plan D19-D22, not this investigation.
   grade, maximum cut/fill, corridor/transition extent, and canonical surface contract
   should be accepted? Existing source heights/widths do not supply a road-design law.
   Gates grading prototypes and production changes, not the read-only diagnosis.
-- **Q3 [OPEN - BLOCKING for ambiguous crossings]:** Should available source crossing
+- **Q3 [ADMISSION INVESTIGATION AUTHORIZED by D17; ambiguous metric resolution OPEN]:** Should available source crossing
   metadata be admitted through the existing canonical/typed contracts, or should
   ambiguous crossings be explicitly excluded/refused? Do not invent ordinary
   junctions, bridge clearance, or tunnel elevations from XY overlap alone.
@@ -257,11 +378,13 @@ policy are owned by release-plan D19-D22, not this investigation.
   final-surface representation, bounded query contract and disposable canonical/
   adapter experiment proposed below? D12 selects investigation, not this contract
   change. Existing Q1 correctness approval does not approve a representation migration.
-- **Q5 [OPEN - BLOCKING for persistent terrain conditioning]:** Which source-accuracy
+- **Q5 [OPEN - TECHNICAL SELECTION DELEGATED by D14/D25]:** Which source-accuracy
   classes and numeric maximum cut/fill, changed dry-bank extent, bank gradient,
   continuity/clearance and topology-cost limits are acceptable for each admitted
   use? This records D8's retained production-quality boundary; Q4 fixtures cannot
-  supply operator acceptance. D12 excludes low-confidence cases until resolved.
+  supply production acceptance. D12 excludes low-confidence cases until resolved.
+  Supported conservative limits may now be selected and challenged independently
+  under D14/D25; an unsupported residual quality/risk choice remains a human gate.
 
 Q2/Q3 do not block Q1-approved independent road-consumption/identity and water-
 coverage fixtures outside ambiguous crossings. Water terrain mutation has its own
@@ -763,7 +886,7 @@ fixtures in T1/T2/T4; grading and crossing prototypes remain behind Q2/Q3.
   re-heighted vertices. Trace the first failure: missing/wrong canonical footprint ->
   source/compiler owner; terrain intrusion -> canonical/terrain owner; water topology
   or height approximation -> water leaf. If geometry/depth is correct, hand appearance
-  back to [World Surface Presentation](20261008-1543_world_improve_surface_materials.md).
+  back to [World Surface Presentation](../01_done/world/20261008-1543_world_improve_surface_materials.md).
   Compare the smallest existing-owner correction before native local refinement;
   never use masking, blanket lifting/flattening, or render priority as geometric proof.
 - [ ] **T3 - Crossing semantics:** trace available bridge/tunnel/layer attributes from
@@ -1272,7 +1395,2393 @@ release concern closes only after the subsequently approved correction is implem
 and accepted, or the operator explicitly accepts evidence that no correction is needed.
 Creating this file satisfies neither condition.
 
+## D17 source-aware reconciliation - active implementation direction
+
+### Premise and smallest owner
+
+CanonicalCompilation already owns Water modifier admission, grouping, surface
+fitting and final terrain conditioning. The review's claim that this responsibility
+has no owner is too broad. Extend that owner and its authenticated refinement
+child; do not create a second resolver service or make MeshPartition authoritative.
+SourceIngestion preserves exported tags on admitted records, not every OSM object.
+Road canonical attributes discard crossing tags; Water retains function accuracy
+and configured admission outcomes but loses constructed-basin context.
+
+Native review: installed UE 5.8.3 RiverModifier consumes an already positioned
+Water spline, width, depth and falloff, then changes mesh vertices. Boolean/Spline
+modifiers and native CDT provide geometry, not source interpretation or valid
+geographic heights. PCG interop queries selected mesh sections. Reuse these
+primitives where their contracts fit; enabling them cannot resolve missing source
+evidence. The existing pinned GEOS refinement remains the smallest authoritative
+partition route. No new native plugin or generation framework is selected.
+
+```text
+accepted immutable canonical + separately pinned source context
+    -> CanonicalCompilation/refinement: qualify evidence, classify relationships
+    -> explicit supported constraints / unresolved metric requirements
+    -> bounded source-shaped candidate using the same canonical authority
+    -> existing Terrain / Road / Water consumers and dependency-local transaction
+```
+
+The deliberately omitted capability is an unconstrained global elevation solver.
+A source-relative `above` relation is useful even when its metric profile remains
+unresolved; it must not be misreported as a completed geometry correction.
+
+### A/B evidence and root-cause controls
+
+- Kazan road `197403553`: accepted canonical data has no bridge/layer attributes.
+  Current official way version 29 (2024-05-27) has `bridge=yes`, `layer=1`; all
+  six current node versions predate the accepted 2026-08-02 snapshot. This is new
+  source context, not proof that raw PBF bytes were recovered. The production
+  projection's explicit coordinate precision gives exact equality; the generic
+  point diagnostic's one-unit mismatch was an execution-envelope difference.
+  Its accepted terrain
+  endpoints are approximately 59.002 and 60.107 m, while one conditioned interior
+  probe is 51.845 m. An endpoint chord is only a candidate, not an approved deck.
+- Kazan drains `1290267745` / `167311915`: official versions predate the accepted
+  snapshot and share node `11962911386`. Canonical functions at that node are
+  53.7 and 53.5 m; the preserved DEM's bilinear sample is about 53.45265 m.
+  Existing production polygon/ribbon suppression against lake `3060471`
+  reproduces both canonical geometries exactly, including the 0.54 m tail clip.
+  A shared node establishes topology, not universal hydraulic equality: a
+  weir/drop or conflicting evidence requires unknown/refusal. An equality here
+  remains a source-conditioned candidate policy, not permission to snap crossings.
+- Manhattan fountain `576035677`: the current official way has
+  `amenity=fountain`, `barrier=kerb`, `natural=water`; all element versions predate
+  the snapshot and quantized ring vertices match. Historical canonical data
+  retains generic Water with a 17.8 m low-confidence fallback. Preserved DEM
+  samples around the rim span roughly 16.043-20.763 m. Constructed classification
+  alone does not establish a flat basin elevation or authorize deeper carving.
+- Kazan bank intrusion remains a separate final-surface representation/source
+  conflict. Preserve the rejected 112182.579 m2 dry-bank proposal as counter-
+  evidence. Bridge correction must not be advertised as fixing the riverbank.
+
+Evidence: `tmp/world/geographic_reconciliation_d59/source/` contains canonical
+case summaries, official version context, geometry comparison and height probes.
+No current official record is admitted as unchanged historical source merely
+because its timestamp is older. Require correspondence and explicit provenance.
+
+### C/D implementation and verification order
+
+1. Complete exact geometry/topology correspondence through existing projection
+   and clipping owners. Search only known retained selected-extract/source caches;
+   do not repin snapshots or repeat the historical whole-disk recovery task.
+2. Independent architect challenge before changing the canonical/consumer
+   boundary. The Stage C review selects a smaller first correction: one shared
+   semantic mapper in existing canonical adapters, with source-shaped fixtures.
+   Do not productize a standalone report API. Add private correspondence validation
+   inside the existing refinement child only with its first actual geometry
+   candidate, consuming an authenticated immutable base. Bind exact base
+   feature/result hashes, stored sanitized-context hashes, object/node versions,
+   projection contract and implementation identity. Distinguish original snapshot
+   evidence from separately acquired matching semantic context. Changes to ordinary
+   base-compiler behavior retain their full source-replay gate before promotion;
+   disposable child experiments cannot certify that changed base compiler.
+3. Preserve explicit bridge/tunnel/ford/covered/layer and constructed-water
+   distinctions, including unknown/conflicting combinations. `layer` is relative
+   order, never metres. Raw `ele` without a qualified vertical datum cannot become
+   a canonical height. Shared-node continuity needs authenticated node identity;
+   XY coincidence is insufficient. Hash the stored sanitized context itself;
+   a hash of discarded unsanitized API bytes is provenance only. Preserve ring
+   edges, cyclic order, holes and direction in geometry comparison; equal vertex
+   sets are insufficient. `natural=water` does not prove naturally formed Water.
+   Acquisition and normalization remain SourceIngestion responsibilities; the
+   child validates correspondence of supplied evidence, without a second provider
+   parser or a new source-authority claim. Do not expose raw tags as runtime rules.
+4. Add focused RED/GREEN tests before admission/resolution behavior. Cover stale
+   base/context, changed geometry, later versions, absent/conflicting semantics,
+   no numeric height fabrication, deterministic identities, remote-context locality
+   and refusal leaving inputs/output authority unchanged. Test actual admitted
+   source-shaped cases as disposable candidates, not feature-ID-specific branches.
+5. Only after those prerequisites, evaluate deterministic bridge abutment profiles
+   and a shared-junction Water fit using existing sampled inputs. Preserve flow
+   order, anchors and nonparticipating feature functions; refuse unsupported
+   conditions. Record exact missing constraints rather than silently selecting a
+   clearance, basin level, cut budget or global vertical precedence. Bilinear DEM
+   probes above are source-fit diagnostics. Road profiles and continuity must use
+   final canonical triangle queries and the existing presentation offset. The
+   corresponding triangle endpoint heights are 58.9796 and 60.1366667 m; one
+   interior triangle probe is 51.4613333 m, 0.384 m below its bilinear diagnostic.
+6. Test native geometry, collision, fallback, seams and player-visible consequences
+   for each justified candidate. Update only affected units through the retained
+   transaction after its own acceptance. Keep D56 fail-closed base replay and D58
+   accepted outputs/proofs intact. Final changed-candidate gates occur once ready.
+
+Standing guarantees belong in the existing canonical refinement contract and its
+README/API route when implemented. This todo records the execution, not a new
+architecture authority. Completion still requires actual geography and final
+release evidence; admission/classification PASS alone cannot close Q5.
+
+### Next bounded bank branch - disposable only
+
+D17 permits the independently reviewed discontinuous-surface experiment. The
+owning black box remains CanonicalCompilation/refinement. Current production
+`terrain-refinement-v1`, its native loader, placement queries, MeshTerrain and
+accepted city outputs remain UNTOUCHED. Any later production representation or
+query change must explicitly extend that same authority and prove its consumers.
+No MeshPartition-only deformation or generic solver is selected.
+
+The synthetic GEOS construction and native DynamicMesh/BVH/complex-collision
+experiment pass their bounded scope. They preserve the complete dry affine
+surface, cap wet terrain at the existing level/clearance and add explicit 3D
+shoreline faces. This is an identified game-model experiment, not surveyed bed
+or retaining-wall evidence. The two source strips are one native actor; this is
+not independent cell serialization, float-seam or streaming acceptance.
+
+The source-shaped discriminator now passes disposable geometry/native
+feasibility. A constant 50 m model does NOT close: actual changed-wet samples at
+its frontier have varying canonical Water heights. The replacement experiment
+derives a conservative local lower bound on the existing nearest-segment Water
+function, including ties, then takes the minimum of the fixed incident-quad
+bounds at each shared grid vertex. The resulting affine cap is continuous and
+does not redefine Water. Its context includes 883 original quads, independent of
+the eventual 318-quad connected selection in five cells. The external wet grid
+trace closes without an arbitrary buffer or wet endcap.
+
+Pinned GEOS partitions the ORIGINAL affine triangles at `T = local cap`, inside
+the retained Water footprint. Dry terrain is retained; wet terrain is
+`min(T, cap)`. Explicit 3D faces close the true shoreline jump. This preserves
+already-lower terrain only where `T <= cap`; it must not be described as exact
+`min(T, Water)` or as preserving every originally Water-clear point. The modeled
+cut is 122,750.1 m2 / 112,339.4 m3, maximum 7.663 m, all inside Water. Possible
+unnecessary lowering of originally clear terrain is bounded above by 15,364.6 m2
+and 3,661.4 m3 using source-height intervals; the maximum local height-bound gap
+is 0.5 m. No new cut allowance or source-quality classification is accepted.
+
+The selected subset has complete coverage and closed interior 3D incidence.
+The first complete-cell assembly exposed 22 internal singleton edges where
+unchanged original faces had not inherited boundary split vertices. The corrected
+collar uses native CDT on those unchanged affine faces, preserving heights and
+weights. Its complete five-cell payload has zero interior single edges, zero
+wrong directed incidence, zero original outer-trace error and no extra original
+outer-boundary vertices. The original failing payload remains the RED control.
+
+Current native proof uses five independent transient DynamicMeshes (13,560
+triangles), with 116 successful BVH/complex-collision rays: 40 dry, 40 wet and 36
+bank. The original selected Terrain artifacts and target Water feature match the
+authenticated current child and immutable base. These are not compiled
+MeshTerrain, saved Nanite/fallback, streaming-seam or capsule-gameplay proofs.
+
+Actual adopted Water source meshes give 0.25 m minimum clearance over 4,194
+positive-area intersections with the proposed wet triangles. Missing native
+coverage is still explicitly 0.5468 m2; all but numerical overlay residue is
+confined to the 7.1263 mm band derived from existing 0.01 m coordinate
+quantization and native float storage. This is bounded edge disagreement, not
+exact coverage. An interior missing-coverage control is rejected. The separate
+14,066.7 m2 / 3,316.2 m3 already-clear comparison uses SUMMED intersections with
+the actual affine Water minus its retained 0.25 m presentation offset; it is not
+an exact integral of the unquantized source function or a proven union cost.
+
+Civil context still constrains adoption: 12 Road corridors and one Building
+footprint overlap the modeled wet cut in XY. Current source tags explicitly
+identify ten of those Roads as bridges; the other two are steps and a path. The
+Building has relative `layer=1`, without a metric clearance. These current raw
+tags are diagnostic context, not authenticated historical admission or permission
+to infer missing heights. Seven invalid civil outlines are excluded only because
+their enclosing rectangles have zero overlap with the changed region; their
+invalid geometry was not repaired or silently accepted.
+
+Matched city-context images show the intended removal of terrain protrusions,
+but also tall sheer banks. They are technical geometry evidence, NOT natural-
+shore visual approval. Both arms use exactly one five-cell terrain representation;
+the merged Editor preview and original authoring components are hidden in both.
+Terrain outside those cells is absent in both arms, so the background cannot
+prove full-city completeness. The fixed bank-eye camera starts 0.30 m inside the
+original terrain and is not a baseline player-eye proof. Temporary fill lighting
+and capture exposure are recorded separately; no accepted material is retuned.
+
+Next, resolve source-supported civil relationships and the bank representation/
+quality policy before any production ABI, query or Terrain adoption. Do not
+promote the sheer-bank model merely because it is manifold or collision rays
+pass. Current `terrain-refinement-v1` remains unchanged and does not admit vertical
+faces. The earlier artificial-boundary failure is superseded only for this
+closed disposable domain, not by a general permission to add wet endcaps.
+
+Manhattan's constructed basin remains separate. Exact supplementary NOAA COPC
+bytes and the explicit GEOID18 processing are now qualified below; the older
+range-only limitation is superseded. Ground observations can support an identified
+disposable ground-derived model. They do not measure the operating waterline,
+basin depth or freeboard, and no source or production model has been admitted.
+
+### Supplementary Ground and bank civil context - current continuation
+
+The complete 2017 NOAA COPC object is retained under
+`tmp/world/geographic_reconciliation_d59/source/`: 93,401,003 bytes, SHA-256
+`32fee3c2c33271f82ab4858e5e89d721995ee5f92c4f9fb37f733709cee66ddc`.
+This is a conditional-ETag acquired-byte pin, not a provider-published checksum.
+The LAS header and NOAA delivery metadata identify NAD83(2011)/UTM18N and
+NAVD88/GEOID18. Pinned native PROJ/GDAL uses the matching GEOID18 grid and the
+existing EGM2008 grid explicitly, with network grids disabled. Do not substitute
+the older GEOID12B DEM-probe operation for this delivery. The complete local COPC
+query reproduces all 34,143 retained range-query rows exactly.
+
+Inside the mapped fountain are 592 Ground and 423 Unclassified returns, with no
+class 9/41 Water return. Converted Ground is 13.14744-13.50747 m EGM2008, median
+13.20745 m. Unclassified returns and missing Water classifications establish
+neither a waterline nor a dry basin. The inverse-consistency error is below
+4e-9 m and omitting the vertical transform changes height by at least 0.87856 m.
+These are processing controls, not survey-accuracy proof. PROJ's 2.128 m aggregate
+operation accuracy is not a local hard error or a geographic quality allowance.
+
+The existing median/0.1 m mathematics gives a disposable 13.2 m Ground-derived
+standing proxy. Its provenance differs from the current canonical-terrain
+polygon sampler and must say so. At the same 592 XY positions, current canonical
+Terrain is 3.046-7.525 m above the observed Ground. Changing only Water to the
+proxy leaves it buried 2.888-7.522 m even with the unchanged presentation offset.
+That offset is not a basin depth or freeboard policy.
+
+A native GEOS source-Ground TIN covers the mapped 158.19985 m2 footprint: 1,435
+clipped triangles, zero missing/exterior/overlap area; removing a real face
+exposes a 0.001767 m2 hole. The longest source-TIN edge touching the footprint is
+2.0182 m, an interpolation diagnostic rather than an accuracy bound. Ground
+above the raw 13.2 m proxy occupies 100.0195 m2; above its presented 13.45 m plane
+it occupies 4.3127 m2. Neither result supplies basin walls, operating state or a
+transition back to the accepted coarse Terrain. Continue only a jointly qualified
+Ground/constructed-Water model; Water-only replacement cannot close this defect.
+
+Bank civil context now has complete ordered geometry, source-class and pre-release
+way/node correspondence for all 12 intersecting Roads. The 72 queried unique
+nodes also cover the Building context; its relative layer still supplies no
+metric height. Normalized SourceIngestion context SHA-256 is
+`0e5ccc7dee3cdf43d1bc6997964dfa7b84020895dda66704ded5f1d825141b60`.
+Ten Roads have explicit supported bridge evidence. The existing refinement
+operation prepares nine additional disposable bridge profiles while retaining
+the accepted bridge and drain corrections. All 210 Terrain artifacts remain
+byte-identical. This is supplementary matching context, not recovered raw PBF
+history or production adoption. The steps/path without bridge evidence and the
+Building remain outside the bridge operation.
+
+Preparing the expanded candidate exposed a genuine numerical failure: a native
+intersection of about 6.25e-24 m2 collapsed when restored to canonical float64
+coordinates. ExecutionEnvironment's geometry child now removes only exact
+collinear restored faces using pinned GEOS's robust orientation predicate. The
+measured displacement bound retains the removed face, and all existing partition
+and combined coverage guards remain. Real missing regions, invalid predicates
+and unknown bounds refuse. No source snapping or tolerance relaxation is added;
+the independent arbitrary-polygon validator stays strict. This changes the
+consumed geometry execution identity, not the immutable base compiler/source.
+The accepted bridge's refreshed producer identities are distinct from an actual
+geometry change. Its geometric profile and both accepted drain features are
+retained in the disposable comparison.
+
+Evidence: `source/copc-datum/qualification.json`,
+`source/fountain-lidar-source-pins.json`, `source/fountain-ground-conflict.json`,
+`source/fountain-joint-ground-comparison.json`,
+`source/normalized_bank_civil_context/qualification.json` and
+`source/bank-civil-candidate.json`. Independent bounded PASS receipts are
+`architect/fountain-copc-source-qualification-review.json` and
+`architect/geometry-collapsed-roundtrip-review.json`. The numerical RED/GREEN and
+37 geometry/refinement-consumer tests are retained in `tests/geometry-collapse-*`.
+These stages do not close Q5, authorize source promotion or replace the exact
+earlier packaged campaign. The subsequent saved native consumer proof accepts
+the additional disposable bridge meshes: 7,050 profiled-cell source/fallback/
+collision triangles match exactly, and all 7,813 collision rays hit. Three
+incident-only cells retain their existing native fallback simplification. This
+does not establish rendered or packaged city adoption. Independent review is
+`architect/bank-civil-fountain-integration-review.json`.
+
+#### Immutable civil grades - bounded implementation under D17
+
+**Premise / KISS:** preserve the accepted civil grade while refining Water/Terrain,
+using an explicit reference to the original authenticated grid already carried
+by the refinement wrapper. This adds no geometry authority, cached heightfield,
+service or native ribbon reconstruction. It gives up automatic structural
+classification: a preserved path is not thereby declared a bridge or culvert.
+
+Measured consumer gaps are distinct. Existing UV Road profiles compare their
+original support hashes with the final wrapper hash and would refuse a changed
+bank. Building `Bounds.Center` uses clamped bilinear sampling on a regular grid,
+but affine sampling in a refined whole quad. Building `100147225` has a DRY
+anchor whose visible Terrain is unchanged, yet that query switch would lower
+its anchor by 0.560394 m. The census must therefore include all Building anchors
+in selected whole quads, not only the 13 wet-cut civil overlaps.
+
+Owner and changed boundary: CanonicalCompilation's refinement child publishes
+explicit immutable civil-grade references; ProjectWorld authenticates separate
+base/final identities; Road retains original triangle drape or explicit UV
+profiles and checks final clearance; Building retains its existing bilinear
+anchor. Unreferenced features keep final-surface query semantics. Road consumes
+both grade and final-clearance identities. A preserved Building consumes its
+base anchor reference; a final wrapper used only as provenance must not dirty it.
+Source/base compilation, Mesh Terrain representation, materials, production
+authority, city packages and operator staging remain UNTOUCHED in this slice.
+
+Implement and prove on the existing single-valued one-quad/two-cell Q4 fixture
+first. Required controls: missing/stale/wrong-class references; complete bounded
+Road support; dry Building anchor; unchanged unreferenced queries; changed base
+grade and actual final Road obstruction; correct dependency-local identities;
+rejected preparation leaves base/candidate state unchanged. Then review the
+completed boundary independently. Vertical bank faces, joint fountain modeling,
+geographic quality and persistent selection remain separate unfinished work.
+
+Independent premise/contract review PASS:
+`architect/civil-grade-reference-plan-review.json`, SHA-256
+`907e1d2af8e4aa55aeda82e15fc7ea41b25c7e569c2ec1ff04e1f2b238143170`.
+This verifies the bounded plan under existing D17; it does not create new operator
+authority. The completed implementation publishes the explicit reference through
+the existing terrain candidate. Original Road vertex sequences and Building
+bilinear anchors are retained in actual native mesh-description controls. A
+missing reference follows the final Terrain, demonstrating that preservation is
+an explicit canonical choice. Missing/stale support and final Road penetration
+refuse both planning and building. Road consumes final-clearance identity;
+Building's unconsumed final wrapper does not dirty its preserved geometry.
+
+The publisher and actual native Road/Building vertex regressions were RED before
+the fix. The first Building test also had incomplete layer settings; those hash
+assertions are not valid RED evidence. The valid vertex-change assertion is
+retained separately. Exact native Road, Building, UV elevation and reference
+admission tests pass. Python's 41 geometry/refinement checks pass in
+`tests/civil-grade-python-review-patch-final.log`. Review caught an actual refusal
+gap for unsupported mapped crossing tags. A second actual native RED demonstrates
+Unreal's coercion of numeric/boolean unresolved values to strings. Both publisher
+and native admission now reject unsupported crossing markers; native admission
+also requires actual JSON strings. Missing tags remain unknown and permitted.
+The same exact native admission test passes after the type guard.
+
+Independent implementation review and finding-only recheck are closed PASS:
+`architect/civil-grade-reference-implementation-review.json` and
+`architect/civil-grade-reference-cgr1-recheck.json`; final recheck SHA-256
+`a179a21842f11e91278c054dc7c104a2d7be1a475052bb638a945613c277806b`.
+Do not reopen this boundary. Stable semantics, query rules and diagram are in the
+[refinement owner](../../tools/World/CanonicalCompilation/terrain_refinement.md#immutable-civil-grade-references).
+
+The read-only source-shaped census `source/bank-civil-grade-census.json` finds
+89 Roads and eight Building owner anchors across the proposed 318 quads in five
+cells. A future collar's additional query-changing quads must also enter its
+actual census. This is not a published bank candidate or native city proof.
+`tests/civil-grade-poststate.json` verifies all 6,768 protected paths, selectors,
+HEAD and empty index unchanged. No production geometry, authority, material,
+package or release certification changed. The next representation/quality and
+joint fountain boundaries remain unfinished.
+
+#### Fountain continuation - observed rim and connected depression
+
+The supplementary matched OSM record has `amenity=fountain`, `barrier=kerb`,
+`natural=water`. The Park Conservancy and its fountain contractor confirm a
+constructed, three-tier fountain replaced/restored in 2015. Those references
+supply structure context, not a metric operating Waterline or source admission.
+
+`source/fountain-rim-returns.json` attributes the pinned observations by native
+GEOS distance and inside/outside predicates. Ground and Unclassified returns
+both occur around all 24 diagnostic sectors. Near-boundary Ground medians are
+about 13.4 m, while some boundary samples are much lower. Unclassified heights
+also reach over 23 m and cannot all be relabeled kerb or Water. Diagnostic band
+widths and point-count quantiles are not accuracy/admission limits.
+
+The mapped polygon boundary is not the hydraulic rim. A separate minimax escape
+calculation across the complete 6,828-vertex / 13,630-triangle Ground TIN finds
+the lowest connected route from its lowest interior Ground point to the query
+hull at 13.3874167 m EGM2008. The corresponding source-point depression depth is
+0.2399768 m. Closed/open synthetic ring controls produce the independently known
+10 m and 5 m spills. This supersedes any inference from the earlier clipped
+boundary minimum that the complete Ground TIN lacks a basin. That earlier
+0.01058 m result is valid only for the mapped-polygon boundary, not the full TIN.
+
+Evidence: `source/fountain-ground-spill.json` and its exact reproducible script.
+A PL-TIN spill is not an operating Waterline, guaranteed physical kerb or survey
+accuracy. The existing 13.2 m median proxy is below this TIN spill, but its current
+rendered 13.45 m plane (including the 0.25 m presentation lift) is above it.
+Source fit, constructed-water presentation offset, wet-domain clipping and
+ground realization therefore need separate ownership checks. Do not lower only
+Water, treat presentation lift as basin depth, or declare this diagnostic a new
+accepted geography. Continue a bounded source-shaped joint model under D17.
+
+#### Contained standing construction and exact native Water - bounded continuation
+
+The independently reviewed plan is
+`architect/fountain-contained-standing-plan-review.json`, SHA-256
+`9bec54f57f7582e0d42adcacf5f70df9a48a4ad30dde7324c8851393b2c3ae71`.
+The [stable construction contract](../../tools/World/CanonicalCompilation/terrain_refinement.md#contained-standing-water-construction)
+owns the implemented pure operation and its current publication limits.
+CHANGED: canonical refinement construction/schema, pinned geometry capability,
+native canonical Water admission and Water-owned effective-height consumption,
+focused tests and owning docs. UNTOUCHED: production canonical/source authority,
+city outputs, materials, operator index, packaged/release receipts.
+
+The public constructor derives a distinctly identified Ground quantile and
+connected wet region with pinned GEOS. Class/frame/hash mismatch, conflicting
+Ground heights, spill equality, quantization crossing spill, an open component,
+point-only connectivity and unsupported mapped-domain departure refuse. It is
+pure construction: it does not authenticate raw source bytes, publish a joint
+child or claim an observed operating Waterline. Continuous Q4 Terrain and its
+source-Ground/collar/publication extension remain unfinished.
+
+Real RED: `fountain_exact/red/tests.log` records the declared 13.2 m model being
+emitted at 13.45 m and merged with an ordinary offset plane. The new closed
+contained function consumes its exact level; other functions keep their offset.
+Emission, grouping and source approximation share this Water-owned rule. Native
+admission RED is `fountain_exact/admission-red-v2/tests.log`; the first admission
+attempt had missing new-test discovery and is not RED evidence. UBT source
+discovery was refreshed through the module build-rule timestamp; no file bytes
+or project build arguments were changed for that refresh.
+
+Independent implementation review found CW1: raw level below spill can round
+above it in stored float geometry. The actual RED is
+`fountain_exact/stored-spill-red/tests.log` for level 13.2000008 m and spill
+13.2000009 m. The correction retains/hashes the spill bound and checks the
+stored plane in the canonical frame for every grouped source, including a
+nonfirst tighter bound. A different height origin that avoids the rounding
+crossing passes; refusal emits no partial mesh. Exact native GREEN is
+`fountain_exact/spill-green/tests.log`; final admission retention proof is
+`fountain_exact/admission-final/tests.log`. The existing source-approximation and
+refusal controls pass as the explicitly inventoried two-test boundary in
+`fountain_exact/default-approximation-final/tests.log`. Twenty-one Python
+construction/native geometry controls pass in `tests/fountain-final-python.log`.
+Independent implementation review is PATCH only for CW1; its targeted recheck
+is PASS at `architect/fountain-contained-cw1-recheck.json`, SHA-256
+`07d1d1a68a50d92c0f10dfae8bc423617647cc882a755a557a2bbf4c1676622c`.
+Close this engineering review cycle. Tests cover pure/admission/mesh-description
+behavior, not compiled render, collision, packaged or production basin proof.
+
+The real public replay `source/fountain-contained-public-replay.json` refuses
+0.5387458241 m2 outside the mapped domain from a 52.3903702304 m2 closed region
+at 13.2 m, below the full-TIN spill of 13.3874166619 m. It preserves all 6,830
+source Ground observations and their qualified frame; triangulation deduplicates
+two identical XY/Z observations. No class1 return is relabeled. The matching
+base geography and supplementary evidence remain separately pinned.
+
+`source/fountain-mapped-first-exit.json` independently traces the same full
+6,828-vertex / 13,630-face TIN to the convex mapped boundary. The first exit is
+13.1974281995 m from seed 13.1474398721 m. Thus no configured 0.1 m level strictly
+above the seed remains inside that boundary. The native convexity predicate is
+checked; no clipped-vertex welding or arbitrary geometry tolerance is used.
+The first attempted clipped-mesh diagnostic encountered unequal interpolation
+heights at shared XY and was rejected, not rounded into evidence.
+
+The explicit observed-component comparison is implemented and independently
+PASS in `architect/fountain-observed-footprint-implementation-review.json`,
+SHA-256 `1d9c07ef4719b898d684031ef115ea8d082cedc38cfd63d4f0de77aa7136c868`.
+The strict mapped default remains unchanged; original mapped identity and measured
+departure are retained. Twenty-three Python controls, the incremental native
+build and exact `ContainedFunctionAdmission` replay pass in
+`tests/fountain-observed-model-python.log`,
+`tests/fountain-observed-model-build.log` and
+`fountain_exact/observed-admission/tests.log`. Do not reopen this closed boundary.
+No production selection or Q5 closure follows.
+
+`source/fountain-footprint-departure.json` measures the source-only alternative
+without adopting it. At 13.2 m, exterior vertices reach 0.4365653 m from the
+mapped polygon; a complete native exterior-triangle Lipschitz bound is 0.7009177 m.
+The already diagnostic 13.3 m arm has 144.12854 m2 wet area, 7.8708263 m2 outside,
+vertex distance 1.0603414 m and complete bound 1.9813241 m. Neither is a source
+accuracy allowance. Both conservative planform AABB censuses retain potential
+footway contacts `22986670`, `22986690` and `428567977` for exact qualification;
+do not report those broad boxes as proven intersections. Whole-quad/collar scope
+is still separate. `tests/fountain-construction-poststate.json` confirms all
+6,768 protected paths and the empty operator index remain unchanged.
+
+Primary structure context: [Park Conservancy fountain](https://madisonsquarepark.org/park/park-guide/location/the-fountain/)
+and [restoration contractor](https://www.deltafountains.com/portfolio/madison-square-park-fountain-renovation/).
+
+#### Qualified Ground admission and exact local collar - active continuation
+
+**Current continuation (D60 / D18):** Original source-pixel, pure Ground
+construction and typed/native source-mesh proofs remain accepted. Do not repeat
+them or impose exact DSM equality on another artificially narrow source core.
+The immutable DSM is historical input, not universal Ground truth. The current
+comparison is an explicitly identified regional composite versus a broader
+qualified bare-earth model; no regional source policy has been adopted.
+The current discriminator now separates source priority from representation
+resolution. The fixed regional model has closed global adjacency; its diagnostic
+crop is not independently publishable. Continue with authenticated Ground/composite
+provenance and measured affected consumers, rather than reopening closed source
+conversion, material artwork or tiny-fountain-seam experiments. Publication and
+regional source-quality acceptance remain separate from construction capability.
+
+The wider 81-Road axis screen now falsifies source-only raster agreement as a
+quality criterion: three paved footways reach grades 0.747-1.090 in the candidate.
+One previously passing Road fixture did not cover them. Qualified classified
+observations supported the bounded joint Ground/Road discriminator below; do not publish
+the regional field, lift ordinary Roads independently, infer a bridge deck from
+Water, or turn a class-2-only hull into a support certificate.
+
+The new evidence is under `source/manhattan-steep-road-context/`:
+
+- The complete retained object `20170504_980200.copc.laz` is 77,948,603 bytes,
+  SHA-256 `927b6af830dbbebdd9ebf8fc1cde5c4e37858cc0a1feaa9978c440c1c01c3809`,
+  verified in both existing archives. Its local query exactly replays the range
+  membership. No accepted source pin or geography was changed.
+- The actual compound source frame is EPSG:6347+5703 with GEOID18, distinct from
+  the DEM's feet/GEOID12B frame. The retained native offline operation transforms
+  112,590 class-2/9 observations; roundtrip and omitted-vertical controls pass.
+  These prove processing discrimination, not local survey accuracy.
+- The labelled TIN retains 74,203 Ground, 149,275 Water and 1,480 mixed/conflicting
+  faces. Two Ground XY conflicts differ by 0.03/0.05 m across flights and have no
+  withheld/overlap flag permitting selection. They remain unknown, not averaged.
+- `labelled-road-support.json` measures complete native single-segment width
+  rectangles and both endpoint cross-sections. Paved footway `1236753479` has
+  complete 6.955890 m2 Ground support. Footways `1236753481` and `1171058928`
+  retain 0.691358/0.227564 m2 unsupported pieces. Explicit bridge `1171058927`
+  has zero Ground support across 42.980852 m2; Water underneath supplies no deck.
+  The width is ALIS's inferred 2 m, not a surveyed pavement width.
+- The known-bad Ground-only hull would admit 944.417929 m2 of known Water and
+  219.238921 m2 of unknown support. It is rejected. No class-1 return is Ground.
+- Independent source-policy review is PASS for the next bounded joint prototype,
+  not adoption: `architect/steep-road-source-policy-review.json`, SHA-256
+  `742541463f96937f1a8945229eb4f1d6deec4ef37b5ed1370b21670f5fd365fc`.
+  Protect only supported observed Ground, keep exclusions and provenance explicit,
+  and let the ordinary native Road builder drape onto the joint final surface.
+  Measure its inferred surround and all affected consumer/end joins before any
+  geographic or publication claim. A prototype that cannot close must refuse.
+
+**Latest discriminator and first-height attribution:** Do not repeat the tiny
+source-core collar, or assume that falling back to the accepted Terrain gives a
+3.5 m paved surface. That was an unchecked inference and the architect falsified
+it against the actual canonical artifact. The current blockers are source
+relationships and final model quality, not another failed Ground constructor.
+
+- The frozen `joint-ground-road-r6/` candidate has 18,034 actual faces across the
+  70,200 m2 diagnostic crop, zero unexpected oriented edges and missing/reversed
+  face controls exposing three edges each. Its inherited `triangle_count=17418`
+  summary is stale; use `geometry-and-source-proof.json`. That frozen artifact
+  is not rewritten. Later candidates recompute their actual count.
+- Full-width source intersection error is 9.2e-11 m. The deliberately lifted
+  10 cm control fails. Water/unknown changes by at most 1.44e-10 m relative to
+  the UNACCEPTED prior regional model, not the accepted base. Its inferred
+  surround still reaches gradient 4.183 on a 0.06515 m2 face, so quality is PATCH.
+  The exact source core's maximum face gradient is 0.260.
+- Actual native Road construction passes for this complete one-cell feature:
+  `tests/native-joint-observed-road/tests.log`, 555 faces and maximum stored
+  vertex conformity error 0.00006465 m. This is source-description proof.
+  Float storage collapses 52 faces to zero XYZ area; total stored XY area is
+  6.95592482 m2 versus 6.95588959 m2 source width. No saved/collision defect has
+  been demonstrated. Continuous stored coverage and compiled/collision behavior
+  require their own representation acceptance once a geographic candidate passes.
+- The distinct `joint-ground-road-base-surround/` control uses the actual accepted
+  canonical grid, not a fabricated 3.5 m baseline. It closes 516 faces but worsens
+  the inferred gradient to 18.026. It is rejected before native/package gates.
+- `canonical-water-conditioning-trace.json` authenticates the original result,
+  profile and records. At quad `[29,12]` in cell `x-2:y-3`, pre-surface fitted
+  corner heights are 1.6/2.5/0/0 m and final heights are all 0 m. Water relation
+  `2389611`, level 0 m, covers the complete 900 m2 quad AND all four complete
+  modeled Road-width rectangles. The active profile has zero Water clearance.
+  Current conditioning explains this recorded change; no historical producer or
+  earlier raw DSM stage was replayed. Supplemental observed Ground near 3.5 m
+  is a third distinct input, not the recorded fitted or final canonical field.
+- The retained current map has nearby open piers and closed bridge areas. The
+  four open pier ways share none of these four Road endpoints; neither retained
+  closed bridge area contains their axis endpoints. These bounded controls do
+  not establish their supporting structure or an applicable closed civil mask.
+  The earlier open-pier-footprint refusal applies to its four selected ways,
+  not to every structure in the surrounding map.
+- Ten matched offscreen captures under `editor/joint-source-preview/` were
+  produced; actual context/player-eye images were inspected. The raised path
+  and artificial surrounding strip reject promotion. This neutral source-mesh
+  diagnostic is not a city-material, Nanite or gameplay acceptance. Six transient
+  actors were destroyed, dirty packages stayed empty, and the Editor exited
+  normally without saving.
+- `architect/joint-observed-source-priority-review.json`, SHA-256
+  `fa0c8087be895bd397a075c4abb0776168ac83d6254d60b45f66027ab10932a7`,
+  accepts bounded construction and rejects geographic quality/the false base
+  premise. The canonical Water trace is subsequent direct evidence.
+
+Next source-policy work must resolve the overlap of observed dry support and
+the authenticated Water footprint before selecting raised Ground versus a civil
+surface. Do not infer a deck from proximity, silently subtract a guessed pier
+footprint from Water, force another collar to zero, or replace the region en masse.
+The [official Pier 26 construction history](https://hudsonriverpark.org/pier-26-design-and-construction/)
+and [2018 grading addendum](https://hudsonriverpark.org/app/uploads/2020/03/C4891-D-Landscape-Addendum3-FINAL.pdf)
+are bounded structure/design context only. The latter refers to survey sheet
+V-002 for control; no qualified metric datum/georeferencing or current deck
+elevation was admitted from its diagram. Construction/design dates do not make
+the 2017 observations a survey of the later completed surface. This is not a
+reason to recover old OSM downloads or redo accepted material work.
+
+**Qualified structural parent - latest continuation:** The old context query
+selected pier ways but skipped multipolygon relations. Completing both retained
+parents changes the surface-role diagnosis; do not try another zero-height
+Ground collar for these paths.
+
+- `pier-parent/qualification.json` assembles all seven Pier26 members but
+  measures ZERO overlap with all four complete Road widths. Its 2020 opening
+  cannot be transferred to another structure by proximity.
+- `pier-parent-20784500/qualification-r2.json` supersedes the frozen first Pier25
+  receipt, including its incorrect copied 2020 limitation. Pier25 relation
+  `20784500` has four complete members, `floating=no`, `start_date=2010` and no
+  layer tag. Every retained primitive predates the accepted 2026-08-31 release.
+  This is separately qualified supplementary context, not historical OSM replay
+  or a current surveyed deck. Canonical projection/0.01 m quantization is reused.
+- Footway `1171058928` is completely inside that parent. Inferred-width pieces
+  of `1236753481` and `1236753479` remain outside by 0.00299172/0.00854781 m2;
+  bridge `1171058927` is predominantly outside. No buffer or invented parent
+  expansion closes those differences. The width basis is inferred, so an exact
+  source-aware footprint disposition is a distinct future comparison.
+- A fixed constructed platform can legitimately have Water below it. The new
+  evidence qualifies its role, not an absolute height or a conversion of Water
+  returns to Ground. Regional Ground and this civil surface remain distinct.
+- The optional pure `refinement/constructed_surface.py` constructs native TIN
+  interpolation only from class-2 points covered by the qualified parent. It
+  binds the complete Road, parent/context, points/frame, query window and native
+  execution. Full requested width, observation-hull coverage, holes, conflicting
+  observations and finite outputs fail closed. No canonical schema/publisher or
+  native production parser admits this distinct model.
+- Eight owner tests pass in `tests/constructed-surface-green-final.log`.
+  The architect's finite-input overflow and crossing-evidence findings each have
+  real REDs (`constructed-overflow-red.log`, `constructed-crossing-red.log`)
+  followed by GREEN. The captured seven-point partition and projected-coordinate
+  controls preserve exact parameter/world coverage; the shared native kernel
+  and its limits are unchanged.
+- Pure real-city comparison: the complete `1171058928` field has 319 faces at
+  3.302258-3.602257 m, maximum source face gradient 1.927919 and centerline grade
+  0.589942. This is identified interpolation, NOT geographic quality acceptance.
+  The other three widths refuse. No Terrain or Water is changed. Native float
+  storage, collision, incident joins and final gameplay remain separate proofs.
+- Independent pure-owner PASS:
+  `architect/observed-constructed-surface-implementation-review.json`, SHA-256
+  `ffc0eb9cd7d550024bcb7b0d9d2f96ee771453415fe632bb8eef17765e08174e`.
+  The separately reviewed typed-only native Road endpoint-support variant now
+  passes the bounded proof below. A path ending on its platform is not an
+  immutable-Terrain abutment; existing bridge behavior is retained.
+
+**Typed constructed-endpoint proof - CLOSED PASS, geography remains OPEN:**
+
+- The explicit typed relation binds the constructed supporting model in Road
+  input identity. It leaves default bridge identity/abutment behavior exact and
+  retains final Terrain coverage/clearance, field continuity, finite/native
+  storage and no-partial-output checks. No new model is admitted by the existing
+  production JSON reader or canonical publisher.
+- `tests/native-constructed-red/tests.log` reproduces the unsupported endpoint
+  as an actual immutable-Terrain abutment refusal. The final default synthetic
+  proof passes, including changed/missing model identity, unknown relation,
+  retained Terrain clearance and no partial mesh after refusal.
+- The three final exact native tests each discover/complete/pass one test:
+  `Road.ElevationAdmission`, `Road.CanonicalElevation` and
+  `Road.ConstructedCanonicalSurface` under `Project.World.Realization.`.
+  Their receipts are `tests/native-constructed-admission/`,
+  `tests/native-constructed-bridge-regression/` and
+  `tests/native-constructed-final/`. This is not a broad World acceptance run.
+- The real `1171058928` typed fixture passes in
+  `tests/native-constructed-real/tests.log`. Its pure input exactly replays the
+  current producer without artifact writes. It consumes the frozen accepted
+  canonical base and actual Road; typed test injection is not new authority.
+- `constructed-road-final/native-source-proof.json` measures 319 canonical
+  field faces -> 401 native stored faces, 9,831 continuous intersection vertices,
+  maximum height error 0.0000277774 m after the single 0.15 m Road offset. The
+  10 cm lift control differs by at least 0.0999722 m; removing the largest native
+  face loses 0.1274 m2. Native union area is 8.55629273 m2; exterior drift versus
+  the exact source is 0.0000343543 m2, explicitly NOT zero conversion error.
+  The existing native stored-domain conversion proof remains the acceptance
+  owner. No geographic tolerance is derived from these diagnostic numbers.
+- The constructor artifact SHA-256 is
+  `420bcbe3dae78bc3d00076da90ad58afd8cf6cadd360e0f520725de1031456b3`;
+  the exact native source description is
+  `23ac9c99312ccc177722aae88cca13e81ca535cba469b4e1dde1c6a0e61f25f7`.
+- Independent native-boundary PASS:
+  `architect/constructed-surface-native-review.json`, SHA-256
+  `fbc86211cb196bd87e4020910ecd8e9db8a274264d497a68f1d9b13acbea0385`.
+  It does not certify saved/compiled collision, city joins, playability or Q5.
+- `tests/protected-constructed-final.log` independently rechecks all 6,768
+  protected persistent paths, both active selectors, HEAD and the empty operator
+  index unchanged. Syntax/local-document links, ASCII and machine-path checks
+  pass. No source pin, city package, canonical authority or material changes.
+
+Continue with measured source-shaped quality and the supporting platform domain,
+not a new survey claim, full-pier coverage claim or production rollout. The
+retained COPC tile starts east of part of the full parent; local observation
+coverage does not prove the entire 12,592 m2 platform is supported. Q5 and final
+release acceptance remain OPEN. Do not reopen either accepted constructor or
+typed native proof without a changed input or demonstrated regression. Next
+compare a complete qualified structural field and incident surface joins; any
+inferred-width clipping must use its exact source parent and preserve its
+distinct identity, not silently expand that parent or freeze wrong Ground.
+
+The independent preimplementation review found a real fresh-selection origin
+gap after initial authority preparation. A candidate could reseal either Road
+feature digest and all dependent archive identities without replaying its
+claimed producer. The fix reuses one Canonical-owned exact publisher replay at
+transition preparation, direct first publication and E2E candidate admission.
+Full base/child authority validation and current producers are rechecked after
+replay. Frozen reading, no-op and recovery remain producer-free; no provider
+acquisition, base compilation or production selection occurs. See the stable
+[fresh versus frozen contract](../../tools/World/CanonicalCompilation/terrain_refinement.md#effective-authority-candidates).
+This was not a missing duplicate hash check to add to native consumers.
+
+Evidence under `tmp/world/geographic_reconciliation_d60/`:
+
+- `tests/selection-feature-binding-red-product.log`: two faithful resealing
+  failures before the fix. Earlier setup-error logs are not product RED.
+- `tests/selection-feature-binding-green-final.log`: seven GREEN controls,
+  including both digests, direct/E2E admission, input race, producer drift and
+  historical no-op/restore. Final owner regressions: 25 GREEN in
+  `tests/selection-admission-owner-regression-final.log`.
+- `tests/actual-admission-envelope.json`: real accepted Kazan base with its
+  three authenticated admission artifacts passes extraction and complete parent
+  validation. Only producer replay is stubbed; this is not fresh production
+  acceptance. Historical city inputs and selection stay unchanged.
+- A real-coordinate Ground edge produced `[1,-1.3878e-17]` by cancellation.
+  The captured regression is RED before convex integer-station interpolation;
+  all five Ground tests are GREEN afterwards. Invalid weights still refuse.
+  `architect/feature-binding-fb1-recheck.json`, SHA-256
+  `91f39130b6278cd0c4c836fbd016c37568b4c5466d584c18d510bb97a52b190d`,
+  closes these two bounded fixes at PASS, not geographic adoption.
+- `source/park-region/inputs.json` pins NYC Parks M052 as a supplemental
+  candidate selector, not historical OSM or elevation authority. One- and
+  three-quad transition hypotheses select 84/184 quads (75,600/165,600 m2).
+  Native cover/seams close, but sampled Road grades reach 2.279/1.004;
+  neither is a production candidate. Model-to-model lowering is not a claim of
+  physical excavation. These fixed hypotheses are not accepted cut/grade limits.
+- `source/broader-ground-comparison.json` measures the retained five-object
+  qualified component and incident closure at original 30 m resolution:
+  53,140 supported / 54,834 incident quads, 76 cells, 44,838 Road support
+  candidates and 37,413 Building anchors. Source-only face-gradient p95 is
+  0.1323; exact source-axis Road intervals still show coarse-grid aliasing.
+  No automatic adoption of the 47.826 km2 support envelope follows.
+- `source/broader-composite-comparison.json` is a fixed four-station
+  support-edge smoothstep discriminator. Unknown source remains retained DSM;
+  this is an inferred transition, not surveyed Ground. It does not fix
+  interior coarse-grid aliasing or select a release policy.
+- `source/joint-fountain-topology.json` uses actual final faces, not a new
+  Delaunay: 2 m source gives only 7.384 m2 wet at the retained derived 13.2 m.
+  A 0.75 m two-quad insertion fits 3,125 triangles per quad and exact coarse
+  shared traces, but yields only 11.655 m2. Neither result transfers the
+  observed-TIN 52.391 m2 proof to a raster realization.
+- The next discriminator preserves the exact observed basin TIN, closing its
+  bounded dry holes with original source faces before using the existing
+  native constrained collar against one frozen surrounding Ground arm.
+  `architect/observed-basin-regional-discriminator-review.json`, SHA-256
+  `9bd50740a9e886744f9f973f6ed48c4f53a32a35ffa667054d7ef5742b9c8bcb`,
+  identifies 15 holes and six degree-four boundary vertices in the minimal
+  688-face support. Do not feed that support to a simple-ring helper unchanged.
+- That discriminator now closes the holes with 41 original dry source faces.
+  `source/park-comparison/observed_basin_join.json`, SHA-256
+  `609c818657b28f9001fec27dd60fc59f340e610b798fd870da39b10da398240b`,
+  keeps the exact observed field and uses existing GEOS/CDT against the frozen
+  surrounding arm. Its two changed quads have 2,402/942 triangles, below the
+  existing 4,096 limit. Actual final topology has zero unexpected internal open
+  edges; removing a face exposes three and refuses. Final wet area is
+  52.390958261 m2, missing/added area versus the source wet component is below
+  1e-7 m2, and final spill is 13.367418685 m at the unchanged derived 13.2 m
+  level. This proves the joined field, not approval of the surrounding region.
+- The offscreen Manhattan Editor displays this transient complete-cell mesh.
+  Native BVH/complex-collision checks hit the intended actor for 160 sampled
+  rays; maximum errors are 1.60e-12/0.000439 cm respectively. These are source
+  DynamicMesh probes, not compiled Nanite/fallback, navigation or package proof.
+  `editor/observed-basin-preview/` retains captures and exact restore receipt.
+  Visual inspection rejects promotion: rough basin facets and steep retained
+  surroundings remain visible. Source-authoring material reuse is a diagnostic,
+  not independent proof of the compiled BrownEarth resource-binding path.
+  Neutral gray controls isolate geometry; early overexposed captures establish
+  no visual acceptance. Four transient actors are removed, original component
+  visibility/collision and viewport/selection restored, dirty-package lists
+  remain empty, and the owned Editor exits normally.
+- `architect/observed-basin-join-final-review.json`, SHA-256
+  `816b64bc6c202a99e1072b58f86315280902a35687b89c7a93198a16b1dad10b`,
+  closes that bounded join/native-source probe. It does not accept its region.
+- Same-XY attribution in `source/park-road-grade-attribution.json` locates
+  the 2.279 grade on footway `1111261419` in the inferred park-boundary blend:
+  the qualified grid changes by only 0.01253 there. The old DSM grade is
+  0.7556. Extending that failed blend is not the next source policy.
+- The official DCP water-excluded borough dataset `gthc-hcne`, version 26b,
+  supplies a supplemental geographic selector, not elevation or historical OSM
+  authority. `source/manhattan-land-region/report.json` measures 44.4184 km2
+  of owned borough land, 44.2773 km2 of complete original four-pixel support
+  and 141,083.7754 m2 unknown. Coverage alone selects no terrain model.
+- `source/manhattan-land-region/gap-consumers.json` separates 107 frontier
+  edges on the actual World exterior from 329 original-NoData witnesses.
+  There are 609 true owned-land gaps, with 217 canonical Road centerline,
+  62 valid Building footprint and four Water contacts. Native ribbon/anchor
+  consequences are separate. Invalid polygons are reported explicitly; their
+  bounds are disjoint from the gaps, so they are not counted as known-empty.
+  The unsuffixed `gap-attribution.json` used whole-borough area and must not
+  be used for owned-gap consequences; `gap-attribution-v2.json` corrects that
+  scope and retains the original failed comparison for traceability.
+- `source/manhattan-land-region/fountain-land-component-report.json`, SHA-256
+  `80b35e2547691ebcd86829f0cd8fd835a58731792cfdff1516d802f3f937fb29`,
+  identifies the unique original DCP component containing the fountain, rather
+  than inventing connectivity between all 36 components. It contains 41.1023
+  km2 of owned land and 5,860.2848 m2 unknown Ground (99.9857% supported).
+  Its gap contacts are 51 Road centerlines, two Building footprints and two
+  Water footprints. Other components remain outside this comparison, not waived.
+- `architect/land-ground-first-policy-next-review.json`, SHA-256
+  `0ece0fd55d49b39b3b950c79205d08d3c3550d2e9cab11611082bf9a9f1c803f`,
+  accepts a bounded Ground-first scene discriminator before any regional
+  publisher or boundary-contract change. A diagnostic crop, land edge or
+  source-support edge is never an authenticated territory exterior.
+- The first native Road experiment exposed a bad fixture/oracle: the full
+  Road crossed the diagnostic crop into unchanged DSM, while the test compared
+  its affine triangles with a bilinear placement query. Its 47.945 m error is
+  not product RED. `architect/ground-road-oracle-envelope-diagnosis.json`
+  independently attributes the worst vertex to that discontinuous crop edge.
+  The correction uses the actual Road triangle field and complete source support.
+- `source/park-comparison/complete_road_basin_scene.json`, SHA-256
+  `5f09197c8c85888fb09ce1186a10b48ad14e8ed5b4e99eb9cfde2b5257e1cfa2`,
+  is one fixed 450 x 480 m diagnostic rectangle (240 quads) covering the whole
+  tested Road plus its half-width and a declared 30 m halo. Complete original
+  support is checked before sampling the retained NOAA 025 bytes. No new DEM
+  is downloaded. This is not a proposed internal DSM seam or production region.
+  Its exact observed-basin join has 110,444 faces; final wet area remains
+  52.390958261 m2 and spill 13.367418685 m at the derived 13.2 m level.
+- The self-contained native tests now build actual owner outputs without saving:
+  `Project.World.Realization.Road.GroundFinalSurface` and
+  `Project.World.Realization.Building.GroundFinalAnchor`. Default controls and
+  explicit real-scene replays pass. The actual footway has 2,436 stored vertices
+  / 812 faces, maximum affine-support error 0.000003082 m. Building
+  `1112578570` has 36 vertices / 12 faces; its final ground anchor is
+  13.199795561 m, with bottom error below 0.000000582 m. Both missing-coverage
+  controls refuse without partial output. These are typed source descriptions,
+  not replacement authority, saved collision, Nanite or packaged acceptance.
+- `architect/ground-civil-native-consumer-final-review.json`, SHA-256
+  `6f7ff94893a108698a0b244c0dd52aed0f63501172dda46c3f759259c2eafb79`,
+  closes that source-consumer boundary at PASS. Do not reopen it merely because
+  a later source policy requires wider acceptance.
+- `editor/complete-scene-preview/` contains actual player-eye fountain, path
+  and Building views. The full diagnostic cell retains DSM outside the source
+  crop, which dominates its horizon; those captures are not regional acceptance.
+  Native show-only capture isolates the explicitly cropped Ground and actual
+  Road/Building source descriptions. Its path is now gently graded and the
+  Building is anchored; basin/source facets remain visible. Neutral geometry
+  controls do not certify the accepted production material binding or city art.
+  Sampled complex-physics/BVH rays pass for 49 Terrain, 51 Road and two roof
+  points; maximum physics error is below 0.000050 cm. No saved/compiled,
+  capsule, navigation, streaming, motion-performance or package claim follows.
+  Six transient actors are destroyed, six original components restored, dirty
+  packages remain empty and the owned Editor exits normally. The final protected
+  snapshot again contains 6,768 unchanged files and the untouched empty index.
+
+The retained-gap comparison now supplies the missing source-frontier control:
+
+- Complete source support is tested over the whole consumer domain, not only
+  clipped DCP land. The 2,097.861 m2 target gap is part of an 18,402.925 m2 unknown
+  complement in the 70,200 m2 diagnostic crop. Partial/unknown original quads
+  retain both original geometry and original query mode.
+- Current exact-matching OSM geometry and park-owner construction history qualify
+  six explicit above-ground Roads, not metric deck elevations. The four nearby
+  `man_made=pier` objects are open lines; they cannot define a closed exclusion
+  footprint. A 2017 bare-earth product does not establish later engineered decks.
+- The minimal partial-quad collar closes topology but imposes a 53.3076 m/m
+  face on nearly flat source Ground. Reject it. The frozen four-original-station
+  BFS model instead gives 23,774 faces, zero unexpected internal edges and zero
+  changed unknown-surface error. Its peak 1.661986 m/m face equals the source-only
+  face at the same XY. This removes an inferred cliff without accepting all source
+  relief or selecting a numeric slope/width policy.
+- `fixed_four_station/global-closure.json` below the run's
+  `source/retained-gap-discriminator/` derives 53,128 potential changed quads
+  across 76 cells from the full immutable base. It proves 1,718 unchanged retained
+  internal traces, 200 true World-exterior edges and 105,297 selected shared edges.
+  Removing an interior quad produces four invalid traces. Uniform 2 m sampling
+  would nominally produce 23,907,600 faces; this estimate is not a performance test
+  or permission to deploy 47.8152 km2.
+- Actual native replay of the fixed crop covers one complete Road across two
+  cells (3,056 faces, maximum support error 0.000006693 m) and one Building
+  (ground 3.426068197 m, bottom error below 0.000000083 m). Four changed anchors
+  are measured analytically; the fifth local anchor remains on original terrain.
+  Do not relabel this as native coverage of all local Roads/Buildings.
+- The maintained Road oracle now checks incident neighbor triangles where ribbon
+  width extends beyond its source-axis owner. An oblique self-contained control
+  reproduces the old oracle failure and passes with real neighbor support. This
+  is not a production Road correction.
+- `editor/retained-gap-preview/` has matched original/minimal/fixed context and
+  player-eye geometry captures. The fixed arm removes the visible collar step;
+  source faceting remains. All 202 sampled transient BVH/complex-physics rays
+  pass. Seven transient actors are destroyed, dirty lists stay empty and the
+  owned Editor exits normally. No compiled/capsule/package or geographic PASS
+  follows. `architect/fixed-frontier-source-policy-review.json`, SHA-256
+  `cb5d0e34a08d3b09bfd4f0c15105a902f5598d7374924e11ba24c4a0adcf6b89`,
+  accepts bounded Ground/composite contract work, not regional adoption.
+- The pure Ground constructor now accepts a SHA-bound finite per-quad resolution
+  map. Native triangulation shares edge-station unions without forcing coarse
+  interiors to full resolution. Ten focused tests pass, including nonnested
+  horizontal/vertical seams and refusal/no-mutation controls. The existing strict
+  complete-grid/outer-trace contract remains unchanged. One actual consumer-based
+  representation comparator reduces the same crop to 17,418 faces; its own
+  quality/consumer proof is separate. No Ground publisher or geographic authority
+  has been implied by this optional construction capability.
+
+The inherited root `testResults.xml` is generated Pester evidence and is removed
+from source, retained only under the run's `tests/`; direct Pester output routing
+is documented and the root artifact is ignored. The protected poststate records
+6,768 unchanged persistent files and the unchanged empty index. The fixes need
+no World generation, Matrix or cook; the later transient Editor probe is
+separate from their test evidence. Final joint
+scene quality, regional policy, Kazan bank correction, affected publication and
+final source-bound packaged/R5 acceptance remain OPEN. Reuse the completed
+independent packaged campaign only for its unchanged authenticated inputs.
+
+**Earlier accepted evidence follows.**
+
+The expanded source query uses the same retained COPC object, not new geography
+pins or historical OSM recovery. Independent full extraction/frame replay is PASS
+at `architect/fountain-expanded-ground-qualification-review.json`, SHA-256
+`6b53198b6108e63900b51092bb138f1fb90321134ad9272b3bd9d7dbd62778a2`:
+387,732 returns, 61,714 Ground observations; every serialized source row and the
+entire native-transformed file agree. Canonical point file SHA-256 is
+`1340dfb2a8da2a80bb05edc3a8ea447df05337e9e678aec95c2cb4f4aee2d208`.
+All 6,828 original unique Ground points remain, but the expanded TIN and wet
+geometry are recomputed and differently identified, not asserted byte-equal.
+Both minimum 30 m quads now have complete observed-hull support; no collar or
+quality acceptance follows from that coverage.
+
+The native COPC query uses inclusive integer-coordinate selection. Ten Ground
+points lie slightly beyond the requested decimal rectangle. The frozen capsule
+retains requested/effective LAS envelopes and six-decimal serialization; neither
+is a source-accuracy allowance. Class1 remains Unclassified. Absolute local
+accuracy stays null, not the inverse-transform error or a project-wide statistic.
+
+[Supplemental SourceIngestion](../../tools/World/SourceIngestion/supplemental/)
+now admits this frozen derived product through its own consumed child identity.
+It preserves the root source/compiler fingerprints and common dependency lock.
+The exact raw object, geoid grids, processing recipes/receipts, runtime capsule,
+qualification and provider terms are verified in both existing source archives.
+Admission is tmp-only evidence, not fresh raw decoding, production source
+selection, a surveyed operating Waterline or a geographic quality decision.
+
+Independent review found and closed DG1 (descriptor changed after parse) and
+DG2 (contradictory explicit GeoJSON CRS). Their exact RED logs are
+`tests/derived-ground-snapshot-red.log` and
+`tests/derived-ground-frame-red.log`; `tests/derived-ground-final-green.log`
+contains 11 GREEN controls, including producer drift, both-copy retention,
+no-op, artifact tampering and refusal without candidate promotion. Final
+architect recheck is PASS at
+`architect/fountain-derived-ground-admission-dg-recheck.json`, SHA-256
+`338d26f83eebb4cd811647f5b89a7b83a0d5a24513b7c26f9631bda48c0ac27b`.
+The r2 admission receipt is
+`a5f134e8d28d00d1f0a2eb072880e9eff4a8b79c6f5de70f574ff6910b89e7b1`.
+Its real no-op reverified all 16 retained objects without changing that receipt.
+The first candidate stays frozen; it is not reused under a changed implementation.
+
+The public admitted-source -> canonical pure-model replay is
+`source/fountain-admitted-model-replay.json`: 13.2 m model, source-TIN spill
+13.3874165009 m, 52.3909582601 m2 wet footprint, 0.5387544670 m2 outside the
+original mapped outline. All are source/model measurements, not adoption.
+
+The full dense TIN would require 10,353/11,328 triangles in the two minimum
+quads, exceeding the existing 4,096 limit. Source-subset comparisons fit but
+show 0.18-0.24 m maximum continuous differences outside the exact wet region.
+No thinning tolerance is selected. The smaller approved discriminator instead
+retains exact inner source faces and the complete 126-vertex inner trace, then
+uses pinned native CDT for an explicitly derived collar to unchanged outer
+grid vertices. Its plan PASS is
+`architect/fountain-source-ground-construction-plan-review.json`, SHA-256
+`b4228d0fba1ab0b67b47b8997c89550228591fd0516cb3b714db76150614e2c1`.
+
+`source/fountain-exact-collar-probe.json` reports 1,320 inner source faces,
+132 collar triangles, 955/643 final per-quad triangles, complete cover, matching
+seams, preserved outer trace and no internal open edge in the joined 1,598-face
+surface. It is NOT a quality PASS: 1,800 m2 changes, maximum cut 7.7899 m,
+4,601.20 m3 cut volume and maximum collar gradient 3.2463 require civil/visual
+evaluation. No Water depth, freeboard, carving limit or source confidence is
+invented. This is a derived transition, not surveyed Ground outside the inner TIN.
+
+Critically, `source/fountain-final-collar-containment.json` recomputes the FINAL
+surface escape at 13.2074212767 m, rather than inheriting 13.3874165009 m from
+the original full Ground TIN. At 13.2 m the wet component stays closed and its
+approximately 1e-9 m2 overlay residue is reported. The 13.3 m known-bad level
+escapes and adds 634.312 m2, proving the old source spill cannot certify this
+collar. Any future joint publisher must bind the final-surface constraint.
+
+The whole-quad civil census is 15 Roads and zero Building anchors. All 15 now
+have complete matching source versions/class/projected geometry before the
+accepted release in `source/normalized_fountain_domain_context/qualification.json`.
+One is explicitly three steps with incline=up; missing vertical tags remain
+unknown. No automatic bridge label or blanket grade preservation is justified.
+Ordinary Road already follows final Terrain; a new native regrade mode is not
+needed. Actual corridor, support, slope, native realization/collision and visual
+checks remain before any joint publication or adoption. Q5 stays OPEN.
+
+The convex-inner discriminator retains original source triangles instead of
+retriangulating concave pockets. It closes 2,046 final faces without internal
+open edges, but its maximum transition gradient is still 2.4425. Ninety-five
+transient DynamicMesh BVH/complex-physics rays pass and exact restoration is
+recorded in `editor/fountain-convex-candidate/restore.json`. This is diagnostic,
+not native MeshTerrain/Nanite/fallback or material-consumption acceptance.
+The nine-quad arm still reaches gradient 1.1198; widening alone does not solve
+the source mismatch. Its preliminary cut/fill area totals include unchanged
+faces in both categories and must not be cited as exclusive affected areas.
+
+The accepted Copernicus input is a DSM, including structures and vegetation,
+not a bare-earth model. A local forced return to its unchanged samples can
+therefore preserve the very obstruction this Ground correction is investigating.
+The next discriminator uses separately qualified broader Ground context rather
+than selecting a steeper bank allowance.
+
+The exact NOAA 9307 provider bare-earth/hydro-flattened DEM is qualified in
+`source/provider-dem/qualification.json` and retained through the existing
+two-copy source archive. Its full object is 834,009,931 bytes, SHA-256
+`180f5e33895bbd0cd4099e28920c62e43cfed2e8c83b432de191e5bb41137f1b`.
+The proper provider metadata is InPort 64732, not the hydro-enforced 64734
+product. Its original StatePlane/NAVD88 feet/GEOID12B frame differs from the
+GEOID18 COPC frame. Native offline crop and explicit pinned-grid warp match
+the conditional remote processing bytes; network-free frame controls reject
+disabled or incorrectly unit-scaled vertical conversion. The raster differs
+from the 61,714 raw Ground observations by median 0.008435 m, p95 0.026640 m,
+maximum 0.118691 m. These are processing differences, not accuracy allowances.
+All 20 qualification artifacts are retained. Independent qualification PASS:
+`architect/fountain-provider-dem-qualification-review.json`, SHA-256
+`912b6ab81271d7426980698a0ef87be5f8a6e093764fc11507e19c4f37ba8a7b`.
+
+The same supplemental SourceIngestion API has a closed, explicit raster-model
+basis. It returns a grid without LAS classification; observed Ground remains
+strict class 2. There is no second source service, cache or native decoder.
+Both descriptor and receipt use their current v2 contracts. Historical v1 and
+earlier-implementation candidates stay frozen; a current reader requires a
+fresh admission of retained inputs, not a raw-source download or transformation.
+Tests live in parent SourceIngestion discovery. The initial raster feature RED
+is `tests/raster-ground-admission-red.log`. Independent review additionally
+found BG1 (nested datum mistaken for vertical CRS) and BG2 (malformed band unit
+not refused through the owned error). Both exact RED tests are GREEN;
+`tests/raster-ground-final-green.log` contains 16 passing tests. Recheck PASS:
+`architect/fountain-ground-basis-bg1-bg2-recheck.json`, SHA-256
+`1472c1618acec6d4eebe6e6daa37635024e2c7abd9e67c194ba0c5898344f1f1`.
+
+Current candidate admissions are `fountain_ground_observed_v2_bg1` and
+`fountain_ground_raster_v2_bg1` under `tmp/world/supplemental_source_admission`.
+Their receipt hashes are respectively
+`faf5bc3194c67ceaf42257833287eb85c77c0126965754820295b833c9798268` and
+`e55fe2e8462d7bf9108883e40b4d7ab122719e38e29b8a8c2b6d868306de7782`;
+both bind admission implementation
+`acaf8d787ba69205e205c962df5d30f22bc6098d88bc90c23bc7651a83ad90b2`.
+The public consumer replay `source/ground-basis-consumer-replay_bg1.json`
+retains the exact observed content and wet geometry identities, 13.2 m model
+and 13.3874165009 m source-TIN spill. Raster evidence is explicitly rejected
+by the classified contained-Water constructor. The 1,024-sample provider grid
+is context, not a replacement for the fine basin interior. Joint final-surface
+construction, final containment, civil consumers and Q5 quality remain open.
+
+The reviewed next discriminator is complete in
+`source/fountain-ground-context-collar-candidate.json`, SHA-256
+`c7fe2b18445040b58b730e581590e54007b051336f8dcfcfd9efe4489ea91395`.
+It replaces the six provider Ground controls surrounding the original two
+quads and includes their deterministic 12-quad support closure (10,800 m2),
+not a width selected to pass a slope. Native CDT partitions each original
+grid triangle so it actually consumes the six controls. Fine observed heights,
+original semantic weights and the unchanged outer trace are preserved.
+Its plan review is `architect/fountain-ground-context-next-review.json`, SHA-256
+`95b7ae63fa2a7fc4bd4d592320d59b8bf33824f134ec10b27d60c6fd952bd0f6`.
+
+Independent checks in `architect/fountain-ground-context-independent.json`,
+SHA-256 `12fde63cb287f03ee7ba98d2c885944a17b38bd84e58219a53440e469e9c7dab`,
+find 990 vertices, 1,964 faces, 14 outer edges, zero internal open boundaries,
+zero missing/exterior/multiplicity area and a maximum 3.52e-10 m difference
+from the exact fine-TIN height function over their continuous intersections.
+Removing the largest triangle exposes 450 m2, validating the cover check.
+The FINAL surface spill is 13.4075670242 m; the 13.2 m model stays closed with
+52.3909582603 m2 wet area and roughly 1e-9 m2 overlay residue. The deliberately
+higher level 13.5075670242 m escapes and adds 4,421.8781 m2.
+
+Do NOT adopt this candidate: mixed-source transition quality fails. Relative
+to the original DSM it cuts at most 22.0840 m and fills at most 2.5193 m;
+cut/fill volumes are 42,766.764/3,046.004 m3. The fine core is comparatively
+gentle, but 4,500 of the 9,000 m2 closure has gradient above 0.5 and 2,700 m2
+above 1. These are descriptive measurements, not newly selected limits.
+All 35 conservative Road supports were checked; 30 centerlines intersect.
+Footway `297995650` changes maximum longitudinal grade from 0.714 to 1.269,
+`22986670` from 0.528 to 1.265, and `297995652` from 0.562 to 1.171.
+This is a demonstrated consequence, not just an uncertain broad-box risk.
+Those source-centerline measurements do not establish native ribbon, lateral,
+collision or gameplay acceptance. Zero Building anchors enter this closure.
+
+The background Editor diagnostic passes 96 DynamicMesh BVH/complex-collision
+rays, with actual matched neutral geometry views at
+`editor/fountain-ground-context-candidate/native-neutral-{before,after}-{context,eye}.png`.
+Initial source-authoring/compiled comparisons and manually flipped-normal
+captures are rejected instruments; they are not material regressions. Native
+per-face normals already follow the correct convention. The diagnostic does
+not bind compiled MeshTerrain semantic channels or authenticate final materials,
+Nanite, fallback, capsule movement or package performance. Exact restoration
+destroys four temporary actors, restores four components and leaves all packages
+clean; `final-state.json` confirms no preview state remains. All 6,768 protected
+paths and the operator index remain unchanged in
+`tests/ground-context-poststate.json`. Its older cleanup fields refer to the
+earlier bank probe; the current Editor restoration is the receipt above.
+
+Next work must resolve the source-shaped Ground/DSM interface and civil
+consequences, rather than promote this minimal collar, increase a cut limit,
+freeze old DSM-derived footpath grades or repeatedly widen an arbitrary patch.
+The retained qualified Ground inputs can be reused without download or native
+frame replay. No maintained Ground publisher or Water-labelled Ground wrapper
+has been introduced. Q5 and production adoption remain OPEN.
+The final independent bounded review is
+`architect/fountain-ground-context-collar-review.json`, SHA-256
+`e5019d37bb91cc6dab9d469d41e2d1ffb91846bd85312692cd45c2cc0fb531c1`:
+diagnostic engineering PASS, geographic premise PATCH. One fixed edge rises
+from provider 12.91599 m to preserved DSM 49.3 m over 30 m, forcing grade
+1.2128003 regardless of triangulation. No renderer or material fix removes
+that height constraint.
+
+`source/fountain-broader-ground-source-scope.json` measures, but does not propose,
+the entire already-qualified 864,900 m2 cell as an alternative. It has 1,024
+grid nodes/961 quads, with provider-minus-DSM differences -90.3615 to +7.2593 m.
+There are 927 owner-clamped Building anchors, whose bilinear height differences
+range -75.9629 to +5.4464 m, and 953 conservative Road planform supports.
+The source-vertex diagnostics are not continuous Road-grade or actual-write
+proof. Owned context also includes 271 foliage points, 20 land-cover areas and
+three Water features; that is not a complete downstream dependency/write plan.
+No authenticated enclosing park/land-cover AABB candidate surrounds the basin
+in this canonical census. A whole-cell source swap is therefore not a harmless
+extension of the tiny fountain correction. No such swap is authorized by this
+measurement, and no missing enclosing footprint or quality limit is inferred.
+
+Counter-evidence check: the 12-quad rejection does not by itself falsify the
+earlier two-quad convex candidate. Its existing geometry was separately checked
+without rebuilding. `architect/fountain-convex-two-quad-road-consequences.json`,
+SHA-256 `f97fb27c78a414c8d4ba796ee19d6358ff515cbfe126daedc89186922e7c0533`,
+finds 15 conservative supports/14 positive source centerlines. Ordinary footway
+`297995652` has 21.84174 m inside the patch, all above grade 0.5, maximum
+0.817497 versus original maximum 0.52610. `48526564` has a 1.84225 m interval
+from original grade 0.000443 to 0.693356. Conversely, the 1.82417 maximum at
+`22986670` lasts only 0.04176 m and cannot alone establish general unusability.
+Mapped steps `1112808797` remain distinguished from ordinary paths. These are
+continuous geometric consequences, not capsule/navigation acceptance or a newly
+invented allowable gradient. The compact candidate is not promoted either.
+
+The next source-shaped census uses existing retained street linework, without
+asserting missing park semantics. Native planar polygonization finds one
+37,367.46035 m2 enclosure around the basin, bounded by East 26th Street,
+Madison Avenue, East 23rd Street and 5th Avenue. Exact source attribution and
+all 15 contributing feature pins are in
+`architect/fountain-street-enclosure-attribution.json`, SHA-256
+`042d68b2317c99ec00f5a57016e0640d4a1a48fdb06699ac9102de21b8280d32`.
+This is a derived projected face, not a mapped park, kerb, source confidence or
+proof of 3D source-node connectivity. No terrain mesh was constructed for it.
+
+`source/fountain-street-ground-scope.json` deterministically selects 41 existing
+provider controls inside that face and their 59 incident quads (53,100 m2),
+with 186 conservative Road supports and seven Building anchors. Independent
+118-plane arithmetic is in `architect/fountain-street-ground-consequences.json`,
+SHA-256 `8e645641a8f40c5d5b0f19402cf2481a215d6c0f0336b047e56ae008f52cd102`.
+The all-provider core has maximum gradient 0.027169; the mixed transition has
+maximum 3.04980. An unchanged 30 m edge from Ground 11.93548 m to DSM 76.8 m
+forces grade 2.16215 regardless of triangulation. Eight of the 15 perimeter
+street features worsen, including 124.19 m of East 26th Street above descriptive
+grade 0.5. This is not just a microscopic bad triangle. Seven current Building
+anchor differences range -15.75972 to +0.00653 m, with node changes separated
+from the existing bilinear-to-refined-affine query switch. The current native
+Building and Road owners already support FinalSurface; no new mode or blanket
+old-grade freeze is justified.
+
+Census review PASS is `architect/fountain-street-ground-consequences-review.json`,
+SHA-256 `11547708df139ff054959aace08f30b874e5c806e0a2bb23f047c618d10cb8fe`.
+The hypothesis is not ready for construction/adoption. Continue the bounded
+retained-file provider coverage/source-interface investigation, preserving
+unknown coverage and all existing geography. Raster coverage and a street face
+alone do not select a permitted outer geographic boundary or transition policy.
+No result proves every smaller source-derived representation impossible, and no
+whole-cell swap, fine-mesh build, maintained publisher or wider rollout follows.
+
+The retained provider file was then sampled natively across all existing
+Manhattan city grid nodes, with the same pinned raw object, explicit vertical
+pipeline, bilinear method and network disabled. No new source was downloaded.
+`source/provider-dem/coverage-census/coverage.json` reports 210 existing cells:
+21 have every core node covered, 43 have partial node coverage and 146 have no
+valid sampled node. The 466 x 435 output has zero measured sample-center
+alignment error. NoData stays unknown. This is a processing/coverage discriminator,
+not complete continuous/halo coverage or source-quality admission outside the
+independently qualified fountain window.
+
+The 21 all-node-covered cells contain, by canonical owner, 19,356 Buildings,
+16,219 Roads, 180 Water features, 5,469 foliage points, 366 land-cover features
+and 97 vegetation areas. These are context counts, not changed units, exact
+dependency fanout or an authorized replacement selection. They show why using
+all available Ground is a substantial source-model choice, not a tiny fountain
+material/mesh correction. The existing raw source, base bundle, all accepted
+geography and materials remain immutable. Investigating a supported Ground-first
+candidate is covered by D17; do not invent another permission gate for a read-only
+census. An unsupported source-quality, interface or residual geographic-risk
+choice still belongs to Q5. No new confidence, transition width, cut limit or
+whole-cell/city source rebase is selected by these measurements.
+
+**Current source-interface continuation:** Independent authority review confirms
+that D14/D17/D25 and Q5 already delegate a qualified Ground-over-DSM disposable
+policy. Its receipt is `architect/fountain-ground-policy-authority-review.json`,
+SHA-256 `95af03aa6f001de31edece95e56705e4096031f87f452596d31d1948a79c4706`.
+The earlier suggestion that further isolated source selection first needs a
+human permission decision was too restrictive. Source/coherence evidence, not
+permission to investigate, is the next discriminator.
+
+The native original-pixel mask and finite-value census constructs rectangles
+between four valid source centres. It includes an observed interior-NoData
+refusal control. Native polygonization, the explicit frame transform and
+prepared GEOS coverage produce 42,304 supported original-grid quads; the
+fountain-connected diagnostic component contains 33,103 quads / 29,792,700 m2
+and 33,637 nodes. `source/provider-dem/continuous-support-r2/envelope.json`,
+SHA-256 `3fe907bc2160597ee05aba60d034b2d3853aed8386747e3226c5f631cba1ee0b`,
+retains the discrete native projected-mask limitation. This is neither an
+analytical projection-error certificate nor an adopted footprint.
+
+The corresponding old default-scale height hypothesis needs 34,169 incident
+quads in 50 cells. Direct frontier Ground-minus-DSM differences range from
+-42.6176 to +9.58288 m. It touches 28,456 conservative Road supports (28,439
+positive source centerlines) and 27,207 source-bounds Building anchors. These
+are diagnostic consumer counts, not native changed output units or writes.
+The corrected report separates 717 outside-owner Building queries, which the
+pre-QO1 native implementation routed to original-grid fallback, from the
+hypothetical clamped refined anchors. It also separates 188 provider-vertex
+triangles outside the supported component from certified support. These two
+review findings are fixed; the recheck is
+`architect/ground-envelope-ec1-ec2-recheck.json`, SHA-256
+`2eb3fa52ce60cd4e242201bcd1e6fadabb08055209b6e545bb9db698450df6ea`.
+The final old-field report is
+`source/provider-dem/continuous-support-r2/consequences-r2.json`, SHA-256
+`e0c77701d977add96682927e7086cebfcde3a7785a4e1df1d94166f62cd28074`.
+The later QO1 query correction below supersedes that dispatch; this historical
+report stays frozen and does not describe the corrected implementation.
+
+Native inverse-projection and actual four-pixel witnesses classify its 1,066
+frontier edges: 283 reach the artificial source-object extent, and 783 have an
+original NoData witness. The worst mixed edge, from 11.22313 m Ground to 57.4 m
+DSM over 30 m, is at the south boundary of `be_NYC_025`, with same-survey
+`be_NYC_020` on its other side. The classification receipt is
+`source/provider-dem/continuous-support-r2/frontier-attribution.json`, SHA-256
+`5897d11a0bafda6646bad4128eff91936a05423a26583ef601a06423e2bbe5f1`.
+NoData is unknown; adjoining metadata is not proof of actual valid coverage.
+
+The bounded adjoining-window experiment exposed a separate native sampling
+issue before any production mutation. GDAL 3.11.5's default bilinear
+downsampling widens its source kernel using per-chunk scale. The same 50
+shared points differed by up to 0.016295433 m when the output window changed.
+Therefore the four-centre support construction does NOT certify the complete
+kernel of those older default-scale node heights. Those receipts remain frozen
+diagnostic measurements; no historical raw replay or accepted city is rewritten.
+
+Explicit native `XSCALE=YSCALE=1`, `-et 0` and `-ovr NONE` select a different,
+identified point-bilinear field. Its 50 shared-window float32 values match
+exactly; independent interpolation of four original source samples followed by
+the qualified frame transform differs by at most 4.56705e-7 m.
+`source/provider-dem/sampling-controls/report.json` has SHA-256
+`3fb0c1bb84ff96ac956fb4e2d31cd1a147402c2e296626e4e56d88793b08aebf`.
+The 0.0001 m check ceiling is processing calibration, not geographic accuracy.
+
+Native same-survey VRT mosaicking then changes the tested artificial join from
+grade 1.53922896 to 0.007339255, using point-sampled heights 11.246989 and
+11.026812 m. There is no invented transition ramp. One hundred bounded-window
+nodes match the later city-extent point-field query exactly. Two queries
+directly straddling the original source seam consume the last `025` row and
+first `020` row with all four masks valid; their independent maximum error is
+2.78440e-7 m. Removing the adjoining source triggers incomplete-support refusal.
+The seam receipt is `source/provider-dem/adjoining-020-probe-r4/seam-controls/report.json`,
+SHA-256 `fc0933c0902a14e3129abd15541c6056695d7e2e5753cf62e1ebeecb5134d211`.
+Crop/VRT band units are preserved explicitly using native GDAL APIs; the proven
+feet-to-metres/vertical transform is not inferred from a unitless derived band.
+
+The exact adjoining object is now retained: `be_NYC_020.tif`, 1,049,672,021
+bytes, SHA-256 `83fb4ac9188bcd7844726b723c7e89fa6eac0e6a41d317cbcda3cbe11811a5f4`.
+This is an acquired checksum, not a provider-published checksum or an accuracy
+bound. Its offline crop is byte-identical to the conditional remote crop.
+The existing two-copy retention route now preserves the new processing graph:
+48 unique source, frame, sampling and seam artifacts are independently verified
+in both archives (96 checks). The RP1 retention-only recheck PASS is
+`architect/ground-point-bilinear-rp1-recheck.json`, SHA-256
+`357c8626f59f80cd6de8f3b7a6761f515237f22ad8774a0b65bf7e2383e12531`.
+The fixed point-field input is
+`source/provider-dem/point-mosaic-025-020/input.json`, SHA-256
+`3b68eda5210b83db50783797d2b60e8007614d2f679f4d1b9e2b46a48acd5bbf`.
+Its 202,710 existing-city node queries include 61,253 finite native
+outputs before complete-footprint selection. This count does not accept NoData
+weight renormalization as complete coverage. Recompute the supported component,
+frontier and real consumer consequences using this new sampling identity;
+do not transfer the old default-field heights, Water containment proof or Q5
+quality verdict to it. No canonical/World generation, source-authority promotion,
+new terrain wrapper, city mutation, broad gate, cook or publication occurred.
+
+**QO1 owner-clamped placement correction - CLOSED PASS:** Source-shaped Building
+anchors exposed a real shared-query inconsistency. Raw XY outside the owner
+skipped refined-quad dispatch and silently sampled the clamped immutable grid.
+The shared placement owner now clamps once before selecting and evaluating the
+final representation. Missing selected-edge coverage refuses. Building input
+identity adds the consumed query variant only for default anchors with a refined
+OWNER, including fragments in a different unrefined cell. Global Building
+revision 2, unrefined inputs and explicit immutable-grade identities stay intact.
+No new query mode or neighbor lookup was introduced.
+
+Exact native `Project.World.Terrain.RefinedQueries` RED reproduced 12 m instead
+of the selected 10 m on both owner edges and missed-coverage fallback. GREEN
+passes. `Project.World.Realization.Building.RefinedOwnerClampedAnchor` RED
+reproduced an actual massing minimum of 1200 cm instead of 1000 cm; GREEN
+passes, with explicit immutable grade retained at 1200 cm. A separate identity
+RED reproduced stale owner and cross-cell fragment hashes; final GREEN 1/1
+retains four exact pre-correction unrefined/immutable-grade hashes. Logs are in
+`tests/owner-clamp-{query,building,identity}-{red,green}/` under this run.
+These are native query/MeshDescription checks on the Entry map with NullRHI,
+not saved-mesh, collision, render or production rollout acceptance.
+
+Independent final architect PASS is
+`architect/terrain-owner-clamp-final-review.json`, SHA-256
+`abc47239523d23ecd23483ac9eca67c3bb8afdce7546fa5c7151aa4e25af5e1e`.
+`tests/owner-clamp-poststate.json` verifies all 6,768 protected files and the
+empty operator index unchanged. The Editor was closed normally for compilation;
+the poststate check makes no inherited live-Editor cleanup claim. The standing
+contract and pitfall 61 own the durable behavior.
+
+**Current source field, not adopted:** Adding the independently pinned northern
+same-survey object `be_NYC_029` produces the three-object point-field descriptor
+`source/provider-dem/point-mosaic-025-020-029-r2/input.json`, SHA-256
+`70431650d86a6f41e693d127233fca06add422b2d91747b74ff4ac75e5710b5c`.
+Its connected diagnostic support has 46,429 quads / 41,786,100 m2 and 47,123
+provider nodes. The worst remaining mixed edge is grade 0.53180634. Exact native
+frontier attribution places that edge outside the consumed object extent, with
+same-survey object `030` on its other side. Other measured extent edges identify
+`026`. Their acquisition is source investigation, not permission to extrapolate
+across actual NoData. The three-object attribution receipt is
+`source/provider-dem/continuous-point-025-020-029/frontier-attribution.json`,
+SHA-256 `d672477c1a8b46124d72b40fc81040ba7e9d2501b40ebe69c7f2829700695020`.
+This field's existing `consequences.json` predicts pre-QO1 Building dispatch;
+the next report must use the corrected query and distinguish its legacy control.
+The original terrain, Water levels, source pins and accepted lineage stay intact.
+
+**Five-object source diagnostic - CLOSED PASS, not Q5 adoption:** The identified
+`030` and `026` objects complete this measured same-survey frontier investigation.
+Current input is `source/provider-dem/point-mosaic-025-020-029-030-026/input.json`,
+SHA-256 `c1457649da01ace10e1632701f65fba7d8f129ae5455f8eb76e4fc06fefdc911`.
+The complete-support envelope is
+`source/provider-dem/continuous-point-025-020-029-030-026/envelope.json`, SHA-256
+`72582a79cac891d1b8313ead4b22d7dd96136a3c1abb47a2385f265aa17bb696`.
+Its fountain-connected component has 53,140 quads / 47,826,000 m2 and 54,102
+provider nodes. Minimum incident closure covers 54,834 quads in 76 cells;
+these are diagnostic units, not selected production writes. Consumer census
+includes 44,838 conservative Road supports, 44,834 positive source centerlines
+and 37,413 source-bounds Building anchors. Corrected dispatch separates 1,055
+owner-clamped final anchors from ordinary in-owner queries. Actual native
+prepared-part pruning, saved meshes and collision are not predicted by this census.
+
+Remaining frontier attribution is 1,738 original NoData witnesses, three outside
+the consumed object extents and 199 finite projection/connectivity discriminators,
+with no additional provider asset candidate. The worst mixed EDGE grade is
+0.317509; the maximum mixed FACE gradient is 0.449026. These are distinct metrics,
+not accepted bank limits. Three new seam controls use original pixels from both
+adjoining objects and match native transformed outputs within 1.24395e-6 m.
+Source accuracy remains unknown locally; this is processing calibration only.
+
+The current source/processing capsule has 45 artifacts verified in both existing
+archives (90 checks); its retention receipt SHA-256 is
+`1aee6d01ebdaec1864db6666fbea6a16de10f0cf8509b9465b9008a9915be3dc`.
+Independent architect PASS is `architect/five-object-ground-diagnostic-review.json`,
+SHA-256 `8eeb5c64d2a8953d7010b7384878ab5c7de0b578a36c63e31b07527ed42d441d`.
+No further provider acquisition is selected by this evidence.
+
+**Fine civil support and terrain-resolution continuation:** Forty-eight
+source-centerline grade witnesses span 23 distinct coarse quads, including
+ordinary streets, steps and an elevator. Four distinct source-shaped controls
+have complete matching projected geometry/class and supplementary way/node
+versions predating the accepted release. This is qualified matching context,
+not historical raw-source replay. The actual fine point field changes the four
+same-XY interval grades as follows:
+
+| Road way | 30 m affine grade | Original fine point-field grade |
+|---|---:|---:|
+| 460069727 | 0.751467 | 0.038540 |
+| 1211149200 | 0.698799 | 0.002757 |
+| 1219684223 | 0.697012 | 0.028236 |
+| 1111991581 | 0.693995 | 0.035800 |
+
+All 1,107 center/width-edge probe samples have complete finite four-pixel
+support. An actual source NoData witness refuses. This establishes coarse-model
+aliasing at these intervals, not a universal fine-grid or Road-quality PASS.
+Way `1219684223` has other sharp fine-field changes. Its matching terminal node
+`11301575771` explicitly carries `highway=elevator`, `railway=subway_entrance`
+and `level=-1;0`. Unknown metric connector geometry remains unknown. Exact native
+membership finds zero sample contacts with the two canonical Water bbox candidates;
+do not misclassify this as a basin, invent a bridge, or flatten the source.
+
+Twelve independent one-quad source-resolution experiments compare 4/2/1 m grids
+through native point sampling and exact native triangle-cover validation. At 2 m,
+450 triangles per quad give maximum finite sampled-track height errors of
+0.06577, 0.07231, 0.36096 and 0.04173 m respectively. The multi-level case is
+separate; 1 m gives 0.03187 m on its tested quad without resolving its whole way.
+Dropping a triangle refuses with `native_geometry_coverage`. These independent
+quads do not prove selected-neighbor boundary continuity, a complete ribbon
+interior, compiled terrain/collision or joint fountain containment. No universal
+resolution, cut/fill, grade or triangle-cost policy is selected.
+
+Receipts are `source/provider-dem/road-fine-controls/report.json`, SHA-256
+`f5fa36898049bcf536d70eff3ed6874bc91b2e390cdb008fac1f0ad73d772ae8`, and
+`source/provider-dem/road-resolution/report.json`, SHA-256
+`8ce2ad327a6cb316e06ffc9f8aba60c94efdfd3eab44c6a284341c66fff582e4`.
+The semantic/resolution extension retains another 47 artifacts with 94 archive
+checks; `source/provider-dem/measured-frontier-retention/road-retention.json`
+has SHA-256 `ae40472079d46b5a3516c836f8cf29ae354e55821131ffe8ec6a534e1e84928e`.
+The final poststate receipt keeps all 6,768 protected files and the index unchanged.
+Next: independently select the smallest source-aware construction through the
+existing canonical final-surface boundary; do not fabricate Water identities for
+Ground or introduce a parallel terrain owner. Q5 and release acceptance stay OPEN.
+
+**Pure Ground construction - CLOSED PASS:** The independently reviewed optional
+`refinement.ground` capability now consumes the exact raster grid/evidence and
+selected canonical support. It uses pinned native triangulation separately in
+the original affine halves, preserving semantic weights. Selected neighbors must
+share complete edge geometry; altered outer heights/weights, new outer
+subdivisions, invalid frames/content, extrapolation and excess budgets refuse.
+It emits unpublished typed-quad data, not a disguised Water refinement document.
+
+This is an independent capability in the existing canonical owner. The approved
+placement review is `architect/source-ground-identity-placement-review.json`,
+SHA-256 `db52c47e8edcc8639fcd136b36907785849106dbebc8cb7228e020579b857d2b`.
+Existing refinement, base compiler and source-admission identities remain exact:
+`30386a0a5bdd2bd8621e8f8b7df889e622e80a995872b1d2f8b17025e5690742`,
+`752bb5229244c1a3bb013431001ec2750adcef8012f0820a2d518606342d5bf0`, and
+`acaf8d787ba69205e205c962df5d30f22bc6098d88bc90c23bc7651a83ad90b2`.
+The new capability has its own consumed implementation/native/input identities;
+this is not a gate exemption or an untracked implementation change.
+
+Four focused tests pass in `tests/ground-construction-green-reviewed.log`,
+including synthetic two-cell height/topology/weight continuity, nonplanar affine
+semantics, exact source nodes, open-edge/missing-neighbor and invalid-input refusal,
+unselected-cell locality and changed-own-implementation identity. Feature absence
+was recorded before implementation; this is not another historical runtime bug.
+No files are written by the constructor.
+
+The actual 256-node 2 m quad is separately admitted through the unchanged source
+owner, not obtained by subdividing the admitted 30 m product. A fresh bounded
+single-025 decode matches the five-object fixture nodes exactly; native coverage
+checks the entire quad against the original complete-pixel support. The existing
+two-copy product route retains its 19 artifacts. Admission SHA-256 is
+`441d850e7894840b499324d1d8e5336b74c348d57ee94f8cc25f9b6baae34967`;
+grid content SHA-256 is
+`d0c48f71b53c46cc3e59c6bb3547ecf488983e127d8fef01b4b280cd553a4bec`.
+Current-input replay refuses the actual old-DSM outer seam without inventing a
+blend (`tests/ground-construction-current-input-replay.json`). This is correct
+refusal, not a closed real-city Ground patch.
+
+Final independent architect PASS is
+`architect/source-ground-pure-construction-implementation-review.json`, SHA-256
+`c7be5e08692e4ea25c086e8330384c972f04d41d7666868caa0ba6f6ab8146a8`.
+Two limits remain explicit: Python/GEOS construction is not UE typed loading or
+compiled terrain/collision proof; earlier fixed-diagonal grid fidelity numbers
+do not transfer to this separate native Delaunay construction. Real domain
+closure, honest Ground provenance before loading/publication, joint fountain
+containment and Q5 quality still require their own evidence. No city output,
+source authority, existing producer key, Matrix, cook or release changed.
+
+**Typed Ground consumption and fixed-domain interface diagnosis - CLOSED PASS:**
+The maintained `ground_query_fixture.py` passes the pure constructor's two-cell
+payload into `Project.World.Realization.MeshTerrain.GroundTypedQueries` without
+pretending to load or authenticate a Water refinement. The exact Entry/NullRHI
+test checks 18 source-node queries and ten final triangle centroids, maximum
+height difference `1.7763568394e-15 m`. It independently compares actual dynamic
+mesh vertex positions, semantic weights and cyclically oriented face multiplicity
+against the specifying payload. Missing selected coverage refuses; immutable
+queries retain the old grid. Old-grid and corrupted-weight controls fail the
+corresponding checks. Architect review identified a missing oriented-topology
+control; the reversed-face instrument was first observed falsely accepting twice
+in `tests/ground-topology-red/tests.log`, then correctly rejecting in
+`tests/ground-topology-green/tests.log`. This fixes test proof, not a demonstrated
+production mesh corruption. The final project-script build and exact native test
+pass. No Ground loader, compiled fallback/Nanite pixels, collision or cooked proof
+is claimed.
+
+The source/base zero-difference discriminator is diagnostic, not a new inference
+policy. On the frozen coarse point field, the fountain-seeded negative component
+has 88,332 affine faces in 44,416 quads and about `38,802,103.58 m2`. It reaches 306
+open consumed-domain edges: 200 have original NoData witnesses, two leave consumed
+object footprints, and 104 remain forward-projection/connectivity discriminators.
+The latter are not proven missing source data. Receipt:
+`source/provider-dem/zero-interface-probe-r3/report.json`, SHA-256
+`2b862ac5a84f3a46cb6dc3af4e22e1bf9a6377ec0367da38324192619121af3c`.
+
+The frozen original fountain rectangle remains only the two quads `[9,21]` and
+`[10,21]` in the existing owner cell, bounds
+`[585433.41,4510662.45,585493.41,4510692.45]`. A separate current source-support
+check covers the whole rectangle; no old COPC-hull coverage or collar heights
+are transferred. Native fixed point-bilinear resampling at about `0.30303 m`
+produces 19,900 nodes. Its fine fixed-diagonal model has a negative fountain-seeded
+component of 33,550 faces reaching 428 rectangle-edge intervals. This falsifies a
+closed zero-interface for this chosen model/domain, not for every fine native
+surface or a larger evidence-backed design. The source/base nodal differences
+range from `-21.99609375 m` to `+2.67271854 m`; they are source hypotheses, not
+accepted cuts or proof of erroneous geography. Receipt:
+`source/provider-dem/fountain-fine-zero-interface/report.json`, SHA-256
+`ea39101cdbd58335eddf11ebb44df6614273fd62dcd895ace942235c4f089644`.
+The pipeline-definition and containing qualification-document hashes are distinct
+and explicitly bound. No geographic precision or Water operating level is inferred.
+
+Independent architect review replays both diagnostic graphs/values read-only and
+accepts the corrected typed proof. Receipt:
+`architect/ground-typed-and-interface-review.json`, SHA-256
+`92684e290d4cd2e7ac18746ce3b179db84c54785d09e45c34f88c8786b2817c6`.
+This closes the bounded proof, not Q5. Qualified source/interface selection,
+joint Water containment and consumer acceptance still determine the next valid
+candidate. Do not repeat these closed tests or expand the source domain automatically.
+
+**Fine extreme attribution - processing control complete:** Three independent
+original-025 four-pixel reads and the qualified PROJ pipeline reproduce the
+minimum-difference, maximum-difference and near-fountain witnesses, maximum native
+processing difference `2.5243519275e-7 m`. All original masks are valid; the pixels
+are finite and distinct from the declared NoData. At the most negative witness,
+source Ground is about `13.003906 m` while the original canonical DSM face is
+`35 m`. Near the fountain seed, the comparison is about `13.204923 m` versus
+`17.812121 m`. The large negative difference is not a zero-filled warp or a
+PROJ/unit conversion failure at these tested points. It does not identify an
+individual tree/building, establish survey accuracy or approve a 22 m cut.
+Receipt: `source/provider-dem/fountain-fine-zero-interface/raw-extremes/report.json`,
+SHA-256 `86f8d77a004cf9793afcdfa80a0d1b67f4545125f035131675d3fbc8f8aeb9ff`.
+
+Fresh protected-state proof `tests/ground-typed-interface-poststate.json` confirms
+all 6,768 persistent files, canonical/World selection and the empty operator index
+are unchanged. The fixture commandlets exit normally. Stable docs route the new
+typed proof and distinguish it from an authority loader, render/collision or
+packaged acceptance. No production writer, SourceIngestion replay, Matrix, cook,
+release operation or new geography authority runs in this boundary. Q5 and final
+R5/R6 remain OPEN, including the unchanged 16.67 ms target and INCONCLUSIVE policy.
+
+Primary references checked: [Epic Mesh Terrain modifiers](https://dev.epicgames.com/documentation/unreal-engine/crafting-mesh-terrain-in-unreal-engine),
+[NOAA bare-earth DEM and original frame](https://www.fisheries.noaa.gov/inport/item/64732/full-list),
+[Copernicus surface-model contents](https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM),
+[GDAL native vertical transformation](https://gdal.org/en/stable/programs/gdalwarp.html),
+[USGS hydro-flattening distinctions](https://www.usgs.gov/ngp-standards-and-specifications/lidar-base-specification-appendix-2-hydro-flattening-reference),
+[OSM bridge semantics](https://wiki.openstreetmap.org/wiki/Key:bridge),
+[OSM relative layers](https://wiki.openstreetmap.org/wiki/Key:layer),
+[OSM2World 2026 terrain roadmap](https://osm2world.org/blog/2026/06/03/ptf-roadmap-2026-osm-3d-terrain/).
+The roadmap is evidence of an active problem, not a completed reusable solution.
+
 ## Review record
+
+### 2026-10-17 - source-shaped local-bank feasibility and retained source limits
+
+- The local-bound and mixed-triangle construction above replace the falsified
+  constant-50 premise. They are disposable implementation under D17; canonical
+  selectors, production `terrain-refinement-v1`, World consumers and city outputs
+  remain unchanged. No Q5 policy follows from the construction.
+- Source receipts under `tmp/world/geographic_reconciliation_d59/source/`:
+  `bank-wet-closure-census-v4.json`, `bank-local-caps-census.json`,
+  `bank-local-candidate-metrics.json`, `bank-local-candidate-independent.json`,
+  `bank-native-city-input-r2-topology.json` and `bank-actual-water-clearance.json`.
+  The census refusal guard now rejects empty or unqualified seed selections;
+  five actual-AST controls are retained in `tests/census-status-refusal.json`.
+- Native R2 input SHA-256 is
+  `081a0d745032c56beda910444695f5dc46b5008987c41dea051dd59d26849e90`.
+  Native proof and `r2-*-{before,after}.{png,json}` are under
+  `editor/local-bank-city/`. Earlier images/rays from another input or a
+  competing merged PreviewSection do not certify this payload.
+- The new disposable full-cell edge verifier reproduces the 22-edge RED result,
+  then accepts the exact collar-corrected input. Independent selected-subset
+  coverage reports zero missing/exterior area, approximately 1.14e-13 m2 numerical
+  area overlap, maximum dry affine error 5e-9 m and zero outer trace error. Native
+  GEOS precision and vertex merge are bounded numeric operations, not geographic
+  source accuracy or adopted quality limits.
+- Source tags and classified-return probes remain unpromoted:
+  `bank-civil-current-tags.json`, `fountain-copc-availability.json` and
+  `fountain-copc-footprint-attribution.json`. The current-source bridge tags still
+  require full ordered geometry/date/node qualification through SourceIngestion
+  before any child can use them as admitted evidence.
+- Root inspected actual context, bank and Building images. The near bank remains
+  a high vertical wall with planar presentation artifacts; it is not accepted as
+  realistic natural shore. No BrownEarth/AsphaltMacro/RiverCalm art cycle reopens.
+- The optional diagnostic Light created one new unsaved external-actor package
+  in the agent-owned Editor. Destroying all 12 owned actors cleared that package
+  without saving. Seven source/preview component states are restored. A fresh
+  native cleanup observation has empty dirty map/content sets, no remaining
+  DynamicMesh or SceneCapture actors and only the original Sun. Normal Editor
+  exit is recorded; no forced termination or discard of operator work.
+- `tests/local-bank-poststate.json` recomputes all 6,768 protected persistent
+  paths, including additions/removals: zero changes, same HEAD and empty Git
+  index, same Canonical and World selectors. Independent source-shaped architect
+  PASS: `architect/local-bank-source-shaped-review.json` (33 evidence hashes).
+  This experiment is closed; do not reopen its accepted review. No new
+  Matrix, cook, World regeneration, source repin, migration or publication.
+- Q5, the natural-bank/civil model and constructed fountain remain OPEN. The
+  independently accepted material-development/package campaign stays closed.
+
+### 2026-10-17 - D17 independent package closure and disposable bank proof
+
+- Surface Presentation closes its D52 development scope with exact current
+  packaged consumption/gameplay/collision/streaming and measured p95 budget,
+  strict two-city validator and independent R2. Its task and retained material
+  research records move to Done; no geographic waiver or final R5 follows.
+- The former D58 road-flood witness belongs to the corrected Bridge way
+  `197403553`. At the same XY, the current native-source profile gives
+  60.7600 m versus emitted Water 50.25 m; the old source inference was 50.1499 m.
+  This is an analytical current-profile/native-source comparison, not a fresh
+  packaged collision ray. Actual adopted-Bridge rays and 93 walkable floor
+  samples remain the separate native acceptance. The bank witness is 7.8664 m
+  from a 5 m-halfwidth Road centerline and remains outside its corrected footprint.
+  Evidence: `tmp/world/geographic_reconciliation_d59/tests/current-geographic-attribution.json`.
+- Four disposable GEOS controls cover one quad, two source strips, an island and
+  uniformly already-lower wet terrain. Dry affine error is zero, total top area
+  400 m2, with no changed outer edges or interior open/orientation errors. Missing
+  and reversed bank faces, changed dry geometry and an unclosed wet outer domain
+  are rejected. These values are synthetic controls, not Kazan quality limits.
+- The new fixture-only maximum-incident-top query is face-order independent;
+  the known-bad first-containing result changes by 2.55 m at the shore. Vertical
+  bank faces do not participate in XY height interpolation. A coplanar vertical
+  ray is not an oracle for that new boundary convention. No production query changes.
+- UE 5.8.3 GeometryScript realizes the same 3D data in transient DynamicMeshes.
+  Twenty positive native BVH/complex-collision rays pass over dry/wet sheets,
+  bank faces and island; the omitted-bank transverse ray misses in both systems.
+  Maximum tested native collision-position error is zero cm; this does not prove
+  compiled/Nanite terrain, independent-cell seams, player capsules or city geography.
+  The 1600x1000 technical image was inspected, not treated as material-quality proof.
+- Cleanup destroys six transient actors and discards only the agent-owned fresh
+  Entry fixture via `NewBlankMap(false)`: empty final dirty map/content sets,
+  no saves, normal Editor exit. Source and current-city packages are not edited.
+- Evidence: `source/discontinuous-bank-fixture/result.json`,
+  `editor/discontinuous-bank-fixture/{native-proof,revert}.json` and `one-quad.png`
+  under `tmp/world/geographic_reconciliation_d59/`. Independent architect PASS:
+  `architect/discontinuous-bank-completed-fixture-review.json` in that run.
+- Bank/fountain source qualification and real wet-domain closure remain the next
+  implementation work under D17. The accepted Q4/Bridge/drain/material stages
+  stay closed; no terrain authority, quality policy or release gate is waived.
+
+### 2026-10-16 - D17 reconciliation investigation resumed
+
+- Operator retained the geographic hold and explicitly rejected the broad waiver
+  questionnaire as the next step. D17 records continued implementation authority
+  subject to evidence and independent canonical-boundary review.
+- Independent premise review accepts the existing-owner direction and corrects
+  the review's overstatement about missing ownership and lost Water confidence.
+  Receipt: `tmp/world/completion_d58/architect/source-aware-premise-review.json`.
+- No city/canonical/source/material output or Git staging changes in this
+  investigation. No Check, Matrix, cook or release run.
+- Stage C independent architect selects mapping-first implementation and rejects
+  a standalone report-only API as unnecessary. Receipt:
+  `tmp/world/geographic_reconciliation_d59/architect/stage-c-minimal-route-review.json`.
+- The first bounded correction adds one mapper to canonical adapters and the
+  feature schema. Seven new tests first fail on lost semantics/unchanged bridge
+  identity, then pass. Fifty focused adapter, Water semantic/incremental and
+  canonical compiler tests pass. This preserves source meaning and unknowns;
+  it is not an elevated-road/fountain geometry implementation or Q5 completion.
+- Production projection exactly matches the bridge and fountain. Existing native
+  polygon/ribbon suppression against lake `3060471` exactly reproduces both
+  drain geometries, including the apparent 0.54 m mismatch. No tolerance changed.
+  Receipt: `tmp/world/geographic_reconciliation_d59/source/suppression-proof.json`.
+
+### 2026-10-17 - D17 selected target and lasting dependency-local rollout
+
+- Fresh Common Check, two-city immutable-base Matrix and selected-child target
+  pass. Matrix and target restore their prior World/canonical state exactly.
+  Target proof includes saved publication, cold no-op and deliberately failed
+  post-CAS publication with paired recovery; it is not a full-source Matrix.
+- The already-authorized lasting transaction accepts the same child, saves one
+  Road and two Water cell mesh/actor pairs, and passes cold zero-write replay.
+  Eight existing protected paths change (six packages and two active selectors);
+  exactly two new Road/Water scope manifests appear. All other protected paths,
+  including Terrain, Buildings, Manhattan and material resources, remain equal.
+  The original 6765-file baseline and the 6766-file immediate pre-census have
+  distinct purposes; the latter also includes the installed immutable child.
+- World active SHA-256 is
+  `8c8982d9853208360fa58a714e7a5e21d6cf368bd415a2ae15f52eef906a30fb`;
+  selected Canonical active SHA-256 is
+  `3dc19ba77242e8737e41b7aacb7d90bc2cf90ac80549317c20af93ffa520c2fb`.
+  The immutable base/source lineage remains unchanged. No raw-source replay,
+  base compilation, Terrain regeneration, staging or commit occurs.
+- Evidence: `tmp/world/geographic_reconciliation_d59/rollout-selected-v1/`
+  (`rollout.json`, `scope-verification.json`, saved/no-op receipts and cold audit),
+  and `architect/selected-target-and-rollout-review.json` under the D59 root.
+  That review accepts the target and prepared wrapper; completed integration
+  review and actual current packaged proof remain separate.
+- Completed integration review now passes in
+  `architect/completed-selected-rollout-and-reader-review.json`. The installed
+  EndToEndValidation final reader passes 20 owning and 13 exact existing-consumer
+  tests. It reads the genuine mixed base/child World through 48 retained bindings
+  and the cold audit of 3096 artifacts. All 32 original disposable receipt files
+  are physically absent during the retained-only proof, then restored byte-for-byte.
+  Historical producing and current reader identities stay separate. No new
+  producing gate or source replay is claimed by this final-reader proof.
+- Actual adopted Kazan PIE verifies the saved Road/Water actors, not replacement
+  fixtures. Bridge collision rays hit the expected Road; 93 walking-floor samples
+  remain walkable on it. Drain Water retains RiverCalm and NoCollision, without
+  the raised junction lip in the inspected views. Each case captures 48 distinct
+  motion frames; inspected still/start/end frames do not certify global temporal
+  stability. The small approach overlap already measured in disposable scope
+  remains a separate limitation; these views are not full shoreline acceptance.
+  Both probes restore the pawn and clean packages. Editor exits normally, and
+  post-Editor inventory verifies the exact previously accepted scope/index delta.
+  Evidence: `rollout-selected-v1/editor/` under the D59 root.
+
+### 2026-10-17 - D17 semantic and numerical implementation; bridge construction
+
+- SourceIngestion now retains native way-node identity in normalized records.
+  The native closed-way line/area export needed a narrow metadata merge: only
+  identical tags with line-owned node references may merge; contradictory tags,
+  node sequences, equal-rank geometries and area-only node metadata still refuse.
+  Canonical mapping preserves bridge/tunnel/ford/covered/layer, constructed Water
+  context and paired original line nodes. Missing evidence remains unknown.
+  This changes future compilation, not immutable accepted city bundles; ordinary
+  source/base-compiler replay requirements are retained before base promotion.
+- Native GEOS could lose a real thin intersection at UTM coordinates. The
+  geometry child now calculates in a deterministic local frame and independently
+  validates returned coordinates with their measured float64 round-trip bound.
+  A subsequent source-shaped collinear cut exposed contradictory native overlay
+  containment. Known nonempty triangle domains now have a separate native
+  point-distance/convex-area certificate at the unchanged exterior limit.
+  Arbitrary polygons/holes retain their strict path; unknown distances, missing
+  coverage and overlaps refuse. Both numerical corrections have focused RED/GREEN
+  controls and closed independent architect PASS receipts in the D59 directory.
+- `refinement.api.build_bridge_profile` and its child-owned schema construct a
+  disposable source-station/lateral affine elevation field. Full endpoint sections
+  use final Terrain triangles; source-only sections and a concave support
+  envelope avoid reproducing native 7.5 m tessellation. The builder does not
+  authenticate supplementary source publication or activate a native Road
+  profile. Its six tests include positive lift, layer-not-metres, nonuniform
+  abutments, affine interior clearance, malformed values and unsupported crossing
+  refusal. Required architect PATCH findings were fixed; construction review is
+  closed at PASS, not production acceptance.
+- Final focused replay: 120 tests PASS in 263.669 s across SourceIngestion,
+  canonical semantics/incremental behavior, native geometry, terrain refinement,
+  immutable authority and Road elevation construction. Receipt:
+  `tmp/world/geographic_reconciliation_d59/tests/final-focused.log`.
+- The source-shaped bridge generates 60 height faces. Diagnostic consumption
+  over the characterized original 82 native ribbon faces produces 824 faces,
+  minimum final Terrain gap 0.1477993 m, maximum endpoint error about 1.9e-11 m,
+  and zero Terrain mutation. This is not the native Road producer. The earlier
+  164-face characterization added lateral controls to the ribbon; its results
+  must not be relabelled as unchanged original native tessellation. Existing
+  original-domain versus subdivided-domain coverage limitations remain recorded.
+- Live Editor testing retains a precise numerical limit: one exact thin-face ray
+  misses, while adjacent 1 mm controls and five 34/88 cm capsule sweeps pass.
+  Native weld/planar cleanup did not remove that ray miss and is not selected as
+  a production correction. Separate 20 m-deep PIE probes hit compiled Terrain at
+  all 47 points, below the proposed deck, with minimum sampled gap 0.1505954 m.
+  The transient Editor fixture is not duplicated into PIE; Editor component
+  collision and PIE background are distinct evidence, not an end-to-end PIE
+  bridge PASS. The earlier 22.98 cm error was a hit below the deck, not an
+  occluder above it. Preserve the failed control rather than hiding it.
+- Editor visibility, collision, camera and selection are restored; dirty map and
+  content package sets remain empty. The last inventory rehash confirms all 6765
+  protected paths and the operator-owned empty index unchanged. Recheck after
+  subsequent work. No new city/canonical/source-pin/material mutation, Check,
+  Matrix, cook, commit or release was performed in this stage.
+
+The first source-qualified child publisher and native Road consumer are now
+implemented in disposable scope. `refinement.api.prepare_bridge_refinement`
+consumes a pinned normalized provider document, verifies native provider identity,
+way/node versions, source date and exact directed projected geometry, authenticates
+the base result and original output inventory, and stages only the Road feature
+and its owning manifests. It preserves original source lineage and Terrain bytes.
+Native source timestamps are UNIX seconds; qualified ISO timestamps are also
+accepted without numeric-string or boolean coercion. Current matching semantic
+context is supplementary evidence, not recovered historical PBF replay.
+
+The native optional Road profile binds source ID, ordered points, width, UV height
+coverage/continuity and the complete raw Terrain support hashes. Planner and
+builder use the same path. Unprofiled output identity and revision stay unchanged.
+Admission/consumer defects were caught by negative controls and fixed; the
+separate final-clearance check now evaluates the emitted surface after its existing
+presentation offset. It does not require the source underlay itself to be above
+Terrain. Actual stored vertices are rechecked against final Terrain before writing.
+
+Latest focused Python replay: 128 tests PASS in 266.467 s, recorded in
+`tmp/world/geographic_reconciliation_d59/tests/final-refinement-focused.log`.
+The real native Osmium normalization produces supplementary context SHA-256
+`603d1e4cb213094d41947e77d336910b122ae61f4cf1f75b1328992000c3a7c7`;
+the disposable child inputs identity is
+`156a32f7096a9c906d40922ce570bc8081ac1b403bfd5d30bca5f4fc67d026f5`.
+The eight publisher tests and independent publisher/native-contract reviews pass.
+
+Native source-shaped saved acceptance exposed float-storage collapse of internal UV splits,
+plus exactly duplicated mapped fan vertices. `Road.MappedSplit` reproduced the
+duplicate-vertex defect RED and passes after omitting only exact equal-XYZ fan
+edges, while requiring positive coverage of every original ribbon domain.
+Terrain intersections now validate canonical-height Roads without redundantly
+subdividing their emission; ordinary terrain draping retains its original cuts.
+
+Conversion is being certified per original native ribbon triangle, not per tiny
+internal subdivision. The disposable GEOS census covers 82 original domains,
+829 pre-cleanup faces and seven exact float collapses, with connected positive
+unions and no holes/multiplicity. Removed-positive-face and duplicate controls
+are rejected. This remains diagnostic, not native or production acceptance.
+`Road.StoredPolygon`, `Road.StoredGroup`, `Road.MappedSplit` and the strengthened
+`Road.CanonicalElevation` pass on the current native candidate. Group tests include
+a real height kink, missing/duplicate coverage, whole-domain collapse, a small-area
+deep notch and exterior spike. The last two exercise the inward-core and exterior
+distance guards. Cross-cell tests compare vertices emitted by both cells.
+
+Native Boolean normalization reported two components for one connected stored
+float graph. Installed GeometryCore exact predicates now certify positive-length
+shared-edge connectivity on the actual unshifted float coordinates, retaining
+native area, hole, inward-core, exterior-distance, height and Terrain guards.
+The captured collinear control failed RED and passes GREEN; point-only and real
+gap controls still refuse. Independent storage review is closed at PASS.
+The source-shaped producer now saves and cold-reloads one disposable actor with
+822 source faces and 251/251 collision-face centroid traces. Receipt:
+`tmp/world/geographic_reconciliation_d59/editor/native-saved-bridge-auto-fallback.json`.
+This is not continuous compiled fidelity or city adoption.
+
+The independent continuous source/fallback/physics census identifies native Auto
+fallback reduction: 822 source faces become 251 fallback/physics faces, with
+2.960788 m2 missing and 0.503841 m2 exterior footprint, and maximum absolute
+height difference 0.0089892 m. Compiled minimum Terrain clearance remains positive
+at 0.145662 m. This is expected native simplification, not a Nanite defect or a
+buried-deck result. That Auto candidate's abutment fidelity was not accepted.
+The subsequent bounded correction retains full native fallback triangles only in profile-containing
+Road cell meshes, with the effective variant in consumed unit identity; ordinary
+unprofiled cells keep their current identity and settings. All roads sharing one
+profile-containing cell share that mesh setting. The saved-output regression
+failed RED before the owner correction and passes with actual source/fallback/
+physics equality afterward. No geographic simplification tolerance was added.
+Receipt: `tmp/world/geographic_reconciliation_d59/editor/native-compiled-fidelity-auto-fallback.json`.
+
+One unrelated warm Editor startup timeout was localized by native debugger to
+Slate prepass before automation; explicit `/Engine/Maps/Entry` startup restored
+exact-test dispatch. No Matrix, cook, source pin, city geometry or material change
+has been performed for this D17 continuation. The completed saved-native bridge
+boundary now passes independent architect review: 822 source/fallback/physics
+faces and 822/822 collision rays; including both incident approaches gives
+1190/1190/1190 faces and 1190/1190 rays. Continuous source-only comparison has zero
+missing/exterior area and height error; minimum final Terrain clearance is
+0.147799164 m. Real Kazan PIE uses that saved native candidate, not an imported
+prototype: all 68 sampled character floors are walkable on the candidate, six
+height rays agree, and 52 distinct captured motion frames were inspected. The
+64-frame limit was not the actual captured count. Matched captures show the old
+flooded dip replaced by a continuous raised deck. The original city actor state,
+clean packages and all 6765 protected paths/index were restored unchanged.
+Receipt: `tmp/world/geographic_reconciliation_d59/architect/native-road-completed-boundary-review.json`.
+This closes the disposable bridge consumer boundary, not city adoption, whole-cell
+junction perfection, packaged Nanite pixels or the independent bank problem.
+
+The bank, unequal drains and fountain remain independent. New York's public
+2017 bare-earth LiDAR provides useful supplementary data. The original generic
+NAD83/GEOID99 probe reports 1.213 m operation accuracy and does not establish the
+acquisition's GEOID12B realization. A later conditional check uses the delivery
+report's NAD83(2011) frame and an explicit checksum-verified GEOID12B grid through
+the installed PROJ/GDAL APIs. Its 6,889 sampled window heights are 13.1585-13.7983 m
+in EGM2008, with PROJ-reported aggregate operation accuracy 2.133 m. This proves
+the model is available; it does not prove the mosaic's exact processing, survey
+accuracy or a later constructed basin level. The
+[official delivery metadata](https://www.fisheries.noaa.gov/inport/item/64734)
+specifies NAD83(2011). The delivery report explicitly explains the generic NAD83
+GIS label despite creation in NAD83(2011); that label alone is not an unresolved
+datum contradiction. The explicit 2011/GEOID12B diagnostic has stronger support
+than the earlier generic-GEOID99 hypothesis. Exact tile/resampling lineage and
+the constructed basin/waterline still are not authenticated geographic authority.
+Receipt: `tmp/world/geographic_reconciliation_d59/source/datum-2011/qualification.json`.
+Source follow-up: `source/nyc-datum-source-followup.json` under the same run root.
+Neither diagnostic can silently replace accepted GLO30 DSM/EGM2008 authority or
+supply an invented basin level. Independent remaining-case feasibility review
+is UNVERIFIED in `architect/bank-fountain-feasibility-review.json`: an exact
+vertical bank would change the canonical/query representation, and constructed
+classification alone supplies no basin elevation.
+No new geographic/source-risk exception or cut/fill limits are accepted.
+
+Additional current-source attribution narrows the bank investigation. In the
+original failing quad, mapped bridge outlines cover 385.205 of 569.054 m2 of
+Terrain-above-Water area. The 59.9 m control driving the 59.9/50/50 m triangle
+lies inside a mapped bridge, while the observed witness is 0.688 m outside its
+outline. The separate 58.0 m control remains outside the outlines. Copernicus
+GLO30 is a DSM; these controls cannot automatically be treated as bare ground.
+This supports investigating deck contamination, not choosing an inpainted bed,
+expanding a bridge footprint or approving the rejected bank cut. Its reported
+4 m/90-percent accuracy is not a hard error bound or a cut allowance. Independent
+review remains UNVERIFIED for correction in `architect/bank-bridge-attribution-review.json`.
+Evidence: `source/bank-current-context.json`, `source/bank-bridge-attribution.json`
+and `source/bank-control-attribution.json` under the D59 directory.
+
+The conditional GEOID12B fountain probe has 1,706 interior samples spanning
+13.1585-13.4804 m and 365 boundary-near samples spanning 13.1740-13.4947 m.
+This further challenges the coarse point fallback; it still supplies no accepted
+basin level, freeboard or depth. Retain its source-frame/epoch limitations.
+
+#### Bounded drain reconciliation under D17 - disposable proof PASS
+
+The two connected drains do not have conflicting surveyed levels: both retained
+functions explicitly use `canonical_terrain_robust_fit` with
+`derived_not_surveyed` accuracy. Independent per-way fitting omitted their shared
+source-node constraint. The receiving function already has 53.5 m at the common
+node; the tributary ends at 53.7 m. The earlier terminal-only negative control
+measures unquantized functions. It does not falsify the existing native Water
+contract, which applies the accepted 0.1 m height quantization.
+
+The independent whole-overlap diagnostic bounds a terminal-constrained candidate
+within the same 53.5 m quantization bin throughout the retained 1.002070 m2
+overlap. An unrounded difference up to 0.008713 m remains explicit. Receipt:
+`tmp/world/geographic_reconciliation_d59/architect/drain-terminal-quantized-diagnostic.json`.
+
+The bounded experiment is canonical-owned and disposable: qualify complete
+supplementary way/node evidence through SourceIngestion, including any mapped
+control tags; preserve receiving heights, original XY, widths, unrelated knots,
+Terrain and original source lineage; constrain only the tributary terminal knot
+to the receiver's existing value. Record the changed derived model and original
+fit diagnostics honestly. Shared-node geometry and absent mapped controls are
+evidence for a bounded game-world confluence model, not proof that an unmapped
+weir cannot exist.
+
+Replay existing Water 5 source approximation and equal-quantized composition,
+then measure actual finite-width native output, saved/fallback/collision behavior,
+external sections and affected-unit locality. No new 2D surface ABI, join solver,
+radius, terrain cut or hidden Water-leaf snapping is justified unless this route
+fails. Admission/refusal tests must cover missing node evidence, source mismatch,
+stale inputs and conflicting controls with protected-state invariance.
+Independent premise receipt:
+`tmp/world/geographic_reconciliation_d59/architect/drain-source-qualified-next-slice-review.json`.
+
+SourceIngestion now qualifies every ordered way/node record and complete properties.
+The pure child constructor changes only the tributary terminal knot and records
+`constrained_flowing_knots:v1` with the complete original fit as provenance.
+Focused RED controls caught missing source-order, underground-channel and
+sluice/unknown-control refusals; all five owning Python tests now pass. The
+new native function admission test failed RED for the missing family and
+coerced numeric inputs; both it and the original Water contract now pass.
+
+The first real native experiment removes 0.995670071 m2 of emitted double-surface
+overlap. The two source footprints overlap 1.002070 m2 before native quantization;
+these are different measured surfaces, not interchangeable numbers. The unchanged
+neighbor cell remains exact. The changed stored union has 0.0000682004 m2 missing
+and 0.0000127350 m2 exterior difference, confined to its derived 0.0000552427 m
+float-rounding boundary strip, with one component and no holes. Do not report exact
+zero footprint difference. Local junction-cell minimum Water/Terrain clearance
+remains +0.0354429 m; an unchanged upstream cell retains a separate 0.415369 m
+burial and is not certified by this confluence correction.
+
+Retessellation changes a receiving-channel section by about +0.149939 m. The
+independent source witness attributes this to an old CDT interpolation error:
+error against unchanged receiver height 53.2 + 0.25 m improves from -0.150184 m
+to -0.000245 m there. The receiving function is unchanged; its emitted geometry
+is not. Constructor/native admission review is closed at PASS, while refreshed
+saved-output and visual proofs below close that disposable boundary. Production
+authority integration and city adoption remain open.
+Receipts: `tmp/world/geographic_reconciliation_d59/architect/drain-disposable-boundary-review.json`,
+`tmp/world/geographic_reconciliation_d59/drain_native_fixture/native-independent-measurement.json`.
+
+The refreshed candidate `0adfbcfc2ce2bb51c23087c428b1f2813b80c7b65f404f3507ea1b5217324a6b`
+now passes the synthetic and real saved native test. Four complete production-
+context cells retain every Water source: 116/192/79/198 faces become
+116/309/79/198, with positive overlap 0.995670212 m2 -> 0. Only the two cells
+consuming the changed tributary advance input identity; the other two remain equal.
+The bounded saved fixture independently passes cold source/compiled equality for
+309, 198, 96 and 79 faces, loaded RiverCalm references, no Water collision and
+zero-write replay. Its lake preparation domain differs from the full city (96
+versus 116 faces in one unchanged context cell); both confluence-axis domains
+remain exact. Do not transfer bounded saved bytes to production-cell fidelity.
+The initial empty full-city fixture triggered legitimate missing-output repair;
+the final fixture explicitly bounds its own canonical cell domain instead of
+weakening the production writer. Protected production paths and index remain equal.
+Evidence: `tmp/world/geographic_reconciliation_d59/drain_native_final/` and
+`tests/drain-bounded-real.log` under the same run root. The complete saved-source/
+compiled position multisets match independently; changed-height support closure
+is 60.573488258 m2 with continuous minimum Terrain clearance +0.079140807 m.
+Independent saved-boundary review is PASS in
+`architect/drain-native-saved-final-review.json`. The true Kazan PIE comparison
+in `drain_native_final/city-visual-v2/` removes the raised lip, retains RiverCalm,
+captures 32 motion frames and restores pawn position, source visibility and clean
+packages. The first probe's generic scratch-actor collision setting is excluded;
+the second explicitly verifies NoCollision. No packaged performance or global
+shoreline/collision claim follows from these local observations.
+
+#### Required effective-authority integration under D17
+
+Premise/KISS: native loading already accepts a genuine `refine` result. The
+missing responsibilities sit in the existing canonical authority, acceptance
+selection and World transaction owners. Reuse their ZIP, locks, materializer,
+native unit hashes and rollback. No second active pointer, loader, framework or
+cache is needed. Independent plan judgment is PASS in
+`tmp/world/geographic_reconciliation_d59/architect/refinement-production-integration-plan-review.json`.
+This is bounded implementation under D17, not new operator authority from a review.
+
+1. Prepare the requested Bridge and Water corrections together from one immutable
+   authenticated compile base. Qualify complete source context, reject overlapping
+   feature writers, and merge each changed shard/manifest once. Preserve the original
+   source/canonical lineage and all unrelated bytes; publish one genuine child result.
+2. Extend the existing single canonical `active.json` with an optional authenticated
+   selected-refinement descriptor and distinct effective identity. Retain the base
+   bundle and compile/admission receipt. Use deterministic child payloads and
+   effective-content materialization; base-only authorities retain their route.
+   New base compilation must explicitly reconcile an existing child, never silently
+   carry or discard it. Candidate admission binds current child/source/native proofs;
+   later consumption retains historical producer identities separately from readers.
+3. Keep the current immutable-input gate strict. Add explicit child-producing
+   acceptance bound to the unchanged historical base and exact candidate/current
+   producer evidence, then use the existing selected World legs. Do not misreport
+   new refinement promotion as old immutable output or fresh base compilation.
+4. Extend selected World admission through authenticated old/effective native
+   `HashUnitInputs` equivalence for every unselected owner, unchanged grid/map/
+   runtime/presentation/Terrain contracts and exact permitted feature differences.
+   Selected owners record the effective receipt; carried owners/map retain genuine
+   prior lineage and bytes. Persist compatibility proof for cold audit/reconstruction.
+   Do not bypass the current global map-input guard or claim cross-owner atomicity.
+5. Regression targets: combined same-shard preservation; stale/overlapping patches;
+   base/context/identity drift; source/control refusal; immutable/base change refusal;
+   selected owner/unselected-input refusal; failed promotion leaves active bytes;
+   child cache correctness; deterministic cold/no-op and actual saved rollback.
+   Native cell comparisons and actual city visual/geometry/collision checks precede
+   dependency-local adoption. Current geographic hold and bank/fountain limits remain.
+
+Stable documentation owners: CanonicalCompilation refinement/authority contract,
+EndToEndValidation acceptance contract and World transaction/territory SOTs. Their
+diagrams must show base and effective lineage without making a task file a contract.
+
+Completed preparation boundaries:
+
+- Common feature publication passes independent review after a demonstrated
+  provider-class regression was fixed. Complete way/node context, source metric
+  guards, same-shard composition and immutable artifact cross-links are covered.
+  The combined v3 result is
+  `6928d65fd6e2fe6ec7575b408e6a2431d990eaaddb5ed365be5f7c716c9d6d8b`
+  with 641 outputs. Source and native producing identities remain separate from
+  the immutable base. Reviews are in `architect/common-surface-publication-*.json`.
+- The isolated effective-authority API replays the exact current operation,
+  retains the base ZIP/compile/admission fields and prepares a closed selected
+  child with distinct effective cache identity. Current admission and frozen
+  consumption are tested separately. A focused RED exposed acceptance of a
+  changed cached receipt; both receipt and payload identity now refuse. Seven
+  authority tests and six existing promotion tests pass; the final focused
+  authority/publication/Road/Water run passes 26 tests. Independent authority
+  preparation review is PASS in `architect/refinement-authority-preparation-review.json`.
+  Real candidate: `combined_surface_authority_v1/active.json`, effective identity
+  `11bab9b119e56b30dd29fa9c391ce4438865d85c364db768f063729ecb55e6e8`.
+  Its original accepted pointer remains byte-identical. The owner selection
+  primitives below now exist; this historical candidate is not a selected city
+  authority or a shortcut around current World acceptance.
+- The actual native Validate/HashUnitInputs census covers all 1,053 units.
+  Only Road `x1:y1` and Water `x4:y-6`/`x5:y-6` differ. All six layer contracts and
+  dependency-input arrays match; Terrain, Buildings, Vegetation and Gameplay
+  canonical inputs match. Unselected current producer fingerprints equal their
+  accepted manifests. Vegetation remains in the execution dependency closure.
+  This replaces a Build-semantic estimate with native consumer-input proof;
+  it is not rollout authorization. Receipts: `native-input-census/`.
+- The read-only native evidence route supports `tmp/world/`. Independent review
+  found stale negative fixtures and result/input alias risks. Focused native RED
+  demonstrated input overwrite only in disposable files. Host and direct native
+  writers now guard result/log/tmp files, canonical trees, explicit inputs,
+  generated dirty-input files and host manifest authority before writes. Actual
+  host receipt/payload/manifest/profile alias refusals preserve bytes. Diagnostics
+  review is PASS in `architect/native-diagnostics-final-recheck.json` after four
+  exact native tests, ten focused Pester checks and five actual host refusal
+  cases. No broad Check/Matrix/cook was used.
+- Explicit candidate-input admission retains the unchanged historical base and
+  binds the exact effective result, current child/source/native identities and
+  final input pins. The actual producer-race RED controls are GREEN; independent
+  RS1 recheck is PASS. The previously invalidated immutable-reader test passes its
+  exact frozen-reader replay (`tests/immutable-canonical-exact-replay.log`).
+  Public `refinement-inputs` and `verify-refinement-inputs` execute successfully
+  against the real combined candidate without acquisition, base compilation,
+  World execution or promotion. The selection SHA is
+  `8f0a3b72dd64a1352363ef1893b0e08dd88d3ae99c74d26b004505febbee017c`.
+  Twelve focused candidate/CLI Python tests pass.
+- Every native BEFORE canonical/dependency input also matches the accepted layer
+  manifests, across all 1,053 units. Compact transition preparation binds the
+  original map and layer manifest pins and exact before/after input digests;
+  `native-input-census/transition.json` retains no temporary paths as durable inputs.
+  The shared serializer's empty-object failure was reproduced and corrected.
+  Passive map-scoped compatibility now has a closed active-set schema and cold
+  reader checks. Disposable metadata fixtures preserve carried manifests, truthful
+  mixed lineage, other-map bindings and unchanged repeated active-set bytes.
+  Forged inputs/changed-unit declarations and missing historical evidence refuse.
+  Initial focused Pester: 23 PASS; existing manifest/material regressions: 58 PASS.
+  Independent review reproduced one persisted unselected-fingerprint gap. Its
+  publisher-level RED changed only disposable metadata; the corrected validator
+  refuses before candidate writes and retains exact active-set bytes. All seven
+  final persistence tests pass. Completed-boundary recheck is PASS in
+  `architect/passive-compatibility-pc1-recheck.json`. This adds no host guard bypass,
+  canonical activation, production package writes or completed World acceptance.
+
+- Canonical selection preparation/publication/recovery now uses the existing
+  profile lock and immutable payload store. Nine focused activation tests and
+  six existing promotion regressions pass. Independent review is PASS in
+  `architect/canonical-selection-cas-review.json`. Exact old/new pointer bytes,
+  conflicting payloads, stale producers, unknown pointers, repeat no-ops and
+  qualified reverse publication are covered. These primitives are not World
+  acceptance or a two-file atomicity claim.
+- Paired World completion/recovery authenticates both pointers, exact committed
+  bindings and artifacts. Actual RED controls exposed successful cleanup with
+  damaged packages and unsafe missing/corrupt rollback evidence. The corrected
+  path authenticates the actual restoration closure, including carried Building
+  backups, before mutation and verifies restored bytes before cleanup. Independent
+  PR1/PR2 closure is PASS in `architect/paired-world-recovery-closure-recheck.json`.
+- Selected-host integration now verifies public candidate admission and real
+  native before/after inputs, preserves the map and truly unchanged dependents,
+  journals canonical recovery metadata, selects canonical through its owner and
+  activates World last. A failed World commit after canonical CAS retains known
+  staging for exact-hash recovery; unknown staging refuses. Subsequent accepted
+  replay does not require the original temporary selection. Review exposed and
+  fixed two consumer defects: material-only adoption blocking later geometry
+  replay, and reconstruction/other-owner repair inheriting the initial writer
+  restriction. Actual RED/GREEN and 142 focused/existing Pester passes support
+  source-review PASS in `architect/selected-host-integration-sh1-sh2-recheck.json`.
+  Their owner/native transports are mocked; this is not a real city rollout claim.
+- The real public-owner preflight exposed multiple Python applications returned
+  by Windows PATH discovery. Both new transports now select the first application;
+  two direct subprocess RED/GREEN controls cover duplicate discovery and spaced
+  paths. No engine/source/city regeneration was needed for the fix.
+- A fresh v4 child, after the canonical activation source was frozen, has result
+  `6bc19c8d4eff2f905d03bd7ec2b997f879c6bf65c847e058fad6ebd66170f0a8`
+  and 641 outputs. Isolated authority v2 and public input admission are prepared;
+  actual native base/effective Validate runs pass in `native-input-census-v4/`.
+  The older v3 authority and admission hashes above remain historical evidence;
+  they are not current-producing acceptance after the source changes.
+
+- The real public-owner preflight and deliberately failed final World commit now
+  pass. The native child saved three updated actors. Canonical selection advanced,
+  the held World active-set file rejected replacement, and the saved journal
+  recorded the intended `publishing`/canonical-selected/World-prior state. Explicit
+  recovery restored both original pointers and all 6,765 protected files; the
+  index is unchanged. Cold durable audit is accepted. Receipts are under
+  `selected-probe-v4/`; this is actual recovery proof, not successful adoption.
+- Selected-target acceptance now composes the existing Common Check, exact
+  immutable-base Matrix, supported selected host and generated-content outer
+  recovery. It explicitly tests saved publication, cold no-op and failed-commit
+  recovery before restoring both original authorities. The optional canonical
+  participant shares the existing marker; Material is not fabricated. Independent
+  review found an initial-copy authentication gap and an unbound private child
+  route. Corrupt initial-copy and wrong-World-owner RED controls are fixed; eight
+  outer controls and ten focused candidate/target Python checks pass. Independent
+  RT1/RT2 source recheck is PASS. Real target execution remains pending.
+
+Initial acceptance diagnosis (superseded by the accepted gates above): the first Common Check stopped at two lifecycle
+tests. The runtime-profile refusal fixture used the newly permitted diagnostic
+root; its deliberately forbidden destination now uses an adjacent sibling and
+all three exact tests pass. The existing-package suite passes all eleven tests
+with tracked source frozen. The replacement Check passes 159 canonical, 184
+end-to-end, eight architecture and 308 lifecycle tests, then correctly rejects
+stale synthetic native fixture identity. Removing only new `surface_context`
+fields exactly restores the prior feature identity. The documented Twin baseline
+writer updates one input pin in each of three files and reports zero projection
+differences for Map, MeshTerrain and Pipeline. No producer revision or saved
+projection changes; all 6,765 protected production files and the index remain
+unchanged. Independent input-only baseline review is PASS. The remaining native
+Realization suite passes all 93 tests in 111.6 seconds. Ordinary Twin comparison
+and final current Check remain required.
+
+Final release provenance also needs the explicit completion-reader handoff in
+`architect/refinement-final-provenance-plan-review.json`. Preserve separate base
+Matrix, selected target and actual selected rollout evidence, plus each scope's
+real carried/effective lineage. Do not label the target a full Matrix or force
+unchanged scopes to regenerate for a single compile tuple. Preserve exact tested
+input hash tables before acceptance-only reader changes; current-producing
+admission stays strict. This missing reader is not a new geographic policy or
+permission to skip package/gameplay/GPU gates.
+
+Current continuation: the fresh Common Check, immutable-base Matrix, selected
+target and dependency-local three-cell rollout have passed (current evidence
+above). Bank/fountain geography and Q5 remain open; no release completion follows.
+
+#### Packaged preflight schema repair - bounded continuation
+
+The first current Development attempt stopped before build/cook. The generic
+Data validator correctly rejected the selected Canonical pointer's URL `$schema`.
+This is a refinement publication defect, not an OSM, geometry or material defect.
+Evidence: `tmp/world/geographic_reconciliation_d59/package/development-package.log`.
+
+CHANGED: Canonical candidate/transition metadata validation; a separate World
+metadata operation using existing locks, outer snapshot/CAS and empty-candidate
+publication; retained completion's explicit metadata-successor proof. UNTOUCHED:
+base/child bundles, features, all generated geometry/materials, scope manifests,
+geographic source pins and original gate receipts. No generator is invoked.
+
+1. Require durable-relative references for fresh candidates and first activation.
+   Preserve historical reads and qualified restore. The fresh URL-admission RED
+   fails as expected; 25 focused authority/activation/schema tests pass.
+2. Authenticate a closed schema-only successor ticket under the Canonical owner.
+   Use the existing outer marker before CAS; publish World last with only the
+   corresponding candidate pointer hash and normal transaction ancestry changed.
+3. Prove actual post-CAS World replacement refusal/restoration, saved/cold no-op
+   and exact two-selector-only scope before lasting normalization. Retain paired
+   bytes before snapshot cleanup; finalize accepted evidence after completion.
+4. Verify the historical geometry-to-current-metadata link in the final reader.
+   Keep producing execution historical; qualify current metadata separately.
+   Then freeze the corrected source and resume independent packaged checks.
+
+Independent design PASS: `architect/schema-reference-outer-only-design-review.json`.
+SR3 fresh-admission finding is closed at PASS; actual host acceptance remains
+separate from geographic acceptance. The saved/cold no-op/restored control and
+same fixed-source lasting normalization now pass. The lasting operation changes
+only the Canonical pointer and its World compatibility binding across 6,768
+protected paths; all 14 scope entries, artifacts and the empty index remain exact.
+Current pointer hashes are `fedbf16a143ec0008926842d16a0df2221afa0689fa548e708bc8c57177e758c`
+and `9df5ccf92acefba5800422e33ce067e4314c67f3103d9ddff7301670b738c0aa`.
+The child ZIP/result/effective identity and historical producing receipts are
+unchanged. Retained proof: `Saved/Validation/WorldAuthority/schema-reference-d59-lasting-v1/repair.json`;
+broader census: `schema-repair/lasting-broad-scope.json` under the run root.
+
+The interrupted failure control reached post-CAS Canonical-selected/World-prior
+with World staging present. The existing recovery command then verified exact
+prior identities and removed its retained marker. This is actual interruption
+recovery evidence; its original harness did not finish an IO-specific refusal
+receipt. The completed saved/restored control independently restores exact bytes.
+The generic inline validator now passes all 547 Data files; it was not weakened.
+Six existing base-promotion tests and 13 actual acceptance/material consumers pass.
+The 23 current completion tests reject semantic drift, executable helper defaults,
+forged pair ancestry, extra writes and removed operation source. Actual retained
+reader qualification now passes against all 3,096 artifacts and 14 scopes.
+Retained completion SHA:
+`3a8fa731d97005600b5dda53eef99cda094ba61486f0c4c129fb836bf49a790e` at
+`Saved/Validation/WorldAuthority/completion-d59-schema-v1/completion.json`.
+Independent completed integration PASS is recorded in
+`architect/schema-reference-completed-integration-review.json` under the run root.
+This is implementation within D17/FULL GO, not a geographic decision or exception
+to the release hold. The next independent execution is the exact frozen packaged
+campaign; it must retain its own source, payload, gameplay and performance pins.
+
+### 2026-10-16 - D16 packaged diagnostics and remaining geographic gate
+
+- The frozen v2 city candidate passes fresh Check/immutable Matrix, six
+  Development tours, both Shipping gameplay routes and both native Water pixel
+  gates. Original Water 5 adoption remains the only new city-output transaction;
+  all 6765 protected paths retain their accepted post-rollout bytes. There is no
+  raw-source replay, canonical promotion or terrain update.
+- Frame p95 is 16.1709003 ms Kazan and 15.4739991 ms Manhattan against 16.67 ms,
+  without host allowance or waiver. Named Building ray/capsule and observed
+  streaming checks pass. These prescribed routes do not measure all shores or
+  establish the correctness of the retained bank, flooded road or fountain.
+- Native exclusive Water/depth counter measurements and shared cache/live-bound
+  resource checks are recorded with their limitations in release-plan D27.
+  The primary-only cache-proof reader receives a separate focused RED/GREEN17
+  correction and independent review. This host-only change postdates the frozen
+  package and changes shared proof identity; final gates must follow the final
+  accepted geographic/source candidate, without relabelling old receipts.
+- Q5 is still a genuine operator decision: retain the geographic release hold,
+  or explicitly accept the named retained defects and wider unmeasured shoreline
+  risk as 3.0.0 exceptions. The independent proposal recommends retaining the hold.
+  The rejected 112182.579 m2 bank modification, source levels, quality limits and
+  low-confidence classifications remain unchanged. No exception or final R5 is
+  accepted by these technical results. Evidence: `tmp/world/completion_d58/`.
+
+### 2026-10-16 - D16 resumed Water revision 5 rollout
+
+- Release-plan D27 resumes the existing FULL GO. D56 stays accepted; its Check
+  and two-city immutable Matrix are input-valid and are not repeated.
+- Native validation and the existing Water plus dependent Vegetation transaction
+  pass in both cities. Actual writes are only the two changed Water mesh/actor
+  pairs (Kazan x4:y-6; Manhattan x6:y6), two Water scope manifests and active_set.
+  All other generated owners, source/canonical data and accepted materials are
+  byte-identical. Cold repeats are exact zero-write no-ops. The fresh native
+  census compares all 145 Kazan plus 115 Manhattan nonempty Water outputs with
+  current source geometry and finds zero differences. Pre/post-rollout independent
+  architect PASS: `tmp/world/completion_d58/architect/water5-postrollout.json`.
+- Source-risk closure remains separate. The residual 21 unequal-height contacts
+  have maximum emitted separation 21.2871823854 cm and occupy a compact
+  1.5055 m by 1.0171 m region. They are not the full shoreline problem. Q5's
+  broader bank controls and low-confidence Manhattan fountain remain unchanged.
+- Actual direct-map PIE consequence observations use the production SinglePlayer
+  GameMode and DefinitionCharacter; they do not claim ProjectLoading provenance
+  or packaged acceptance. Both Kazan controls retain native ground support during
+  approach/return and observed streaming cycles. The bank's visible road/Water
+  overlap remains. Independent packaged evidence and a measured risk decision
+  still follow. Scratch: `tmp/world/completion_d58/`.
+- A subsequent test-only WITH_EDITOR guard correction is needed for the exact
+  Development package build. It does not invalidate the verified Water geometry
+  or trigger another production write. Its changed Common proof identity requires
+  fresh current-source acceptance before final certification; release-plan D27
+  owns the retained failure, focused build/fixture GREEN and final proof route.
+- Independent geographic disposition review authenticates the four local controls
+  and retained candidate measurements. It recommends retaining the Q5 release hold:
+  local grounded access does not certify wider shores or accept the named visual
+  defects. No source levels, distortion limits or confidence classes change.
+  The broader bank, wet road, small drain step and incomplete fountain remain
+  separate disclosed consequences. Receipt:
+  `tmp/world/completion_d58/architect/geographic-disposition-review.json`.
+- The complete first frozen Development campaign passes both cities at the
+  unchanged 16.67 ms budget without allowance or waiver. A subsequent T6
+  observer correction adds actual named-surface capsule/normal evidence; exact
+  replay and current-source Check/immutable Matrix follow at their acceptance
+  boundary. This verification work does not reopen the accepted Water rollout.
+
+### 2026-10-16 - D15 immutable-base acceptance and retention correction
+
+- Release-plan D26 supersedes the previous assumption that all post-canonical
+  edits require historical raw replay. Current authorities and generated outputs
+  remain unchanged; the old producer and current compiler are not asserted equal.
+- Q4 construction/publication now has a separately authenticated child API and
+  result contract. The base compile/promotion boundary stays compile-only. Native
+  refined queries and final render/fallback/collision surface tests pass after
+  the split, including malformed geometry and wrong receipt-kind controls.
+- The existing validation owner provides explicit immutable artifact-consumer
+  admission, current identities and strict changed-input refusal. Five current
+  immutable and five operation tests pass; real read-only planning selects this
+  mode. Independent architect PASS closes its bounded code review. Current
+  Common Check is accepted at `check-20261016T110153Z`, including 83 native
+  realization tests and the rendered twin. The first Matrix remains rejected
+  for a wrong-boundary Manhattan sabotage fixture; its focused RED/GREEN and
+  architect-reviewed correction preserve production accuracy and native limits.
+  Replacement `run-20261016T112104Z` is accepted for both cities: unchanged
+  canonical consumption, no-op/locality, intended rejection/rollback, matching
+  cold reconstruction and exact generated-tree restoration. The final guard
+  confirms all 6763 protected files and operator Git state unchanged. Release-plan
+  D26 owns the exact receipts. Production Water and geographic policy acceptance
+  remain open; this Matrix did not promote either.
+- Source retention/recovery is proved separately. Four original DEM files have
+  two verified durable copies; neither missing historical OSM snapshot was
+  recovered or replaced. Evidence: `tmp/world/pipeline_dependency_d56/`.
+- Q5 numeric limits, the 21 genuine unequal-height contacts and a measured
+  release-exception proposal remain open. The rejected broad bank modification
+  is not authorized; Q4's fixture proof does not close those geographic risks.
+
+### 2026-10-16 - D14 source-shaped shoreline and mixed-contact diagnosis
+
+- Authenticated Kazan archive SHA-256
+  `995fb0fb1d6550925efaf55111a6936e600658d0b9cb3938461a3e6cac47b8dc`,
+  its compile-result and every output. The retained Kazan probe is cell
+  `grid_413718bc833994e5:x1:y1`, quad `(10,11)`, XY
+  `(381018.85,6185692.59)`, Water `alis:osm:relation:7493502`.
+  Its actual globally flowing function has 591 knots over 49.5-51.1 m. A
+  nearest-segment whole-domain certificate proves a local 50 m plateau without
+  replacing that function or flattening the full feature.
+- Native partition measurements below retain original dry grid controls. These
+  are open-edge diagnostics, NOT publishable canonical candidates or accepted
+  terrain limits. Fill is zero and maximum cut is 7.662962 m in all four.
+
+  | Selected quads | Final triangles | Cut volume m3 | Changed dry area m2 | Maximum dry gradient m/m | Outer height discrepancy m |
+  |---|---:|---:|---:|---:|---:|
+  | 1 | 8 | 2789.145 | 330.946 | 1.665870 | 7.662962 |
+  | 9 | 46 | 9353.116 | 1275.084 | 5.156556 | 4.621937 |
+  | 25 | 128 | 15333.709 | 3471.939 | 5.156556 | 2.673597 |
+  | 81 | 322 | 21927.222 | 8892.436 | 14.384099 | 4.256090 |
+
+- Complete native coverage checks pass for all 116 measured quads; an analytic
+  900 m2 by 2 m prism gives 1800 m3, the known-bad clearance control fails, and a
+  nearby different-height knot invalidates the plateau certificate. Reported zero
+  source-model Water clearance is not compiled terrain, collision or city proof.
+- Independent architect recomputation authenticates all 504 recorded original
+  faces and the measurements. Its policy judgment remains PATCH for automatic
+  adoption: slopes follow retained dry-control lower bounds, not merely CDT
+  slivers. A 54 m control only 0.7757115 m from 50 m Water forces gradient at
+  least 5.156556. Smoothing it would mutate actual dry ground. Copernicus GLO30
+  DSM's 4 m LE90 is neither surveyed bare ground nor permission to make that cut.
+  Larger windows increase affected bank area and do not remove this constraint.
+- The subsequent source/control-preserving closure diagnostic flood-fills 315
+  changed quads and five unchanged topology-collar quads across six cells. This
+  is not a proof of the smallest physical patch. Selected shared seams agree and
+  original grid-control height changes are zero, but two outer edges remain open
+  and three frontier quads reach genuinely varying Water heights. It is NOT a
+  publishable candidate. Measured cut is 177867.092 m3, changed dry area
+  112182.579 m2, and maximum dry gradient 186.750904 m/m. The latter agrees with
+  the retained-control slope lower bound; triangulation cannot remove it. There
+  are 81 modeled civil-feature overlaps and nine invalid building geometries
+  whose conflict state is unknown. No continuity endcap or whole-river minimum
+  was substituted to manufacture closure.
+- Any bank resynthesis must report original dry-control displacement separately,
+  protect authored/civil constraints and justify its policy. The selected dry
+  control is 5.26085 m from the modeled primary road `alis:osm:way:197403553`
+  (Kremlyovskaya dam); inferred width is 10 m. This establishes proximity, not a
+  surveyed quay/bridge boundary or permission to lower that road's ground.
+- The low-confidence Manhattan feature `alis:osm:way:576035677` remains unchanged.
+  A read-only official OSM API check identifies version 1 (2018-04-03) with
+  `amenity=fountain`, `barrier=kerb`, `natural=water`; all 23 vertices match the
+  canonical footprint within 0.006163 m. This is constructed-water context, not
+  a natural river shoreline or surveyed basin elevation. It supports preserving
+  the existing low-confidence terrain-conditioning refusal. It does not resolve
+  its appearance, justify deleting/raising Water, or authorize release disposition.
+  Current compiler classification drops amenity/barrier evidence; any durable
+  constructed-water classification must enter through authenticated source
+  semantics, never a scratch feature-ID allowlist in an adapter.
+- The six previously reported mixed Water contacts are detector-qualified, not a
+  complete positive-area inventory. Exact selected-feature analysis finds seven
+  overlaps totaling 0.5068924553 m2, maximum emitted mismatch 4.02465318 mm, in
+  Kazan cell `(4,-6)`, between `alis:osm:way:1290267745` and
+  `alis:osm:way:1290267747`. Both source evaluators quantize to 53.7 m throughout
+  those convex overlaps; raw functions differ and connectivity remains unknown.
+  Bounded source-evaluated conforming subdivision is implemented. A
+  whole-face flatten or overlap-only cut would respectively erase a valid high
+  corner or create a seam; neither is accepted.
+- Native revision-5 replay and independent GEOS 3.14.1 analysis resolve all seven
+  selected mixed contacts and all 39 equal-height contacts. The entire mixed
+  overlap retains 5395 cm emitted height, including the separate +25 cm
+  presentation offset; the legitimate 5405 cm corner remains exact. Cell-border
+  segments are unchanged (34 Kazan, four Manhattan), with no newly detected
+  same-height T-junctions. Projected missing/added boundary areas are confined
+  to the measured float-emission error band (maximum boundary displacement
+  0.002173 cm), not interior holes.
+- The unrestricted positive-area inventory also finds 21 real Kazan contacts
+  between `alis:osm:way:1290267745` and `alis:osm:way:167311915`. Their local
+  canonical functions differ, 53.7 m versus 53.5 m; emitted separation is
+  20.0-21.2871823854 cm over 0.9956702123 m2 total pair-overlap area. These are not
+  numerical slivers, source equality, or permission to merge connectivity.
+  Manhattan has no remaining positive-area contacts in the selected replay cell.
+- The native both-city census authenticates all 260 nonempty Water cells.
+  Candidate geometry changes only Kazan `(4,-6)` (189 -> 192 triangles) and
+  Manhattan `(6,6)` (129 -> 121); the other 258 descriptions remain exact.
+  Candidate city totals are 11829 and 13505 triangles. Output identity
+  revalidation is distinct from this two-cell mesh-change count. The independent
+  architect verdict is PASS for the bounded correction, not global clearance,
+  production rollout or final release acceptance.
+- A hypothetical one-Terrain-cell change projects 21 DAG reevaluation units
+  (Terrain 1, Water 1, Road 9, Vegetation 9, Buildings 1, Gameplay 0). This is not
+  an authenticated native write/package plan and excludes any broader changed
+  compiler implementation identity. Actual planning remains authoritative.
+- Evidence and inspected measurement board are under
+  `tmp/world/shoreline_candidate_d52/`; exact mixed-source receipts are under
+  `tmp/world/water_mixed_d53/`, including `architect/review-candidate.json`.
+  The native all-positive receipt is
+  `tmp/world/water_composition_replay/2537CC1443B3644B97CA7C9FCF8C0661/composition-candidate.json`.
+  No city output or canonical authority changed.
+  Q4 stays closed. Q5 and final integration remain open under FULL GO.
 
 ### 2026-10-15 - D13 disposable canonical final-surface implementation
 

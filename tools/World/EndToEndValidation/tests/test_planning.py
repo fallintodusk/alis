@@ -179,18 +179,21 @@ class WorldPipelinePlanningTests(unittest.TestCase):
     def test_synthetic_compiler_edit_keeps_production_canonical_mode(self) -> None:
         path = "Plugins/World/ProjectWorldTestData/Data/Profiles/CanonicalCompilation/synthetic_territory_twin.compile.json"
         validation = REPO_ROOT / "Plugins/World/ProjectWorldData/Data/Profiles/EndToEndValidation/kazan_territory_v1.validation.json"
-        plan = plan_for_paths([path], base="HEAD")
+        # This path-only case starts after the validation profile's own acceptance boundary.
+        with mock.patch("World.EndToEndValidation.app.canonical_mode._validation_profile_upstream_changed", return_value=False):
+            plan = plan_for_paths([path], base="HEAD")
+            require_world_only_changes([path], "HEAD", REPO_ROOT, validation_profile=validation)
         self.assertTrue(plan["l1_required"])
         self.assertEqual(["kazan_territory_v1"], plan["l2_matrices"])
         self.assertEqual({"kazan_territory_v1": "canonical_authority"}, plan["l2_matrix_modes"])
-        require_world_only_changes([path], "HEAD", REPO_ROOT, validation_profile=validation)
         # The general guard remains strict without an authenticated consumer scope.
         with self.assertRaises(CanonicalModeError):
             require_world_only_changes([path], "HEAD")
 
     def test_compiler_test_edit_invalidates_proofs_without_source_replay(self) -> None:
         path = "tools/World/CanonicalCompilation/tests/test_water_coverage.py"
-        plan = plan_for_paths([path], base="HEAD")
+        with mock.patch("World.EndToEndValidation.app.canonical_mode._validation_profile_upstream_changed", return_value=False):
+            plan = plan_for_paths([path], base="HEAD")
         self.assertTrue(plan["l1_required"])
         self.assertEqual({"kazan_territory_v1": "canonical_authority"}, plan["l2_matrix_modes"])
         require_world_only_changes([path], "HEAD")

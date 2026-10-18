@@ -181,7 +181,7 @@ namespace ProjectWorldCanonicalContractTests
 				Document.ByteSize);
 		}
 		const FString Receipt = FString::Printf(
-			LR"({"$schema":"https://alis.world/schemas/world-compiler/compile-result-v1.json","schema_version":1,"status":"accepted","profile_id":"fixture","inputs_hash":"0000000000000000000000000000000000000000000000000000000000000000","path_base":"output_root","outputs":[%s],"errors":[]})",
+			LR"({"$schema":"https://alis.world/schemas/world-compiler/compile-result-v1.json","schema_version":1,"operation_id":"compile:fixture","operation":"compile","status":"accepted","profile_id":"fixture","inputs_hash":"0000000000000000000000000000000000000000000000000000000000000000","path_base":"output_root","outputs":[%s],"errors":[]})",
 			*Outputs);
 		OutReceiptPath = FPaths::Combine(Root, TEXT("compile_result.json"));
 		return FFileHelper::SaveStringToFile(Receipt, *OutReceiptPath);

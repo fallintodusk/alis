@@ -58,7 +58,7 @@ namespace ProjectWorldTerrainSurface
 	}
 
 	bool Triangles(const FProjectWorldCanonicalCell& Cell, const FBox2D& Bounds,
-		TArray<FProjectWorldSurfaceTriangle>& Out, FString& Error)
+		TArray<FProjectWorldSurfaceTriangle>& Out, FString& Error, EProjectWorldTerrainQuery Query)
 	{
 		const auto& T = Cell.Terrain;
 		Out.Reset();
@@ -77,7 +77,8 @@ namespace ProjectWorldTerrainSurface
 			FProjectWorldCanonicalLoader::TerrainRowNorthing(T, Y), T.HeightsMeters[Y * T.SamplesX + X]); };
 		for (int32 Y = Y0; Y <= Y1; ++Y) for (int32 X = X0; X <= X1; ++X)
 		{
-			const auto* Quad = T.RefinedQuads.FindByPredicate([&](const auto& Q) { return Q.Coordinate == FIntPoint(X, Y); });
+			const auto* Quad = Query == EProjectWorldTerrainQuery::ImmutableGrid ? nullptr :
+				T.RefinedQuads.FindByPredicate([&](const auto& Q) { return Q.Coordinate == FIntPoint(X, Y); });
 			if (Quad != nullptr)
 			{
 				if (Quad->Triangles.IsEmpty()) { Error = TEXT("Refined terrain has no replacement coverage."); return false; }

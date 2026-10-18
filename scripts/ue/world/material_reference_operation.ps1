@@ -19,7 +19,7 @@ function ConvertTo-ProjectWorldSortedValue {
     }
     if ($Value -is [PSCustomObject]) {
         $copy = [ordered]@{}
-        foreach ($key in @($Value.PSObject.Properties.Name | Sort-Object)) { $copy[$key] = ConvertTo-ProjectWorldSortedValue $Value.$key }
+        foreach ($key in @($Value.PSObject.Properties | ForEach-Object { $_.Name } | Sort-Object)) { $copy[$key] = ConvertTo-ProjectWorldSortedValue $Value.$key }
         return $copy
     }
     if ($Value -is [array]) { return , @($Value | ForEach-Object { ConvertTo-ProjectWorldSortedValue $_ }) }

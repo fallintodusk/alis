@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/surface-refinement-request-v1.json",
+  "type": "object",
+  "required": ["$schema", "schema_version", "base_result_sha256", "operations", "context_authority", "source_context_identity", "implementation_sha256", "execution_identity"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/surface-refinement-request-v1.json"},
+    "schema_version": {"const": 1},
+    "base_result_sha256": {"$ref": "#/$defs/hash"},
+    "context_authority": {"const": "supplementary_matching_context_not_historical_replay"},
+    "source_context_identity": {"$ref": "#/$defs/hash"},
+    "implementation_sha256": {"$ref": "#/$defs/hash"},
+    "execution_identity": {"$ref": "#/$defs/hash"},
+    "operations": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["kind", "feature_ids", "base_features", "context"],
+        "properties": {
+          "kind": {"enum": ["bridge_elevation", "water_confluence"]},
+          "feature_ids": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "base_features": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/hash"}},
+          "context": {
+            "type": "object", "required": ["path", "sha256", "byte_size"],
+            "properties": {
+              "path": {"type": "string", "pattern": "^refinement/(context\\.json|contexts/[0-9a-f]{64}\\.json)$"},
+              "sha256": {"$ref": "#/$defs/hash"}, "byte_size": {"type": "integer", "minimum": 1}
+            }, "additionalProperties": false
+          }
+        }, "additionalProperties": false
+      }
+    }
+  }, "additionalProperties": false,
+  "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+}

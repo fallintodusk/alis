@@ -2,6 +2,7 @@
 # License terms: see repository root LICENSE.
 
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'canonical_selection_transition.ps1')
 
 function Assert-ProjectWorldOwnedPath {
     param(
@@ -243,12 +244,33 @@ function Complete-ProjectWorldGeneratedTransaction {
         # is gone the transaction is settled, and an interruption can leave
         # snapshot debris but never a journal whose snapshot is gone.
         [Parameter(Mandatory = $true)]
-        [string]$JournalPath
+        [string]$JournalPath,
+        [string]$ProjectRoot = ''
     )
 
     $root = Resolve-ProjectWorldTransactionRoot `
         -TransactionParent $TransactionParent `
         -TransactionRoot $TransactionRoot
+    $journal=$null
+    if (Test-Path -LiteralPath $JournalPath -PathType Leaf) {
+        $journal=Get-Content -LiteralPath $JournalPath -Raw | ConvertFrom-Json
+        if ($null -ne $journal.PSObject.Properties['canonical_selection_transition']) {
+            $manifestRoot=Split-Path -Parent $JournalPath
+            Test-ProjectWorldJournal -Journal $journal -ProjectRoot $ProjectRoot -ManifestRoot $manifestRoot -ContentRoot $ContentRoot
+            $success=$EngineExitCode -eq 0 -and $ChildStatus -ceq 'accepted'
+            $paired=Resolve-ProjectWorldCanonicalJournalState -ProjectRoot $ProjectRoot -ManifestRoot $manifestRoot `
+                -ContentRoot $ContentRoot -Journal $journal -RestorePrior:(-not $success)
+            if (($success -and $paired -cne 'committed') -or (-not $success -and $paired -cne 'prior')) {
+                throw 'Canonical/World completion is unsettled; journal and snapshots are preserved for explicit recovery.'
+            }
+            if ($success) {
+                # Reuse recovery's full committed-artifact validation before discarding paired evidence.
+                $settled=Invoke-ProjectWorldTransactionRecovery -ManifestRoot $manifestRoot -ContentRoot $ContentRoot -ProjectRoot $ProjectRoot
+                if ($settled.State -cne 'completed') {throw 'Canonical/World completion did not validate its committed authority.'}
+                return [pscustomobject]@{State='committed';RecoverySnapshot=$null}
+            }
+        }
+    }
     if ($EngineExitCode -eq 0 -and $ChildStatus -eq 'accepted') {
         if (Test-Path -LiteralPath $JournalPath -PathType Leaf) {
             Remove-Item -LiteralPath $JournalPath -Force
@@ -265,6 +287,9 @@ function Complete-ProjectWorldGeneratedTransaction {
             -MapPackage $MapPackage `
             -GeneratedPackageRoot $GeneratedPackageRoot `
             -Records $Records
+        if ($null -ne $journal -and $null -ne $journal.PSObject.Properties['canonical_selection_transition']) {
+            Assert-ProjectWorldCanonicalRollback -ProjectRoot $ProjectRoot -ManifestRoot $manifestRoot -Journal $journal
+        }
     }
     catch {
         throw "Generated content rollback failed. Recovery snapshot preserved at: $root. $($_.Exception.Message)"

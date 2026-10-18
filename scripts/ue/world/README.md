@@ -2,6 +2,24 @@
 
 `realize_canonical_world.ps1` is the supported operator-controlled UE entry point
 for ProjectWorld canonical validation, application, and owned-output deletion.
+`layer_input_compatibility.ps1` compares native before/after unit inventories and
+accepted layer inputs. `canonical_input_compatibility.ps1` owns passive active-set
+binding validation and carry. Their comparison grants no mutation authority; see
+the [manifest contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#canonical-feature-input-compatibility).
+`canonical_refinement_operation.ps1` composes explicit child-input admission,
+native consumed-input preflight and accepted replay. `realization_authority_publication.ps1`
+coordinates publication; `canonical_selection_transition.ps1` qualifies paired
+recovery through the canonical owner's API. These helpers do not replace the
+World acceptance gates or authorize geographic inference.
+`accept_canonical_refinement.ps1` is the thin saved-owner adapter for
+[EndToEndValidation's selected-child acceptance](../../../tools/World/EndToEndValidation/README.md#selected-refinement-target-acceptance).
+Its acceptance judgment stays with that owner; it uses the existing generated-content
+outer recovery rather than a second transaction framework.
+`repair_canonical_schema_reference.ps1` composes the same outer recovery and
+empty-candidate World publication for the closed
+[Canonical schema-reference repair](../../../tools/World/CanonicalCompilation/terrain_refinement.md#durable-schema-reference-repair).
+It changes only the two existing selectors, retains exact prior/successor evidence
+under WorldAuthority, and invokes no realization writer.
 Release-only public projection runs this same World owner inside a detached
 checkout; [release preparation](../package/README.md#prepare_release_inputsps1)
 owns that checkout and its cleanup.
@@ -92,6 +110,29 @@ reconstruction, Delete, changed shared inputs and incomplete consumer closure re
 Keep the complete profile and inventories: unselected dirty units remain pending
 work, not certified clean output. Selection is not a way to retire a layer.
 
+`-CanonicalRefinementSelection <repo-tmp-selection.json>` is the explicit initial
+base-to-child route for a selected Apply. The input comes from EndToEndValidation's
+`refinement-inputs`; the host verifies it through that public owner, requires the
+exact admitted effective materialization, materializes the unchanged base, and
+compares native before/after consumed inputs with accepted scope manifests.
+Unselected inputs, current producers and shared map/profile contracts must agree.
+Only the matching durable World authority can select its canonical child; a
+temporary World manifest root cannot advance a production canonical pointer.
+Enrollment, reconstruction, forced dirty units and material-only mutation cannot
+be combined with initial child selection.
+
+Accepted selected replay uses the durable compatibility binding and authenticated
+canonical child, without depending on the original temporary selection file or
+rerunning the child producer. A material-reference-only update skips native
+geometry census and canonical publication. A new base/child or changed accepted
+consumer requires explicit reconciliation. Plain selected Apply retains its
+strict shared-input checks when no qualified binding exists.
+Explicit reconstruction also consumes accepted effective compatibility. Original
+carried owners retain their true base lineage only when their proved inputs,
+producer and reconstructed artifacts remain exact. Later material adoption uses
+the existing material authority; it may change appearance pins while geometry
+pins and consumed unit identities stay strict.
+
 The scoped route saves only selected owner packages. It does not run global
 partition, HLOD, runtime-route, presentation, authored-overlay or stale-output
 writers. An owner requesting a broad save or dirtying the persistent map is
@@ -158,9 +199,14 @@ computed removals may reference accepted-prior cells, and dependency halos are
 clipped to real cells. Future gameplay/source-tile/object-ID generators remain
 unregistered until they provide their typed domain and realization together.
 Automation orchestrators may provide `-EvidencePath <path>` under
-`Saved/Validation/WorldRealization/`; both the wrapper and commandlet reject
-other roots. Orchestrators therefore do not need to reproduce the script's
+`Saved/Validation/WorldRealization/` or repository `tmp/world/`; both the wrapper
+and commandlet reject other roots. Disposable probes use `tmp/world/`.
+Orchestrators therefore do not need to reproduce the script's
 invocation identity algorithm without weakening evidence containment.
+Result, log and atomic-write sidecars must be disjoint from the canonical input
+tree and explicit profile/dirty-input files. The host checks before deleting
+old evidence; native admission and direct result writing enforce the same
+input-preservation boundary.
 
 ```powershell
 .\scripts\ue\world\realize_canonical_world.ps1 `
@@ -354,6 +400,43 @@ rejects fatal or assertion markers.
 The default Manhattan prototype command still packages its own Development and
 Shipping smokes; it is not the release performance route. The existing-package
 mode never cooks or promotes a package.
+
+After Kazan Shipping acceptance, the same coordinator passes the final Candidate's
+payload and executable hashes to `-ExistingShippingPackageRoot` on the Manhattan
+runner. This mode proves Manhattan product-route correctness and native Water
+visibility from the same Shipping bytes. Each city authenticates its Water
+viewpoint against its own active layer and canonical result. No additional cook
+or package promotion belongs to this mode.
+
+The existing SavedProjection commandlet exports six named source building rays:
+one wall and roof on each of three nearby cell meshes. Shipping authenticates the
+reference file, map, runtime, mesh body GUID and component transform, then compares
+the same rays to current source physics within 0.05 cm. Source-plane error remains
+a separate measurement; this comparison does not claim zero source-plane error.
+Component rays use the native geometry-hit result and finite, component-owned
+impact. Pawn blocking remains a separate configuration and gameplay requirement;
+the query-filter-dependent `FHitResult::bBlockingHit` is not geometry-hit admission.
+The building observer also measures impact normals and uses the possessed player's
+registered capsule in native `UWorld::ComponentSweepMulti` queries at those same
+named reference planes. Native object-channel and response filtering must block
+on the intended building component without initial penetration or another blocker.
+Capsule contact can occur away from the ray point; source/reference-plane biases
+are reported separately, without a new geometry-fidelity tolerance. Rejected queries
+cannot retain an earlier accepted observer result. Receipt readers require this
+combined evidence, so a ray-only record cannot close building acceptance.
+
+Development enables the existing ProjectTexture cold/warm proof log. Generic
+engine material-parameter readback records bound texture paths and live resources;
+the host verifier correlates these with accepted ProjectMaterial bindings and
+ProjectTexture log targets. This evidence proves resource generation and reuse.
+The cold/warm target is the requested output slot, which may be a normal or mask
+rather than the bundle's primary output. Require the accepted semantic identity,
+the primary live binding, and an actually ready bound target in the exact accepted
+pattern package. An unbound sibling or a bound foreign package is not evidence.
+Product viewport and native Water pixel artifacts remain separate requirements.
+The final Shipping inventory, nested Manhattan receipts and current artifact
+hashes are reauthenticated by [release Shipping acceptance](../package/release_shipping.py)
+before the coordinator publishes its receipt and before release preparation.
 The Development process uses UE's documented `-novsync` flag and the World gate
 fails before sampling unless read-back proves VSync and `t.MaxFPS` are zero,
 frame smoothing/fixed-rate/fixed-step/benchmark modes are disabled, and dynamic
@@ -523,6 +606,9 @@ This runs the manifest, transaction, recovery, and operator-control Pester
 tests, the generated-content lock and outer-recovery tests, and the
 ProjectMaterial host recovery tests. The end-to-end shared Check runs this
 entrypoint once before its Matrix legs; individual matrices do not repeat it.
+For a focused direct Pester invocation, select the exact test file and put any
+enabled `TestResult.OutputPath` under an absolute repository `tmp/` run directory.
+Pester's default `testResults.xml` is generated evidence, never source content.
 
 ## 3-CORE isolated L1 lifecycle
 

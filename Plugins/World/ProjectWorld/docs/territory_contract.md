@@ -248,11 +248,23 @@ route, an exact production-builder regression pins the native offset input to
 add a second half conversion from generic offset wording.
 
 Water surface functions are versioned executable contracts. Unreal currently
-accepts only `standing_polygon_quantile:v1` and
-`rolling_quantile_l1_isotonic:v1`, preserves the integer version in semantic
+accepts only `standing_polygon_quantile:v1`,
+`rolling_quantile_l1_isotonic:v1` and the canonical refinement child's
+`constrained_flowing_knots:v1` and `contained_ground_quantile:v1`, preserves the integer version in semantic
 identity, and rejects missing or unknown ID/version pairs. A new compiler
 function version requires a matching realization implementation and proof
 before its canonical output can be consumed.
+Versions and knot coordinates require JSON numbers; numeric strings and booleans
+do not qualify. The constrained family retains the existing knot evaluator and
+height quantization. Its source admission and model provenance belong to
+[canonical refinement](../../../../tools/World/CanonicalCompilation/terrain_refinement.md#water-confluence-candidates),
+not to an implicit Water-leaf level correction.
+The contained standing family has a closed provenance envelope and consumes its
+canonical level exactly, with zero presentation lift. Its derivation and current
+publication limits belong to [contained standing construction](../../../../tools/World/CanonicalCompilation/terrain_refinement.md#contained-standing-water-construction).
+It reuses the same standing evaluator and native writer. Other families retain
+their positive layer offset. Grouping and source approximation use the same
+effective-height rule, so equal raw levels do not imply equal final planes.
 
 Canonical Terrain and Water may legitimately disagree vertically because the
 current DEM is a sampled DSM while Water is a fitted flat or monotonic surface.
@@ -261,7 +273,8 @@ Canonical Compilation owns that seam. It preserves the sampled terrain under
 clearance, then applies authored terrain patches and emits final named surface
 weights. The Mesh Terrain adapter realizes that immutable final surface; it does
 not clamp or classify terrain. The Water mesh independently stays at canonical
-Water Z plus the profile-owned positive surface offset.
+Water Z plus the profile-owned positive surface offset, except an explicitly
+contained standing model, which consumes its canonical level exactly.
 
 Continuous hydro support uses the same regular canonical lattice. Every quad
 intersecting a Water footprint constrains its corners, including quads incident
@@ -413,7 +426,7 @@ ID/version pair. The Mesh Terrain v1 contract consumes the final canonical
 terrain surface and its named semantic weights. A parallel terrain identity
 or producer tuple is invalid. The
 current v1 Water blockout requires a non-Nanite, opaque solid-blue surface with
-a bounded positive realization offset above canonical Water Z. The offset is a
+a bounded positive default realization offset above canonical Water Z. The offset is a
 replaceable presentation separation, never a change to canonical Water elevation.
 Universal Water appearance remains future ProjectMaterial resource authority;
 the generator-local solid color is only the current prototype legibility fallback.
@@ -501,9 +514,18 @@ Mesh Terrain cells and their declared dependants. A same-path material content
 change is not part of this geography identity and dirties no terrain geography.
 The optional [sparse canonical surface](../../../../tools/World/CanonicalCompilation/terrain_refinement.md)
 is authenticated as the selected cell's terrain artifact, retaining its original
-grid base. Complete selected quads use final affine triangles for placement and
-triangle consumers; missing replacement coverage refuses. Outside these quads,
-placement retains its existing clamped bilinear behavior. Navigation bounds and
+grid base. Placement clamps XY to the owning cell's sample domain before choosing
+and evaluating its surface representation. Complete selected quads use final
+affine triangles for placement and triangle consumers; missing replacement
+coverage refuses, including at a clamped edge. Outside these quads,
+placement retains its existing clamped bilinear behavior. Explicit
+[civil grade preservation](../../../../tools/World/CanonicalCompilation/terrain_refinement.md#immutable-civil-grade-references)
+selects authenticated base-grid queries for declared Road/Building consumers;
+unreferenced consumers retain these final-surface defaults. Building identity
+includes the consumed owner-clamped query variant only for unreferenced anchors
+whose owner has a refined surface, including fragments realized in another cell.
+Unrefined and explicit immutable-grade inputs retain their existing identity.
+Navigation bounds and
 fixture identity include the final representation. This disposable API does not
 authorize production terrain conditioning or change the ordinary compiler's
 lineage and promotion rules. Unreal adapters may not add hidden deformation.
@@ -519,15 +541,72 @@ of consumed subdivision points affect tangents; absent context refuses without
 a global nearest-segment fallback. Width may consume adjacent terrain within the
 declared dependency halo, and every positive-area terrain dependency is hashed.
 An indexed cell context bounds lookup work. Identity calculation intersects
-ribbon footprints with cell rectangles; it does not construct finished meshes.
-Road realization intersects the same ribbon with final canonical terrain
+ribbon footprints with cell rectangles for ordinary unreferenced draped roads;
+declared civil grades additionally evaluate their actual final-clearance inputs.
+It does not create saved meshes.
+Default Road realization intersects the same ribbon with final canonical terrain
 triangles (A,C,B / B,C,D in unrefined quads), preserving full interior conformity
 and geometric normals/tangents.
 Width outside the admitted outer cell bounding rectangle is clipped; missing
 or overlapping interior coverage refuses before mesh emission. This preserves
 the existing terrain-drape and same-owner overlap policies; it does not infer
-junction connectivity or bridge/tunnel elevations. Source descriptions, compiled
-StaticMesh geometry and native collision require separate proofs.
+junction connectivity or bridge/tunnel elevations.
+
+#### Road elevation consumption
+
+An optional canonical Road elevation is owned by the
+[refinement contract](../../../../tools/World/CanonicalCompilation/terrain_refinement.md#road-elevation-candidates).
+Road realization preserves its existing original XY ribbon triangles and maps
+their station/lateral coordinates into that affine height field. It adds the
+presentation offset once; it does not infer bridge height or reshape Terrain.
+The typed field must match the exact directed source geometry and width, with
+its immutable grade-support Terrain artifacts authenticated separately from
+final-clearance inputs. Both planning and mesh generation
+use final Terrain intersections for these profiled roads, rejecting incomplete
+coverage, overlapping or discontinuous parameter faces, changed declared Terrain-abutment
+sections, burial and unrepresentable native mesh positions or shading frames.
+Only actually selected profiles and support inputs affect Road unit identity;
+unprofiled roads retain their default path unless an explicit civil-grade
+reference selects the original grid. Source descriptions, compiled
+StaticMesh geometry, native collision and incident-road joins require separate
+proofs. Disposable profile admission is not production adoption.
+
+An explicit typed constructed-surface endpoint relation is available for isolated
+source-mesh diagnostics. It consumes the supporting model identity and retains
+the same finite field, original ribbon, final-Terrain clearance and native
+storage checks. Its ends follow that field instead of claiming an immutable
+Terrain abutment. This does not establish joins to other surfaces. The current
+production JSON reader still admits only the Terrain-abutment model; the typed
+diagnostic variant neither authenticates a new source model nor opens canonical
+publication. Default bridge identity and abutment behavior remain unchanged.
+
+```mermaid
+flowchart LR
+    B[Admitted bridge field] -->|Terrain abutments| R[Road realization]
+    F[Explicit typed diagnostic fixture] -->|Constructed field and supporting model identity| R
+    T[Unchanged final Terrain] -->|Coverage and clearance| R
+    R --> M[Native source mesh]
+```
+
+Profiled realization certifies float-position storage per original ribbon
+triangle. An internal split may collapse only when the complete stored domain
+retains connected positive-area coverage, no holes or multiplicity, and its
+measured coordinate-conversion envelope. Native Boolean coverage, inward-core
+and exterior-distance checks remain strict. GeometryCore adaptive exact
+orientation predicates certify shared-edge connectivity on the actual stored
+float positions; Boolean normalization is not an alternate vertex authority.
+Point contacts do not connect faces. Shared height bindings remain local to one
+profile realization, and every stored positive face is rechecked against final
+Terrain. This is not a new geographic tolerance or a cache.
+
+A cell consuming an explicit elevation profile retains full native fallback
+triangles with no source trimming. This preserves the authenticated stored
+profile and abutments in fallback rendering and complex collision. The consumed
+unit identity includes this variant. The setting belongs to the cell StaticMesh,
+so other roads in the same cell share it; unprofiled cells retain the ordinary
+native fallback settings. Removing the last profile restores those defaults.
+Nanite remains enabled. Exact stored source/fallback/physics equality does not
+by itself prove Nanite pixels, incident-road continuity or packaged performance.
 Adding another profile layer cannot invalidate
 an accepted layer merely because the aggregate profile document hash changed;
 the normalized layer contract remains that layer's behavior authority.
@@ -741,6 +820,90 @@ One world-data owner has at most one active presentation-profile scope. Apply
 fails closed if a different presentation scope is active. A profile-ID
 transition explicitly deletes its consuming maps, atomically retires the old
 scope with the last consumer, then enrolls the new profile.
+
+### Canonical feature input compatibility
+
+The [active-set schema](../Data/Schemas/project_world_active_manifest_set.schema.json)
+can retain map-scoped canonical feature-input compatibility. The World reader
+authenticates the original map and prior layer manifests, exact before/after
+consumed-input digests, changed units, contracts and historical/current producer
+identities. A changed owner records the effective canonical receipt. A carried
+owner retains its original receipt only when its consumed inputs remain equal.
+Different global receipt hashes alone do not prove stale geometry.
+
+Compatibility is part of the same active set; it is neither a second canonical
+authority nor an artifact owned by a generated layer. Unrelated map operations
+carry existing bindings; retiring a map removes only its binding. Repeating an
+identical publication retains the active-set bytes. Cold validation refuses
+missing original evidence, altered input digests and false base/effective lineage.
+Its durable facts contain no temporary paths.
+
+Native comparison and passive metadata publication do not activate a canonical
+child or certify its producing behavior. The default host shared-input guard
+remains strict. An explicit `-CanonicalRefinementSelection` selected Apply verifies
+the public candidate-input selection, exact materialized child and actual native
+base/effective inventories before preparing the canonical owner's transition.
+Only changed selected owners advance to the effective receipt. The unchanged map
+and input/artifact/producer-identical dependent owners retain their original
+manifests. Child-producing and selected World acceptance remain required before
+production adoption.
+
+Accepted replay authenticates the existing child and durable compatibility rather
+than the temporary admission file. It preserves historical producer identities
+separately from current consumers. A material-only update retains geometry lineage
+and does not run canonical publication or a native geometry census. Different
+children, bases or accepted consumers require explicit reconciliation; the initial
+route does not implement arbitrary refinement chains.
+
+The historical full native-input digest and geometry-only digest are distinct.
+The latter excludes presentation profile/resource bindings and terrain material
+identity; all geographic, grid, runtime and authored-anchor inputs stay pinned.
+Later appearance differences require the existing authenticated material-adoption
+route and current binding validation. They cannot change consumed geometry inputs,
+retarget a material silently or weaken geographic identity checks. An accepted-tree
+reconstruction or later owner repair uses every owner's proved effective inputs;
+it does not inherit the initial transition's writer list. A carried owner must
+reproduce its accepted artifacts and producer contract exactly or refuse for
+explicit owner acceptance.
+
+```mermaid
+flowchart LR
+    A[One World active set] --> M[Unchanged map manifest: original result]
+    A --> U[Unchanged layer manifests: original result]
+    A --> C[Changed layer manifests: effective result]
+    A --> P[Map-scoped input compatibility]
+    P --> M
+    P --> U
+    P --> C
+```
+
+The World journal retains the canonical owner's exact transition ticket before
+package mutation. Publication writes the expected final World hash into that
+journal, invokes the owner's compare-and-swap, then activates World last:
+
+```mermaid
+sequenceDiagram
+    participant H as Selected World host
+    participant C as Canonical authority
+    participant W as World active set
+    H->>H: Authenticate inputs and snapshot packages
+    H->>H: Save transition ticket in existing journal
+    H->>H: Realize selected outputs and verify inventories
+    H->>H: Journal expected World hash
+    H->>C: Qualified prior-to-child CAS
+    H->>W: Activate compatible manifests last
+    H->>H: Validate pair and artifacts, remove journal then snapshot
+```
+
+This is recoverable paired publication, not two-file atomicity. Prior World/prior
+canonical state rolls back packages. Prior World/selected canonical state first
+authenticates all required backups, reverses the canonical selection through its
+owner, then restores packages. Both committed states finalize only after exact
+binding and artifact checks. Unknown or reverse-order states retain recovery
+evidence and refuse. Backup and restored-artifact checks cover the actual snapshot
+restoration closure, including carried layers and map external actors. A staged
+active set is readable during recovery only when its bytes match the journal's
+expected hash; ordinary reads and unknown staging still refuse.
 
 ### Recoverable transactional replacement and interruption
 
@@ -1333,15 +1496,29 @@ lattice and coordinate authority, not a competing v1 option.
   quantize to the same height under the existing canonical height step. Preserve
   holes, cell clipping and every source identity, including fully covered inputs.
   Native boolean/triangulation failures refuse rather than copying overlapping
-    inputs. After feature emission, exact horizontal float-Z pieces also compose
+    inputs. A coarse sloping face can interpolate across a locally constant
+    quantized source region. Before final composition, the Water owner may refine
+    that approximation only when both source functions have a conservative
+    whole-convex-overlap certificate for the same exact level. The certificate
+    bounds every possibly nearest knot segment; agreeing samples alone do not
+    establish compatibility. New vertices use the same canonical function
+    evaluator, and a source-local edge registry propagates each split to incident
+    faces through native constrained triangulation. Preserve original high
+    corners, exact projected face coverage and holes. Bound refinement and refuse
+    unresolved certified contacts, unrepresentable edge midpoints, or new cell
+    seam vertices without authenticated shared context before replacing geometry.
+    This changes source approximation, not the accepted canonical function,
+    quantization, terrain, or source connectivity.
+    After source approximation, exact horizontal float-Z pieces also compose
     through native polygon union and checked constrained triangulation. This
     includes local plateaus of globally nonconstant features. Validate coverage
     after float emission before replacing the candidate; preserve holes, source
-    identities, exact plane heights and nonhorizontal triangles. No overlap means
+    identities, exact plane heights and remaining nonhorizontal triangles. No overlap means
     no mesh replacement. Unequal levels and true slopes retain independent
     geometry and are reported. These operations do not infer connectivity, bend
     water or condition terrain. Final triangles and shared seams need separate
-    proof; a mixed plateau-transition intersection is not an equal-plane case.
+    proof; a mixed plateau-transition intersection is not an equal-plane case
+    without the separate whole-region source certificate.
   Water unit identity includes each consumed feature's preparation bounds across
   its consuming canonical cells: native triangulation consumes this domain before
   per-cell clipping. Realization and hashing share the Water-owned context

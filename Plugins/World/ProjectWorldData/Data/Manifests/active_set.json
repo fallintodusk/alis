@@ -1,9 +1,9 @@
 {
     "$schema":  "../../../ProjectWorld/Data/Schemas/project_world_active_manifest_set.schema.json",
     "schema_version":  1,
-    "transaction_id":  "9d954ca2a54f4fa5ab318583831e1e12",
-    "accepted_operation_id":  "9d954ca2a54f4fa5ab318583831e1e12",
-    "prior_active_set_sha256":  "9a1a65a029ae23a2229631c8c6487a34acf939ba82018f34634dea425033ed4c",
+    "transaction_id":  "f9b78d913ea44f0895c609d63a4f126e",
+    "accepted_operation_id":  "f9b78d913ea44f0895c609d63a4f126e",
+    "prior_active_set_sha256":  "8c8982d9853208360fa58a714e7a5e21d6cf368bd415a2ae15f52eef906a30fb",
     "scopes":  [
                    {
                        "scope_id":  "layer_kazan_territory_v1_buildings",
@@ -17,8 +17,8 @@
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_roads",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.25.json",
-                       "manifest_sha256":  "c171ef419ab3797674e8fb5ca65e6fe6b111876825a49e4578788615185c8c6a"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_roads.26.json",
+                       "manifest_sha256":  "c2a472bc458ca29ed127303375946457ace579f04a0975a7817716cd204ebc6d"
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_terrain",
@@ -32,8 +32,8 @@
                    },
                    {
                        "scope_id":  "layer_kazan_territory_v1_water",
-                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.42.json",
-                       "manifest_sha256":  "81f1d0478e3fd2d9174f1b03a594c714259d02a9e5bc68317be195ca6e554c8b"
+                       "manifest_path":  "scopes/layer_kazan_territory_v1_water.44.json",
+                       "manifest_sha256":  "c23b058d2a97dd7c8352f5fffaa4f00b246276054d33c1cf9e909c01cc4f4ce3"
                    },
                    {
                        "scope_id":  "layer_manhattan_showcase_v1_buildings",
@@ -57,8 +57,8 @@
                    },
                    {
                        "scope_id":  "layer_manhattan_showcase_v1_water",
-                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_water.17.json",
-                       "manifest_sha256":  "6315f2ede700a2a42e9dffa84543a45f68edef48e2cc678c35167288466f6028"
+                       "manifest_path":  "scopes/layer_manhattan_showcase_v1_water.18.json",
+                       "manifest_sha256":  "05ad4a78e4e6dc164939324a2ff6cf238a3e4d4ae1a4e571c55a9e62542253a8"
                    },
                    {
                        "scope_id":  "map_showcase_manhattan_l_projectworldmanhattanshowcase",
@@ -75,5 +75,249 @@
                        "manifest_path":  "scopes/presentation_kazan_representative_v1.37.json",
                        "manifest_sha256":  "ae1bc0880348c355ca785a1ca34776cfbef60913f3f8729f9f657e535655d06d"
                    }
-               ]
+               ],
+    "canonical_input_compatibility":  [
+                                          {
+                                              "kind":  "feature_refinement_inputs_v1",
+                                              "prior_active_set_sha256":  "3069df8c9713ea0541340c35816ee66cb3255b8404b12b0ef9a19125b827c6e5",
+                                              "base_canonical_authority_sha256":  "387d0aa59ccad26bcdfc6149d12a8d2b412f10f8be930cfd1062c49bee00b533",
+                                              "map_scope_id":  "map_territory_l_projectworldkazanterritory",
+                                              "accepted_map":  {
+                                                                   "scope_id":  "map_territory_l_projectworldkazanterritory",
+                                                                   "manifest_path":  "scopes/map_territory_l_projectworldkazanterritory.42.json",
+                                                                   "manifest_sha256":  "f4560218b89ec37ee743e0bee3353339db7609966bf8da3ade0ea8ccd403557d"
+                                                               },
+                                              "map_generator_fingerprint":  "cf3485ee424f94aee67983cfa25475d2ac4c3b4b837814b930b62fecae65220b",
+                                              "base_map_input_identity":  {
+                                                                              "compile_result_sha256":  "482036eee48050095686129a069e3fff00b99a8ffd0e45916e00f3c645b89c68",
+                                                                              "presentation_profile_sha256":  "de1a92306f3ce383b5ac04f82e5892d100460b286690b86d9cb93ac4da108a36",
+                                                                              "runtime_profile_sha256":  "8bd7efb4a0c3e1aa09c3690f7d2de65ac875f48c2f60d57ecde6a65f3e994a7a",
+                                                                              "authored_overlay_profile_sha256":  "e2fae4e6e95d79fa2568279ffd6365fd6d2bd52a861dc77d8feef2f8a841870d",
+                                                                              "map_package":  "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory"
+                                                                          },
+                                              "effective_map_input_identity":  {
+                                                                                   "compile_result_sha256":  "6bc19c8d4eff2f905d03bd7ec2b997f879c6bf65c847e058fad6ebd66170f0a8",
+                                                                                   "presentation_profile_sha256":  "de1a92306f3ce383b5ac04f82e5892d100460b286690b86d9cb93ac4da108a36",
+                                                                                   "runtime_profile_sha256":  "8bd7efb4a0c3e1aa09c3690f7d2de65ac875f48c2f60d57ecde6a65f3e994a7a",
+                                                                                   "authored_overlay_profile_sha256":  "e2fae4e6e95d79fa2568279ffd6365fd6d2bd52a861dc77d8feef2f8a841870d",
+                                                                                   "map_package":  "/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory"
+                                                                               },
+                                              "realization_profile_sha256":  "87f4c30a1acb8a71e34f5975a9818ddd3d24d0059d47aac0a63223f6bf08cbd6",
+                                              "input_selection_sha256":  "86d3afb9c903cbde7d7748a59307f1c264302bb1a056032b44011ace979bb180",
+                                              "selected_scope_ids":  [
+                                                                         "layer_kazan_territory_v1_roads",
+                                                                         "layer_kazan_territory_v1_vegetation",
+                                                                         "layer_kazan_territory_v1_water"
+                                                                     ],
+                                              "candidate":  {
+                                                                "base_authority_id":  "kazan_territory_v1:75b8eefd6a99e53ff0db65ad9efaccf029759bd098dbe5e4b8e8651565a287b8",
+                                                                "base_result_sha256":  "482036eee48050095686129a069e3fff00b99a8ffd0e45916e00f3c645b89c68",
+                                                                "result_sha256":  "6bc19c8d4eff2f905d03bd7ec2b997f879c6bf65c847e058fad6ebd66170f0a8",
+                                                                "active_sha256":  "fedbf16a143ec0008926842d16a0df2221afa0689fa548e708bc8c57177e758c",
+                                                                "effective_identity":  "efe82fc63b5fe3dfc31d9429c99618ece4058f3bf809f506b6e6921c4d9763ad",
+                                                                "bundle_sha256":  "542cbfcda76ec86ac416ca865f69c5096d0e6fb0cb3d0eb4f4df6ab66af9ea15",
+                                                                "inputs_hash":  "802742173d20a9e22123d57282e865faa0dd19fa4f36b9bf93c21a566eab6fba",
+                                                                "implementation_sha256":  "93c561857441d780cad4fb0dd784f8049797c8554c9db61ca3aa0ebb882378aa",
+                                                                "source_context_identity":  "0c742351e586eb84636d6ae266ce23c362a9927874b3f9ae747065142799285c",
+                                                                "execution_identity":  "8ca3528447b236ff2aba68d53403087dc7ac88566f0785c79e5c89700ad3be2a"
+                                                            },
+                                              "shared_native_inputs_sha256":  "495171d9fea5ade3e6870adf14494827ee12f071013dbfc3bbaecf53e15d83b3",
+                                              "shared_geometry_inputs_sha256":  "340a22a6edeb2c24758a101cff1ce5e21c7b920d96ba7c1f6aed6bcad13014c0",
+                                              "layers":  {
+                                                             "layer_kazan_territory_v1_terrain":  {
+                                                                                                      "accepted":  {
+                                                                                                                       "accepted_manifest_path":  "scopes/layer_kazan_territory_v1_terrain.36.json",
+                                                                                                                       "accepted_manifest_sha256":  "f7f28d67f6b9c36af7d508f2d7278f1c51a773dedeb97f309de350a972419d60",
+                                                                                                                       "accepted_generator_fingerprint":  "ac0b60d0fb44c987fd99effa6c5b888355a2b24162a0eedaf39f1b0ed4fc5ba5",
+                                                                                                                       "current_generator_fingerprint":  "ac0b60d0fb44c987fd99effa6c5b888355a2b24162a0eedaf39f1b0ed4fc5ba5"
+                                                                                                                   },
+                                                                                                      "normalized_layer_contract_sha256":  "4fd21e8defdb01cc069d0804c71b3c2760039038832354f26decfd313ceb91e8",
+                                                                                                      "generator_id":  "project_mesh_terrain",
+                                                                                                      "generator_version":  1,
+                                                                                                      "artifact_root":  "/ProjectWorldData/Generated/Territory/Terrain/",
+                                                                                                      "before_canonical_inputs_sha256":  "11180407daed88de52d82ac8ec005e3e3b36c0e1eae9abc4bbd2771200a4f035",
+                                                                                                      "after_canonical_inputs_sha256":  "11180407daed88de52d82ac8ec005e3e3b36c0e1eae9abc4bbd2771200a4f035",
+                                                                                                      "before_dependency_inputs_sha256":  "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                                                                                                      "after_dependency_inputs_sha256":  "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+                                                                                                      "changes":  {
+                                                                                                                      "canonical_inputs":  {
+                                                                                                                                               "before_count":  210,
+                                                                                                                                               "after_count":  210,
+                                                                                                                                               "changed_units":  [
+
+                                                                                                                                                                 ]
+                                                                                                                                           },
+                                                                                                                      "dependency_inputs":  {
+                                                                                                                                                "before_count":  0,
+                                                                                                                                                "after_count":  0,
+                                                                                                                                                "changed_units":  [
+
+                                                                                                                                                                  ]
+                                                                                                                                            }
+                                                                                                                  }
+                                                                                                  },
+                                                             "layer_kazan_territory_v1_water":  {
+                                                                                                    "accepted":  {
+                                                                                                                     "accepted_manifest_path":  "scopes/layer_kazan_territory_v1_water.43.json",
+                                                                                                                     "accepted_manifest_sha256":  "938fa335d5d74be62a4348f6b442db55dfb1c5ba8fd906e3d8581dab2773d827",
+                                                                                                                     "accepted_generator_fingerprint":  "2a2669ff27d764dfeae04a0d9a813e32c12dd84700ebce6c394b5b9265c4d087",
+                                                                                                                     "current_generator_fingerprint":  "2a2669ff27d764dfeae04a0d9a813e32c12dd84700ebce6c394b5b9265c4d087"
+                                                                                                                 },
+                                                                                                    "normalized_layer_contract_sha256":  "3abfd7c1d708236cf95c5c22f4f0f0bdca2dacf661b8bfbfaea9383cb4d71ddb",
+                                                                                                    "generator_id":  "project_water_mesh",
+                                                                                                    "generator_version":  1,
+                                                                                                    "artifact_root":  "/ProjectWorldData/Generated/Territory/Water/",
+                                                                                                    "before_canonical_inputs_sha256":  "8731c7ffb8b2de31e563a3f596b52291d8589c6017b85609254d844285292478",
+                                                                                                    "after_canonical_inputs_sha256":  "1fc95b78d97b414033bcebf0fa40a217b75f293990b10c5ba59aba4b8a76055b",
+                                                                                                    "before_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                    "after_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                    "changes":  {
+                                                                                                                    "canonical_inputs":  {
+                                                                                                                                             "before_count":  210,
+                                                                                                                                             "after_count":  210,
+                                                                                                                                             "changed_units":  [
+                                                                                                                                                                   "grid_413718bc833994e5:x4:y-6",
+                                                                                                                                                                   "grid_413718bc833994e5:x5:y-6"
+                                                                                                                                                               ]
+                                                                                                                                         },
+                                                                                                                    "dependency_inputs":  {
+                                                                                                                                              "before_count":  1,
+                                                                                                                                              "after_count":  1,
+                                                                                                                                              "changed_units":  [
+
+                                                                                                                                                                ]
+                                                                                                                                          }
+                                                                                                                }
+                                                                                                },
+                                                             "layer_kazan_territory_v1_roads":  {
+                                                                                                    "accepted":  {
+                                                                                                                     "accepted_manifest_path":  "scopes/layer_kazan_territory_v1_roads.25.json",
+                                                                                                                     "accepted_manifest_sha256":  "c171ef419ab3797674e8fb5ca65e6fe6b111876825a49e4578788615185c8c6a",
+                                                                                                                     "accepted_generator_fingerprint":  "9fe225a16fceca5b528cc282c14389b77e43c9fd4e77b81c5a37f2c278938c2a",
+                                                                                                                     "current_generator_fingerprint":  "9fe225a16fceca5b528cc282c14389b77e43c9fd4e77b81c5a37f2c278938c2a"
+                                                                                                                 },
+                                                                                                    "normalized_layer_contract_sha256":  "4061d4f82362a7b437502105f32054706260b6a30e66222cfa73e1eb41e082be",
+                                                                                                    "generator_id":  "project_road_mesh",
+                                                                                                    "generator_version":  1,
+                                                                                                    "artifact_root":  "/ProjectWorldData/Generated/Territory/Roads/",
+                                                                                                    "before_canonical_inputs_sha256":  "8e1c052ddfc6fab4f6c6dc5d0d553c189005ce75d92362f6b915199c8e30b9f7",
+                                                                                                    "after_canonical_inputs_sha256":  "e20019a95f7ddbb66fcb851e4fe5704e10238db20f714a23cad510e9eb71c026",
+                                                                                                    "before_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                    "after_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                    "changes":  {
+                                                                                                                    "canonical_inputs":  {
+                                                                                                                                             "before_count":  210,
+                                                                                                                                             "after_count":  210,
+                                                                                                                                             "changed_units":  [
+                                                                                                                                                                   "grid_413718bc833994e5:x1:y1"
+                                                                                                                                                               ]
+                                                                                                                                         },
+                                                                                                                    "dependency_inputs":  {
+                                                                                                                                              "before_count":  1,
+                                                                                                                                              "after_count":  1,
+                                                                                                                                              "changed_units":  [
+
+                                                                                                                                                                ]
+                                                                                                                                          }
+                                                                                                                }
+                                                                                                },
+                                                             "layer_kazan_territory_v1_vegetation":  {
+                                                                                                         "accepted":  {
+                                                                                                                          "accepted_manifest_path":  "scopes/layer_kazan_territory_v1_vegetation.41.json",
+                                                                                                                          "accepted_manifest_sha256":  "91002ab54c33708d7e29c5c7f78feb676a637476380b92530501d28cb69529c3",
+                                                                                                                          "accepted_generator_fingerprint":  "36b1c7ce0960b782ecb207a95b7f18cdf2b66f5bca1cb9812dd65102a465b6a3",
+                                                                                                                          "current_generator_fingerprint":  "36b1c7ce0960b782ecb207a95b7f18cdf2b66f5bca1cb9812dd65102a465b6a3"
+                                                                                                                      },
+                                                                                                         "normalized_layer_contract_sha256":  "d8b13a58d2416709ee7cf37b3ae47dacede771f6d237d9f559dd6a401785e707",
+                                                                                                         "generator_id":  "project_vegetation_instances",
+                                                                                                         "generator_version":  1,
+                                                                                                         "artifact_root":  "/ProjectWorldData/Generated/Territory/Vegetation/",
+                                                                                                         "before_canonical_inputs_sha256":  "a55f482c2fae03972a755c57f2066034ee1ebaa165d0bed5884c59866b87927d",
+                                                                                                         "after_canonical_inputs_sha256":  "a55f482c2fae03972a755c57f2066034ee1ebaa165d0bed5884c59866b87927d",
+                                                                                                         "before_dependency_inputs_sha256":  "d8d7e8440835a0c90de834944b745fece3424f2baa933365cf99086b4a2a0903",
+                                                                                                         "after_dependency_inputs_sha256":  "d8d7e8440835a0c90de834944b745fece3424f2baa933365cf99086b4a2a0903",
+                                                                                                         "changes":  {
+                                                                                                                         "canonical_inputs":  {
+                                                                                                                                                  "before_count":  210,
+                                                                                                                                                  "after_count":  210,
+                                                                                                                                                  "changed_units":  [
+
+                                                                                                                                                                    ]
+                                                                                                                                              },
+                                                                                                                         "dependency_inputs":  {
+                                                                                                                                                   "before_count":  3,
+                                                                                                                                                   "after_count":  3,
+                                                                                                                                                   "changed_units":  [
+
+                                                                                                                                                                     ]
+                                                                                                                                               }
+                                                                                                                     }
+                                                                                                     },
+                                                             "layer_kazan_territory_v1_buildings":  {
+                                                                                                        "accepted":  {
+                                                                                                                         "accepted_manifest_path":  "scopes/layer_kazan_territory_v1_buildings.24.json",
+                                                                                                                         "accepted_manifest_sha256":  "90d6be4839da2df720cdeef30df57a00812856fe7a8f0faeb296fcacf6d471ed",
+                                                                                                                         "accepted_generator_fingerprint":  "12fe75129549d0f36cca1acbaeba50d99b5b0d7dbf6dd60d1a777ad8e18e0656",
+                                                                                                                         "current_generator_fingerprint":  "12fe75129549d0f36cca1acbaeba50d99b5b0d7dbf6dd60d1a777ad8e18e0656"
+                                                                                                                     },
+                                                                                                        "normalized_layer_contract_sha256":  "c86a437f7337eea189fc08169d73ae957a9f8f45ded20fe59c183d3332b31d10",
+                                                                                                        "generator_id":  "project_building_massing",
+                                                                                                        "generator_version":  2,
+                                                                                                        "artifact_root":  "/ProjectWorldData/Generated/Territory/Buildings/",
+                                                                                                        "before_canonical_inputs_sha256":  "c22547ba21be9f39f83eee9a8703204a6c25ccb957fad01f28c8e6607449cd1b",
+                                                                                                        "after_canonical_inputs_sha256":  "c22547ba21be9f39f83eee9a8703204a6c25ccb957fad01f28c8e6607449cd1b",
+                                                                                                        "before_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                        "after_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                        "changes":  {
+                                                                                                                        "canonical_inputs":  {
+                                                                                                                                                 "before_count":  210,
+                                                                                                                                                 "after_count":  210,
+                                                                                                                                                 "changed_units":  [
+
+                                                                                                                                                                   ]
+                                                                                                                                             },
+                                                                                                                        "dependency_inputs":  {
+                                                                                                                                                  "before_count":  1,
+                                                                                                                                                  "after_count":  1,
+                                                                                                                                                  "changed_units":  [
+
+                                                                                                                                                                    ]
+                                                                                                                                              }
+                                                                                                                    }
+                                                                                                    },
+                                                             "layer_kazan_territory_v1_gameplay":  {
+                                                                                                       "accepted":  {
+                                                                                                                        "accepted_manifest_path":  "scopes/layer_kazan_territory_v1_gameplay.31.json",
+                                                                                                                        "accepted_manifest_sha256":  "9d8c8f860971986b233281464a89bbcf11b047e6d41cbe1af8cb93130bf9148e",
+                                                                                                                        "accepted_generator_fingerprint":  "2805fcfb78bad8ee9b61576511cae04eea306bf3475939515c983b796fb8364d",
+                                                                                                                        "current_generator_fingerprint":  "2805fcfb78bad8ee9b61576511cae04eea306bf3475939515c983b796fb8364d"
+                                                                                                                    },
+                                                                                                       "normalized_layer_contract_sha256":  "c98b349c82422a8c92f8232617d254207ae8d476df36fa327674ddcc9a5e01d6",
+                                                                                                       "generator_id":  "project_gameplay_placement",
+                                                                                                       "generator_version":  1,
+                                                                                                       "artifact_root":  "/ProjectWorldData/Generated/Territory/Gameplay/",
+                                                                                                       "before_canonical_inputs_sha256":  "bccaf8ce5f8aecfedf47cc7f8d7fa1d8b8167c2f7aad403ca8375e1d6d2af895",
+                                                                                                       "after_canonical_inputs_sha256":  "bccaf8ce5f8aecfedf47cc7f8d7fa1d8b8167c2f7aad403ca8375e1d6d2af895",
+                                                                                                       "before_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                       "after_dependency_inputs_sha256":  "db70aa699746f174222b221f9e04488801e3910ec57d2262028fca90d4574a8c",
+                                                                                                       "changes":  {
+                                                                                                                       "canonical_inputs":  {
+                                                                                                                                                "before_count":  3,
+                                                                                                                                                "after_count":  3,
+                                                                                                                                                "changed_units":  [
+
+                                                                                                                                                                  ]
+                                                                                                                                            },
+                                                                                                                       "dependency_inputs":  {
+                                                                                                                                                 "before_count":  1,
+                                                                                                                                                 "after_count":  1,
+                                                                                                                                                 "changed_units":  [
+
+                                                                                                                                                                   ]
+                                                                                                                                             }
+                                                                                                                   }
+                                                                                                   }
+                                                         }
+                                          }
+                                      ]
 }

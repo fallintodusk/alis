@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/refinement-candidate-selection-v1.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["$schema", "schema_version", "mode", "base_selection", "candidates", "executed_upstream_operations"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-validation/refinement-candidate-selection-v1.json"},
+    "schema_version": {"const": 1}, "mode": {"const": "refinement_candidate"},
+    "base_selection": {"type": "object"},
+    "executed_upstream_operations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_acquisition", "base_compilation", "canonical_promotion"],
+      "properties": {"source_acquisition": {"const": false}, "base_compilation": {"const": false}, "canonical_promotion": {"const": false}}
+    },
+    "candidates": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["active_path", "active_sha256", "base_authority_id", "base_result_sha256", "effective_identity", "result_sha256", "inputs_hash", "bundle_sha256", "implementation_sha256", "source_context_identity", "execution_identity", "materialized_result_path"],
+        "properties": {
+          "active_path": {"type": "string", "minLength": 1}, "active_sha256": {"$ref": "#/$defs/hash"},
+          "base_authority_id": {"type": "string", "minLength": 1}, "base_result_sha256": {"$ref": "#/$defs/hash"},
+          "effective_identity": {"$ref": "#/$defs/hash"}, "result_sha256": {"$ref": "#/$defs/hash"},
+          "inputs_hash": {"$ref": "#/$defs/hash"}, "bundle_sha256": {"$ref": "#/$defs/hash"},
+          "implementation_sha256": {"$ref": "#/$defs/hash"}, "source_context_identity": {"$ref": "#/$defs/hash"},
+          "execution_identity": {"$ref": "#/$defs/hash"}, "materialized_result_path": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }, "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+}

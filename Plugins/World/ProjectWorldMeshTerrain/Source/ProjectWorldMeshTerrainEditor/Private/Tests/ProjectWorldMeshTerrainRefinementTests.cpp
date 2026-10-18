@@ -38,7 +38,7 @@ namespace ProjectWorldRefinementTests
 		if (!Test.TestTrue(TEXT("Public canonical owner creates its isolated fixture."), bRan && Code == 0))
 		{ Test.AddError(Out + Error); return false; }
 		FProjectWorldCanonicalValidation Validation;
-		const bool Loaded = FProjectWorldCanonicalLoader::Load(FPaths::Combine(Root, TEXT("candidate/compile_result.json")), Bundle, Validation);
+		const bool Loaded = FProjectWorldCanonicalLoader::Load(FPaths::Combine(Root, TEXT("candidate/refinement_result.json")), Bundle, Validation);
 		if (!Test.TestTrue(TEXT("The real typed loader authenticates the final surface."), Loaded))
 		{ Test.AddError(Validation.ErrorCode + TEXT(": ") + Validation.Message + TEXT(" ") + Validation.Detail); return false; }
 		return true;
@@ -71,6 +71,16 @@ bool FProjectWorldRefinedQueriesTest::RunTest(const FString&)
 		const double X = Cell.Bounds.X + 15;
 		TestTrue(TEXT("Placement query consumes final interior."), ProjectWorldGeneratedGeometry::SampleTerrain(Cell, X, 15, Height, Error));
 		TestEqual(TEXT("Narrow Water no longer intersects terrain between samples."), Height, 10.0);
+		const bool bFirst = Cell.CellId == Bundle.Cells[0].CellId;
+		const double ClampedX = bFirst ? Cell.Bounds.Z : Cell.Bounds.X;
+		const double OutsideX = ClampedX + (bFirst ? 1.0 : -1.0);
+		TestTrue(TEXT("Shared refined edge has a final placement height."), ProjectWorldGeneratedGeometry::SampleTerrain(Cell, ClampedX, 15, Height, Error));
+		TestEqual(TEXT("Shared edge retains the final 2 m correction."), Height, 10.0);
+		TestTrue(TEXT("Outside-owner placement clamps before final-surface selection."), ProjectWorldGeneratedGeometry::SampleTerrain(Cell, OutsideX, 15, Height, Error));
+		TestEqual(TEXT("Outside-owner query cannot escape to stale original heights."), Height, 10.0);
+		TestTrue(TEXT("Explicit immutable grade keeps its clamped original grid."), ProjectWorldGeneratedGeometry::SampleTerrain(
+			Cell, OutsideX, 15, Height, Error, EProjectWorldTerrainQuery::ImmutableGrid));
+		TestEqual(TEXT("Immutable grade remains 12 m outside the owner."), Height, 12.0);
 		TestTrue(TEXT("Outer domain preserves its original height."), ProjectWorldGeneratedGeometry::SampleTerrain(Cell, X, 30, Height, Error));
 		TestEqual(TEXT("Unselected neighbor query boundary is continuous."), Height, 12.0);
 		TArray<FProjectWorldSurfaceTriangle> Triangles;
@@ -80,18 +90,27 @@ bool FProjectWorldRefinedQueriesTest::RunTest(const FString&)
 		auto Broken = Cell;
 		Broken.Terrain.RefinedQuads[0].Triangles.Reset();
 		TestFalse(TEXT("Missing replacement refuses without bilinear fallback."), ProjectWorldGeneratedGeometry::SampleTerrain(Broken, X, 15, Height, Error));
+		Error.Reset();
+		TestFalse(TEXT("Outside-owner query also refuses missing selected-edge coverage."), ProjectWorldGeneratedGeometry::SampleTerrain(Broken, OutsideX, 15, Height, Error));
+		TestTrue(TEXT("Outside-owner refusal identifies missing final coverage."), Error.Contains(TEXT("missing final-surface coverage")));
 		Broken.Terrain.RefinedQuads.Reset();
 		TestTrue(TEXT("Base-only query retains historical interpolation."), ProjectWorldGeneratedGeometry::SampleTerrain(Broken, X, 15, Height, Error));
 		TestEqual(TEXT("Known-bad old surface retains the 2 m intrusion."), Height, 12.0);
+		TestTrue(TEXT("Unrefined outside-owner query still clamps bilinearly."), ProjectWorldGeneratedGeometry::SampleTerrain(Broken, OutsideX, 15, Height, Error));
+		TestEqual(TEXT("Unrefined clamped height is unchanged."), Height, 12.0);
 	}
 	for (const TCHAR* Case : {TEXT("bad_coverage"),TEXT("bad_weights"),TEXT("bad_duplicate"),TEXT("bad_crack")})
 	{
 		FProjectWorldCanonicalValidation Validation; FProjectWorldCanonicalBundle BrokenBundle;
 		TestFalse(FString(Case)+TEXT(" refuses after receipt authentication."),FProjectWorldCanonicalLoader::Load(
-			FPaths::Combine(Root,Case,TEXT("compile_result.json")),BrokenBundle,Validation));
+			FPaths::Combine(Root,Case,TEXT("refinement_result.json")),BrokenBundle,Validation));
 		TestEqual(TEXT("The negative control fails geometry, not fixture creation or integrity."),Validation.ErrorCode,FString(TEXT("terrain-refinement")));
 	}
 	FProjectWorldVerifyIdentity Original; Original.AddFixtureBundle(TEXT("surface"),Bundle);
+	FProjectWorldCanonicalValidation KindValidation; FProjectWorldCanonicalBundle WrongKind;
+	TestFalse(TEXT("Refinement cannot masquerade as base compilation."), FProjectWorldCanonicalLoader::Load(
+		FPaths::Combine(Root,TEXT("bad_kind/refinement_result.json")),WrongKind,KindValidation));
+	TestEqual(TEXT("Receipt-kind refusal precedes geometry loading."),KindValidation.ErrorCode,FString(TEXT("receipt-contract")));
 	for (int32 Field=0; Field<4; ++Field)
 	{
 		auto Changed=Bundle; auto& Q=Changed.Cells[0].Terrain.RefinedQuads[0];

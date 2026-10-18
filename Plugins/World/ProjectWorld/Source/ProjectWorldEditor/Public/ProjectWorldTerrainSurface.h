@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectWorldCivilGrade.h"
 
 struct FProjectWorldCanonicalCell;
 
@@ -15,7 +16,8 @@ struct FProjectWorldSurfaceTriangle
 namespace ProjectWorldTerrainSurface
 {
 	PROJECTWORLDEDITOR_API bool Triangles(const FProjectWorldCanonicalCell& Cell,
-		const FBox2D& Bounds, TArray<FProjectWorldSurfaceTriangle>& Out, FString& Error);
+		const FBox2D& Bounds, TArray<FProjectWorldSurfaceTriangle>& Out, FString& Error,
+		EProjectWorldTerrainQuery Query = EProjectWorldTerrainQuery::FinalSurface);
 	PROJECTWORLDEDITOR_API bool IntersectXY(const FProjectWorldSurfaceTriangle& A,
 		const FProjectWorldSurfaceTriangle& B, TArray<FVector2D>& Out, FString& Error);
 	PROJECTWORLDEDITOR_API bool Height(const FProjectWorldSurfaceTriangle& Triangle,

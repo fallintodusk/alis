@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 #include "ProjectWorldWaterCellMesh.h"
 #include "ProjectWorldWaterHorizontalComposition.h"
+#include "ProjectWorldWaterSourceApproximation.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "StaticMeshOperations.h"
 #include "Utilities/ProjectSha256.h"
@@ -40,6 +41,7 @@ namespace ProjectWorldWaterCellMesh
 		{
 			TArray<FString> Ids;
 			double Height = 0;
+			double Offset = 0;
 			bool bConstant = false;
 		};
 	}
@@ -74,18 +76,27 @@ namespace ProjectWorldWaterCellMesh
 			}
 			double Height = 0;
 			const bool bConstant = ConstantHeight(*Feature, Bundle.HeightQuantizationMeters, Height);
-			FSurfaceGroup* Group = bConstant ? Groups.FindByPredicate([Height](const auto& G)
-				{ return G.bConstant && G.Height == Height; }) : nullptr;
+			const double Offset = ProjectWorldWaterMeshBuilder::PresentationOffset(*Feature, SurfaceOffsetMeters);
+			const FVector Origin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
+				Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
+			if (!ProjectWorldWaterMeshBuilder::ValidateStoredLevel(Bundle, *Feature, Origin, OutError)) return false;
+			if (!FMath::IsFinite(Offset) || !FMath::IsFinite(SurfaceOffsetMeters) || SurfaceOffsetMeters < 0)
+			{ OutError = TEXT("Water effective height mode or layer offset is invalid."); return false; }
+			Height += Offset;
+			FSurfaceGroup* Group = bConstant ? Groups.FindByPredicate([Height, Offset](const auto& G)
+				{ return G.bConstant && G.Height == Height && G.Offset == Offset; }) : nullptr;
 			if (Group == nullptr)
 			{
 				Group = &Groups.AddDefaulted_GetRef();
 				Group->Height = Height;
+				Group->Offset = Offset;
 				Group->bConstant = bConstant;
 			}
 			Group->Ids.Add(Id);
 			Nonconstant += bConstant ? 0 : 1;
 		}
 		TArray<FString> SemanticParts;
+		TArray<const FProjectWorldCanonicalFeature*> TriangleSources;
 		bool bHasMesh = false;
 		int32 Composed = 0;
 		for (const FSurfaceGroup& Group : Groups)
@@ -155,6 +166,17 @@ namespace ProjectWorldWaterCellMesh
 					FStaticMeshOperations::FAppendSettings());
 			}
 			OutTriangles += Surface.TriangleCount;
+			for (int32 I=0;I<Surface.TriangleCount;++I)
+				TriangleSources.Add(&Bundle.Features.FindChecked(FeatureId));
+		}
+		bool bRefined=false;
+		FString RefinementHash;
+		if (bHasMesh && !ProjectWorldWaterSourceApproximation::Refine(OutDescription,TriangleSources,
+			Bundle,Cell,OutOrigin,SurfaceOffsetMeters,bRefined,RefinementHash,OutError)) return false;
+		if (bRefined)
+		{
+			OutTriangles=OutDescription.Triangles().Num();
+			SemanticParts.Add(TEXT("source_approximation_v1:")+RefinementHash);
 		}
 		bool bComposed=false;
 		FString GeometryHash;

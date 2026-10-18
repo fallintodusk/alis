@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/water-confluence-v1.json",
+  "title": "Source constrained flowing Water knots",
+  "type": "object",
+  "required": ["$schema", "function_id", "function_version", "vertical_basis", "accuracy", "sample_count", "knots", "baseline_function", "constraint"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/water-confluence-v1.json"},
+    "function_id": {"const": "constrained_flowing_knots"},
+    "function_version": {"const": 1},
+    "vertical_basis": {"const": "source_node_constrained_canonical_terrain_fit"},
+    "accuracy": {"const": "derived_not_surveyed"},
+    "sample_count": {"type": "integer", "minimum": 2},
+    "knots": {"$ref": "#/$defs/knots"},
+    "baseline_function": {
+      "type": "object",
+      "required": ["function_id", "function_version", "vertical_basis", "accuracy", "knots"],
+      "properties": {
+        "function_id": {"const": "rolling_quantile_l1_isotonic"},
+        "function_version": {"const": 1},
+        "vertical_basis": {"const": "canonical_terrain_robust_fit"},
+        "accuracy": {"const": "derived_not_surveyed"},
+        "knots": {"$ref": "#/$defs/knots"}
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["version", "method", "provider_node_id", "receiver_feature_id", "receiver_function_sha256", "normalized_context_content_sha256", "baseline_terminal_m", "target_m", "lowering_m", "affected_segment", "source_interpretation"],
+      "properties": {
+        "version": {"const": 1},
+        "method": {"const": "shared_source_node_terminal_lowering"},
+        "provider_node_id": {"type": "string", "pattern": "^node/[1-9][0-9]*$"},
+        "receiver_feature_id": {"type": "string", "minLength": 1},
+        "receiver_function_sha256": {"$ref": "#/$defs/hash"},
+        "normalized_context_content_sha256": {"$ref": "#/$defs/hash"},
+        "baseline_terminal_m": {"type": "number"},
+        "target_m": {"type": "number"},
+        "lowering_m": {"type": "number", "exclusiveMinimum": 0},
+        "affected_segment": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/xy"}},
+        "source_interpretation": {"const": "derived_free_flow_confluence_not_surveyed"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "xy": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+    "knots": {"type": "array", "minItems": 2, "items": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}}
+  }
+}

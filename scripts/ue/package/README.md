@@ -151,6 +151,17 @@ relative paths by ordinal UTF-8 bytes. The World gate, ProjectCinematic binding,
 player archive, and release coordinator must agree byte-for-byte. The focused
 cross-owner regression is `scripts/ue/world/test/package_identity.Tests.ps1`.
 
+New release preparation also authenticates both city gameplay, named building
+wall/roof rays, native Water visibility and texture cache evidence through
+[release Shipping acceptance](release_shipping.py). Both cities must belong to
+the final shared Shipping payload/executable and current source state. Referenced
+artifacts, including nested Manhattan receipts, are hashed again before output
+creation. An accepted machine receipt without a performance review still passes
+through this admission boundary. This contract does not alter performance budgets
+or authorize reuse of a historical waiver.
+An operator wrapper must match its loaded machine receipt's current revision,
+source state, Shipping package/executable hashes and operation identity.
+
 ```powershell
 .\scripts\ue\package\prepare_release.ps1 `
   -ReleaseVersion X.Y.Z `

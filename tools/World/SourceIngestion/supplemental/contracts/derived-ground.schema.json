@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/derived-ground-v2.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "kind", "basis", "provider", "release", "scope", "fresh_raw_decode", "source_frame", "target_frame", "query", "accuracy", "license", "artifacts"],
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "frame": {
+      "type": "object", "additionalProperties": false, "required": ["horizontal", "vertical", "unit"],
+      "properties": {"horizontal": {"$ref": "#/$defs/text"}, "vertical": {"$ref": "#/$defs/text"}, "unit": {"enum": ["m", "us_ft"]}}
+    },
+    "raster_query": {
+      "type": "object", "additionalProperties": false,
+      "required": ["selection_rule", "axis_order", "source_surface", "resampling", "sample_rule", "canonical_bounds", "grid_size", "source_nodata", "target_nodata"],
+      "properties": {
+        "selection_rule": {"const": "qualified_raster_grid"}, "axis_order": {"const": "east_north"},
+        "source_surface": {"const": "provider_bare_earth_hydroflattened"},
+        "resampling": {"const": "bilinear"}, "sample_rule": {"const": "grid_nodes"},
+        "canonical_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "grid_size": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 2}},
+        "source_nodata": {"type": ["number", "null"]}, "target_nodata": {"type": "number"}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-source/derived-ground-v2.json"},
+    "schema_version": {"const": 2}, "kind": {"const": "qualified_derived_ground"},
+    "basis": {"enum": ["observed_las_ground", "raster_ground_model"]},
+    "provider": {"$ref": "#/$defs/text"}, "release": {"$ref": "#/$defs/text"},
+    "scope": {"const": "supplementary_model_candidate"}, "fresh_raw_decode": {"const": false},
+    "source_frame": {"$ref": "#/$defs/frame"},
+    "target_frame": {"allOf": [{"$ref": "#/$defs/frame"}, {"properties": {"vertical": {"const": "EPSG:3855"}, "unit": {"const": "m"}}}]},
+    "query": {"type": "object"},
+    "accuracy": {"$ref": "https://alis.world/schemas/world-source/source-profile-v1.json#/$defs/accuracy"},
+    "license": {"$ref": "https://alis.world/schemas/world-source/source-profile-v1.json#/$defs/license"},
+    "artifacts": {
+      "type": "array", "minItems": 9,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "role", "path", "sha256", "byte_size"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "role": {"enum": ["raw_source", "source_ground", "processed_ground", "extraction_recipe", "transform_recipe", "extraction_receipt", "processing_receipt", "qualification", "runtime", "transform_grid", "supporting_evidence"]},
+          "path": {"$ref": "#/$defs/text"}, "sha256": {"$ref": "#/$defs/hash"},
+          "byte_size": {"type": "integer", "minimum": 1}
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {"properties": {"basis": {"const": "observed_las_ground"}, "source_frame": {"properties": {"unit": {"const": "m"}}}, "query": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requested_bounds", "effective_bounds", "source_coordinate_decimal_places", "selection_rule", "axis_order", "classification", "full_resolution", "point_count"],
+      "properties": {
+        "requested_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "effective_bounds": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
+        "source_coordinate_decimal_places": {"type": "integer", "minimum": 0, "maximum": 15},
+        "selection_rule": {"enum": ["exact_rectangle", "las_integer_inclusive"]},
+        "axis_order": {"const": "east_north"}, "classification": {"const": 2},
+        "full_resolution": {"const": true}, "point_count": {"type": "integer", "minimum": 3}
+      }
+    }}},
+    {"properties": {"basis": {"const": "raster_ground_model"}, "query": {"$ref": "#/$defs/raster_query"}}}
+  ]
+}

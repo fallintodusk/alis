@@ -4,7 +4,7 @@
   "kind": "producer",
   "generator_id": "project_water_mesh",
   "generator_version": 1,
-  "output_revision": 4,
+  "output_revision": 5,
   "data_inputs": [],
   "modules": ["ProjectWorldWaterEditor"]
 }

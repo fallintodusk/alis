@@ -56,8 +56,38 @@ refuses while a project Unreal process runs. It then validates the marker, the W
 records, and the input copy, and takes the lock as its owner with delegation. It runs
 World transaction recovery when a journal is pending, restores the World outer snapshot,
 and restores ProjectMaterial through the host's `RestorePrevious` mode for the bound
-operation. It removes the marker only when both owners match their recorded identities.
+operation. It removes the marker only when the participating owners match their recorded identities.
 Every step is idempotent, so a rerun is safe.
+
+### Canonical selection participant
+
+An operation over World and CanonicalCompilation can bind the canonical owner's
+selection-transition ticket in this same marker. Material participation is optional;
+a canonical-only target does not invoke or fabricate a Material operation. Existing
+World/Material callers retain their path.
+
+The canonical participant pins the source-relative inventory of every World backup
+and manifest entry. Recovery authenticates all saved bytes before inner World
+recovery can mutate anything. It then settles the inner journal, reverses selection
+through the canonical owner's exact CAS, and restores the World snapshot. Unknown
+canonical state or damaged backups refuse. The marker is retained until both prior
+pointers and the complete restored path/byte inventory match. This is coordinated
+recovery under the global lock, not two-file atomic publication.
+
+```mermaid
+sequenceDiagram
+    participant E as Existing outer owner
+    participant W as World snapshot and transaction owner
+    participant C as Canonical selection owner
+    E->>W: Snapshot settled World and pin all backup bytes
+    E->>E: Write existing recovery marker with canonical ticket
+    E->>W: Selected saved execution and cold replay
+    E->>E: Authenticate complete backup inventory
+    E->>W: Settle any inner journal
+    E->>C: Reverse exact selection CAS
+    E->>W: Restore original World authority and files
+    E->>E: Verify prior identities and exact inventory; remove marker last
+```
 
 | Exit | Meaning | State |
 |---|---|---|

@@ -27,7 +27,9 @@ base; it does not change ordinary compilation or production promotion.
 | Path | Responsibility |
 |---|---|
 | `contracts/` | Canonical features, terrain, cells, coverage, reports, and results |
+| [refinement/](refinement/) | Separately authenticated post-canonical final-surface operation |
 | `app/adapters.py` | Provider record to canonical semantic mapping |
+| `app/surface_context.py` | Source-qualified crossing and constructed-water meaning; explicit unresolved metric constraints |
 | `app/spatial.py` | Quantization, fixture transform, grid and cell identity |
 | `app/projection.py` | Pinned OGR projection and production geometry admission |
 | `app/membership.py` | Exact geometry-to-cell membership and fixture differential seam |
@@ -189,6 +191,47 @@ the logical massing is rejected. Production containment first uses a spatial
 index to bound candidates and then applies exact `ST_Covers`; the index is an
 optimization, not an alternate geometric authority.
 
+### Surface context and metric resolution
+
+Road and Water attributes carry `surface_context` version 1. CanonicalCompilation
+maps supplied bridge, tunnel, ford, covered and relative-layer evidence before
+provider details leave the semantic boundary. It preserves constructed fountain,
+pool, basin and reservoir context separately from Water class and surface fitting.
+Missing evidence stays `unknown`; contradictory bridge/tunnel evidence stays
+`conflicting`. The OSM `natural=water` key does not establish natural origin.
+
+```text
+SourceIngestion admitted properties
+    -> canonical adapter / surface_context
+        -> typed relative meaning + source-tag evidence + unresolved requirements
+        -> separate, qualified metric surface decision
+            -> owned Road / Water / Terrain realization
+```
+
+Relative layers are ordering indices, never metre offsets. `covered=yes` alone
+does not establish a tunnel. Source `ele` is retained as evidence and requests
+vertical-datum qualification; the mapper does not use it as a canonical height.
+Source tags are provenance, not runtime rules. Unsupported values remain
+observable through `unresolved`; malformed/nonfinite evidence refuses.
+
+For an original projected LineString, `source_nodes` retains the native ordered
+`provider_node_id` and canonical XY before Water's visible-ribbon clipping.
+IDs are qualified by the containing feature's provider/snapshot source reference
+and the containing bundle's CRS. Missing sequences and polygon rings emit an
+empty array; rotated area rings must not receive positional node identities.
+Repeated IDs are permitted at the same XY, and distinct IDs at equal XY remain
+distinct. Count, integer-identity and coordinate conflicts refuse. This evidence
+does not retain every tagged junction control or establish hydraulic continuity.
+
+This mapping preserves evidence; it does not implement elevated Road profiles,
+basin elevations, hydraulic junction continuity or a new terrain-conditioning
+policy. Those consumers must not claim resolution from classification alone.
+Existing immutable bundles have their original narrower semantics and retain
+their exact lineage. Updating ordinary compilation changes its implementation
+fingerprint and still requires source-level acceptance before promotion; this
+annotation is not a substitute for that replay. The separately authenticated
+refinement route cannot silently insert historical tags into the base.
+
 Water policy is data-owned by the compiler profile. It makes exact decisions
 for class, modifier, source ID, surface behavior, group membership, width, and
 surface function; reusable compiler code does not infer from names or
@@ -235,7 +278,14 @@ outside D1 and the bundle. Raw provider payloads are forbidden. `authority`
 verifies every packed byte and current compiler-profile identity; `materialize`
 authenticates the bundled admission/control/source-plan receipts and current
 human-edited input hashes without rerunning old evidence through newer tools.
-`materialize` restores an ignored accepted-base tree without recompiling. Cell identities,
+`materialize` restores an ignored authenticated tree without recompiling. An optional
+selected feature refinement has a separate effective content identity and returns
+its real `refinement_result.json`; base-only authority returns `compile_result.json`.
+Both cached receipts and all cached outputs must match their pinned authority.
+The [effective-authority candidate contract](terrain_refinement.md#effective-authority-candidates)
+owns preparation and production-activation limits. Base promotion refuses to
+silently replace an authority with a selected child.
+Cell identities,
 per-cell hashes, lineage, and dirty selection stay inside the bundle, so
 storage packing does not change regeneration or world semantics. Canonical ZIP
 files are persistent Git LFS artifacts; the public text mirror excludes them.

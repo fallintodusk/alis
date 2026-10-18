@@ -122,8 +122,9 @@ def _result_bytes(result: dict[str, Any]) -> bytes:
     return (json.dumps(result, indent=2, ensure_ascii=True) + "\n").encode("utf-8")
 
 
-def _write_deterministic_bundle(path: Path, files: list[tuple[str, Path]], result: dict[str, Any]) -> None:
-    entries: list[tuple[str, Path | bytes]] = [*files, ("compile_result.json", _result_bytes(result))]
+def _write_deterministic_bundle(path: Path, files: list[tuple[str, Path]], result: dict[str, Any],
+                                *, result_name: str = "compile_result.json") -> None:
+    entries: list[tuple[str, Path | bytes]] = [*files, (result_name, _result_bytes(result))]
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
         for relative, source in sorted(entries):
             info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
@@ -146,6 +147,9 @@ def _promote_canonical_locked(
     authority_root: Path | None = None,
 ) -> tuple[dict[str, Any], Path]:
     profile = load_profile(profile_path)
+    existing_root = authority_root.resolve() if authority_root else _authority_root(repo_root, profile).resolve()
+    if (existing_root / "active.json").is_file() and "selected_refinement" in read_json(existing_root / "active.json"):
+        raise CompilerError("canonical_refinement_retirement_required", "A new base must explicitly reconcile the accepted refinement")
     validate_profile_ownership(repo_root, profile_path, profile)
     external_inputs = current_external_inputs(repo_root, profile_path, profile)
     admission_receipt_sha256 = None
@@ -241,8 +245,29 @@ def promote_canonical(
 
 
 def validate_canonical_authority(repo_root: Path, active_path: Path, profile_path: Path) -> dict[str, Any]:
-    authority = read_json(active_path)
-    validate_document(authority, active_path)
+    return _validate_authority_document(repo_root, read_json(active_path), active_path, profile_path)
+
+
+def _validate_authority_schema(repo_root: Path, authority: dict[str, Any], active_path: Path,
+                               profile_path: Path) -> None:
+    schema_path = Path(__file__).resolve().parents[1] / 'contracts/canonical-authority.schema.json'
+    schema_id = read_json(schema_path)['$id']
+    reference = authority.get('$schema')
+    if reference != schema_id:
+        origins = [active_path.parent]
+        if active_path.is_relative_to(repo_root / 'tmp'):
+            origins.append(canonical_active_path(repo_root, profile_path).parent)
+        if (not isinstance(reference, str) or '://' in reference or Path(reference).is_absolute() or
+                not any((origin / reference).resolve() == schema_path for origin in origins)):
+            raise CompilerError('canonical_schema_invalid', 'Authority does not reference its owned schema')
+    # A private candidate carries the durable publication reference. Its payload
+    # remains validated by the same owned contract while its ZIP is still staged.
+    validate_document({**authority, '$schema': schema_id}, active_path)
+
+
+def _validate_authority_document(repo_root: Path, authority: dict[str, Any], active_path: Path,
+                                 profile_path: Path) -> dict[str, Any]:
+    _validate_authority_schema(repo_root, authority, active_path, profile_path)
     profile = load_profile(profile_path)
     if (
         authority["profile_id"] != profile["profile_id"]
@@ -341,6 +366,9 @@ def validate_canonical_authority(repo_root: Path, active_path: Path, profile_pat
             }
             if bundled_evidence != {entry["path"]: entry for entry in admission_receipt["evidence"]}:
                 raise CompilerError("canonical_bundle_invalid", "Canonical admission artifact inventory differs")
+    if "selected_refinement" in authority:
+        from ..refinement.app.authority import validate_selection_bundle
+        validate_selection_bundle(authority, active_path.parent)
     return authority
 
 
@@ -352,7 +380,7 @@ def materialize_canonical(repo_root: Path, active_path: Path, profile_path: Path
     authority = validate_canonical_authority(repo_root, active_path, profile_path)
     lock_path = (
         repo_root / "tmp" / "world" / "canonical_compilation" / "materialized"
-        / "locks" / f"{authority['bundle']['sha256']}.lock"
+        / "locks" / f"{authority.get('selected_refinement', {}).get('effective_identity', authority['bundle']['sha256'])}.lock"
     )
     try:
         with exclusive_file_lock(lock_path):
@@ -362,14 +390,28 @@ def materialize_canonical(repo_root: Path, active_path: Path, profile_path: Path
 
 
 def _materialize_canonical_locked(repo_root: Path, active_path: Path, authority: dict[str, Any]) -> Path:
-    bundle_path = resolve_owned_path(active_path.parent, authority["bundle"]["path"])
+    selected = authority.get("selected_refinement")
+    descriptor = selected["bundle"] if selected else authority["bundle"]
+    identity = selected["effective_identity"] if selected else descriptor["sha256"]
+    bundle_path = resolve_owned_path(active_path.parent, descriptor["path"])
     output_root = (
         repo_root / "tmp" / "world" / "canonical_compilation" / "materialized"
-        / authority["profile_id"] / authority["bundle"]["sha256"]
+        / authority["profile_id"] / identity
     )
-    result_path = output_root / "compile_result.json"
+    result_path = output_root / ("refinement_result.json" if selected else "compile_result.json")
+    expected_hash = selected["result_sha256"] if selected else authority["compile_result_sha256"]
+
+    def validate_materialized() -> None:
+        if file_hash(result_path) != expected_hash:
+            raise CompilerError("canonical_materialization_changed", "Materialized result differs from accepted authority")
+        if selected:
+            from ..refinement.app.contracts import existing_result
+            existing_result(output_root, selected["inputs_hash"])
+        else:
+            accepted_base(result_path)
+
     if result_path.is_file():
-        accepted_base(result_path)
+        validate_materialized()
         return result_path
     staging = output_root.with_name(output_root.name + ".staging")
     if staging.exists():
@@ -384,5 +426,5 @@ def _materialize_canonical_locked(repo_root: Path, active_path: Path, authority:
             target.write_bytes(bundle.read(name))
     output_root.parent.mkdir(parents=True, exist_ok=True)
     os.replace(staging, output_root)
-    accepted_base(result_path)
+    validate_materialized()
     return result_path

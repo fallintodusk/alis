@@ -21,6 +21,7 @@ struct FProjectWorldCanonicalWaterSurface
 	FString FunctionId;
 	int32 FunctionVersion = 0;
 	double LevelMeters = 0.0;
+	TOptional<double> ContainmentSpillMeters;
 	TArray<FVector> Knots;
 	bool bValid = false;
 };
@@ -32,6 +33,34 @@ struct FProjectWorldCanonicalRepresentation
 	TArray<FVector2D> Points;
 	TArray<TArray<FVector2D>> Parts;
 	TArray<FProjectWorldCanonicalPolygon> Polygons;
+};
+
+struct FProjectWorldCanonicalRoadElevationTriangle
+{
+	FVector UVZ[3];
+};
+
+enum class EProjectWorldRoadEndpointRelation : uint8
+{
+	TerrainAbutment,
+	ConstructedSurface
+};
+
+struct FProjectWorldCanonicalRoadElevation
+{
+	FString SourceFeatureId;
+	TArray<FVector2D> SourcePoints;
+	double LengthMeters = 0;
+	double WidthMeters = 0;
+	TArray<FProjectWorldCanonicalRoadElevationTriangle> Triangles;
+	TMap<FString, FString> TerrainArtifacts;
+	EProjectWorldRoadEndpointRelation EndpointRelation = EProjectWorldRoadEndpointRelation::TerrainAbutment;
+	FString ConstructedSurfaceHash;
+};
+
+struct FProjectWorldCanonicalCivilGrade
+{
+	TMap<FString, FString> TerrainArtifacts;
 };
 // PROJECTWORLD_PRODUCER_BEGIN project_building_massing
 struct FProjectWorldCanonicalBuildingVolume
@@ -56,6 +85,8 @@ struct FProjectWorldCanonicalFeature
 	TArray<FProjectWorldCanonicalPolygon> GeometryPolygons;
 	TArray<FProjectWorldCanonicalRepresentation> Representations;
 	FProjectWorldCanonicalWaterSurface WaterSurface;
+	TOptional<FProjectWorldCanonicalRoadElevation> RoadElevation;
+	TOptional<FProjectWorldCanonicalCivilGrade> CivilGrade;
 	FString RoadClass;
 	FString VegetationClass;
 	FString FoliageClass;
@@ -80,6 +111,7 @@ struct FProjectWorldCanonicalTerrainQuad
 struct FProjectWorldCanonicalTerrain
 {
 	FString ArtifactHash;
+	FString BaseArtifactHash;
 	FString VerticalProvenanceId;
 	FString VerticalDatum;
 	FString VerticalConfidence;

@@ -21,6 +21,36 @@
           "attributes": {
             "type": "object",
             "properties": {
+              "surface_context": {
+                "type": "object",
+                "required": ["version", "ground_relation", "bridge", "tunnel", "ford", "covered", "relative_layer", "water_origin", "water_kind", "source_tags", "source_nodes", "unresolved"],
+                "properties": {
+                  "version": {"const": 1},
+                  "ground_relation": {"enum": ["above", "below", "at_ground", "unknown", "conflicting"]},
+                  "bridge": {"enum": ["present", "absent", "unknown"]},
+                  "tunnel": {"enum": ["present", "absent", "unknown"]},
+                  "ford": {"enum": ["present", "absent", "unknown"]},
+                  "covered": {"enum": ["present", "absent", "unknown"]},
+                  "relative_layer": {"type": ["integer", "null"], "minimum": -2147483648, "maximum": 2147483647},
+                  "water_origin": {"enum": ["constructed", "unknown"]},
+                  "water_kind": {"enum": ["fountain", "pool", "basin", "reservoir", "unspecified"]},
+                  "source_tags": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean"]}},
+                  "source_nodes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["provider_node_id", "xy"],
+                      "properties": {
+                        "provider_node_id": {"type": "string", "pattern": "^node/[1-9][0-9]*$"},
+                        "xy": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "unresolved": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+                },
+                "additionalProperties": false
+              },
               "building_massing_version": {"const": 2},
               "logical_building_id": {"type": "string", "pattern": "^(node|way|relation)/[0-9]+$"},
               "volume_selection": {"enum": ["outline_no_parts", "complete_parts", "outline_fallback_incomplete_parts"]},

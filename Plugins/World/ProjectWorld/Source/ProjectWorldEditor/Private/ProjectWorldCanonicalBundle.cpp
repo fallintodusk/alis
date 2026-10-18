@@ -2,6 +2,8 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldCivilGrade.h"
+#include "ProjectWorldRoadContractParsing.h"
 #include "ProjectWorldCanonicalRefinement.h"
 #include "ProjectWorldGeometryParsing.h"
 #include "ProjectWorldWaterContractParsing.h"
@@ -285,6 +287,7 @@ bool FProjectWorldCanonicalLoader::Load(
 	FString Schema;
 	FString Status;
 	FString PathBase;
+	FString Operation;
 	int32 SchemaVersion = 0;
 	if (!ComputeFileSha256(OutBundle.CompileResultPath, OutBundle.CompileResultHash) ||
 		!LoadJsonObject(OutBundle.CompileResultPath, ResultObject, OutValidation) ||
@@ -299,7 +302,13 @@ bool FProjectWorldCanonicalLoader::Load(
 		return false;
 	}
 
-	if (Schema != TEXT("https://alis.world/schemas/world-compiler/compile-result-v1.json") ||
+	ResultObject->TryGetStringField(TEXT("operation"), Operation);
+	const bool bCompile = Schema == TEXT("https://alis.world/schemas/world-compiler/compile-result-v1.json") && Operation == TEXT("compile");
+	const bool bRefinement = Schema == TEXT("https://alis.world/schemas/world-compiler/refinement-result-v1.json") && Operation == TEXT("refine");
+	FString BaseResultHash;
+	bool bValidBaseHash = ResultObject->TryGetStringField(TEXT("base_result_sha256"), BaseResultHash) && BaseResultHash.Len() == 64;
+	for (TCHAR Character : BaseResultHash) bValidBaseHash &= FChar::IsHexDigit(Character);
+	if ((!bCompile && !bRefinement) || (bRefinement && !bValidBaseHash) ||
 		SchemaVersion != 1 || Status != TEXT("accepted") || PathBase != TEXT("output_root"))
 	{
 		Reject(OutValidation, TEXT("receipt-contract"), TEXT("Compiler receipt is not an accepted v1 output-root receipt."));
@@ -496,6 +505,7 @@ bool FProjectWorldCanonicalLoader::Load(
 			return false;
 		}
 
+		Cell.Terrain.BaseArtifactHash = Cell.Terrain.ArtifactHash;
 		const FOutputDescriptor* TerrainDescriptor = Descriptors.Find(TerrainPath);
 		const FOutputDescriptor* FeatureDescriptor = Descriptors.Find(FeaturePath);
 		FString TerrainFullPath;
@@ -574,6 +584,12 @@ bool FProjectWorldCanonicalLoader::Load(
 		}
 	}
 
+	for (const auto& Pair : OutBundle.Features)
+	{
+		FString Identity, Error;
+		if (!ProjectWorldCivilGrade::Validate(OutBundle, Pair.Value, Identity, Error))
+		{ Reject(OutValidation, TEXT("civil-grade-support"), Error, Pair.Key); return false; }
+	}
 	return ProjectWorldCanonicalRefinement::ValidateSeams(OutBundle, OutValidation);
 }
 
@@ -864,7 +880,9 @@ namespace ProjectWorldCanonical
 				}
 			}
 			// PROJECTWORLD_PRODUCER_END project_building_massing
-			if (!ProjectWorldWaterContractParsing::Read(Attributes, Feature, Validation))
+			if (!ProjectWorldCivilGrade::Read(Attributes, Feature, Validation) ||
+				!ProjectWorldRoadContractParsing::Read(Attributes, Feature, Validation) ||
+				!ProjectWorldWaterContractParsing::Read(Attributes, Feature, Validation))
 			{
 				return false;
 			}

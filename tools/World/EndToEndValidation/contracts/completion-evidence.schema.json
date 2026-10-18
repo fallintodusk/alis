@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/completion-evidence-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "matrix", "target", "execution_inputs", "original_sources", "rollout"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "matrix": {"$ref": "#/$defs/pin"},
+    "target": {"$ref": "#/$defs/pin"},
+    "execution_inputs": {"$ref": "#/$defs/pin"},
+    "schema_repair": {"$ref": "#/$defs/pin"},
+    "target_request": {"$ref": "#/$defs/pin"},
+    "execution_root": {"type": "string", "minLength": 1, "description": "Original path-label namespace; never an input filesystem root."},
+    "original_sources": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tools/World/EndToEndValidation/app/acceptance.py", "tools/World/EndToEndValidation/app/cli.py"],
+      "properties": {
+        "tools/World/EndToEndValidation/app/acceptance.py": {"$ref": "#/$defs/pin"},
+        "tools/World/EndToEndValidation/app/cli.py": {"$ref": "#/$defs/pin"},
+        "tools/World/CanonicalCompilation/app/promotion.py": {"$ref": "#/$defs/pin"},
+        "tools/World/CanonicalCompilation/app/cli.py": {"$ref": "#/$defs/pin"},
+        "tools/World/CanonicalCompilation/refinement/api.py": {"$ref": "#/$defs/pin"},
+        "tools/World/CanonicalCompilation/refinement/app/authority.py": {"$ref": "#/$defs/pin"},
+        "tools/World/CanonicalCompilation/refinement/app/activation.py": {"$ref": "#/$defs/pin"},
+        "tools/World/CanonicalCompilation/refinement/contracts/canonical-selection-transition.schema.json": {"$ref": "#/$defs/pin"}
+      }
+    },
+    "rollout": {
+      "type": "object", "additionalProperties": false,
+      "required": ["prior_active", "active", "native", "audit"],
+      "properties": {
+        "prior_active": {"$ref": "#/$defs/pin"},
+        "active": {"$ref": "#/$defs/pin"},
+        "native": {"$ref": "#/$defs/pin"},
+        "audit": {"$ref": "#/$defs/pin"}
+      }
+    },
+    "retained_evidence": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    }
+  },
+  "$defs": {
+    "pin": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  },
+  "dependentRequired": {"retained_evidence": ["target_request", "execution_root"], "target_request": ["retained_evidence", "execution_root"], "execution_root": ["retained_evidence", "target_request"]}
+}

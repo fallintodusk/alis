@@ -124,7 +124,8 @@ def _matrix_order(profile_id: str) -> tuple[int, str]:
     return (0, profile_id)
 
 
-def plan_for_paths(paths: list[str], repo_root: Path = REPO_ROOT, base: str | None = None) -> dict[str, object]:
+def plan_for_paths(paths: list[str], repo_root: Path = REPO_ROOT, base: str | None = None,
+                   *, immutable_canonical: bool = False) -> dict[str, object]:
     changed = sorted({path.replace("\\", "/").lstrip("./") for path in paths if path})
     executable_inputs = executable_profile_inputs(repo_root, COMMON_TEST_PROFILE_IDS)
     profile_inputs = {
@@ -180,7 +181,19 @@ def plan_for_paths(paths: list[str], repo_root: Path = REPO_ROOT, base: str | No
         needs_full = len(validation_paths) != 1 or upstream_replay_required(
             changed, base, repo_root, validation_profile=repo_root / validation_paths[0],
         )
-        matrix_modes[profile_id] = "full" if needs_full else "canonical_authority"
+        if immutable_canonical:
+            from .contracts import ValidationFailure, read_json
+            from .immutable_canonical import MODE, snapshot_selection
+            if len(validation_paths) != 1 or base is None:
+                raise PlanningError("Immutable canonical planning needs an explicit reviewed base and profile")
+            selected_path = repo_root / validation_paths[0]
+            try:
+                snapshot_selection(repo_root, read_json(selected_path), base, selected_path)
+            except ValidationFailure as error:
+                raise PlanningError(str(error)) from error
+            matrix_modes[profile_id] = MODE
+        else:
+            matrix_modes[profile_id] = "full" if needs_full else "canonical_authority"
     return {
         "changed_path_count": len(changed),
         "inner_loop": "L0",
@@ -278,9 +291,11 @@ def format_plan(plan: dict[str, object], base: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Plan world pipeline gates without running them")
     parser.add_argument("--base", default="HEAD")
+    parser.add_argument("--from-immutable-canonical", action="store_true")
     args = parser.parse_args(argv)
     try:
-        print(format_plan(plan_for_paths(changed_paths(args.base), base=args.base), args.base))
+        print(format_plan(plan_for_paths(changed_paths(args.base), base=args.base,
+            immutable_canonical=args.from_immutable_canonical), args.base))
         return 0
     except (PlanningError, ProfileInputError, ProducerDescriptorError) as error:
         print(f"World pipeline plan failed: {error}", file=sys.stderr)

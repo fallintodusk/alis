@@ -20,10 +20,12 @@ from World.EndToEndValidation.app.bootstrap_preflight import capture
 def main(argv: list[str] | None = None) -> int:
     try:
         arguments = list(argv or sys.argv[1:])
-        if arguments[:1] == ["plan"]:
+        if arguments[:1] == ["plan"] and "--from-immutable-canonical" not in arguments:
             from World.EndToEndValidation.app.planning import main as plan_main
 
             return plan_main(arguments[1:])
+        if arguments[:1] == ["plan"]:
+            return launch_cli(COMPONENT_ROOT / "run.py", arguments, "validation_cli_launch_failed")
         preflight = capture()
         arguments.extend(["--bootstrap-preflight", str(preflight)])
         return launch_cli(COMPONENT_ROOT / "run.py", arguments, "validation_cli_launch_failed")

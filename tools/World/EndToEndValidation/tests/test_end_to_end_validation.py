@@ -141,6 +141,9 @@ class EndToEndValidationTests(unittest.TestCase):
             if name == "kazan":
                 self.assertEqual("kazan_representative_v1", presentation["profile_id"])
                 self.assertEqual("kazan_territory_512_1536_v1", runtime["profile_id"])
+            elif name == "manhattan":
+                self.assertEqual("kazan_representative_v1", presentation["profile_id"])
+                self.assertEqual("manhattan_showcase_512_1536_v1", runtime["profile_id"])
             else:
                 self.assertEqual("synthetic_representative_v1", presentation["profile_id"])
                 self.assertEqual("synthetic_territory_twin_v1", runtime["profile_id"])
@@ -586,6 +589,7 @@ class EndToEndValidationTests(unittest.TestCase):
                     "status": "accepted",
                     "profile_id": profile_id,
                     "evidence": {
+                        "matrix_mode": "full",
                         "profiles": {},
                         "validation_profile": {
                             "path": profile_path_value.relative_to(REPO_ROOT).as_posix(),
@@ -612,6 +616,14 @@ class EndToEndValidationTests(unittest.TestCase):
                 # Correctly typed: accepted.
                 evidence = acceptance.accepted_run_evidence("run-20260101T000000Z", "kazan_territory_v1")
                 self.assertEqual(64, len(evidence["result_sha256"]))
+                for invalid_mode in (None, "unknown", "immutable-canonical"):
+                    invalid = matrix_result("kazan_territory_v1", validation_path)
+                    invalid["evidence"]["matrix_mode"] = invalid_mode
+                    self._write(run_dir / "result.json", invalid)
+                    with self.assertRaises(ValidationFailure) as raised:
+                        acceptance.accepted_run_evidence("run-20260101T000000Z", "kazan_territory_v1")
+                    self.assertEqual("immutable_canonical_input_unproven", raised.exception.code)
+                self._write(run_dir / "result.json", matrix_result("kazan_territory_v1", validation_path))
                 # Same run passed as the p0 argument: refused, not relabelled.
                 with self.assertRaises(ValidationFailure) as raised:
                     acceptance.accepted_run_evidence("run-20260101T000000Z", "p0")

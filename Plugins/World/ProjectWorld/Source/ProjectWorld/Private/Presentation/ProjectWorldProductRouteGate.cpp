@@ -5,6 +5,8 @@
 
 #include "Presentation/ProjectWorldPresentationSampling.h"
 #include "Presentation/ProjectWorldProductRouteCollision.h"
+#include "Presentation/ProjectWorldProductBuildingEvidence.h"
+#include "Presentation/ProjectWorldProductMaterialEvidence.h"
 #include "Presentation/ProjectWorldProductRouteConfig.h"
 #include "Presentation/ProjectWorldProductTerrainAcceptance.h"
 #include "Presentation/ProjectWorldRuntimeScreenshotCapture.h"
@@ -69,6 +71,8 @@ namespace
 		return FString();
 	}
 }
+
+FProjectWorldProductRouteGate::FProjectWorldProductRouteGate() = default;
 
 FProjectWorldProductRouteGate::~FProjectWorldProductRouteGate()
 {
@@ -278,6 +282,17 @@ bool FProjectWorldProductRouteGate::TryAcquireProductWorld()
 		}
 	}
 	CenterLocation = Character->GetActorLocation();
+	if (!Config.BuildingReferencePath.IsEmpty())
+	{
+		BuildingEvidence = MakeUnique<FProjectWorldProductBuildingEvidence>();
+		FString Error;
+		if (!BuildingEvidence->Load(Config.BuildingReferencePath, Config.BuildingReferenceHash,
+			Config.MapPackage, Config.RuntimeProfileHash, Error))
+		{
+			FinishRejected(TEXT("product_building_reference_invalid"), Error);
+			return false;
+		}
+	}
 	SetPhase(EPhase::SettlingAtCenter);
 	return true;
 }
@@ -390,6 +405,22 @@ bool FProjectWorldProductRouteGate::ProbeCenterContracts()
 		return false;
 	}
 	CenterCellMarker = FindNearestCellMarker(CenterLocation);
+	if (Config.bMaterialEvidence)
+	{
+		MaterialEvidence = MakeShared<FJsonObject>();
+		if (!ProjectWorldProductMaterialEvidence::ReadBindings(*ProductWorld.Get(), *MaterialEvidence, LastReadinessError))
+		{
+			if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
+				FinishRejected(TEXT("product_material_binding_failed"), LastReadinessError);
+			return false;
+		}
+	}
+	if (BuildingEvidence && !BuildingEvidence->Probe(*ProductWorld.Get(), *PlayerCharacter.Get(), LastReadinessError))
+	{
+		if (FPlatformTime::Seconds() - PhaseStartedSeconds > ProductRouteStreamingTimeoutSeconds)
+			FinishRejected(TEXT("product_building_surface_failed"), LastReadinessError);
+		return false;
+	}
 	if (CenterCellMarker.IsEmpty())
 	{
 		LastReadinessError = TEXT("Waiting for a spatial generated cell marker near the center.");
@@ -658,76 +689,7 @@ bool FProjectWorldProductRouteGate::ProbeTerrainCollision(
 
 bool FProjectWorldProductRouteGate::ProbeActorCollision(const AActor& Actor) const
 {
-	FVector Origin;
-	FVector Extent;
-	Actor.GetActorBounds(false, Origin, Extent, true);
-	if (Origin.ContainsNaN() || Extent.ContainsNaN() || Extent.IsNearlyZero())
-	{
-		return false;
-	}
-	TInlineComponentArray<UPrimitiveComponent*> Components;
-	Actor.GetComponents(Components);
-	for (UPrimitiveComponent* Primitive : Components)
-	{
-		if (Primitive == nullptr || !Primitive->IsRegistered() || !Primitive->IsCollisionEnabled() ||
-			Primitive->GetCollisionResponseToChannel(ECC_Pawn) != ECR_Block)
-		{
-			continue;
-		}
-		const FBoxSphereBounds Bounds = Primitive->Bounds;
-		const float Radius = FMath::Max(100.0, Bounds.SphereRadius + 100.0);
-		const FCollisionShape ProbeSphere = FCollisionShape::MakeSphere(Radius);
-		if (Primitive->OverlapComponent(Bounds.Origin, FQuat::Identity, ProbeSphere))
-		{
-			return true;
-		}
-		const FVector Start = Bounds.Origin + FVector(0.0f, 0.0f, Bounds.BoxExtent.Z + Radius + 100.0f);
-		const FVector End = Bounds.Origin - FVector(0.0f, 0.0f, Bounds.BoxExtent.Z + Radius + 100.0f);
-		FHitResult Hit;
-		if (Primitive->SweepComponent(
-			Hit, Start, End, FQuat::Identity, ProbeSphere, false) && Hit.bBlockingHit)
-		{
-			return true;
-		}
-	}
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(ProjectWorldProductRouteCollision), true);
-	Params.AddIgnoredActor(PlayerCharacter.Get());
-	const FVector QueryOffsets[] =
-	{
-		FVector(0.0f, 0.0f, Extent.Z + 5000.0f),
-		FVector(Extent.X + 5000.0f, 0.0f, 0.0f),
-		FVector(-(Extent.X + 5000.0f), 0.0f, 0.0f),
-		FVector(0.0f, Extent.Y + 5000.0f, 0.0f),
-		FVector(0.0f, -(Extent.Y + 5000.0f), 0.0f)
-	};
-	for (const FVector& Offset : QueryOffsets)
-	{
-		FVector ClosestPoint;
-		UPrimitiveComponent* Primitive = nullptr;
-		const float Distance = Actor.ActorGetDistanceToCollision(
-			Origin + Offset, ECC_Pawn, ClosestPoint, &Primitive);
-		if (Distance >= 0.0f && Primitive != nullptr)
-		{
-			return true;
-		}
-	}
-	constexpr int32 SamplesPerAxis = 25;
-	for (int32 XIndex = 0; XIndex < SamplesPerAxis; ++XIndex)
-	{
-		for (int32 YIndex = 0; YIndex < SamplesPerAxis; ++YIndex)
-		{
-			const float XAlpha = SamplesPerAxis == 1 ? 0.0f : -1.0f + 2.0f * XIndex / (SamplesPerAxis - 1);
-			const float YAlpha = SamplesPerAxis == 1 ? 0.0f : -1.0f + 2.0f * YIndex / (SamplesPerAxis - 1);
-			const FVector Start(Origin.X + Extent.X * XAlpha, Origin.Y + Extent.Y * YAlpha, Origin.Z + Extent.Z + 5000.0f);
-			const FVector End(Start.X, Start.Y, Origin.Z - Extent.Z - 5000.0f);
-			FHitResult Hit;
-			if (Actor.ActorLineTraceSingle(Hit, Start, End, ECC_Pawn, Params) && Hit.bBlockingHit)
-			{
-				return true;
-			}
-		}
-	}
-	return false;
+	return ProjectWorldProductRouteCollision::ProbeActorCollision(Actor, PlayerCharacter.Get());
 }
 
 AActor* FProjectWorldProductRouteGate::FindNearestGameplayObject() const
@@ -958,6 +920,8 @@ void FProjectWorldProductRouteGate::WriteResult(
 	Root->SetBoolField(TEXT("preview_flight_restored"), bPreviewFlightRestored);
 	Root->SetStringField(TEXT("screenshot"), ScreenshotPath);
 	if (TerrainAcceptance) TerrainAcceptance->AppendReceipt(*Root);
+	if (BuildingEvidence) BuildingEvidence->AppendReceipt(*Root);
+	if (MaterialEvidence) for (const auto& Field : MaterialEvidence->Values) Root->SetField(Field.Key, Field.Value);
 	TArray<TSharedPtr<FJsonValue>> Roles;
 	for (const FString& Role : ObservedRuntimeRoles)
 	{

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/immutable-canonical-selection-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "mode", "changed_base", "profiles", "current_consumer_implementation_sha256", "executed_upstream_operations", "validation_profile_path", "validation_profile_sha256", "base_validation_profile_sha256"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-validation/immutable-canonical-selection-v1.json"},
+    "schema_version": {"const": 1},
+    "mode": {"const": "immutable_canonical"},
+    "changed_base": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "validation_profile_path": {"type": "string", "minLength": 1},
+    "validation_profile_sha256": {"$ref": "#/$defs/digest"},
+    "base_validation_profile_sha256": {"$ref": "#/$defs/digest"},
+    "current_consumer_implementation_sha256": {"$ref": "#/$defs/digest"},
+    "executed_upstream_operations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_acquisition", "base_compilation", "canonical_promotion"],
+      "properties": {"source_acquisition": {"const": false}, "base_compilation": {"const": false}, "canonical_promotion": {"const": false}}
+    },
+    "profiles": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["authority_id", "active_path", "active_sha256", "bundle_sha256", "compile_result_sha256", "run_contract_sha256", "historical_producer_implementation_sha256", "historical_source_inputs_hash", "historical_execution_identity", "inputs_hash", "geographic_input_files"],
+        "properties": {
+          "authority_id": {"type": "string", "minLength": 1},
+          "active_path": {"type": "string", "minLength": 1},
+          "active_sha256": {"$ref": "#/$defs/digest"},
+          "bundle_sha256": {"$ref": "#/$defs/digest"},
+          "compile_result_sha256": {"$ref": "#/$defs/digest"},
+          "run_contract_sha256": {"$ref": "#/$defs/digest"},
+          "historical_producer_implementation_sha256": {"$ref": "#/$defs/digest"},
+          "historical_source_inputs_hash": {"$ref": "#/$defs/digest"},
+          "historical_execution_identity": {"$ref": "#/$defs/digest"},
+          "inputs_hash": {"$ref": "#/$defs/digest"},
+          "geographic_input_files": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/digest"}}
+        }
+      }
+    }
+  },
+  "$defs": {"digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+}

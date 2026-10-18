@@ -1,7 +1,7 @@
 # ALIS 3.0.0 Release Plan
 
 **Status:** CURRENT - R5 at a4167f43b91403d69da0ad011aa85d319c1453e6 is an accepted historical technical baseline; 3.0.0 is not feature-complete or authorized for publication
-**Active concern:** complete [World Surface Presentation](20261008-1543_world_improve_surface_materials.md) and [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md) through their current authority registers. Those own bounded development authorizations and remaining adoption gates. Both are required before final frozen R5, operator walkthrough, and R6 (D19-D22); publication remains unauthorized.
+**Active concern:** complete [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md). [World Surface Presentation](../01_done/world/20261008-1543_world_improve_surface_materials.md) is development-complete after exact post-refinement packaged proof and independent R2; final frozen certification remains separate. D25/D27 authorize resumed autonomous completion, necessary scoped production transactions and final unsigned R5. D28 retains the geographic hold while authorizing source-aware correction, not another blanket-waiver question. D56 is accepted, not full mission completion. Both concerns must actually pass before final frozen certification; human walkthrough and R6 publication remain separate.
 **Scope:** release-level scope, sequencing, and gates for 3.0.0, plus the release-platform contract change in `scripts/ue/package/` (R4)  
 **Stable documentation owner:** [Package and Release Guide](../../docs/build/packaging_guide.md) and [package scripts README](../../scripts/ue/package/README.md) for release operations; each concern task names its own owners
 
@@ -11,6 +11,45 @@ authorization and gates. Durable facts move to their stable owners before this f
 Reviewers start with `## Reviewer brief`.
 
 ## Current state and next steps
+
+The D17 source-qualified Bridge/drain correction now passes fresh Common Check,
+the immutable-base two-city Matrix, selected-child target and lasting selected
+rollout. Three Kazan Road/Water mesh/actor pairs change; cold replay writes zero.
+Terrain, Buildings, Manhattan, accepted materials and source/base geography remain
+protected. This is not a source replay or complete geographic acceptance.
+Bank/fountain source ambiguity still holds Q5. The exact packaged material,
+gameplay and GPU campaign is complete under D27 and the closed presentation task;
+its frozen identities do not certify later geographic candidates or final R5.
+Source-qualified bank/constructed-basin work continues in the alignment task,
+without reopening accepted material artwork or repeating the World pipeline.
+D60 closes the demonstrated fresh-selection origin gap and Ground semantic
+interpolation refusal. A source-preserving basin join now has final-topology
+and transient native collision evidence. The narrow park blends fail consumer
+quality; a Ground-first scene now passes actual Road/Building source generation
+and sampled transient collision. A wider source policy remains unselected.
+The fixed source-frontier comparison now preserves unknown support and closes
+global adjacency. Its bounded resolution-map capability avoids uniform fine
+interiors; regional source priority, authenticated Ground publication and actual
+changed-consumer quality remain open. These are Canonical-owned operations,
+not another provider replay or World rebuild during debugging.
+Wider consumer screening found paved-path raster artifacts; the reviewed next
+discriminator uses labelled observed Ground jointly with ordinary Road drape,
+preserving Water/conflicting support and the explicit bridge's unknown height.
+Its first joint patch passes source/native construction but fails surrounding
+quality. A recorded Water-conditioning trace distinguishes the accepted 0 m
+Terrain from approximately 3.5 m supplemental support. Completed supplementary
+parent relations identify a fixed constructed platform at the measured paths;
+the unrelated nearby pier is a negative control. Pure source-associated civil
+construction now passes bounded tests, while geographic quality, structural
+endpoint consumption and actual incident joins remain open. This is not a
+reason to carve Ground up to a deck or remove underlying Water. Geographic
+adoption still waits for the final source-shaped quality and integration proof.
+Those bounded improvements do not lift Q5 or certify a changed package; the
+alignment concern owns the measured alternatives and remaining source gaps.
+The current package preflight exposed a Canonical schema annotation defect.
+Its reviewed metadata-only correction now updates the two linked selectors
+without changing geometry/material artifacts; the generic 547-file Data check
+passes. Historical producing evidence and current metadata proof remain distinct.
 
 ### Accepted historical baseline: unsigned R5
 
@@ -178,23 +217,427 @@ protected files retain their hashes after Editor exit. Current material adoption
 is complete for the four defaults; exact final packaged city consumption/cost,
 collision and full World acceptance remain open. Concrete is not finished facade
 presentation; PIE evidence does not replace packaged acceptance.
-Existing water-policy/crossing decisions, final city collision/performance,
-source freeze and operator walkthrough remain binding. Final R5/R6 have not run;
-the accepted historical baseline is untouched. No commit/publication is inferred.
+Water source/crossing correctness, final city collision/performance,
+source freeze and operator walkthrough remain binding. D25 delegates supported
+technical Q5 limits and authorizes the necessary scoped transactions and unsigned
+certification. Final R5/R6 have not run; the historical baseline is untouched.
 Concern 4 has bounded Q1 correctness evidence, with production integration
 and its remaining decisions still open. Both concerns must be completed and
 accepted before a new final frozen R5 and operator walkthrough; R6 remains
-blocked (D19). No release operation is authorized by this development work.
+blocked (D19/D25). Unsigned technical release preparation is authorized by D25.
 
 Development uses owner-local tests, scratch editor/PIE previews, and focused
 integration (D20). Do not build, cook, regenerate or repeat R5 for bookkeeping
 or as a debugging loop. The existing 16.67 ms target and explicit INCONCLUSIVE
-policy remain unchanged (D22). D39 authorizes only the concern's material application.
-No commit, sign, push, tag, publication or release promotion is authorized (D21).
+policy remain unchanged (D22). D25 supersedes the old fixture-only/stop-before-city
+limits for gated completion. It permits an isolated frozen release worktree/commit
+when necessary, preserving the operator's checkout and index. Signing, public
+mirroring, pushing, tagging, publication and R6 promotion remain unauthorized.
 
 The older execution narratives below retain historical evidence. This current
-scope and D19-D22 govern the next action; prior "next R5/R6" notes are not a
+scope and D25 govern the next action; prior "next R5/R6" notes are not a
 current instruction or publication authorization.
+
+### D25 completion sweep in progress
+
+Current execution is superseded in part by D26 below: repair dependency and
+recovery ownership before proposing replacement geography. Missing historical
+raw bytes do not invalidate the authenticated canonical inputs.
+
+- Source baseline is `07dc9d0c69afda10724240fc9aea618740a0f56d`; the actual
+  unaccepted slice starts at `dbc441aad797cacf43223da089abe50874f91024`.
+  The planner requires full upstream replay, not a World-only substitution.
+- Q4 remains closed. Source-shaped Q5 diagnostics reject automatic adoption:
+  one-quad changes leave open edges; a dry-control-preserving connected diagnostic
+  expands to 315 changed quads, affects 112182.579 m2 of dry bank, encounters civil
+  constraints and still does not close at the varying Water frontier. No terrain
+  policy, whole-river minimum or unsupported cut limit has been adopted.
+- Water revision 5 has owner-local RED/GREEN and independent architect PASS for
+  its bounded source approximation. The both-city native census authenticates
+  260 existing nonempty Water cells: only Kazan `(4,-6)` and Manhattan `(6,6)`
+  change source geometry; 258 remain exact. These are candidates, not deployed
+  outputs. Exact replay resolves all 39 equal and seven selected mixed contacts.
+  An unrestricted inventory retains 21 different Kazan contacts separated by
+  20.0-21.228 cm between unequal source functions. They require source/crossing
+  disposition; the bounded correction does not authorize merging them.
+- Acceptance tooling now includes Manhattan in the existing Matrix, authenticates
+  consumed per-profile source payloads and checks each production city's notices.
+  Focused regressions cover missing/tampered inputs and both-city failure paths.
+  Final same-Shipping city evidence is prepared through existing owners. Independent
+  architect PASS closes two demonstrated tooling defects: native component rays
+  incorrectly required a blocking-filter flag, and a current wrapper could admit
+  a valid old machine composite. Actual physics fixtures and stale-candidate
+  refusal checks pass. Both saved-city building reference exports pass; they do
+  not establish final packaged collision/GPU acceptance.
+- Exact raw OSM snapshots are absent from checked local caches; both pinned
+  acquisition URLs return HTTP 404 on both HEAD and bounded GET. Nearby official retained snapshots have
+  different MD5 hashes. The four pinned DEM locations remain available. Source
+  pins and required upstream proof are preserved; no newer snapshot is substituted.
+  Evidence is under `tmp/world/release_completion_d54/`.
+- No production city/canonical authority has changed in this sweep. Accepted
+  surfaces, historical R5 and the operator index remain protected; the post-native
+  inventory matches all 6763 production paths. Final cooked
+  city performance and unsigned R5 must wait for actual lower-layer acceptance.
+- Next prerequisite is exact source recovery (or a separately reviewed source
+  replacement), plus a defensible shoreline/crossing disposition. The operator
+  questions are pending. No new geographic-risk exception or performance waiver
+  is assumed. Keep both concerns CURRENT; do not repeat their accepted engineering
+  reviews or run an expensive gate against known-missing inputs.
+
+### D26 dependency and recovery correction - PASS; release gates remain open
+
+The operator authorizes a separately authenticated immutable-canonical consumer
+route and durable raw-source retention. Keep the existing strict full and
+canonical-authority routes; the new route must prove its selected input stage,
+current consumed implementation and downstream behavior, without claiming fresh
+historical source acquisition or acceptance of an uninvoked base compiler.
+Both current authorities validate through the real API. Retained pre-correction
+successful Matrix receipts were Kazan-only and could not cover this two-city
+boundary.
+The historical base producer and current base compiler have different identities;
+their digests and acceptance claims must remain distinct.
+
+Expected CHANGED owners: CanonicalCompilation refinement child contracts,
+ExecutionEnvironment geometry capability, SourceIngestion retention/recovery,
+EndToEndValidation operation selection and proofs, ProjectWorld material-consumer
+acceptance observation, direct tests and stable docs.
+Expected UNTOUCHED: accepted source/geographic profiles, canonical authority and
+bundles, generated city packages/manifests, four accepted materials, operator
+HEAD/index and historical R5. Source replacement and terrain-policy changes are
+not authorized by this correction. The bounded exact-byte search recovered no
+original snapshots; its coverage and limits are recorded under
+`tmp/world/pipeline_dependency_d56/`.
+
+D56 implements `immutable_canonical` inside the existing validation owner. The
+actual read-only plan selects it from the original slice base
+`dbc441aad797cacf43223da089abe50874f91024`; the default full route and old strict
+canonical-authority guard remain intact. Frozen producer identities are retained
+separately from current consuming code. Changes to pre-existing upstream profile
+selection/budgets and consumed source/compiler/control/budget/authority bytes
+refuse. An added city must independently authenticate its own historical input.
+The current two-city World boundary is proved by the replacement Matrix below;
+old Kazan-only evidence is not reused as that proof.
+
+Q4 now lives in the CanonicalCompilation refinement child with its own schemas,
+identity and `refinement_result.json`; the base result admits no `refine`
+operation. ExecutionEnvironment's geometry capability has its own child identity.
+Five immutable tests, five operation tests, nine retention tests, nine refinement
+tests and five focused existing source/native-process regressions pass. Editor
+build, native refined queries and native rendered/compiled/collision surface
+checks pass. The independent architect closes the corrected code boundary at
+PASS; this is not final World or release acceptance.
+
+SourceIngestion now preflights two disjoint durable archive roots, retains exact
+provider bytes in both before acceptance and restores a lost disposable cache
+without changing pins. Refusal preserves prior evidence; verify/decode remain
+offline on cold and warm paths. The four original DEM payloads were acquired and
+verified against their original hashes, then copied and reverified on two
+physical disks (118321841 bytes per copy). The two original OSM payloads remain
+unavailable. No replacement source, canonical authority or city output was
+promoted. Receipts and search limits: `tmp/world/pipeline_dependency_d56/`.
+
+Independent gameplay work found a real material-evidence defect: the probe
+enumerated only AStaticMeshActor while native compiled terrain is AActor-owned.
+An isolated native RED/GREEN now covers component-based Engine readback and
+hidden/unready controls. This changes acceptance observation, not terrain or
+materials. The initial actual city run rejected at that probe. Its replacement
+now passes both cities through the real Editor gameplay route, with source state,
+module identities and unchanged authority authenticated:
+`tmp/world/playable_tour/uncooked/feb1ee4f26f44638a215b750421aed93/admission.json`.
+Both saved city captures were inspected. Collision, movement, pause/input,
+material readback and the same-cell unload/reload cycle pass. This is uncooked
+gameplay acceptance only: Editor Frame p95 is 31.854 ms Kazan and 32.142 ms
+Manhattan, above the unchanged 16.67 ms target. Packaged performance is unproven.
+
+Current Common Check passes all eight required suites: 333 Python tests, 231
+lifecycle tests, the rendered twin and 83 native realization tests. Receipt:
+`Saved/Validation/WorldPipeline/check-20261016T110153Z/result.json`.
+The first immutable Matrix, `run-20261016T094545Z`, remains rejected. Manhattan's
+negative-control fixture used 10.1 m where the native Standard contract allows
+5 m, so it refused before the intended missing-feature check. Only that test
+fixture now uses 5 m; production source accuracy remains 10.1 m. The native
+`Project.World.Realization.Authored.SabotageContracts` regression demonstrates
+RED at loading, then GREEN at the exact missing-feature refusal without
+placement. Independent architect PASS covers this bounded correction.
+
+The replacement two-city immutable Matrix passes:
+`Saved/Validation/WorldPipeline/run-20261016T112104Z/result.json`.
+It authenticates the original slice base, both historical producing contracts
+and current consuming identity. Source acquisition, base compilation and
+canonical promotion are explicitly absent. Both cities pass initial apply,
+unchanged apply, selected Road locality, intended authored-feature rejection,
+rollback, clean reconstruction and cold saved-output comparisons. Terrain,
+map and Building projections match between first and reconstructed outputs.
+The generated tree is restored exactly (3096 files); the independent final
+guard confirms all 6763 protected files, operator HEAD and index unchanged:
+`tmp/world/release_completion_d54/protected-d56-final.json`.
+
+The independent architect reauthenticated the final Check/Matrix links and
+inputs, both cities' no-op/locality/refusal/reconstruction evidence, gameplay
+artifact hashes, eight DEM archive copies and protected state. Bounded D56
+closure is PASS with no required finding:
+`tmp/world/pipeline_dependency_d56/architect/d56-final-closure-review.json`.
+
+This closes the unnecessary historical-download dependency for the explicit
+immutable artifact-consumer route. It does not certify an uninvoked current
+base compiler or recover unavailable raw OSM proof. Source/base-production
+changes retain their own full acceptance route. The still-open measured Water
+exception/Q5 disposition and exact packaged acceptance follow. Keep both
+concern todos CURRENT; no Water candidate or geographic policy was promoted.
+
+### D27 resumed completion - Water rollout and packaged city evidence
+
+Resume the original FULL GO after D56. Do not create another concern or repeat
+accepted D56 gates without changed inputs. Starting HEAD is
+`d6403a3241b2df32358268990b0c6736eb142049`; the operator committed the accepted
+D56 implementation. The working tree and index were clean at resumption.
+
+D58's Water revision 5 rollout is accepted in both cities. The existing selected
+Water plus dependent Vegetation transaction changed exactly seven paths: the
+Kazan x4:y-6 and Manhattan x6:y6 Water mesh/actor pairs, their two Water scope
+manifests and active_set. All other scope entries, canonical data, Terrain, Road,
+Building, Vegetation, gameplay and material resources retain their bytes.
+Both cold repeats are zero-write no-ops. The fresh native candidate census
+compares all 260 nonempty Water outputs to revision 5 with zero source-geometry
+differences. Independent pre/post-rollout architect reviews pass. The accepted
+D56 Check/immutable Matrix remain input-valid and were reused.
+
+Evidence: `tmp/world/completion_d58/water/{before,after,noop}.json`,
+`Saved/Validation/WorldRealization/d58-water/`, native census under
+`tmp/world/water_candidate_census/2F655C4845A38AAB45BD2A995B299904/`, and
+`tmp/world/completion_d58/architect/water5-postrollout.json`. The protected tree
+contains 6765 files after the two new scope manifests. Operator HEAD/index stay
+unchanged. This closes the Water 5 rollout, not Q5/source-risk disposition.
+
+Direct-map PIE consequence checks now cover the Kazan bank, residual drain
+crossing and Manhattan fountain with the real production DefinitionCharacter.
+Six approach/return goals complete on blocking ground without a sampled fall or
+snag. Observed cell sets unload/reload and ground hits return; all packages stay
+clean and the original pawn state is restored. The selected bank terrain remains
+7.2047 m above emitted Water; the fountain center remains 2.9814 m above it.
+The visible bank road/Water overlap persists. These bounded controls do not
+establish whole-shore correctness or a release exception. Readable measurements
+and actual moving-player captures: `tmp/world/completion_d58/editor/`.
+
+The follow-up uses the actual primary-road wet/dry transition: a 28 m route
+across the visible depression, then return. All 100 recorded walking states
+retain Road collision support; both goals complete within 35 cm without timeout,
+fall or snag. Water remains the existing render-only surface; no Water physics
+volume is present. This establishes bounded local access despite visible flooding,
+not correct road/shore geography or a global clearance claim. Evidence:
+`tmp/world/completion_d58/editor/kazan-wet-road/observations.json`.
+
+The first Development package attempt stopped before cook: the EditorContext
+Water visibility fixture called `FMaterial::FinishCompilation`, which the
+installed Engine exposes only under WITH_EDITOR. Its outer automation guard now
+also requires WITH_EDITOR. The same exact Development game build is GREEN, and
+the exact native Editor Water visibility fixture remains GREEN. No producer or
+runtime behavior changes. The failed pre-cook log is retained. This test-source
+edit changes Common proof identity, so the old D56 receipts remain valid for
+their original inputs but cannot certify the final guarded source unchanged.
+Fresh current-source Check/selected immutable Matrix are required at acceptance;
+neither raw-source replay nor production geography regeneration is selected by
+this defect. The independently reviewed proof-impact receipt is
+`tmp/world/completion_d58/architect/editor-fixture-proof-impact.json`.
+
+The first packaged Kazan Development run passes native gameplay, six building
+rays (zero current-reference error), streaming, and the unchanged performance
+target: Frame p95 16.2509009 ms, GPU p95 10.1300003 ms, 13778 samples. It is one
+diagnostic child, not the required pooled two-city campaign. Its host reader
+then rejects UE's serialized 0.050000000000000003 tolerance: Windows PowerShell
+parses Decimal while the comparison literal is double. A focused regression
+reproduces the false rejection; normalizing that comparison to native double
+precision preserves the exact 0.05 cm limit. All three Pester admission cases
+and the actual six-ray receipt pass, including refusal of changed tolerance and
+excess ray error. The original package and receipts are retained separately;
+current-source packaging follows the corrected host without a World rewrite.
+
+The corrected D58 frozen diagnostic completes all six actual Development tours.
+Kazan pools 41849 samples at Frame p95 16.1098018 ms and GPU p95 10.0923004 ms;
+Manhattan pools 44184 at 16.3040012/9.5696999 ms. Both pass the unchanged 16.67 ms
+budget with zero host allowance and no waiver. The retained source identity is
+`0006633ef58ea898a7550704df6874c61202cc9c46606ba1f6249bc94e273997` under
+`tmp/world/completion_d58/package/`. This valid diagnostic is not relabelled
+as the fuller building acceptance proof described below.
+
+An exact T6 audit finds that named building rays record source normals, not
+measured impact normals, and do not exercise the possessed player's capsule at
+those named surfaces. The independent architect confirms this required PATCH.
+The existing observer now measures ray normals and native component sweeps with
+the live capsule, actual filtering and unchanged six source references. Its v2
+receipt reports contact, other-blocker/penetration outcomes and separate plane
+bias; readers reject incomplete records. The compiled native fixture is RED for
+the missing observations and stale prior acceptance, then GREEN, including an
+oblique query-normal control and pawn-ignores-WorldStatic refusal. Twelve Python
+and three PowerShell tests pass. No city geometry, material or producer identity
+changes. The existing 970-line route receives only its one-line observer call
+update; no new framework or mega-file growth is introduced.
+
+The follow-up ray-miss control is also compiled RED/GREEN: valid target physics
+with an authenticated empty-space ray must retain a rejected measured outcome,
+without fabricating an impact. Unloaded/invalid physics remains readiness unknown.
+Both real-city PIE readiness probes accept the full v2 observer and the independent
+Python reader. All six rays have zero current-reference error; source biases
+remain 2.304142944 cm in Kazan and 5.228469761 cm in Manhattan. These short probes
+deliberately stop after native readiness, so they are not full tours or packaged
+acceptance. The failed raw Editor `-game` attempt is retained as an unsupported
+uncooked envelope control; the established Editor PIE route succeeds. All 6765
+protected outputs and operator Git state remain equal to the accepted rollout.
+
+The v2 frozen diagnostic now passes current-source Common Check
+`check-20261016T150007Z` and two-city immutable Matrix `run-20261016T152025Z`.
+Cold reconstruction, no-op/locality, rejected Apply/rollback and projection checks
+pass. Final restoration and the independent protected inventory retain all 6765
+accepted paths, operator HEAD and index. No raw acquisition, base compilation,
+canonical promotion or further production rollout occurs in this gate.
+
+Exact v2 packaging completes under `tmp/world/completion_d58/package_capsule/`,
+preserving the earlier diagnostic. Its frozen source state is
+`f83b5868cb5de6fd4f6cc2373084ea7ede2a56c748d1a61900bbf1f2837168e9`.
+All six Development tours and both Shipping city routes exit 0. The pooled
+Kazan Frame/GPU p95 is 16.1709003/10.1929996 ms over 41985 samples; Manhattan is
+15.4739991/9.6063996 ms over 45914. Both budgets are 16.67 ms with zero host
+allowance and no waiver. Actual input, interaction policy, collision and observed
+center unload/return pass. These routes include flight; they do not establish
+grounded traversal throughout either city.
+
+Each Shipping city passes all six named building rays and actual possessed-capsule
+sweeps, with measured normals and zero saved-reference ray error. Source biases
+remain 2.304142944/5.228469761 cm; no global physics equality is claimed. Seven
+live material texture bindings match Development. Actual product and Water
+final-color screenshots were inspected. Both authenticated native Water captures
+pass the unchanged pixel gate with zero invalid mask pixels and zero flips/delta.
+
+Separate native GPU-stat tours also exit 0. Observed-frame p95 of the per-frame
+SingleLayerWater plus depth-prepass counter sum is 0.5293 ms Kazan and 0.6686 ms
+Manhattan. These are graphics-queue exclusive busy-plus-wait counters, excluding
+nested stat scopes and async-compute cost, not an inclusive Water budget or global
+worst case. Manhattan's 118 early frames lack these fields and remain unobserved,
+not zero. Instrumented runs are excluded from the baseline performance campaign.
+
+The strict final reader reveals a false refusal: native cold/warm proof names
+the requested Normal/Masks output, while the reader requires the primary output.
+The corrected reader retains accepted identity, exact package equality, actual
+ready material binding, primary binding and every warm/budget guard. The focused
+positive control is RED before correction; all 17 Python cases are GREEN after it.
+The same captured native evidence passes the existing strict two-city validator;
+cache peak is 11184800 bytes against a 33554432-byte global budget, with zero warm
+generations and same-resource hits. Independent correction review passes at
+`tmp/world/completion_d58/architect/cache-target-recheck.json`.
+
+This Python-only reader correction postdates the frozen package. It changes the
+shared proof fingerprint from
+`c2fec1c1843a1f84390d96985f812eb73ae3c0873a003d732b909eadd3f84314` to
+`e4e51db12c74baddbabd0f919703640c1ea1e3fe521cfe88c1f3fe727c367044`.
+Do not relabel the prior gates or payload as the final current-source candidate.
+After the binding Q5 decision, the final source freeze must receive its required
+fresh gates and unsigned R5. Do not repeat expensive gates merely for bookkeeping
+while geographic acceptance is unresolved, or weaken their input authentication.
+
+The independent geographic disposition review accepts the measured proposal,
+recommends a Q5 release hold, and does not accept an exception:
+`tmp/world/completion_d58/architect/geographic-disposition-review.json`.
+The retained bank/road intersection, small unequal drain step and low-confidence
+fountain remain real defects. Neither passed packaged diagnostics nor the small
+drain-overlap area accepts the wider unmeasured shoreline risk. All three todos
+stay CURRENT pending their actual acceptance; no final R5 or R6 is claimed.
+
+The final independent bounded audit passes with no required findings:
+`tmp/world/completion_d58/architect/final-readiness-review.json`. It independently
+rehashes both complete payloads, all 6765 protected files and the pinned receipts,
+recomputes raw performance/Water-counter statistics, and inspects Shipping pixels.
+It confirms that the single Q5 disposition question is now justified, recommends
+retaining the geographic hold, and explicitly refuses todo/final-release closure.
+
+Finish technically independent packaged material/rendering, gameplay/collision,
+streaming and performance evidence even if Q5 remains unresolved; label such a
+package diagnostic until final geography is accepted. Preserve the 16.67 ms
+target and do not transfer the historical waiver. Source-risk investigation
+must distinguish numerical defects from different source heights and measure
+actual player consequences before any exception proposal. The rejected bank
+modification and unsupported limits remain prohibited. Scratch/evidence:
+`tmp/world/completion_d58/`.
+
+### D28 source-aware reconciliation - active
+
+The operator answered D27's Q5 disposition with a temporary geographic hold and
+continued engineering authority. This supersedes asking the same broad
+hold-versus-waiver question. The required result is defensible automatic handling
+of imperfect source data through the existing canonical/refinement owner, with
+independent architect review and dependency-local realization.
+
+Current work is recorded once in the alignment todo's D17. Source tags and native
+way-node identity now survive new canonical admission; missing evidence stays
+unknown. Native geometry has a focused large-coordinate precision correction.
+The source-qualified bridge child and optional native Road consumer are
+implemented in disposable scope. Saved source/fallback/physics fidelity and
+bounded real-character PIE traversal pass independent consumer review. Affected-
+output integration and production acceptance still follow. Neither semantic
+admission nor an isolated raised deck closes the independent bank, drains or
+fountain. The drain constructor/native admission also pass bounded independent
+review; real native composition removes the measured duplicate surface without
+Terrain changes. Disposable saved/compiled proof and matched Kazan PIE observation
+now pass; effective-authority and selected-owner adoption remain active. Its receiver
+function is unchanged, while incident retessellation corrects a measured
+interpolation error. No new surface ABI or network solver is justified by this
+evidence.
+
+The combined bridge/drain child and isolated authority preparation pass independent
+review. The real native census changes only one Road unit and two Water units out
+of 1,053; all unselected canonical inputs, layer contracts and producer fingerprints
+are retained. This is preparation evidence, not city adoption. The existing base,
+source pins and all protected city assets remain unchanged. Persisted compatibility,
+child-producing acceptance and coordinated recovery must precede deployment.
+
+The public refinement-input admission/verification route now authenticates the
+real candidate with the retained base; it performs no source acquisition, base
+compilation or World execution. Twelve focused Python checks pass, and the exact
+immutable-reader compatibility replay passes. World passive compatibility
+preparation/persistence has 23 focused Pester passes and 58 existing manifest/
+material regression passes. All 1,053 baseline native input hashes agree with
+their accepted layer manifests. Independent review found and closed a persisted
+unselected-fingerprint refusal gap with actual publisher RED/GREEN and seven final
+persistence tests; completed-boundary recheck is PASS.
+Production host shared-input equality and geographic release hold remain intact;
+input snapshots and metadata fixtures do not authorize or establish city adoption.
+
+The qualified selected-host implementation now exists, while ordinary shared-input
+checks remain strict. Canonical CAS primitives pass nine focused tests plus six
+promotion regressions. Paired World recovery authenticates complete restored scope
+coverage, both pointers and committed artifacts before cleanup. Independent review
+closed actual rollback findings and the two accepted-consumer findings for material
+adoption/replay and reconstruction. The final source-boundary fixture run reports
+142 passes; two additional real subprocess controls cover Windows Python discovery.
+The fresh v4 bridge/drain child and native input censuses are prepared. A real
+supported-host saved failure reached canonical-selected/World-prior as intended;
+explicit recovery restored both original pointers, all 6,765 protected files and
+the unchanged index. Cold audit passes. The existing outer recovery now supports
+an optional canonical participant for successful selected-target acceptance, with
+initial/source and complete restored byte inventories. Eight focused outer controls
+and ten candidate/target Python checks pass after concrete review corrections;
+the independent source recheck is PASS.
+Current Check, immutable-base regression acceptance and exact saved/cold/no-op
+target execution still precede city adoption. Earlier v3 admission pins are
+historical, not current producer proof. No full completion is claimed.
+
+Current acceptance repair is input-only: the replacement Check passes 159
+canonical, 184 end-to-end, eight architecture and 308 lifecycle tests, then
+rejects an old synthetic feature pin. The documented Twin baseline writer
+changes only that pin in Map, MeshTerrain and Pipeline; all three native saved
+projections remain identical; independent input-only review is PASS and all 93
+remaining native Realization tests pass. Ordinary Twin comparison and a fresh
+complete Check are still required. Production files and staging are unchanged.
+The final E2E completion reader must also retain separate base/child/rollout
+evidence and authenticate each scope's real lineage. An accepted selected target
+must not be relabeled a full Matrix or force unrelated generation merely to fit
+the old single-compile-tuple reader.
+
+Accepted production outputs, source pins and original canonical lineage remain
+unchanged during this investigation. Retain D27's frozen packaged gameplay,
+collision, cache and performance evidence with its original source identity;
+it does not certify a later geometry candidate. Do not rerun full cities,
+Matrix or cook as a debugging loop. Final source freeze and fresh unsigned R5
+follow actual geographic acceptance. R6/publication remain separately gated.
 
 ### Closed investigation: busy-host performance
 
@@ -1164,6 +1607,97 @@ elsewhere; never restate or renumber them.
   - Reason: not stated.
   - Date/source: 2026-10-08, operator answer to the scope question.
 
+- **D25** Execute the supplied "FULL GO - ALIS 3.0.0 World Completion and Release
+  Readiness" mission autonomously through verified technical readiness.
+  - Effect: authorize remaining source investigation, implementation/native
+    extensions, focused verification, necessary dependency-local canonical/World
+    generation, existing owner transactions in both cities, rollback/cold replay,
+    exact packaged gameplay/profiling/optimization and final frozen unsigned R5.
+    Preserve accepted milestones/materials, historical R5 and operator-owned work.
+  - Quality delegation: select conservative technical Q5 limits only when supported
+    by source evidence, measured geometry and product constraints, with independent
+    architect challenge. Exhaust narrower footprints and defensible alternatives
+    before asking about an unsupported residual geographic/crossing risk. A source
+    exclusion cannot conceal a release-critical defect. No new performance waiver
+    is delegated; the 16.67 ms target and default-off INCONCLUSIVE policy remain.
+  - Acceptance: use L0/L1 for debugging, planner-selected L2 once at slice exit,
+    then necessary L3 transactions and exact L4/frozen certification. Required
+    upstream proof cannot be skipped because the compiler fingerprint is shared.
+    Review major uncertainties/authority boundaries and the final complete frozen
+    candidate independently; stop each resolved review loop at PASS.
+  - Git/release: an isolated local release worktree/commit is permitted when
+    required for source freeze, preserving the operator's checkout and staging.
+    No public mirroring, signing, push, tag, publication or R6 promotion. Final
+    human walkthrough and genuine nondelegable decisions remain operator gates.
+  - Supersedes: D21/D24's old timing and fixture-only scope, and concern-local
+    stop-before-production rules for operations whose own acceptance gates pass.
+    It does not deem any existing failing criterion accepted or change completion.
+  - Source: operator's FULL GO attachment and explicit autonomous completion
+    request, 2026-10-16.
+
+- **D26** Correct the post-canonical acceptance and raw-source recovery contracts.
+  - Effect: separate authenticated immutable-canonical consumption/refinement
+    from acceptance of a new source-to-canonical compile. Implement dependency,
+    identity, failure/refusal and independent fixture proof before using that
+    route. Preserve strict replay for actual consumed source/base-compiler/input
+    changes. Retain the original historical producer identity and never claim
+    that current fixtures reconstruct unavailable historical raw bytes.
+  - Recovery: perform one bounded exact-byte search; preserve successfully
+    ingested raw snapshots by SHA-256 in durable storage plus another copy,
+    reusing existing local storage/tools. Do not replace geographic pins merely
+    because provider URLs expire. Independent architect reviews both contracts.
+  - Unchanged: accepted Kazan/Manhattan source profiles, canonical bundles and
+    lineage, generated city authority, four accepted materials, Git state and
+    historical R5. Continue independent gameplay/package/performance work.
+  - Geography: prepare measured residual Water/source-risk proposals only;
+    final release-exception acceptance remains with the operator. The rejected
+    112182.579 m2 dry-bank modification and invented quality limits are not
+    authorized.
+  - Source: operator's two prerequisite answers and explicit architecture
+    correction instruction, 2026-10-16. Supersedes D25's assumption that every
+    post-canonical implementation change must replay the original raw provider.
+
+- **D27** Resume the original FULL GO through complete technical readiness, not
+  only the accepted D56 correction.
+  - Effect: deploy the verified revision-5 Water correction through existing
+    dependency-local transactions after its applicable gates; verify rollback,
+    cold reload, no-op, geometry and actual visuals. Continue independent exact
+    packaged city evidence and bottleneck investigation even while Q5 is open.
+    Reuse accepted gates when their authenticated inputs remain valid.
+  - Risk: do not invent source levels, crossing connectivity, grading limits or
+    a new performance waiver. Exhaust bounded corrections, then prepare an
+    independently reviewed measured exception/hold proposal. Final residual
+    geographic-risk acceptance remains an operator decision.
+  - Completion: only actual final receipts can close the concerns or establish
+    unsigned release readiness. No signing, public mirror, push, tag, publish or
+    R6. Preserve original pins, accepted materials, historical R5 and operator
+    work. The source-recovery milestone is not a new permanent stopping point.
+  - Source: operator's resume-and-complete request and supplied completion
+    review, 2026-10-16. Supersedes D26's temporary city-preservation restriction
+    only for the resumed, separately gated production operations above.
+
+- **D28** Keep the geographic release hold temporarily and continue source-aware
+  reconciliation instead of requesting a blanket exception.
+  - Effect: classify missing elevations, conflicting functions, constructed
+    Water, Road/bridge relationships and genuine geometry/rendering defects.
+    Investigate native UE and established methods, then implement defensible
+    deterministic corrections in the existing canonical/refinement and leaf
+    owners. Independently review the changed contract and completed integration.
+  - Boundary: preserve original sources, accepted authority, materials and Git
+    state. No invented elevations/connectivity, blanket precedence, unsupported
+    cut/fill limits, per-feature code paths or parallel geographic framework.
+    Separately acquired semantic evidence must be pinned and distinguished from
+    the historical source snapshot; correspondence is not historical replay.
+  - Execution: continue independent packaged/performance/collision preparation.
+    Use focused synthetic and real-city tests, followed by affected transactions
+    only after their applicable gates. Escalate only a specific unresolved
+    ambiguity with measured consequences, not each routine crossing.
+  - Completion: general correctness and final release evidence remain required;
+    no defect waiver or premature publication. The original FULL GO continues.
+  - Source: operator's direct Q5 response and geographic-reconciliation execution
+    instruction, 2026-10-16. Supersedes D27's broad exception/hold questionnaire,
+    not its accepted technical evidence or publication boundary.
+
 ### No longer binding
 
 - **D6 [SUPERSEDED by D19]** Three tasks live in `todo/00_current/`: this router, the Mesh Terrain task, and the
@@ -1227,7 +1761,7 @@ elsewhere; never restate or renumber them.
 |---|---|---|---|
 | 1 | Terrain substrate: switch to Mesh Terrain (D12), proven on a same-Kazan comparison, then cutover | [Mesh Terrain migration](../01_done/world/20260923-1620_world_migrate_terrain_to_mesh_terrain.md) | Done |
 | 2 | Generated production terrain material | [Terrain Material v2](../01_done/content/20260923-1620_content_generate_terrain_material_v2.md) | Done; candidate proof per R2 |
-| 3 - Required | Terrain-first World Surface Presentation (D19-D20) | [World Surface Presentation](20261008-1543_world_improve_surface_materials.md) | CURRENT; four scoped defaults visually accepted and adopted through concern-local D48; exact final packaged city GPU/collision and full-surface acceptance OPEN |
+| 3 - Required | Terrain-first World Surface Presentation (D19-D20) | [World Surface Presentation](../01_done/world/20261008-1543_world_improve_surface_materials.md) | DONE for development; four defaults adopted, exact post-refinement packaged material/gameplay/GPU proof and independent R2 PASS; final frozen release certification remains OPEN |
 | 4 - Required | Road/terrain and water/terrain alignment, intersections, and layering (D19) | [Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md) | CURRENT; Q1 owner-local correctness implemented and verified; production water acceptance, I5/I6 and Q2/Q3 OPEN |
 | Required | World release projection safety fix | [Projection recovery](../01_done/world/20260914-1215_audit_public_world_release_projection_recovery.md) | Done; frozen unsigned R5 accepted (D8) |
 | Required | World generation locality and identity correctness | [Generation locality](../01_done/world/20261002-1711_world_restore_generation_locality.md) | Done; independent R2 PASS before R5 (D8) |

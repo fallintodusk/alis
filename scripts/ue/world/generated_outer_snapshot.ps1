@@ -240,6 +240,44 @@ function Read-ProjectWorldOuterSnapshotRecords {
     }
 }
 
+function Get-ProjectWorldOuterSnapshotInventorySha256 {
+    # The same source-relative inventory for saved backups and restored files.
+    param(
+        [Parameter(Mandatory = $true)][string]$ProjectRoot,
+        [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
+        [Parameter(Mandatory = $true)][string]$SnapshotRoot,
+        [Parameter(Mandatory = $true)][string]$RecordsSha256,
+        [switch]$Current
+    )
+    $records = Read-ProjectWorldOuterSnapshotRecords -ProjectRoot $ProjectRoot -WorldDataPlugin $WorldDataPlugin `
+        -SnapshotRoot $SnapshotRoot -RecordsSha256 $RecordsSha256
+    $lines = [System.Collections.Generic.List[string]]::new()
+    foreach ($record in @($records.ContentRecords) + @($records.ManifestRecords)) {
+        $source = ConvertTo-ProjectWorldOuterRelativePath -ProjectRoot $ProjectRoot -Path $record.Source
+        $path = if ($Current) { $record.Source } else { $record.Backup }
+        $exists = Test-Path -LiteralPath $path
+        if ($exists -ne $record.Existed) { throw "Outer snapshot inventory presence mismatch: $source" }
+        $lines.Add("$source|exists=$exists")
+        if (-not $exists) { continue }
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            $files = @(Get-Item -LiteralPath $path -Force)
+        }
+        else {
+            $files = @(Get-ChildItem -LiteralPath $path -Recurse -File -Force)
+            foreach ($directory in @(Get-ChildItem -LiteralPath $path -Recurse -Directory -Force)) {
+                $lines.Add("$source|directory|$($directory.FullName.Substring($path.Length).Replace('\', '/'))")
+            }
+        }
+        foreach ($file in $files) {
+            $relative = $file.FullName.Substring($path.Length).Replace('\', '/')
+            $lines.Add(('{0}|{1}|{2}|{3}' -f $source, $relative, $file.Length, (Get-ProjectWorldFileSha256 $file.FullName)))
+        }
+    }
+    $sorted = $lines.ToArray()
+    [Array]::Sort($sorted, [StringComparer]::Ordinal)
+    return Get-ProjectWorldOuterTextSha256 -Value ($sorted -join "`n")
+}
+
 function Restore-ProjectWorldOuterSnapshot {
     # Puts the generated roots and the durable manifest root back to the
     # snapshot. World transaction recovery must run first, because a pending

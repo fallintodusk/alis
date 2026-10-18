@@ -1,0 +1,6 @@
+{
+  "$schema": "../../tools/World/SourceIngestion/retention/contracts/source-storage.schema.json",
+  "schema_version": 1,
+  "primary_root": "<absolute durable source archive>",
+  "replica_root": "<absolute independently backed-up source archive>"
+}

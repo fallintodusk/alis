@@ -115,7 +115,7 @@ def select_complete_geometries(
         "check-refs", "-r", str(selected_pbf),
     ])
     _run_stage(repo_root, "export_selected_geometries", "osmium", [
-        "export", "-u", "type_id", "-a", "id,type,version,timestamp,changeset",
+        "export", "-u", "type_id", "-a", "id,type,version,timestamp,changeset,way_nodes",
         "-f", "geojson", "-o", str(complete_geojson), str(selected_pbf),
     ])
     _run_stage(repo_root, "validate_final_intersection", "ogr2ogr", [
@@ -124,13 +124,14 @@ def select_complete_geometries(
     ])
     evidence = {
         "membership_contract_id": canonical_hash({
-            "version": 4,
+            "version": 5,
             "source": "full_pinned_snapshot",
             "filters": filters,
             "tag_selection": "osmium_tags_filter_with_reference_completion",
             "geometry_selection": "ogr_layer_closed_bbox_intersects",
             "reference_completion": "osmium_getid_recursive_from_exact_membership",
             "reference_validation": "osmium_check_refs_relations",
+            "way_topology": "native_way_nodes_in_original_sequence",
             "bbox": bbox,
         }),
         "bbox": bbox,

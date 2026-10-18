@@ -14,6 +14,7 @@
 
 . (Join-Path $PSScriptRoot 'generated_content_mutation_lock.ps1')
 . (Join-Path $PSScriptRoot '..\world\generated_outer_snapshot.ps1')
+. (Join-Path $PSScriptRoot 'generated_content_canonical_participant.ps1')
 
 function Get-ProjectGeneratedContentOuterPhases {
     # Logged, never branched on: recovery decides from what is on disk.
@@ -181,14 +182,14 @@ function Get-ProjectGeneratedContentOwnerIdentity {
     param(
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
         [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
-        [Parameter(Mandatory = $true)][string]$LayoutReceipt,
+        [string]$LayoutReceipt = '',
         [Parameter(Mandatory = $true)][string]$EvidenceRoot
     )
     return [ordered]@{
         world = Get-ProjectGeneratedContentWorldIdentity `
             -ProjectRoot $ProjectRoot -WorldDataPlugin $WorldDataPlugin -EvidenceRoot $EvidenceRoot
-        material = Get-ProjectGeneratedContentMaterialIdentity `
-            -ProjectRoot $ProjectRoot -LayoutReceipt $LayoutReceipt -EvidenceRoot (Join-Path $EvidenceRoot 'material')
+        material = $(if ($LayoutReceipt) { Get-ProjectGeneratedContentMaterialIdentity `
+            -ProjectRoot $ProjectRoot -LayoutReceipt $LayoutReceipt -EvidenceRoot (Join-Path $EvidenceRoot 'material') } else { $null })
     }
 }
 
@@ -234,8 +235,8 @@ function Invoke-ProjectGeneratedContentMaterialRestore {
 function ConvertTo-ProjectGeneratedContentMarkerDocument {
     # The canonical marker shape, in its fixed key order.
     param([Parameter(Mandatory = $true)][object]$Marker)
-    $materialOperation = $Marker.material.operation_id
-    return [ordered]@{
+    $materialOperation = if ($null -ne $Marker.material) { $Marker.material.operation_id } else { $null }
+    $document = [ordered]@{
         schema_version = 1
         operation_id = [string]$Marker.operation_id
         label = [string]$Marker.label
@@ -253,7 +254,7 @@ function ConvertTo-ProjectGeneratedContentMarkerDocument {
                 audit_verdict_sha256 = [string]$Marker.world.pre.audit_verdict_sha256
             }
         }
-        material = [ordered]@{
+        material = $(if ($null -ne $Marker.material) { [ordered]@{
             operation_id = $(if ($null -eq $materialOperation) { $null } else { [string]$materialOperation })
             state = [string]$Marker.material.state
             layout_receipt_sha256 = [string]$Marker.material.layout_receipt_sha256
@@ -263,8 +264,10 @@ function ConvertTo-ProjectGeneratedContentMarkerDocument {
                 validate_status = [string]$Marker.material.pre.validate_status
                 validate_verdict_sha256 = [string]$Marker.material.pre.validate_verdict_sha256
             }
-        }
+        } } else { $null })
     }
+    if (Test-ProjectGeneratedContentCanonicalParticipant $Marker) { $document.canonical_selection = $Marker.canonical_selection }
+    return $document
 }
 
 function Write-ProjectGeneratedContentOuterMarker {
@@ -277,7 +280,7 @@ function Write-ProjectGeneratedContentOuterMarker {
     Assert-ProjectGeneratedContentLockOwner -Lock $Lock -ProjectRoot $ProjectRoot
     $markerPath = Get-ProjectGeneratedContentRecoveryMarkerPath -ProjectRoot $ProjectRoot
     $staging = "$markerPath.tmp"
-    $json = ((ConvertTo-ProjectGeneratedContentMarkerDocument -Marker $Marker) | ConvertTo-Json -Depth 8) -replace "`r`n", "`n"
+    $json = ((ConvertTo-ProjectGeneratedContentMarkerDocument -Marker $Marker) | ConvertTo-Json -Depth 16) -replace "`r`n", "`n"
     $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($json + "`n")
     try {
         if ($Create) {
@@ -352,16 +355,22 @@ function Read-ProjectGeneratedContentOuterMarker {
     catch {
         throw "Outer-recovery marker is not valid JSON: $source"
     }
-    Assert-ProjectGeneratedContentOuterKeys -Value $marker -Label 'document' -Keys @(
-        'schema_version', 'operation_id', 'label', 'phase', 'created_at_utc', 'updated_at_utc', 'world', 'material')
+    $rootKeys = @('schema_version', 'operation_id', 'label', 'phase', 'created_at_utc', 'updated_at_utc', 'world', 'material')
+    if (Test-ProjectGeneratedContentCanonicalParticipant $marker) {
+        $rootKeys += 'canonical_selection'
+        Assert-ProjectGeneratedContentCanonicalParticipant $marker.canonical_selection
+    }
+    Assert-ProjectGeneratedContentOuterKeys -Value $marker -Label 'document' -Keys $rootKeys
     Assert-ProjectGeneratedContentOuterKeys -Value $marker.world -Label 'world' -Keys @(
         'world_data_plugin', 'snapshot_root', 'snapshot_records_sha256', 'pre')
     Assert-ProjectGeneratedContentOuterKeys -Value $marker.world.pre -Label 'world.pre' -Keys @(
         'active_set_sha256', 'manifest_root_sha256', 'audit_status', 'audit_verdict_sha256')
+    if ($null -ne $marker.material) {
     Assert-ProjectGeneratedContentOuterKeys -Value $marker.material -Label 'material' -Keys @(
         'operation_id', 'state', 'layout_receipt_sha256', 'pre')
     Assert-ProjectGeneratedContentOuterKeys -Value $marker.material.pre -Label 'material.pre' -Keys @(
         'manifest_tree_sha256', 'output_tree_sha256', 'validate_status', 'validate_verdict_sha256')
+    } elseif (-not (Test-ProjectGeneratedContentCanonicalParticipant $marker)) { throw 'Outer operation has no second owner.' }
     if ($marker.schema_version -isnot [int] -or $marker.schema_version -ne 1) {
         throw 'Outer-recovery marker schema_version is unsupported.'
     }
@@ -392,8 +401,12 @@ function Read-ProjectGeneratedContentOuterMarker {
         throw "Outer-recovery snapshot is missing: $snapshotRoot"
     }
     foreach ($hash in @($marker.world.snapshot_records_sha256, $marker.world.pre.active_set_sha256,
-            $marker.world.pre.manifest_root_sha256, $marker.world.pre.audit_verdict_sha256,
-            $marker.material.layout_receipt_sha256, $marker.material.pre.validate_verdict_sha256)) {
+            $marker.world.pre.manifest_root_sha256, $marker.world.pre.audit_verdict_sha256)) {
+        if (-not (Test-ProjectGeneratedContentOuterHash -Value $hash)) { throw 'Outer-recovery marker holds an invalid hash.' }
+    }
+    if ([string]$marker.world.pre.audit_status -cnotin @('accepted', 'rejected')) { throw 'Outer World audit status is invalid.' }
+    if ($null -ne $marker.material) {
+    foreach ($hash in @($marker.material.layout_receipt_sha256, $marker.material.pre.validate_verdict_sha256)) {
         if (-not (Test-ProjectGeneratedContentOuterHash -Value $hash)) { throw 'Outer-recovery marker holds an invalid hash.' }
     }
     foreach ($hash in @($marker.material.pre.manifest_tree_sha256, $marker.material.pre.output_tree_sha256)) {
@@ -416,6 +429,7 @@ function Read-ProjectGeneratedContentOuterMarker {
         (Get-ProjectWorldFileSha256 -Path $layoutCopy) -cne [string]$marker.material.layout_receipt_sha256) {
         throw "Outer-recovery layout receipt copy is missing or changed: $layoutCopy"
     }
+    }
     $null = Read-ProjectWorldOuterSnapshotRecords -ProjectRoot $ProjectRoot -WorldDataPlugin $plugin `
         -SnapshotRoot $snapshotRoot -RecordsSha256 ([string]$marker.world.snapshot_records_sha256)
     return $marker
@@ -430,7 +444,8 @@ function New-ProjectGeneratedContentOuterOperation {
         [Parameter(Mandatory = $true)][string]$ProjectRoot,
         [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
         [Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9_]{1,64}$')][string]$Label,
-        [Parameter(Mandatory = $true)][string]$LayoutReceipt
+        [string]$LayoutReceipt = '',
+        [object]$CanonicalTransition
     )
     Assert-ProjectGeneratedContentLockOwner -Lock $Lock -ProjectRoot $ProjectRoot
     if (Test-ProjectGeneratedContentRecoveryPending -ProjectRoot $ProjectRoot) {
@@ -448,9 +463,10 @@ function New-ProjectGeneratedContentOuterOperation {
     $evidenceRoot = Get-ProjectGeneratedContentOuterEvidenceRoot -ProjectRoot $ProjectRoot -OperationId $operationId
     $layoutCopy = Join-Path $outerRoot 'inputs\material-layout-receipt.json'
     New-Item -ItemType Directory -Path (Split-Path -Parent $layoutCopy) -Force | Out-Null
-    Copy-Item -LiteralPath $LayoutReceipt -Destination $layoutCopy
+    if ($LayoutReceipt) { Copy-Item -LiteralPath $LayoutReceipt -Destination $layoutCopy }
+    elseif ($null -eq $CanonicalTransition) { throw 'An outer operation requires a Material or Canonical participant.' }
     $pre = Get-ProjectGeneratedContentOwnerIdentity -ProjectRoot $ProjectRoot -WorldDataPlugin $WorldDataPlugin `
-        -LayoutReceipt $layoutCopy -EvidenceRoot (Join-Path $evidenceRoot 'pre')
+        -LayoutReceipt $(if ($LayoutReceipt) { $layoutCopy } else { '' }) -EvidenceRoot (Join-Path $evidenceRoot 'pre')
     $recordsSha = New-ProjectWorldOuterSnapshot -ProjectRoot $ProjectRoot -WorldDataPlugin $WorldDataPlugin `
         -SnapshotRoot (Join-Path $outerRoot 'outer-snapshot')
     Write-ProjectGeneratedContentOuterLog -Message "snapshot_taken operation=$operationId"
@@ -467,12 +483,16 @@ function New-ProjectGeneratedContentOuterOperation {
             snapshot_records_sha256 = $recordsSha
             pre = $pre.world
         }
-        material = [pscustomobject]@{
+        material = $(if ($LayoutReceipt) { [pscustomobject]@{
             operation_id = $null
             state = 'not_started'
             layout_receipt_sha256 = Get-ProjectWorldFileSha256 -Path $layoutCopy
             pre = $pre.material
-        }
+        } } else { $null })
+    }
+    if ($null -ne $CanonicalTransition) {
+        $participant = New-ProjectGeneratedContentCanonicalParticipant -ProjectRoot $ProjectRoot -Marker $marker -Transition $CanonicalTransition
+        $marker | Add-Member -NotePropertyName canonical_selection -NotePropertyValue $participant
     }
     Write-ProjectGeneratedContentOuterMarker -Lock $Lock -ProjectRoot $ProjectRoot -Marker $marker -Create
     Write-ProjectGeneratedContentOuterLog -Message "marker_written operation=$operationId"
@@ -493,12 +513,14 @@ function Set-ProjectGeneratedContentOuterPhase {
     $marker = Read-ProjectGeneratedContentOuterMarker -ProjectRoot $ProjectRoot
     if ($null -eq $marker) { throw 'No outer operation is pending.' }
     if ($MaterialOperationId) {
+        if ($null -eq $marker.material) { throw 'This outer operation has no Material participant.' }
         if ($null -ne $marker.material.operation_id) { throw 'The Material operation of this outer operation is already bound.' }
         if ($MaterialOperationId -ceq [string]$marker.operation_id) { throw 'The Material operation id must differ from the outer operation id.' }
         $marker.material.operation_id = $MaterialOperationId
         $marker.material.state = 'running'
     }
     if ($MaterialRetained) {
+        if ($null -eq $marker.material) { throw 'This outer operation has no Material participant.' }
         if ($null -eq $marker.material.operation_id) { throw 'No Material operation is bound.' }
         $marker.material.state = 'retained'
     }
@@ -521,33 +543,37 @@ function Invoke-ProjectGeneratedContentOuterRestore {
     $plugin = [string]$Marker.world.world_data_plugin
     $outerRoot = Get-ProjectGeneratedContentOuterRoot -ProjectRoot $ProjectRoot -OperationId ([string]$Marker.operation_id)
     $roots = Resolve-ProjectWorldDataRoots -ProjectRoot $ProjectRoot -PluginName $plugin
+    Assert-ProjectGeneratedContentCanonicalRestore -ProjectRoot $ProjectRoot -Marker $Marker
     if (Test-Path -LiteralPath (Join-Path $roots.ManifestRoot 'journal.json')) {
         Write-ProjectGeneratedContentOuterLog -Message 'world_transaction_recovery'
         Invoke-ProjectGeneratedContentWorldTransactionRecovery -ProjectRoot $ProjectRoot -WorldDataPlugin $plugin `
             -EvidenceRoot $EvidenceRoot
     }
+    Restore-ProjectGeneratedContentCanonicalParticipant -ProjectRoot $ProjectRoot -Marker $Marker
     Write-ProjectGeneratedContentOuterLog -Message 'world_outer_restore'
     Restore-ProjectWorldOuterSnapshot -ProjectRoot $ProjectRoot -WorldDataPlugin $plugin `
         -SnapshotRoot (Join-Path $outerRoot 'outer-snapshot') `
         -RecordsSha256 ([string]$Marker.world.snapshot_records_sha256)
     $materialSource = 'unbound'
-    if ($null -ne $Marker.material.operation_id) {
+    if ($null -ne $Marker.material -and $null -ne $Marker.material.operation_id) {
         $materialSource = Invoke-ProjectGeneratedContentMaterialRestore -ProjectRoot $ProjectRoot `
             -RestoreOperationId ([string]$Marker.material.operation_id) `
             -EvidenceRoot (Join-Path $EvidenceRoot 'material_restore')
         Write-ProjectGeneratedContentOuterLog -Message "material_restore source=$materialSource"
     }
     $post = Get-ProjectGeneratedContentOwnerIdentity -ProjectRoot $ProjectRoot -WorldDataPlugin $plugin `
-        -LayoutReceipt (Join-Path $outerRoot 'inputs\material-layout-receipt.json') `
+        -LayoutReceipt $(if ($null -ne $Marker.material) { Join-Path $outerRoot 'inputs\material-layout-receipt.json' } else { '' }) `
         -EvidenceRoot (Join-Path $EvidenceRoot 'post')
     $mismatches = [System.Collections.Generic.List[string]]::new()
     foreach ($owner in @('world', 'material')) {
+        if ($null -eq $Marker.$owner) { continue }
         foreach ($property in $Marker.$owner.pre.PSObject.Properties) {
             if ([string]$post[$owner][$property.Name] -cne [string]$property.Value) {
                 $mismatches.Add("$owner.$($property.Name)")
             }
         }
     }
+    Assert-ProjectGeneratedContentCanonicalRestore -ProjectRoot $ProjectRoot -Marker $Marker -Current
     if ($mismatches.Count -gt 0) {
         throw "Restored owners do not match their pre-operation identity: $($mismatches -join ', ')"
     }

@@ -5,6 +5,58 @@ the area; add an entry after fixing a non-trivial bug.
 
 Format: Symptom / Root cause / Fix / File / Regression test.
 
+## Realization evidence can alias consumed inputs
+
+**Symptom.** A diagnostic receipt destroys a canonical document, profile or
+disposable manifest authority instead of preserving failed-operation inputs.
+
+**Root cause.** A permitted output directory can also contain inputs. Result
+replacement, log files, atomic `.tmp` files and generated dirty-input documents
+are independent writers; checking only the final result filename misses aliases.
+
+**Fix.** Require disjoint input/output paths before host deletion or native
+realization. Protect the entire canonical and host manifest trees, explicit
+profile inputs, all sidecars and generated dirty-input writes. The direct native
+result writer enforces its own input isolation as well.
+
+**Files.** `scripts/ue/world/realization_evidence.ps1` and
+`Source/ProjectWorldEditor/Private/ProjectWorldRealizationEvidence.h`.
+
+**Regression tests.** `Project.World.Realization.EvidenceInputIsolation`,
+`CommandletBoundary`, `EvidencePaths`, `Layers.HostBoundary` and
+`scripts/ue/world/test/realization_evidence.Tests.ps1`. Refusal checks compare
+exact protected bytes and run before the native operation starts.
+
+## Profiled Road splits can fail native storage or compiled fidelity
+
+**Symptom.** A valid affine Road elevation refuses after subdivision at large
+projected coordinates, or its saved fallback and physics footprint differs from
+its source even though sampled collision rays hit.
+
+**Root cause.** Internal height-field splits can map to identical double or
+float positions. Per-face conversion can create conflicting shared heights.
+Native Boolean integer normalization can also split a connected collinear float
+graph. Separately, Nanite Auto fallback intentionally simplifies the source;
+centroid ray hits do not prove footprint or abutment preservation.
+
+**Fix.** Omit only exact duplicated mapped fan edges and certify storage against
+each original ribbon domain. Retain native coverage and distance guards, with
+GeometryCore exact predicates for connectivity of the actual stored positions.
+Recheck final Terrain clearance. Profile-containing cell meshes use full native
+fallback without source trimming and include that variant in unit identity;
+ordinary cells keep their existing path. The
+[Road contract](territory_contract.md#geospatial-authority) owns these boundaries.
+
+**Files.** `Source/ProjectWorldRoadEditor/Private/ProjectWorldRoadElevation.cpp`,
+`ProjectWorldRoadStoredPolygon.cpp`, `ProjectWorldRoadSurface.cpp` and
+`ProjectWorldRoadRealization.cpp` in the same directory.
+
+**Regression tests.** `Project.World.Realization.Road.MappedSplit`,
+`StoredPolygon`, `StoredGroup`, `StoredCollinear`, `CanonicalElevation` and
+`ElevationSavedConsumer` under the same exact test namespace. The saved-consumer
+test checks actual triangle/position multisets, cold no-op and profile removal;
+live pixels and character movement remain separate evidence.
+
 ## Continuous alignment can fail despite matching mesh vertices
 
 **Symptom.** A road ribbon intersects terrain between its vertices, or a narrow
@@ -1574,3 +1626,225 @@ coverage, weight, duplicate-vertex and cracked-edge controls.
 duplicate faces, checks actual compiled buffers, renders both proxy types and
 measures collision. `Project.World.Realization.Runtime.RefinedNavigationBounds`
 rejects bounds derived from the original grid alone.
+
+## 53. Coarse Water triangles slope across a quantized source plateau
+
+**Symptom.** Two canonical Water point evaluators agree locally, but a coarse
+triangle interpolates from a nearby plateau to a legitimate higher corner and
+overlaps another source at a slightly different rendered height.
+
+**Root cause.** Footprint-only triangulation samples the source function at its
+vertices. The emitted affine interior is a representation of those samples,
+not the discontinuous quantized nearest-segment function. A near-depth detector
+can also miss positive-area overlaps whose complete height range is above its
+threshold. Source coordinate equality does not establish source connectivity.
+
+**Fix.** Certify the entire convex overlap against every possibly nearest source
+segment. Refine only compatible source-level approximations, evaluate new
+vertices through the existing source evaluator, and propagate the same edge
+vertices to incident source faces before exact horizontal composition. Preserve
+high corners, coverage and holes. Do not flatten a whole sloping triangle, cut
+only its overlap, or independently round shared edge points. Refuse unresolved
+refinement budgets, float precision and unproven cell seams before replacement.
+Unknown or unequal local functions remain separate; this does not select a
+crossing law or terrain-conditioning policy.
+
+**Files.** `Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterSourceApproximation.cpp`,
+`ProjectWorldWaterMeshBuilder.cpp` and `ProjectWorldWaterCellMesh.cpp`.
+
+**Regression.** `Project.World.Water.SourceApproximation` exercises a translated
+source-shaped transition, its incident faces, all positive-area overlaps,
+retained high corner, projected coverage, separate hole, deterministic replay
+and unequal-level control. `Project.World.Water.SurfaceRegionCertificate` rejects
+threshold-crossing and nearest-segment competition controls.
+`Project.World.Water.SourceApproximationRefusal` checks explicit seam, membership
+and bounded-resolution refusals with exact mesh-byte preservation.
+
+## 54. Component geometry hits are not world-channel blocking results
+
+**Symptom.** SavedProjection or a named packaged building ray rejects a real
+wall/roof intersection although the component has working physics and blocks
+Pawn. The native component query returns true with `bBlockingHit == false`.
+
+**Root cause.** UE 5.8 `LineTraceComponent` delegates through BodyInstance to
+`LineTrace_Geom`, whose conversion uses `BuildOverlapAll`. The hit's blocking
+flag describes that query filter, not the component's Pawn collision response.
+
+**Fix.** Require the successful native component geometry query, the matching
+queried component and a finite impact. Keep physics availability, Pawn-block
+configuration, body identity and transform checks separate. Compare the named
+packaged hit with its current source physics reference within 0.05 cm; report
+source-plane error separately. This does not establish globally identical
+physics triangles or replace gameplay collision checks.
+
+**Files.** `Source/ProjectWorldEditor/Private/Verify/ProjectWorldBuildingSurfaceReference.cpp`
+and `Source/ProjectWorld/Private/Presentation/ProjectWorldProductBuildingEvidence.cpp`.
+
+**Regression.** `Project.World.SavedProjection.BuildingComponentPhysicsReference`
+and `Project.World.Presentation.ProductBuildingComponentPhysics` use native
+static-mesh bodies in isolated physics worlds, observe the nonblocking geometry
+hit, and reject Pawn-ignore and disabled-collision controls.
+
+## 55. Material evidence must inspect components independently of actor subclass
+
+**Symptom.** A real city passes movement and layer collision, but material binding
+evidence reports no terrain consumer despite generated textures being ready.
+
+**Root cause.** The readback enumerated only `AStaticMeshActor`. Epic's native
+Mesh Partition compiled section derives from `AActor` and owns static mesh
+components, so the readback skipped the actual terrain renderer.
+
+**Fix.** Select runtime semantic roles on actors, then enumerate their registered,
+visible main-pass static mesh components through Engine APIs. Preserve resource
+readiness, sharing and role requirements. No Mesh Partition implementation
+dependency or material/geometry regeneration belongs in this probe.
+
+**Files.** `Source/ProjectWorld/Private/Presentation/ProjectWorldProductMaterialEvidence.cpp`.
+
+**Regression.** `Project.World.Presentation.ProductMaterialComponents` observes
+the generic-actor terrain case fail before the correction, and rejects hidden
+components and uninitialized texture targets. Parameter readback establishes
+bindings, not rendered pixel correctness or packaged performance.
+
+## 56. Building geometry rays cannot substitute for the player's collision response
+
+**Symptom.** Named wall/roof rays match saved physics, but their receipt cannot
+establish measured normals or the player's capsule response at those surfaces.
+
+**Root cause.** Component ray queries do not use the possessed capsule's shape,
+object channel or response container. Copying a source normal is not a measured
+impact normal. An observer that retains its last accepted result after refusal
+can also publish stale evidence.
+
+**Fix.** Keep source-reference rays and live-capsule native component sweeps as
+separate observations in the building-evidence owner. Record measured normals,
+named contact identity, penetration and other-blocker outcomes. Clear accepted
+evidence before each probe and require both observations in receipt readers.
+Retain source-plane bias as a measurement; capsule contacts need not equal ray
+points and do not introduce a new terrain or collision-fidelity policy.
+
+**Files.** `Source/ProjectWorld/Private/Presentation/ProjectWorldProductBuildingEvidence.cpp`,
+`scripts/ue/world/test/performance/project_world_building_evidence.ps1`, and
+`scripts/ue/package/release_shipping.py`.
+
+**Regression.** `Project.World.Presentation.ProductBuildingComponentPhysics`
+distinguishes native normals from an oblique source direction and refuses when
+the pawn ignores WorldStatic although building rays still intersect. Existing
+PowerShell and Python packaged-evidence fixtures reject absent/invalid capsule
+observations. The PowerShell reader converts native double-precision tolerances
+to Double before comparison; its regression includes the round-trip JSON value.
+
+## 57. A cache bundle's requested output need not be its primary texture
+
+**Symptom.** Packaged material resources are ready and the native cold/warm log
+shows reuse, but the host reader reports missing terrain or aggregate cache proof.
+
+**Root cause.** The native request authenticates and publishes the entire output
+bundle, then logs the requested slot. Material load order can request Masks or
+Normal first. Requiring that log target to equal the primary Structure or Signals
+texture incorrectly makes acceptance depend on request order.
+
+**Fix.** Correlate the accepted semantic identity with a live bound output in the
+exact authenticated primary package. Preserve the primary binding, material-chain,
+readiness, warm-generation and global-budget checks. Do not change runtime request
+order, add another generation request, or admit unknown same-package siblings.
+
+**Files.** `scripts/ue/package/release_shipping.py`.
+
+**Regression.** `test_cache_accepts_requested_bound_secondary_bundle_outputs`
+fails before the correction. Adjacent controls reject an unbound same-package
+target, a bound foreign package, a wrong identity and an unready secondary output.
+
+## 58. Empty native objects must remain serializable under StrictMode
+
+**Symptom.** A valid native input census fails while producing its deterministic
+shared-input digest, with a missing `Name` property error.
+
+**Root cause.** The sorted JSON projection accessed `.Properties.Name` on an empty
+PSCustomObject. StrictMode treats that empty member expansion as a missing property.
+
+**Fix.** Enumerate the properties before selecting their names. Preserve empty
+objects and arrays as values; do not convert a failed read into an empty value.
+
+**Files.** `scripts/ue/world/material_reference_operation.ps1`.
+
+**Regression.** `native_refinement_transition.Tests.ps1` exercises an unchanged
+empty native object through the actual digest builder. The material-reference
+and manifest lifecycle tests cover the shared helper's direct consumers.
+
+## 59. Paired authority recovery must authenticate everything it restores
+
+**Symptom.** A canonical selection can be reversed before missing backups are
+detected, or a readable corrupt backup can be restored and recovery discarded.
+An interrupted final World rename also leaves staged bytes that an ordinary cold
+reader correctly refuses.
+
+**Root cause.** Content-only recovery checks are insufficient when the journal
+also coordinates canonical selection. Its snapshot can cover carried owners as
+well as selected writers; successful child status does not authenticate final
+package bytes.
+
+**Fix.** Authenticate prior accepted artifacts across the actual snapshot coverage
+before reversing canonical selection or restoring packages. Verify restored bytes
+before cleanup. Use the existing full committed-artifact validator on successful
+paired completion. Recovery may read only staging pinned by its expected World
+hash; unknown states retain the journal and snapshot.
+
+**Files.** `scripts/ue/world/canonical_selection_transition.ps1`,
+`generated_content_transaction.ps1`, `generated_manifest.ps1`, and
+`realization_authority_publication.ps1` in the same script owner.
+
+**Regression.** `canonical_selection_transition.Tests.ps1` covers missing/corrupt
+selected and carried backups, bad restoration, damaged committed output, unknown
+staging and failure after canonical selection before the World commit.
+
+## 60. Whole-quad refinement can move a dry civil anchor
+
+**Symptom.** A Road follows new Water conditioning, a retained UV profile refuses
+its support, or a Building moves despite unchanged dry visible Terrain.
+
+**Root cause.** A final wrapper and its immutable grade support have different
+identities. Selected whole quads also change placement queries from regular-grid
+bilinear sampling to affine triangles. Wet-footprint overlap alone misses dry
+anchors affected by that query change.
+
+**Fix.** The canonical refinement child declares explicit original-grid civil
+grade references. Road retains its native triangle/UV grade and checks final
+Terrain separately. Building retains its existing owner-grid bilinear anchor;
+its identity consumes that reference rather than unrelated final-wrapper bytes.
+Unreferenced queries remain final-surface queries. Preservation supplies no
+unobserved bridge classification, foundation design or geographic quality waiver.
+
+**Files.** CanonicalCompilation refinement's `civil_grade.py` and `publication.py`;
+ProjectWorld's `ProjectWorldCivilGrade.cpp`, Road surface/elevation realization,
+and Building mesh builder/input identity.
+
+**Regression.** `test_civil_grade.py` covers whole-quad/neighbor ownership,
+refusal, no-op and removal. Native `CivilGradeAdmission`, Road and Building
+`ImmutableCivilGrade` cover malformed support, retained actual mesh vertices,
+default-query controls, final penetration and consumed-input locality.
+
+## 61. Outside-owner placement must select the clamped final surface
+
+**Symptom.** A Building whose full-footprint bounds center lies beyond its owner
+cell samples an old grid height despite a refined final surface at the owner edge.
+Missing final edge coverage can also silently return an old height.
+
+**Root cause.** Refined-quad dispatch uses raw XY while only the bilinear fallback
+clamps. The same logical placement query therefore selects different authority
+depending on whether the input is already within the owner's sample domain.
+
+**Fix.** Clamp once before representation selection and evaluation. A selected
+final surface refuses missing coverage. Building's input identity includes the
+changed query contract for default anchors with a refined owner, including
+cross-cell fragments. Explicit immutable-grade anchors and unrefined inputs
+retain their identities; unrelated layer revisions do not advance.
+
+**Files.** `ProjectWorldGeneratedGeometry.cpp`, Building's
+`ProjectWorldBuildingRealization.cpp` and their owner-local tests.
+
+**Regression.** `Project.World.Terrain.RefinedQueries` checks both owner edges,
+missing coverage, unrefined and explicit base queries.
+`Project.World.Realization.Building.RefinedOwnerClampedAnchor` checks actual
+Building mesh elevation, cross-cell owner identity and retained hashes for
+unrefined/immutable-grade inputs.

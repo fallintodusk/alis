@@ -3,6 +3,7 @@
 
 #include "ProjectWorldRoadRealization.h"
 #include "ProjectWorldRoadSurface.h"
+#include "ProjectWorldRoadElevation.h"
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedActors.h"
@@ -236,7 +237,7 @@ namespace ProjectWorldRoadRealization
 			AppendNumber(Identity, Bundle.HeightOriginMeters);
 			AppendNumber(Identity, Bundle.EngineGeoreferenceOriginMeters.X);
 			AppendNumber(Identity, Bundle.EngineGeoreferenceOriginMeters.Y);
-			TArray<FProjectWorldSurfaceTriangle> Ribbon;
+			TArray<ProjectWorldRoadSurface::FRibbonTriangle> Ribbon;
 			OutOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
 			for (const FString& FeatureId : CellRoadFeatureIds(Bundle, Cell, Settings))
@@ -245,6 +246,16 @@ namespace ProjectWorldRoadRealization
 				AppendToken(Identity, Feature.FeatureId);
 				AppendToken(Identity, Feature.RoadClass);
 				AppendNumber(Identity, Feature.WidthMeters);
+				FString GradeIdentity;
+				if (!ProjectWorldCivilGrade::Validate(Bundle, Feature, GradeIdentity, OutError)) return false;
+				if (Feature.CivilGrade.IsSet()) AppendToken(Identity, GradeIdentity);
+				if (Feature.RoadElevation.IsSet())
+				{
+					FString ElevationIdentity;
+					if (!ProjectWorldRoadElevation::Validate(Bundle, Feature, ElevationIdentity, OutError)) return false;
+					AppendToken(Identity, ElevationIdentity);
+					AppendToken(Identity, TEXT("profiled_cell_full_fallback_v1"));
+				}
 				const double HalfWidth = Feature.WidthMeters * 0.5;
 				for (const FProjectWorldCanonicalRepresentation& Representation : Feature.Representations)
 				{
@@ -273,14 +284,8 @@ namespace ProjectWorldRoadRealization
 								{ OutError = TEXT("Road fragment has no bounded canonical tangent context."); return false; }
 								const FVector2D SideA(-TangentA.Y * HalfWidth, TangentA.X * HalfWidth);
 								const FVector2D SideB(-TangentB.Y * HalfWidth, TangentB.X * HalfWidth);
-								const double HeightA = Settings.SurfaceOffsetMeters;
-								const double HeightB = Settings.SurfaceOffsetMeters;
-								const FVector LeftA(A + SideA, HeightA);
-								const FVector RightA(A - SideA, HeightA);
-								const FVector LeftB(B + SideB, HeightB);
-								const FVector RightB(B - SideB, HeightB);
-								Ribbon.Add(FProjectWorldSurfaceTriangle{{LeftA, RightA, LeftB}});
-								Ribbon.Add(FProjectWorldSurfaceTriangle{{RightA, RightB, LeftB}});
+								if (!ProjectWorldRoadElevation::Append(Feature, A, B, SideA, SideB,
+									Bundle.CoordinateQuantizationMeters * 2.0, Settings.SurfaceOffsetMeters, Ribbon, OutError)) return false;
 								OutTriangles += 2;
 							}
 						}
@@ -583,6 +588,23 @@ namespace ProjectWorldRoadRealization
 			Mesh->GetStaticMaterials().Add(FStaticMaterial(RoadMaterial, TEXT("Road"), TEXT("Road")));
 			FMeshNaniteSettings Nanite = Mesh->GetNaniteSettings();
 			Nanite.bEnabled = true;
+			if (CellRoadFeatureIds(Bundle, Cell, Settings).ContainsByPredicate([&Bundle](const FString& Id)
+				{ return Bundle.Features.FindChecked(Id).RoadElevation.IsSet(); }))
+			{
+				// The cell's compiled collision must preserve its authenticated profile and abutments.
+				Nanite.FallbackTarget = ENaniteFallbackTarget::PercentTriangles;
+				Nanite.FallbackPercentTriangles = Nanite.KeepPercentTriangles = 1.0f;
+				Nanite.FallbackRelativeError = Nanite.TrimRelativeError = 0.0f;
+			}
+			else
+			{
+				const FMeshNaniteSettings Defaults;
+				Nanite.FallbackTarget = Defaults.FallbackTarget;
+				Nanite.FallbackPercentTriangles = Defaults.FallbackPercentTriangles;
+				Nanite.FallbackRelativeError = Defaults.FallbackRelativeError;
+				Nanite.KeepPercentTriangles = Defaults.KeepPercentTriangles;
+				Nanite.TrimRelativeError = Defaults.TrimRelativeError;
+			}
 			Mesh->SetNaniteSettings(Nanite);
 			Mesh->bGenerateMeshDistanceField = false;
 			Mesh->bHasNavigationData = false;

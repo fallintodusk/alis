@@ -14,12 +14,14 @@ function Get-ProjectWorldProductRouteArguments {
         [Parameter(Mandatory)][string]$LogPath,
         [string]$PerformancePath, [string]$CsvPath, [string]$SamplePath,
         [string]$ScreenshotPath,
+        [string]$BuildingReferencePath,
         [switch]$SkipInteraction, [switch]$PreciseCenterReturn
     )
     $arguments = @(
         "-ProjectMenuPlayAutoExperience=$Experience",
         '-ProjectMenuPlayAutoMode=SinglePlayer',
         '-ProjectWorldProductRouteGate', '-ProjectWorldProductRouteRestorePreviewFlight',
+        '-ProjectWorldProductMaterialEvidence', '-ProjectTextureColdWarmProof',
         "-ProjectWorldProductOperation=$OperationId", "-ProjectWorldProductResult=$CorrectnessPath",
         "-ProjectWorldProductMap=$Map", "-ProjectWorldProductRuntime=$Runtime",
         "-ProjectWorldProductRuntimeHash=$RuntimeHash", '-ProjectWorldProductMachine=rtx4070_primary',
@@ -28,6 +30,11 @@ function Get-ProjectWorldProductRouteArguments {
         "-abslog=$LogPath"
     )
     if ($SkipInteraction) { $arguments += '-ProjectWorldProductRouteSkipInteraction' }
+    if ($BuildingReferencePath) {
+        $hash = (Get-FileHash -LiteralPath $BuildingReferencePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $arguments += "-ProjectWorldProductBuildingReference=$BuildingReferencePath",
+            "-ProjectWorldProductBuildingReferenceHash=$hash"
+    }
     if ($PerformancePath) {
         if (-not $CsvPath -or -not $SamplePath -or -not $ScreenshotPath) {
             throw 'Playable traversal requires CSV, raw samples and screenshot paths.'

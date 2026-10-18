@@ -3,6 +3,7 @@
 from .app.contracts import IngestionError, file_hash, read_json, validate_document, write_json
 from .app.profiles import build_plan, validate_profile
 from .app.run_identity import default_output_root, profile_path, run_contract
+from .app.osm_context import osm_provider_namespace, osm_context_identity, osm_way_context
 
 
 __all__ = [
@@ -16,4 +17,7 @@ __all__ = [
     "validate_document",
     "validate_profile",
     "write_json",
+    "osm_provider_namespace",
+    "osm_context_identity",
+    "osm_way_context",
 ]

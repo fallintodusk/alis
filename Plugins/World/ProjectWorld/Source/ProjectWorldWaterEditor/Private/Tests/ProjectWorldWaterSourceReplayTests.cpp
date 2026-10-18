@@ -5,6 +5,7 @@
 #include "ProjectWorldWaterSourceContext.h"
 #include "ProjectWorldTerrainSurface.h"
 #include "ProjectWorldWaterHorizontalComposition.h"
+#include "ProjectWorldWaterSourceApproximation.h"
 #include "Dom/JsonObject.h"
 #include "Engine/StaticMesh.h"
 #include "FileUtilities/ZipArchiveReader.h"
@@ -24,7 +25,7 @@
 namespace ProjectWorldWaterSourceReplayTest
 {
     using FTriangle = TArray<FVector3f>;
-    TArray<FTriangle> Triangles(const FMeshDescription& Mesh)
+    TArray<FTriangle> SourceReplayTriangles(const FMeshDescription& Mesh)
     {
         TArray<FTriangle> Out;
         const auto Positions = FStaticMeshConstAttributes(Mesh).GetVertexPositions();
@@ -35,6 +36,22 @@ namespace ProjectWorldWaterSourceReplayTest
                 Triangle.Add(Positions[Mesh.GetVertexInstanceVertex(Instance)]);
         }
         return Out;
+    }
+    TArray<TSharedPtr<FJsonValue>> WorldPoints(const TArray<FTriangle>& Input,const FVector& Origin)
+    {
+        TArray<TSharedPtr<FJsonValue>> Points;
+        for (const auto& Triangle : Input)
+        {
+            TArray<TSharedPtr<FJsonValue>> Corners;
+            for (const auto& P : Triangle)
+            {
+                const FVector World=FVector(P)+Origin;
+                Corners.Add(MakeShared<FJsonValueArray>(TArray<TSharedPtr<FJsonValue>>{
+                    MakeShared<FJsonValueNumber>(World.X),MakeShared<FJsonValueNumber>(World.Y),MakeShared<FJsonValueNumber>(World.Z)}));
+            }
+            Points.Add(MakeShared<FJsonValueArray>(Corners));
+        }
+        return Points;
     }
     bool Same(const TArray<FTriangle>& A, const FVector& OriginA,
         const TArray<FTriangle>& B, const FVector& OriginB)
@@ -160,8 +177,8 @@ bool FProjectWorldWaterSourceEmissionReplayTest::RunTest(const FString&)
         const auto* Description = Asset->GetMeshDescription(0);
         if (!TestNotNull(TEXT("Saved source MeshDescription exists"),Description)) return false;
         const bool DirtyBefore = Asset->GetOutermost()->IsDirty();
-        const auto Expected = Triangles(*Description);
-        const auto Actual = Triangles(Replay);
+        const auto Expected = SourceReplayTriangles(*Description);
+        const auto Actual = SourceReplayTriangles(Replay);
         if (!TestTrue(TEXT("Every saved float vertex, corner order and triangle order matches native replay"),
             Same(Expected,Origin,Actual,Origin))) return false;
         if (!TestTrue(TEXT("Nonempty source triangles are exercised"),Actual.Num()>1)) return false;
@@ -173,6 +190,7 @@ bool FProjectWorldWaterSourceEmissionReplayTest::RunTest(const FString&)
         TestFalse(TEXT("Wrong world origin refuses attribution"),Same(Expected,Origin,Actual,Origin+FVector(1,0,0)));
         TArray<FTriangle> Concatenated;
         FMeshDescription BeforeFinalComposition;
+        TArray<const FProjectWorldCanonicalFeature*> GroupSources;
         TArray<TSharedPtr<FJsonValue>> GroupRecords;
         for (const auto& Group : Groups(Bundle,Features))
         {
@@ -187,41 +205,31 @@ bool FProjectWorldWaterSourceEmissionReplayTest::RunTest(const FString&)
             for (const auto& Id : Group) Sources.Add(MakeShared<FJsonValueString>(Id));
             Entry->SetArrayField(TEXT("source_ids"),Sources);
             GroupRecords.Add(MakeShared<FJsonValueObject>(Entry));
-            Concatenated.Append(Triangles(Part));
+            Concatenated.Append(SourceReplayTriangles(Part));
+            for (int32 I=0;I<PartCount;++I) GroupSources.Add(&Bundle.Features.FindChecked(Group[0]));
             if (PartCount>0)
             {
                 if (BeforeFinalComposition.Triangles().Num()==0) BeforeFinalComposition=MoveTemp(Part);
                 else FStaticMeshOperations::AppendMeshDescription(Part,BeforeFinalComposition,FStaticMeshOperations::FAppendSettings());
             }
         }
+        bool Refined=false;FString RefinementHash;
+        if (!ProjectWorldWaterSourceApproximation::Refine(BeforeFinalComposition,GroupSources,
+            Bundle,*Cell,Origin,.25,Refined,RefinementHash,Error)) {AddError(Error);return false;}
         bool Composed=false;FString CompositionHash;
         if (!ProjectWorldWaterHorizontalComposition::Compose(BeforeFinalComposition,Composed,CompositionHash,Error))
         {AddError(Error);return false;}
-        if (!TestTrue(TEXT("Native source groups plus final composition reproduce saved triangles"),
-            Same(Expected,Origin,Triangles(BeforeFinalComposition),Origin))) return false;
+        if (!TestTrue(TEXT("Native source groups plus source approximation and final composition reproduce saved triangles"),
+            Same(Expected,Origin,SourceReplayTriangles(BeforeFinalComposition),Origin))) return false;
         auto Record=MakeShared<FJsonObject>();
         Record->SetStringField(TEXT("profile"),Selection.Profile); Record->SetStringField(TEXT("cell"),Cell->CellId);
         Record->SetStringField(TEXT("mesh"),ObjectPath); Record->SetStringField(TEXT("source_sha256"),HashBefore);
         Record->SetStringField(TEXT("canonical_zip_sha256"),ZipHash); Record->SetStringField(TEXT("semantic"),Semantic);
+        Record->SetNumberField(TEXT("before_source_approximation_triangles"),Concatenated.Num());
+        Record->SetStringField(TEXT("source_approximation_geometry_sha256"),RefinementHash);
         Record->SetArrayField(TEXT("before_final_composition_groups"),GroupRecords);
-        const auto WorldPoints=[&](const TArray<FTriangle>& Input)
-        {
-            TArray<TSharedPtr<FJsonValue>> Points;
-            for (const auto& Triangle : Input)
-            {
-                TArray<TSharedPtr<FJsonValue>> Corners;
-                for (const auto& P : Triangle)
-                {
-                    const FVector World=FVector(P)+Origin;
-                    Corners.Add(MakeShared<FJsonValueArray>(TArray<TSharedPtr<FJsonValue>>{
-                        MakeShared<FJsonValueNumber>(World.X),MakeShared<FJsonValueNumber>(World.Y),MakeShared<FJsonValueNumber>(World.Z)}));
-                }
-                Points.Add(MakeShared<FJsonValueArray>(Corners));
-            }
-            return Points;
-        };
-        Record->SetArrayField(TEXT("before_final_composition_world_triangles_cm"),WorldPoints(Concatenated));
-        Record->SetArrayField(TEXT("world_triangles_cm"),WorldPoints(Actual));
+        Record->SetArrayField(TEXT("before_final_composition_world_triangles_cm"),WorldPoints(Concatenated,Origin));
+        Record->SetArrayField(TEXT("world_triangles_cm"),WorldPoints(Actual,Origin));
         if (!TestTrue(TEXT("Source package bytes and loaded dirty state remain unchanged"),
             FProjectWorldCanonicalLoader::ComputeFileSha256(SourcePath,HashAfter) && HashBefore==HashAfter &&
             Asset->GetOutermost()->IsDirty()==DirtyBefore)) return false;
@@ -268,6 +276,47 @@ bool FProjectWorldWaterCompositionCandidateReplayTest::RunTest(const FString&)
         }
         return true;
     };
+    const auto AllContacts=[&](const TArray<FTriangle>& Faces,const FVector& Origin,
+        TSharedPtr<FJsonObject>& Out,FString& Error)
+    {
+        Out=MakeShared<FJsonObject>();
+        TArray<TSharedPtr<FJsonValue>> Contacts;
+        int32 ZeroArea=0;double PairArea=0;
+        for (int32 A=0;A<Faces.Num();++A) for (int32 B=A+1;B<Faces.Num();++B)
+        {
+            FProjectWorldSurfaceTriangle First,Second;
+            for (int32 I=0;I<3;++I) {First.Points[I]=FVector(Faces[A][I]);Second.Points[I]=FVector(Faces[B][I]);}
+            TArray<FVector2D> Intersection;
+            if (!ProjectWorldTerrainSurface::IntersectXY(First,Second,Intersection,Error)) return false;
+            const double Area=ProjectWorldTerrainSurface::Area(Intersection);
+            if (!FMath::IsFinite(Area)) {Error=TEXT("Native contact measurement returned nonfinite area.");return false;}
+            if (Area<=0) {ZeroArea+=!Intersection.IsEmpty();continue;}
+            double Low=TNumericLimits<double>::Max(),High=-TNumericLimits<double>::Max();
+            TArray<TSharedPtr<FJsonValue>> Polygon;
+            for (const auto& P : Intersection)
+            {
+                double L=0,R=0;
+                if (!ProjectWorldTerrainSurface::Height(First,P,L,Error) ||
+                    !ProjectWorldTerrainSurface::Height(Second,P,R,Error)) return false;
+                Low=FMath::Min(Low,L-R);High=FMath::Max(High,L-R);
+                Polygon.Add(MakeShared<FJsonValueArray>(TArray<TSharedPtr<FJsonValue>>{
+                    MakeShared<FJsonValueNumber>(P.X+Origin.X),MakeShared<FJsonValueNumber>(P.Y+Origin.Y)}));
+            }
+            auto Contact=MakeShared<FJsonObject>();
+            Contact->SetArrayField(TEXT("triangles"),TArray<TSharedPtr<FJsonValue>>{
+                MakeShared<FJsonValueNumber>(A),MakeShared<FJsonValueNumber>(B)});
+            Contact->SetNumberField(TEXT("native_area_cm2"),Area);
+            Contact->SetNumberField(TEXT("minimum_signed_gap_cm"),Low);Contact->SetNumberField(TEXT("maximum_signed_gap_cm"),High);
+            Contact->SetArrayField(TEXT("native_intersection_polygon_world_cm"),Polygon);
+            Contacts.Add(MakeShared<FJsonValueObject>(Contact));PairArea+=Area;
+        }
+        Out->SetStringField(TEXT("classification"),TEXT("Unqualified native positive-area intersections; numerical slivers require independent geometry analysis."));
+        Out->SetNumberField(TEXT("native_positive_area_contact_count"),Contacts.Num());
+        Out->SetNumberField(TEXT("native_nonempty_zero_area_intersection_count"),ZeroArea);
+        Out->SetNumberField(TEXT("sum_pair_overlap_cm2"),PairArea);
+        Out->SetArrayField(TEXT("contacts"),Contacts);
+        return true;
+    };
     struct FSelection {const TCHAR* Profile;int32 X,Y;const TCHAR* Artifact;};
     const FSelection Selections[]={{TEXT("kazan_territory_v1"),4,-6,TEXT("/ProjectWorldData/Generated/Territory/Water/Cells")},
         {TEXT("manhattan_showcase_v1"),6,6,TEXT("/ProjectWorldData/Generated/Showcase/Manhattan/Water/Cells")}};
@@ -308,8 +357,12 @@ bool FProjectWorldWaterCompositionCandidateReplayTest::RunTest(const FString&)
         if (!TestTrue(TEXT("Real candidate is nonempty with consistent triangle accounting"),
             TriangleCount>0 && TriangleCount==Candidate.Triangles().Num())) return false;
         int32 SavedContacts=0,CandidateContacts=0;double SavedArea=0,CandidateArea=0;
-        if (!FlatContacts(Triangles(*Asset->GetMeshDescription(0)),SavedContacts,SavedArea,Error) ||
-            !FlatContacts(Triangles(Candidate),CandidateContacts,CandidateArea,Error)) {AddError(Error);return false;}
+        const auto SavedFaces=SourceReplayTriangles(*Asset->GetMeshDescription(0)),CandidateFaces=SourceReplayTriangles(Candidate);
+        if (!FlatContacts(SavedFaces,SavedContacts,SavedArea,Error) ||
+            !FlatContacts(CandidateFaces,CandidateContacts,CandidateArea,Error)) {AddError(Error);return false;}
+        TSharedPtr<FJsonObject> SavedAll,CandidateAll;
+        if (!AllContacts(SavedFaces,Origin,SavedAll,Error) || !AllContacts(CandidateFaces,Origin,CandidateAll,Error))
+        {AddError(Error);return false;}
         TestEqual(TEXT("Candidate has no qualified exact-horizontal overlap"),CandidateContacts,0);
         TestTrue(TEXT("Read-only replay leaves saved bytes and dirty state exact"),
             FProjectWorldCanonicalLoader::ComputeFileSha256(Path,After) && Before==After && Asset->GetOutermost()->IsDirty()==Dirty);
@@ -317,7 +370,17 @@ bool FProjectWorldWaterCompositionCandidateReplayTest::RunTest(const FString&)
         Record->SetStringField(TEXT("profile"),Selection.Profile);Record->SetStringField(TEXT("cell"),Cell->CellId);
         Record->SetStringField(TEXT("saved_package_sha256"),Before);Record->SetStringField(TEXT("canonical_zip_sha256"),ZipHash);
         Record->SetStringField(TEXT("candidate_semantic_sha256"),Semantic);
+        Record->SetArrayField(TEXT("geometry_origin_cm"),TArray<TSharedPtr<FJsonValue>>{MakeShared<FJsonValueNumber>(Origin.X),
+            MakeShared<FJsonValueNumber>(Origin.Y),MakeShared<FJsonValueNumber>(Origin.Z)});
+        TArray<TSharedPtr<FJsonValue>> Consumed;
+        for (const auto& Id : Features) Consumed.Add(MakeShared<FJsonValueString>(Id));
+        Record->SetArrayField(TEXT("consumed_feature_ids"),Consumed);
+        Record->SetArrayField(TEXT("saved_world_triangles_cm"),WorldPoints(SavedFaces,Origin));
+        Record->SetArrayField(TEXT("candidate_world_triangles_cm"),WorldPoints(CandidateFaces,Origin));
+        Record->SetObjectField(TEXT("saved_all_plane_contacts"),SavedAll);
+        Record->SetObjectField(TEXT("candidate_all_plane_contacts"),CandidateAll);
         Record->SetNumberField(TEXT("candidate_triangles"),TriangleCount);
+        Record->SetNumberField(TEXT("saved_triangles"),SavedFaces.Num());
         Record->SetNumberField(TEXT("saved_qualified_horizontal_contacts"),SavedContacts);
         Record->SetNumberField(TEXT("candidate_qualified_horizontal_contacts"),CandidateContacts);
         Record->SetNumberField(TEXT("saved_qualified_horizontal_overlap_cm2"),SavedArea);
@@ -400,8 +463,8 @@ bool FProjectWorldWaterCityCandidateCensusTest::RunTest(const FString&)
                 auto* Asset=LoadObject<UStaticMesh>(nullptr,*(Package+TEXT(".")+Name));
                 if (!Asset || !Asset->GetMeshDescription(0)) {AddError(TEXT("Saved Water has no source geometry: ")+Package);return false;}
                 const bool Dirty=Asset->GetOutermost()->IsDirty();
-                const auto Saved=Triangles(*Asset->GetMeshDescription(0));
-                const bool Different=!Same(Saved,FVector::ZeroVector,Triangles(Candidate),FVector::ZeroVector);
+                const auto Saved=SourceReplayTriangles(*Asset->GetMeshDescription(0));
+                const bool Different=!Same(Saved,FVector::ZeroVector,SourceReplayTriangles(Candidate),FVector::ZeroVector);
                 Changed+=Different?1:0;
                 Row->SetBoolField(TEXT("source_triangle_order_or_positions_changed"),Different);
                 Row->SetNumberField(TEXT("saved_triangles"),Saved.Num());

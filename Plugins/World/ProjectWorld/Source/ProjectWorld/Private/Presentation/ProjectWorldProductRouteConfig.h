@@ -15,10 +15,13 @@ struct FProjectWorldProductRouteGateConfig
 	FString MachineProfileId;
 	FString TerrainAcceptancePath;
 	FString TerrainAcceptanceHash;
+	FString BuildingReferencePath;
+	FString BuildingReferenceHash;
 	FVector EdgeLocation = FVector::ZeroVector;
 	bool bRestorePreviewFlight = false;
 	bool bRequireGameplayInteraction = true;
 	bool bForceFreshVsm = false;
+	bool bMaterialEvidence = false;
 };
 
 namespace ProjectWorldProductRouteConfig

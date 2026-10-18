@@ -1,6 +1,7 @@
 import importlib.util
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,10 @@ from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parents[1] / "prepare_release.py"
 sys.path.insert(0, str(SCRIPT.parent))
+if __package__:
+    from .test_release_shipping import ShippingProofFixture, add_shipping_fixture
+else:
+    from test_release_shipping import ShippingProofFixture, add_shipping_fixture
 WRAPPER = SCRIPT.with_suffix(".ps1")
 TEST_TMP = SCRIPT.parents[3] / "tmp/release/tests"
 SPEC = importlib.util.spec_from_file_location("prepare_release", SCRIPT)
@@ -53,6 +58,11 @@ def init_repo(path: Path, tag: str | None = None) -> tuple[str, str]:
 
 class PrepareReleaseTests(unittest.TestCase):
     def setUp(self) -> None:
+        # This suite owns archive/projection/waiver fixtures; the real city-proof
+        # contract is exercised in test_release_shipping and the admission test below.
+        self.shipping_gate = mock.patch("release_shipping.validate_shipping_cities", return_value={})
+        self.shipping_gate.start()
+        self.addCleanup(self.shipping_gate.stop)
         TEST_TMP.mkdir(parents=True, exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(dir=TEST_TMP)
         self.root = Path(self.temp.name)
@@ -66,7 +76,10 @@ class PrepareReleaseTests(unittest.TestCase):
         executable.write_bytes(b"shipping")
         (self.candidate / "package_summary.txt").write_text("accepted\n", encoding="ascii")
         self.composite = self.root / "composite.json"
-        write_json(self.composite, {"schema_version": 1, "status": "accepted"})
+        write_json(self.composite, {"schema_version": 1, "status": "accepted", "operation_id": "fixture-operation",
+            "revision": self.private_revision, "source_state_sha256": MODULE.source_state_digest(self.private),
+            "shipping_package_sha256": MODULE.package_tree_digest(self.candidate),
+            "shipping_executable_sha256": MODULE.sha256_file(executable)})
         self.acceptance = self.root / "operator-acceptance.json"
         write_json(
             self.acceptance,
@@ -190,6 +203,22 @@ class PrepareReleaseTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
+    def test_current_player_evidence_requires_both_city_shipping_before_output_creation(self) -> None:
+        self.shipping_gate.stop()
+        operator = json.loads(self.acceptance.read_text())
+        machine_path = self.root / "machine-without-shipping-proof.json"
+        write_json(machine_path, {"schema_version": 1, "status": "accepted", "operation_id": "fixture-operation",
+            "revision": self.private_revision, "source_state_sha256": MODULE.source_state_digest(self.private),
+            "final_package": str(self.candidate), "shipping_package_sha256": operator["package_tree_sha256"],
+            "shipping_executable_sha256": operator["shipping_executable_sha256"]})
+        for evidence in (self.acceptance, machine_path):
+            with self.subTest(evidence=evidence.name):
+                output = self.root / f"release-without-shipping-{evidence.stem}"
+                with self.assertRaisesRegex(MODULE.ReleaseError, "Shipping"):
+                    MODULE.prepare_release(replace(self.inputs(), player_evidence=evidence), output,
+                                           [self.player_archive], self.archive_report)
+                self.assertFalse(output.exists())
+
     def inputs(self) -> MODULE.ReleaseInputs:
         return MODULE.ReleaseInputs(
             release_version="2.0.0",
@@ -207,6 +236,40 @@ class PrepareReleaseTests(unittest.TestCase):
             attribution_notice=self.attribution,
             product_terms=self.terms,
         )
+
+    def test_current_operator_wrapper_refuses_an_otherwise_valid_old_machine_tuple(self) -> None:
+        self.shipping_gate.stop()
+        from release_shipping import MATERIAL_MANIFEST, validate_shipping_cities
+        template = ShippingProofFixture(self.root / "shipping-template")
+        manifest = self.private / MATERIAL_MANIFEST
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(template.root / MATERIAL_MANIFEST, manifest)
+        operator = json.loads(self.acceptance.read_text())
+        operator["source_state_sha256"] = MODULE.source_state_digest(self.private)
+        current = {"revision": self.private_revision, "source_state_sha256": operator["source_state_sha256"],
+                   "shipping_package_sha256": operator["package_tree_sha256"],
+                   "shipping_executable_sha256": operator["shipping_executable_sha256"],
+                   "operation_id": operator["release_operation_id"]}
+        candidate = ShippingProofFixture(self.root / "current-shipping", current)
+        write_json(self.composite, {"schema_version": 1, **candidate.machine})
+        operator["release_composite_sha256"] = MODULE.sha256_file(self.composite)
+        write_json(self.acceptance, operator)
+        manifest_path = MODULE.prepare_release(self.inputs(), self.root / "release-current-shipping",
+                                              [self.player_archive], self.archive_report)
+        self.assertTrue(manifest_path.is_file())
+        for key, old_value in (("revision", "0" * 40), ("source_state_sha256", "0" * 64),
+                               ("shipping_package_sha256", "0" * 64), ("shipping_executable_sha256", "0" * 64),
+                               ("operation_id", "historical-operation")):
+            with self.subTest(stale_field=key):
+                old = ShippingProofFixture(self.root / key, {**current, key: old_value})
+                self.assertEqual({"kazan", "manhattan"}, set(validate_shipping_cities(old.machine, self.private)))
+                write_json(self.composite, {"schema_version": 1, **old.machine})
+                operator["release_composite_sha256"] = MODULE.sha256_file(self.composite)
+                write_json(self.acceptance, operator)
+                output = self.root / f"release-stale-{key}"
+                with self.assertRaisesRegex(MODULE.ReleaseError, "player machine"):
+                    MODULE.prepare_release(self.inputs(), output, [self.player_archive], self.archive_report)
+                self.assertFalse(output.exists())
 
     def test_prepare_and_approve_bind_exact_release(self) -> None:
         output = self.root / "release"
@@ -545,6 +608,7 @@ class PrepareReleaseTests(unittest.TestCase):
         self.private = SCRIPT.parents[3]
         self.private_revision = MODULE.git_value(self.private, "rev-parse", "HEAD")
         evidence = self.waived_machine()
+        write_json(evidence, add_shipping_fixture(MODULE.read_json(evidence), self.root / "wrapper-shipping", self.private))
         subprocess.run(["git", "-C", str(self.public), "tag", "v3.0.0"], check=True)
         for path, key in ((self.developer_manifest, "release_version"), (self.component, "source_tag")):
             document = json.loads(path.read_text())
@@ -701,6 +765,7 @@ class PrepareReleaseTests(unittest.TestCase):
                 ),
             },
         )
+        write_json(evidence, add_shipping_fixture(MODULE.read_json(evidence), self.root / "wrapper-shipping", project_root))
         result = subprocess.run(
             [
                 "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",

@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldRealizationEvidence.h"
 
 #include "ProjectWorldAuthoredOverlay.h"
 #include "ProjectWorldAuthoredOverlayRealization.h"
@@ -718,6 +719,7 @@ bool FProjectWorldRealizationService::WriteResult(
 	const FProjectWorldRealizationRequest& Request,
 	const FProjectWorldRealizationResult& Result)
 {
+	if (!ProjectWorldRealizationEvidence::IsInputDisjoint(Request)) return false;
 	TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
 	Root->SetStringField(TEXT("$schema"), TEXT("https://alis.world/schemas/world-realization/realization-result-v2.json"));
 	Root->SetNumberField(TEXT("schema_version"), 2);

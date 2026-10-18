@@ -8,7 +8,8 @@ public class ProjectWorldRoadEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"Core", "CoreUObject", "Engine", "Json", "MeshDescription",
-			"StaticMeshDescription", "AssetRegistry", "ProjectCore", "ProjectWorldEditor", "UnrealEd"
+			"StaticMeshDescription", "GeometryCore", "GeometryAlgorithms",
+			"AssetRegistry", "ProjectCore", "ProjectWorldEditor", "UnrealEd"
 		});
 	}
 }

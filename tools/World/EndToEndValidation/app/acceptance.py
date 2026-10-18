@@ -160,6 +160,8 @@ def accepted_run_evidence(run_id: str, expected_profile_id: str) -> dict[str, An
             "World code or contracts changed after the shared common checks",
             run_id=run_id,
         )
+    from .immutable_canonical import validate_execution
+    validate_execution(REPO_ROOT, loaded_profile, document.get("evidence", {}))
     return {
         "run_id": run_id,
         "profile_id": document["profile_id"],
@@ -389,6 +391,7 @@ def accept(
     run_id: str,
     profile_value: str = "kazan_territory_v1",
     bootstrap_preflight: str | None = None,
+    *, completion_evidence: str | None = None,
 ) -> dict[str, Any]:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     operation_id = f"accept-{stamp}"
@@ -433,7 +436,22 @@ def accept(
                 "bootstrap_preflight_sha256": file_hash(preflight_path),
             }
 
-        run = accepted_run_evidence(run_id, profile_id)
+        completion = None
+        if completion_evidence:
+            from .completion import load_completion, verify_completion_world
+            completion_path = Path(completion_evidence).resolve()
+            completion_hash = file_hash(completion_path)
+            completion = load_completion(REPO_ROOT, completion_path, resolved_profile_path, profile)
+            run = completion['run']
+            if run['run_id'] != run_id:
+                raise ValidationFailure('completion_matrix_mismatch', 'Completion belongs to another base Matrix')
+            document['selected_completion'] = {
+                'receipt': str(completion_path), 'receipt_sha256': completion_hash,
+                'target_result_sha256': completion['document']['target']['sha256'],
+                'reader_implementation_sha256': completion['replay']['current_final_reader_implementation_sha256'],
+            }
+        else:
+            run = accepted_run_evidence(run_id, profile_id)
         expected_profile_contract = {
             "path": resolved_profile_path.relative_to(REPO_ROOT).as_posix(),
             "sha256": acceptance_profile_hash,
@@ -487,7 +505,12 @@ def accept(
                 "active_set_sha256": pre_audit["active_set"]["sha256"],
             }
 
-            problems = verify_manifest_provenance(pre_audit.get("scopes", []), leg_records)
+            if completion is not None:
+                completion_proof = verify_completion_world(REPO_ROOT, completion, pre_audit)
+                document['selected_completion']['canonical_sha256'] = completion_proof['canonical_sha256']
+                problems = []
+            else:
+                problems = verify_manifest_provenance(pre_audit.get("scopes", []), leg_records)
             if problems:
                 raise ValidationFailure(
                     "manifest_provenance_unproven",
@@ -564,6 +587,13 @@ def accept(
                 "receipt_sha256": file_hash(post_receipt),
                 "active_set_sha256": post_audit["active_set"]["sha256"],
             }
+            if completion is not None:
+                post_loaded = load_completion(REPO_ROOT, completion_path, resolved_profile_path, profile)
+                post_completion = verify_completion_world(REPO_ROOT, post_loaded, post_audit)
+                if (file_hash(completion_path) != completion_hash or
+                        post_loaded['replay']['current_final_reader_implementation_sha256'] != document['selected_completion']['reader_implementation_sha256'] or
+                        post_completion['canonical_sha256'] != completion_proof['canonical_sha256']):
+                    raise ValidationFailure('completion_authority_changed', 'Completion or Canonical selection changed during acceptance')
 
         pre_active = document["pre_package_audit"]["active_set_sha256"]
         post_active = document["post_package_audit"]["active_set_sha256"]

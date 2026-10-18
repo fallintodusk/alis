@@ -31,6 +31,7 @@ param(
 
     [AllowEmptyCollection()]
     [string[]]$ExecuteLayer = @(),
+    [string]$CanonicalRefinementSelection = '',
 
     # Manifest authority root; defaults to the durable root. Isolated
     # validation runs pass a transient sandbox root and never touch the
@@ -78,6 +79,8 @@ $configDirectory = Join-Path $projectRoot "scripts\config"
 . (Join-Path $scriptDirectory "realization_layer_operation.ps1")
 . (Join-Path $scriptDirectory "layer_execution_selection.ps1")
 . (Join-Path $scriptDirectory 'realization_candidate_manifests.ps1')
+. (Join-Path $scriptDirectory 'realization_authority_publication.ps1')
+. (Join-Path $scriptDirectory 'realization_evidence.ps1')
 . (Join-Path $scriptDirectory "producer_run_identity.ps1")
 . (Join-Path $scriptDirectory "operator_controls.ps1")
 . (Join-Path $scriptDirectory "execution_envelope.ps1")
@@ -102,6 +105,9 @@ if ($MaterialReferencesOnly -and ($modeName -ne 'apply' -or $ExecuteLayer.Count 
     throw 'MaterialReferencesOnly requires existing selected owners, without enrollment, reconstruction or geometry additions.'
 }
 if ($PriorPresentationProfile -and -not $MaterialReferencesOnly) { throw 'PriorPresentationProfile requires MaterialReferencesOnly.' }
+if ($CanonicalRefinementSelection -and ($modeName -ne 'apply' -or $ExecuteLayer.Count -eq 0 -or $MaterialReferencesOnly -or $Reconstruct -or $EnrollManifests -or $DirtyUnit.Count -gt 0)) {
+    throw 'Canonical refinement selection requires existing selected Apply without material-only, reconstruction, enrollment or forced dirty units.'
+}
 $runtimeProfilePath = if ($modeName -eq "delete" -or [string]::IsNullOrWhiteSpace($RuntimeProfile)) {
 	""
 }
@@ -282,8 +288,7 @@ $operationInputIdentity = [ordered]@{
     authored_overlay_profile_sha256 = $authoredOverlayProfileHash
     map_package = $Map
 }
-if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
-    $identity = [ordered]@{
+$evidenceIdentity = [ordered]@{
         schema_version = 1
         compile_result_sha256 = $compileResultHash
         presentation_profile_sha256 = $presentationProfileHash
@@ -296,29 +301,15 @@ if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
         dirty_units = @($DirtyUnit | Sort-Object -Unique)
         execution_layers = @($ExecuteLayer | Sort-Object)
         material_reference_only = [bool]$MaterialReferencesOnly
-    }
-    $identityBytes = [System.Text.Encoding]::UTF8.GetBytes(($identity | ConvertTo-Json -Compress))
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $invocationHash = ([System.BitConverter]::ToString($sha256.ComputeHash($identityBytes))).Replace("-", "").ToLowerInvariant()
-    }
-    finally {
-        $sha256.Dispose()
-    }
-    $evidenceDirectory = Join-Path $projectRoot "Saved\Validation\WorldRealization\$invocationHash"
-    $resultPath = Join-Path $evidenceDirectory "$modeName.json"
 }
-else {
-    $resultPath = [System.IO.Path]::GetFullPath($EvidencePath)
-    $evidenceDirectory = Split-Path -Parent $resultPath
-}
-$evidenceRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot "Saved\Validation\WorldRealization"))
-$evidencePrefix = $evidenceRoot + [System.IO.Path]::DirectorySeparatorChar
-if (-not $resultPath.StartsWith($evidencePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Evidence path must stay under $evidenceRoot"
-}
+$evidenceLocation = Resolve-ProjectWorldEvidenceLocation -ProjectRoot $projectRoot -EvidencePath $EvidencePath -ModeName $modeName -InvocationIdentity $evidenceIdentity
+$resultPath, $evidenceDirectory, $logPath = $evidenceLocation.ResultPath, $evidenceLocation.Directory, $evidenceLocation.LogPath
+$resolvedManifestRoot = if ([string]::IsNullOrWhiteSpace($ManifestRoot)) { $worldDataRoots.ManifestRoot } else { [System.IO.Path]::GetFullPath($ManifestRoot) }
+$futureDirtyInput = Join-Path $evidenceDirectory 'layer_dirty_input.json'
+Assert-ProjectWorldEvidenceInputIsolation -ResultPath $resultPath -CompileResultPath $compileResultPath -InputPaths @(
+    $presentationProfilePath, $runtimeProfilePath, $authoredOverlayProfilePath, $realizationProfilePath, $PriorPresentationProfile, $CanonicalRefinementSelection) `
+    -ProtectedRoots @($resolvedManifestRoot) -AuxiliaryOutputPaths @($futureDirtyInput, ($futureDirtyInput + '.tmp'))
 New-Item -ItemType Directory -Path $evidenceDirectory -Force | Out-Null
-$logPath = [System.IO.Path]::ChangeExtension($resultPath, ".log")
 if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
     Remove-Item -LiteralPath $resultPath -Force
 }
@@ -331,12 +322,6 @@ $transactionRecords = @()
 $transactionActive = $modeName -eq "apply" -or $modeName -eq "delete"
 
 # --- Manifest preflight (contract: territory_generation.md lifecycle) ---
-$resolvedManifestRoot = if ([string]::IsNullOrWhiteSpace($ManifestRoot)) {
-    $worldDataRoots.ManifestRoot
-}
-else {
-    [System.IO.Path]::GetFullPath($ManifestRoot)
-}
 # C8 operator control, revised 2026-08-20. The authority boundary is the MANIFEST
 # ROOT, not the owning plugin.
 #
@@ -360,6 +345,9 @@ $durableManifestRoot =
     [System.IO.Path]::GetFullPath($worldDataRoots.ManifestRoot).TrimEnd('\', '/')
 $enrollmentTargetsDurableAuthority =
     [System.IO.Path]::GetFullPath($resolvedManifestRoot).TrimEnd('\', '/') -ieq $durableManifestRoot
+if ($CanonicalRefinementSelection -and -not $enrollmentTargetsDurableAuthority) {
+    throw 'Canonical selection requires the matching owner World authority; a transient World authority cannot advance its production canonical pointer.'
+}
 if (($TestFailAfterSelfSavedActor -or $TestRejectAcceptedChild) -and $enrollmentTargetsDurableAuthority) {
     throw 'Fault injection requires transient manifest authority.'
 }
@@ -387,6 +375,7 @@ $authorityLock = $null
 $materialProfileEvidence = $null
 $geometryOperationIdentity = $operationInputIdentity
 $materialAdoptions = @{}
+$canonicalOperation=$null;$canonicalCompatibility=$null
 if ($transactionActive) {
     # The project-global content mutation lock serializes EVERY generated
     # tree mutation regardless of manifest root (durable or sandbox); the
@@ -405,7 +394,7 @@ if ($transactionActive) {
         $materialProfileEvidence = Resolve-ProjectWorldMaterialProfile -ActiveSet $activeSet -MapScopeId $mapScopeId `
             -SelectedScopes $selectedScopeIds -CandidatePath $presentationProfilePath -PriorPath $PriorPresentationProfile
     }
-    elseif ($selectedApply) {
+    elseif ($selectedApply -or $Reconstruct) {
         $materialProfileEvidence = Resolve-ProjectWorldSelectedGeometryProfile -ActiveSet $activeSet -MapScopeId $mapScopeId `
             -SelectedScopes $selectedScopeIds -CandidatePath $presentationProfilePath `
             -MaterialManifestPath (Join-Path $projectRoot 'Plugins/Resources/ProjectMaterial/Data/Manifests/Surfaces/accepted.surface-manifest.json')
@@ -415,10 +404,32 @@ if ($transactionActive) {
         foreach ($key in $operationInputIdentity.Keys) { $geometryOperationIdentity[$key] = $operationInputIdentity[$key] }
         $geometryOperationIdentity.presentation_profile_sha256 = $materialProfileEvidence.GeometryHash
     }
-    if ($selectedApply) {
-        Assert-ProjectWorldSelectedAuthority -ActiveSet $activeSet -MapScopeId $mapScopeId `
-            -InputIdentity $geometryOperationIdentity -LayerDefinitions $layerDefinitions `
-            -RealizationProfileHash $realizationProfileHash
+    if ($selectedApply -or $Reconstruct) {
+        $validationArguments=@{Map=$Map;WorldDataPlugin=$WorldDataPlugin;PresentationProfile=$presentationProfilePath;
+            RuntimeProfile=$runtimeProfilePath;AuthoredOverlayProfile=$authoredOverlayProfilePath;RealizationProfile=$realizationProfilePath;
+            MaxRoads=$MaxRoads;MaxBuildings=$MaxBuildings;NonInteractive=$true;ManifestRoot=$resolvedManifestRoot}
+        if ($CanonicalRefinementSelection) {
+            $canonicalOperation=New-ProjectWorldCanonicalRefinementOperation -ProjectRoot $projectRoot -SelectionPath $CanonicalRefinementSelection `
+                -CompileResult $compileResultPath -ActiveSet $activeSet -InputIdentity $geometryOperationIdentity -LayerDefinitions $layerDefinitions `
+                -GeneratorFingerprints $runIdentity.LayerFingerprints -MapScopeId $mapScopeId -MapGeneratorFingerprint $runIdentity.Fingerprints['map:v1'] `
+                -RealizationProfileHash $realizationProfileHash -CurrentPresentationProfileHash $presentationProfileHash -ExecuteLayer $ExecuteLayer `
+                -ValidationArguments $validationArguments -EvidenceDirectory (Join-Path $evidenceDirectory 'refinement-inputs')
+            $canonicalCompatibility=$canonicalOperation.Compatibility
+        }
+        else {
+            $canonicalOperation=Get-ProjectWorldAcceptedRefinementOperation -ProjectRoot $projectRoot -ActiveSet $activeSet -MapScopeId $mapScopeId `
+                -CompileResult $compileResultPath -ProfileId $compileReceipt.profile_id -DataRoot $worldDataRoots.DataRoot -InputIdentity $geometryOperationIdentity `
+                -GeneratorFingerprints $runIdentity.LayerFingerprints -MapGeneratorFingerprint $runIdentity.Fingerprints['map:v1'] `
+                -ValidationArguments $validationArguments -EvidenceDirectory (Join-Path $evidenceDirectory 'refinement-inputs') -MaterialReferencesOnly:$MaterialReferencesOnly `
+                -PresentationProfilePath $presentationProfilePath -MaterialManifestPath (Join-Path $projectRoot 'Plugins/Resources/ProjectMaterial/Data/Manifests/Surfaces/accepted.surface-manifest.json')
+            if ($null -ne $canonicalOperation) {$canonicalCompatibility=$canonicalOperation.Compatibility}
+            if ($MaterialReferencesOnly) {$canonicalOperation=$null}
+        }
+        $selectedMapIdentity=Get-ProjectWorldRefinementMapIdentity -InputIdentity $geometryOperationIdentity -Compatibility $canonicalCompatibility -MapScopeId $mapScopeId
+        if ($selectedApply -or $null -ne $canonicalCompatibility) {
+            Assert-ProjectWorldSelectedAuthority -ActiveSet $activeSet -MapScopeId $mapScopeId `
+                -InputIdentity $selectedMapIdentity -LayerDefinitions $layerDefinitions -RealizationProfileHash $realizationProfileHash
+        }
     }
     $participating = @{ $mapScopeId = $mapScopePaths }
     if ($null -ne $presentationScopeId -and -not $selectedApply) {
@@ -583,7 +594,7 @@ if ($transactionActive) {
         -SnapshotRoot $transactionRoot `
         -AdditionalPaths @($layerScopePaths.Values | ForEach-Object { @($_) }))
     $plannedCandidates = @($scopeGenerations.Keys | ForEach-Object { "scopes/$_.$($scopeGenerations[$_]).json" })
-    Write-ProjectWorldTransactionJournal -ManifestRoot $resolvedManifestRoot -Journal ([ordered]@{
+    $journal=[ordered]@{
         transaction_id = $transactionId
         phase = 'mutating'
         map_package = $Map
@@ -598,7 +609,9 @@ if ($transactionActive) {
         operation = $operationRoute
         execution_layers = @($ExecuteLayer | Sort-Object)
         retired_scopes = $retiredJournalEntries
-    })
+    }
+    if ($null -ne $canonicalOperation -and $null -ne $canonicalOperation.Transition) {$journal.canonical_selection_transition=$canonicalOperation.Transition}
+    Write-ProjectWorldTransactionJournal -ManifestRoot $resolvedManifestRoot -Journal $journal
 }
 
 $layerDirtyInputPath = ""
@@ -735,6 +748,7 @@ if ($transactionActive) {
     $accepted = ($engineExitCode -eq 0 -and $childStatus -eq 'accepted')
     if ($accepted) {
       try {
+        Assert-ProjectWorldRefinementResult -Operation $canonicalOperation -Result $result -LayerDefinitions $layerDefinitions -ExecuteLayer $ExecuteLayer
         $layerCandidatesByScope = @{}
         if ($TestRejectAcceptedChild) {
             $result.realization_profile_sha256 = 'test-rejected-child-authentication'
@@ -881,12 +895,13 @@ if ($transactionActive) {
             $mapScopePaths = @(Get-ProjectWorldGeneratedPaths -ContentRoot $contentRoot -MapPackage $Map -GeneratedPackageRoot $worldDataRoots.GeneratedPackageRoot)
             $mapCandidate = New-ProjectWorldMapManifestIfChanged -ProjectRoot $projectRoot -ActiveSet $activeSet -MapScopeId $mapScopeId `
                 -Generation $scopeGenerations[$mapScopeId] -OperationId $transactionId -LayerCandidates $layerCandidatesByScope `
-                -ScopePaths $mapScopePaths -InputIdentity $geometryOperationIdentity -GeneratorFingerprint $mapGeneratorFingerprint -SelectedApply:$selectedApply
+                -ScopePaths $mapScopePaths -InputIdentity $geometryOperationIdentity -GeneratorFingerprint $mapGeneratorFingerprint -SelectedApply:($selectedApply -or $null -ne $canonicalCompatibility) -CanonicalCompatibility $canonicalCompatibility
             if ($null -ne $mapCandidate) { $candidates += , $mapCandidate }
             $candidates += @(New-ProjectWorldLayerManifests -ProjectRoot $projectRoot -ActiveSet $activeSet -OperationId $transactionId `
                 -Generations $scopeGenerations -Definitions $layerDefinitions -CandidateInfos $layerCandidatesByScope `
                 -Fingerprints $runIdentity.LayerFingerprints -InputIdentity $layerInputIdentity -MapScopeId $mapScopeId `
-                -MaterialReferencesOnly:$MaterialReferencesOnly -Adoptions $materialAdoptions -PreserveMaterialAdoption:($selectedApply -and -not $MaterialReferencesOnly -and $null -ne $materialProfileEvidence))
+                -MaterialReferencesOnly:$MaterialReferencesOnly -Adoptions $materialAdoptions -PreserveMaterialAdoption:(($selectedApply -or $Reconstruct) -and -not $MaterialReferencesOnly -and $null -ne $materialProfileEvidence) `
+                -CanonicalCompatibility $canonicalCompatibility -AcceptedRefinementReplay:($null -ne $canonicalOperation -and $null -eq $canonicalOperation.Transition))
             if ($null -ne $presentationScopeId -and -not $selectedApply) {
                 $presentationCandidate = New-ProjectWorldCandidateManifest `
                     -ProjectRoot $projectRoot -ScopeId $presentationScopeId `
@@ -915,22 +930,8 @@ if ($transactionActive) {
         $engineExitCode = 8
       }
       if ($engineExitCode -eq 0) {
-        $journalPath = Join-Path $resolvedManifestRoot 'journal.json'
-        $published = Publish-ProjectWorldActiveSet `
-            -ManifestRoot $resolvedManifestRoot `
-            -ProjectRoot $ProjectRoot `
-            -TransactionId $transactionId `
-            -OperationId $transactionId `
-            -CandidateManifests $candidates `
-            -RetiredScopeIds $retired `
-            -PriorActiveSet $activeSet `
-            -BeforeCommit {
-                param($expectedSha)
-                $journal = Get-Content -LiteralPath $journalPath -Raw | ConvertFrom-Json
-                $journal.phase = 'publishing'
-                $journal.expected_active_set_sha256 = $expectedSha
-                Write-ProjectWorldTransactionJournal -ManifestRoot $resolvedManifestRoot -Journal $journal
-            }
+        $published=Publish-ProjectWorldRealizationAuthority -ProjectRoot $projectRoot -ManifestRoot $resolvedManifestRoot `
+            -TransactionId $transactionId -Candidates $candidates -Retired $retired -ActiveSet $activeSet -CanonicalOperation $canonicalOperation
         # Evidence comes from the PUBLISHED active set, never from planned
         # generations: skipped candidates and carried scopes report their
         # actually-activated manifest path and hash.
@@ -966,7 +967,7 @@ if ($transactionActive) {
         -ResultPath $resultPath `
         -EngineExitCode $engineExitCode `
         -ChildStatus $childStatus `
-        -JournalPath (Join-Path $resolvedManifestRoot 'journal.json')
+        -JournalPath (Join-Path $resolvedManifestRoot 'journal.json') -ProjectRoot $projectRoot
     if ($null -ne $authorityLock) {
         $authorityLock.Dispose()
     }

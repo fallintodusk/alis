@@ -1,13 +1,15 @@
 # Copyright ALIS. All Rights Reserved.
 # License terms: see repository root LICENSE.
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'canonical_refinement_operation.ps1')
 
 function New-ProjectWorldLayerManifests {
     param([string]$ProjectRoot, [object]$ActiveSet, [string]$OperationId,
         [System.Collections.IDictionary]$Generations, [System.Collections.IDictionary]$Definitions,
         [hashtable]$CandidateInfos, [System.Collections.IDictionary]$Fingerprints,
         [System.Collections.IDictionary]$InputIdentity, [string]$MapScopeId,
-        [switch]$MaterialReferencesOnly, [hashtable]$Adoptions = @{}, [switch]$PreserveMaterialAdoption)
+        [switch]$MaterialReferencesOnly, [hashtable]$Adoptions = @{}, [switch]$PreserveMaterialAdoption,
+        [object]$CanonicalCompatibility=$null,[switch]$AcceptedRefinementReplay)
     $candidates = @()
     foreach ($scope in $CandidateInfos.Keys) {
         $info = $CandidateInfos[$scope]
@@ -44,6 +46,9 @@ function New-ProjectWorldLayerManifests {
             $candidate['material_adoption'] = $prior.material_adoption
             Test-ProjectWorldMaterialAdoption -Manifest $candidate
         }
+        if (-not $MaterialReferencesOnly) {
+            $candidate=Get-ProjectWorldRefinementLayerCandidate -Candidate $candidate -Prior $prior -Compatibility $CanonicalCompatibility -AcceptedReplay:$AcceptedRefinementReplay
+        }
         $unchanged = Test-ProjectWorldManifestUnchanged -PriorManifest $prior -CandidateManifest $candidate `
             -GeneratorFingerprint $fingerprint -CompareLayerContract
         if ($MaterialReferencesOnly -and $unchanged) {
@@ -59,13 +64,15 @@ function New-ProjectWorldLayerManifests {
 function New-ProjectWorldMapManifestIfChanged {
     param([string]$ProjectRoot, [object]$ActiveSet, [string]$MapScopeId, [int]$Generation,
         [string]$OperationId, [hashtable]$LayerCandidates, [string[]]$ScopePaths,
-        [System.Collections.IDictionary]$InputIdentity, [string]$GeneratorFingerprint, [switch]$SelectedApply)
+        [System.Collections.IDictionary]$InputIdentity, [string]$GeneratorFingerprint, [switch]$SelectedApply,
+        [object]$CanonicalCompatibility=$null)
     $prior = if ($null -ne $ActiveSet -and $ActiveSet.Manifests.Contains($MapScopeId)) { $ActiveSet.Manifests[$MapScopeId] } else { $null }
     $owned = Get-ProjectWorldLayerOwnedPaths -Candidates $LayerCandidates -ActiveSet $ActiveSet -MapScopeId $MapScopeId
     $records = @(Get-ProjectWorldScopeArtifactRecords -ProjectRoot $ProjectRoot -ScopePaths $ScopePaths | Where-Object { -not $owned.ContainsKey([string]$_.path) })
     $fingerprint = if ($SelectedApply) { [string]$prior.generator_fingerprint } else { $GeneratorFingerprint }
+    $mapIdentity=Get-ProjectWorldRefinementMapIdentity -InputIdentity $InputIdentity -Compatibility $CanonicalCompatibility -MapScopeId $MapScopeId
     $candidate = New-ProjectWorldCandidateManifest -ProjectRoot $ProjectRoot -ScopeId $MapScopeId `
-        -Generation $Generation -OwningLayer map -OperationId $OperationId -InputIdentity $InputIdentity `
+        -Generation $Generation -OwningLayer map -OperationId $OperationId -InputIdentity $mapIdentity `
         -ScopePaths @() -ArtifactRecords $records -GeneratorFingerprint $fingerprint
     if (-not (Test-ProjectWorldManifestUnchanged -PriorManifest $prior -CandidateManifest $candidate -GeneratorFingerprint $fingerprint)) {
         if ($SelectedApply) { throw 'Selected execution changed the shared map owner.' }

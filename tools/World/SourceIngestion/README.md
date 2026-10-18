@@ -16,6 +16,7 @@ source profile
 ```
 
 The content-addressed cache under `tmp/world/source_ingestion/` is disposable.
+Durable raw copies and recovery are owned by [snapshot retention](retention/).
 The source profile pins provider bytes by size and SHA-256; its URL is an
 acquisition location, not durable storage or permission to substitute a
 nearby dated snapshot. On a cache miss, SourceIngestion fetches the pinned
@@ -33,18 +34,29 @@ contains canonical and generated authority, not this raw provider cache.
 |---|---|
 | `contracts/` | Source profile, ledger, provider snapshot, raster, and result schemas |
 | `api.py` | Public accepted-source surface consumed by Canonical Compilation |
+| [retention/](retention/) | Durable provider bytes and exact-byte cache recovery |
+| [supplemental/](supplemental/) | Qualified derived Ground products and their admission boundary |
 | `app/contracts.py` | JSON contracts, hashes, atomic writes, and locks |
 | `app/profiles.py` | Area identity, profile validation, and planning |
 | `app/acquisition.py` | Download, cache, payload verification, and source ledger |
 | `app/adapters.py` | Provider-specific normalization only |
 | `app/raster_mosaic.py` | Component normalization, semantic identity, VRT coverage, and composite COG |
 | `app/osm_selection.py` | Complete-geometry membership, selected-ID closure, and reference proof |
+| `app/osm_context.py` | Supplementary OSM namespace, complete way/node qualification and consumed-contract identity |
 | `app/tool_io.py` | Portable external-tool JSON and artifact metadata |
 | `app/run_identity.py` | Public profile resolution and exact run fingerprint |
 | `app/cli.py` | Operation orchestration and structured results |
 | `tests/` | Source unit and provider-tool integration checks |
 
 ## Commands
+
+Supplementary normalized OSM context can retain its direct-provider label while
+referring to the same primitive namespace as Geofabrik-distributed OSM.
+`api.py` owns that exact channel qualification. Display labels are not arbitrary
+namespace aliases. The context document's byte pin and native normalization
+receipt provide traceability; they do not recover or authenticate historical
+snapshot bytes. Consumers bind the context-admission implementation and schema
+identity before reusing an existing result.
 
 ```powershell
 python -S tools/World/SourceIngestion/bootstrap.py bootstrap-tools
@@ -84,6 +96,25 @@ The provider adapter normalizes admitted roads, buildings, water, land cover,
 vegetation areas, and explicit foliage points into stable generic classes. The
 source profile owns the exact provider tag filters; these classes do not imply
 an Unreal representation.
+
+The reference-complete selection exports native Osmium `way_nodes` metadata
+through the final OGR intersection. It retains exact ordered integer IDs in
+`properties.@way_nodes`; coordinates and provider tags remain unchanged.
+Osmium emits this metadata on a closed way's line record and omits it on its
+area record. Normalization retains the sequence while selecting the existing
+preferred geometry. Conflicting tags, node sequences or equally ranked geometries
+still refuse. Node identity establishes connectivity, not equal hydraulic height;
+filtered-out junction-control tags must not be treated as proven absent.
+
+`api.osm_way_context(document, provider_feature_id)` qualifies one normalized
+native way and all of its ordered node records. It requires unique primitive
+IDs, native type/version/time metadata, EPSG:4326 precision, exact node-to-way
+coordinate correspondence and source/license provenance. It preserves the
+complete properties for the canonical owner to interpret. Missing node records,
+coerced numeric metadata and mismatched geometry refuse. A filtered export that
+omits untagged nodes is insufficient for this API; native Osmium export must keep
+the reference records. Qualification is supplementary evidence, not recovery of
+the historical raw snapshot or authority to change canonical geography.
 
 Building admission preserves both `building=*` outlines and
 `building:part=*` records. The existing OSM extraction remains the sole parser

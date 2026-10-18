@@ -12,6 +12,7 @@ Compilation. It contains no provider, grid, feature, or Unreal policy.
 | `contracts/` | Toolchain lock and installation-receipt schemas |
 | `app/` | Python-environment and native-tool implementation |
 | `api.py` | Public runtime surface consumed by downstream World components |
+| [geometry/](geometry/) | Pinned optional geometry capability and separate execution identity |
 | `tests/` | Runtime, lock, installation, and native-capability checks |
 | `bootstrap.py` | Standard-library clean-machine entry point |
 
@@ -39,7 +40,7 @@ payloads.
 
 ## Native geometry boundary
 
-`api.partition_triangles` and `api.validate_triangle_cover` use the GEOS C API
+`geometry.api.partition_triangles` and `geometry.api.validate_triangle_cover` use the GEOS C API
 already pinned in the toolchain lock. The adapter verifies the installation,
 owns a reentrant context and releases geometries and its DLL search-directory
 handle. It exposes polygon partition, constrained triangulation and geometric

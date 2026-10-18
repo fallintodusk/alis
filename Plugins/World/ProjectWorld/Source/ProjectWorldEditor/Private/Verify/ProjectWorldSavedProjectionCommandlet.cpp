@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldSavedProjectionCommandlet.h"
+#include "ProjectWorldBuildingSurfaceReference.h"
 
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldVerify.h"
@@ -124,6 +125,17 @@ int32 UProjectWorldSavedProjectionCommandlet::Main(const FString& Params)
 		Root->SetObjectField(Producer.ResultName, Item);
 	}
 	Root->SetStringField(TEXT("status"), TEXT("accepted"));
+	if (const FString* SamplesPath = Parameters.Find(TEXT("BuildingSamplesResult")))
+	{
+		const FString* RuntimeHash = Parameters.Find(TEXT("RuntimeProfileHash"));
+		if (!RuntimeHash || !FPaths::IsUnderDirectory(FPaths::ConvertRelativePathToFull(*SamplesPath),
+			FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization"))) ||
+			!ProjectWorldBuildingSurfaceReference::Write(*World, *Map, *RuntimeHash, *SamplesPath, Error))
+		{
+			UE_LOG(LogProjectWorldSavedProjection, Error, TEXT("Building surface reference rejected: %s"), *Error);
+			return 5;
+		}
+	}
 	FString Json;
 	if (!FJsonSerializer::Serialize(Root, TJsonWriterFactory<>::Create(&Json)))
 	{

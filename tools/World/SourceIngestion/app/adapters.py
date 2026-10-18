@@ -203,6 +203,24 @@ def _convert_osmium_geojson(
         if existing is None:
             features_by_id[str(provider_id)] = normalized
             continue
+        prior_properties = existing["properties"]
+        incoming_properties = normalized["properties"]
+        if prior_properties != incoming_properties:
+            kinds = {existing["geometry"].get("type"), geometry.get("type")}
+            native_line_area = str(provider_id).startswith("way/") and "LineString" in kinds and bool(
+                kinds & {"Polygon", "MultiPolygon"}
+            )
+            # Osmium exports way_nodes on the line, but omits it on the same way's area.
+            prior_tags = {key: value for key, value in prior_properties.items() if key != "@way_nodes"}
+            incoming_tags = {key: value for key, value in incoming_properties.items() if key != "@way_nodes"}
+            line_properties = prior_properties if existing["geometry"].get("type") == "LineString" else incoming_properties
+            area_properties = incoming_properties if existing["geometry"].get("type") == "LineString" else prior_properties
+            if (native_line_area and prior_tags == incoming_tags and
+                    "@way_nodes" in line_properties and "@way_nodes" not in area_properties):
+                if "@way_nodes" in prior_properties and "@way_nodes" not in incoming_properties:
+                    normalized["properties"] = {**incoming_properties, "@way_nodes": prior_properties["@way_nodes"]}
+                elif "@way_nodes" in incoming_properties and "@way_nodes" not in prior_properties:
+                    existing["properties"] = {**prior_properties, "@way_nodes": incoming_properties["@way_nodes"]}
         if existing["properties"] != normalized["properties"] or existing["provider_class"] != provider_class:
             raise IngestionError(
                 "duplicate_feature_conflict",

@@ -635,4 +635,37 @@ REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	"Project.World.Authored.Anchor.KazanSurvival",
 	"[Fast][Integration][World]")
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldAuthoredOverlaySabotageContractsTest,
+	"Project.World.Realization.Authored.SabotageContracts",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldAuthoredOverlaySabotageContractsTest::RunTest(const FString& Parameters)
+{
+	for (const TCHAR* Name : {TEXT("kazan_slice0_sabotage_v1"), TEXT("manhattan_showcase_sabotage_v1")})
+	{
+		const FString Path = FPaths::Combine(FPaths::ProjectPluginsDir(),
+			TEXT("World/ProjectWorldData/Data/Authored"), FString(Name) + TEXT(".json"));
+		FProjectWorldAuthoredOverlaySet Set;
+		FString ErrorCode, Error;
+		if (!TestTrue(*FString::Printf(TEXT("%s reaches semantic resolution."), Name),
+			ProjectWorldAuthoredOverlay::Load(Path, Set, ErrorCode, Error)))
+		{
+			AddError(Error);
+			continue;
+		}
+		if (!TestEqual(TEXT("One deliberately missing feature."), Set.Overlays.Num(), 1)) continue;
+		FProjectWorldCanonicalBundle Bundle;
+		Bundle.GridId = Set.GridId;
+		Bundle.WorldDataPluginName = Set.WorldDataPluginName;
+		FProjectWorldAnchorResolution Resolution;
+		TestFalse(TEXT("A missing feature refuses placement."), ProjectWorldAuthoredOverlay::Resolve(
+			Bundle, Set, Set.Overlays[0], Resolution, Error));
+		TestTrue(TEXT("The refusal identifies the missing feature, not another guard."),
+			Error.Contains(TEXT("Anchored canonical feature no longer exists: alis:osm:way:missing")));
+		TestFalse(TEXT("The missing feature is not placed."), Resolution.bPlaces);
+	}
+	return true;
+}
+
 #endif

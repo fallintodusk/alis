@@ -28,6 +28,7 @@ param(
     [switch]$DescribeOperation,
     [switch]$AcceptInconclusivePerformance,
     [string]$ExistingDevelopmentPackageRoot,
+    [string]$ExistingShippingPackageRoot,
     [string]$ExpectedPackagePayloadSha256,
     [string]$ExpectedExecutableSha256
 )
@@ -55,6 +56,9 @@ $packageRoot = Join-Path $projectRoot 'Saved\PackageRelease\ManhattanShowcase'
 $finalPackage = Join-Path $packageRoot 'Candidate'
 . (Join-Path $PSScriptRoot 'project_world_performance_evidence.ps1')
 . (Join-Path $PSScriptRoot 'project_world_product_route_arguments.ps1')
+. (Join-Path $PSScriptRoot 'project_world_shipping_water_proof.ps1')
+. (Join-Path $PSScriptRoot 'project_world_existing_shipping.ps1')
+. (Join-Path $PSScriptRoot 'project_world_building_evidence.ps1')
 
 function Assert-ManhattanShowcase {
     param(
@@ -166,6 +170,9 @@ function Invoke-ManhattanShowcaseGame {
         Edge = $edgeArgument; OperationId = $RunOperationId
         CorrectnessPath = $CorrectnessPath; LogPath = $LogPath
     }
+    if ($Configuration -ceq 'Shipping') {
+        $routeParameters.BuildingReferencePath = $script:buildingReferencePath
+    }
     if ($PerformancePath) {
         $routeParameters.PerformancePath = $PerformancePath
         $routeParameters.CsvPath = $CsvPath; $routeParameters.SamplePath = $SamplePath
@@ -222,6 +229,7 @@ function Read-ManhattanShowcaseCorrectness {
 
     Assert-ManhattanShowcase (Test-Path -LiteralPath ([string]$receipt.screenshot) -PathType Leaf) `
         "$Configuration Manhattan product-route screenshot is missing."
+    if ($Configuration -ceq 'Shipping') { Assert-ProjectWorldBuildingEvidence -Receipt $receipt }
     return $receipt
 }
 
@@ -515,6 +523,14 @@ if ($DescribeOperation) {
     }
 }
 
+if ($PSBoundParameters.ContainsKey('ExistingShippingPackageRoot')) {
+    Assert-ManhattanShowcase (-not $ExistingDevelopmentPackageRoot -and -not $SkipShipping -and
+        -not $AcceptInconclusivePerformance -and $ExpectedPackagePayloadSha256 -and $ExpectedExecutableSha256) `
+        'Existing Shipping mode requires exact payload/executable hashes and no performance waiver.'
+    Invoke-ManhattanExistingShippingProof -PackageRoot $ExistingShippingPackageRoot `
+        -ExpectedPackageHash $ExpectedPackagePayloadSha256 -ExpectedExecutableHash $ExpectedExecutableSha256
+    return
+}
 if ($PSBoundParameters.ContainsKey('ExistingDevelopmentPackageRoot')) {
     Assert-ManhattanShowcase (-not [string]::IsNullOrWhiteSpace($ExistingDevelopmentPackageRoot)) `
         'ExistingDevelopmentPackageRoot cannot be empty.'
@@ -567,6 +583,12 @@ foreach ($configuration in @('Development', 'Shipping')) {
     New-Item -ItemType Directory -Path $configurationEvidence -Force | Out-Null
     $correctnessPath = Join-Path $configurationEvidence 'product-route.json'
     $logPath = Join-Path $configurationEvidence 'game.log'
+    if ($configuration -ceq 'Shipping') {
+        $script:buildingReferencePath = New-ProjectWorldBuildingReference -ProjectRoot $projectRoot `
+            -MapPackage $mapPackage -RuntimeProfileHash $script:runtimeProfileHash `
+            -EvidenceRoot $configurationEvidence -RealizationProfile (Join-Path $projectRoot `
+                'Plugins/World/ProjectWorldData/Data/Profiles/Realization/manhattan_showcase_v1.realization.json')
+    }
 
     Assert-ManhattanShowcaseSourceState -ExpectedSourceHash $sourceStateHash `
         -ExpectedRuntimeHash $script:runtimeProfileHash -Stage "after $configuration packaging"

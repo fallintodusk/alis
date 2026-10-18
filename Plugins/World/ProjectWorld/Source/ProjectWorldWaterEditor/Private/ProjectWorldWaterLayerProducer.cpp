@@ -99,6 +99,13 @@ namespace
 			AppendToken(Identity, Feature->WaterSurface.FunctionId);
 			AppendToken(Identity, FString::FromInt(Feature->WaterSurface.FunctionVersion));
 			AppendNumber(Identity, Feature->WaterSurface.LevelMeters);
+			if (Feature->WaterSurface.FunctionId == TEXT("contained_ground_quantile"))
+			{
+				const auto& Spill = Feature->WaterSurface.ContainmentSpillMeters;
+				if (!Spill.IsSet() || !FMath::IsFinite(*Spill) || *Spill <= Feature->WaterSurface.LevelMeters) return false;
+				AppendToken(Identity, TEXT("contained_spill_v1"));
+				AppendNumber(Identity, *Spill);
+			}
 			AppendToken(Identity, FString::FromInt(Feature->WaterSurface.Knots.Num()));
 			for (const FVector& Knot : Feature->WaterSurface.Knots)
 			{

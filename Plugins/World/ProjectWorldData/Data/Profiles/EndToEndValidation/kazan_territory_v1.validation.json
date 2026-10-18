@@ -64,13 +64,43 @@
       },
       "expected_layers": [
         {"layer_id": "terrain", "generator_id": "project_mesh_terrain", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Terrain/", "canonical_input_count": 210, "artifact_count": 526, "producer_artifact_count": 211, "incremental_dirty_count": 0, "metrics": {"sections": 210}},
-        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Water/", "canonical_input_count": 210, "artifact_count": 290, "incremental_dirty_count": 0, "metrics": {"cell_actors": 145,"mesh_assets": 145,"triangles_written": 11826}},
+        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Water/", "canonical_input_count": 210, "artifact_count": 290, "incremental_dirty_count": 0, "metrics": {"cell_actors": 145,"mesh_assets": 145,"triangles_written": 11829}},
         {"layer_id": "roads", "generator_id": "project_road_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Roads/", "canonical_input_count": 210, "artifact_count": 322, "incremental_dirty_count": 0, "metrics": {"cell_actors": 161,"mesh_assets": 161,"triangles_written": 629264}},
         {"layer_id": "vegetation", "generator_id": "project_vegetation_instances", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Vegetation/", "canonical_input_count": 210, "artifact_count": 146, "incremental_dirty_count": 0, "metrics": {"cell_actors": 146,"components": 279,"instances": 7501,"candidates": 7528,"road_exclusions": 7,"water_exclusions": 19,"authored_mask_exclusions": 1,"instances_written": 7501}},
         {"layer_id": "buildings", "generator_id": "project_building_massing", "generator_version": 2, "artifact_root": "/ProjectWorldData/Generated/Territory/Buildings/", "canonical_input_count": 210, "artifact_count": 342, "incremental_dirty_count": 0, "metrics": {"cell_actors": 171,"mesh_assets": 171,"triangles": 665006,"triangles_written": 665006,"candidate_fragments": 31927,"accepted_fragments": 31764,"duplicate_fragments": 1,"contained_fragments": 11,"conflict_fragments": 150,"malformed_fragments": 1,"authored_mask_exclusions": 0}},
         {"layer_id": "gameplay", "generator_id": "project_gameplay_placement", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Territory/Gameplay/", "canonical_input_count": 3, "artifact_count": 3, "incremental_dirty_count": 0, "metrics": {"placement_actors": 3,"placements_written": 3}}
       ],
       "incremental_bounds": [379800.0, 6184201.0, 379900.0, 6184300.0]
+    },
+    "manhattan": {
+      "world_data_plugin": "ProjectWorldData",
+      "source_profile": "manhattan_showcase_v1",
+      "source_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/manhattan_showcase_v1.source.json",
+      "compiler_profile": "manhattan_showcase_v1",
+      "compiler_profile_path": "Plugins/World/ProjectWorldData/Data/Profiles/CanonicalCompilation/manhattan_showcase_v1.compile.json",
+      "presentation_profile": "Plugins/World/ProjectWorldData/Data/Presentation/kazan_representative_v1.json",
+      "runtime_profile": "Plugins/World/ProjectWorldData/Data/Runtime/manhattan_showcase_512_1536_v1.json",
+      "authored_overlay_profile": "Plugins/World/ProjectWorldData/Data/Authored/manhattan_showcase_v1.json",
+      "authored_overlay_sabotage_profile": "Plugins/World/ProjectWorldData/Data/Authored/manhattan_showcase_sabotage_v1.json",
+      "realization_profile": "Plugins/World/ProjectWorldData/Data/Profiles/Realization/manhattan_showcase_v1.realization.json",
+      "canonical_authority": true,
+      "map_package": "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase",
+      "expected_features": 225852,
+      "expected_rejections": 0,
+      "expected_authored": {"resolved": 0, "placed": 0, "masks": 0, "minimum_package_files": 0},
+      "expected_topology": {
+        "canonical_cells": 210,
+        "sample_spacing_m": 30.0,
+        "maximum_georeferencing_error_m": 0.01
+      },
+      "expected_layers": [
+        {"layer_id": "terrain", "generator_id": "project_mesh_terrain", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Terrain/", "canonical_input_count": 210, "artifact_count": 532, "producer_artifact_count": 211, "incremental_dirty_count": 0, "metrics": {"sections": 210}},
+        {"layer_id": "water", "generator_id": "project_water_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Water/", "canonical_input_count": 210, "artifact_count": 230, "incremental_dirty_count": 0, "metrics": {"cell_actors": 115,"mesh_assets": 115,"triangles_written": 13505}},
+        {"layer_id": "roads", "generator_id": "project_road_mesh", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Roads/", "canonical_input_count": 210, "artifact_count": 264, "incremental_dirty_count": 0, "metrics": {"cell_actors": 132,"mesh_assets": 132,"triangles_written": 1199592}},
+        {"layer_id": "vegetation", "generator_id": "project_vegetation_instances", "generator_version": 1, "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Vegetation/", "canonical_input_count": 210, "artifact_count": 125, "incremental_dirty_count": 0, "metrics": {"cell_actors": 125,"components": 246,"instances": 26045,"candidates": 28533,"road_exclusions": 275,"water_exclusions": 333,"authored_mask_exclusions": 0,"instances_written": 26045}},
+        {"layer_id": "buildings", "generator_id": "project_building_massing", "generator_version": 2, "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Buildings/", "canonical_input_count": 210, "artifact_count": 282, "incremental_dirty_count": 0, "metrics": {"cell_actors": 141,"mesh_assets": 141,"triangles": 3040188,"triangles_written": 3040188,"candidate_fragments": 113938,"accepted_fragments": 113635,"duplicate_fragments": 1,"contained_fragments": 92,"conflict_fragments": 210,"malformed_fragments": 0,"authored_mask_exclusions": 0}}
+      ],
+      "incremental_bounds": [585650.0, 4511450.0, 585750.0, 4511550.0]
     }
   },
   "package": {

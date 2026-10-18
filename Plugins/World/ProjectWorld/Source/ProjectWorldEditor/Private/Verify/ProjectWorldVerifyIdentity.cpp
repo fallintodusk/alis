@@ -138,6 +138,8 @@ namespace ProjectWorldVerifyIdentityDetail
 			AppendStrings(Text, P + TEXT("owned"), Cell.OwnedFeatureIds);
 			AppendStrings(Text, P + TEXT("referenced"), Cell.ReferencedFeatureIds);
 			Append(Text, P + TEXT("terrain.artifact_hash"), Terrain.ArtifactHash);
+			if (!Terrain.BaseArtifactHash.IsEmpty() && Terrain.BaseArtifactHash != Terrain.ArtifactHash)
+				Append(Text, P + TEXT("terrain.base_artifact_hash"), Terrain.BaseArtifactHash);
 			Append(Text, P + TEXT("terrain.vertical"), Terrain.VerticalProvenanceId + TEXT(";") + Terrain.VerticalDatum +
 				TEXT(";") + Terrain.VerticalConfidence + TEXT(";") + Number(Terrain.VerticalSourceAccuracyMeters) +
 				TEXT(";") + Number(Terrain.SamplingQuantizationResidualMeters));
@@ -226,9 +228,27 @@ namespace ProjectWorldVerifyIdentityDetail
 				TEXT(";") + Water.Geometry + TEXT(";") + Water.Behavior + TEXT(";") + Water.Role + TEXT(";") +
 				Water.FunctionId + TEXT(";") + FString::FromInt(Water.FunctionVersion) + TEXT(";") +
 				Number(Water.LevelMeters) + TEXT(";") + Knots + TEXT(";") + (Water.bValid ? TEXT("1") : TEXT("0")));
+			if (Water.FunctionId == TEXT("contained_ground_quantile") && Water.ContainmentSpillMeters.IsSet())
+				Append(Text, P + TEXT("water.contained_spill"), Number(*Water.ContainmentSpillMeters));
 			Append(Text, P + TEXT("classes"), Feature.RoadClass + TEXT(";") + Feature.VegetationClass + TEXT(";") +
 				Feature.FoliageClass + TEXT(";") + Feature.LeafType + TEXT(";") + Feature.LeafCycle + TEXT(";") + Feature.Species);
 			Append(Text, P + TEXT("dimensions"), Number(Feature.WidthMeters) + TEXT(";") + Number(Feature.HeightMeters));
+			if (Feature.CivilGrade.IsSet())
+			{
+				TArray<FString> Supports; Feature.CivilGrade->TerrainArtifacts.GetKeys(Supports); Supports.Sort();
+				for (const auto& Key : Supports) Append(Text, P + TEXT("civil_grade[") + Key + TEXT("]"), Feature.CivilGrade->TerrainArtifacts[Key]);
+			}
+			if (Feature.RoadElevation.IsSet())
+			{
+				const auto& E = Feature.RoadElevation.GetValue();
+				Append(Text, P + TEXT("road_elevation"), E.SourceFeatureId + TEXT(";") + Number(E.LengthMeters) + TEXT(";") + Number(E.WidthMeters));
+				AppendPoints(Text, P + TEXT("road_source"), E.SourcePoints);
+				for (int32 I = 0; I < E.Triangles.Num(); ++I)
+					for (int32 J = 0; J < 3; ++J)
+						Append(Text, P + FString::Printf(TEXT("road_elevation[%d][%d]"), I, J), Number(E.Triangles[I].UVZ[J].X) + TEXT(";") + Number(E.Triangles[I].UVZ[J].Y) + TEXT(";") + Number(E.Triangles[I].UVZ[J].Z));
+				TArray<FString> Supports; E.TerrainArtifacts.GetKeys(Supports); Supports.Sort();
+				for (const auto& Key : Supports) Append(Text, P + TEXT("road_support[") + Key + TEXT("]"), E.TerrainArtifacts[Key]);
+			}
 			Append(Text, P + TEXT("volumes.count"), FString::FromInt(Feature.BuildingVolumes.Num()));
 			for (int32 Index = 0; Index < Feature.BuildingVolumes.Num(); ++Index)
 			{

@@ -11,7 +11,8 @@ param(
     [Parameter(Mandatory = $true)][double]$UnrealYCentimeters,
     [Parameter(Mandatory = $true)][string]$FeatureId,
     [Parameter(Mandatory = $true)][string]$FeatureClass,
-    [Parameter(Mandatory = $true)][string]$ReceiptPath
+    [Parameter(Mandatory = $true)][string]$ReceiptPath,
+    [string]$WaterScopeId = 'layer_kazan_territory_v1_water'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -70,7 +71,7 @@ Assert-Viewpoint (Test-Path -LiteralPath $activeSetPath -PathType Leaf) 'Active 
 
 $activeSet = Get-Content -LiteralPath $activeSetPath -Raw | ConvertFrom-Json
 $waterScope = @($activeSet.scopes | Where-Object {
-        [string]$_.scope_id -ceq 'layer_kazan_territory_v1_water'
+        [string]$_.scope_id -ceq $WaterScopeId
     })
 Assert-Viewpoint ($waterScope.Count -eq 1) 'Active Water scope is missing or ambiguous.'
 $waterManifestPath = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $activeSetPath) `

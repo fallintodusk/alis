@@ -29,6 +29,9 @@ struct FProjectWorldPreparedWaterSurface
 namespace ProjectWorldWaterMeshBuilder
 {
 	void AppendTriangle(FMeshDescription& Description, const FVector Positions[3]);
+	double PresentationOffset(const FProjectWorldCanonicalFeature& Feature, double LayerOffsetMeters);
+	bool ValidateStoredLevel(const FProjectWorldCanonicalBundle& Bundle,
+		const FProjectWorldCanonicalFeature& Feature, const FVector& ActorOrigin, FString& OutError);
 
 	bool PreparePolygons(const TArray<UE::Geometry::FGeneralPolygon2d>& Polygons,
 		FProjectWorldPreparedWaterSurface& OutSurface, FString& OutError);
@@ -36,6 +39,13 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldCanonicalFeature& Feature,
 		const FVector2D& CanonicalPoint,
 		double HeightQuantizationMeters);
+
+	// A conservative certificate for every point of a convex region, not samples.
+	bool ConstantSurfaceZ(
+		const FProjectWorldCanonicalFeature& Feature,
+		TConstArrayView<FVector2D> CanonicalRegion,
+		double HeightQuantizationMeters,
+		double& OutHeight);
 
 	bool PrepareSurface(
 		const FProjectWorldCanonicalFeature& Feature,

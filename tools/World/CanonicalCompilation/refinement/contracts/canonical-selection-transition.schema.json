@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/canonical-selection-transition-v1.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["$schema","schema_version","profile_path","profile_sha256","active_path","old_active_sha256","new_active_sha256",
+    "old_active_bytes_base64","new_active_bytes_base64","base_authority_id","base_result_sha256","effective_identity","effective_result_sha256","bundle"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/canonical-selection-transition-v1.json"},
+    "schema_version": {"const": 1},
+    "transition_kind": {"const": "schema_reference_v1"},
+    "profile_path": {"$ref": "#/$defs/path"}, "active_path": {"$ref": "#/$defs/path"},
+    "profile_sha256": {"$ref": "#/$defs/hash"},
+    "old_active_sha256": {"$ref": "#/$defs/hash"}, "new_active_sha256": {"$ref": "#/$defs/hash"},
+    "old_active_bytes_base64": {"type": "string", "minLength": 1}, "new_active_bytes_base64": {"type": "string", "minLength": 1},
+    "base_authority_id": {"type": "string", "minLength": 1}, "base_result_sha256": {"$ref": "#/$defs/hash"},
+    "effective_identity": {"$ref": "#/$defs/hash"}, "effective_result_sha256": {"$ref": "#/$defs/hash"},
+    "bundle": {
+      "type": "object", "additionalProperties": false, "required": ["path","byte_size","sha256"],
+      "properties": {"path": {"type": "string", "pattern": "^refinements/[a-f0-9]{64}\\.zip$"},
+        "byte_size": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/hash"}}
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "path": {"type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"}
+  }
+}

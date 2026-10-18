@@ -193,6 +193,11 @@ def _execute_profile(
     args: argparse.Namespace, repo_root: Path, context: ProfileContext | None = None
 ) -> tuple[dict[str, Any], Path]:
     context = context or _prepare_profile(args, repo_root)
+    if args.operation != "plan":
+        from ..retention.api import validate_cache_root, validate_storage
+        validate_storage(repo_root, context.profile)
+        if any(source["adapter"] != "synthetic_json" for source in context.profile["sources"]):
+            validate_cache_root(repo_root, context.cache_root)
     context.output_root.parent.mkdir(parents=True, exist_ok=True)
     with exclusive_file_lock(_output_lock(context.output_root)):
         existing = _accepted_existing(
@@ -202,6 +207,11 @@ def _execute_profile(
             context.run_contract["run_inputs_hash"],
         )
         if existing is not None:
+            if args.operation != "plan":
+                from ..retention.api import retain_sources
+                paths = materialize_sources(context.profile, context.profile_path, repo_root, context.cache_root) \
+                    if args.operation in {"fetch", "run"} else locate_sources(context.profile, context.profile_path, context.cache_root)
+                retain_sources(repo_root, context.profile, paths)
             return existing, context.output_root
         staging = context.output_root.with_name(f"{context.output_root.name}.staging-{os.getpid()}")
         if staging.exists():
@@ -212,6 +222,10 @@ def _execute_profile(
                 args, repo_root, context.profile_path, context.profile, context.run_contract,
                 context.cache_root, staging,
             )
+            if args.operation != "plan":
+                from ..retention.api import retain_sources
+                paths = locate_sources(context.profile, context.profile_path, context.cache_root)
+                retain_sources(repo_root, context.profile, paths)
             write_json(staging / f"{args.operation}_result.json", result)
             if context.output_root.exists():
                 shutil.rmtree(context.output_root)
@@ -278,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     except (IngestionError, ExecutionEnvironmentError) as error:
         input_hash = context.run_contract["run_inputs_hash"] if context else None
         profile_id = context.profile["profile_id"] if context else getattr(args, "profile", None)
-        if error.code == "output_contract_conflict":
+        if error.code == "output_contract_conflict" or (output_root / f"{args.operation}_result.json").is_file():
             output_root = fallback_root / (input_hash or "unknown")
         result = _result(
             args.operation,
@@ -295,6 +309,8 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as error:
         input_hash = context.run_contract["run_inputs_hash"] if context else None
         profile_id = context.profile["profile_id"] if context else getattr(args, "profile", None)
+        if (output_root / f"{args.operation}_result.json").is_file():
+            output_root = fallback_root / (input_hash or "unknown")
         result = _result(
             args.operation, "failed", profile_id, input_hash, [],
             [{"code": "internal_error", "message": "Unexpected ingestion failure", "details": {"type": type(error).__name__}}],

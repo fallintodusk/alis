@@ -17,6 +17,8 @@ namespace ProjectWorldShippingWaterProofContract
 {
 	constexpr double MaximumTargetXYErrorCentimeters = 25000.0;
 
+	bool IsProductMapPackage(const FString& MapPackage);
+
 	bool ValidateTargetRelativeTravel(
 		double RequestedTargetDistanceCentimeters,
 		double TargetXYErrorCentimeters,

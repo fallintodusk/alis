@@ -11,6 +11,7 @@ from World.CanonicalCompilation.api import validate_canonical_authority
 
 from .contracts import ValidationFailure, file_hash, read_json, tree_size, validate_against
 from .layered_validation import validate_layered_realization
+from .source_payload import validate_source_payload
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -709,10 +710,27 @@ def _validate_presentation_gate(profile: dict[str, Any], execution: dict[str, An
     }
 
 
+def _validate_production_notices(
+    profile: dict[str, Any], execution: dict[str, Any], mode: str,
+) -> list[dict[str, Any]]:
+    checks = []
+    for name in profile["profiles"]:
+        if name == "synthetic":
+            continue
+        record = execution["profiles"][name]
+        notices_root = (Path(record["compile_first_root"]) if mode == "full" else
+            Path(record["realization_compile_result"]).parent)
+        notices = _validate_notices(notices_root)
+        checks.append({"check": "attribution_notices_and_offer", "status": "passed", "profile": name, **notices})
+    return checks
+
+
 def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     thresholds = profile["thresholds"]
     mode = execution.get("matrix_mode", "full")
-    _require(mode in ("full", "canonical_authority"), "matrix_mode_invalid", "Unknown Matrix mode")
+    _require(mode in ("full", "canonical_authority", "immutable_canonical"), "matrix_mode_invalid", "Unknown Matrix mode")
+    from .immutable_canonical import validate_execution
+    validate_execution(REPO_ROOT, profile, execution)
     checks: list[dict[str, Any]] = []
     metrics: dict[str, Any] = {"profiles": {}}
     for suite in execution["test_suites"]:
@@ -743,6 +761,10 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
             roots = [Path(record["compile_first_root"]), Path(record["compile_second_root"])]
             source_result = _accepted(Path(record["source_result"]), "https://alis.world/schemas/world-source/operation-result-v1.json")
             _require(source_result["profile_id"] == expected["source_profile"], "source_profile_mismatch", "Source evidence belongs to another profile")
+            provider_payload_bytes = validate_source_payload(
+                Path(record["source_result"]), source_result,
+                REPO_ROOT / expected["source_profile_path"], thresholds["provider_payload_bytes"],
+            )
             determinism = _determinism(*roots)
             compile_metrics = read_json(roots[0] / "reports" / "metrics.json")
             _require(compile_metrics["duration_ms"] / 1000.0 <= thresholds["full_compile_seconds"], "compile_budget_exceeded", "Full compile exceeded its frozen budget")
@@ -825,6 +847,7 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
         metrics["profiles"][name] = {
             "source_seconds": record["source_seconds"] if mode == "full" else None,
             "source_output_bytes": tree_size(Path(record["source_root"])) if mode == "full" else None,
+            "provider_payload_bytes": provider_payload_bytes if mode == "full" else None,
             "full_compile_seconds": compile_metrics["duration_ms"] / 1000.0 if mode == "full" else None,
             "canonical_bytes": compile_metrics["canonical_bytes"],
             "generated_package_count": record["generated_package_count"],
@@ -837,13 +860,7 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
         checks.append({"check": f"{name}_D0_D3" if mode == "full" else f"{name}_world_realization",
             "status": "passed"})
 
-    notices_root = (Path(execution["profiles"]["kazan"]["compile_first_root"]) if mode == "full" else
-        Path(execution["profiles"]["kazan"]["realization_compile_result"]).parent)
-    notices = _validate_notices(notices_root)
-    checks.append({"check": "attribution_notices_and_offer", "status": "passed", **notices})
-    if mode == "full":
-        immutable_bytes = execution["environment"]["immutable_cache_bytes"]
-        _require(immutable_bytes <= thresholds["provider_payload_bytes"], "provider_budget_exceeded", "Immutable provider payload exceeded its frozen budget")
+    checks.extend(_validate_production_notices(profile, execution, mode))
     forbidden = _forbidden_files(
         [Path(path) for path in execution["generated_roots"]],
         set(profile["package"]["forbidden_suffixes"]),
@@ -851,6 +868,6 @@ def validate(profile: dict[str, Any], execution: dict[str, Any]) -> tuple[list[d
     )
     _require(not forbidden, "forbidden_generated_payload", "Raw or provider-normalized data reached a generated root", paths=forbidden)
     metrics["environment"] = execution["environment"]
-    metrics["environment"]["mode"] = bootstrap["mode"] if mode == "full" else "canonical-authority"
+    metrics["environment"]["mode"] = bootstrap["mode"] if mode == "full" else mode.replace("_", "-")
     checks.append({"check": "generated_content_distribution_boundary", "status": "passed"})
     return checks, metrics

@@ -16,7 +16,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
 namespace
 {
     struct FWaterVisibilityProof

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../ProjectWorld/Data/Schemas/project_world_authored_overlay.schema.json",
+  "schema_version": 1,
+  "overlay_set_id": "manhattan_showcase_sabotage_v1",
+  "world_data_plugin": "ProjectWorldData",
+  "grid_id": "grid_36784852dea14f43",
+  "resolver_version": 3,
+  "provenance": [
+    {
+      "provenance_id": "manhattan_showcase_control",
+      "horizontal_accuracy_m": 10.1
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "missing_feature_marker",
+      "authored_package": "/ProjectWorldData/Authored/Fixtures/L_ProjectWorldMarker",
+      "anchor": {
+        "kind": "feature",
+        "feature_id": "alis:osm:way:missing",
+        "expected_feature_class": "road",
+        "expected_geometry_type": "LineString",
+        "expected_easting_m": 585628.41,
+        "expected_northing_m": 4511322.45,
+        "placement_class": "standard",
+        "provenance_ref": "manhattan_showcase_control",
+        "horizontal_tolerance_m": 5.0,
+        "vertical_mode": "surface_snap",
+        "vertical_tolerance_m": 20.0
+      }
+    }
+  ]
+}

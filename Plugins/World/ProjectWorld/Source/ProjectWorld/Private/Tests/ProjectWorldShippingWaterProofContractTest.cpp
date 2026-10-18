@@ -7,6 +7,27 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FProjectWorldShippingWaterMapContractTest,
+	"ProjectWorld.PlayableTour.ShippingWater.ProductMap",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FProjectWorldShippingWaterMapContractTest::RunTest(const FString& Parameters)
+{
+	using namespace ProjectWorldShippingWaterProofContract;
+	TestTrue(TEXT("Kazan production map is admitted."), IsProductMapPackage(
+		TEXT("/ProjectWorldData/Generated/Territory/L_ProjectWorldKazanTerritory")));
+	TestTrue(TEXT("Manhattan production map is admitted by the same owner contract."), IsProductMapPackage(
+		TEXT("/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase")));
+	TestFalse(TEXT("Fixture ownership cannot satisfy production Water proof."), IsProductMapPackage(
+		TEXT("/ProjectWorldTestData/Generated/Twin/L_ProjectWorldTerritoryTwin")));
+	TestFalse(TEXT("Authored content is outside generated product ownership."), IsProductMapPackage(
+		TEXT("/ProjectWorldData/Authored/Fixtures/L_ProjectWorldMarker")));
+	TestFalse(TEXT("Traversal-like package paths refuse."), IsProductMapPackage(
+		TEXT("/ProjectWorldData/Generated/../Authored/L_Invalid")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FProjectWorldShippingWaterProofContractTest,
 	"ProjectWorld.PlayableTour.ShippingWater.TargetRelativeTravel",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)

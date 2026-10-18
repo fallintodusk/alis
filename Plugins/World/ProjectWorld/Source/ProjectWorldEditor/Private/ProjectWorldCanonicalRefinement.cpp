@@ -61,6 +61,10 @@ namespace ProjectWorldCanonicalRefinement
 		FProjectWorldCanonicalTerrain& Terrain, FProjectWorldCanonicalValidation& Validation)
 	{
 		if (!Object.IsValid()) return true;
+		const TSharedPtr<FJsonObject>* Base = nullptr;
+		if (!Object->TryGetObjectField(TEXT("base"), Base) || !Base ||
+			!(*Base)->TryGetStringField(TEXT("sha256"), Terrain.BaseArtifactHash) || !Hash(Terrain.BaseArtifactHash))
+			return Reject(Validation, TEXT("Refinement has no authenticated original grid identity."));
 		FString G, C, Rule;
 		const TArray<TSharedPtr<FJsonValue>>* Quads = nullptr;
 		const TSharedPtr<FJsonObject>* Consumed = nullptr;

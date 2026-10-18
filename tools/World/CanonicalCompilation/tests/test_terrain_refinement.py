@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
-from World.CanonicalCompilation import api
+from World.CanonicalCompilation.refinement import api
 from World.CanonicalCompilation.app.contracts import CompilerError, canonical_hash
 
 

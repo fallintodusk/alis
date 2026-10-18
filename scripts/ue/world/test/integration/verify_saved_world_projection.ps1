@@ -8,7 +8,9 @@ param(
     [Parameter(Mandatory = $true)][string]$Map,
     [Parameter(Mandatory = $true)][string]$RealizationProfile,
     [Parameter(Mandatory = $true)][string]$EvidencePath,
-    [Parameter(Mandatory = $true)][string]$WorldDataPlugin
+    [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
+    [string]$BuildingSamplesPath,
+    [string]$RuntimeProfileSha256
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,6 +39,15 @@ $arguments = @(
     '-unattended', '-nop4', '-nosplash', '-FullStdOutLogOutput'
 )
 $arguments += Get-ProjectWorldExecutionEnvelopeArguments -Rendering Required
+if ($BuildingSamplesPath) {
+    $samples = [IO.Path]::GetFullPath($BuildingSamplesPath)
+    if (-not $samples.StartsWith($allowed, [StringComparison]::OrdinalIgnoreCase) -or
+        $RuntimeProfileSha256 -cnotmatch '^[a-f0-9]{64}$') {
+        throw 'Building samples require a validation evidence path and runtime SHA-256.'
+    }
+    $arguments += "-BuildingSamplesResult=$samples", "-RuntimeProfileHash=$RuntimeProfileSha256"
+}
+elseif ($RuntimeProfileSha256) { throw 'Runtime profile SHA-256 requires building samples.' }
 Assert-ProjectWorldExecutionEnvelope -Rendering Required -Arguments $arguments
 & $editor @arguments *> ([System.IO.Path]::ChangeExtension($result, '.console.log'))
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $result -PathType Leaf)) {

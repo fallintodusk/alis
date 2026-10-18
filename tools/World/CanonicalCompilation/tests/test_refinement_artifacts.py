@@ -7,9 +7,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
-from World.CanonicalCompilation.api import prepare_terrain_refinement
+from World.CanonicalCompilation.refinement.api import prepare_terrain_refinement
 from World.CanonicalCompilation.app.contracts import CompilerError, file_hash, read_json
-from World.CanonicalCompilation.app.terrain_refinement_artifacts import validate_refinement
+from World.CanonicalCompilation.refinement.app.publication import validate_refinement
 from World.CanonicalCompilation.tests.refinement_fixture import make_base
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError
 
@@ -54,7 +54,7 @@ class RefinementArtifactTests(unittest.TestCase):
 
     def test_injected_promotion_failure_keeps_base_and_authority_exact(self):
         before = hashes(self.root / "base")
-        with patch("World.CanonicalCompilation.app.terrain_refinement_artifacts.promote_staging", side_effect=CompilerError("injected", "fixture refusal")):
+        with patch("World.CanonicalCompilation.refinement.app.publication.promote_staging", side_effect=CompilerError("injected", "fixture refusal")):
             with self.assertRaises(CompilerError):
                 self.prepare()
         self.assertFalse((self.root / "candidate").exists())
@@ -63,7 +63,7 @@ class RefinementArtifactTests(unittest.TestCase):
 
     def test_native_failure_and_changed_water_refuse_without_writes(self):
         before = hashes(self.root / "base")
-        with patch("World.CanonicalCompilation.app.terrain_refinement.partition_triangles", side_effect=ExecutionEnvironmentError("native_failure", "fixture")):
+        with patch("World.CanonicalCompilation.refinement.app.geometry.partition_triangles", side_effect=ExecutionEnvironmentError("native_failure", "fixture")):
             with self.assertRaises(CompilerError) as failure:
                 self.prepare()
         self.assertEqual("native_failure", failure.exception.code)

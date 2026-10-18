@@ -342,8 +342,18 @@ def validate_inputs(inputs: ReleaseInputs, archive_report_path: Path) -> dict[st
     else:
         raise ReleaseError(f"Unsupported player evidence status: {evidence.get('status')!r}")
 
+    for key, expected in (("revision", private_revision), ("source_state_sha256", private_state),
+                          ("shipping_package_sha256", package_sha256),
+                          ("shipping_executable_sha256", shipping_executable_sha256),
+                          ("operation_id", operation_id)):
+        require_equal(machine.get(key), expected, f"player machine {key}")
+    if not isinstance(operation_id, str) or not operation_id:
+        raise ReleaseError("player machine operation_id is missing")
+
     from release_performance import validate_machine_performance
+    from release_shipping import validate_shipping_cities
     try:
+        validate_shipping_cities(machine, private_root)
         performance_review = validate_machine_performance(
             machine, inputs.accept_inconclusive_performance, private_root)
     except (ValueError, OSError, TypeError, KeyError) as error:

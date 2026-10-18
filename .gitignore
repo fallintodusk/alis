@@ -34,6 +34,7 @@ __pycache__
 
 # --- tmp / logs ---
 tmp/
+/testResults.xml
 *.log
 *.tmp
 *.swp
@@ -163,6 +164,7 @@ scripts/ue/artifacts/overnight/
 scripts/ue/artifacts/persistent/
 /Releases
 .vsconfig
+/scripts/config/world_source_storage.local.json
 Alis.code-workspace.backup
 
 # Claude Code temp files

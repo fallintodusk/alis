@@ -99,4 +99,47 @@ REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(
 	"Project.World.Realization.NativeTwin.WaterCanonicalContract",
 	"[Fast][Architecture][World]")
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstrainedWaterFunctionTest,
+	"Project.World.Realization.NativeTwin.WaterConstrainedFunctionAdmission",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FProjectWorldConstrainedWaterFunctionTest::RunTest(const FString& Parameters)
+{
+	const FString Template = TEXT(R"json({"surface_group_id":"fixture-channel","surface_group_members":["way/1"],
+		"surface_geometry":"ribbon","surface_behavior":"flowing","surface_role":"flow_axis",
+		"surface_function":{"function_id":"constrained_flowing_knots","function_version":1,
+		"knots":[[0,0,54],[5,0,53.5],[10,0,53.2]]}})json");
+	auto Read = [](const FString& Text, FProjectWorldCanonicalFeature& Out)
+	{
+		Out.FeatureClass = TEXT("water");
+		FProjectWorldCanonicalValidation Validation;
+		return ProjectWorldWaterContractParsing::Read(ParseObject(Text), Out, Validation);
+	};
+	FProjectWorldCanonicalFeature Constrained, Original;
+	TestTrue(TEXT("A known constrained channel function is admitted."), Read(Template, Constrained));
+	TestTrue(TEXT("The original estimator family remains admitted."),
+		Read(Template.Replace(TEXT("constrained_flowing_knots"), TEXT("rolling_quantile_l1_isotonic")), Original));
+	TestTrue(TEXT("The shared knot representation is retained exactly."), Original.WaterSurface.Knots == Constrained.WaterSurface.Knots);
+	TestTrue(TEXT("Different canonical model identities remain distinct."), Original.WaterSurface.FunctionId != Constrained.WaterSurface.FunctionId);
+	for (const FString& Family : {FString(TEXT("constrained_flowing_knots")), FString(TEXT("rolling_quantile_l1_isotonic"))})
+	{
+		const FString Valid = Template.Replace(TEXT("constrained_flowing_knots"), *Family);
+		for (const TCHAR* Version : {TEXT("1.5"), TEXT("2"), TEXT("-1"), TEXT("\"1\""), TEXT("true"), TEXT("null")})
+		{
+			FProjectWorldCanonicalFeature Rejected;
+			TestFalse(*FString::Printf(TEXT("%s refuses non-current integer version %s."), *Family, Version),
+				Read(Valid.Replace(TEXT("\"function_version\":1"), *(FString(TEXT("\"function_version\":")) + Version)), Rejected));
+		}
+		for (const TCHAR* Knot : {TEXT("[5,0,\"53.5\"]"), TEXT("[5,0,true]"), TEXT("[5,0,55]")})
+		{
+			FProjectWorldCanonicalFeature Rejected;
+			TestFalse(*FString::Printf(TEXT("%s refuses malformed or increasing knot %s."), *Family, Knot),
+				Read(Valid.Replace(TEXT("[5,0,53.5]"), Knot), Rejected));
+		}
+	}
+	FProjectWorldCanonicalFeature Unknown;
+	TestFalse(TEXT("Unknown constrained estimators are not a generic admission escape."),
+		Read(Template.Replace(TEXT("constrained_flowing_knots"), TEXT("unknown_flowing_knots")), Unknown));
+	return true;
+}
+
 #endif

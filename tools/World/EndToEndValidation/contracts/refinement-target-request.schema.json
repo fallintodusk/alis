@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-validation/refinement-target-request-v1.json",
+  "type": "object",
+  "required": ["schema_version", "validation_profile_path", "selection_path", "selection_sha256", "check_result_path", "check_result_sha256", "base_run", "base_result_sha256", "execute_layers"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "validation_profile_path": {"type": "string", "minLength": 1},
+    "selection_path": {"type": "string", "minLength": 1},
+    "selection_sha256": {"$ref": "#/$defs/hash"},
+    "check_result_path": {"type": "string", "minLength": 1},
+    "check_result_sha256": {"$ref": "#/$defs/hash"},
+    "base_run": {"type": "string", "pattern": "^run-[0-9]{8}T[0-9]{6}Z$"},
+    "base_result_sha256": {"$ref": "#/$defs/hash"},
+    "execute_layers": {"type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}}
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/ground-grid-v1.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["$schema", "schema_version", "basis", "frame", "sample_rule", "origin", "spacing", "size", "samples", "nodata"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-source/ground-grid-v1.json"},
+    "schema_version": {"const": 1}, "basis": {"const": "raster_ground_model"},
+    "frame": {"$ref": "https://alis.world/schemas/world-source/derived-ground-v2.json#/$defs/frame"},
+    "sample_rule": {"const": "grid_nodes"},
+    "origin": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+    "spacing": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+    "size": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 2}},
+    "samples": {"type": "array", "minItems": 2, "items": {"type": "array", "minItems": 2, "items": {"type": "number"}}},
+    "nodata": {"type": "number"}
+  }
+}

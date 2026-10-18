@@ -100,14 +100,45 @@ def _parser() -> argparse.ArgumentParser:
     authority.add_argument("--profile", required=True)
     materialize = subparsers.add_parser("materialize")
     materialize.add_argument("--profile", required=True)
+    prepare_selection = subparsers.add_parser("prepare-selection-transition")
+    prepare_selection.add_argument("--profile", required=True)
+    prepare_selection.add_argument("--candidate", required=True)
+    prepare_selection.add_argument("--expected-active-sha256", required=True)
+    selection = subparsers.add_parser("selection-transition")
+    selection.add_argument("--transition", required=True)
+    selection.add_argument("--action", required=True, choices=("validate", "publish", "restore"))
+    schema_reference = subparsers.add_parser("prepare-schema-reference-transition")
+    schema_reference.add_argument("--profile", required=True)
+    schema_reference.add_argument("--expected-active-sha256", required=True)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     profile: str | None = None
+    args = None
     try:
         args = _parser().parse_args(argv)
-        if args.operation == "validate":
+        if args.operation == "prepare-schema-reference-transition":
+            from ..refinement.api import prepare_schema_reference_transition
+            profile = args.profile
+            result = prepare_schema_reference_transition(repo_root(), _path(args.profile) or Path(),
+                args.expected_active_sha256)
+        elif args.operation == "prepare-selection-transition":
+            from ..refinement.api import prepare_selection_transition
+            profile = args.profile
+            result = prepare_selection_transition(repo_root(), _path(args.profile) or Path(),
+                _path(args.candidate) or Path(), args.expected_active_sha256)
+        elif args.operation == "selection-transition":
+            from ..refinement.api import validate_selection_transition, publish_selection_transition
+            transition_path = _path(args.transition) or Path()
+            if not transition_path.is_relative_to(repo_root() / 'tmp'):
+                raise CompilerError('canonical_selection_unproven', 'Selection recovery input must belong to repository tmp')
+            transition = read_json(transition_path)
+            if args.action == 'validate':
+                result = validate_selection_transition(repo_root(), transition)
+            else:
+                result = publish_selection_transition(repo_root(), transition, restore=args.action == 'restore')
+        elif args.operation == "validate":
             result = _validate_result(_path(args.result) or Path())
         elif args.operation == "controls":
             profile = args.profile
@@ -151,9 +182,20 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, sort_keys=True, separators=(",", ":"), ensure_ascii=True))
         return 0
     except CompilerError as error:
-        print(json.dumps(_failure(error, profile), sort_keys=True, separators=(",", ":")), file=sys.stderr)
+        failure = _selection_failure(args, error) if _is_selection(args) else _failure(error, profile)
+        print(json.dumps(failure, sort_keys=True, separators=(",", ":")), file=sys.stderr)
         return 6
     except Exception as error:
         failure = CompilerError("compiler_internal_error", "Unexpected compiler failure", type=type(error).__name__)
-        print(json.dumps(_failure(failure, profile), sort_keys=True, separators=(",", ":")), file=sys.stderr)
+        result = _selection_failure(args, failure) if _is_selection(args) else _failure(failure, profile)
+        print(json.dumps(result, sort_keys=True, separators=(",", ":")), file=sys.stderr)
         return 6
+
+
+def _is_selection(args: argparse.Namespace | None) -> bool:
+    return args is not None and args.operation in {'prepare-selection-transition', 'selection-transition', 'prepare-schema-reference-transition'}
+
+
+def _selection_failure(args: argparse.Namespace, error: CompilerError) -> dict:
+    return {'status': 'rejected', 'operation': args.operation, 'code': error.code,
+            'message': str(error), 'details': error.details}

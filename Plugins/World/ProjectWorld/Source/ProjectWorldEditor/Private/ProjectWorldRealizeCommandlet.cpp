@@ -4,6 +4,7 @@
 #include "ProjectWorldRealizeCommandlet.h"
 
 #include "ProjectWorldRealizationService.h"
+#include "ProjectWorldRealizationEvidence.h"
 
 #include "Misc/Paths.h"
 
@@ -21,7 +22,10 @@ bool UProjectWorldRealizeCommandlet::IsSafeResultPath(const FString& ResultPath)
 {
 	const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
 		FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
-	return FPaths::IsUnderDirectory(FPaths::ConvertRelativePathToFull(ResultPath), EvidenceRoot);
+	const FString ScratchRoot = FPaths::ConvertRelativePathToFull(
+		FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world")));
+	const FString FullPath = FPaths::ConvertRelativePathToFull(ResultPath);
+	return FPaths::IsUnderDirectory(FullPath, EvidenceRoot) || FPaths::IsUnderDirectory(FullPath, ScratchRoot);
 }
 
 int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
@@ -123,13 +127,15 @@ int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
 	}
 	if (!IsSafeResultPath(Request.ResultPath))
 	{
-		const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
-			FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
 		UE_LOG(
 			LogProjectWorldRealization,
 			Error,
-			TEXT("[ProjectWorldRealizeCommandlet::Main] Unsafe result path - evidence must stay under %s."),
-			*EvidenceRoot);
+			TEXT("[ProjectWorldRealizeCommandlet::Main] Unsafe result path - use Saved/Validation/WorldRealization or tmp/world."));
+		return 2;
+	}
+	if (!ProjectWorldRealizationEvidence::IsInputDisjoint(Request))
+	{
+		UE_LOG(LogProjectWorldRealization, Error, TEXT("[ProjectWorldRealizeCommandlet::Main] Result overlaps requested inputs."));
 		return 2;
 	}
 

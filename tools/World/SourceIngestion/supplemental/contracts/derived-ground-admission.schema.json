@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/derived-ground-admission-v2.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["$schema", "kind", "schema_version", "basis", "inputs_hash", "implementation_sha256", "source_descriptor_sha256", "product_sha256", "fresh_raw_decode", "production_promotion"],
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-source/derived-ground-admission-v2.json"},
+    "kind": {"const": "derived_ground_admission"}, "schema_version": {"const": 2},
+    "basis": {"enum": ["observed_las_ground", "raster_ground_model"]},
+    "inputs_hash": {"$ref": "#/$defs/hash"}, "implementation_sha256": {"$ref": "#/$defs/hash"},
+    "source_descriptor_sha256": {"$ref": "#/$defs/hash"}, "product_sha256": {"$ref": "#/$defs/hash"},
+    "point_content_sha256": {"$ref": "#/$defs/hash"},
+    "grid_content_sha256": {"$ref": "#/$defs/hash"},
+    "fresh_raw_decode": {"const": false}, "production_promotion": {"const": false}
+  },
+  "oneOf": [
+    {"properties": {"basis": {"const": "observed_las_ground"}}, "required": ["point_content_sha256"], "not": {"required": ["grid_content_sha256"]}},
+    {"properties": {"basis": {"const": "raster_ground_model"}}, "required": ["grid_content_sha256"], "not": {"required": ["point_content_sha256"]}}
+  ]
+}

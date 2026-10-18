@@ -42,6 +42,8 @@ def run_contract(repo_root: Path, profile: dict[str, Any]) -> dict[str, Any]:
         ingestion_root / "api.py",
         *sorted((ingestion_root / "app").glob("*.py")),
         *sorted((ingestion_root / "contracts").glob("*.json")),
+        *sorted((ingestion_root / "retention").rglob("*.py")),
+        *sorted((ingestion_root / "retention" / "contracts").glob("*.json")),
         environment_root / "api.py",
         *sorted((environment_root / "app").glob("*.py")),
         *sorted((environment_root / "contracts").glob("*.json")),
