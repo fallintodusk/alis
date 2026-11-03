@@ -18,9 +18,10 @@ Every compiler profile declares its terrain-surface policy explicitly. Authored
 overlays use only the current schema and carry their grid and provenance; the
 compiler does not supply legacy defaults or upgrade old inputs.
 
-The isolated sparse final-surface API and its production exclusion are specified
-in [Terrain refinement](terrain_refinement.md). It supplements an authenticated
-base; it does not change ordinary compilation or production promotion.
+The [refinement child](refinement/README.md) owns post-canonical surface
+construction and qualified feature-child selection. Its documentation separates
+pure candidates from admitted selection; neither changes base compilation or
+compile-only promotion.
 
 ## Layout
 

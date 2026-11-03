@@ -167,6 +167,10 @@ scripts/ue/artifacts/persistent/
 /scripts/config/world_source_storage.local.json
 Alis.code-workspace.backup
 
+# Private mirror patterns hold maintainer identities. mirror_to_github.sh refuses
+# to run without this file, so it must exist in the main worktree.
+/scripts/git/mirror/forbidden_private_text_patterns.regex
+
 # Claude Code temp files
 tmpclaude-*
 

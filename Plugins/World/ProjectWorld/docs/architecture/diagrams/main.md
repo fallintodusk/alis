@@ -7,7 +7,11 @@ and Unreal realization/runtime consumption.
 flowchart LR
     Sources[Accepted source evidence] -->|accepted receipts| Compiler[CanonicalCompilation]
     Compiler -->|provider-neutral compile result| Canonical[ProjectWorldData canonical authority]
-    Canonical -->|accepted realization input| Editor[ProjectWorldEditor]
+    Canonical -->|authenticated base or selected-child effective input| Editor[ProjectWorldEditor]
+    Refinement[CanonicalCompilation refinement API] -->|separately identified feature child| Canonical
+    Host[World generation host] -->|qualified canonical transition and recovery| Refinement
+    Host -->|selected Apply and output recovery| Editor
+    Editor -->|saved output and accepted consumed identities| Host
 
     subgraph ProjectWorld[ProjectWorld]
         Editor -->|producer-neutral transaction| Registry[Layer producer registry]
@@ -28,3 +32,9 @@ flowchart LR
     Runtime -->|World Partition and streaming APIs| Unreal[Unreal runtime]
     Fixtures[ProjectWorldTestData] -->|synthetic contract inputs| Editor
 ```
+
+The [refinement-owned views](../../../../../../tools/World/CanonicalCompilation/refinement/docs/architecture/diagrams/README.md)
+describe candidate construction and selection internals. The
+[World host contract](../../../../../../scripts/ue/world/README.md) owns coordinated
+canonical/World commit and recovery; a child pointer change alone cannot certify
+saved World output. Pure Ground/platform construction is not an admitted child.

@@ -344,6 +344,14 @@ is_lfs_pointer_file() {
   [[ "$line3" =~ ^size[[:space:]]+[0-9]+$ ]]
 }
 
+# Lists path:line for each match on NUL-separated stdin paths, never the matched
+# text: this gate must not copy a rejected value into logs or temp files.
+scan_forbidden_text() {
+  xargs -0 -r -P "$2" -n 256 sh -c \
+    'LC_ALL=C grep -I -n -H --line-buffered -E -f "$0" -- "$@"; [ $? -le 1 ]' "$1" |
+    cut -d: -f1,2
+}
+
 validate_filtered_tree() {
   local filtered_dir="$1"
   local forbidden_patterns_file="$2"
@@ -352,8 +360,9 @@ validate_filtered_tree() {
   local rel_path_lc=""
   local item=""
   local line=""
-  local current=""
-  local text_patterns_compiled=""
+  local private_patterns_compiled="$TEMP_ROOT/mirror-forbidden-private.regex"
+  local text_patterns_compiled="$TEMP_ROOT/mirror-forbidden.regex"
+  local public_patterns_path="$filtered_dir/scripts/git/mirror/forbidden_text_patterns.regex"
   local binary_list="$TEMP_ROOT/mirror_binary_files.nul"
   local matches="$TEMP_ROOT/mirror_forbidden_matches.txt"
   # Content checks run grep once per batch of files, in parallel, never once per
@@ -405,39 +414,34 @@ validate_filtered_tree() {
   done < "$binary_list"
   rm -f "$binary_list"
 
-  if [[ -f "$forbidden_patterns_file" ]] && grep -Eqv '^[[:space:]]*(#|$)' "$forbidden_patterns_file"; then
-    text_patterns_compiled="$TEMP_ROOT/mirror-forbidden.regex"
-    grep -Ev '^[[:space:]]*(#|$)' "$forbidden_patterns_file" > "$text_patterns_compiled"
-    if [[ -f "$PRIVATE_FORBIDDEN_PATTERNS_FILE" ]]; then
-      grep -Ev '^[[:space:]]*(#|$)' "$PRIVATE_FORBIDDEN_PATTERNS_FILE" >> "$text_patterns_compiled"
-    fi
-    # Every surviving file is scanned: the binary guard above keeps the tree
-    # text-only, so a file extension can never carry a private value past here.
-    # The mirror tooling's own pattern carriers are skipped, case-insensitively.
-    # A batch that cannot read a file (grep status 2) fails the scan.
-    if ! find "$filtered_dir" -type f \
-          ! -ipath "$filtered_dir/scripts/git/mirror/tests/*" \
-          ! -ipath "$filtered_dir/scripts/git/mirror/forbidden_text_patterns.regex" \
-          ! -ipath "$filtered_dir/scripts/git/mirror/mirror_to_github.sh" -print0 |
-        xargs -0 -r -P "$jobs" -n 256 sh -c \
-          'LC_ALL=C grep -I -n -H --line-buffered -E -f "$0" -- "$@"; [ $? -le 1 ]' \
-          "$text_patterns_compiled" > "$matches"; then
-      printf '[FAIL] Forbidden-content scan could not read every file.\n' >&2
-      fail_flag=1
-    fi
-    if [[ -s "$matches" ]]; then
-      fail_flag=1
-      while IFS= read -r line; do
-        item="${line%%:*}"
-        if [[ "$item" != "$current" ]]; then
-          current="$item"
-          printf '[FAIL] Forbidden content matched in %s\n' "${item#$filtered_dir/}" >&2
-        fi
-        printf '%s\n' "$line" >&2
-      done < <(LC_ALL=C sort -t: -k1,1 -k2,2n "$matches")
-    fi
-    rm -f "$text_patterns_compiled" "$matches"
+  # The private list always runs, so an empty public list cannot disable it. CR is
+  # stripped because this gitignored file has no eol normalization, and grep would
+  # otherwise treat it as part of each pattern and silently match nothing.
+  tr -d '\r' < "$PRIVATE_FORBIDDEN_PATTERNS_FILE" | grep -Ev '^[[:space:]]*(#|$)' > "$private_patterns_compiled"
+  cp "$private_patterns_compiled" "$text_patterns_compiled"
+  if [[ -f "$forbidden_patterns_file" ]]; then
+    grep -Ev '^[[:space:]]*(#|$)' "$forbidden_patterns_file" >> "$text_patterns_compiled" || true
   fi
+  # Every surviving file is scanned: the binary guard above keeps the tree
+  # text-only, so a file extension can never carry a private value past here.
+  # The public pattern file matches its own shapes, so it alone is held to the
+  # private list only. A batch that cannot read a file (grep status 2) fails the scan.
+  if ! {
+      find "$filtered_dir" -type f ! -ipath "$public_patterns_path" -print0 |
+        scan_forbidden_text "$text_patterns_compiled" "$jobs" &&
+      find "$filtered_dir" -type f -ipath "$public_patterns_path" -print0 |
+        scan_forbidden_text "$private_patterns_compiled" "$jobs"
+    } > "$matches"; then
+    printf '[FAIL] Forbidden-content scan could not read every file.\n' >&2
+    fail_flag=1
+  fi
+  if [[ -s "$matches" ]]; then
+    fail_flag=1
+    while IFS= read -r line; do
+      printf '[FAIL] Forbidden content matched at %s\n' "${line#$filtered_dir/}" >&2
+    done < <(LC_ALL=C sort -t: -k1,1 -k2,2n "$matches")
+  fi
+  rm -f "$private_patterns_compiled" "$text_patterns_compiled" "$matches"
 
   # Machine-local paths: the governance definition, applied to the final tree so
   # projected files and files of any type are covered, not only rewritten docs.
@@ -643,6 +647,17 @@ fi
 if [[ -n "$FORBIDDEN_PATTERNS_FILE" ]] && [[ ! -f "$FORBIDDEN_PATTERNS_FILE" ]]; then
   fail "Forbidden patterns file not found: $FORBIDDEN_PATTERNS_FILE"
 fi
+
+# The private patterns are gitignored, so a linked worktree reads the main worktree's copy.
+# Every mode fails closed: a reviewed dry-run candidate is pushed later, outside this script.
+if [[ ! -f "$PRIVATE_FORBIDDEN_PATTERNS_FILE" ]]; then
+  GIT_COMMON_DIR="$(git_safe -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  PRIVATE_FORBIDDEN_PATTERNS_FILE="$(dirname -- "$GIT_COMMON_DIR")/scripts/git/mirror/forbidden_private_text_patterns.regex"
+fi
+[[ -f "$PRIVATE_FORBIDDEN_PATTERNS_FILE" ]] ||
+  fail "Private forbidden patterns file not found: $PRIVATE_FORBIDDEN_PATTERNS_FILE. It is gitignored; restore it in the main worktree."
+grep -Eqv '^[[:space:]]*(#|$)' "$PRIVATE_FORBIDDEN_PATTERNS_FILE" ||
+  fail "Private forbidden patterns file has no active patterns: $PRIVATE_FORBIDDEN_PATTERNS_FILE"
 
 if [[ "$ALLOW_DIRTY" -eq 0 ]] && [[ "$CLEAN_PREVALIDATED" -ne 1 ]]; then
   STAGED_CHANGES="$(git_safe -C "$REPO_ROOT" diff --cached --name-only)"

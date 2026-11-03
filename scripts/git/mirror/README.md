@@ -18,6 +18,11 @@ Files:
   (`scripts/ue/check/governance/machine_local_paths.py`); this script applies it.
 - `forbidden_text_patterns.regex`: hard-fail content validation for secrets,
   key material, and credential shapes.
+- `forbidden_private_text_patterns.regex`: gitignored hard-fail patterns for
+  maintainer identities and private values. It is local to the main worktree;
+  linked worktrees read that copy. The mirror refuses every mode when it is
+  missing or has no active pattern. `mirror-bot` sets commit metadata only, so
+  file text depends on this scan.
 
 ## Why This Exists
 
@@ -426,7 +431,7 @@ ALIS adds a second line of defense:
 - hard-fail if forbidden binary/media/key file types survive
   (executables, `png`/`jpg`/`exr`/`blend`/`fbx`/`wav`/`mp4`..., `pem`/`key`/`p12`/`pfx`);
 - hard-fail if forbidden paths survive;
-- hard-fail if any surviving file contains a pattern from `forbidden_text_patterns.regex` or the private pattern file; file type is no filter, because the binary guard keeps the tree text-only;
+- hard-fail if any surviving file contains a pattern from `forbidden_text_patterns.regex` or the private pattern file; file type is no filter, because the binary guard keeps the tree text-only. The private list covers every surviving file and runs even when the public list is empty. Failures report path and line only, never the matched text;
 - hard-fail if any surviving file still carries a machine-local path as the
   governance definition describes it; published code is never path-rewritten,
   so it fails here and is fixed at source;

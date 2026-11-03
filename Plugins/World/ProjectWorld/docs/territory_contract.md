@@ -580,13 +580,7 @@ production JSON reader still admits only the Terrain-abutment model; the typed
 diagnostic variant neither authenticates a new source model nor opens canonical
 publication. Default bridge identity and abutment behavior remain unchanged.
 
-```mermaid
-flowchart LR
-    B[Admitted bridge field] -->|Terrain abutments| R[Road realization]
-    F[Explicit typed diagnostic fixture] -->|Constructed field and supporting model identity| R
-    T[Unchanged final Terrain] -->|Coverage and clearance| R
-    R --> M[Native source mesh]
-```
+See the [Road elevation consumption view](architecture/diagrams/road_elevation.md).
 
 Profiled realization certifies float-position storage per original ribbon
 triangle. An internal split may collapse only when the complete stored domain

@@ -17,7 +17,7 @@
       }
     },
 
-    "_comment_ue_mcp": "Broad UE automation: Niagara, Sequencer, NavMesh, GAS, Landscape, Splines, Networking. 36+ tools. Requires McpAutomationBridge plugin in Plugins/Local/. Fork: github.com/6r0m/Unreal_mcp",
+    "_comment_ue_mcp": "Broad UE automation: Niagara, Sequencer, NavMesh, GAS, Landscape, Splines, Networking. 36+ tools. Requires McpAutomationBridge plugin in Plugins/Local/. Upstream: github.com/ChiR24/Unreal_mcp",
     "_comment_ue_mcp_paths": "MCP_ADDITIONAL_PATH_PREFIXES is REQUIRED for this project. Without it, ue-mcp cannot access plugin content such as character or animation assets - only /Game/ assets. List all plugin mount points that contain assets you need to access.",
     "ue-mcp": {
       "command": "${NODE_PATH}",

@@ -6,16 +6,7 @@ explicit canonical triangles and interpolated `ground`/`hydro_transition`
 weights. Other quads retain their original grid triangles. A refinement wraps
 one authenticated `terrain-cell-v2` base; wrappers cannot be stacked.
 
-```mermaid
-flowchart LR
-    B[Authenticated grid and Water] --> C[CanonicalCompilation]
-    E[ExecutionEnvironment pinned GEOS] --> C
-    C --> S[Final surface wrapper and receipt]
-    S --> Q[ProjectWorld typed triangles and placement queries]
-    Q --> R[Road and placement consumers]
-    Q --> M[Mesh Terrain adapter]
-    M --> F[Compiled render geometry and collision]
-```
+See [sparse terrain realization](refinement/docs/architecture/diagrams/terrain_surface.md).
 
 ## API and authority
 
@@ -136,17 +127,7 @@ for this mode. An owner performing a separate support or civil-relationship
 verification must consume that final context itself. This boundary does not add
 a new foundation, clearance or structural-design law to Building realization.
 
-```mermaid
-flowchart LR
-    B[Immutable authenticated grid] --> C[Canonical refinement child]
-    C --> F[Final Terrain]
-    C --> G[Explicit civil grade reference]
-    B --> G
-    G --> R[Road triangle drape or UV profile]
-    G --> A[Building bilinear anchor]
-    F --> V[Road final clearance]
-    R --> V
-```
+See [immutable civil grade consumption](refinement/docs/architecture/diagrams/civil_grade.md).
 
 The public terrain publisher prepares these references inside its existing
 tmp-only candidate transaction. Reference identities, owning feature manifests,
@@ -237,13 +218,7 @@ binds exact Ground evidence, selected base support and native geometry identity.
 Adding this unused capability changes neither base compiler nor existing child
 identity. This does not waive normal acceptance of changes to consumed code.
 
-```mermaid
-flowchart LR
-    S[SourceIngestion qualified grid reader] --> G[Pure canonical Ground construction]
-    B[Canonical base and selected quads] --> G
-    G --> Q[Unpublished final quads]
-    G --> R[Frame, coverage, seam or budget refusal]
-```
+See [pure ground construction](refinement/docs/architecture/diagrams/ground_source.md).
 
 The result is not a loadable `terrain-refinement-v1` document. That Water envelope
 does not authenticate Ground by relabelling it as Water. No Ground publication,
@@ -290,15 +265,7 @@ frame, convex-semantic and unchanged outer-trace guards remain in force.
 This unpublishable constructor establishes no Ground authority or replacement
 of the Water-specific refinement provenance contract.
 
-```mermaid
-flowchart LR
-    G[Caller-supplied Ground grid and evidence] --> P[Pure Ground constructor]
-    N[Declared per-quad source strides] --> U[Shared edge station union]
-    U --> P
-    P --> T[Native GEOS triangulation of original halves]
-    T --> D[Unpublishable typed quads]
-    D --> V[Owner-local native consumer probes]
-```
+See [finite ground resolution closure](refinement/docs/architecture/diagrams/ground_resolution.md).
 
 ## Contained standing Water construction
 
@@ -354,14 +321,7 @@ every contributing contained source before composition or emission. A raw level
 below spill does not suffice when storage rounds it to or above spill. The bound
 participates in input identity; ordinary function identities remain unchanged.
 
-```mermaid
-flowchart LR
-    G[Qualified Ground observations] --> C[Canonical refinement construction]
-    O[Matching constructed-basin context] --> C
-    C --> P[Closed wet footprint and identified model]
-    P --> W[Water exact-level consumption]
-    P --> J[Separate joint Terrain and Water publication boundary]
-```
+See [contained standing water construction](refinement/docs/architecture/diagrams/contained_water.md).
 
 The current pure operation does not construct a terrain collar or publish a
 canonical child. Exact Water emission alone cannot fix a basin buried by unchanged
@@ -430,15 +390,7 @@ Terrain artifact hashes are distinct domains; the native consumer authenticates
 the latter. Context bytes and child/source-admission/execution identities bind
 replay and no-op admission. A changed dependency cannot reuse an old candidate.
 
-```mermaid
-flowchart LR
-    B[Immutable accepted canonical base] --> C[Canonical refinement child]
-    S[Qualified supplementary SourceIngestion context] --> C
-    C --> P[Authenticated disposable Road elevation]
-    P --> R[Road-owned ribbon realization]
-    B --> T[Unchanged final Terrain]
-    T --> R
-```
+See [qualified road candidate preparation](refinement/docs/architecture/diagrams/road_elevation.md).
 
 The [Road elevation schema](refinement/contracts/road-elevation.schema.json)
 owns the payload shape. Coordinates are cumulative source arclength and signed
@@ -497,16 +449,7 @@ Keeping the original estimator name after applying a constraint would misstate
 the model. The child construction API is not a production publisher or an
 authentication substitute.
 
-```mermaid
-flowchart LR
-    B[Immutable canonical channels] --> C[Canonical refinement child]
-    S[Qualified ways and all node controls] --> C
-    C --> W[Constrained Water function with original fit provenance]
-    W --> R[Existing Water realization and composition]
-    B --> T[Unchanged Terrain]
-    T --> V[Separate clearance verification]
-    R --> V
-```
+See [source-node water confluence construction](refinement/docs/architecture/diagrams/water_confluence.md).
 
 Native Water evaluates the admitted knots with the existing height quantization.
 Equal quantized regions may reuse its source-approximation and horizontal-union
@@ -564,15 +507,7 @@ has its own deterministic ZIP, genuine refinement receipt, frozen producer
 identities and effective identity derived from both base and child. Normalized
 qualified source context is retained; raw provider payloads are excluded.
 
-```mermaid
-flowchart LR
-    A[Single authority selection] --> B[Original compile ZIP and admission]
-    A --> C[Optional pinned feature-child ZIP]
-    B --> M[Existing authenticated materializer]
-    C --> M
-    M --> E[Effective content-keyed tree and genuine result]
-    E --> W[World consumer acceptance and transaction]
-```
+See [effective base and child materialization](refinement/docs/architecture/diagrams/effective_authority.md).
 
 The existing materializer locks and keys the tree by effective identity for a
 selected child, and returns `refinement_result.json`. Base-only selection retains
