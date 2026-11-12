@@ -40,7 +40,7 @@ Current geographic quality is not accepted merely because bounded D60 tests pass
 | Historical unsigned R5 | `a4167f43b91403d69da0ad011aa85d319c1453e6`; `tmp/release/r5/a4167f43b91403d69da0ad011aa85d319c1453e6/closure.json`; machine acceptance with explicit INCONCLUSIVE performance decision, unsigned/unpublished; not certification for later inputs |
 | Completed prerequisite concerns | Mesh Terrain migration, Terrain Material v2, public projection recovery, generation locality, global Windows-only platform policy and adopted default surfaces remain accepted in their own scopes |
 | Later both-city material/runtime campaign | Accepted in the completed presentation record; unchanged-input receipts do not certify newly reconciled geography or the final frozen artifact |
-| Active concern | Source-shaped platform/joins, regional Ground/fountain and Kazan bank/Water remain in the alignment checklist; Q2/Q3/Q5 are not blanket waivers |
+| Active concern | Pier25/coastal connections, Manhattan regional Ground/fountain and Kazan bank/Water require explicit [terrain-first case dispositions](20261008-1543_world_investigate_road_water_alignment.md#required-release-case-dispositions); Q2/Q3/Q5 and detailed object deferral are not blanket waivers |
 
 Version-specific decisions remain in the authority register. Preserve the
 16.67 ms target and explicit default-off INCONCLUSIVE policy (D22); do not turn

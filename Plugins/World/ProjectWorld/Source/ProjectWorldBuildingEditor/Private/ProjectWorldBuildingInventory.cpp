@@ -72,7 +72,7 @@ namespace ProjectWorldBuildingInventory
 		FProjectWorldLayerInventory& Inventory,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError,
-		UMaterialInterface* ExpectedMaterial)
+		UMaterialInterface* ExpectedMaterial, const ProjectWorldBuildingSelection::FSet* Selection)
 	{
 		Inventory.Artifacts.Reset();
 		TSet<FString> ExpectedCells;
@@ -80,7 +80,7 @@ namespace ProjectWorldBuildingInventory
 		{
 			FProjectWorldBuildingMeshBuildResult Build;
 			if (!ProjectWorldBuildingRealization::BuildCellOutput(
-				Bundle, Cell, Layer, AuthoredOverlaySet, Build, OutError))
+				Bundle, Cell, Layer, AuthoredOverlaySet, Build, OutError,Selection))
 			{
 				return false;
 			}

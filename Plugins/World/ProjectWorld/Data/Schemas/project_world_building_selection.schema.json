@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["$schema", "schema_version", "assemblies"],
+  "properties": {
+    "$schema": {"type": "string", "pattern": "project_world_building_selection\\.schema\\.json$"},
+    "schema_version": {"const": 1},
+    "assemblies": {"type": "array", "maxItems": 5, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["feature_id", "kit_source"],
+      "properties": {
+        "feature_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "kit_source": {"type": "string", "pattern": "^(Plugins/World/ProjectBuildingAssembly/Data/Kits/|tmp/world/inputs/)[A-Za-z0-9_./-]+\\.json$"}
+      }
+    }}
+  }
+}

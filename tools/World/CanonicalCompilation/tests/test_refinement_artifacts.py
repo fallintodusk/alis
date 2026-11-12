@@ -11,6 +11,7 @@ from World.CanonicalCompilation.refinement.api import prepare_terrain_refinement
 from World.CanonicalCompilation.app.contracts import CompilerError, file_hash, read_json
 from World.CanonicalCompilation.refinement.app.publication import validate_refinement
 from World.CanonicalCompilation.tests.refinement_fixture import make_base
+from World.CanonicalCompilation.tests.pier25_boundary_fixture import fixture as boundary_fixture, BAD_CORNER, INTERIOR_STATION
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError
 
 
@@ -108,6 +109,44 @@ class RefinementArtifactTests(unittest.TestCase):
             self.prepare()
         self.assertEqual({"operator.txt": file_hash(marker)}, hashes(self.root / "candidate"))
         self.assertEqual(before, hashes(self.root / "base"))
+
+    def test_captured_b_boundary_refuses_publication_before_any_promotion(self):
+        base = self.root/'captured-boundary'
+        cells, water, policy, selected = make_base(base, cross_cell=False, values=boundary_fixture())
+        identifier = next(iter(selected))
+        control = self.root/'closed-control'
+        prepare_terrain_refinement(ROOT, base/'compile_result.json', control, water, policy, selected)
+        baseline = {identifier: read_json(control/'canonical/refined_terrain/cell_0.json')}
+        before = hashes(base)
+        for defect, code in (('height', 'refinement_domain_open'), ('subdivision', 'refinement_neighbor_required')):
+            payloads = deepcopy(baseline)
+            quad = payloads[identifier]['quads'][0]
+            if defect == 'height':
+                corner = next(p for p in quad['vertices'] if p[:2] == BAD_CORNER[:2])
+                corner[:] = BAD_CORNER
+            else:
+                station = len(quad['vertices'])
+                quad['vertices'].append(INTERIOR_STATION[:])
+                face_index, edge_index = next((i,j) for i,row in enumerate(quad['triangles']) for j in range(3)
+                    if all(quad['vertices'][row[k]][0] == 0 for k in (j,(j+1)%3)))
+                row = quad['triangles'][face_index]
+                a,b,c = (row[(edge_index+k)%3] for k in range(3))
+                quad['triangles'][face_index] = [a,station,c]
+                quad['triangles'].append([station,b,c])
+                if face_index in quad['water_triangles']:
+                    quad['water_triangles'].append(len(quad['triangles'])-1)
+            # Coverage, winding and schema are valid; only the outgoing contract is wrong.
+            validate_refinement(ROOT, cells[identifier], payloads[identifier])
+            destination = self.root/('refused-'+defect)
+            with self.subTest(defect=defect), patch(
+                    'World.CanonicalCompilation.refinement.app.publication.refine_terrain_cells', return_value=payloads), patch(
+                    'World.CanonicalCompilation.refinement.app.publication.promote_staging') as promote:
+                with self.assertRaises(CompilerError) as failure:
+                    prepare_terrain_refinement(ROOT, base/'compile_result.json', destination, water, policy, selected)
+                self.assertEqual(failure.exception.code, code)
+                promote.assert_not_called()
+            self.assertFalse(destination.exists())
+            self.assertEqual(before, hashes(base))
 
 
 if __name__ == "__main__":

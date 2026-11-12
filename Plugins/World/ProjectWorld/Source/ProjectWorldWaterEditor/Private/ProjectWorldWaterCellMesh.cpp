@@ -4,9 +4,13 @@
 #include "ProjectWorldWaterHorizontalComposition.h"
 #include "ProjectWorldWaterSourceApproximation.h"
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldContainedStage.h"
+#include "ProjectWorldWaterJointBoundary.h"
+#include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "Utilities/ProjectSha256.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "Misc/ScopeExit.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldWaterCellMesh, Log, All);
 
@@ -43,6 +47,7 @@ namespace ProjectWorldWaterCellMesh
 			double Height = 0;
 			double Offset = 0;
 			bool bConstant = false;
+			bool bJointBoundary = false;
 		};
 	}
 
@@ -64,6 +69,20 @@ namespace ProjectWorldWaterCellMesh
 		OutError.Reset();
 		TArray<FString> SortedIds = FeatureIds;
 		SortedIds.Sort();
+		const bool bJointUnit=SortedIds.ContainsByPredicate([&Bundle](const FString& Id)
+		{
+			const auto* F=Bundle.Features.Find(Id);
+			return F && ProjectWorldContainedStage::IsJointBoundaryModel(F->WaterSurface.FunctionId,F->WaterSurface.FunctionVersion);
+		});
+		bool bComplete=false;
+		ON_SCOPE_EXIT
+		{
+			if (bJointUnit && !bComplete)
+			{OutDescription={};OutTriangles=0;OutSemantic.Reset();OutOrigin=FVector::ZeroVector;}
+		};
+		const FVector CommonOrigin=bJointUnit ? FVector::ZeroVector : FProjectWorldCanonicalLoader::CanonicalToUnreal(
+			Bundle,FVector(Cell.Bounds.X,Cell.Bounds.W,Bundle.HeightOriginMeters));
+		TArray<FVector2D> CanonicalTriangles;
 		TArray<FSurfaceGroup> Groups;
 		int32 Nonconstant = 0;
 		for (const FString& Id : SortedIds)
@@ -77,24 +96,27 @@ namespace ProjectWorldWaterCellMesh
 			double Height = 0;
 			const bool bConstant = ConstantHeight(*Feature, Bundle.HeightQuantizationMeters, Height);
 			const double Offset = ProjectWorldWaterMeshBuilder::PresentationOffset(*Feature, SurfaceOffsetMeters);
-			const FVector Origin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
-				Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
-			if (!ProjectWorldWaterMeshBuilder::ValidateStoredLevel(Bundle, *Feature, Origin, OutError)) return false;
+			if (!ProjectWorldWaterMeshBuilder::ValidateStoredLevel(Bundle, *Feature, CommonOrigin, OutError)) return false;
 			if (!FMath::IsFinite(Offset) || !FMath::IsFinite(SurfaceOffsetMeters) || SurfaceOffsetMeters < 0)
 			{ OutError = TEXT("Water effective height mode or layer offset is invalid."); return false; }
 			Height += Offset;
-			FSurfaceGroup* Group = bConstant ? Groups.FindByPredicate([Height, Offset](const auto& G)
-				{ return G.bConstant && G.Height == Height && G.Offset == Offset; }) : nullptr;
+			const bool bJointBoundary=ProjectWorldContainedStage::IsJointBoundaryModel(
+				Feature->WaterSurface.FunctionId,Feature->WaterSurface.FunctionVersion);
+			if (bJointUnit) CanonicalTriangles.Append(PreparedSurfaces.FindChecked(Id).TriangleVertices);
+			FSurfaceGroup* Group = bConstant && !bJointBoundary ? Groups.FindByPredicate([Height, Offset](const auto& G)
+				{ return !G.bJointBoundary && G.bConstant && G.Height == Height && G.Offset == Offset; }) : nullptr;
 			if (Group == nullptr)
 			{
 				Group = &Groups.AddDefaulted_GetRef();
 				Group->Height = Height;
 				Group->Offset = Offset;
 				Group->bConstant = bConstant;
+				Group->bJointBoundary = bJointBoundary;
 			}
 			Group->Ids.Add(Id);
 			Nonconstant += bConstant ? 0 : 1;
 		}
+		if (bJointUnit && !ProjectWorldWaterJointBoundary::ValidateIndependent(CanonicalTriangles,OutError)) return false;
 		TArray<FString> SemanticParts;
 		TArray<const FProjectWorldCanonicalFeature*> TriangleSources;
 		bool bHasMesh = false;
@@ -139,7 +161,8 @@ namespace ProjectWorldWaterCellMesh
 				*PreparedSurface,
 				SurfaceOffsetMeters,
 				Surface,
-				OutError))
+				OutError,
+				&CommonOrigin))
 			{
 				return false;
 			}
@@ -172,7 +195,8 @@ namespace ProjectWorldWaterCellMesh
 		bool bRefined=false;
 		FString RefinementHash;
 		if (bHasMesh && !ProjectWorldWaterSourceApproximation::Refine(OutDescription,TriangleSources,
-			Bundle,Cell,OutOrigin,SurfaceOffsetMeters,bRefined,RefinementHash,OutError)) return false;
+			Bundle,Cell,OutOrigin,SurfaceOffsetMeters,bRefined,RefinementHash,OutError))
+			return false;
 		if (bRefined)
 		{
 			OutTriangles=OutDescription.Triangles().Num();
@@ -180,7 +204,18 @@ namespace ProjectWorldWaterCellMesh
 		}
 		bool bComposed=false;
 		FString GeometryHash;
-		if (bHasMesh && !ProjectWorldWaterHorizontalComposition::Compose(
+		if (bHasMesh && bJointUnit)
+		{
+			TArray<FVector2D> Stored;
+			const auto Positions=FStaticMeshConstAttributes(OutDescription).GetVertexPositions();
+			for (const auto Id : OutDescription.Triangles().GetElementIDs())
+				for (const auto Instance : OutDescription.GetTriangleVertexInstances(Id))
+					Stored.Add(FVector2D(FVector(Positions[OutDescription.GetVertexInstanceVertex(Instance)])));
+			if (!ProjectWorldWaterJointBoundary::ValidateIndependent(Stored,OutError))
+				return false;
+			SemanticParts.Add(TEXT("independent_joint_boundary_v1"));
+		}
+		if (bHasMesh && !bJointUnit && !ProjectWorldWaterHorizontalComposition::Compose(
 			OutDescription,bComposed,GeometryHash,OutError)) return false;
 		if (bComposed)
 		{
@@ -190,10 +225,11 @@ namespace ProjectWorldWaterCellMesh
 		UE_LOG(LogProjectWorldWaterCellMesh, Display,
 			TEXT("[Build] Cell=%s composed_constant_groups=%d retained_nonconstant_features=%d surface_groups=%d"),
 			*Cell.CellId, Composed, Nonconstant, Groups.Num());
-		return !bHasMesh || HashText(
+		bComplete = !bHasMesh || HashText(
 			TEXT("project_water_cell_mesh_v2|") + Cell.CellId + TEXT("|") +
 			FString::Join(SemanticParts, TEXT("|")),
 			OutSemantic);
+		return bComplete;
 	}
 
 }

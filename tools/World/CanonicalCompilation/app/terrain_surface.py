@@ -330,23 +330,25 @@ def _water_features(compiled: Any) -> list[dict[str, Any]]:
 
 
 def _cell_has_water_influence(
-    cell: dict[str, Any], feature: dict[str, Any], transition_radius_m: float, halo: int
+    cell: dict[str, Any], feature: dict[str, Any], transition_radius_m: float, halo: int,
+    prepared: dict[str, Any],
 ) -> bool:
     samples = cell["water_fit"]["halo_window"]["samples"]
     west, _, _, north = (float(value) for value in cell["bounds"])
     spacing_x, spacing_y = (float(value) for value in cell["sample_spacing"])
     sample_west, sample_north = west - halo * spacing_x, north + halo * spacing_y
     return any(
-        _footprint_distance(
-            feature,
+        _prepared_footprint_distance(
+            prepared,
             (sample_west + column * spacing_x, sample_north - row * spacing_y),
+            transition_radius_m,
         ) <= transition_radius_m
         for row, values in enumerate(samples)
         for column in range(len(values))
     ) or _intersects(feature, (
         sample_west - spacing_x, sample_north - len(samples) * spacing_y,
         sample_west + len(samples[0]) * spacing_x, sample_north + spacing_y,
-    ))
+    ), prepared)
 
 
 def water_surface_dirty_cells(
@@ -363,7 +365,7 @@ def water_surface_dirty_cells(
         if canonical_hash(current_features.get(feature_id)) != canonical_hash(previous_features.get(feature_id))
     }
     changed_features = [
-        feature
+        (feature, _prepare_water_feature(feature))
         for feature_id in changed
         for feature in (current_features.get(feature_id), previous_features.get(feature_id))
         if feature is not None
@@ -372,7 +374,8 @@ def water_surface_dirty_cells(
     halo = int(profile["grid"]["halo_samples"])
     result: set[str] = set()
     for cell_id, cell in terrain.items():
-        if any(_cell_has_water_influence(cell, feature, transition_radius, halo) for feature in changed_features):
+        if any(_cell_has_water_influence(cell, feature, transition_radius, halo, prepared)
+               for feature, prepared in changed_features):
             result.add(cell_id)
     for feature_id in changed:
         for feature in (current_features.get(feature_id), previous_features.get(feature_id)):

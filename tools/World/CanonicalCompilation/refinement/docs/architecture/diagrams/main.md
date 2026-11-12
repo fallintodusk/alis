@@ -7,7 +7,8 @@ flowchart LR
     Caller[Qualified fixture caller] -->|optional module entrypoints| Pure[Ground and constructed-surface constructors]
     Base -->|base geometry and selected support| Pure
     Pure -->|unpublished modeled output| Fixture[Disposable typed consumers]
-    API -->|closed admitted feature operations| Impl[Construction and publication implementation]
+    Intent[Provenance-bound authored height intent] -->|pinned existing overlay contract| API
+    API -->|closed bridge, confluence, basin, authored-dry or structural-import operation| Impl[Construction and publication implementation]
     Impl -->|pure unpublished basin or confluence candidate| Fixture
     Contracts[Owned schemas and identities] -->|validation| Impl
     Native[ExecutionEnvironment] -->|pinned geometry API| Pure
@@ -20,3 +21,5 @@ flowchart LR
 This view represents current capabilities. Pure Ground or constructed-platform
 output has no production-publication edge. Model-specific semantics belong to
 the [surface contract](../../../../terrain_refinement.md).
+The [candidate-preparation view](candidate_preparation.md) owns the current
+multi-operation lifecycle.

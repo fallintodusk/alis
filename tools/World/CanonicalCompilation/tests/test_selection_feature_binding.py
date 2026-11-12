@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / 'tools'))
 from World.CanonicalCompilation.tests import test_refinement_authority as authority_fixture
 from World.CanonicalCompilation.app.contracts import CompilerError, canonical_hash, file_hash, read_json, write_json
-from World.CanonicalCompilation.refinement.app import activation, authority
+from World.CanonicalCompilation.refinement.app import activation, authority, identity
 from World.CanonicalCompilation.refinement.app.contracts import write_json as write_child
 from World.CanonicalCompilation.app import promotion
 from World.EndToEndValidation.app import refinement_selection
@@ -135,8 +135,8 @@ class SelectionFeatureBindingTests(unittest.TestCase):
         self.assertFalse((self.fixture.active.parent / self.original['selected_refinement']['bundle']['path']).exists())
 
     def test_current_producer_drift_during_replay_refuses_before_installation(self):
-        current = authority.implementation_identity()
-        with patch.object(authority, 'implementation_identity', side_effect=[current, '0'*64]), self.assertRaises(CompilerError):
+        current = identity.implementation_identity()
+        with patch.object(identity, 'implementation_identity', side_effect=[current, '0'*64]), self.assertRaises(CompilerError):
             activation.prepare_selection_transition(ROOT, self.fixture.profile_path, self.candidate, file_hash(self.fixture.active))
         self.assertEqual(self.prior, self.fixture.active.read_bytes())
         self.assertFalse((self.fixture.active.parent / self.original['selected_refinement']['bundle']['path']).exists())

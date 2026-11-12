@@ -203,6 +203,11 @@ Automation orchestrators may provide `-EvidencePath <path>` under
 and commandlet reject other roots. Disposable probes use `tmp/world/`.
 Orchestrators therefore do not need to reproduce the script's
 invocation identity algorithm without weakening evidence containment.
+`tmp/world/inputs/` is reserved for consumed disposable input documents and is
+never an evidence destination. The host wrapper, native commandlet and direct
+result writer reject that namespace, including normalized traversal and sidecars.
+Mesh Terrain audit/layout receipts use the same World root and input-isolation
+guards before removing an existing result file.
 Result, log and atomic-write sidecars must be disjoint from the canonical input
 tree and explicit profile/dirty-input files. The host checks before deleting
 old evidence; native admission and direct result writing enforce the same

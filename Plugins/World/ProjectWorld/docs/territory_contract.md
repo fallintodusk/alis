@@ -266,6 +266,35 @@ It reuses the same standing evaluator and native writer. Other families retain
 their positive layer offset. Grouping and source approximation use the same
 effective-height rule, so equal raw levels do not imply equal final planes.
 
+The separate `identified_static_lined_basin:v1` family uses that
+same exact contained-stage behavior and finite stored-spill guard. Its closed
+canonical JSON reader binds the retained inferred model and actual supporting
+Terrain through the [joint admission contract](../../../../tools/World/CanonicalCompilation/terrain_refinement.md#joint-basin-candidate-admission).
+Admission metadata participates in verification identity; geometry keys retain
+only consumed geometric values, allowing unchanged Water artifacts to be reused
+after a supporting-depth change. The closed native family classifier is
+`ProjectWorldContainedStage`; Water unit and verification identities consume
+the spill for both contained families. Unknown versions or missing/nonfinite
+spill bounds refuse before emission, leaving no partial mesh. Its
+[identified-model contract](../../../../tools/World/CanonicalCompilation/terrain_refinement.md#identified-static-basin-comparison)
+owns the inference boundary. Typed save/reload proof establishes stored geometry,
+not joint shoreline containment, accepted materials or production source quality.
+
+The joint model preserves supplied noded XY and uses the engine-global float
+storage frame shared by its supporting Terrain. A cell containing this model
+uses that one mesh origin for every Water group; ordinary cells retain their
+existing cell-local origin. Joint sources are not merged under another family's
+coordinate policy. This first variant requires all prepared source triangles and
+all emitted triangles after source approximation to have disjoint positive
+interiors. Exact orientation predicates allow edge/point contacts and refuse
+overlap, unknown/degenerate input or exhausted face/pair work bounds. Refusal
+rejects the complete unit, clearing geometry/count/semantic output. A qualified
+joint unit skips the final horizontal union, which could otherwise rewrite its
+boundary. Interacting sources need a separately demonstrated relationship model;
+they are never silently dropped. Stored Terrain/Water overlay must still prove
+shoreline containment in the actual consuming representation, including section
+generation where used. Source departure bounds do not waive negative depth.
+
 Canonical Terrain and Water may legitimately disagree vertically because the
 current DEM is a sampled DSM while Water is a fitted flat or monotonic surface.
 Canonical Compilation owns that seam. It preserves the sampled terrain under
@@ -328,11 +357,67 @@ Source basis:
 | ProjectWorld realization | Generic Unreal generation, serialization, manifest, and runtime logic | Territory data or place-specific assets |
 | ProjectWorldTestData | Synthetic profiles, inputs, and authored fixtures; ignored generated packages/manifests during test transactions | Reusable logic, shipping content, or durable generated authority |
 | ProjectWorldData | Concrete territory profiles, canonical JSON, authored assets, and realized Unreal packages | Reusable generator logic |
-| Authored overlay | Protected hero locations and game-specific art | Base geographic truth |
+| Authored Unreal overlay | Protected hero locations and game-specific art | Base geographic truth |
 
 Terrain, river and water geometry, land cover, vegetation areas or points,
 road graphs, and building footprints must enter through canonical documents.
 Generated meshes and actors remain transactionally replaceable consumers.
+
+### Terrain and feature separation
+
+Final canonical Terrain is the ground-height and semantic-surface authority.
+Mesh Terrain, Water, Road, constructed surfaces, building massing and vegetation
+are separate registered producers with separate artifacts. Building effective
+volumes and mapped road or structural fields describe their own representations;
+they are not baked into the Terrain mesh as object geometry. The
+[terrain and feature view](architecture/diagrams/terrain_features.md) shows these
+consumption boundaries.
+
+Source evidence does not imply detailed object reconstruction. The raster source
+is a DSM, whose observed heights can include infrastructure, buildings and
+vegetation; separate blockout meshes alone do not establish bare-earth ground.
+The [source and accuracy contract](#geospatial-authority) retains that distinction.
+Building massing remains a blockout representation of canonical effective volumes.
+The [structural producer](../Source/ProjectWorldConstructedEditor/docs/architecture/structure.md)
+realizes an already modeled canonical field without fitting Terrain or deriving
+new heights. Each producer qualifies its actual output independently.
+
+Terrain-relative placement samples the accepted canonical surface. Selected
+refined quads use their final affine field; unrefined quads retain the existing
+grid query. Explicit immutable civil grades remain separately authenticated
+inputs for the consumers that declare them. A generated actor transform or a
+placeholder's visual shape is not a second Terrain height authority.
+
+Authored Terrain adjustment already enters through the canonical compiler's
+[overlay contract](../../../../tools/World/CanonicalCompilation/contracts/authored-overlay.schema.json).
+The [surface finalizer](../../../../tools/World/CanonicalCompilation/app/terrain_surface.py)
+applies those provenance-bound patches after hydro-conditioning and rejects
+adjustments that break Water support. This is distinct from the protected Unreal
+content overlay below. Direct edits to generated Terrain packages are not durable
+adjustment inputs. The current patch operation does not provide an arbitrary
+procedural-object influence interface or an in-editor Mesh Terrain sculpt layer.
+
+### Fidelity and overlapping physical roles
+
+Base-world acceptance targets credible, continuous, playable Terrain and Water,
+with approximate tagged feature envelopes for separate object generation.
+An envelope establishes its declared extent, role, tags and source/model basis;
+it does not require a finished roof, bridge deck or foundation. Detailed object
+reconstruction and surveyed microtopography are not prerequisites for that scope.
+Geometry admitted as required walkable support has stronger physical and gameplay
+obligations than a nonphysical contextual envelope.
+
+Approximation concerns the geographic model, not fidelity of realization to that
+accepted model. Canonical coverage and seams, actual cooked support, consumed
+identities, recovery and the selected gameplay requirements retain their guards.
+The [test-layer contract](../../../../docs/testing/world_pipeline_layers.md#proof-follows-admitted-fidelity)
+owns the minimum proof and escalation for each admitted use.
+
+A building footprint is not an automatic Terrain-removal mask. A bridge envelope
+does not remove Water beneath it. These physical roles can overlap in XY while
+remaining distinct surfaces. Any local change needs a supported canonical
+correction with explicit bounds and dependencies. Source uncertainty remains
+visible, including when a plausible game-world inference is accepted.
 
 ### Staged authority and persistence
 
@@ -390,12 +475,15 @@ Layer stack, bottom to top:
 | Water | Generated, profile-owned | Fully replaceable |
 | Roads | Generated, profile-owned | Fully replaceable |
 | Vegetation and foliage | Generated, profile-owned | Fully replaceable |
-| Building massing (territory blockouts) | Generated, profile-owned | Fully replaceable |
+| Building projection (blockouts and selected modular assemblies) | Generated, profile-owned | Replaced together in one buildings-layer transaction |
 | Gameplay placement | Generated, profile-owned | Fully replaceable; mutable runtime state is external |
-| Modular building assembly (selected features; later generator) | Generated, profile-owned | Fully replaceable; passes admission before first territory/playable use |
 | Universal presentation material | ProjectMaterial-owned resource authority | Fully replaceable without geography regeneration |
 | Authored overlay (hero locations, spatial anchors) | Authored, protected | Byte-identical across any regeneration |
 | Manual polish layer (late art passes above everything) | Authored, protected | Byte-identical across any regeneration |
+
+Protected manual polish owns authored content. Terrain-height adjustments use
+the [canonical adjustment path](#terrain-and-feature-separation), so regeneration
+reconstructs the same accepted final surface.
 
 The accepted design is an extensible data-defined dependency graph rather
 than a closed C++ enum. The production layer catalog supports adding,
@@ -440,8 +528,9 @@ The built-in modules currently provide:
 | `project_mesh_terrain:v1` | generated geography | terrain | MeshPartition compiled sections derived from canonical cells | canonical cell | World Partition spatial |
 | `project_water_mesh:v1` | generated geography | water | cell local | canonical cell | World Partition spatial |
 | `project_road_mesh:v1` | generated geography | roads | cell local | canonical cell | World Partition spatial |
+| `project_constructed_surface:v1` | generated geography | constructed surfaces | separate feature/cell StaticMesh actors | canonical cell | World Partition spatial |
 | `project_vegetation_instances:v1` | generated geography | vegetation | cell-local HISM actors | canonical cell | World Partition spatial |
-| `project_building_massing:v2` | generated geography | logical buildings with effective volumes | cell-local StaticMesh actors | canonical cell | World Partition spatial |
+| `project_building_massing:v2` | generated geography | logical buildings with effective volumes | cell-local massing and selected modular ISM actors | canonical cell | World Partition spatial |
 | `project_gameplay_placement:v1` | generated gameplay placement | gameplay placements | object-local ObjectDefinition actors | stable object ID | World Partition spatial |
 
 The Kazan and Manhattan production profiles select `project_mesh_terrain:v1`
@@ -579,6 +668,90 @@ Terrain abutment. This does not establish joins to other surfaces. The current
 production JSON reader still admits only the Terrain-abutment model; the typed
 diagnostic variant neither authenticates a new source model nor opens canonical
 publication. Default bridge identity and abutment behavior remain unchanged.
+
+Typed native callers can also reference pinned world-XYZ constructed surfaces
+instead of a source-parameter field. The
+[constructed-surface reader](../Source/ProjectWorldEditor/Public/ProjectWorldConstructedSurface.h)
+owns finite field consumption; source and footprint qualification stay upstream.
+Road samples that same complete field at its actual native ribbon coordinates,
+including curves and resampling corners, and at final float-stored XY. Raw
+source-height aliases and XY coverage are validated before stored-height
+projection. One stored height binds each exact XY within the referenced profile;
+final Terrain checks consume that projected geometry. Unknown field support
+refuses rather than extrapolating a former triangle across a crease.
+Mixed representations, missing/stale model pins,
+unknown frames or roles, overlapping/discontinuous fields and incomplete native
+width support refuse. The regular final-Terrain and float-storage checks still
+apply, and all sampled model geometry contributes to consumed identity. This
+typed capability does not add a production JSON variant or a body publisher.
+
+Source-bound structural records have a separate canonical JSON admission path.
+It consumes the compiler's
+[identified structural wire contract](../../../../tools/World/CanonicalCompilation/contracts/constructed-surface.schema.json)
+into the existing typed field, retaining the declared model, policy, source IDs
+and exact retained-input identities. The completed bundle must match its frame
+and pass the existing finite-field reader. Inferred assembly/apron roles remain
+identified-only; the earlier typed observed fixed/floating roles keep their
+existing meaning. Admission does not select a Road model, delegate physical
+ownership, or prove cross-record joins or geographic acceptance.
+
+The loader verifies every output's path, hash, size and kind before reading a
+refinement request. Raw source evidence is admitted only through an exact native
+descriptor in that authenticated request. Feature/context association, source
+snapshot descriptors and the declared policy must agree; missing, contradictory
+or extra evidence refuses. Ordinary compile output kinds remain closed. A
+Terrain-only refinement does not acquire the structural request contract.
+Upstream SourceIngestion owns literal primitive qualification; native loading
+checks the retained handoff without interpreting source tags again.
+
+The loader retains each face region separately, including its source-face
+correspondence and each gangway's literal projected axis. Authenticated numeric
+policy is projected once into the typed consumer input. The
+[structural realization owner](../Source/ProjectWorldConstructedEditor/README.md)
+consumes that projection and creates separate feature/cell physical artifacts.
+It does not infer new heights or reinterpret retained source evidence.
+
+The [native Road emission read](../Source/ProjectWorldRoadEditor/Public/ProjectWorldRoadEmission.h)
+returns prospective stored geometry and its explicit presentation lift without
+creating assets or changing a World. The caller supplies a bounded feature
+selection and verifies the returned local eligibility against its required
+closure. Remote or filtered Roads have no local contribution; an eligible
+selected Road without a prospective fragment refuses. Native origins and actual
+stored positions remain authoritative. Geometry identity consumes that
+representation and lift. Qualification geometry does not independently grant
+physical ownership or allow a consumer to suppress a Road output.
+
+The [constructed-body mesh builder](../Source/ProjectWorldEditor/Public/ProjectWorldConstructedMesh.h)
+realizes one complete finite structural field, clipped to the canonical cell,
+at canonical height with zero presentation lift. It has no Road-cut dependency.
+Source qualification stays upstream. Bounded float conversion requires actual
+source membership; unknown samples refuse. Shared stored XY has one field height,
+and source agreement measures final float Z. Exact clipped-source classification
+and whole-domain coverage prevent lost faces, filled holes and changed component
+topology. Stored Body/Body overlap and join checks apply after emission. Cross-cell
+comparisons preserve actual native world positions in a double comparison frame.
+Optional source-face provenance lets qualification apply declared role policies
+to the actual stored triangles without inferring ownership from their positions.
+This correspondence covers MeshDescription output, not later Nanite, fallback or
+physics buffer ordering.
+The optional measured XY conversion displacement bounds source-footprint and
+clipped-node storage changes in native local centimetres. It publishes only
+with successful output; refusal leaves it unknown. It is neither geographic
+accuracy nor a bound on canonical frame transforms.
+Source and stored cover outlines use native mesh boundary loops over exact shared
+vertices. Existing collinear nodes subdivide T junctions without welding; temporary
+interior fans supply topology only. Open or ambiguous loops, positive overlap,
+unassigned holes and exceeded work limits refuse. Polygon Boolean normalization
+does not determine mesh connectivity; area, difference and protected-core checks
+still apply to the recovered outlines.
+This pure description builder creates no assets or registered structural producer
+and does not prove a connected gameplay or navigation route. Production delegation
+still requires a closed canonical contract and a required physical owner.
+
+Verification fixtures bind constructed endpoint/support meaning and surface
+provenance as well as geometry. Identical XYZ with changed support or observation
+basis invalidates prior evidence. Absent default fields preserve ordinary fixture
+identities; this does not admit a new production variant.
 
 See the [Road elevation consumption view](architecture/diagrams/road_elevation.md).
 
@@ -1336,8 +1509,23 @@ unchanged-import fingerprint equality.
 - Buildings not selected for assembly keep their ProjectWorld massing.
 - Intentionally authored hero buildings remain protected overlays and are
   never silently forced through the assembly generator.
-- Assembly output is a generated layer under manifest ownership and
-  per-layer admission like any other.
+- The existing buildings producer owns one projection containing unselected
+  massing and selected assemblies. Its single layer transaction owns blockout
+  exclusion, shared kit assets and assembly actor packages together; selection
+  cannot publish suppression independently of its admitted geometry.
+- An optional selection document belongs to the profile's data owner. Its
+  [selection schema](../Data/Schemas/project_world_building_selection.schema.json)
+  owns the bounded contract. Consumed building, complete physical Terrain support
+  and kit inputs participate in per-cell identity. Classification still precedes
+  exclusion of the complete admitted selection union.
+- Assembly supplies native geometry; World owns shared kit packages below the
+  buildings artifact root and manifests each package once. Actor references must
+  resolve to those shared meshes. Selection removal restores massing and retires
+  its assembly and unused kit artifacts in the same transaction.
+- The registered capability is opt-in. Concrete territory/playable use still
+  requires the existing admission gates. Material-only adoption for modular ISMs
+  is not qualified; it refuses before mutation rather than rebuilding geometry
+  as a presentation workaround.
 
 ## Delivery stages
 

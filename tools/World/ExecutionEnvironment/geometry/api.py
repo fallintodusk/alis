@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 from ..api import execution_identity as base_execution_identity
-from .app.kernel import partition_triangles, validate_triangle_cover
+from .app.kernel import partition_triangles, triangulate_polygon, validate_triangle_cover
 from .app.surfaces import triangulate_points, polygon_union, covered_points
+from .app.mapping import map_triangle_cover
 
 
 def execution_identity(repo_root: Path, verify_native_tools: bool) -> dict:
@@ -18,4 +19,4 @@ def execution_identity(repo_root: Path, verify_native_tools: bool) -> dict:
     return {**base, "identity_sha256": hashlib.sha256(payload).hexdigest()}
 
 
-__all__ = ("execution_identity", "partition_triangles", "validate_triangle_cover", "triangulate_points", "polygon_union", "covered_points")
+__all__ = ("execution_identity", "partition_triangles", "triangulate_polygon", "map_triangle_cover", "validate_triangle_cover", "triangulate_points", "polygon_union", "covered_points")

@@ -102,10 +102,9 @@ namespace ProjectWorldCanonicalContractTests
 	bool WriteFixture(EConflict Conflict, FString& OutReceiptPath)
 	{
 		const FString Root = FPaths::Combine(
-			FPaths::ProjectSavedDir(),
-			TEXT("Automation/ProjectWorldContract"),
-			FString::FromInt(static_cast<int32>(Conflict)));
-		IFileManager::Get().DeleteDirectory(*Root, false, true);
+			FPaths::ProjectDir(),
+			TEXT("tmp/world/canonical_compilation/native_contracts"),
+			FGuid::NewGuid().ToString(EGuidFormats::Digits));
 		IFileManager::Get().MakeDirectory(*Root, true);
 
 		TArray<FDocument> Documents;

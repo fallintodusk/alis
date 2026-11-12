@@ -9,7 +9,7 @@ public class ProjectWorldBuildingEditor : ModuleRules
 		{
 			"Core", "CoreUObject", "Engine", "Json", "MeshDescription",
 			"StaticMeshDescription", "GeometryCore", "GeometryAlgorithms",
-			"AssetRegistry", "ProjectCore", "ProjectWorldEditor", "UnrealEd"
+			"AssetRegistry", "ProjectCore", "ProjectWorldEditor", "UnrealEd", "ProjectBuildingAssemblyEditor", "RenderCore"
 		});
 	}
 }

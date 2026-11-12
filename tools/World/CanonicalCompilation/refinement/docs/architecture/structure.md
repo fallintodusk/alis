@@ -14,9 +14,16 @@ owns supported models, provenance, refusal and activation semantics.
 | Part | Owner |
 |---|---|
 | Public construction and selection operations | [API](../../api.py) |
+| Authored dry height correction over accepted final grids | [Authored Terrain](../../app/authored_terrain.py) |
 | Pure raster Ground construction | [Ground constructor](../../ground.py) |
+| Pure identified inner-to-provider composition | [Composite constructor](../../ground_composite.py) |
+| Pure identified incoming-strip continuation into one east neighbor | [Continuation constructor](../../ground_continuation.py) |
+| Pure identified boundary-crossing path floor/source-control composition | [Path-floor constructor](../../ground_path_floor.py) |
+| Pure identified joint basin/reference-surface model | [Basin constructor](../../identified_basin.py) |
+| Closed inferred model input and joint candidate admission | [Basin admission](../../basin_admission.py) |
 | Finite Ground sampling and shared-edge station closure | [Resolution constructor](../../ground_resolution.py) |
 | Pure source-associated platform Road construction | [Constructed-surface constructor](../../constructed_surface.py) |
+| Declared identified structural field and original-source binding | [Constructed import](../../constructed_import.py) |
 | Construction, feature publication and selection implementation | [Implementation](../../app/README.md) |
 | Result, request and selection schemas | [Contracts](../../contracts/README.md) |
 
@@ -33,8 +40,12 @@ owns those distinct lifecycles.
 
 Pure Ground, contained-basin and constructed-platform capabilities are not
 production admission. Their fixture consumption cannot be used as a publication
-certificate. Closed bridge/confluence feature preparation and existing qualified
-selection are different public operations. The [effective-authority contract](../../../terrain_refinement.md#effective-authority-candidates)
+certificate. Closed bridge/confluence, declared structural import, joint basin
+preparation, authored dry Terrain and qualified selection have explicit, distinct admission contracts.
+Independent feature composition preserves one staged candidate; interacting
+ownership refuses. The [combined-preparation contract](../../../terrain_refinement.md#combined-feature-preparation)
+owns supported combinations, deterministic ordering, refusal and current reuse
+granularity. The [effective-authority contract](../../../terrain_refinement.md#effective-authority-candidates)
 owns accepted selection; consumers must not add hidden geographic corrections.
 
 Source qualification and OSM context stay with [SourceIngestion](../../../../SourceIngestion/README.md).

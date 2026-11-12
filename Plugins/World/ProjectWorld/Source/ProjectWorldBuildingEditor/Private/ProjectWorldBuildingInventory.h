@@ -12,6 +12,7 @@ struct FProjectWorldRealizationLayer;
 struct FProjectWorldRealizationResult;
 class UWorld;
 class UMaterialInterface;
+namespace ProjectWorldBuildingSelection {struct FSet;}
 
 namespace ProjectWorldBuildingInventory
 {
@@ -23,5 +24,5 @@ namespace ProjectWorldBuildingInventory
 		FProjectWorldLayerInventory& Inventory,
 		FProjectWorldRealizationResult& OutResult,
 		FString& OutError,
-		UMaterialInterface* ExpectedMaterial=nullptr);
+		UMaterialInterface* ExpectedMaterial=nullptr, const ProjectWorldBuildingSelection::FSet* Selection=nullptr);
 }

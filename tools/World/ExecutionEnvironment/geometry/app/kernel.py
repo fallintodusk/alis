@@ -239,6 +239,38 @@ def partition_triangles(repo_root: Path, triangle: list, footprint: dict, maximu
         native.close()
 
 
+def triangulate_polygon(repo_root: Path, polygon: dict, maximum_triangles: int) -> list:
+    """Triangulate a finite polygon directly, without introducing clipping boundaries."""
+    if (not isinstance(polygon, dict) or polygon.get('type') not in ('Polygon', 'MultiPolygon')
+            or type(maximum_triangles) is not int or not 1 <= maximum_triangles <= 65536
+            or len(json.dumps(polygon)) > 4_000_000):
+        raise ExecutionEnvironmentError('native_geometry_input', 'Invalid or oversized polygon triangulation request')
+    polygons = [polygon.get('coordinates')] if polygon['type'] == 'Polygon' else polygon.get('coordinates')
+    if not isinstance(polygons, list) or not polygons:
+        raise ExecutionEnvironmentError('native_geometry_input', 'Polygon triangulation requires finite closed rings')
+    points = []
+    for rings in polygons:
+        if not isinstance(rings, list) or not rings:
+            raise ExecutionEnvironmentError('native_geometry_input', 'Polygon component has no exterior ring')
+        for ring in rings:
+            if (not isinstance(ring, list) or len(ring) < 4 or ring[0] != ring[-1] or any(
+                    not isinstance(p, list) or len(p) != 2 or any(isinstance(v, bool)
+                        or not isinstance(v, (int, float)) or not math.isfinite(v) for v in p) for p in ring)):
+                raise ExecutionEnvironmentError('native_geometry_input', 'Polygon triangulation requires finite closed XY rings')
+            points.extend(ring)
+    origin = min(points)
+    local = _local_polygon(polygon, origin)
+    native = _Geometry(repo_root)
+    try:
+        faces = native.triangles(native.read(local), maximum_triangles)
+        result = [[[p[i]+origin[i] for i in (0, 1)] for p in face] for face in faces]
+    finally:
+        native.close()
+    # The returned canonical geometry must pass the unchanged arbitrary-domain check.
+    validate_triangle_cover(repo_root, polygon, result)
+    return result
+
+
 def validate_triangle_cover(repo_root: Path, polygon: dict, triangles: list) -> None:
     """Reject missing, overlapping or exterior triangle coverage of a polygon."""
     coordinates = polygon["coordinates"]

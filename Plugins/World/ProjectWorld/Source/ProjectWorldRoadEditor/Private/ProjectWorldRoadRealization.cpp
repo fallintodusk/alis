@@ -4,6 +4,8 @@
 #include "ProjectWorldRoadRealization.h"
 #include "ProjectWorldRoadSurface.h"
 #include "ProjectWorldRoadElevation.h"
+#include "ProjectWorldRoadFormation.h"
+#include "ProjectWorldRoadNominalFootprint.h"
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedActors.h"
@@ -168,57 +170,6 @@ namespace ProjectWorldRoadRealization
 			return Result;
 		}
 
-		FVector2D RoadTangent(
-			const FProjectWorldCanonicalFeature& Feature,
-			const FVector2D& Point,
-			double Tolerance, FString& Context)
-		{
-			FVector2D Sum = FVector2D::ZeroVector;
-			AppendToken(Context, TEXT("tangent"));
-			AppendNumber(Context, Point.X);
-			AppendNumber(Context, Point.Y);
-			FVector2D FirstDirection = FVector2D::ZeroVector;
-			auto AccumulatePart = [&](const TArray<FVector2D>& Part)
-			{
-				for (int32 Index = 0; Index + 1 < Part.Num(); ++Index)
-				{
-					const FVector2D Segment = Part[Index + 1] - Part[Index];
-					const double LengthSquared = Segment.SquaredLength();
-					if (LengthSquared <= UE_DOUBLE_SMALL_NUMBER)
-					{
-						continue;
-					}
-					const double Alpha = FMath::Clamp(
-						FVector2D::DotProduct(Point - Part[Index], Segment) / LengthSquared,
-						0.0,
-						1.0);
-					const double DistanceSquared = (Point - (Part[Index] + Segment * Alpha)).SquaredLength();
-					const FVector2D Direction = Segment.GetSafeNormal();
-					if (DistanceSquared <= Tolerance * Tolerance)
-					{
-						if (FirstDirection.IsNearlyZero()) FirstDirection = Direction;
-						Sum += Direction;
-						AppendNumber(Context, Part[Index].X);
-						AppendNumber(Context, Part[Index].Y);
-						AppendNumber(Context, Part[Index + 1].X);
-						AppendNumber(Context, Part[Index + 1].Y);
-					}
-				}
-			};
-			if (Feature.GeometryParts.IsEmpty())
-			{
-				AccumulatePart(Feature.GeometryPoints);
-			}
-			else
-			{
-				for (const TArray<FVector2D>& Part : Feature.GeometryParts)
-				{
-					AccumulatePart(Part);
-				}
-			}
-			return Sum.IsNearlyZero() ? FirstDirection : Sum.GetSafeNormal();
-		}
-
 		bool BuildCellMesh(
 			const FProjectWorldCanonicalBundle& Bundle,
 			const FProjectWorldCanonicalCell& Cell,
@@ -228,7 +179,8 @@ namespace ProjectWorldRoadRealization
 			FVector& OutOrigin,
 			FString& OutInputHash,
 			int32& OutTriangles, FString& OutError,
-			const ProjectWorldRoadSurface::FContext& Context, bool bEmitMesh = true)
+			const ProjectWorldRoadSurface::FContext& Context, bool bEmitMesh = true, const TSet<FString>* FeatureSelection = nullptr,
+			TSet<FString>* LocallyEligible = nullptr)
 		{
 			FString Identity(TEXT("project_road_cell_input_v2"));
 			AppendToken(Identity, Cell.CellId);
@@ -240,8 +192,13 @@ namespace ProjectWorldRoadRealization
 			TArray<ProjectWorldRoadSurface::FRibbonTriangle> Ribbon;
 			OutOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
 				Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
+			bool bSelectedRoad = false;
 			for (const FString& FeatureId : CellRoadFeatureIds(Bundle, Cell, Settings))
 			{
+				if (FeatureSelection && !FeatureSelection->Contains(FeatureId)) continue;
+				if (LocallyEligible) LocallyEligible->Add(FeatureId);
+				const int32 BeforeFeature = Ribbon.Num();
+				bSelectedRoad = true;
 				const FProjectWorldCanonicalFeature& Feature = Bundle.Features.FindChecked(FeatureId);
 				AppendToken(Identity, Feature.FeatureId);
 				AppendToken(Identity, Feature.RoadClass);
@@ -256,43 +213,20 @@ namespace ProjectWorldRoadRealization
 					AppendToken(Identity, ElevationIdentity);
 					AppendToken(Identity, TEXT("profiled_cell_full_fallback_v1"));
 				}
-				const double HalfWidth = Feature.WidthMeters * 0.5;
-				for (const FProjectWorldCanonicalRepresentation& Representation : Feature.Representations)
+				TArray<ProjectWorldRoadFormation::FSegment> Segments; FString FormationIdentity;
+				if (!ProjectWorldRoadFormation::ForCell(Feature,Cell.CellId,Settings.MaximumSegmentLengthMeters,
+					Bundle.CoordinateQuantizationMeters*2.,Segments,FormationIdentity,OutError)) return false;
+				Identity+=FormationIdentity;
+				for (const auto& Segment : Segments)
 				{
-					if (Representation.CellId != Cell.CellId || Representation.Kind != TEXT("road_fragment"))
-					{
-						continue;
-					}
-					for (const TArray<FVector2D>& Part : Representation.Parts)
-					{
-						AppendToken(Identity, FString::FromInt(Part.Num()));
-						for (const FVector2D& Point : Part) { AppendNumber(Identity, Point.X); AppendNumber(Identity, Point.Y); }
-						for (int32 PointIndex = 0; PointIndex + 1 < Part.Num(); ++PointIndex)
-						{
-							const FVector2D Start = Part[PointIndex];
-							const FVector2D End = Part[PointIndex + 1];
-							const int32 Steps = FMath::Max(
-								1,
-								FMath::CeilToInt((End - Start).Length() / Settings.MaximumSegmentLengthMeters));
-							for (int32 Step = 0; Step < Steps; ++Step)
-							{
-								const FVector2D A = FMath::Lerp(Start, End, static_cast<double>(Step) / Steps);
-								const FVector2D B = FMath::Lerp(Start, End, static_cast<double>(Step + 1) / Steps);
-								const FVector2D TangentA = RoadTangent(Feature, A, Bundle.CoordinateQuantizationMeters * 2.0, Identity);
-								const FVector2D TangentB = RoadTangent(Feature, B, Bundle.CoordinateQuantizationMeters * 2.0, Identity);
-								if (TangentA.IsNearlyZero() || TangentB.IsNearlyZero())
-								{ OutError = TEXT("Road fragment has no bounded canonical tangent context."); return false; }
-								const FVector2D SideA(-TangentA.Y * HalfWidth, TangentA.X * HalfWidth);
-								const FVector2D SideB(-TangentB.Y * HalfWidth, TangentB.X * HalfWidth);
-								if (!ProjectWorldRoadElevation::Append(Feature, A, B, SideA, SideB,
-									Bundle.CoordinateQuantizationMeters * 2.0, Settings.SurfaceOffsetMeters, Ribbon, OutError)) return false;
-								OutTriangles += 2;
-							}
-						}
-					}
+					if (!ProjectWorldRoadElevation::Append(Bundle,Feature,Segment.A,Segment.B,Segment.SideA,Segment.SideB,
+						Bundle.CoordinateQuantizationMeters*2.,Settings.SurfaceOffsetMeters,Ribbon,OutError)) return false;
+					OutTriangles+=2;
 				}
+				if (FeatureSelection && Ribbon.Num() == BeforeFeature)
+				{ OutError = TEXT("A locally selected Road has no prospective fragment."); return false; }
 			}
-			if (OutTriangles == 0 && !CellRoadFeatureIds(Bundle, Cell, Settings).IsEmpty())
+			if (OutTriangles == 0 && bSelectedRoad)
 			{ OutError = TEXT("Selected road has no realizable cell fragment."); return false; }
 			TSet<FString> ConsumedTerrain;
 			if (!ProjectWorldRoadSurface::Conform(Bundle, Cell, Context, Ribbon, OutOrigin, Settings.SurfaceOffsetMeters,
@@ -454,14 +388,47 @@ namespace ProjectWorldRoadRealization
 
 	bool BuildDescription(const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldCanonicalCell& Cell, const FProjectWorldRealizationLayer& Layer,
-		FMeshDescription& OutDescription, FVector& OutOrigin, FString& OutError)
+		FMeshDescription& OutDescription, FVector& OutOrigin, FString& OutError, const TSet<FString>* FeatureSelection,
+		TSet<FString>* LocallyEligible)
 	{
 		FRoadSettings Settings;
 		FString Semantic;
 		int32 Triangles = 0;
 		ProjectWorldRoadSurface::FContext Context;
 		return ResolveSettings(Layer, Settings, OutError) && ProjectWorldRoadSurface::Index(Bundle, Context, OutError) &&
-			BuildCellMesh(Bundle, Cell, Layer, Settings, OutDescription, OutOrigin, Semantic, Triangles, OutError, Context);
+			BuildCellMesh(Bundle, Cell, Layer, Settings, OutDescription, OutOrigin, Semantic, Triangles, OutError, Context, true, FeatureSelection, LocallyEligible);
+	}
+	bool ReadSurfaceOffset(const FProjectWorldRealizationLayer& Layer, double& Out, FString& Error)
+	{
+		FRoadSettings Settings; if (!ResolveSettings(Layer,Settings,Error)) return false;
+		Out = Settings.SurfaceOffsetMeters; return true;
+	}
+	bool BuildNominalFootprint(const FProjectWorldCanonicalBundle& Bundle,const FProjectWorldCanonicalCell& Cell,
+		const FProjectWorldRealizationLayer& Layer,const TSet<FString>& FeatureIds,FProjectWorldRoadNominalFootprint& Out,FString& Error)
+	{
+		Out={}; FRoadSettings Settings; FProjectWorldRoadNominalFootprint Candidate;
+		if (!ResolveSettings(Layer,Settings,Error)) return false;
+		FString Geometry=TEXT("nominal_road_xy_before_conform_v1|")+Bundle.CanonicalCrs+TEXT("|");
+		for (const auto& Id : CellRoadFeatureIds(Bundle,Cell,Settings))
+		{
+			if (!FeatureIds.Contains(Id)) continue;
+			const auto& Feature=Bundle.Features.FindChecked(Id); TArray<ProjectWorldRoadFormation::FSegment> Segments; FString Consumed;
+			if (!ProjectWorldRoadFormation::ForCell(Feature,Cell.CellId,Settings.MaximumSegmentLengthMeters,
+				Bundle.CoordinateQuantizationMeters*2.,Segments,Consumed,Error)) return false;
+			if (Segments.IsEmpty()) {Error=TEXT("A locally selected Road has no nominal fragment."); return false;}
+			if (Candidate.Triangles.Num()+Segments.Num()*2>65536)
+			{Error=TEXT("Nominal Road read exceeds its aggregate 65536-triangle cell-selection capacity."); return false;}
+			Candidate.LocallyEligibleFeatureIds.Add(Id); AppendToken(Geometry,Id);
+			for (const auto& Segment : Segments) for (const auto& Face : ProjectWorldRoadFormation::Faces(Segment,0))
+			{
+				double Height;
+				if (!ProjectWorldTerrainSurface::Height(Face,FVector2D(Face.Points[0]),Height,Error)) return false;
+				Candidate.Triangles.Add(Face);
+				for (const auto& P : Face.Points) {AppendNumber(Geometry,P.X); AppendNumber(Geometry,P.Y);}
+			}
+		}
+		if (!HashText(Geometry,Candidate.GeometryHash)) {Error=TEXT("Cannot identify nominal Road XY."); return false;}
+		Out=MoveTemp(Candidate); return true;
 	}
 
 	bool ExpectsCellOutput(

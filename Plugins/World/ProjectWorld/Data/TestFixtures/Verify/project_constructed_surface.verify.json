@@ -1,0 +1,153 @@
+{
+  "$schema": "../../Schemas/project_world_verify_baseline.schema.json",
+  "schema_version": 1,
+  "verify": "Project.World.Realization.Verify.ConstructedSurface",
+  "identity": {
+    "producer_id": "project_constructed_surface:v1",
+    "output_revision": 1,
+    "pipeline_revision": 1,
+    "comparison_contract_version": 1,
+    "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
+    "fixture_inputs": [
+      {"name": "memory:bundle", "sha256": "82981e01b15b80f9f12b2701399af1c4679ceb37a1ba5af8ef52ac31c2117771"},
+      {"name": "memory:layer", "sha256": "8b77e53f7308dd5be70d4afc9a82d95ccf6e64bb962c91f2440861b870c16b05"},
+      {"name": "object:/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial", "sha256": "e707d63439f5df802115c7c1693e64e47e708fb619e581a2af2e1651466eeaa4"}
+    ],
+    "embedded": []
+  },
+  "projection_sha256": "641322a059403c4b0c7af67ea9e8869291f9d8820272b3591f590b7a1e14a0db",
+  "records": [
+    {
+      "kind": "actor",
+      "key": "Cells/SM_ProjectConstructed_4077307F60E73A30589165B6BD511F60",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.StaticMeshActor",
+        "component.affects_navigation": "1",
+        "component.class": "/Script/Engine.StaticMeshComponent",
+        "component.collision_enabled": "QueryAndPhysics",
+        "component.collision_profile": "BlockAll",
+        "component.mesh": "Cells/SM_ProjectConstructed_4077307F60E73A30589165B6BD511F60.SM_ProjectConstructed_4077307F60E73A30589165B6BD511F60",
+        "component.mobility": "Static",
+        "component.overlap_events": "0",
+        "component.override_materials": "",
+        "component.relative_transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "external_package": "1",
+        "guid": "2937ef93-62fa-8446-9d69-b60e206ecec9",
+        "hlod_layer": "none",
+        "label": "StaticMeshActor",
+        "name": "ProjectWorld_Constructed_4077307F60E73A30589165B6BD511F60",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.ConstructedCell=cell_0,ProjectWorld.ConstructedGeometry=4362321d0ce2e11647d806bf4e6376c380ca3102dbcf65e2b5d9a2628bc70e0f,ProjectWorld.ConstructedInput=a5e8c8cc19d326cb70cb8a093f853eafcf0f4928df237cf133a012ed2602c83f,ProjectWorld.ConstructedModel=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,ProjectWorld.ConstructedSurface.v1,ProjectWorld.ConstructedUnit=4077307F60E73A30589165B6BD511F60,ProjectWorld.Generated.v1,ProjectWorld.Grid=constructed_verify_grid",
+        "transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "Cells/SM_ProjectConstructed_55232DEEF1D17C9389A4B2F27A7B1583",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.StaticMeshActor",
+        "component.affects_navigation": "1",
+        "component.class": "/Script/Engine.StaticMeshComponent",
+        "component.collision_enabled": "QueryAndPhysics",
+        "component.collision_profile": "BlockAll",
+        "component.mesh": "Cells/SM_ProjectConstructed_55232DEEF1D17C9389A4B2F27A7B1583.SM_ProjectConstructed_55232DEEF1D17C9389A4B2F27A7B1583",
+        "component.mobility": "Static",
+        "component.overlap_events": "0",
+        "component.override_materials": "",
+        "component.relative_transform": "t=100000,-100000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "external_package": "1",
+        "guid": "73c7b8d5-8e2b-83fb-dbca-2d5f5df4a6e4",
+        "hlod_layer": "none",
+        "label": "StaticMeshActor",
+        "name": "ProjectWorld_Constructed_55232DEEF1D17C9389A4B2F27A7B1583",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.ConstructedCell=cell_1,ProjectWorld.ConstructedGeometry=6c57b4522bd2081b5dba66fa82b1ba1a981eac10b0795b72c39991753776bfd0,ProjectWorld.ConstructedInput=d622fdf0e98644cd5d2077ab867dbf8426903b878326b6064a310d2f49d18a55,ProjectWorld.ConstructedModel=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,ProjectWorld.ConstructedSurface.v1,ProjectWorld.ConstructedUnit=55232DEEF1D17C9389A4B2F27A7B1583,ProjectWorld.Generated.v1,ProjectWorld.Grid=constructed_verify_grid",
+        "transform": "t=100000,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "actor",
+      "key": "Cells/SM_ProjectConstructed_A642136E9DF2A7095C036F8CFAE6EDB8",
+      "fields": {
+        "auto_lod": "0",
+        "class": "/Script/Engine.StaticMeshActor",
+        "component.affects_navigation": "1",
+        "component.class": "/Script/Engine.StaticMeshComponent",
+        "component.collision_enabled": "QueryAndPhysics",
+        "component.collision_profile": "BlockAll",
+        "component.mesh": "Cells/SM_ProjectConstructed_A642136E9DF2A7095C036F8CFAE6EDB8.SM_ProjectConstructed_A642136E9DF2A7095C036F8CFAE6EDB8",
+        "component.mobility": "Static",
+        "component.overlap_events": "0",
+        "component.override_materials": "",
+        "component.relative_transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000",
+        "external_package": "1",
+        "guid": "787b2a76-528b-3ef6-b0bc-e3bc20a976e2",
+        "hlod_layer": "none",
+        "label": "StaticMeshActor",
+        "name": "ProjectWorld_Constructed_A642136E9DF2A7095C036F8CFAE6EDB8",
+        "spatially_loaded": "1",
+        "tags": "ProjectWorld.ConstructedCell=cell_0,ProjectWorld.ConstructedGeometry=4e6aa1ba146a45cc692d5f510fe6625b3fde32ff41005f56ef8976e77e56fc85,ProjectWorld.ConstructedInput=92cc479ae3e172b56f1410cfefeb19349e7d45fb5cf18d81b70779aad8d0514c,ProjectWorld.ConstructedModel=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,ProjectWorld.ConstructedSurface.v1,ProjectWorld.ConstructedUnit=A642136E9DF2A7095C036F8CFAE6EDB8,ProjectWorld.Generated.v1,ProjectWorld.Grid=constructed_verify_grid",
+        "transform": "t=0,-100000,0;r=0,0,0,1000000;s=100000,100000,100000"
+      }
+    },
+    {
+      "kind": "mesh",
+      "key": "Cells/SM_ProjectConstructed_4077307F60E73A30589165B6BD511F60",
+      "fields": {
+        "body": "present",
+        "body_double_sided": "1",
+        "body_simple_elements": "0",
+        "body_trace": "CTF_UseComplexAsSimple",
+        "distance_field": "0",
+        "distance_field_resolution_scale": "1",
+        "mesh_description": "4f93afab6c6715e93719f63dcee13b7d9dd99ad0db1f2998c1f6473721404139",
+        "nanite": "1",
+        "navigation_data": "1",
+        "render_lod0": "ec6e9005e1ce0457be49ae59dc6ed8a28bc112c5a1be614b541bda428b364e89",
+        "source_faces.sha256": "9129aed1218a5c13017258f93aee45ae73a1c2817f8fd8ef7a44a5c7fb87c4b5",
+        "source_models": "1",
+        "static_materials": "ConstructedSurface=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
+      }
+    },
+    {
+      "kind": "mesh",
+      "key": "Cells/SM_ProjectConstructed_55232DEEF1D17C9389A4B2F27A7B1583",
+      "fields": {
+        "body": "present",
+        "body_double_sided": "1",
+        "body_simple_elements": "0",
+        "body_trace": "CTF_UseComplexAsSimple",
+        "distance_field": "0",
+        "distance_field_resolution_scale": "1",
+        "mesh_description": "611904100c396fef5e7a33c45518f0f4f09ae824505380f17993d092ff6bd488",
+        "nanite": "1",
+        "navigation_data": "1",
+        "render_lod0": "2806c9a124146802667c727a60a90db37ddb2a71cb2355553b774b787e2d8e91",
+        "source_faces.sha256": "044959dc05620cbb3b5c2066eee04f877c5762376b2c4663f13b8855cee596e6",
+        "source_models": "1",
+        "static_materials": "ConstructedSurface=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
+      }
+    },
+    {
+      "kind": "mesh",
+      "key": "Cells/SM_ProjectConstructed_A642136E9DF2A7095C036F8CFAE6EDB8",
+      "fields": {
+        "body": "present",
+        "body_double_sided": "1",
+        "body_simple_elements": "0",
+        "body_trace": "CTF_UseComplexAsSimple",
+        "distance_field": "0",
+        "distance_field_resolution_scale": "1",
+        "mesh_description": "ca75a9d7efd668fa33126cbd5cf188342a97d167f36be3fa65e3853e75916278",
+        "nanite": "1",
+        "navigation_data": "1",
+        "render_lod0": "16e0773b3891feb5a459cf7efaac258e00fb4f4474e251f9e3fd0073706a8431",
+        "source_faces.sha256": "a5a267faa365e222107dfab02412c48cd2b72e4e07e66110bc57f4999fd9a03f",
+        "source_models": "1",
+        "static_materials": "ConstructedSurface=/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"
+      }
+    }
+  ]
+}

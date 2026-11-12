@@ -1,4 +1,5 @@
 """Source-station bridge elevation candidate; never owns native Road planform."""
+from bisect import bisect_left, bisect_right
 import math
 from pathlib import Path
 
@@ -43,6 +44,20 @@ def _overlaps(a, b):
                 max(p[1] for p in b) < min(p[1] for p in a))
 
 
+def _support_quads(cell, domains):
+    rows = cell['core_samples']
+    sx, sy = cell['sample_spacing']
+    # Match _point arithmetic so touching faces survive projected-coordinate rounding.
+    xs = [cell['bounds'][0] + x*sx for x in range(len(rows[0]))]
+    ys = [-(cell['bounds'][3] - y*sy) for y in range(len(rows))]
+    selected = set()
+    for lower, upper in domains:
+        x0, x1 = max(0, bisect_left(xs, lower[0])-1), min(len(xs)-1, bisect_right(xs, upper[0]))
+        y0, y1 = max(0, bisect_left(ys, -upper[1])-1), min(len(ys)-1, bisect_right(ys, -lower[1]))
+        selected.update((y, x) for y in range(y0, y1) for x in range(x0, x1))
+    return sorted(selected)
+
+
 def _terrain(cells, points, width):
     domains = [[(min(a[0], b[0])-width/2, min(a[1], b[1])-width/2),
                 (max(a[0], b[0])+width/2, max(a[1], b[1])+width/2)]
@@ -66,13 +81,12 @@ def _terrain(cells, points, width):
             _refuse('Source profile needs finite complete final Terrain')
         if cell.get('schema_version', 2) != 2 or cell.get('quads'):
             _refuse('Wrapped final Terrain requires its explicit triangle query contract')
-        for y in range(len(rows)-1):
-            for x in range(len(rows[0])-1):
-                a, b, c, d = (_point(cell, x, y)[:3], _point(cell, x+1, y)[:3],
-                              _point(cell, x, y+1)[:3], _point(cell, x+1, y+1)[:3])
-                if any(_overlaps([a, d], domain) for domain in domains):
-                    faces.extend(((a, b, c), (b, d, c)))
-                    consumed[identifier] = canonical_hash(cell)
+        for y, x in _support_quads(cell, domains):
+            a, b, c, d = (_point(cell, x, y)[:3], _point(cell, x+1, y)[:3],
+                          _point(cell, x, y+1)[:3], _point(cell, x+1, y+1)[:3])
+            if any(_overlaps([a, d], domain) for domain in domains):
+                faces.extend(((a, b, c), (b, d, c)))
+                consumed[identifier] = canonical_hash(cell)
     if not faces:
         _refuse('Source profile has no Terrain support')
     return faces, consumed

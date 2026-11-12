@@ -12,6 +12,9 @@ struct FProjectWorldMeshTerrainSurfaceFidelity
 
 namespace ProjectWorldMeshTerrainProducer
 {
+	bool CompareCanonicalSurface(const FProjectWorldCanonicalBundle& Bundle,
+		const TArray<FProjectWorldSurfaceTriangle>& CompiledCanonicalTriangles, double ToleranceMeters,
+		FProjectWorldMeshTerrainSurfaceFidelity& Result, FString& Error);
 	bool CompareRefinedSurface(const FProjectWorldCanonicalBundle& Bundle,
 		const TArray<FProjectWorldSurfaceTriangle>& CompiledCanonicalTriangles, double ToleranceMeters,
 		FProjectWorldMeshTerrainSurfaceFidelity& Result, FString& Error);

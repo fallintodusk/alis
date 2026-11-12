@@ -18,6 +18,8 @@
 #include "NavigationSystem.h"
 #include "UObject/UnrealType.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldRuntimeNavigation, Log, All);
+
 namespace ProjectWorldRuntimeNavigation
 {
 	namespace
@@ -110,6 +112,90 @@ namespace ProjectWorldRuntimeNavigation
 			OutNavigation->Tick(0.0f);
 			return true;
 		}
+	}
+
+	bool ReconcileTerritoryData(UWorld* World, FString& OutError)
+	{
+		OutError.Reset();
+		auto Refuse = [&OutError](const TCHAR* Message) { OutError = Message; return false; };
+		auto* Navigation = World ? Cast<UNavigationSystemV1>(World->GetNavigationSystem()) : nullptr;
+		if (!Navigation || !World->PersistentLevel || Navigation->GetWorld() != World || !Navigation->IsActiveTilesGenerationEnabled())
+			return Refuse(TEXT("Map navigation reconciliation requires its owning invoker-only navigation system."));
+		const FNavDataConfig& Config = Navigation->GetDefaultSupportedAgentConfig();
+		if (!Config.IsValid() || !FMath::IsFinite(Config.AgentRadius) || !FMath::IsFinite(Config.AgentHeight) ||
+			Config.AgentRadius <= 0 || Config.AgentHeight <= 0 || Config.GetNavDataClass<ANavigationData>() != ARecastNavMesh::StaticClass())
+			return Refuse(TEXT("Map navigation reconciliation requires a valid supported stock Recast agent."));
+		TArray<ARecastNavMesh*> Existing;
+		for (TActorIterator<ARecastNavMesh> It(World); It; ++It) Existing.Add(*It);
+		ANavigationData* Default = Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+		if (Existing.IsEmpty())
+		{
+			ARecastNavMesh* Created = nullptr;
+			return EnsureInternalData(World, Navigation, Created, OutError);
+		}
+		if (Existing.Num() != 1 || (Default && Default != Existing[0]))
+			return Refuse(TEXT("Map navigation reconciliation refuses conflicting native data ownership."));
+		ARecastNavMesh* Recast = Existing[0];
+		if (Recast->GetClass() != ARecastNavMesh::StaticClass() || Recast->GetWorld() != World ||
+			Recast->GetLevel() != World->PersistentLevel || Recast->IsPackageExternal())
+			return Refuse(TEXT("Map navigation reconciliation requires one exact stock persistent internal actor."));
+		const auto AgentMatches = [&]()
+		{
+			return Recast->GetConfig().Name == Config.Name && Recast->GetConfig().AgentRadius == Config.AgentRadius &&
+				Recast->GetConfig().AgentHeight == Config.AgentHeight && Recast->AgentRadius == Config.AgentRadius &&
+				Recast->AgentHeight == Config.AgentHeight;
+		};
+		if (Recast->IsRegistered() && !AgentMatches())
+			return Refuse(TEXT("Registered map navigation has inconsistent agent bookkeeping; reconciliation refuses before mutation."));
+		const auto* Defaults = GetDefault<ARecastNavMesh>();
+		const float DefaultCell = Defaults->GetCellSize(ENavigationDataResolution::Default);
+		const float Tile = FMath::Max(4096.f, Recast->TileSizeUU);
+		if (!FMath::IsFinite(Recast->TileSizeUU) || Recast->TileSizeUU <= 0 || !FMath::IsFinite(DefaultCell) || DefaultCell < 1 || DefaultCell > 1024 ||
+			Tile < FMath::Max3(float(RECAST_MIN_TILE_SIZE), 16 * DefaultCell, 4 * Config.AgentRadius) ||
+			Tile > FMath::Max(float(RECAST_MIN_TILE_SIZE), 1024 * DefaultCell))
+			return Refuse(TEXT("Map navigation reconciliation cannot preserve the tile under the accepted native resolution limits."));
+		TArray<float> Desired;
+		bool Changed = !Recast->IsRegistered() || !AgentMatches() || Recast->TileSizeUU != Tile;
+		for (const auto R : {ENavigationDataResolution::Low, ENavigationDataResolution::Default, ENavigationDataResolution::High})
+		{
+			const float Cell = Defaults->GetCellSize(R), Height = Defaults->GetCellHeight(R);
+			const float Step = Config.HasStepHeightOverride() ? Config.AgentStepHeight : Defaults->GetAgentMaxStepHeight(R);
+			if (!FMath::IsFinite(Cell) || Cell < 1 || Cell > 1024 || !FMath::IsFinite(Height) || Height < 1 || Height > 1024 ||
+				!FMath::IsFinite(Step) || Step < 0 || FMath::RoundToInt(Tile / Cell) < 1)
+				return Refuse(TEXT("Map navigation reconciliation refuses invalid accepted resolution tiers."));
+			const float Rematched = FMath::Clamp(Tile / float(FMath::RoundToInt(Tile / Cell)), 1.f, 1024.f);
+			Desired.Append({Rematched, Height, Step});
+			Changed |= Recast->GetCellSize(R) != Rematched || Recast->GetCellHeight(R) != Height || Recast->GetAgentMaxStepHeight(R) != Step;
+		}
+		FFloatProperty* TileProperty = FindFProperty<FFloatProperty>(ARecastNavMesh::StaticClass(), TEXT("TileSizeUU"));
+		if (!TileProperty) return Refuse(TEXT("Map navigation reconciliation cannot access the native tile property."));
+		if (!Changed)
+		{
+			ARecastNavMesh* Current = nullptr;
+			return EnsureInternalData(World, Navigation, Current, OutError) && Current == Recast;
+		}
+		Navigation->UnregisterNavData(Recast);
+		for (const auto R : {ENavigationDataResolution::Low, ENavigationDataResolution::Default, ENavigationDataResolution::High})
+		{
+			Recast->SetCellSize(R, Defaults->GetCellSize(R)); Recast->SetCellHeight(R, Defaults->GetCellHeight(R));
+			Recast->SetAgentMaxStepHeight(R, Config.HasStepHeightOverride() ? Config.AgentStepHeight : Defaults->GetAgentMaxStepHeight(R));
+		}
+		Recast->SetConfig(Config); Recast->TileSizeUU = Tile;
+		FPropertyChangedEvent Change(TileProperty); Recast->PostEditChangeProperty(Change);
+		Navigation->RequestRegistrationDeferred(*Recast); Navigation->Tick(0.0f);
+		ARecastNavMesh* Registered = nullptr;
+		if (!EnsureInternalData(World, Navigation, Registered, OutError)) return false;
+		if (Registered != Recast || !AgentMatches() || Recast->TileSizeUU != Tile)
+			return Refuse(TEXT("Map navigation reconciliation did not retain the accepted native actor and agent."));
+		int32 I = 0;
+		for (const auto R : {ENavigationDataResolution::Low, ENavigationDataResolution::Default, ENavigationDataResolution::High})
+			if (Recast->GetCellSize(R) != Desired[I++] || Recast->GetCellHeight(R) != Desired[I++] || Recast->GetAgentMaxStepHeight(R) != Desired[I++])
+				return Refuse(TEXT("Map navigation reconciliation did not produce the accepted rematched resolution tiers."));
+		Recast->RebuildAll(); Recast->EnsureBuildCompletion(); Recast->MarkPackageDirty();
+		UE_LOG(LogProjectWorldRuntimeNavigation, Display,
+			TEXT("[ReconcileTerritoryData] Reconciled map-owned navigation - world=%s actor=%s radius_cm=%g height_cm=%g tile_cm=%g"),
+			*World->GetName(), *Recast->GetName(), Config.AgentRadius, Config.AgentHeight, Tile);
+		return true;
 	}
 
 	bool GetTerritoryDomainBounds(
@@ -285,17 +371,59 @@ namespace ProjectWorldRuntimeNavigation
 		ARecastNavMesh*& OutRecast,
 		FString& OutError)
 	{
-		OutRecast = Cast<ARecastNavMesh>(
-			Navigation->GetDefaultNavDataInstance(FNavigationSystem::Create));
-		if (OutRecast == nullptr)
+		OutRecast = nullptr;
+		OutError.Reset();
+		if (!World || !Navigation || Navigation->GetWorld() != World)
 		{
-			OutError = TEXT("Accepted route requires stock Recast navigation data.");
+			OutError = TEXT("Navigation data requires its owning world and navigation system.");
 			return false;
 		}
-		if (OutRecast->IsPackageExternal())
+		const FNavDataConfig& Config = Navigation->GetDefaultSupportedAgentConfig();
+		if (!Config.IsValid() || !FMath::IsFinite(Config.AgentRadius) || !FMath::IsFinite(Config.AgentHeight) ||
+			Config.AgentRadius <= 0 || Config.AgentHeight <= 0 || Config.GetNavDataClass<ANavigationData>() != ARecastNavMesh::StaticClass())
 		{
-			OutRecast->SetPackageExternal(false);
+			OutError = TEXT("Accepted route requires a valid supported stock Recast agent.");
+			return false;
 		}
+		ANavigationData* Data = Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+		TArray<ARecastNavMesh*> Existing;
+		for (TActorIterator<ARecastNavMesh> It(World); It; ++It) Existing.Add(*It);
+		if ((Data && (Existing.Num() != 1 || Existing[0] != Data)) || (!Data && !Existing.IsEmpty()))
+		{
+			OutError = TEXT("Navigation data census conflicts with its single map-owned default.");
+			return false;
+		}
+		ANavigationData* Created = nullptr;
+		if (!Data)
+		{
+			// The default creation overload uses fallback dimensions rather than the supported agent.
+			Created = Navigation->CreateNavigationDataInstanceInLevel(Config, World->PersistentLevel);
+			if (Created)
+			{
+				Navigation->RequestRegistrationDeferred(*Created);
+				Navigation->Tick(0.0f);
+				Data = Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+			}
+		}
+		ARecastNavMesh* Recast = Cast<ARecastNavMesh>(Data);
+		if (!Recast || Recast->GetClass() != ARecastNavMesh::StaticClass() || !Recast->IsRegistered() || Recast->GetWorld() != World ||
+			Recast->GetLevel() != World->PersistentLevel || (Created && Data != Created) ||
+			Recast->GetConfig().Name != Config.Name || Recast->GetConfig().AgentRadius != Config.AgentRadius ||
+			Recast->GetConfig().AgentHeight != Config.AgentHeight)
+		{
+			if (IsValid(Created))
+			{
+				Navigation->UnregisterNavData(Created);
+				Created->CleanUpAndMarkPendingKill();
+			}
+			OutError = TEXT("Native navigation data is unregistered or differs from the supported agent.");
+			return false;
+		}
+		if (Recast->IsPackageExternal())
+		{
+			Recast->SetPackageExternal(false);
+		}
+		OutRecast = Recast;
 		return true;
 	}
 }

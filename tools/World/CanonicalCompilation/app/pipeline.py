@@ -46,6 +46,7 @@ from .terrain_surface import (
 )
 from .validation import build_validation_report
 from .water import expand_water_change_ids, validate_water_profile
+from .water_terrain_dependencies import changed_water_sources
 
 
 RUN_INPUTS_SCHEMA = "https://alis.world/schemas/world-compiler/run-inputs-v1.json"
@@ -399,6 +400,7 @@ def compile_world(
             else:
                 terrain_coordinates = set(targets)
             terrain = load_base_terrain(base_root, profile, identifier)
+            previous_terrain = dict(terrain)
             if terrain_coordinates:
                 terrain.update(build_terrain_cells(
                     repo_root(),
@@ -436,11 +438,15 @@ def compile_world(
                 )
             else:
                 base_features = load_base_features(base_root, profile, identifier)
+                terrain_water_ids = changed_water_sources(
+                    repo_root(), profile, previous_terrain, terrain, base_features,
+                    staging / "scratch" / "water_dependencies",
+                ) if terrain_coordinates else set()
                 selected_for_growth = select_source_features(
                     repo_root(), bundle.features, profile["grid"], new_targets,
                     staging / "scratch" / "selection",
                 )
-                changed_ids = set(expand_water_change_ids(profile, set(effective_feature_ids) | {
+                changed_ids = set(expand_water_change_ids(profile, set(effective_feature_ids) | terrain_water_ids | {
                     item["provider_feature_id"] for item in selected_for_growth
                 }))
                 base_source_groups = [

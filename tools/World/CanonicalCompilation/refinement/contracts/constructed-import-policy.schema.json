@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/constructed-import-policy-v1.json",
+  "type": "object",
+  "required": ["$schema", "schema_version", "maximum_triangles", "maximum_ordinary_gradient", "maximum_gangway_grade", "maximum_cross_slope", "maximum_numeric_error_m"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/constructed-import-policy-v1.json"},
+    "schema_version": {"const": 1},
+    "maximum_triangles": {"type": "integer", "minimum": 1, "maximum": 4096},
+    "maximum_ordinary_gradient": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.02},
+    "maximum_gangway_grade": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.125},
+    "maximum_cross_slope": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.02},
+    "maximum_numeric_error_m": {"type": "number", "exclusiveMinimum": 0, "maximum": 1e-8}
+  }, "additionalProperties": false
+}

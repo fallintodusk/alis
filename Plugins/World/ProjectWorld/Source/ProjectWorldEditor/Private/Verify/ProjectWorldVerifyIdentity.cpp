@@ -4,6 +4,7 @@
 #include "ProjectWorldVerify.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldContainedStage.h"
 #include "ProjectWorldVerifyInternal.h"
 
 #include "Dom/JsonObject.h"
@@ -106,7 +107,7 @@ namespace ProjectWorldVerifyIdentityDetail
 		Append(Target, Name, FString::FromInt(Values.Num()) + TEXT(";") + FString::Join(Values, TEXT(";")));
 	}
 
-	// Every field of ProjectWorldCanonicalBundle.h in declaration order; map entries sorted by key.
+	// Keep stable fixture order; default optional fields preserve existing identities and map keys sort.
 	FString SerializeBundle(const FProjectWorldCanonicalBundle& Bundle)
 	{
 		FString Text;
@@ -228,8 +229,9 @@ namespace ProjectWorldVerifyIdentityDetail
 				TEXT(";") + Water.Geometry + TEXT(";") + Water.Behavior + TEXT(";") + Water.Role + TEXT(";") +
 				Water.FunctionId + TEXT(";") + FString::FromInt(Water.FunctionVersion) + TEXT(";") +
 				Number(Water.LevelMeters) + TEXT(";") + Knots + TEXT(";") + (Water.bValid ? TEXT("1") : TEXT("0")));
-			if (Water.FunctionId == TEXT("contained_ground_quantile") && Water.ContainmentSpillMeters.IsSet())
+            if (ProjectWorldContainedStage::Recognizes(Water.FunctionId) && Water.ContainmentSpillMeters.IsSet())
 				Append(Text, P + TEXT("water.contained_spill"), Number(*Water.ContainmentSpillMeters));
+			if (Water.BasinAdmission.IsSet()) Append(Text,P+TEXT("water.basin_admission"),Water.BasinAdmission->AdmissionHash);
 			Append(Text, P + TEXT("classes"), Feature.RoadClass + TEXT(";") + Feature.VegetationClass + TEXT(";") +
 				Feature.FoliageClass + TEXT(";") + Feature.LeafType + TEXT(";") + Feature.LeafCycle + TEXT(";") + Feature.Species);
 			Append(Text, P + TEXT("dimensions"), Number(Feature.WidthMeters) + TEXT(";") + Number(Feature.HeightMeters));
@@ -242,12 +244,78 @@ namespace ProjectWorldVerifyIdentityDetail
 			{
 				const auto& E = Feature.RoadElevation.GetValue();
 				Append(Text, P + TEXT("road_elevation"), E.SourceFeatureId + TEXT(";") + Number(E.LengthMeters) + TEXT(";") + Number(E.WidthMeters));
+				if (E.EndpointRelation != EProjectWorldRoadEndpointRelation::TerrainAbutment || !E.ConstructedSurfaceHash.IsEmpty())
+				{
+					Append(Text, P + TEXT("road_endpoint_relation"), FString::FromInt(static_cast<int32>(E.EndpointRelation)));
+					Append(Text, P + TEXT("road_constructed_support"), E.ConstructedSurfaceHash);
+				}
+				if (E.Domain != EProjectWorldRoadElevationDomain::SourceParameter || !E.ReferencedSurfaceModels.IsEmpty())
+				{
+					Append(Text, P + TEXT("road_elevation_domain"), FString::FromInt(static_cast<int32>(E.Domain)));
+					TArray<FString> Models; E.ReferencedSurfaceModels.GetKeys(Models); Models.Sort();
+					Append(Text, P + TEXT("road_models.count"), FString::FromInt(Models.Num()));
+					for (const auto& Key : Models) Append(Text, P + TEXT("road_model[") + Key + TEXT("]"), E.ReferencedSurfaceModels[Key]);
+				}
 				AppendPoints(Text, P + TEXT("road_source"), E.SourcePoints);
 				for (int32 I = 0; I < E.Triangles.Num(); ++I)
 					for (int32 J = 0; J < 3; ++J)
 						Append(Text, P + FString::Printf(TEXT("road_elevation[%d][%d]"), I, J), Number(E.Triangles[I].UVZ[J].X) + TEXT(";") + Number(E.Triangles[I].UVZ[J].Y) + TEXT(";") + Number(E.Triangles[I].UVZ[J].Z));
 				TArray<FString> Supports; E.TerrainArtifacts.GetKeys(Supports); Supports.Sort();
 				for (const auto& Key : Supports) Append(Text, P + TEXT("road_support[") + Key + TEXT("]"), E.TerrainArtifacts[Key]);
+			}
+			if (Feature.ConstructedSurface.IsSet())
+			{
+				const auto& Surface = Feature.ConstructedSurface.GetValue();
+				const FString S = P + TEXT("constructed.");
+				Append(Text, S + TEXT("source"), Surface.SourceFeatureId);
+				Append(Text, S + TEXT("model"), Surface.ModelHash);
+				Append(Text, S + TEXT("crs"), Surface.CanonicalCrs);
+				Append(Text, S + TEXT("datum"), Surface.VerticalDatum);
+				Append(Text, S + TEXT("basis"), Surface.Basis);
+				Append(Text, S + TEXT("role"), Surface.Role);
+				if (!Surface.FaceRegions.IsEmpty())
+				{
+					Append(Text,S+TEXT("regions.count"),FString::FromInt(Surface.FaceRegions.Num()));
+					for (int32 I=0; I<Surface.FaceRegions.Num(); ++I)
+					{
+						const auto& Region=Surface.FaceRegions[I]; const FString R=S+FString::Printf(TEXT("region[%d]."),I);
+						Append(Text,R+TEXT("role"),Region.Role);
+						Append(Text,R+TEXT("sources"),FString::Join(Region.SourceIds,TEXT(";")));
+						FString Indices; for (int32 Index : Region.SourceTriangles) Indices+=FString::FromInt(Index)+TEXT(";");
+						Append(Text,R+TEXT("faces"),Indices);
+						Append(Text,R+TEXT("axis"),Region.AxisSourceId+TEXT(";")+Number(Region.AxisStart.X)+TEXT(";")+
+							Number(Region.AxisStart.Y)+TEXT(";")+Number(Region.AxisEnd.X)+TEXT(";")+Number(Region.AxisEnd.Y));
+					}
+				}
+				if (Surface.OperationalPolicy.IsSet())
+				{
+					const auto& Policy=Surface.OperationalPolicy.GetValue();
+					Append(Text,S+TEXT("operational_policy"),FString::FromInt(Policy.MaximumTriangles)+TEXT(";")+
+						Number(Policy.MaximumOrdinaryGradient)+TEXT(";")+Number(Policy.MaximumGangwayGrade)+TEXT(";")+
+						Number(Policy.MaximumCrossSlope)+TEXT(";")+Number(Policy.MaximumNumericErrorMeters));
+				}
+				if (!Surface.AdmissionHash.IsEmpty() || !Surface.PolicyHash.IsEmpty() ||
+					!Surface.SourceProviderIds.IsEmpty() || !Surface.SourceSnapshots.IsEmpty())
+				{
+					Append(Text,S+TEXT("admission"),Surface.AdmissionHash);
+					Append(Text,S+TEXT("policy"),Surface.PolicyHash);
+					Append(Text,S+TEXT("provider_ids"),FString::Join(Surface.SourceProviderIds,TEXT(";")));
+					Append(Text,S+TEXT("snapshots.count"),FString::FromInt(Surface.SourceSnapshots.Num()));
+					for (int32 I=0; I<Surface.SourceSnapshots.Num(); ++I)
+					{
+						const auto& Snapshot=Surface.SourceSnapshots[I];
+						Append(Text,S+FString::Printf(TEXT("snapshot[%d]"),I),Snapshot.Path+TEXT(";")+Snapshot.Hash+
+							TEXT(";")+FString::Printf(TEXT("%lld"),Snapshot.ByteSize)+TEXT(";")+
+							(Snapshot.bNative ? TEXT("native;") : TEXT("source;"))+Snapshot.ContextId);
+					}
+				}
+				Append(Text, S + TEXT("triangles.count"), FString::FromInt(Surface.Triangles.Num()));
+				for (int32 I = 0; I < Surface.Triangles.Num(); ++I) for (int32 J = 0; J < 3; ++J)
+				{
+					const FVector& Point = Surface.Triangles[I].XYZ[J];
+					Append(Text, S + FString::Printf(TEXT("triangle[%d][%d]"), I, J),
+						Number(Point.X) + TEXT(";") + Number(Point.Y) + TEXT(";") + Number(Point.Z));
+				}
 			}
 			Append(Text, P + TEXT("volumes.count"), FString::FromInt(Feature.BuildingVolumes.Num()));
 			for (int32 Index = 0; Index < Feature.BuildingVolumes.Num(); ++Index)

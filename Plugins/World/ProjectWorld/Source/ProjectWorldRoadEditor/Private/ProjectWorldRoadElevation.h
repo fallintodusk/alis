@@ -11,7 +11,7 @@ namespace ProjectWorldRoadElevation
 		FString& ConsumedIdentity, FString& Error);
 	bool Station(const FProjectWorldCanonicalFeature& Feature, const FVector2D& XY, double Tolerance,
 		double& Out, FString& Error);
-	bool Append(const FProjectWorldCanonicalFeature& Feature, const FVector2D& A, const FVector2D& B,
+	bool Append(const FProjectWorldCanonicalBundle& Bundle, const FProjectWorldCanonicalFeature& Feature, const FVector2D& A, const FVector2D& B,
 		const FVector2D& SideA, const FVector2D& SideB, double Tolerance, double Offset,
 		TArray<ProjectWorldRoadSurface::FRibbonTriangle>& Out, FString& Error);
 }

@@ -7,12 +7,10 @@ import tempfile
 import zipfile
 
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError, exclusive_file_lock
-from World.SourceIngestion.api import osm_context_identity
 from World.SourceIngestion.api import validate_document as validate_source
-from World.ExecutionEnvironment.geometry.api import execution_identity
 from ...app.contracts import CompilerError, canonical_hash, file_hash, read_json, resolve_owned_path
-from .contracts import existing_result, validate_document
-from .identity import implementation_identity
+from .contracts import existing_result, request_input_descriptors, strict_json_document, validate_document, validate_native_snapshot
+from .identity import request_is_current
 from .surface_publication import prepare_surface_refinement
 
 
@@ -21,7 +19,7 @@ def _refuse(message):
 
 
 def _validate_payload(payload, path):
-    document = json.loads(payload)
+    document = strict_json_document(payload, path)
     if str(document.get('$schema', '')).startswith('https://alis.world/schemas/world-source/'):
         validate_source(document, Path(path))
     else:
@@ -41,12 +39,32 @@ def _archive_result(bundle, name, digest, count):
     entries = result['outputs']
     if len(entries) != count or len({e['path'] for e in entries}) != count or set(names) != {name, *(e['path'] for e in entries)}:
         _refuse('Effective bundle inventory differs from its result')
+    request_entry = next((e for e in entries if e['path'] == 'refinement/request.json'), None)
+    if request_entry is None:
+        _refuse('Effective refinement has no declared request')
+    request_bytes = bundle.read(request_entry['path'])
+    if len(request_bytes) != request_entry['byte_size'] or hashlib.sha256(request_bytes).hexdigest() != request_entry['sha256']:
+        _refuse('Effective refinement request differs from its pinned result')
+    request = _validate_payload(request_bytes, request_entry['path'])
+    inputs = request_input_descriptors(request)
+    if not set(inputs) <= {entry['path'] for entry in entries}:
+        _refuse('Effective refinement omits a declared retained input')
     for entry in entries:
         payload = bundle.read(entry['path'])
         if (not entry['path'].endswith('.json') or len(payload) != entry['byte_size'] or
                 hashlib.sha256(payload).hexdigest() != entry['sha256']):
             _refuse('Effective output is not a pinned canonical document')
-        _validate_payload(payload, entry['path'])
+        descriptor, role = inputs.get(entry['path'], (None, None))
+        if descriptor is not None and any(entry[key] != descriptor[key] for key in ('sha256', 'byte_size')):
+            _refuse('Retained refinement input disagrees with its request descriptor')
+        if role == 'native':
+            validate_native_snapshot(payload, descriptor)
+        else:
+            document = _validate_payload(payload, entry['path'])
+            if role == 'basin' and document.get('$schema') != 'https://alis.world/schemas/world-compiler/identified-basin-input-v1.json':
+                _refuse('Retained basin input differs from its declared role')
+            if role == 'authored' and document.get('$schema') != 'https://alis.world/schemas/world-compiler/authored-overlay-v2.json':
+                _refuse('Retained authored input differs from its declared role')
     return result
 
 
@@ -54,6 +72,27 @@ def _selection_identity(authority, selected):
     return canonical_hash({'base_authority_id': authority['authority_id'],
         'base_bundle_sha256': authority['bundle']['sha256'],
         'selected_refinement': {k: v for k, v in selected.items() if k != 'effective_identity'}})
+
+
+def selected_request(root, selected):
+    """Read the pinned request for current-producer checks after authority authentication."""
+    archive = resolve_owned_path(root, selected['bundle']['path'])
+    with zipfile.ZipFile(archive) as bundle:
+        payload = bundle.read('refinement_result.json')
+        if hashlib.sha256(payload).hexdigest() != selected['result_sha256']:
+            _refuse('Current-producer request has another refinement result')
+        result = _validate_payload(payload, 'refinement_result.json')
+        entry = next((e for e in result['outputs'] if e['path'] == 'refinement/request.json'), None)
+        if entry is None:
+            _refuse('Current-producer request is not declared by the refinement result')
+        payload = bundle.read(entry['path'])
+        if len(payload) != entry['byte_size'] or hashlib.sha256(payload).hexdigest() != entry['sha256']:
+            _refuse('Current-producer request bytes differ from the declared input')
+        request = _validate_payload(payload, entry['path'])
+    if (canonical_hash(request) != selected['inputs_hash'] or request['base_result_sha256'] != selected['base_result_sha256'] or
+            any(request[key] != selected[key] for key in ('implementation_sha256', 'source_context_identity', 'execution_identity'))):
+        _refuse('Current-producer request disagrees with its selected identity')
+    return request
 
 
 def validate_selection_bundle(authority: dict, root: Path) -> None:
@@ -82,17 +121,22 @@ def validate_selection_bundle(authority: dict, root: Path) -> None:
                 any(request[k] != selected[k] for k in
                     ('implementation_sha256', 'source_context_identity', 'execution_identity'))):
             _refuse('Selected operation and historical child producer disagree')
-        contexts = {op['context']['path'] for op in request['operations']}
-        for op in request['operations']:
-            payload = child.read(op['context']['path'])
-            if len(payload) != op['context']['byte_size'] or hashlib.sha256(payload).hexdigest() != op['context']['sha256']:
+        inputs = request_input_descriptors(request)
+        contexts = set(inputs)
+        for path, (descriptor, _) in inputs.items():
+            payload = child.read(path)
+            if len(payload) != descriptor['byte_size'] or hashlib.sha256(payload).hexdigest() != descriptor['sha256']:
                 _refuse('Selected source context differs from the operation request')
         base_result = json.loads(base.read('compile_result.json'))
         base_paths = {e['path'] for e in base_result['outputs']}
         child_paths = {e['path'] for e in result['outputs']}
-        if child_paths != base_paths | contexts | {'refinement/request.json', 'reports/refinement.json'}:
+        terrain_paths = _declared_terrain(base, child, request)
+        if child_paths != base_paths | contexts | set(terrain_paths) | {'refinement/request.json', 'reports/refinement.json'}:
             _refuse('Surface refinement adds or removes unrelated canonical artifacts')
+        authored_only = all(op['kind'] == 'authored_dry_terrain' for op in request['operations'])
         for path in base_paths:
+            if authored_only and path.startswith('canonical/features/') and child.read(path) != base.read(path):
+                _refuse('Authored-only refinement changed an original feature artifact')
             permitted = path == 'canonical/coverage.json' or path.startswith(('canonical/features/', 'canonical/cells/'))
             if not permitted and child.read(path) != base.read(path):
                 _refuse('Surface refinement changed an unrelated base artifact')
@@ -102,10 +146,72 @@ def validate_selection_bundle(authority: dict, root: Path) -> None:
 
 
 def _current_request(repo, request):
-    if (request['implementation_sha256'] != implementation_identity() or
-            request['source_context_identity'] != osm_context_identity() or
-            request['execution_identity'] != execution_identity(repo, True)['identity_sha256']):
+    if not request_is_current(repo, request):
         _refuse('New child does not bind current producing contracts')
+
+
+def _declared_terrain(base, child, request):
+    """Permit only the declared selected-cell payloads, preserving every base grid."""
+    coverage = json.loads(base.read('canonical/coverage.json'))
+    cells = {entry['cell_id']: entry for entry in coverage['cells']}
+    child_paths = set(child.namelist())
+    declared = {}
+    for operation in request['operations']:
+        if operation['kind'] == 'authored_dry_terrain':
+            from .authored_terrain import CONSTRUCTION, POLICY, cell_quads, domain_identity, selection
+            document = _validate_payload(child.read(operation['input']['path']), operation['input']['path'])
+            originals = {key: json.loads(base.read(json.loads(base.read(entry['path']))['terrain_artifact']['path']))
+                         for key, entry in cells.items()}
+            selected, changed = selection(originals, document, coverage['grid'])
+            domain_hash = domain_identity(coverage, originals, selected)
+            for key, coordinates in selected.items():
+                manifest = json.loads(base.read(cells[key]['path']))
+                original = manifest['terrain_artifact']
+                relative = original['path'].replace('canonical/terrain/', 'canonical/refined_terrain/')
+                if relative == original['path'] or relative in declared or relative not in child_paths:
+                    _refuse('Authored Terrain ownership is absent, nested or interacting')
+                payload = _validate_payload(child.read(relative), relative)
+                if (payload.get('construction') != CONSTRUCTION or payload['cell_id'] != key or
+                        payload['grid_id'] != manifest['grid_id'] or payload['policy'] != POLICY or
+                        payload['base'] != {'path': original['path'], 'sha256': original['content_hash'], 'byte_size': original['byte_size']} or
+                        sorted(q['coordinate'] for q in payload['quads']) != sorted(map(list, coordinates)) or
+                        payload['quads'] != cell_quads(originals, key, coordinates, changed) or
+                        payload['consumed']['authored_input_sha256'] != operation['input']['sha256'] or
+                        payload['consumed']['domain_sha256'] != domain_hash or
+                        any(payload['consumed'][field] != request[field]
+                            for field in ('implementation_sha256', 'execution_identity'))):
+                    _refuse('Authored Terrain payload differs from its declared immutable input')
+                declared[relative] = key
+            continue
+        if operation['kind'] != 'identified_basin':
+            continue
+        document = _validate_payload(child.read(operation['input']['path']), operation['input']['path'])
+        identifier = operation['feature_ids'][0]
+        if (set(operation['base_features']) != {identifier} or document['original_feature']['feature_id'] != identifier or
+                canonical_hash(document['original_feature']) != operation['base_features'][identifier]):
+            _refuse('Basin source feature is not bound to the immutable operation base')
+        for key, coordinates in document['selected'].items():
+            if key not in cells:
+                _refuse('Basin declares a Terrain owner outside the immutable base')
+            manifest = json.loads(base.read(cells[key]['path']))
+            original = manifest['terrain_artifact']
+            relative = original['path'].replace('canonical/terrain/', 'canonical/refined_terrain/')
+            if relative == original['path'] or relative in declared:
+                _refuse('Basin Terrain ownership is nested or interacting')
+            if relative not in child_paths:
+                _refuse(f'Declared basin Terrain payload is absent: {relative}')
+            payload = _validate_payload(child.read(relative), relative)
+            if (payload.get('construction') != 'identified_static_basin_pwa_v1' or payload['cell_id'] != key or
+                    payload['grid_id'] != manifest['grid_id'] or
+                    payload['base'] != {'path': original['path'], 'sha256': original['content_hash'], 'byte_size': original['byte_size']} or
+                    sorted(q['coordinate'] for q in payload['quads']) != sorted(coordinates) or
+                    payload['consumed']['model_input_sha256'] != operation['input']['sha256'] or
+                    payload['consumed']['water_sha256'] != operation['base_features'][identifier] or
+                    payload['consumed']['model_sha256'] != canonical_hash(document['model']) or
+                    payload['policy'] != document['model']['parameters']):
+                _refuse('Basin Terrain payload differs from its declared joint construction')
+            declared[relative] = key
+    return declared
 
 
 def _replay_result(repo, base_result_path, result_path, output_root):
@@ -117,9 +223,22 @@ def _replay_result(repo, base_result_path, result_path, output_root):
     if result['base_result_sha256'] != file_hash(base_result_path):
         _refuse('New child does not consume this exact accepted base')
     _current_request(repo, request)
-    operations = [{**{k: op[k] for k in ('kind', 'feature_ids')},
-        'context_path': resolve_owned_path(result_path.parent, op['context']['path']).relative_to(repo).as_posix(),
-        'sha256': op['context']['sha256'], 'byte_size': op['context']['byte_size']} for op in request['operations']]
+    operations = []
+    for operation in request['operations']:
+        if operation['kind'] in ('identified_basin', 'authored_dry_terrain'):
+            descriptor = {**operation['input'], 'path': resolve_owned_path(result_path.parent, operation['input']['path']).relative_to(repo).as_posix()}
+            operations.append({'kind': operation['kind'], 'feature_ids': operation['feature_ids'], 'input': descriptor})
+        elif operation['kind'] == 'constructed_surface_import':
+            from copy import deepcopy
+            from .contracts import operation_input_descriptors
+            inputs = deepcopy(operation['inputs'])
+            for descriptor, _ in operation_input_descriptors({**operation, 'inputs': inputs}):
+                descriptor['path'] = resolve_owned_path(result_path.parent, descriptor['path']).relative_to(repo).as_posix()
+            operations.append({'kind': operation['kind'], 'feature_ids': operation['feature_ids'], 'inputs': inputs})
+        else:
+            operations.append({**{k: operation[k] for k in ('kind', 'feature_ids')},
+                'context_path': resolve_owned_path(result_path.parent, operation['context']['path']).relative_to(repo).as_posix(),
+                'sha256': operation['context']['sha256'], 'byte_size': operation['context']['byte_size']})
     replay, replay_root = prepare_surface_refinement(repo, base_result_path, output_root, operations)
     if result != replay or file_hash(result_path) != file_hash(replay_root / 'refinement_result.json'):
         _refuse('Candidate is not the exact deterministic replay of its qualified operations')

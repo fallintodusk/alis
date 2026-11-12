@@ -101,13 +101,11 @@ Write-Host "LogDir:     $logDir"
 Write-Host "Started:    $($startTime.ToString('HH:mm:ss'))"
 Write-Host ""
 
-# Step 1: Kill any existing UE processes
-Write-Host "[1/4] Cleaning existing UE processes..." -ForegroundColor Yellow
-Get-Process | Where-Object {
-    $_.ProcessName -like "UnrealEditor*" -or
-    $_.ProcessName -like "UEBuildWorker*" -or
-    $_.ProcessName -like "ShaderCompileWorker*"
-} | Stop-Process -Force -ErrorAction SilentlyContinue
+# Step 1: Refuse incompatible pre-existing processes without changing them.
+Write-Host "[1/4] Checking cold-run availability..." -ForegroundColor Yellow
+. (Join-Path $PSScriptRoot 'owned_test_process.ps1')
+try { Assert-ProjectColdTestAvailable }
+catch { Write-Warning $_.Exception.Message; exit 2 }
 Write-Host "  Done" -ForegroundColor Green
 
 # Step 2: Run tests via UnrealEditor-Cmd (headless, no UI)
@@ -145,32 +143,13 @@ $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true
 $psi.CreateNoWindow = $true
 
-$proc = New-Object System.Diagnostics.Process
-$proc.StartInfo = $psi
-$proc.Start() | Out-Null
-
-# Read stdout/stderr asynchronously to avoid deadlock
-# (Must read BEFORE WaitForExit when both stdout and stderr are redirected)
-$stdoutTask = $proc.StandardOutput.ReadToEndAsync()
-$stderrTask = $proc.StandardError.ReadToEndAsync()
-
-# Wait with timeout
-$ok = $proc.WaitForExit($TimeoutSeconds * 1000)
-
-# Get output (tasks should be complete after WaitForExit)
-$stdout = $stdoutTask.Result
-$stderr = $stderrTask.Result
-$output = $stdout + "`n`n--- STDERR ---`n" + $stderr
-Set-Content -Path $testLog -Value $output
-
-if (-not $ok) {
-    Write-Host "  TIMEOUT: Tests did not complete in $TimeoutSeconds seconds" -ForegroundColor Red
-    try { $proc.Kill() } catch { }
-    Get-Process | Where-Object { $_.ProcessName -like "UnrealEditor*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-    exit 124  # Timeout exit code
+$processScratch = Join-Path $projectRoot ('tmp/test/native_process_owner/' + [guid]::NewGuid().ToString('N'))
+$execution = Invoke-ProjectOwnedTestProcess -StartInfo $psi -TimeoutSeconds $TimeoutSeconds -LogPath $testLog -ScratchRoot $processScratch
+if ($execution.ProcessDeadlineMissed -or $execution.InfrastructureError) {
+    Write-Warning "Native test execution refused: $($execution.InfrastructureError)"
+    exit $execution.ExitCode
 }
-
-$exitCode = $proc.ExitCode
+$exitCode = $execution.ExitCode
 Write-Host "  Tests completed (exit code: $exitCode)" -ForegroundColor $(if ($exitCode -eq 0) { "Green" } else { "Red" })
 
 # Step 3: Parse test results
@@ -208,8 +187,8 @@ $duplicateCompletedPaths = @($completedPaths | Group-Object | Where-Object { $_.
 
 $validationErrors = [System.Collections.Generic.List[string]]::new()
 
-if ($proc.ExitCode -ne 0) {
-    $validationErrors.Add("Editor process exited with code $($proc.ExitCode)")
+if ($exitCode -ne 0) {
+    $validationErrors.Add("Editor process exited with code $exitCode")
 }
 
 if ($null -eq $discoveredCount) {

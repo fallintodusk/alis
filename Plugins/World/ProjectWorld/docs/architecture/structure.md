@@ -33,7 +33,9 @@ Manhattan data and engine-specific terrain adapters stay outside this component.
 |---|---|
 | `ProjectWorld` | Runtime contracts, services, and reusable actors |
 | `ProjectWorldEditor` | Producer-neutral canonical-input realization, transactions, registry, and editor validation |
-| `ProjectWorldRoadEditor`, `ProjectWorldWaterEditor`, `ProjectWorldVegetationEditor`, `ProjectWorldBuildingEditor`, `ProjectWorldGameplayEditor` | Layer-owned settings, hashing, realization, artifacts, and verifies |
+| `ProjectWorldRoadEditor`, `ProjectWorldWaterEditor`, `ProjectWorldVegetationEditor`, `ProjectWorldGameplayEditor` | Layer-owned settings, hashing, realization, artifacts, and verifies |
+| [Building realization](../../Source/ProjectWorldBuildingEditor/README.md) | Building massing and qualified isolated modular-assembly composition |
+| [Structural realization](../../Source/ProjectWorldConstructedEditor/README.md) | Source-bound structural meshes and physical cell artifacts |
 | Territory contracts | Stable authority, identity, and acceptance semantics |
 | World Partition policy | Runtime streaming and cell policy |
 | Presentation resource resolution | Read accepted material manifests and authenticate role bindings, package bytes and loaded state |
@@ -41,6 +43,8 @@ Manhattan data and engine-specific terrain adapters stay outside this component.
 ## Relationships
 
 Relationships are drawn once in [the main view](diagrams/main.md).
+The [terrain and feature view](diagrams/terrain_features.md) separates canonical
+ground, mapped/modelled feature representations and their Unreal consumers.
 
 Through the canonical manifest contract, realization consumes authenticated
 engine-independent inputs. Through generated manifests and package identity,

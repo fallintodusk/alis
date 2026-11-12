@@ -14,6 +14,8 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Editor.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Engine/PostProcessVolume.h"
 #include "EngineUtils.h"
 #include "HAL/PlatformProcess.h"
@@ -21,6 +23,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -507,6 +510,35 @@ bool FProjectWorldSemanticFingerprintProvenanceTest::RunTest(const FString& Para
 		SemanticChange.SemanticFingerprint,
 		Initial.SemanticFingerprint);
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldPresentationGameRotationTest,
+	"Project.World.Realization.Presentation.GameRotation",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FProjectWorldPresentationGameRotationTest::RunTest(const FString&)
+{
+	using namespace ProjectWorldPresentationTests;
+	FProjectWorldPresentationProfile Profile; FProjectWorldPresentationResources Resources; FString Code,Error;
+	if (!ProjectWorldPresentationProfile::Load(ShippedProfilePath(),Profile,Code,Error) ||
+		!ProjectWorldPresentationProfile::ResolveResources(Profile,Resources,Error)) {AddError(Error);return false;}
+	UWorld* World=UWorld::CreateWorld(EWorldType::Game,false,FName(*FGuid::NewGuid().ToString()));
+	if (!TestNotNull(TEXT("A disposable native Game world exposes runtime mobility semantics."),World)) return false;
+	GEngine->CreateNewWorldContext(EWorldType::Game).SetCurrentWorld(World);
+	ON_SCOPE_EXIT {GEngine->DestroyWorldContext(World);World->DestroyWorld(false);};
+	World->InitializeActorsForPlay(FURL());
+	FProjectWorldRealizationResult Result;
+	if (!TestTrue(TEXT("The existing presentation owner applies the shipped profile in a Game world."),
+		ProjectWorldPresentationRealization::Apply(World,MakeBundle(),Profile,Resources,Result,Error))) {AddError(Error);return false;}
+	int32 Suns=0;
+	for (TActorIterator<ADirectionalLight> It(World);It;++It)
+	{
+		++Suns;
+		TestTrue(TEXT("The runtime Sun is initialized, so movement guards are actually active."),It->IsActorInitialized());
+		TestTrue(TEXT("The actual runtime Sun rotation matches the selected profile rather than the default spawn rotation."),
+			It->GetActorRotation().Equals(Profile.SunRotation,.001));
+		TestEqual(TEXT("The actual runtime Sun retains its configured intensity."),It->GetComponent()->Intensity,Profile.SunIntensityLux);
+	}
+	TestEqual(TEXT("The runtime presentation creates exactly one Sun."),Suns,1);return !HasAnyErrors();
 }
 
 #endif

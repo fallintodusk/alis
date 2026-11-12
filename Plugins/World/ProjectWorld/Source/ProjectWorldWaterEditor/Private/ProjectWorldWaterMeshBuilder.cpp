@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldWaterMeshBuilder.h"
+#include "ProjectWorldContainedStage.h"
 
 #include "ProjectWorldCanonicalBundle.h"
 
@@ -240,7 +241,7 @@ namespace ProjectWorldWaterMeshBuilder
 	double PresentationOffset(const FProjectWorldCanonicalFeature& Feature, double LayerOffsetMeters)
 	{
 		const auto& Surface = Feature.WaterSurface;
-		if (Surface.FunctionId != TEXT("contained_ground_quantile")) return LayerOffsetMeters;
+        if (!ProjectWorldContainedStage::Recognizes(Surface.FunctionId)) return LayerOffsetMeters;
 		return Surface.bValid && Surface.FunctionVersion == 1 && Surface.Behavior == TEXT("standing") &&
 			Surface.Geometry == TEXT("polygon") && Surface.ContainmentSpillMeters.IsSet() &&
 			FMath::IsFinite(*Surface.ContainmentSpillMeters) && FMath::IsFinite(Surface.LevelMeters) &&
@@ -250,7 +251,7 @@ namespace ProjectWorldWaterMeshBuilder
 	bool ValidateStoredLevel(const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldCanonicalFeature& Feature, const FVector& ActorOrigin, FString& OutError)
 	{
-		if (Feature.WaterSurface.FunctionId != TEXT("contained_ground_quantile")) return true;
+        if (!ProjectWorldContainedStage::Recognizes(Feature.WaterSurface.FunctionId)) return true;
 		const auto& Surface = Feature.WaterSurface;
 		if (!FMath::IsFinite(PresentationOffset(Feature, 0.0)))
 		{ OutError = TEXT("Contained Water lacks a finite authenticated spill bound."); return false; }
@@ -392,17 +393,23 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldPreparedWaterSurface& PreparedSurface,
 		double SurfaceOffsetMeters,
 		FProjectWorldWaterMeshBuildResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+		const FVector* CommonOrigin)
 	{
-		const double Offset = PresentationOffset(Feature, SurfaceOffsetMeters);
+        OutResult = FProjectWorldWaterMeshBuildResult();
+        const double Offset = PresentationOffset(Feature, SurfaceOffsetMeters);
 		if (!FMath::IsFinite(SurfaceOffsetMeters) || SurfaceOffsetMeters < 0.0 || !FMath::IsFinite(Offset))
 		{
 			OutError = TEXT("Water surface offset must be finite and non-negative.");
 			return false;
 		}
-		OutResult = FProjectWorldWaterMeshBuildResult();
-		const FVector ActorOrigin = FProjectWorldCanonicalLoader::CanonicalToUnreal(
-			Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
+		const bool bJointBoundary = ProjectWorldContainedStage::IsJointBoundaryModel(
+			Feature.WaterSurface.FunctionId,Feature.WaterSurface.FunctionVersion);
+		const FVector ActorOrigin = CommonOrigin ? *CommonOrigin : bJointBoundary ? FVector::ZeroVector :
+			FProjectWorldCanonicalLoader::CanonicalToUnreal(Bundle, FVector(Cell.Bounds.X, Cell.Bounds.W, Bundle.HeightOriginMeters));
+		if (ActorOrigin.ContainsNaN()) { OutError=TEXT("Water mesh storage origin must be finite."); return false; }
+		if (bJointBoundary && ActorOrigin!=FVector::ZeroVector)
+		{OutError=TEXT("Joint Water requires the shared engine storage frame.");return false;}
 		if (!ValidateStoredLevel(Bundle, Feature, ActorOrigin, OutError)) return false;
 
 		FStaticMeshAttributes Attributes(OutResult.MeshDescription);
@@ -437,9 +444,11 @@ namespace ProjectWorldWaterMeshBuilder
 				FVector Local[3];
 				for (int32 Corner = 0; Corner < 3; ++Corner)
 				{
-					const FVector2d CanonicalXY(
-						Quantize(CanonicalPoints[Corner].X, Bundle.CoordinateQuantizationMeters),
-						Quantize(CanonicalPoints[Corner].Y, Bundle.CoordinateQuantizationMeters));
+                    // The joint inferred model already owns its noded boundary.
+                    // A second centimeter snap changes its wet/dry relationship.
+                    const FVector2d CanonicalXY = bJointBoundary ? CanonicalPoints[Corner] : FVector2d(
+                        Quantize(CanonicalPoints[Corner].X, Bundle.CoordinateQuantizationMeters),
+                        Quantize(CanonicalPoints[Corner].Y, Bundle.CoordinateQuantizationMeters));
 					const double Z = SurfaceZ(
 						Feature.WaterSurface,
 						CanonicalXY,

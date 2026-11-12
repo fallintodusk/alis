@@ -12,16 +12,20 @@
 #include "Tests/ProjectWorldSchemaTestUtilities.h"
 
 #include "Editor.h"
+#include "Components/BoxComponent.h"
 #include "Engine/TargetPoint.h"
+#include "Engine/Level.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "NavigationInvokerComponent.h"
 #include "NavigationSystem.h"
+#include "UObject/UnrealType.h"
 #include <limits>
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -277,6 +281,17 @@ bool FProjectWorldProductNavigationDomainTest::RunTest(const FString& Parameters
 	Profile.ProductSpawnPitchDegrees = -20.0;
 	const FProjectWorldCanonicalBundle Bundle = MakeBundle(Profile);
 	UWorld* World = GEditor->NewMap(false);
+	AActor* Floor = World->SpawnActor<AActor>();
+	if (!TestNotNull(TEXT("The invalidation control has an actual owned support actor."), Floor)) return false;
+	UBoxComponent* Support = NewObject<UBoxComponent>(Floor);
+	Floor->SetRootComponent(Support); Floor->AddInstanceComponent(Support);
+	const FVector Station(10000, -5000, 0);
+	Support->SetBoxExtent(FVector(2000, 2000, 50)); Support->SetWorldLocation(Station - FVector(0, 0, 50));
+	Support->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); Support->SetCollisionObjectType(ECC_WorldStatic);
+	Support->SetCollisionResponseToAllChannels(ECR_Block); Support->SetCanEverAffectNavigation(true); Support->RegisterComponent();
+	auto* Invoker = NewObject<UNavigationInvokerComponent>(Floor);
+	Floor->AddInstanceComponent(Invoker); Invoker->SetGenerationRadii(3500, 4500); Invoker->RegisterComponent();
+	ON_SCOPE_EXIT { Invoker->DestroyComponent(); Floor->Destroy(); };
 	FProjectWorldRealizationResult Result;
 	if (!TestTrue(
 		TEXT("Product realization creates its neutral navigation domain."),
@@ -315,6 +330,92 @@ bool FProjectWorldProductNavigationDomainTest::RunTest(const FString& Parameters
 		Navigation != nullptr && Navigation->IsActiveTilesGenerationEnabled());
 	TestTrue(TEXT("Territory Recast tiles fit the accepted large-world bounds."),
 		Recast != nullptr && Recast->GetTileSizeUU() >= 4096.0f);
+	if (!Recast || !Navigation || !NavigationBounds) return false;
+	const FNavDataConfig OriginalConfig = Recast->GetConfig();
+	const float OriginalHeight = Recast->GetCellHeight(ENavigationDataResolution::Default);
+	ON_SCOPE_EXIT { Recast->SetConfig(OriginalConfig); Recast->SetCellHeight(ENavigationDataResolution::Default, OriginalHeight); };
+	FNavDataConfig StaleConfig = OriginalConfig;
+	StaleConfig.AgentHeight -= 32;
+	Navigation->UnregisterNavData(Recast);
+	Recast->SetConfig(StaleConfig);
+	FProjectWorldRealizationResult AgentRepair;
+	Error.Reset();
+	TestTrue(TEXT("Ordinary product Apply reconciles the existing map-owned stale agent."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, AgentRepair, Error));
+	TestEqual(TEXT("Reconciliation restores the actual configured standing clearance."), Recast->GetConfig().AgentHeight, OriginalConfig.AgentHeight);
+	TestEqual(TEXT("Reconciliation keeps the single map-owned native data actor."),
+		Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate), static_cast<ANavigationData*>(Recast));
+	Recast->SetConfig(OriginalConfig);
+	Navigation->RequestRegistrationDeferred(*Recast);
+	Navigation->Tick(0.0f);
+	if (!TestTrue(TEXT("The independent resolution case starts with correctly registered native data."), Recast->IsRegistered())) return false;
+	Recast->SetCellHeight(ENavigationDataResolution::Default, OriginalHeight + 1);
+	FProjectWorldRealizationResult ResolutionRepair;
+	Error.Reset();
+	TestTrue(TEXT("Ordinary product Apply reconciles stale native vertical resolution."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, ResolutionRepair, Error));
+	TestEqual(TEXT("The accepted vertical resolution reaches existing map data."),
+		Recast->GetCellHeight(ENavigationDataResolution::Default), OriginalHeight);
+	FFloatProperty* TileProperty = FindFProperty<FFloatProperty>(ARecastNavMesh::StaticClass(), TEXT("TileSizeUU"));
+	if (!TestNotNull(TEXT("The larger-tile control uses the native property event."), TileProperty)) return false;
+	Recast->TileSizeUU = 5000.f;
+	FPropertyChangedEvent TileChange(TileProperty);
+	Recast->PostEditChangeProperty(TileChange);
+	World->PersistentLevel->GetPackage()->SetDirtyFlag(false);
+	FProjectWorldRealizationResult NoOp;
+	TestTrue(TEXT("An accepted larger native tile survives ordinary Apply."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, NoOp, Error));
+	TestEqual(TEXT("A lawful larger tile is preserved."), Recast->TileSizeUU, 5000.f);
+	TestFalse(TEXT("Unchanged accepted navigation does not dirty the map."), World->PersistentLevel->GetPackage()->IsDirty());
+	TestTrue(TEXT("Unchanged navigation retains actual registration and its selected actor."),
+		Recast->IsRegistered() && Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) == Recast);
+
+	UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(*Floor);
+	Navigation->Build(); Recast->UpdateActiveTiles(Navigation->GetInvokerLocations()); Recast->EnsureBuildCompletion();
+	TArray<FBox> RegisteredBounds; Navigation->GetNavigationBoundsForNavData(*Recast, RegisteredBounds);
+	AddInfo(FString::Printf(TEXT("NavigationPolicyFixture actual_cached_invokers=%d registered_bounds=%d pool_capacity=%d; unit field invalidation, not gameplay timing"),
+		Navigation->GetInvokerLocations().Num(), RegisteredBounds.Num(), Recast->GetNavMeshTilesCount()));
+	FNavLocation Before;
+	const int32 BeforeTiles = Recast->GetNumActiveTiles();
+	if (!TestTrue(TEXT("Supported native tiles exist before the invalidation control."),
+		BeforeTiles > 0 && Navigation->ProjectPointToNavigation(Station, Before, FVector(50, 50, 200), Recast))) return false;
+	Support->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(*Floor);
+	Recast->SetCellHeight(ENavigationDataResolution::Default, OriginalHeight + 1);
+	FProjectWorldRealizationResult RemovedSupport;
+	if (!TestTrue(TEXT("Actual map reconciliation consumes changed policy and absent support."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, RemovedSupport, Error))) { AddError(Error); return false; }
+	Recast->UpdateActiveTiles(Navigation->GetInvokerLocations()); Recast->EnsureBuildCompletion();
+	FNavLocation Absent;
+	TestFalse(TEXT("The repaired native data cannot retain a projection from removed support."),
+		Navigation->ProjectPointToNavigation(Station, Absent, FVector(50, 50, 200), Recast));
+	const int32 RemovedTiles = Recast->GetNumActiveTiles();
+	Support->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(*Floor);
+	Navigation->Build(); Recast->UpdateActiveTiles(Navigation->GetInvokerLocations()); Recast->EnsureBuildCompletion();
+	FNavLocation Restored;
+	TestTrue(TEXT("Native support and projection return after the control."),
+		Recast->GetNumActiveTiles() > 0 && Navigation->ProjectPointToNavigation(Station, Restored, FVector(50, 50, 200), Recast));
+	AddInfo(FString::Printf(TEXT("NavigationPolicyRecovery initial_tiles=%d removed_tiles=%d restored_tiles=%d; actual support removal/restoration, not route-fidelity evidence"),
+		BeforeTiles, RemovedTiles, Recast->GetNumActiveTiles()));
+	TestTrue(TEXT("The unit field control retains invoker-only generation."), Navigation->IsActiveTilesGenerationEnabled());
+	FNavDataConfig Inconsistent = Recast->GetConfig(); Inconsistent.AgentHeight += 1;
+	Recast->SetConfig(Inconsistent);
+	TestFalse(TEXT("A registered actor with inconsistent cached agent bookkeeping refuses before mutation."),
+		ProjectWorldRuntimeNavigation::ReconcileTerritoryData(World, Error));
+	TestTrue(TEXT("Inconsistent-agent refusal preserves registration and the actual refused properties."),
+		Recast->IsRegistered() && Recast->AgentHeight == Inconsistent.AgentHeight &&
+		Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) == Recast);
+	Recast->SetConfig(OriginalConfig);
+	ARecastNavMesh* Unexpected = World->SpawnActor<ARecastNavMesh>();
+	if (!TestNotNull(TEXT("Reconciliation refusal contains a competing native actor."), Unexpected)) return false;
+	ON_SCOPE_EXIT { Navigation->UnregisterNavData(Unexpected); Unexpected->CleanUpAndMarkPendingKill(); };
+	TestFalse(TEXT("The map owner refuses competing data before reconfiguration."),
+		ProjectWorldRuntimeNavigation::ReconcileTerritoryData(World, Error));
+	TestTrue(TEXT("Refusal leaves the accepted actor and policy intact."), Recast->IsRegistered() &&
+		Navigation->GetDefaultNavDataInstance(FNavigationSystem::DontCreate) == Recast &&
+		Recast->TileSizeUU == 5000.f && Recast->GetCellHeight(ENavigationDataResolution::Default) == OriginalHeight &&
+		Recast->GetConfig().AgentHeight == OriginalConfig.AgentHeight);
 	return true;
 }
 

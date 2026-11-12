@@ -15,7 +15,7 @@ BeforeAll {
 
 Describe 'Dev-loop exact filter recognition' {
     It 'accepts an exact test id owned by a plugin outside Plugins/Test' {
-        $shape = Test-ExactFilter -Filter 'Project.World.Realization.Runtime.RouteCollision'
+        $shape = Test-ExactFilter -Filter 'Project.World.Presentation.ProductRouteGroundPlacementPolicy'
         $shape.IsExact | Should -BeTrue
     }
 
@@ -31,7 +31,7 @@ Describe 'Dev-loop exact filter recognition' {
 
     It 'still refuses a prefix of a plugin-owned test id' {
         # Same leading segments as the accepted world test, but not a test.
-        $shape = Test-ExactFilter -Filter 'Project.World.Realization.Runtime'
+        $shape = Test-ExactFilter -Filter 'Project.World.Presentation'
         $shape.IsExact | Should -BeFalse
     }
 

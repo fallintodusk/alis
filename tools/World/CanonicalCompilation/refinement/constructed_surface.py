@@ -4,10 +4,10 @@ import math
 from pathlib import Path
 
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError
-from World.ExecutionEnvironment.geometry.api import (covered_points, execution_identity, partition_triangles,
-    polygon_union, triangulate_points, validate_triangle_cover)
+from World.ExecutionEnvironment.geometry.api import covered_points, execution_identity, polygon_union, triangulate_points
 from ..app.contracts import CompilerError, canonical_hash, file_hash
-from .app.road_elevation import _affine, _finite, _overlaps, _polygon
+from .app.road_elevation import _finite, _polygon
+from .app.road_surface_projection import project_straight_surface
 
 
 def _refuse(message):
@@ -16,7 +16,8 @@ def _refuse(message):
 
 def implementation_identity():
     owner = Path(__file__).resolve().parent
-    files = [owner/'constructed_surface.py', owner/'app/road_elevation.py', owner.parent/'app/contracts.py']
+    files = [owner/'constructed_surface.py', owner/'app/road_elevation.py',
+             owner/'app/road_surface_projection.py', owner.parent/'app/contracts.py']
     return canonical_hash({p.relative_to(owner.parent).as_posix(): file_hash(p) for p in files})
 
 
@@ -101,38 +102,14 @@ def build_constructed_road_surface(repo_root, road, points, parent, context, evi
             _refuse('Structural parent contains insufficient associated height observations')
         stage = 'source triangulation'
         faces = triangulate_points(repo_root, [p[:2] for p in support])
-        domain = _polygon([[0., -width/2], [length, -width/2], [length, width/2], [0., width/2]])
-        ribbon = [[[0., -width/2], [length, -width/2], [0., width/2]],
-                  [[length, -width/2], [length, width/2], [0., width/2]]]
-        uv = []
-        for indices in faces:
-            face = [support[i] for i in indices]
-            if not _overlaps(face, corners):
-                continue
-            parameter = [[sum((p[i]-a[i])*tangent[i] for i in (0, 1)),
-                          sum((p[i]-a[i])*normal[i] for i in (0, 1)), p[2]] for p in face]
-            # Keep clipping in the native ribbon parameter domain before projected-coordinate restoration.
-            for half in ribbon:
-                for clipped in partition_triangles(repo_root, half, _polygon([p[:2] for p in parameter]), 16)['wet']:
-                    uv.append([_affine(parameter, p) for p in clipped])
-                    if len(uv) > maximum_triangles:
-                        _refuse('Constructed surface exceeds its explicit output budget')
-        if any(not math.isfinite(v) for face in uv for p in face for v in p):
-            _refuse('Constructed interpolation contains an unknown or overflowing height')
-        stage = 'parameter coverage'
-        validate_triangle_cover(repo_root, domain, [[p[:2] for p in face] for face in uv])
-        world = [[[a[i]+p[0]*tangent[i]+p[1]*normal[i] for i in (0, 1)]+[p[2]]
-                  for p in face] for face in uv]
-        if any(not math.isfinite(v) for face in world for p in face for v in p):
-            _refuse('Constructed projected output is unknown or overflowing')
-        stage = 'projected coverage'
-        validate_triangle_cover(repo_root, footprint, [[p[:2] for p in face] for face in world])
+        footprint, uv, world, mapping = project_straight_surface(repo_root,
+            ([support[i] for i in indices] for indices in faces), coordinates, width, maximum_triangles)
     except ExecutionEnvironmentError as error:
         raise CompilerError(error.code, str(error), surface_stage=stage, **error.details) from error
     return {'model': 'observed_constructed_tin_candidate_not_surveyed', 'endpoint_relation': 'constructed_surface',
         'coordinate_rule': 'source_arclength_m_signed_lateral_left_m',
         'height_rule': 'canonical_absolute_m_without_presentation_offset', 'length_m': length, 'width_m': width,
-        'footprint': footprint, 'world_triangles': world, 'uv_triangles': uv,
+        'footprint': footprint, 'world_triangles': world, 'uv_triangles': uv, 'mapping': mapping,
         'minimum_height_m': min(p[2] for face in world for p in face),
         'maximum_height_m': max(p[2] for face in world for p in face),
         'consumed': {'feature_sha256': canonical_hash(road), 'parent_sha256': canonical_hash(parent),

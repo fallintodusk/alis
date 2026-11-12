@@ -5,6 +5,7 @@
 
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldContainedWaterParsing.h"
+#include "ProjectWorldIdentifiedBasinParsing.h"
 
 #include "Dom/JsonObject.h"
 
@@ -84,7 +85,8 @@ namespace ProjectWorldWaterContractParsing
 			OutSurface.FunctionVersion = 1;
 			const bool bSupportedStanding = OutSurface.Behavior == TEXT("standing") &&
 				(OutSurface.FunctionId == TEXT("standing_polygon_quantile") ||
-				 OutSurface.FunctionId == TEXT("contained_ground_quantile")) &&
+				 OutSurface.FunctionId == TEXT("contained_ground_quantile") ||
+				 OutSurface.FunctionId == TEXT("identified_static_lined_basin")) &&
 				OutSurface.FunctionVersion == 1;
 			const bool bSupportedFlowing = OutSurface.Behavior == TEXT("flowing") &&
 				(OutSurface.FunctionId == TEXT("rolling_quantile_l1_isotonic") ||
@@ -99,6 +101,10 @@ namespace ProjectWorldWaterContractParsing
 			}
 			if (OutSurface.Behavior == TEXT("standing"))
 			{
+				if (OutSurface.FunctionId==TEXT("identified_static_lined_basin"))
+					return OutSurface.Geometry==TEXT("polygon") && OutSurface.Role==TEXT("area") &&
+						ProjectWorldIdentifiedBasinParsing::ReadFunction(*Function,OutSurface)
+						? true : Reject(Validation,TEXT("Identified basin Water metadata is malformed or unsupported."),TEXT("surface_function"));
 				if (OutSurface.FunctionId == TEXT("contained_ground_quantile") &&
 					(OutSurface.Geometry != TEXT("polygon") || OutSurface.Role != TEXT("area") ||
 					 !ProjectWorldContainedWaterParsing::Read(*Function)))

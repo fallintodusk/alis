@@ -1,6 +1,7 @@
 #include "ProjectWorldCanonicalRefinement.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldTerrainSurface.h"
+#include "ProjectWorldIdentifiedBasinParsing.h"
 #include "Algo/AllOf.h"
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
@@ -58,7 +59,8 @@ namespace ProjectWorldCanonicalRefinement
 	}
 
 	bool Parse(const TSharedPtr<FJsonObject>& Object, const FString& Grid, const FString& Cell,
-		FProjectWorldCanonicalTerrain& Terrain, FProjectWorldCanonicalValidation& Validation)
+		FProjectWorldCanonicalTerrain& Terrain, FProjectWorldCanonicalValidation& Validation,
+		const ProjectWorldAuthoredTerrainParsing::FRetainedInputs& AuthoredInputs,TSet<FString>& UsedAuthoredInputs)
 	{
 		if (!Object.IsValid()) return true;
 		const TSharedPtr<FJsonObject>* Base = nullptr;
@@ -74,7 +76,17 @@ namespace ProjectWorldCanonicalRefinement
 			!Object->TryGetObjectField(TEXT("consumed"), Consumed) || Consumed == nullptr ||
 			!Array(Object, TEXT("quads"), Quads) || Quads->IsEmpty())
 			return Reject(Validation, TEXT("Refinement identity or geometry is incomplete."));
-		for (const TCHAR* Field : {TEXT("water_sha256"), TEXT("policy_sha256"), TEXT("implementation_sha256"), TEXT("execution_identity"), TEXT("domain_sha256")})
+		if (Object->HasField(TEXT("construction")))
+		{
+			FString Construction;
+			if (!Object->TryGetStringField(TEXT("construction"),Construction) ||
+				!(Construction==TEXT("authored_dry_terrain_v1") ?
+					ProjectWorldAuthoredTerrainParsing::ReadTerrain(Object,Grid,AuthoredInputs) :
+					ProjectWorldIdentifiedBasinParsing::ReadTerrain(Object,Terrain)))
+				return Reject(Validation,TEXT("Terrain construction metadata is malformed, unbound or unsupported."));
+			if (Construction==TEXT("authored_dry_terrain_v1")) UsedAuthoredInputs.Add((*Consumed)->GetStringField(TEXT("authored_input_sha256")));
+		}
+		else for (const TCHAR* Field : {TEXT("water_sha256"), TEXT("policy_sha256"), TEXT("implementation_sha256"), TEXT("execution_identity"), TEXT("domain_sha256")})
 		{
 			FString Digest;
 			if (!(*Consumed)->TryGetStringField(Field, Digest) || !Hash(Digest))

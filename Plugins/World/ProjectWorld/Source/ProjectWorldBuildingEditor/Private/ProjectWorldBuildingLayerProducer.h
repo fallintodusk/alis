@@ -17,6 +17,9 @@ public:
 		FProjectWorldLayerInventory& Inventory, FProjectWorldRealizationResult& OutResult,
 		FString& OutError) const override;
 
+    virtual bool UpdateMaterialReferences(const FProjectWorldLayerApplyContext& Context,
+        const TArray<FProjectWorldLayerArtifactInventory>& AcceptedArtifacts,FProjectWorldLayerInventory& Inventory,
+        FProjectWorldRealizationResult& Result,bool bApply,FString& OutError) const override;
 private:
 	FProjectWorldBuildingLayerProducer();
 	FProjectWorldLayerProducerDeclaration Declaration;

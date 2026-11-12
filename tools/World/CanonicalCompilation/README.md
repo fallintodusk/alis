@@ -27,7 +27,7 @@ compile-only promotion.
 
 | Path | Responsibility |
 |---|---|
-| `contracts/` | Canonical features, terrain, cells, coverage, reports, and results |
+| [Contracts](contracts/README.md) | Canonical features, terrain, cells, coverage, reports, and results |
 | [refinement/](refinement/) | Separately authenticated post-canonical final-surface operation |
 | `app/adapters.py` | Provider record to canonical semantic mapping |
 | `app/surface_context.py` | Source-qualified crossing and constructed-water meaning; explicit unresolved metric constraints |
@@ -42,6 +42,7 @@ compile-only promotion.
 | `app/buildings.py` | Logical Building association, coverage, and effective massing volumes |
 | `app/water.py` | Profile-owned water admission, grouping, width, and surface Z |
 | `app/water_geometry.py` | Canonical-grid polygon sampling and visible ribbon subtraction |
+| `app/water_terrain_dependencies.py` | Terrain-consumed sample changes selecting dependent Water source groups |
 | `app/incremental.py` | Impact derivation, profile growth, and accepted-base merge |
 | `app/lineage.py` | Reuse compatibility, source lineage, and overlay delta derivation |
 | `app/validation.py` | Structural, provenance, topology, and boundary gates |
@@ -114,10 +115,19 @@ and byte-reused.
 Terrain and feature lineages also carry separate profile-contract hashes.
 Raster sampling changes invalidate terrain; water semantics invalidate
 features without coupling unrelated profile fields to both layers.
+When Terrain is rebuilt, Water reuse compares its pre-conditioning `water_fit`
+samples. Changed polygon grid nodes, the actual clipped `PointOnSurface`
+fallback, or flowing-axis knot samples select the dependent source groups
+through the existing partial compile/merge route. Halo support participates;
+final hydro/authored surface changes alone and profile-constant Water do not.
+Unchanged quantized fitting inputs retain their Water outputs. This dependency
+selection does not admit a different Ground source or qualify geographic joins.
 An incremental feature run always recomputes the complete target-relevant
 water prepass. It merges that small result with the requested non-water delta
 and semantic-diffs cell documents, so polygon/ribbon dependencies remain exact
 without recompiling the complete feature estate.
+Dependent output invalidation therefore does not imply fitting work is fully
+local; the existing complete Water prepass is retained.
 Compilation writes to staging, validates the complete output, and atomically
 promotes `compile_result.json` last.
 
@@ -148,7 +158,8 @@ feature/control provenance and not a realized engine terrain actor.
 
 Continuous Water support and conditioning-policy authority are defined in the
 [territory contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#geospatial-authority).
-The compiler reuses prepared footprint bounds and segments, constrains incident
+The compiler reuses prepared footprint bounds and segments for finalization and
+old/new Water influence selection, constrains incident
 quads including the shared halo support ring, and validates all candidate cells
 before replacing any input cell. Additional conditioning without accepted
 `terrain_surface.water_conditioning_limits` refuses explicitly. No production
@@ -265,6 +276,18 @@ GDAL toolchain; overlapping sample ownership rejects. A polygon with no grid
 sample uses `PointOnSurface` only after clipping to the canonical terrain
 envelope and records low-confidence derived accuracy. These are deterministic
 visual geographic approximations, not surveyed water levels.
+
+`tests/test_water_terrain_dependencies.py` compares cold and incremental compiler
+outputs after a raster-only change. It covers polygon nodes, off-footprint
+fallback support, flowing groups and halos, unchanged neighbors, exact feature
+dirty scope, no-op and quantized-equivalent reuse. Its small synthetic
+SourceBundle fixture exercises compilation and pinned native geometry; it does
+not establish provider admission or playable geographic quality. Run with the
+World execution environment's Python:
+
+```powershell
+python -B -m unittest tools.World.CanonicalCompilation.tests.test_water_terrain_dependencies
+```
 
 Metrics and the final result are observational and excluded from D1. The
 coverage semantic hash is D0; canonical JSON and deterministic reports are

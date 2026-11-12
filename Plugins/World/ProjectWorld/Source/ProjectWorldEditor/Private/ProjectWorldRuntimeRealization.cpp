@@ -476,6 +476,7 @@ namespace ProjectWorldRuntimeRealization
 			return false;
 		}
 		ARecastNavMesh* Recast = nullptr;
+		if (!ProjectWorldRuntimeNavigation::ReconcileTerritoryData(World, OutError)) return false;
 		if (ANavMeshBoundsVolume* CurrentNavigation = FindCurrentTerritoryNavigation(
 			World, Bundle, Profile, TerritoryNavigationBounds))
 		{

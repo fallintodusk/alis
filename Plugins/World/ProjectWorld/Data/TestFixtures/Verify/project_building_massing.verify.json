@@ -4,7 +4,7 @@
   "verify": "Project.World.Realization.Verify.BuildingMassing",
   "identity": {
     "producer_id": "project_building_massing:v2",
-    "output_revision": 2,
+    "output_revision": 3,
     "pipeline_revision": 1,
     "comparison_contract_version": 1,
     "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",

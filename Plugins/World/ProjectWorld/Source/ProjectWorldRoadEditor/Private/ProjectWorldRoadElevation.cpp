@@ -3,6 +3,8 @@
 #include "ProjectWorldRoadElevation.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldTerrainSurface.h"
+#include "ProjectWorldRoadReferencedSurface.h"
+#include "ProjectWorldRoadFormation.h"
 
 namespace ProjectWorldRoadElevation
 {
@@ -52,11 +54,17 @@ namespace ProjectWorldRoadElevation
 		}
 		else if (Profile.EndpointRelation != EProjectWorldRoadEndpointRelation::TerrainAbutment || !Profile.ConstructedSurfaceHash.IsEmpty())
 		{ Error = TEXT("Road endpoint support is unknown or inconsistent with its model."); return false; }
-		if (Feature.GeometryType != TEXT("LineString") || Feature.GeometryPoints.Num() < 2 ||
+		const bool bReferenced = Profile.Domain == EProjectWorldRoadElevationDomain::ReferencedConstructedSurface;
+		const bool bParameter = Profile.Domain == EProjectWorldRoadElevationDomain::SourceParameter;
+		if ((!bReferenced && !bParameter) ||
+			(bReferenced && (Profile.EndpointRelation != EProjectWorldRoadEndpointRelation::ConstructedSurface ||
+				!Profile.Triangles.IsEmpty() || Profile.ReferencedSurfaceModels.IsEmpty())) ||
+			(bParameter && (Profile.Triangles.Num() < 2 || Profile.Triangles.Num() > 4096 || !Profile.ReferencedSurfaceModels.IsEmpty())) ||
+			Feature.GeometryType != TEXT("LineString") || Feature.GeometryPoints.Num() < 2 ||
 			Profile.SourceFeatureId != Feature.FeatureId || Profile.SourcePoints != Feature.GeometryPoints ||
 			!FMath::IsFinite(Profile.LengthMeters) || Profile.LengthMeters <= 0 ||
 			!FMath::IsFinite(Profile.WidthMeters) || Profile.WidthMeters != Feature.WidthMeters ||
-			Profile.Triangles.Num() < 2 || Profile.Triangles.Num() > 4096 || Profile.TerrainArtifacts.IsEmpty())
+			Profile.TerrainArtifacts.IsEmpty())
 		{ Error = TEXT("Road elevation requires a finite, qualified single source line and width."); return false; }
 		double Length = 0;
 		for (int32 I = 0; I + 1 < Feature.GeometryPoints.Num(); ++I)
@@ -93,6 +101,12 @@ namespace ProjectWorldRoadElevation
 			if (!Support.Contains(Key) || !Cell || ProjectWorldCivilGrade::BaseHash(Cell->Terrain) != Profile.TerrainArtifacts[Key])
 			{ Error = TEXT("Road elevation support Terrain is missing or stale."); return false; }
 			Identity += FString::Printf(TEXT("%d:%s%s|"), Key.Len(), *Key, *Profile.TerrainArtifacts[Key]);
+		}
+		if (bReferenced)
+		{
+			TArray<FProjectWorldSurfaceTriangle> Field; FString ReferencedIdentity;
+			if (!ProjectWorldRoadReferencedSurface::Read(Bundle,Profile,Field,ReferencedIdentity,Error)) return false;
+			ConsumedIdentity = Identity+ReferencedIdentity; return true;
 		}
 		double Total = 0;
 		for (int32 I = 0; I < Profile.Triangles.Num(); ++I)
@@ -172,14 +186,15 @@ namespace ProjectWorldRoadElevation
 		return Found;
 	}
 
-	bool Append(const FProjectWorldCanonicalFeature& Feature, const FVector2D& A, const FVector2D& B,
+	bool Append(const FProjectWorldCanonicalBundle& Bundle, const FProjectWorldCanonicalFeature& Feature, const FVector2D& A, const FVector2D& B,
 		const FVector2D& SideA, const FVector2D& SideB, double Tolerance, double Offset,
 		TArray<ProjectWorldRoadSurface::FRibbonTriangle>& Out, FString& Error)
 	{
 		using namespace ProjectWorldTerrainSurface;
-		const FProjectWorldSurfaceTriangle XY[2] = {
-			{{FVector(A + SideA, Offset), FVector(A - SideA, Offset), FVector(B + SideB, Offset)}},
-			{{FVector(A - SideA, Offset), FVector(B - SideB, Offset), FVector(B + SideB, Offset)}}};
+		const auto Formed=ProjectWorldRoadFormation::Faces({A,B,SideA,SideB},Offset);
+		const FProjectWorldSurfaceTriangle XY[2]={Formed[0],Formed[1]};
+		if (Feature.RoadElevation.IsSet() && Feature.RoadElevation->Domain == EProjectWorldRoadElevationDomain::ReferencedConstructedSurface)
+			return ProjectWorldRoadReferencedSurface::Append(Bundle,Feature,XY,Out,Error);
 		if (!Feature.RoadElevation.IsSet())
 		{
 			for (const auto& Face : XY)

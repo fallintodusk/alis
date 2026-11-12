@@ -5,6 +5,9 @@
 #include "ProjectWorldCivilGrade.h"
 #include "ProjectWorldRoadContractParsing.h"
 #include "ProjectWorldCanonicalRefinement.h"
+#include "ProjectWorldCanonicalRetainedInputs.h"
+#include "ProjectWorldConstructedContractParsing.h"
+#include "ProjectWorldConstructedSurface.h"
 #include "ProjectWorldGeometryParsing.h"
 #include "ProjectWorldWaterContractParsing.h"
 
@@ -19,6 +22,7 @@ namespace ProjectWorldCanonical
 {
 	struct FOutputDescriptor
 	{
+		FString Kind;
 		FString Path;
 		FString Sha256;
 		int64 ByteSize = 0;
@@ -329,18 +333,22 @@ bool FProjectWorldCanonicalLoader::Load(
 	{
 		const TSharedPtr<FJsonObject>* OutputPtr = nullptr;
 		FOutputDescriptor Descriptor;
-		FString Kind;
+		double Bytes=0;
 		if (!OutputValue->TryGetObject(OutputPtr) || OutputPtr == nullptr ||
-			!RequireString(*OutputPtr, TEXT("kind"), Kind, OutValidation) ||
+			!RequireString(*OutputPtr, TEXT("kind"), Descriptor.Kind, OutValidation) ||
 			!RequireString(*OutputPtr, TEXT("path"), Descriptor.Path, OutValidation) ||
 			!RequireString(*OutputPtr, TEXT("sha256"), Descriptor.Sha256, OutValidation) ||
-			!(*OutputPtr)->TryGetNumberField(TEXT("byte_size"), Descriptor.ByteSize) ||
-			Kind != TEXT("compiler_document") || Descriptors.Contains(Descriptor.Path))
+			!(*OutputPtr)->HasTypedField<EJson::Number>(TEXT("byte_size")) ||
+			!(*OutputPtr)->TryGetNumberField(TEXT("byte_size"),Bytes) || !FMath::IsFinite(Bytes) ||
+			Bytes<=0 || Bytes>=static_cast<double>(MAX_int64) || Bytes!=FMath::FloorToDouble(Bytes) ||
+			(Descriptor.Kind != TEXT("compiler_document") && !(bRefinement && Descriptor.Kind == TEXT("source_evidence"))) ||
+			Descriptors.Contains(Descriptor.Path))
 		{
 			Reject(OutValidation, TEXT("output-descriptor"), TEXT("Compiler output descriptor is invalid."));
 			return false;
 		}
 
+		Descriptor.ByteSize=static_cast<int64>(Bytes);
 		FString FullPath;
 		FString ActualHash;
 		if (!ResolveOwnedOutputPath(OutputRoot, Descriptor.Path, FullPath) ||
@@ -354,6 +362,23 @@ bool FProjectWorldCanonicalLoader::Load(
 		Descriptors.Add(Descriptor.Path, MoveTemp(Descriptor));
 	}
 	OutBundle.VerifiedOutputCount = Descriptors.Num();
+	TSet<FString> EvidencePaths;
+	for (const auto& Pair : Descriptors) if (Pair.Value.Kind==TEXT("source_evidence")) EvidencePaths.Add(Pair.Key);
+	auto VerifiedInput = [&Descriptors](const FString& Path,const FString& Hash,int64 Bytes,bool Native)
+	{
+		const auto* Entry=Descriptors.Find(Path);
+		return Entry && Entry->Sha256==Hash && Entry->ByteSize==Bytes &&
+			Entry->Kind==(Native ? TEXT("source_evidence") : TEXT("compiler_document"));
+	};
+	TMap<FString,FString> InputRoles;
+	ProjectWorldCanonicalRefinement::FRetainedFeatureContexts InputContexts;
+	ProjectWorldIdentifiedBasinParsing::FRetainedInputs BasinInputs;
+	ProjectWorldAuthoredTerrainParsing::FRetainedInputs AuthoredInputs;
+	TSet<FString> UsedAuthoredInputs;
+	TMap<FString,FProjectWorldCanonicalBasinArtifact> LoadedTerrain;
+	const auto* RequestDescriptor=Descriptors.Find(TEXT("refinement/request.json"));
+	if (!ProjectWorldCanonicalRefinement::ValidateRetainedInputs(OutputRoot,bRefinement,
+		RequestDescriptor && RequestDescriptor->Kind==TEXT("compiler_document"),EvidencePaths,VerifiedInput,InputRoles,InputContexts,BasinInputs,AuthoredInputs,OutValidation)) return false;
 
 	const FOutputDescriptor* CoverageDescriptor = Descriptors.Find(TEXT("canonical/coverage.json"));
 	const FOutputDescriptor* ProvenanceDescriptor = Descriptors.Find(TEXT("reports/provenance.json"));
@@ -528,15 +553,16 @@ bool FProjectWorldCanonicalLoader::Load(
 					return D != nullptr && D->Sha256 == Hash && D->ByteSize == Size;
 				}, OutValidation) ||
 			!ParseTerrain(TerrainObject, OutBundle.GridId, Cell.CellId, OutBundle.CellQuads, Cell.Terrain, OutValidation) ||
-			!ProjectWorldCanonicalRefinement::Parse(RefinementObject, OutBundle.GridId, Cell.CellId, Cell.Terrain, OutValidation) ||
+			!ProjectWorldCanonicalRefinement::Parse(RefinementObject, OutBundle.GridId, Cell.CellId, Cell.Terrain, OutValidation,AuthoredInputs,UsedAuthoredInputs) ||
 			!ParseFeatures(
 				FeatureObject,
 				OutBundle.GridId,
 				Cell.CellId,
 				OutBundle.Features,
 				DocumentFeatureIds,
-				OutValidation))
+				OutValidation) || !ProjectWorldIdentifiedBasinParsing::ValidateSources(FeatureObject,BasinInputs,OutValidation))
 		{
+			Reject(OutValidation,TEXT("cell-artifact"),TEXT("Canonical cell artifacts cannot be validated."),Cell.CellId);
 			return false;
 		}
 
@@ -556,6 +582,7 @@ bool FProjectWorldCanonicalLoader::Load(
 			Reject(OutValidation, TEXT("feature-manifest"), TEXT("Owned feature identities do not match the canonical feature document."), Cell.CellId);
 			return false;
 		}
+		LoadedTerrain.Add(Cell.CellId,{TerrainPath,TerrainDescriptor->Sha256,TerrainDescriptor->ByteSize});
 		OutBundle.Cells.Add(MoveTemp(Cell));
 	}
 
@@ -584,13 +611,35 @@ bool FProjectWorldCanonicalLoader::Load(
 		}
 	}
 
-	for (const auto& Pair : OutBundle.Features)
+	for (auto& Pair : OutBundle.Features)
 	{
 		FString Identity, Error;
 		if (!ProjectWorldCivilGrade::Validate(OutBundle, Pair.Value, Identity, Error))
 		{ Reject(OutValidation, TEXT("civil-grade-support"), Error, Pair.Key); return false; }
+		if (Pair.Value.ConstructedSurface.IsSet())
+		{
+			const auto* FeatureInputs=InputContexts.Find(Pair.Key);
+			if (!FeatureInputs || FeatureInputs->PolicyHash!=Pair.Value.ConstructedSurface->PolicyHash)
+			{ Reject(OutValidation,TEXT("constructed-surface-input"),TEXT("Structural policy is not the declared verified input."),Pair.Key); return false; }
+			Pair.Value.ConstructedSurface->OperationalPolicy=FeatureInputs->Policy;
+			for (const auto& Snapshot : Pair.Value.ConstructedSurface->SourceSnapshots)
+			{
+				const auto* Role=InputRoles.Find(Snapshot.Path);
+				const auto* Context=FeatureInputs->Contexts.Find(Snapshot.ContextId);
+				if (!Role || *Role!=(Snapshot.bNative ? TEXT("native") : TEXT("source")) ||
+					!Context || Snapshot.Path!=(Snapshot.bNative ? Context->NativePath : Context->NormalizedPath) ||
+					!VerifiedInput(Snapshot.Path,Snapshot.Hash,Snapshot.ByteSize,Snapshot.bNative))
+				{ Reject(OutValidation,TEXT("constructed-surface-input"),TEXT("Structural source binding is not a declared verified input."),Pair.Key); return false; }
+			}
+			TArray<FProjectWorldSurfaceTriangle> Field;
+			if (!ProjectWorldConstructedSurface::Read(OutBundle,Pair.Value,Field,Identity,Error))
+			{ Reject(OutValidation,TEXT("constructed-surface-field"),Error,Pair.Key); return false; }
+		}
 	}
-	return ProjectWorldCanonicalRefinement::ValidateSeams(OutBundle, OutValidation);
+	if (!ProjectWorldAuthoredTerrainParsing::ValidateUsage(AuthoredInputs,OutBundle.GridId,UsedAuthoredInputs))
+	{ Reject(OutValidation,TEXT("refinement-retained-input"),TEXT("An authored Terrain input has no final Terrain binding in its declared grid.")); return false; }
+	return ProjectWorldIdentifiedBasinParsing::ValidateBundle(OutBundle,BasinInputs,LoadedTerrain,VerifiedInput,OutValidation) &&
+		ProjectWorldCanonicalRefinement::ValidateSeams(OutBundle, OutValidation);
 }
 
 namespace ProjectWorldCanonical
@@ -881,6 +930,7 @@ namespace ProjectWorldCanonical
 			}
 			// PROJECTWORLD_PRODUCER_END project_building_massing
 			if (!ProjectWorldCivilGrade::Read(Attributes, Feature, Validation) ||
+				!ProjectWorldConstructedContractParsing::Read(Attributes, Feature, Validation) ||
 				!ProjectWorldRoadContractParsing::Read(Attributes, Feature, Validation) ||
 				!ProjectWorldWaterContractParsing::Read(Attributes, Feature, Validation))
 			{

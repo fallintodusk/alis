@@ -5,6 +5,7 @@ Views owned by the post-canonical refinement child.
 | View | Owner |
 |---|---|
 | Immediate parts and external contracts | [Main view](main.md) |
+| Admitted multi-operation construction, staging and refusal | [Candidate preparation](candidate_preparation.md) |
 | Sparse terrain realization | [Sparse terrain realization view](terrain_surface.md) |
 | Immutable civil grade consumption | [Immutable civil grade consumption view](civil_grade.md) |
 | Pure Ground construction | [Pure Ground construction view](ground_source.md) |

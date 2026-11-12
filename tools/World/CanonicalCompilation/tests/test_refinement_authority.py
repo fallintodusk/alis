@@ -119,11 +119,11 @@ class RefinementAuthorityTests(unittest.TestCase):
         self.assertEqual(file_hash(original.parent / 'canonical/terrain/cell_0.json'),
             file_hash(effective.parent / 'canonical/terrain/cell_0.json'))
         self.assertEqual(effective, self.materialize(active))
-        with patch('World.CanonicalCompilation.refinement.app.authority.implementation_identity',
+        with patch('World.CanonicalCompilation.refinement.app.identity.implementation_identity',
                 side_effect=AssertionError('Historical producer must not be rerun')), \
-                patch('World.CanonicalCompilation.refinement.app.authority.osm_context_identity',
+                patch('World.SourceIngestion.api.osm_context_identity',
                     side_effect=AssertionError('Historical source admission must not be rerun')), \
-                patch('World.CanonicalCompilation.refinement.app.authority.execution_identity',
+                patch('World.ExecutionEnvironment.geometry.api.execution_identity',
                     side_effect=AssertionError('Historical native execution must not be rerun')):
             self.assertEqual(selected, promotion.validate_canonical_authority(ROOT, active, self.profile_path))
 

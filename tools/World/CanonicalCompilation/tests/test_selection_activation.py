@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / 'tools'))
 from World.CanonicalCompilation.tests import test_refinement_authority as fixtures
 from World.CanonicalCompilation.refinement.app import activation as operation
+from World.CanonicalCompilation.refinement.app import identity
 from World.CanonicalCompilation.app.contracts import CompilerError, file_hash
 from World.CanonicalCompilation.app import cli
 
@@ -54,7 +55,7 @@ class SelectionActivationTests(unittest.TestCase):
         for expected in ('0'*64, 'missing'):
             with self.subTest(expected=expected), self.assertRaises(CompilerError):
                 operation.prepare_selection_transition(ROOT, self.fixture.profile_path, self.candidate, expected)
-        with patch.object(operation, 'implementation_identity', return_value='0'*64), self.assertRaises(CompilerError):
+        with patch.object(identity, 'implementation_identity', return_value='0'*64), self.assertRaises(CompilerError):
             self.prepare()
         self.assertFalse(target.exists())
         self.assertEqual(self.old_bytes, self.fixture.active.read_bytes())
@@ -109,11 +110,11 @@ class SelectionActivationTests(unittest.TestCase):
     def test_historical_recovery_and_noop_do_not_rerun_unused_current_producers(self):
         transition = self.prepare()
         operation.publish_selection_transition(ROOT, transition)
-        with patch.object(operation, 'implementation_identity', side_effect=AssertionError('Historical state is frozen')):
+        with patch.object(identity, 'implementation_identity', side_effect=AssertionError('Historical state is frozen')):
             self.assertEqual('selected', operation.validate_selection_transition(ROOT, transition)['state'])
             self.assertFalse(operation.publish_selection_transition(ROOT, transition)['changed'])
             operation.publish_selection_transition(ROOT, transition, restore=True)
-        with patch.object(operation, 'implementation_identity', return_value='0'*64), self.assertRaises(CompilerError):
+        with patch.object(identity, 'implementation_identity', return_value='0'*64), self.assertRaises(CompilerError):
             operation.publish_selection_transition(ROOT, transition)
         self.assertEqual(self.old_bytes, self.fixture.active.read_bytes())
 

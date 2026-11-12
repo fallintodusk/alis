@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["$schema", "kit_id", "generator", "provenance", "parameters"],
+  "properties": {
+    "$schema": {"type": "string", "pattern": "modular-kit\\.schema\\.json$"},
+    "kit_id": {"type": "string", "minLength": 1},
+    "generator": {"const": "original_box_modules_v1"},
+    "provenance": {"type": "object", "required": ["kind", "owner"], "properties": {
+      "kind": {"const": "original_procedural_test_geometry"}, "owner": {"const": "project"}
+    }, "additionalProperties": false},
+    "parameters": {"type": "object", "required": ["panel_width_m", "floor_height_m", "wall_thickness_m", "slab_thickness_m", "foundation_embed_m", "maximum_support_span_m", "frame_fraction", "window_every", "maximum_instances"], "properties": {
+      "panel_width_m": {"type": "number", "minimum": 0.25},
+      "floor_height_m": {"type": "number", "minimum": 1},
+      "wall_thickness_m": {"type": "number", "exclusiveMinimum": 0},
+      "slab_thickness_m": {"type": "number", "exclusiveMinimum": 0},
+      "foundation_embed_m": {"type": "number", "minimum": 0, "maximum": 1},
+      "maximum_support_span_m": {"type": "number", "minimum": 0},
+      "frame_fraction": {"type": "number", "minimum": 0.05, "maximum": 0.4},
+      "window_every": {"type": "integer", "minimum": 1, "maximum": 100},
+      "maximum_instances": {"type": "integer", "minimum": 4, "maximum": 65536}
+    }, "additionalProperties": false}
+  }, "additionalProperties": false
+}

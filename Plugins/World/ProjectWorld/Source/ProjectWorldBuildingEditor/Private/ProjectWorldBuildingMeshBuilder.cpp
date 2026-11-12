@@ -588,7 +588,8 @@ namespace ProjectWorldBuildingMeshBuilder
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		const FProjectWorldBuildingSettings& Settings,
 		FProjectWorldBuildingMeshBuildResult& OutResult,
-		FString& OutError)
+		FString& OutError,
+        const TSet<FString>* AssemblySelection)
 	{
 		OutResult = FProjectWorldBuildingMeshBuildResult();
 		FStaticMeshAttributes Attributes(OutResult.MeshDescription);
@@ -699,13 +700,25 @@ namespace ProjectWorldBuildingMeshBuilder
 				Buildings[Pair.Right].Feature->FeatureId});
 		}
 
+        // Suppression follows the complete classifier so unrelated admissions cannot change.
+        if (AssemblySelection) for (const auto& Id : *AssemblySelection)
+        {
+            if (!Buildings.ContainsByPredicate([&](const auto& B){return B.Feature->FeatureId==Id && B.State==EAdmissionState::Accepted;}))
+            {OutError=TEXT("Assembly selection is absent, authored-masked or not admitted massing.");OutResult={};return false;}
+        }
 		for (const FPreparedBuilding& Building : Buildings)
 		{
 			switch (Building.State)
 			{
 			case EAdmissionState::Accepted:
 				++OutResult.Stats.AcceptedFragmentCount;
+                if (AssemblySelection && AssemblySelection->Contains(Building.Feature->FeatureId))
+                {OutResult.AssemblyExcludedFeatures.Add(Building.Feature->FeatureId);break;}
+                {
+                const int32 First=OutResult.MeshDescription.Triangles().Num();
 				if (!AddMassing(OutResult, Group, Bundle, Cell, Building, OutError)) return false;
+                OutResult.Emissions.Add({Building.Feature->FeatureId,First,OutResult.MeshDescription.Triangles().Num()-First});
+                }
 				break;
 			case EAdmissionState::Duplicate:
 				++OutResult.Stats.DuplicateFragmentCount;

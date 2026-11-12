@@ -108,6 +108,9 @@ def polygon_union(repo_root, polygons, domain):
         if geometry['type'] not in ('Polygon','MultiPolygon'):
             _error('Native union is not a positive-area polygon')
         geometry['coordinates'] = restore(geometry['coordinates'])
+        # Canonical addition can invalidate a valid local ring at sub-ULP joints.
+        # Refuse that output; the caller must not receive a falsely valid footprint.
+        native.read(_local_polygon(geometry,origin))
         return {'geometry':geometry, 'area_m2':native.measure(result), 'outside_area_m2':native.measure(exterior)}
     finally:
         native.close()

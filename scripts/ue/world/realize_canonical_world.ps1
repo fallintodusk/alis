@@ -308,7 +308,7 @@ $resolvedManifestRoot = if ([string]::IsNullOrWhiteSpace($ManifestRoot)) { $worl
 $futureDirtyInput = Join-Path $evidenceDirectory 'layer_dirty_input.json'
 Assert-ProjectWorldEvidenceInputIsolation -ResultPath $resultPath -CompileResultPath $compileResultPath -InputPaths @(
     $presentationProfilePath, $runtimeProfilePath, $authoredOverlayProfilePath, $realizationProfilePath, $PriorPresentationProfile, $CanonicalRefinementSelection) `
-    -ProtectedRoots @($resolvedManifestRoot) -AuxiliaryOutputPaths @($futureDirtyInput, ($futureDirtyInput + '.tmp'))
+    -ProtectedRoots @($resolvedManifestRoot, (Join-Path $projectRoot 'tmp/world/inputs')) -AuxiliaryOutputPaths @($futureDirtyInput, ($futureDirtyInput + '.tmp'))
 New-Item -ItemType Directory -Path $evidenceDirectory -Force | Out-Null
 if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
     Remove-Item -LiteralPath $resultPath -Force

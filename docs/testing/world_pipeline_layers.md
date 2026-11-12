@@ -29,7 +29,48 @@ regenerate real UE packages inside its locked transaction, but it restores the
 exact pre-run path/hash set before returning. L3 is the first layer allowed to
 persist generated packages or manifest authority.
 
+## Proof follows admitted fidelity
+
+The [territory fidelity contract](../../Plugins/World/ProjectWorld/docs/territory_contract.md#fidelity-and-overlapping-physical-roles)
+defines the admitted purpose. That purpose selects the properties to prove;
+changed consumed inputs or acceptance properties determine which proofs rerun.
+
+| Admitted use | Minimum relevant proof |
+|---|---|
+| Nonphysical contextual envelope | Schema, role, extent, frame, provenance and consumed identity; no claim of a finished or traversable object |
+| Base Terrain and Water | Complete field/shore/seam checks, actual native realization and collision where used, plus representative player-level visual plausibility |
+| Required playable route, bridge, spawn or support | Its accepted continuity, width, clearance, native collision and actual gameplay checks, plus relevant navigation/streaming properties |
+
+A placeholder label cannot exempt geometry that actually supplies collision or
+walkable/spawn support. Promoting unchanged geometry to a stronger admitted use
+can require new proof without a byte change. Conversely, a harmless nonphysical
+marker does not need a large terrain cooking/rendering campaign. Geometry,
+frame, storage, material or grid changes can invalidate evidence while the
+admitted role stays the same. Existing L2/L3/L4 gates remain unchanged.
+
 ## Fresh-Agent Route
+
+Before an expensive native cross-owner fixture, run a small offline contract
+preflight through the existing source/canonical public interfaces. Check complete
+declared domains, ownership/reference membership, role and source bindings, full
+interface traces and affine heights, relevant refusal/no-publication paths, and
+cold or operation-order equivalence. Use source-shaped permanent inputs and
+independent expected properties; vertex samples and total area alone do not
+certify complete coverage. Keep this inside L0/L1, without another framework.
+The [canonical refinement tests](../../tools/World/CanonicalCompilation/refinement/README.md#focused-contract-tests)
+provide the executable mixed-owner case and its controls.
+
+Offline success does not certify native float storage, Nanite, collision,
+navigation, streaming or gameplay. Run the affected exact native test for those
+properties. Permanent fixtures must reproduce from a clean checkout; an optional
+hash-bound external fixture is diagnostic input, not a hidden dependency on an
+old scratch directory. Document explicit preparation when a native consumer
+requires a freshly compiled canonical input.
+
+When the same numerical defect appears in two producers, review the shared
+geometry contract before adding a third local correction. Consolidate only a
+genuinely shared invariant; canonical construction and native storage still
+require their distinct precision and acceptance checks.
 
 1. Run `python -S tools/World/EndToEndValidation/bootstrap.py plan --base
    <slice-base>` to classify changed paths. Use `HEAD` for uncommitted work or

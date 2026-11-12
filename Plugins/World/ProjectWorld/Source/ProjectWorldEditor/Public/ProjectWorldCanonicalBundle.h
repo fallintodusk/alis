@@ -11,6 +11,19 @@ struct FProjectWorldCanonicalPolygon
 	TArray<TArray<FVector2D>> Holes;
 };
 
+struct FProjectWorldCanonicalBasinArtifact
+{
+	FString Path, Hash;
+	int64 ByteSize=0;
+};
+
+struct FProjectWorldCanonicalBasinAdmission
+{
+	FString CanonicalCrs, SourceFeatureHash, ModelHash, BoundaryEncodingHash, AdmissionHash;
+	FProjectWorldCanonicalBasinArtifact Input;
+	TMap<FString,FProjectWorldCanonicalBasinArtifact> TerrainSupport;
+};
+
 struct FProjectWorldCanonicalWaterSurface
 {
 	FString SurfaceGroupId;
@@ -23,6 +36,7 @@ struct FProjectWorldCanonicalWaterSurface
 	double LevelMeters = 0.0;
 	TOptional<double> ContainmentSpillMeters;
 	TArray<FVector> Knots;
+	TOptional<FProjectWorldCanonicalBasinAdmission> BasinAdmission;
 	bool bValid = false;
 };
 
@@ -46,6 +60,62 @@ enum class EProjectWorldRoadEndpointRelation : uint8
 	ConstructedSurface
 };
 
+enum class EProjectWorldRoadElevationDomain : uint8
+{
+	SourceParameter,
+	ReferencedConstructedSurface
+};
+
+struct FProjectWorldCanonicalSurfaceTriangle
+{
+	FVector XYZ[3];
+};
+
+struct FProjectWorldCanonicalRetainedSource
+{
+	FString Path;
+	FString Hash;
+	int64 ByteSize=0;
+	bool bNative=false;
+	FString ContextId;
+};
+
+struct FProjectWorldCanonicalConstructedRegion
+{
+	FString Role;
+	TArray<FString> SourceIds;
+	TArray<int32> SourceTriangles;
+	FString AxisSourceId;
+	FVector2D AxisStart=FVector2D::ZeroVector;
+	FVector2D AxisEnd=FVector2D::ZeroVector;
+};
+
+struct FProjectWorldCanonicalConstructedPolicy
+{
+	int32 MaximumTriangles=0;
+	double MaximumOrdinaryGradient=0;
+	double MaximumGangwayGrade=0;
+	double MaximumCrossSlope=0;
+	double MaximumNumericErrorMeters=0;
+};
+
+struct FProjectWorldCanonicalConstructedSurface
+{
+	FString SourceFeatureId;
+	FString ModelHash;
+	FString CanonicalCrs;
+	FString VerticalDatum;
+	FString Basis;
+	FString Role;
+	TArray<FProjectWorldCanonicalSurfaceTriangle> Triangles;
+	FString PolicyHash;
+	FString AdmissionHash;
+	TArray<FString> SourceProviderIds;
+	TArray<FProjectWorldCanonicalRetainedSource> SourceSnapshots;
+	TArray<FProjectWorldCanonicalConstructedRegion> FaceRegions;
+	TOptional<FProjectWorldCanonicalConstructedPolicy> OperationalPolicy;
+};
+
 struct FProjectWorldCanonicalRoadElevation
 {
 	FString SourceFeatureId;
@@ -56,6 +126,8 @@ struct FProjectWorldCanonicalRoadElevation
 	TMap<FString, FString> TerrainArtifacts;
 	EProjectWorldRoadEndpointRelation EndpointRelation = EProjectWorldRoadEndpointRelation::TerrainAbutment;
 	FString ConstructedSurfaceHash;
+	EProjectWorldRoadElevationDomain Domain = EProjectWorldRoadElevationDomain::SourceParameter;
+	TMap<FString, FString> ReferencedSurfaceModels;
 };
 
 struct FProjectWorldCanonicalCivilGrade
@@ -87,6 +159,7 @@ struct FProjectWorldCanonicalFeature
 	FProjectWorldCanonicalWaterSurface WaterSurface;
 	TOptional<FProjectWorldCanonicalRoadElevation> RoadElevation;
 	TOptional<FProjectWorldCanonicalCivilGrade> CivilGrade;
+	TOptional<FProjectWorldCanonicalConstructedSurface> ConstructedSurface;
 	FString RoadClass;
 	FString VegetationClass;
 	FString FoliageClass;
@@ -106,6 +179,15 @@ struct FProjectWorldCanonicalTerrainQuad
 	TArray<FVector> Vertices;
 	TArray<FVector2f> Weights;
 	TArray<FIntVector> Triangles;
+};
+
+struct FProjectWorldCanonicalBasinConstruction
+{
+	FString CanonicalCrs, SourceFeatureHash, ModelHash, InputHash;
+	int32 MaximumTriangles=0;
+	TMap<FString,double> Parameters;
+	TMap<FString,FString> GroundEvidence;
+	double SpillMarginMeters=0;
 };
 
 struct FProjectWorldCanonicalTerrain
@@ -128,6 +210,7 @@ struct FProjectWorldCanonicalTerrain
 	TArray<FName> SurfaceRoles;
 	TMap<FName, TArray<float>> SurfaceWeights;
 	TArray<FProjectWorldCanonicalTerrainQuad> RefinedQuads;
+	TOptional<FProjectWorldCanonicalBasinConstruction> BasinConstruction;
 };
 
 struct FProjectWorldCanonicalCell

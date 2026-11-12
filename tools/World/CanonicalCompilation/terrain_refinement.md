@@ -40,6 +40,20 @@ reinterpreted as incremental reuse. Preparation uses existing atomic staging;
 authenticated repeat requests are no-ops, failed promotion removes staging, and
 repreparing from the original base with an empty selection removes refinement.
 
+## Correction selection policy
+
+Prefer retaining base Terrain that is adequate for the admitted visual/gameplay
+purpose. Where a demonstrated relationship needs adaptation, select an existing
+qualified local correction and preserve its bounds, origin and dependencies.
+Where supported evidence or design is insufficient, retain an explicit unresolved
+disposition or use a qualified authored input instead of manufacturing precise
+geometry. This priority is not a generic chain executor: current construction and
+publication operations still have their explicit supported contracts and refusals.
+An automatic classifier, general residual handoff and procedural influence adapter
+are not provided by this policy. The
+[territory fidelity contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#fidelity-and-overlapping-physical-roles)
+determines the admitted purpose without weakening canonical or native fidelity.
+
 ## Geometry and refusal
 
 The implemented construction supports admitted constant polygon Water, including
@@ -89,6 +103,61 @@ Focused tests are `test_terrain_refinement.py`, `test_refinement_artifacts.py`,
 `Project.World.Realization.MeshTerrain.RefinedSurface` and
 `Project.World.Realization.Runtime.RefinedNavigationBounds`. Native tests create
 their own disposable inputs through the public compiler API.
+
+The source-rebased boundary fixture in `test_refinement_artifacts.py` tests
+publication refusal independently of construction: schema-valid replacement
+geometry with an open height trace or an unsupported boundary station must not
+reach promotion. It needs no retained diagnostic files and does not qualify a
+geographic model. Run it with `PYTHONPATH=tools`:
+
+```text
+python -B -m unittest World.CanonicalCompilation.tests.test_refinement_artifacts.RefinementArtifactTests.test_captured_b_boundary_refuses_publication_before_any_promotion
+```
+
+## Authored dry Terrain
+
+`prepare_surface_refinement` accepts the closed operation
+`{"kind":"authored_dry_terrain","feature_ids":[],"input":{"path":...,"sha256":...,"byte_size":...}}`.
+The pinned input is the existing `authored-overlay-v2` contract with its canonical
+schema URI, unique patch/provenance IDs and resolved provenance references. Only
+height patches are supported; feature overrides and weight replacement refuse.
+This is authored game-world intent, not qualification of a new raster or survey.
+
+The [authored constructor](refinement/app/authored_terrain.py) sums the existing
+bounded radial deltas on immutable accepted FINAL grid nodes and quantizes once
+with the original height quantum. It selects every incident quad, including
+authenticated neighboring cells sharing a changed node. Changed outer edges
+without a selected neighbor refuse. Zero effective change retains the base by
+refusing a redundant child. Already refined or authored-conflicting cells refuse;
+this operation does not stack wrappers or compose arbitrary correction chains.
+
+Complete selected quads must be disjoint from every retained canonical Water
+polygon/ribbon. This preserves the accepted Water support rather than rerunning
+unrelated Water fitting with newly invented limits. Retained feature documents,
+Water levels/functions and original Terrain bytes stay unchanged. Water-touching
+edits need a separately admitted joint operation. Cells bound by explicit civil
+grade, Road profile or constructed support also refuse; the check runs again
+after composition. Ordinary Road/Building consumers still use final Terrain.
+
+The existing publisher stages the wrapper, selected manifests, coverage, retained
+input, request, report and result together. Same-cell conflicting operations refuse
+without publication. Existing selection preparation authenticates current replay
+and frozen input/domain/quad binding; no separate writer or activation exists.
+The domain hash includes frame, original corner XYZ and both semantic weights.
+
+Inside selected quads final queries become piecewise affine; original immutable
+queries remain bilinear. Even an unchanged node can therefore have a different
+interior query. Report that difference separately from node cut/fill. Per-face
+slopes and internal/external creases must accompany source agreement; an unchanged
+global maximum slope is not a geographic or gameplay quality certificate.
+
+`test_authored_terrain.py` covers cold/no-op equivalence, immutable bytes, shared
+nodes, missing neighbors, Water/provenance/conflict refusal, late support failure,
+failed promotion and frozen domain/vertex tampering. The permanent
+[Madison inputs](../../../Plugins/World/ProjectWorldTestData/Data/Fixtures/madison_dry_ground/README.md)
+provide the source-shaped control and per-face observer. Real authority admission
+and native saved/collision/rendering evidence remain separate from that mechanical
+artifact fixture; see the [native owner](../../../Plugins/World/ProjectWorldMeshTerrain/README.md).
 
 ## Immutable civil grade references
 
@@ -177,6 +246,40 @@ bind both source fields, selected domain, interpolation and boundary conditions.
 Continuity alone does not establish reasonable slopes, civil relationships or
 playability. A continuous inferred transition may be valid game-world geometry,
 but is not surveyed Ground or a reason to relabel unknown source support.
+
+The optional [Ground composite](refinement/ground_composite.py) implements one
+unpublished inner-to-provider model. It preserves a complete identified inner
+piecewise affine field and tapers its nearest-boundary residual against the
+qualified provider-node bilinear model. The final constrained triangles own the
+result; the analytic taper is only their vertex construction rule. Original
+quad-half boundaries, inner creases and provider stations participate in one
+native arrangement. Semantic weights retain the original affine fields, with
+one directed interpolation rule shared by both sides of an original edge.
+
+Its exterior retains the complete provider-model trace and requires neighboring
+source continuation. It does not preserve historical Terrain heights or certify
+an isolated crop as a valid Terrain replacement. All output is identified model
+geometry, including the inferred transition. Inputs, model/frame identities,
+selected original support, boundary trace and finite capacities are consumed
+explicitly. Unknown provider samples, conflicting inner heights, missing cover,
+lost constraints, invalid seams and exceeded capacity refuse without mutation.
+Retaining every original inner vertex is insufficient: losing an internal crease
+can change the field between those vertices. The constructor compares affine
+differences at every overlap vertex and proves complete cover of each original
+inner face, establishing preservation over the whole field rather than samples.
+This is an exact read-only certificate over the supplied binary coordinates;
+native geometry generation is unchanged. The constructor consumes the verifier's
+separate identity and applies its existing precision limit to the upward error
+bound. Querying the protected inner faces against final output is essential:
+reversing those roles would incorrectly require the small inner domain to cover
+the surrounding provider model.
+The optional constructor and native arrangement have separate identities; callers
+that do not consume them retain their existing identities. No existing Ground
+outer-boundary guard or production schema is relaxed. Complete civil widths,
+source departure, physical roles and geographic quality remain separate admission
+requirements. Focused construction, captured-quad and refusal evidence lives in
+`test_ground_composite.py`; the result is rejected by production document readers.
+
 A finite bare-earth value establishes neither an elevated civil surface nor a
 surface constructed after the source survey. Regional selection must consider
 source epoch and surface meaning alongside coverage. Explicit structural
@@ -191,6 +294,14 @@ observations, retain Water, mixed-class and conflicting-return exclusions when
 establishing support; a Ground-only convex hull can interpolate across those
 internal exclusions. Never average conflicting observations implicitly. Finite
 axis samples do not prove an entire Road width or its endpoint sections.
+Return classification is three-dimensional evidence. An excluded return above
+valid Ground does not automatically create a Ground hole at the same XY.
+[USGS bare-earth surface guidance](https://www.usgs.gov/ngp-standards-and-specifications/lidar-base-specification-digital-elevation-model-surface)
+explicitly distinguishes terrain interpolated below a removed bridge from its
+deck. Retain other returns with their XYZ, class and flags for role comparison;
+an all-class planar triangulation is a sensitivity diagnostic, not proof that
+Ground is absent. Interpolation span, real exclusions and conflicting heights
+within the claimed Ground layer still require explicit qualification.
 An ordinary Ground-supported Road consumes a joint final-Ground correction;
 a Road-only lift must not hide an unsupported Ground model or manufacture an
 elevated relationship. A separate deck requires its own qualified civil evidence.
@@ -211,6 +322,19 @@ Only the complete authenticated canonical cell inventory can establish a true
 territory exterior. A crop, omitted neighbor, land edge or source frontier cannot
 remove an internal seam obligation. The current pure builder conservatively
 preserves every selected outer trace; it does not select a regional boundary law.
+
+Whole-quad eligibility and exact source support are different boundaries. When
+source continuation justifies extending a candidate, test the actual outside
+neighbor: a positive-area supported component must share positive interface
+length with the applicable role portion. Membership of the closed interface
+alone, a disconnected supported island or a line-only touch proves no outward
+continuation. This coverage proof still does not qualify physical Ground.
+
+A Ground-product hole can contain an elevated deck, water column and bed at the
+same XY. Qualify those layers separately against the provider's classification
+metadata and mapped structural relationships. Neither the hole nor a nearby
+classified layer authorizes Ground infill or relabeling deck/water-column returns
+as Ground. Source acquisition dates and current mapped geometry remain distinct.
 
 Its implementation identity is independent of the existing feature/Water child
 and includes the shared helpers and contracts it consumes. The result separately
@@ -266,6 +390,180 @@ This unpublishable constructor establishes no Ground authority or replacement
 of the Water-specific refinement provenance contract.
 
 See [finite ground resolution closure](refinement/docs/architecture/diagrams/ground_resolution.md).
+
+## Identified original-width path-floor comparison
+
+The optional [path-floor constructor](refinement/ground_path_floor.py) constructs
+one unpublished source-control field over one or two complete adjoining original
+quads. It supports the demonstrated finite case: one straight inferred-width path
+crossing the region's north/south boundary, with Land explicitly WEST of a separately supplied
+south-to-north-spanning Land/reference cut. Reversing the cut endpoints does not
+select the other side. Other orientations or physical roles need their own
+demonstrated extension; this operation does not infer them from an unoriented edge.
+This is a numerical modeling capability, not a general scenario engine or a
+physical shore, structure, Ground or source-admission rule.
+
+The caller supplies qualified canonical point controls and their source,
+processing and frame identities. Known values may themselves be raster-model
+samples; they are not automatically surveyed/current floor observations.
+Explicit source UNKNOWN retains its identity and null source height. Missing,
+uncaptured, unreadable, malformed or nonfinite replies refuse; they cannot be
+converted into source UNKNOWN. Native pixels, datum transformations and source
+acquisition remain upstream. Defining axis controls must all be known before
+constructing the identified piecewise longitudinal, zero-crossfall floor.
+
+The complete original width is protected through one constrained mesh, including
+its defining height creases. Canonical encoding rounds the modeled path boundary
+outward and the Land interface inward, with actual exact width/containment checks;
+it does not change source geometry or widen an admission gate. All generated
+nodes receive an explicit floor, source-control or retained-reference branch.
+Whole-field height, continuous directional slopes, C0/nonmanifold conditions,
+complete cover and the original non-Land reference are checked before return.
+Neighboring quads share one source-axis profile, arrangement and height assignment.
+Every original diagonal and shared boundary remains a constraint; all original
+reference planes participate in coverage and fidelity proofs. Splitting back into
+original owners preserves face XYZ, original semantic interpolation and an exact
+shared XYZ/semantic trace, with the triangle capacity enforced per original quad.
+Independently constructing adjacent crops can produce different endpoint profiles
+and is not evidence of a coherent neighborhood.
+Numerical reference preservation is separate from exact equality and geographic
+accuracy. Retained side controls are evaluated against the final field only
+inside its domain; outside controls do not trigger model extrapolation.
+
+Original semantic weights remain on their original affine halves. Output stays
+unpublished model space, with explicit changed outer traces requiring neighbor
+continuation. Source/role qualification, accepted departure limits, bank geometry,
+clearance, complete-neighborhood acceptance and publication remain separate.
+The optional implementation and consumed native/verifier identities are local
+to this capability; unused feature/Water operations do not acquire them.
+The [captured floor tests](tests/test_ground_path_floor.py) and
+[neighbor tests](tests/test_ground_path_neighbors.py) retain the original coordinate
+magnitude, source gaps, full inferred width, failing shore join and independent-crop
+seam without requiring raw rasters or previous scratch runs.
+
+## Identified strip continuation
+
+The optional [Ground continuation](refinement/ground_continuation.py) joins an
+identified incoming field to a caller-authenticated raster-node model in one
+east neighbor. Its first variant accepts a contiguous E/W strip of complete
+original quads. It keeps the incoming edge's PWA law, including added stations,
+and subdivides incident incoming faces so both sides consume the same trace.
+Declared incoming wet-face roles follow their parent faces; a dry sample at
+zero elevation does not acquire a Water role.
+
+The neighbor's node-based Delaunay field is frozen before further noding. The
+original semantic diagonal is a separate constraint: continuous height and equal
+shared tuples cannot establish preservation of both complete material-weight
+fields. Certification checks the emitted triangles against the incoming field,
+fixed neighbor reference and original semantic fields. Unchanged incoming quads
+retain their exact payloads. Consumed implementation, native execution, source
+and model identities remain separate from geographic acceptance.
+
+The result uses the existing final-quad layout as an unpublished identified
+model. Other exterior traces remain OPEN. This operation neither authenticates
+source data nor selects coast, bed, structural roles or quality limits, and it
+has no publication authority. It does not require the composite constructor's
+interior-only support or alter the path-floor constructor's floor/cut contract.
+Captured-data, typed-role, locality and output-fault controls live in
+[continuation tests](tests/test_ground_continuation.py).
+
+## Identified static basin comparison
+
+The optional [identified basin](refinement/identified_basin.py) constructs a joint
+finite Water/supporting-surface model without publishing or admitting it.
+`build_identified_basin` consumes the unchanged standing polygon, complete selected
+original quads, a separately qualified raster-node reference and explicit model
+inputs. Role association, stage, depth, core/rim/influence contours, transition
+dimensions, gradient screen and spill margin are identified assumptions, never
+measured rim/bed/Water properties. The reference uses its declared grid-node
+triangle diagonals, rather than the Ground composite's bilinear taper reference.
+Callers authenticate source and role evidence; supplied hashes do not establish
+authenticity or current-site accuracy by themselves.
+
+This bounded operation supports a strictly convex single-ring basin, strictly
+nested convex model contours and at most 16 complete original quads covering one
+rectangle. The basin owner enforces strict convexity independently of the shared
+simple-ring encoding certificate. Whole influence must be interior. The support declaration is an
+explicit inferred solid-plaza assumption: known canonical under-routes refuse,
+and unmapped under-routes remain unknown. It cannot model layered structures or
+vertical walls. Pinned native geometry nodes all reference-grid and contour
+constraints together. Actual face incidence defines the finite modeled loops;
+each loop consumes the optional
+[boundary encoding contract](../ExecutionEnvironment/geometry/README.md).
+Winding normalization preserves the original source edge set. Ordered rounding
+witnesses qualify the representation departure and report conservative nonzero
+bounds; they do not establish exact mapped-set equality. A policy requiring exact
+footprint preservation cannot be satisfied by silently substituting this model.
+
+The final conforming PWA owns all between-node values. Its wet faces must have
+positive interior depth, a complete connected sublevel component and a minimax
+escape level above the explicit retention margin. Complete face gradients and
+per-quad capacities must pass their supplied screens. Shared heights, original
+affine semantic weights and provider exterior trace are retained; that exterior
+still requires qualified neighbor continuation. The optional operation consumes
+model, source feature, reference evidence, selected support, boundary trace and
+implementation/native identities. Ordinary callers do not import this sibling
+capability. Source-shaped construction, cold/depth locality, full affine cover,
+outside-reference field and refusal controls live in
+[basin tests](tests/test_identified_basin.py). Its plain model-space result has no
+publication authority. Existing observed contained-Water eligibility and
+publication remain separate contracts. The native consumer recognizes the
+distinct inferred function at its exact stage, with the same stored-spill
+refusal as observed containment. Its closed JSON admission is described below.
+This explicit inferred ID/version preserves its supplied
+noded canonical XY until float storage; applying the base centimeter quantization
+again would change the jointly constructed wet/dry boundary. Ordinary and observed
+contained functions retain their coordinate rule. Joint unit storage and
+independence requirements belong to the
+[World consumer contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md).
+The permanent joint fixture exporter is
+[identified basin mesh fixture](tests/identified_basin_mesh_fixture.py); its
+consumers are `Project.World.Water.IdentifiedBasinTypedConsumer` and the existing
+`Project.World.Realization.MeshTerrain.CompositeConsumer`. Exact stored stage
+alone does not prove joint shoreline containment after float XY conversion,
+rendered materials, physical support or geographic admission.
+
+### Joint basin candidate admission
+
+The optional [basin admission](refinement/basin_admission.py) connects the pure
+model to `prepare_surface_refinement` as one closed `identified_basin` operation.
+The [retained input](refinement/contracts/identified_basin/input.schema.json)
+keeps the complete unchanged source Water separate from the explicitly inferred
+model and its retained reference. This does not authenticate a survey, resolve
+unknown support or establish current-site accuracy. The shared
+[surface contract](contracts/identified_basin/surface.schema.json) owns the wire
+projections consumed by Water and supporting Terrain.
+
+One candidate stages both the modeled Water and complete selected Terrain quads
+through the existing Terrain serializer. It retains the original grids, feature
+identity, source references and feature membership. Unclosed exterior traces,
+interacting Water groups, nested refinement, unavailable input or unresolved
+Road, physical Building-volume or constructed-surface intersections refuse the
+whole candidate. The interaction census includes features created by earlier
+operations. It uses conservative physical envelopes rather than Building
+placement centers. No partial earlier operation is published on later failure.
+
+Selected authority permits only the explicitly declared Terrain replacement
+paths; original Terrain bytes remain immutable. Frozen reads authenticate retained
+bytes and declared bindings; current replay recomputes construction against the
+base. Basin-specific schemas and construction identities are consumed only by
+requests selecting this operation. Unused basin-leaf edits do not invalidate
+ordinary bridge or structural-child currency.
+
+Native JSON admission checks the explicit inferred function, retained `basin`
+input role, unchanged source associations, frame, stage/spill, numeric policy,
+reference evidence, selected quads and exact final Terrain descriptors. Its digest
+bindings authenticate producer-derived provenance; they do not rerun the Python
+constructor or rounding certificate. Native seam validation independently refuses
+an open original-quad trace. Verification identity includes admission metadata.
+Depth-only changes can schedule Water evaluation while unchanged Water geometry
+semantics reuse saved artifacts. Neither candidate publication nor native loading
+authorizes production selection or geographic acceptance.
+
+Public publication, cold replay, locality and no-output refusal controls live in
+[admission tests](tests/test_basin_admission.py). The
+[native control exporter](tests/basin_admission_native_fixture.py) creates fresh
+reduced children for full-loader positive and resealed negative checks.
 
 ## Contained standing Water construction
 
@@ -358,6 +656,8 @@ on their supporting surface; they are not automatically immutable-Terrain
 abutments. The current production Road parser and feature publisher do not admit
 this model. Source association and coverage do not establish acceptable slopes,
 incident joins, compiled geometry, collision or geographic adoption.
+The [captured constructed-surface regression](tests/test_constructed_surface.py)
+keeps that distinction executable with source-faithful input and full-field replay.
 Typed native diagnostic consumption follows ProjectWorld's
 [Road elevation consumption](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#road-elevation-consumption).
 
@@ -369,6 +669,30 @@ single finite source way are required. Missing tags, conflicting crossing modes,
 repeated/reversing stations and incomplete Terrain refuse. This construction API
 does not authenticate supplementary source admission, publish a refinement,
 activate a profile in ProjectWorld or authorize production adoption.
+
+Both endpoint sections are sampled from Terrain. This is a model assumption,
+not evidence that the physical structure has Terrain-supported abutments or
+that its deck shares Terrain's height. A bridge tag, relative layer or footprint
+above Water does not establish either endpoint's structural support.
+
+The current model does not represent a fixed-pier-to-floating-dock gangway.
+Such a relationship needs separately qualified endpoint roles, footprint,
+epochs and metric support before a source-bound model can be admitted. Imagery
+can support structural association without supplying deck height; dataset-level
+Bridge Deck classification does not prove local returns or their temporal
+suitability. Ground and Water observations retain their distinct source roles.
+An identified static representative-water model would still need justified dock
+freeboard and endpoint connections; Water height alone is not walkable deck height.
+These qualification requirements do not prohibit independent source investigation
+or authorized disposable comparisons while production quality remains unresolved.
+
+Bridge support retains every terrain quad touching an original source segment's
+half-width-expanded bounds, including shared-edge contact. Local quad evaluation
+preserves complete selected-cell sample validation, original face order and
+consumed-cell identities. It does not make full-cell validation, terrain loading
+or candidate publication I/O local. The captured-source and boundary controls in
+[bridge support tests](tests/test_road_support.py) compare the complete support
+and native profile against a dense reference and bound unused quad evaluations.
 
 `refinement.api.prepare_bridge_refinement` admits a separately byte-pinned
 normalized provider document through SourceIngestion's public contract. Shared
@@ -421,6 +745,43 @@ than falling back to draping. City adoption uses the authenticated selected-chil
 and World transaction boundary below. Native source, compiled geometry,
 collision and incident joins remain separate acceptance surfaces.
 
+## Static gangway candidates
+
+`refinement.api.build_gangway_profile` is a pure, versioned fixed/floating
+construction operation. Its [implementation](refinement/app/gangway_elevation.py)
+owns the closed input/output shapes. It accepts a straight directed source
+bridge, a complete finite structural assembly, separately identified endpoint support surfaces, a static Water
+model and explicit quality limits. Complete source-node bindings, frame/epoch
+metadata and observed-versus-identified-model basis remain explicit. The caller
+authenticates those inputs; hashes alone are not source qualification.
+
+Both full-width endpoint sections must lie on their supplied support TINs.
+Boundary cuts and interval interiors detect gaps, holes and conflicting heights.
+The projected assembly preserves body plateaus and modeled ramp hinges; endpoint
+interpolation cannot replace that field. All supplied TINs require continuous
+heights at shared edges and T junctions. Projection refuses insufficient coverage
+or clearance and does not introduce an arch to clear an obstacle. Native parameter coverage,
+exact per-face longitudinal/cross gradients, complete endpoint step and affine
+Terrain/static-Water clearance must satisfy caller limits. There are no default
+geographic quality values. Source/Water/model/policy/native identities bind the
+candidate, including the complete assembly, and unchanged remote Terrain does not
+enter its consumed support.
+
+Static-Water separation measures the modeled walking top surface against the
+identified representative Water level. It does not establish underside clearance,
+structural thickness, tidal safety or clearance for vessels. Those properties
+need their own geometry and evidence when required by the selected use.
+
+This operation cannot publish a feature, expand a structural parent, qualify
+a neighborhood or activate authority. Fixed-pier/floating-body footprints,
+all incident junctions, support inference quality and actual selected Water
+remain separate qualification inputs. The production parser and closed feature
+publisher do not admit this candidate variant. The
+[gangway tests](tests/test_gangway_elevation.py) preserve captured source
+coordinates and mapped fixed/floating footprints with explicitly inferred model
+heights and hinge; they prove the
+constructor boundary, not a surveyed or playable complete Pier25 reconstruction.
+
 ## Water confluence candidates
 
 `refinement.api.build_confluence_constraint(features, context, projected)`
@@ -465,17 +826,27 @@ network solver follows from this operation.
 ## Combined feature preparation
 
 `refinement.api.prepare_surface_refinement(repo_root, base_result_path,
-output_root, operations)` prepares Bridge and Water constraints together from
-one authenticated compile base. Its closed operations are `bridge_elevation`
-and `water_confluence`; this is not a rule language. Each operation supplies
-feature IDs and an explicitly byte-pinned normalized source document within the
-repository. Complete primitive context is qualified before construction.
+output_root, operations)` prepares closed feature operations from one authenticated
+compile base. `bridge_elevation` and `water_confluence` supply existing feature
+IDs and an explicitly byte-pinned normalized source document. The separate
+`constructed_surface_import` variant creates source-bound identified records
+from declared field, policy and original-source snapshots. The `identified_basin`
+variant jointly constructs one admitted Water feature and its selected Terrain
+replacement under the [basin admission contract](#joint-basin-candidate-admission).
+Construction-only Ground, continuation, path-floor and structural helpers do not
+become publishable operations merely by producing valid geometry. This is not a
+rule language. Complete primitive context is qualified before construction.
 Water source projection and the admitted native ribbon/polygon suppression
 contract must reproduce the base visible geometry exactly.
 
 Operations with interacting feature ownership refuse. Independent corrections
 to one owned shard are merged before writing that shard, manifest and coverage
-once, preserving both results. Distinct contexts have content-qualified evidence
+once, preserving both results. Operations use deterministic kind/feature order;
+that order is not a prerequisite graph or a dependent-correction protocol. Joint
+basin and authored-dry operations also require disjoint original Terrain-cell ownership. A basin
+evaluates the effective feature set including earlier imported records, and
+refuses unresolved physical interaction rather than delegating it to a later
+correction. Distinct contexts have content-qualified evidence
 paths; shared identical context is stored once. The
 [surface request](refinement/contracts/surface-refinement-request.schema.json)
 binds base/feature hashes, normalized context, source admission, current child
@@ -489,6 +860,94 @@ full trees, which could otherwise discard an earlier correction. Candidate
 staging remains tmp-only and retains original source lineage, Terrain and
 unrelated artifacts. A genuine `refinement_result.json` is the output; production
 selection and World transactions are separate acceptance boundaries.
+
+The [candidate-preparation view](refinement/docs/architecture/diagrams/candidate_preparation.md)
+shows this lifecycle and its refusal boundary. A later construction failure
+publishes neither the failed operation nor an earlier successful operation.
+`test_surface_refinement.py` owns independent-order/no-op, interacting or unknown
+operation, and second-operation failure controls; the basin and structural-import
+tests own their operation-specific qualification and mixed-owner cases.
+
+Fresh preparation reads the complete base cell manifests, feature shards and Terrain
+artifacts, then copies all base outputs into the isolated candidate before
+replacing changed artifacts. A sparse changed-cell report or byte-identical
+unaffected output does not establish sparse read/copy cost. Reuse authenticates
+the complete candidate for the same request; individual operation results have
+no separate persisted cache. The feature publisher's implementation fingerprint
+conservatively includes shared compiler helpers and schemas, while selected
+basin/import constructors add their consumed identities. Proof currency is
+distinct from a consumer's actual geometry or placement dependency; downstream
+generation follows the [component ownership contract](../../../docs/architecture/principles.md#component-ownership).
+
+## Declared source-bound structural imports
+
+The [constructed import](refinement/constructed_import.py) validates and imports
+an explicitly identified finite PWA model through the same feature publisher.
+The pinned field is a declared input. Deterministic replay reconstructs the child
+from that field and its retained sources; it does not claim to rerun a historical
+fit or turn inferred geometry into surveyed evidence. The
+[model contract](refinement/contracts/constructed-import-model.schema.json) and
+[policy contract](refinement/contracts/constructed-import-policy.schema.json)
+own its input shapes and comparison limits.
+
+Creation-only IDs must be globally absent from the authenticated base and match
+the declared primary source IDs through the existing canonical identity adapter
+and the base's profile namespace. Complete way/node or
+multipolygon/member/node evidence is qualified through SourceIngestion. Conflicting
+primitive versions, unknown metric interpretation, unsupported roles, missing
+source context and incomplete canonical-cell membership refuse. Face roles cover
+every triangle exactly once; Land cannot enter structural ownership. Full model
+coverage, continuous field/role gradients and shared-height agreement are checked
+per imported record before the staged child can be published. Cross-record joins,
+vertical relationships and whole-neighborhood continuity require separate proof.
+Coverage uses the native geometry kernel's area budget; exact rational decisions
+apply to shared heights and gradients, not to a zero-hole area certificate.
+
+A complete multipolygon's fence-member height can be qualified as the barrier's
+object dimension, separately from structural surface elevation. This follows
+OSM's [object-height semantics](https://wiki.openstreetmap.org/wiki/Key:height)
+and [fence tagging](https://wiki.openstreetmap.org/wiki/Tag:barrier%3Dfence).
+Only an unambiguous member fence with a positive finite bare-meter dimension
+uses this interpretation. The literal primitive is retained; its support
+elevation and physical realization remain unresolved. Primary objects, standalone
+ways, nodes, mixed structural roles and other unqualified metric meanings still
+refuse. This interpretation neither changes deck XYZ nor creates an obstacle.
+Actual route/barrier crossings and mapped passages require separate geographic
+and gameplay qualification.
+
+`constructed_surface` feature geometry is explicitly the MODELED domain. The
+[shared wire contract](contracts/constructed-surface.schema.json) retains original
+source geometry, primitives, versions and membership separately, through bound
+qualified records and the exact original snapshots. A partial inferred apron
+does not claim a full parent's geometry, measured width, deck height or ownership.
+Imported triangles are retained at their declared canonical heights; no fitting
+or consumer-side position correction occurs here.
+
+The operation appends owner records and updates reference-only manifests,
+effective counts and artifact descriptors together. Base Terrain and inherited
+compile reports remain historical and unchanged. The refinement report carries
+the effective additions, ownership and current field checks. An unchanged
+reference-only feature shard is reused.
+
+The [captured import fixture](tests/structural_import_fixture.py) regenerates
+disposable complete bundles for the native handoff test. With the locked World
+interpreter and `PYTHONPATH=tools`, run
+`python -B -m World.CanonicalCompilation.tests.structural_import_fixture --output-root tmp/world/canonical_compilation/import_fixture`.
+The optional `--supporting-member` case retains a qualified source binding that
+does not own an extra face role. The command requires a fresh disposable target
+and reports the receipt path/hash for `Constructed.CanonicalImportBundle`.
+
+Every model, policy and source/native snapshot has a declared content-addressed
+archive descriptor. Native OSM JSON is validated under its exact retained-input
+role rather than misrepresented as a schema-bearing compiler document. Unknown
+archive extras refuse; no wildcard evidence namespace is accepted. Shared schemas
+resolve from the local registry, and unknown references refuse offline.
+
+Fresh replay and first activation share the same selected-operation identity
+checks, including the actual import and source qualification variants. Frozen
+reading and recovery authenticate retained bytes without invoking a current
+importer. Native parsing, a registered physical producer, explicit Road delegation,
+complete-neighborhood quality and gameplay remain separate acceptance boundaries.
 
 ## Effective-authority candidates
 
@@ -505,7 +964,9 @@ All base identity, external inputs, admission and compile-result fields remain
 intact. The original immutable ZIP remains independently addressable. The child
 has its own deterministic ZIP, genuine refinement receipt, frozen producer
 identities and effective identity derived from both base and child. Normalized
-qualified source context is retained; raw provider payloads are excluded.
+qualified source context is retained. Structural imports also retain the explicitly
+declared native primitive snapshots required for complete relation qualification;
+this does not claim a historical full-provider snapshot or source reacquisition.
 
 See [effective base and child materialization](refinement/docs/architecture/diagrams/effective_authority.md).
 

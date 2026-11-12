@@ -43,6 +43,7 @@ contains canonical and generated authority, not this raw provider cache.
 | `app/raster_mosaic.py` | Component normalization, semantic identity, VRT coverage, and composite COG |
 | `app/osm_selection.py` | Complete-geometry membership, selected-ID closure, and reference proof |
 | `app/osm_context.py` | Supplementary OSM namespace, complete way/node qualification and consumed-contract identity |
+| [Multipolygon context](osm_multipolygon_context.py) | Optional complete native relation/member/node counterpart and ring-edge qualification |
 | `app/tool_io.py` | Portable external-tool JSON and artifact metadata |
 | `app/run_identity.py` | Public profile resolution and exact run fingerprint |
 | `app/cli.py` | Operation orchestration and structured results |
@@ -57,6 +58,20 @@ namespace aliases. The context document's byte pin and native normalization
 receipt provide traceability; they do not recover or authenticate historical
 snapshot bytes. Consumers bind the context-admission implementation and schema
 identity before reusing an existing result.
+
+Multipolygon context additionally consumes the complete native primitive document
+because normalized area export can omit relation membership and the type tag.
+The optional qualifier preserves that original relation and checks every member's
+version, timestamp, tags, ordered nodes and normalized counterpart. Its bounded
+nonbranching outer/inner rings must match the normalized area's complete edge
+multiset regardless of ring start, winding or member direction. Nested relations,
+ambiguous roles, incomplete rings and coincident distinct nodes require separate
+qualification and refuse here. These literal source checks follow OSM's
+[multipolygon member semantics](https://wiki.openstreetmap.org/wiki/Relation:multipolygon);
+they do not certify geographic validity, physical support, elevations, accepted
+source epoch or model admission. Callers bind both documents and the optional
+qualifier identity. The public API loads this body only for relation consumers;
+unused way-only consumers and raw source-run fingerprints do not acquire it.
 
 ```powershell
 python -S tools/World/SourceIngestion/bootstrap.py bootstrap-tools
@@ -144,6 +159,10 @@ Admission requires zero rotation, equal signed pixel sizes, and component
 origins separated from the reference origin by integer pixel offsets within a
 tight tolerance. Equal absolute resolution alone is insufficient and a
 misaligned component is never silently resampled.
+The decoder consumes Copernicus DEM components with matching raster class,
+CRS, vertical datum, accuracy and pixel type. Conflicting overlap samples
+refuse. This mosaic is not a Ground-over-DSM priority selector or an unknown-
+sample filling policy.
 The ordered VRT alpha band proves geometric coverage; finite elevation values
 do not substitute for that proof. Component semantic hashes, component COG
 hashes, the mosaic contract, and the composite authority remain distinct.

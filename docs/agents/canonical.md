@@ -203,6 +203,23 @@ Enforced at three layers: docs (this section), script refusal
 [run_cpp_tests_safe.ps1](../../scripts/ue/test/unit/run_cpp_tests_safe.ps1)
 `-Mode Dev`), and explicit override path (`-Mode Gate` / `-AllowBroadFilter`).
 
+The cold runner refuses pre-existing Unreal editors and build/shader workers
+without terminating them. Its private
+[process owner](../../scripts/ue/test/unit/owned_test_process.ps1) launches the
+test suspended, assigns a private Windows Job before resuming it, and terminates
+only that Job. Native CreateProcess descendants inherit containment; independently
+brokered processes are outside this lifecycle contract. Unavailable containment
+refuses startup rather than falling back to name/PID-based termination.
+
+The process deadline remains authoritative through shutdown.
+A missed deadline returns timeout even if termination succeeds later. Termination
+and redirected-output drain have bounded grace; incomplete output is an explicit
+infrastructure failure and cannot certify test success. The
+[real-process regression](../../scripts/ue/test/unit/test/ProcessCompletion.Tests.ps1)
+exercises actual cold-start refusal and native containment with a live unrelated
+sentinel, owned children, inherited pipes and injected cleanup failure. Native
+Unreal execution remains a separate focused smoke for the process adapter.
+
 - Default to one exact test filter. An "exact full test name" is the full
   dot-separated path to one test (e.g.
   `ProjectIntegrationTests.UI.Framework.Inventory.CellDropTarget.BuilderWrapsEveryCell`).
@@ -271,6 +288,11 @@ for broader product scope, changed acceptance criteria, durable authority not
 already authorized, or another unresolved repetition of the same failure.
 Monitor long jobs at meaningful stage changes; repeated fixed-interval polling
 and transcript tails are not progress evidence.
+
+Agents own technical decisions within the operator-authorized budget: methods,
+bounded experiments, local fixes and appropriate verification. Operators own
+changes to that budget, accepted product meaning and protected authority. Do not
+ask for approval merely to choose the next technical experiment within scope.
 
 Fix a regression-envelope failure in the current task only when the current
 change directly violates a supported shared contract or the final acceptance

@@ -5,11 +5,12 @@ public class ProjectWorldRoadEditor : ModuleRules
 	public ProjectWorldRoadEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		PublicDependencyModuleNames.AddRange(new[] { "Core", "ProjectWorldEditor" });
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
-			"Core", "CoreUObject", "Engine", "Json", "MeshDescription",
+			"CoreUObject", "Engine", "Json", "MeshDescription",
 			"StaticMeshDescription", "GeometryCore", "GeometryAlgorithms",
-			"AssetRegistry", "ProjectCore", "ProjectWorldEditor", "UnrealEd"
+			"AssetRegistry", "ProjectCore", "UnrealEd"
 		});
 	}
 }

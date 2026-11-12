@@ -17,8 +17,8 @@ from World.CanonicalCompilation.tests.test_terrain_refinement import fixture
 PREFIX = "https://alis.world/schemas/world-compiler/"
 
 
-def make_base(root: Path, cross_cell: bool = True):
-    cells, water, policy, selected = fixture()
+def make_base(root: Path, cross_cell: bool = True, *, values=None):
+    cells, water, policy, selected = fixture() if values is None else deepcopy(values)
     if not cross_cell:
         water["geometry"]["coordinates"] = [[[8, 12], [22, 12], [22, 18], [8, 18], [8, 12]]]
         selected.pop(next(reversed(selected)))

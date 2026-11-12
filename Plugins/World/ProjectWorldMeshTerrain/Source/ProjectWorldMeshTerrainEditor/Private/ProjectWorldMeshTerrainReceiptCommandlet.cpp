@@ -4,6 +4,8 @@
 #include "ProjectWorldMeshTerrainReceiptCommandlet.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldRealizeCommandlet.h"
+#include "ProjectWorldRealizationEvidence.h"
 #include "ProjectWorldMeshTerrainLayoutReceipt.h"
 
 #include "HAL/FileManager.h"
@@ -34,9 +36,8 @@ int32 UProjectWorldMeshTerrainReceiptCommandlet::Main(const FString& Params)
 		return 2;
 	}
 	const FString ResultPath = FPaths::ConvertRelativePathToFull(*Result);
-	const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
-		FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
-	if (!FPaths::IsUnderDirectory(ResultPath, EvidenceRoot))
+    FProjectWorldRealizationRequest Evidence;Evidence.CompileResultPath=*CompileResult;Evidence.ResultPath=ResultPath;
+	if (!UProjectWorldRealizeCommandlet::IsSafeResultPath(ResultPath) || !ProjectWorldRealizationEvidence::IsInputDisjoint(Evidence))
 	{
 		UE_LOG(LogProjectWorldMeshTerrainReceipt, Error, TEXT("Unsafe result path: %s"), *ResultPath);
 		return 2;

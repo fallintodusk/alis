@@ -8,6 +8,12 @@
 
 namespace ProjectWorldRealizationEvidence
 {
+    inline bool IsReservedInputPath(const FString& Path)
+    {
+        FString Full=FPaths::ConvertRelativePathToFull(Path);FPaths::NormalizeFilename(Full);FPaths::CollapseRelativeDirectories(Full);
+        const FString Root=FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()/TEXT("tmp/world/inputs"));
+        return Full.Equals(Root,ESearchCase::IgnoreCase) || FPaths::IsUnderDirectory(Full.ToLower(),Root.ToLower());
+    }
 	inline bool IsInputDisjoint(const FProjectWorldRealizationRequest& Request)
 	{
 		if (Request.CompileResultPath.IsEmpty() || Request.ResultPath.IsEmpty()) return false;
@@ -25,6 +31,7 @@ namespace ProjectWorldRealizationEvidence
 		TSet<FString> Outputs;
 		for (const FString& Output : {Result, FPaths::ChangeExtension(Result, TEXT("log")), Result + TEXT(".tmp")})
 		{
+            if (IsReservedInputPath(Output)) return false;
 			const FString Key = Output.ToLower();
 			if (Outputs.Contains(Key)) return false;
 			Outputs.Add(Key);

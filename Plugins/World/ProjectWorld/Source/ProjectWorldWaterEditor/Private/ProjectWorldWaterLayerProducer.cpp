@@ -1,6 +1,7 @@
 #include "ProjectWorldWaterLayerProducer.h"
 
 #include "ProjectWorldCanonicalBundle.h"
+#include "ProjectWorldContainedStage.h"
 #include "ProjectWorldWaterRealization.h"
 #include "ProjectWorldWaterSourceContext.h"
 #include "Utilities/ProjectSha256.h"
@@ -99,7 +100,7 @@ namespace
 			AppendToken(Identity, Feature->WaterSurface.FunctionId);
 			AppendToken(Identity, FString::FromInt(Feature->WaterSurface.FunctionVersion));
 			AppendNumber(Identity, Feature->WaterSurface.LevelMeters);
-			if (Feature->WaterSurface.FunctionId == TEXT("contained_ground_quantile"))
+            if (ProjectWorldContainedStage::Recognizes(Feature->WaterSurface.FunctionId))
 			{
 				const auto& Spill = Feature->WaterSurface.ContainmentSpillMeters;
 				if (!Spill.IsSet() || !FMath::IsFinite(*Spill) || *Spill <= Feature->WaterSurface.LevelMeters) return false;

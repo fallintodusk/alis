@@ -14,6 +14,7 @@
     "schema_version": {"const": 1},
     "grid_id": {"type": "string", "minLength": 1},
     "cell_id": {"type": "string", "minLength": 1},
+    "construction": {"enum": ["identified_static_basin_pwa_v1", "authored_dry_terrain_v1"]},
     "base": {
       "type": "object", "required": ["path", "sha256", "byte_size"],
       "properties": {
@@ -24,6 +25,7 @@
     },
     "coordinate_rule": {"const": "canonical_boundary_intersections_float64"},
     "consumed": {
+      "oneOf": [{
       "type": "object",
       "required": ["water_feature_id", "water_sha256", "policy_sha256", "implementation_sha256", "execution_identity", "domain_sha256"],
       "properties": {
@@ -34,8 +36,10 @@
         "execution_identity": {"$ref": "#/$defs/hash"},
         "domain_sha256": {"$ref": "#/$defs/hash"}
       }, "additionalProperties": false
+      }, {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/consumed"}, {"$ref": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json#/$defs/consumed"}]
     },
     "policy": {
+      "oneOf": [{
       "type": "object",
       "required": ["accepted_accuracy", "maximum_cut_m", "maximum_fill_m", "maximum_dry_distance_m", "maximum_bank_gradient", "maximum_triangles", "water_clearance_m"],
       "properties": {
@@ -47,6 +51,7 @@
         "maximum_triangles": {"type": "integer", "minimum": 2, "maximum": 4096},
         "water_clearance_m": {"$ref": "#/$defs/limit"}
       }, "additionalProperties": false
+      }, {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/parameters"}, {"$ref": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json#/$defs/policy"}]
     },
     "quads": {
       "type": "array", "minItems": 1,
@@ -61,6 +66,7 @@
       }
     },
     "metrics": {
+      "oneOf": [{
       "type": "object",
       "required": ["maximum_cut_m", "maximum_fill_m", "cut_volume_m3", "maximum_dry_distance_bound_m", "maximum_bank_gradient"],
       "properties": {
@@ -68,7 +74,30 @@
         "cut_volume_m3": {"$ref": "#/$defs/limit"}, "maximum_dry_distance_bound_m": {"$ref": "#/$defs/limit"},
         "maximum_bank_gradient": {"$ref": "#/$defs/limit"}
       }, "additionalProperties": false
+      }, {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/metrics"}, {"$ref": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json#/$defs/metrics"}]
     }
   },
+  "allOf": [{
+    "if": {"required": ["construction"], "properties": {"construction": {"const": "identified_static_basin_pwa_v1"}}},
+    "then": {"properties": {
+      "consumed": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/consumed"},
+      "policy": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/parameters"},
+      "metrics": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/metrics"}
+    }}
+  }, {
+    "if": {"required": ["construction"], "properties": {"construction": {"const": "authored_dry_terrain_v1"}}},
+    "then": {"properties": {
+      "consumed": {"$ref": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json#/$defs/consumed"},
+      "policy": {"$ref": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json#/$defs/policy"},
+      "metrics": {"$ref": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json#/$defs/metrics"}
+    }}
+  }, {
+    "if": {"not": {"required": ["construction"]}},
+    "then": {"properties": {
+      "consumed": {"required": ["water_feature_id"]},
+      "policy": {"required": ["accepted_accuracy"]},
+      "metrics": {"required": ["maximum_cut_m"]}
+    }}
+  }],
   "additionalProperties": false
 }

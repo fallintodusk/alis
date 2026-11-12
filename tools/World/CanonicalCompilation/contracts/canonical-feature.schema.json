@@ -16,11 +16,16 @@
         "required": ["feature_id", "feature_class", "geometry", "attributes", "source_refs", "owner_cell_id", "intersecting_cell_ids", "representations", "provenance_result"],
         "properties": {
           "feature_id": {"type": "string", "pattern": "^alis:[a-z0-9_]+:[a-z]+:[0-9]+$"},
-          "feature_class": {"enum": ["road", "building", "water", "land_cover", "vegetation_area", "foliage_point"]},
+          "feature_class": {"enum": ["road", "building", "water", "land_cover", "vegetation_area", "foliage_point", "constructed_surface"]},
           "geometry": {"type": "object"},
           "attributes": {
             "type": "object",
             "properties": {
+              "surface_function": {"type": "object", "allOf": [{
+                "if": {"required": ["function_id"], "properties": {"function_id": {"const": "identified_static_lined_basin"}}},
+                "then": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json"}
+              }]},
+              "constructed_surface": {"$ref": "https://alis.world/schemas/world-compiler/constructed-surface-v1.json"},
               "surface_context": {
                 "type": "object",
                 "required": ["version", "ground_relation", "bridge", "tunnel", "ford", "covered", "relative_layer", "water_origin", "water_kind", "source_tags", "source_nodes", "unresolved"],
@@ -81,7 +86,12 @@
           "provenance_result": {"const": "accepted"},
           "authored_overlay_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [{
+          "if": {"properties": {"feature_class": {"const": "constructed_surface"}}},
+          "then": {"properties": {"attributes": {"required": ["constructed_surface"]}}},
+          "else": {"properties": {"attributes": {"not": {"required": ["constructed_surface"]}}}}
+        }]
       }
     }
   },

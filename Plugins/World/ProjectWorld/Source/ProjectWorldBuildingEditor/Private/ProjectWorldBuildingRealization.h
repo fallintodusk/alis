@@ -15,6 +15,7 @@ struct FProjectWorldRealizationResult;
 class AActor;
 class UMaterialInterface;
 class UWorld;
+namespace ProjectWorldBuildingSelection {struct FSet;}
 
 namespace ProjectWorldBuildingRealization
 {
@@ -24,7 +25,7 @@ namespace ProjectWorldBuildingRealization
 		const FProjectWorldRealizationLayer& Layer,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FString& OutHash,
-		FString& OutError);
+        FString& OutError);
 
 	bool BuildCellOutput(
 		const FProjectWorldCanonicalBundle& Bundle,
@@ -32,7 +33,7 @@ namespace ProjectWorldBuildingRealization
 		const FProjectWorldRealizationLayer& Layer,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldBuildingMeshBuildResult& OutBuild,
-		FString& OutError);
+		FString& OutError, const ProjectWorldBuildingSelection::FSet* Selection = nullptr);
 
 	bool ReadActorIdentity(
 		const AActor* Actor,
@@ -46,5 +47,5 @@ namespace ProjectWorldBuildingRealization
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		UMaterialInterface* BuildingMaterial,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError);
+		FString& OutError, const ProjectWorldBuildingSelection::FSet* Selection = nullptr);
 }

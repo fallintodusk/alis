@@ -12,6 +12,7 @@
     { "Name": "ProjectWorldEditor", "Type": "Editor", "LoadingPhase": "Default" },
     { "Name": "ProjectWorldGameplayEditor", "Type": "Editor", "LoadingPhase": "Default" },
     { "Name": "ProjectWorldRoadEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "ProjectWorldConstructedEditor", "Type": "Editor", "LoadingPhase": "Default" },
     { "Name": "ProjectWorldWaterEditor", "Type": "Editor", "LoadingPhase": "Default" },
     { "Name": "ProjectWorldVegetationEditor", "Type": "Editor", "LoadingPhase": "Default" },
     { "Name": "ProjectWorldBuildingEditor", "Type": "Editor", "LoadingPhase": "Default" }
@@ -20,6 +21,7 @@
     { "Name": "GeoReferencing", "Enabled": true },
     { "Name": "GeometryProcessing", "Enabled": true, "TargetAllowList": ["Editor"] },
     { "Name": "ProceduralMeshComponent", "Enabled": true },
-    { "Name": "ProjectCore", "Enabled": true }
+    { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectBuildingAssembly", "Enabled": true, "TargetAllowList": ["Editor"] }
   ]
 }

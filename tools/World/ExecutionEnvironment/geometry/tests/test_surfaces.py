@@ -1,4 +1,5 @@
 """Pinned native Ground triangulation and polygon-union contract controls."""
+from copy import deepcopy
 from pathlib import Path
 import sys
 import unittest
@@ -7,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0,str(ROOT/'tools'))
 from World.ExecutionEnvironment.geometry.api import triangulate_points, polygon_union, covered_points
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError
+from .union_roundtrip_fixture import fixture as roundtrip_fixture
 
 
 def rectangle(w,s,e,n):
@@ -14,6 +16,13 @@ def rectangle(w,s,e,n):
 
 
 class NativeSurfaceTests(unittest.TestCase):
+    def test_union_refuses_invalid_canonical_restoration_without_repair(self):
+        faces = roundtrip_fixture(); before = deepcopy(faces)
+        pieces = [{'type':'Polygon','coordinates':[[*face,face[0]]]} for face in faces]
+        with self.assertRaisesRegex(ExecutionEnvironmentError, 'topology'):
+            polygon_union(ROOT, pieces, rectangle(583290.,4508120.,583330.,4508140.))
+        self.assertEqual(before, faces)
+
     def test_translation_stable_source_indices_and_input_refusal(self):
         points = [[0.,0.],[3.,0.],[0.,4.],[4.,5.],[1.,1.]]
         faces = triangulate_points(ROOT,points)

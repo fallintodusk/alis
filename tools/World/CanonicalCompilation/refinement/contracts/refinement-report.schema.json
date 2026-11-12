@@ -8,6 +8,27 @@
     "base_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "inputs_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "changed_cells": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-    "base_lineage_retained": {"const": true}, "production_adoption": {"const": false}
+    "base_lineage_retained": {"const": true}, "production_adoption": {"const": false},
+    "identified_basins": {"type": "object", "minProperties": 1, "additionalProperties": {
+      "type": "object", "required": ["model_input_sha256", "source_feature_sha256", "model_sha256", "metrics", "boundary_encoding"],
+      "properties": {
+        "model_input_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "source_feature_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "model_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "metrics": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/metrics"},
+        "boundary_encoding": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/encoding"}
+      }, "additionalProperties": false}},
+    "effective_feature_additions": {"type": "object", "minProperties": 1, "additionalProperties": {
+      "type": "object", "required": ["owner_cell_id", "intersecting_cell_ids", "model_sha256", "proof"],
+      "properties": {"owner_cell_id": {"type": "string", "minLength": 1},
+        "intersecting_cell_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "model_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "proof": {"type": "object", "required": ["faces", "continuity_error_m", "maximum_ordinary_gradient", "maximum_gangway_grade", "maximum_cross_slope"],
+          "properties": {"faces": {"type": "integer", "minimum": 1},
+            "continuity_error_m": {"type": "number", "minimum": 0},
+            "maximum_ordinary_gradient": {"type": "number", "minimum": 0},
+            "maximum_gangway_grade": {"type": "number", "minimum": 0},
+            "maximum_cross_slope": {"type": "number", "minimum": 0}}, "additionalProperties": false}},
+      "additionalProperties": false}}
   }, "additionalProperties": false
 }

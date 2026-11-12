@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json",
+  "title": "Identified joint basin surface and model projections",
+  "type": "object",
+  "required": ["function_id", "function_version", "vertical_basis", "accuracy", "canonical_crs", "vertical_datum", "level_m", "spill_level_m", "model_input", "source_feature_sha256", "model_sha256", "boundary_encoding_sha256", "terrain_support"],
+  "properties": {
+    "function_id": {"const": "identified_static_lined_basin"}, "function_version": {"const": 1},
+    "vertical_basis": {"const": "identified_static_basin_pwa"},
+    "accuracy": {"const": "identified_inferred_static_model_not_surveyed"},
+    "canonical_crs": {"type": "string", "pattern": "^EPSG:[0-9]+$"}, "vertical_datum": {"const": "EPSG:3855"},
+    "level_m": {"type": "number"}, "spill_level_m": {"type": "number"},
+    "model_input": {"$ref": "#/$defs/input"}, "source_feature_sha256": {"$ref": "#/$defs/hash"},
+    "model_sha256": {"$ref": "#/$defs/hash"}, "boundary_encoding_sha256": {"$ref": "#/$defs/hash"},
+    "terrain_support": {"type": "object", "minProperties": 1, "maxProperties": 16,
+      "additionalProperties": {"type": "object", "required": ["path", "sha256", "byte_size"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^canonical/refined_terrain/[^/]+\\.json$"},
+          "sha256": {"$ref": "#/$defs/hash"}, "byte_size": {"type": "integer", "minimum": 1}
+        }, "additionalProperties": false}}
+  }, "additionalProperties": false,
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "positive": {"type": "number", "exclusiveMinimum": 0},
+    "parameters": {
+      "type": "object", "required": ["level_m", "depth_m", "rim_freeboard_m", "inner_bank_width_m", "rim_outset_m", "transition_extent_m", "maximum_gradient", "minimum_spill_margin_m"],
+      "properties": {
+        "level_m": {"type": "number"}, "depth_m": {"$ref": "#/$defs/positive"},
+        "rim_freeboard_m": {"$ref": "#/$defs/positive"}, "inner_bank_width_m": {"$ref": "#/$defs/positive"},
+        "rim_outset_m": {"$ref": "#/$defs/positive"}, "transition_extent_m": {"$ref": "#/$defs/positive"},
+        "maximum_gradient": {"$ref": "#/$defs/positive"}, "minimum_spill_margin_m": {"$ref": "#/$defs/positive"}
+      }, "additionalProperties": false
+    },
+    "reference_evidence": {
+      "type": "object", "required": ["basis", "canonical_crs", "vertical_datum", "grid_content_sha256", "source_sha256", "processing_sha256"],
+      "properties": {
+        "basis": {"const": "raster_ground_model"}, "canonical_crs": {"type": "string", "pattern": "^EPSG:[0-9]+$"},
+        "vertical_datum": {"const": "EPSG:3855"}, "grid_content_sha256": {"$ref": "#/$defs/hash"},
+        "source_sha256": {"$ref": "#/$defs/hash"}, "processing_sha256": {"$ref": "#/$defs/hash"}
+      }, "additionalProperties": false
+    },
+    "consumed": {
+      "type": "object", "required": ["implementation_sha256", "geometry_execution_identity", "rounding_verifier_identity", "affine_verifier_identity", "water_sha256", "model_sha256", "ground_evidence", "canonical_crs", "domain_sha256", "boundary_trace_sha256", "maximum_triangles", "model_input_sha256"],
+      "properties": {
+        "implementation_sha256": {"$ref": "#/$defs/hash"}, "geometry_execution_identity": {"$ref": "#/$defs/hash"},
+        "rounding_verifier_identity": {"$ref": "#/$defs/hash"}, "affine_verifier_identity": {"$ref": "#/$defs/hash"},
+        "water_sha256": {"$ref": "#/$defs/hash"}, "model_sha256": {"$ref": "#/$defs/hash"},
+        "ground_evidence": {"$ref": "#/$defs/reference_evidence"}, "canonical_crs": {"type": "string", "pattern": "^EPSG:[0-9]+$"},
+        "domain_sha256": {"$ref": "#/$defs/hash"}, "boundary_trace_sha256": {"$ref": "#/$defs/hash"},
+        "maximum_triangles": {"type": "integer", "minimum": 2, "maximum": 4096}, "model_input_sha256": {"$ref": "#/$defs/hash"}
+      }, "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object", "required": ["maximum_gradient", "modeled_spill_margin_m", "modeled_wet_volume_m3", "maximum_outside_reference_error_upper_m"],
+      "properties": {
+        "maximum_gradient": {"type": "number", "minimum": 0}, "modeled_spill_margin_m": {"$ref": "#/$defs/positive"},
+        "modeled_wet_volume_m3": {"$ref": "#/$defs/positive"}, "maximum_outside_reference_error_upper_m": {"type": "number", "minimum": 0}
+      }, "additionalProperties": false
+    },
+    "encoding": {
+      "type": "object", "required": ["contract", "source_ring_sha256", "encoded_ring_sha256", "source_vertices", "encoded_vertices", "rounded_subdivision_vertices", "vertices_off_exact_source_edges", "l1_hausdorff_upper_m", "symmetric_difference_area_upper_m2", "work_count", "rounding_witnesses"],
+      "properties": {
+        "contract": {"const": "strict_binary64_source_edge_subdivision_v1"}, "source_ring_sha256": {"$ref": "#/$defs/hash"},
+        "encoded_ring_sha256": {"$ref": "#/$defs/hash"}, "source_vertices": {"type": "integer", "minimum": 3, "maximum": 512},
+        "encoded_vertices": {"type": "integer", "minimum": 3, "maximum": 4096},
+        "rounded_subdivision_vertices": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "vertices_off_exact_source_edges": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "l1_hausdorff_upper_m": {"type": "number", "minimum": 0}, "symmetric_difference_area_upper_m2": {"type": "number", "minimum": 0},
+        "work_count": {"type": "integer", "minimum": 1},
+        "rounding_witnesses": {"type": "array", "maxItems": 4096, "items": {
+          "type": "object", "required": ["source_edge_index", "encoded_vertex_index", "parameter_lower", "parameter_upper", "ideal_parameter"],
+          "properties": {
+            "source_edge_index": {"type": "integer", "minimum": 0}, "encoded_vertex_index": {"type": "integer", "minimum": 0},
+            "parameter_lower": {"type": "string", "pattern": "^[0-9]+(/[1-9][0-9]*)?$"},
+            "parameter_upper": {"type": "string", "pattern": "^[0-9]+(/[1-9][0-9]*)?$"},
+            "ideal_parameter": {"type": "string", "pattern": "^[0-9]+(/[1-9][0-9]*)?$"}
+          }, "additionalProperties": false
+        }}
+      }, "additionalProperties": false
+    },
+    "input": {"type": "object", "required": ["path", "sha256", "byte_size"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^refinement/inputs/[a-f0-9]{64}\\.json$"},
+        "sha256": {"$ref": "#/$defs/hash"}, "byte_size": {"type": "integer", "minimum": 1, "maximum": 16000000}
+      }, "additionalProperties": false}
+  }
+}

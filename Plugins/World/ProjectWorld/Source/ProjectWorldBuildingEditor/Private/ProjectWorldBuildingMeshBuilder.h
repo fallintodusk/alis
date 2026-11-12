@@ -34,12 +34,15 @@ struct FProjectWorldBuildingRejection
 
 struct FProjectWorldBuildingMeshBuildResult
 {
+    struct FEmission { FString FeatureId; int32 FirstTriangle = 0; int32 TriangleCount = 0; };
 	FMeshDescription MeshDescription;
 	FVector ActorOrigin = FVector::ZeroVector;
 	FString SemanticDigest;
 	int32 TriangleCount = 0;
 	FProjectWorldBuildingAdmissionStats Stats;
 	TArray<FProjectWorldBuildingRejection> Rejections;
+    TArray<FEmission> Emissions;
+    TArray<FString> AssemblyExcludedFeatures;
 };
 
 namespace ProjectWorldBuildingMeshBuilder
@@ -54,5 +57,6 @@ namespace ProjectWorldBuildingMeshBuilder
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		const FProjectWorldBuildingSettings& Settings,
 		FProjectWorldBuildingMeshBuildResult& OutResult,
-		FString& OutError);
+		FString& OutError,
+        const TSet<FString>* AssemblySelection = nullptr);
 }

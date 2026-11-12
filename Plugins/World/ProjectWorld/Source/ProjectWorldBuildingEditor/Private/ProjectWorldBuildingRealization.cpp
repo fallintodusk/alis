@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldBuildingRealization.h"
+#include "ProjectWorldBuildingSelection.h"
 #include "ProjectWorldCivilGrade.h"
 
 #include "ProjectWorldAuthoredOverlay.h"
@@ -386,10 +387,12 @@ namespace ProjectWorldBuildingRealization
 		const FProjectWorldRealizationLayer& Layer,
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		FProjectWorldBuildingMeshBuildResult& OutBuild,
-		FString& OutError)
+		FString& OutError, const ProjectWorldBuildingSelection::FSet* Selection)
 	{
 		FProjectWorldBuildingSettings Settings;
-		return ResolveSettings(Layer, Settings, OutError) &&
+		if (!ResolveSettings(Layer, Settings, OutError)) return false;
+        if (Selection) return ProjectWorldBuildingSelection::BuildCell(Bundle,Cell,AuthoredOverlaySet,Settings,*Selection,OutBuild,OutError);
+		return
 			ProjectWorldBuildingMeshBuilder::BuildCell(
 				Bundle, Cell, AuthoredOverlaySet, Settings, OutBuild, OutError);
 	}
@@ -409,7 +412,7 @@ namespace ProjectWorldBuildingRealization
 		const FProjectWorldAuthoredOverlaySet& AuthoredOverlaySet,
 		UMaterialInterface* BuildingMaterial,
 		FProjectWorldRealizationResult& OutResult,
-		FString& OutError)
+		FString& OutError, const ProjectWorldBuildingSelection::FSet* Selection)
 	{
 		const FProjectWorldRealizationLayer* Layer = Profile.Layers.FindByPredicate([](const auto& Candidate)
 		{
@@ -447,8 +450,7 @@ namespace ProjectWorldBuildingRealization
 			const bool bAssetExists = IFileManager::Get().FileExists(*FPackageName::LongPackageNameToFilename(
 				PackageName, FPackageName::GetAssetPackageExtension()));
 			FProjectWorldBuildingMeshBuildResult Build;
-			if (!ProjectWorldBuildingMeshBuilder::BuildCell(
-				Bundle, Cell, AuthoredOverlaySet, Settings, Build, OutError))
+			if (!BuildCellOutput(Bundle,Cell,*Layer,AuthoredOverlaySet,Build,OutError,Selection))
 			{
 				OutError = FString::Printf(TEXT("Cannot build massing for building cell %s: %s"), *Cell.CellId, *OutError);
 				return false;

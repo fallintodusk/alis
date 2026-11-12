@@ -197,13 +197,13 @@ def _materialize_suppression_layers(
         ])
 
 
-def _rasterized_polygon_samples(
+def _rasterized_polygon_sample_points(
     repo_root: Path,
     scratch_root: Path,
     database: Path,
     polygons: dict[str, dict[str, Any]],
     sampler: TerrainSampler,
-) -> dict[str, list[float]]:
+) -> dict[str, list[tuple[float, float]]]:
     samples = {source_id: [] for source_id in polygons}
     if not polygons:
         return samples
@@ -243,8 +243,32 @@ def _rasterized_polygon_samples(
             x_index = round((x_value - sampler.x_values[0]) / spacing_x)
             y_index = round((y_value - sampler.y_values[0]) / spacing_y)
             point = sampler.x_values[x_index], sampler.y_values[y_index]
-            samples[source_by_id[sample_id]].append(sampler.values[point])
+            samples[source_by_id[sample_id]].append(point)
     return samples
+
+
+def _rasterized_polygon_samples(repo_root, scratch_root, database, polygons, sampler):
+    points = _rasterized_polygon_sample_points(repo_root, scratch_root, database, polygons, sampler)
+    return {key: [sampler.values[xy] for xy in rows] for key, rows in points.items()}
+
+
+def _polygon_fallback_points(repo_root, scratch_root, database, polygons):
+    if not polygons:
+        return {}
+    path = scratch_root / "polygon_points.geojson"
+    _run(repo_root, ["-overwrite", "-f", "GeoJSON", str(path), str(database), "-dialect", "SQLite", "-sql",
+        "SELECT p.source_id,ST_PointOnSurface(ST_Intersection(p.geom,b.geom)) AS geometry "
+        "FROM polygons p,terrain_bounds b WHERE ST_Intersects(p.geom,b.geom)"])
+    return {feature["properties"]["source_id"]: [float(value) for value in feature["geometry"]["coordinates"]]
+            for feature in json.loads(path.read_text(encoding="utf-8"))["features"]}
+
+
+def polygon_sampling_dependencies(repo_root, scratch_root, polygons, sampler, crs):
+    """Expose the same native nodes and fallback locations consumed by Water fitting."""
+    scratch_root.mkdir(parents=True, exist_ok=True)
+    database = _production_database(repo_root, scratch_root, polygons, {}, {}, sampler, crs)
+    return (_rasterized_polygon_sample_points(repo_root, scratch_root, database, polygons, sampler),
+            _polygon_fallback_points(repo_root, scratch_root, database, polygons))
 
 
 def _run_named(repo_root: Path, tool: str, arguments: list[str]) -> str:
@@ -277,15 +301,9 @@ def production_geometry_evidence(
     if set(lines) != set(line_widths):
         raise CompilerError("water_width_unapproved", "Every admitted water line requires one resolved width")
     database = _production_database(repo_root, scratch_root, polygons, lines, line_widths, sampler, crs)
-    points_path, difference_path = (
-        scratch_root / "polygon_points.geojson",
-        scratch_root / "line_difference.geojson",
-    )
+    difference_path = scratch_root / "line_difference.geojson"
     samples = _rasterized_polygon_samples(repo_root, scratch_root, database, polygons, sampler)
-    if polygons:
-        _run(repo_root, ["-overwrite", "-f", "GeoJSON", str(points_path), str(database), "-dialect", "SQLite", "-sql",
-            "SELECT p.source_id,ST_PointOnSurface(ST_Intersection(p.geom,b.geom)) AS geometry "
-            "FROM polygons p,terrain_bounds b WHERE ST_Intersects(p.geom,b.geom)"])
+    fallback_points = _polygon_fallback_points(repo_root, scratch_root, database, polygons)
     segments = int(quadrant_segments)
     if polygons and lines:
         _materialize_suppression_layers(
@@ -300,12 +318,6 @@ def production_geometry_evidence(
         difference_sql = "SELECT l.source_id,l.width_m,l.geom AS geometry FROM lines l"
     if lines:
         _run(repo_root, ["-overwrite", "-f", "GeoJSON", str(difference_path), str(database), "-dialect", "SQLite", "-sql", difference_sql])
-    fallback_points: dict[str, list[float]] = {}
-    if polygons:
-        fallback_points = {
-            feature["properties"]["source_id"]: [float(value) for value in feature["geometry"]["coordinates"]]
-            for feature in json.loads(points_path.read_text(encoding="utf-8"))["features"]
-        }
     visible = {source_id: None for source_id in lines}
     if lines:
         for feature in json.loads(difference_path.read_text(encoding="utf-8"))["features"]:

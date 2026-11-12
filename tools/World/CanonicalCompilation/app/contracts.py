@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
+from referencing import Registry, Resource
+from referencing.exceptions import Unresolvable
 
 
 SCHEMA_ROOT = Path(__file__).resolve().parents[1] / "contracts"
@@ -50,6 +52,22 @@ def _schema(reference: str) -> dict[str, Any]:
     return value
 
 
+@lru_cache(maxsize=None)
+def schema_registry():
+    resources = {}
+    for path in SCHEMA_ROOT.rglob('*.schema.json'):
+        try:
+            schema = json.loads(path.read_text(encoding='utf-8'))
+            reference = schema.get('$id')
+            if not isinstance(reference, str) or not reference or reference in resources:
+                raise CompilerError('schema_invalid', 'Compiler schema identity is absent or duplicated', path=str(path))
+            jsonschema.validators.validator_for(schema).check_schema(schema)
+            resources[reference] = Resource.from_contents(schema)
+        except (OSError, json.JSONDecodeError, jsonschema.SchemaError) as error:
+            raise CompilerError('schema_invalid', 'Compiler schema registry is invalid', path=str(path)) from error
+    return Registry().with_resources(resources.items())
+
+
 def validate_document(value: dict[str, Any], path: Path) -> None:
     reference = value.get("$schema")
     if not isinstance(reference, str) or not reference:
@@ -65,8 +83,11 @@ def validate_document(value: dict[str, Any], path: Path) -> None:
             jsonschema.validators.validator_for(schema).check_schema(schema)
         except (OSError, json.JSONDecodeError, jsonschema.SchemaError) as exc:
             raise CompilerError("schema_invalid", "Compiler schema is invalid", schema=str(schema_path)) from exc
-    validator = jsonschema.validators.validator_for(schema)(schema, format_checker=jsonschema.FormatChecker())
-    error = next(iter(validator.iter_errors(value)), None)
+    validator = jsonschema.validators.validator_for(schema)(schema, registry=schema_registry(), format_checker=jsonschema.FormatChecker())
+    try:
+        error = next(iter(validator.iter_errors(value)), None)
+    except Unresolvable as error:
+        raise CompilerError('schema_reference_unknown', 'Compiler schema reference is unavailable offline', path=str(path)) from error
     if error is None:
         return
     pointer = "/" + "/".join(str(item) for item in error.absolute_path) if error.absolute_path else "<root>"

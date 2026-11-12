@@ -83,6 +83,15 @@ bool FProjectWorldRoadGroundTest::RunTest(const FString&)
     FProjectWorldRealizationLayer Layer;Layer.LayerId=TEXT("roads");Layer.GeneratorId=TEXT("project_road_mesh");Layer.GeneratorVersion=1;Layer.DependencyHaloCells=1;
     Layer.NormalizedSettings=TEXT("{\"selected_classes\":[\"footway\"],\"surface_offset_m\":0.15,\"maximum_segment_length_m\":7.5,")
         TEXT("\"nanite\":true,\"collision\":\"complex_as_simple\",\"structure_fallback\":\"terrain_drape\",\"intersection_policy\":\"overlap_same_owner\"}");
+    TSharedPtr<FJsonObject> Settings;
+    if (!TestTrue(TEXT("Fixture Road settings parse."),FJsonSerializer::Deserialize(
+        TJsonReaderFactory<>::Create(Layer.NormalizedSettings),Settings))) return false;
+    TArray<TSharedPtr<FJsonValue>> SelectedClasses;
+    SelectedClasses.Add(MakeShared<FJsonValueString>(Bundle.Features[RoadId].RoadClass));
+    Settings->SetArrayField(TEXT("selected_classes"),SelectedClasses);
+    Layer.NormalizedSettings.Reset();
+    if (!TestTrue(TEXT("Fixture selects the actual Road class."),FJsonSerializer::Serialize(
+        Settings.ToSharedRef(),TJsonWriterFactory<>::Create(&Layer.NormalizedSettings)))) return false;
     Layer=ProjectWorldVerifyTestFlow::Finalize(MoveTemp(Layer));
     TArray<TSharedPtr<FJsonValue>> Vertices,Faces;double MaximumError=0;int32 BuiltCells=0,OutsideOwnerVertices=0;
     for (auto& Cell:Bundle.Cells)

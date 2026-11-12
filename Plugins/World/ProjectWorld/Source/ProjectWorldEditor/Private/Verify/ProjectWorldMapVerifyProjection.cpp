@@ -153,9 +153,25 @@ namespace ProjectWorldMapVerifyProjection
 			FProjectWorldProjectionRecord& Record = Projection.Add(TEXT("navigation"), TEXT("recast"));
 			Record.Fields.Add(TEXT("class"), It->GetClass()->GetPathName());
 			Record.Fields.Add(TEXT("tile_size_uu"), Number(It->GetTileSizeUU()));
+			const FNavDataConfig& Config = It->GetConfig();
+			Record.Fields.Add(TEXT("agent.name"), Config.Name.ToString());
+			Record.Fields.Add(TEXT("agent.radius_cm"), Number(Config.AgentRadius));
+			Record.Fields.Add(TEXT("agent.height_cm"), Number(Config.AgentHeight));
+			Record.Fields.Add(TEXT("runtime_generation"),
+				ProjectWorldProjection::EnumName(StaticEnum<ERuntimeGenerationType>(), static_cast<int64>(It->GetRuntimeGenerationMode())));
+			for (const auto Resolution : {ENavigationDataResolution::Low, ENavigationDataResolution::Default, ENavigationDataResolution::High})
+			{
+				const FString Prefix = FString::Printf(TEXT("resolution.%d."), static_cast<int32>(Resolution));
+				Record.Fields.Add(Prefix + TEXT("cell_size_cm"), Number(It->GetCellSize(Resolution)));
+				Record.Fields.Add(Prefix + TEXT("cell_height_cm"), Number(It->GetCellHeight(Resolution)));
+				Record.Fields.Add(Prefix + TEXT("maximum_step_cm"), Number(It->GetAgentMaxStepHeight(Resolution)));
+			}
+			Record.Fields.Add(TEXT("maximum_simplification_error"), Number(It->MaxSimplificationError));
+			Record.Fields.Add(TEXT("simplification_elevation_ratio"), Number(It->SimplificationElevationRatio));
+			Record.Fields.Add(TEXT("maximum_agent_slope"), Number(It->AgentMaxSlope));
 		}
 		return true;
 	}
 
-	const FProjectWorldVerifyProjectionRegistrar Registrar(TEXT("map"), 1, 1, &Project);
+	const FProjectWorldVerifyProjectionRegistrar Registrar(TEXT("map"), 1, 2, &Project);
 }

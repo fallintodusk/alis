@@ -2,6 +2,8 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldMeshTerrainAuditCommandlet.h"
+#include "ProjectWorldRealizeCommandlet.h"
+#include "ProjectWorldRealizationEvidence.h"
 
 #include "ProjectWorldMeshTerrainProducer.h"
 #include "ProjectWorldMeshTerrainSurfaceFidelity.h"
@@ -120,13 +122,6 @@ namespace
 			}
 		}
 		return Result;
-	}
-
-	bool IsSafeResultPath(const FString& ResultPath)
-	{
-		const FString EvidenceRoot = FPaths::ConvertRelativePathToFull(
-			FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Validation/WorldRealization")));
-		return FPaths::IsUnderDirectory(FPaths::ConvertRelativePathToFull(ResultPath), EvidenceRoot);
 	}
 
 	UWorld* LoadPrototypeWorld(const FString& MapPackagePath, FString& OutError)
@@ -321,7 +316,8 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 	}
 
 	const FString ResultPath = FPaths::ConvertRelativePathToFull(*ResultValue);
-	if (!IsSafeResultPath(ResultPath))
+    FProjectWorldRealizationRequest Evidence;Evidence.CompileResultPath=*CompileResultValue;Evidence.ResultPath=ResultPath;
+	if (!UProjectWorldRealizeCommandlet::IsSafeResultPath(ResultPath) || !ProjectWorldRealizationEvidence::IsInputDisjoint(Evidence))
 	{
 		UE_LOG(LogProjectWorldMeshTerrainAudit, Error,
 			TEXT("Unsafe result path: %s"), *ResultPath);

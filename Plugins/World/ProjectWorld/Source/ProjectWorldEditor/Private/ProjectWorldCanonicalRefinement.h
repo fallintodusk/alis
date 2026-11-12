@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectWorldAuthoredTerrainParsing.h"
 
 class FJsonObject;
 struct FProjectWorldCanonicalTerrain;
@@ -14,6 +15,7 @@ namespace ProjectWorldCanonicalRefinement
 		TFunctionRef<bool(const FString&, const FString&, int64)> IsVerifiedOutput,
 		FProjectWorldCanonicalValidation& Validation);
 	bool Parse(const TSharedPtr<FJsonObject>& Object, const FString& Grid, const FString& Cell,
-		FProjectWorldCanonicalTerrain& Terrain, FProjectWorldCanonicalValidation& Validation);
+		FProjectWorldCanonicalTerrain& Terrain, FProjectWorldCanonicalValidation& Validation,
+		const ProjectWorldAuthoredTerrainParsing::FRetainedInputs& AuthoredInputs,TSet<FString>& UsedAuthoredInputs);
 	bool ValidateSeams(const FProjectWorldCanonicalBundle& Bundle, FProjectWorldCanonicalValidation& Validation);
 }

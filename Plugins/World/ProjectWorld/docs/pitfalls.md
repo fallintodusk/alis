@@ -5,6 +5,263 @@ the area; add an entry after fixing a non-trivial bug.
 
 Format: Symptom / Root cause / Fix / File / Regression test.
 
+## Runtime presentation must make the Sun movable before rotating it
+
+**Symptom.** Presentation reports the selected profile, but an initialized Game
+or PIE world's Sun keeps its spawn rotation and emits a mobility warning.
+
+**Root cause.** Runtime movement guards reject rotating the registered stationary
+light before its mobility changes. An uninitialized Game-world fixture does not
+exercise that guard.
+
+**Fix.** Set movable mobility before applying rotation. Read actual actor state
+when verifying runtime presentation.
+
+**File.** [Presentation realization](../Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp).
+
+**Regression test.** `Project.World.Realization.Presentation.GameRotation`
+initializes actors before applying the real profile and compares actual rotation
+and intensity. The regional PIE observer also reads back Sun/exposure settings.
+
+## Distant Water footprints dominate dependency selection
+
+**Symptom.** A local Terrain comparison spends minutes finding affected Water
+cells even though fitting finishes quickly.
+
+**Root cause.** Dirty-cell selection repeats raw footprint distance work for
+every halo sample, including samples far outside the feature bounds.
+
+**Fix.** Reuse the existing prepared geometry once per old/new Water feature.
+Keep continuous footprint/halo intersection and both declared memberships.
+
+**File.** [Terrain surface owner](../../../../tools/World/CanonicalCompilation/app/terrain_surface.py).
+
+**Regression test.** `TerrainSurfaceTests` rejects segment work for a disjoint
+footprint and compares dirty scope with raw geometry for holes, ribbons, narrow
+polygons and halo bands. Existing cold/incremental Water tests cover consumers.
+
+## Regional views must select one compiled visual variant
+
+**Symptom.** A native fixture authenticates its complete Terrain fields but its
+capture includes coincident Nanite and fallback meshes.
+
+**Root cause.** The fixture deliberately builds and reloads all alternatives.
+Platform loading policy does not hide explicitly co-resident compiled actors;
+enumerating every main mesh component includes both visual variants.
+
+**Fix.** Capture one declared visual variant. Suppress other main components'
+visibility and shadow casting for that scope, then restore their original state
+on every exit. Keep field/collision verification for all alternatives. A useful
+image still needs its own lighting, framing and rendering proof.
+
+**File.** [Canonical regional observer](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainCanonicalFixture.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CanonicalRegion`
+rejects the two-variant capture and records the selected variant and positive
+component census. Multiple compiled sections of the same variant are valid.
+
+## Disposable physics probes can leak external actor packages
+
+**Symptom.** A native regional Terrain check passes collision calibration but
+saved replay refuses an unsaved external actor package.
+
+**Root cause.** The foreign-box negative control was created as an ordinary
+actor in an external-actor world. Destroying the actor did not remove its package
+from the world's package ownership census.
+
+**Fix.** Spawn the calibration actor as transient and explicitly disable actor
+package creation. Retain the exact saved-package census and missing-file refusal;
+do not hide the leaked package by filtering the census.
+
+**File.** [Collision calibration](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainCollisionFixture.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.PhysicsProbePackageIsolation`
+calls the real calibration in an external-actor world and compares the complete
+package census. `CanonicalRegion` also checks all saved packages through fresh
+map loading, explicit actor residency and actual Terrain/Water reconstruction.
+
+## A material object does not prove native Terrain appearance
+
+**Symptom.** Saved Terrain passes whole-field and collision comparisons while
+the image uses fallback shaders or lacks the generated channel resources.
+
+**Root cause.** Direct transformer injection bypassed native provider/channel
+generation, and material-object availability was mistaken for platform shader
+readiness.
+
+**Fix.** Regional appearance uses the native builder, requires the section's
+channel texture/table and checks the actual component material's completed
+platform shader resource. Keep controlled diagnostic images separate from World
+lighting and geographic acceptance. Inspect the images even when these guards
+pass.
+
+**File.** [Canonical regional observer](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainCanonicalFixture.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CanonicalRegion`
+requires actual channel resources and shaders after fresh saved-map loading.
+Its all-field comparison also covers unchanged canonical grids; its diagnostic
+images do not establish full-world visual acceptance.
+
+## A neighborhood maximum can hide new terrain creases
+
+**Symptom.** A local height correction improves four provider comparisons and
+keeps the maximum neighborhood slope unchanged, while boundary faces steepen.
+
+**Root cause.** An already steeper unchanged face dominates the maximum. Neither
+that scalar nor source agreement observes each face or its external neighbor.
+
+**Fix.** Report every incident face gradient and both internal/external edge
+normal angles. Keep shape quality distinct from source departure and topology;
+do not infer visual or gameplay acceptance from the unchanged maximum.
+
+**File.** [Madison observer](../../../../tools/World/CanonicalCompilation/tests/madison_ground_replay.py).
+
+**Regression test.** `MadisonGroundTests.test_face_observer_detects_changes_hidden_by_unchanged_global_maximum`
+retains the unchanged 49.3% maximum while detecting six steepened faces and the
+larger external crease. Native collision/rendering need their separate checks.
+
+## Different float frames can reopen a shared shoreline
+
+**Symptom.** An inferred Water boundary preserves canonical nodes and the exact
+stage, but saved Water and supporting Terrain differ by up to 14.35 micrometers
+at the shore. Source fidelity alone misses this physical composition error.
+
+**Root cause.** Terrain stored engine-global float positions while Water stored
+cell-local float positions plus a double actor origin. Independent casts move the
+same canonical boundary differently. Equal-height grouping or later horizontal
+union can also replace a joint boundary under another source's coordinate rule.
+
+**Fix.** A joint-model unit uses one engine-global storage frame for all groups,
+preserves each joint source's coordinate rule and requires exact independent
+interiors both before emission and after source approximation. It skips final
+union. Unsupported interactions refuse the complete unit. A scope-exit cleanup
+clears all joint-unit outputs on every failure, including a later group's missing
+preparation evidence after an earlier group emitted successfully.
+
+**Files.** [Cell composition](../Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterCellMesh.cpp)
+and [independence guard](../Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterJointBoundary.cpp).
+
+**Regression tests.** `Project.World.Water.IdentifiedBasinSharedFrame` covers
+mixed-family frames, unknown late preparation, old-old overlap and overlap
+introduced only by encoding. `IndependentBoundaryGuard` covers exact contacts,
+opposite winding, nonfinite/degenerate inputs and bounded pair scans. Stored
+shoreline acceptance still requires complete field/edge overlay against the
+actual supporting Terrain; this does not certify later section generation.
+
+## Native Water can re-quantize an already-noded basin boundary
+
+**Symptom.** Water has the correct stored stage, but its saved footprint crosses
+the supporting bank. The captured joint basin has 0.018 m2 of Water below higher
+Terrain, with up to 1.67 mm negative depth.
+
+**Root cause.** Native emission applied the base 0.01 m coordinate quantization
+again to an inferred model's already-qualified finite boundary. All 26 added
+boundary nodes were replaced. An input encoding certificate and exact stored
+stage cannot qualify this later geometric change.
+
+**Fix.** Only `identified_static_lined_basin:v1` preserves supplied canonical XY
+before float storage. Other function families retain their coordinate behavior.
+Joint stored-field overlay remains a separate requirement: Water and Terrain can
+still encode coordinates in different float frames.
+
+**File.** [Water mesh builder](../Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterMeshBuilder.cpp).
+
+**Regression test.** `Project.World.Water.IdentifiedBasinCanonicalXY` compares all
+45 specifying nodes with their direct source-to-float conversion and rejects
+missing or centimeter-snapped replacement nodes.
+
+## An inferred contained stage can inherit the ordinary Water lift
+
+**Symptom.** A typed inferred basin at 20.20 m saves Water at 20.45 m, above
+its modeled retention rim. Changing its spill also leaves unit/verification
+identities unchanged.
+
+**Root cause.** Exact-stage behavior and spill dependency hashing recognized only
+the observed contained function ID. A distinct identified model fell through to
+the ordinary presentation offset, despite carrying an explicit spill bound.
+
+**Fix.** One closed native family classifier recognizes both explicit contained
+IDs. Stage validation, grouping and source approximation share the exact-level
+rule; unit and verification identities bind the consumed spill. Invalid versions
+or spill bounds refuse before emission and clear the result. Canonical JSON
+admission remains closed to the inferred model pending separate qualification.
+
+**Files.** [Contained-stage classifier](../Source/ProjectWorldEditor/Public/ProjectWorldContainedStage.h)
+and [Water mesh builder](../Source/ProjectWorldWaterEditor/Private/ProjectWorldWaterMeshBuilder.cpp).
+
+**Regression tests.** `Project.World.Water.IdentifiedBasinTypedConsumer` uses the
+complete captured 45-node basin through source construction, composition and
+StaticMesh save/reload. `Project.World.Water.ContainedFunctionAdmission` retains
+the closed JSON boundary; `Project.World.Water.ExactCanonicalLevel` covers the
+existing observed and ordinary families.
+
+## A derived Terrain clip can invent an overlap between disjoint stored faces
+
+**Symptom.** Saved compiled Terrain retains the specified face census and height
+field, but the fidelity observer reports overlapping compiled faces. Independent
+exact checks of the actual stored triangles find no positive overlap.
+
+**Root cause.** A derived Boolean intersection is a floating reconstruction.
+Testing that reconstructed clip against another stored face can report an overlap
+outside the clip's actual source face. Counts and small height errors cannot
+distinguish this observer defect from real bad coverage.
+
+**Fix.** Use the engine's exact orientation predicates to certify a separating
+edge between the two actual triangles before testing their derived clips. Only
+provably disjoint interiors skip that overlap branch. Coverage, height and real
+overlap checks retain their existing limits; unknown or degenerate predicates do
+not supply a separation certificate.
+
+**File.** [Terrain fidelity observer](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainSurfaceFidelity.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CompositeConsumer`
+uses a self-contained captured quad through native conversion, save and reload.
+Its planar positive control and equal-area overlap/hole control distinguish valid
+separation from an observer that merely accepts missing or duplicate coverage.
+
+## Canonical restoration can erase measured Terrain coverage
+
+**Symptom.** Complete compiled Terrain is rejected for a small area deficit even
+though an independent exact replay certifies complete coverage and valid heights.
+
+**Root cause.** Native triangle clipping computes accurate local intersection
+points. Restoring those derived points to large canonical coordinates before
+area, height and overlap measurements introduces another rounding boundary.
+A captured four-piece cover loses 1.143e-8 m2 through that restoration alone.
+
+**Fix.** Keep both compared triangles and every derived measurement in one local
+frame per specifying face. Global lookup, original-triangle exact separation and
+winding guards retain their original inputs. Coverage and height limits stay
+unchanged; no measured positive face is discarded to make the result pass.
+
+**File.** [Terrain fidelity observer](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainSurfaceFidelity.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CoastalIntersection`
+uses the captured cover and missing, duplicate, shifted and reversed controls.
+
+## Collision provider input is not the final cooked surface
+
+**Symptom.** A stored bank passes field checks, but a ray at one specified facet
+misses while a full-size capsule finds neighboring support.
+
+**Root cause.** `GetPhysicsTriMeshData` exposes provider input. Native cooking can
+remove a facet below its validity threshold, so a created body and the input
+census do not establish final physical coverage. A captured bank has 80 provider
+facets and 79 cooked facets, with the removed centroid unsupported.
+
+**Fix.** Decode actual cooked geometry and retain independent input-centroid
+support queries. Retessellate the derived model within its existing field,
+boundary and role constraints; keep the old missed point as a separate witness
+before and after reload. Do not suppress a known unsupported point through a
+smaller probe census, a numeric area waiver or disabled native cleanup.
+
+**Files.** [Cooked collector](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainSectionCollection.cpp)
+and [support checks](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainCollisionFixture.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CoastalCookSupport`
+retains both complete original quads, the repaired field and the old centroid.
+The self-contained fixture exporter can also emit the original failing bank.
+
 ## Realization evidence can alias consumed inputs
 
 **Symptom.** A diagnostic receipt destroys a canonical document, profile or
@@ -35,6 +292,8 @@ its source even though sampled collision rays hit.
 
 **Root cause.** Internal height-field splits can map to identical double or
 float positions. Per-face conversion can create conflicting shared heights.
+Rounding XY can also move a referenced vertex across a surface crease while
+retaining the height sampled before conversion.
 Native Boolean integer normalization can also split a connected collinear float
 graph. Separately, Nanite Auto fallback intentionally simplifies the source;
 centroid ray hits do not prove footprint or abutment preservation.
@@ -42,6 +301,8 @@ centroid ray hits do not prove footprint or abutment preservation.
 **Fix.** Omit only exact duplicated mapped fan edges and certify storage against
 each original ribbon domain. Retain native coverage and distance guards, with
 GeometryCore exact predicates for connectivity of the actual stored positions.
+For referenced XYZ fields, validate raw aliases first, then sample the complete
+field at actual stored XY and bind one final float height per exact XY/profile.
 Recheck final Terrain clearance. Profile-containing cell meshes use full native
 fallback without source trimming and include that variant in unit identity;
 ordinary cells keep their existing path. The
@@ -53,7 +314,8 @@ ordinary cells keep their existing path. The
 
 **Regression tests.** `Project.World.Realization.Road.MappedSplit`,
 `StoredPolygon`, `StoredGroup`, `StoredCollinear`, `CanonicalElevation` and
-`ElevationSavedConsumer` under the same exact test namespace. The saved-consumer
+`ElevationSavedConsumer` and `ReferencedProjectedStorage` under the same exact
+test namespace. The saved-consumer
 test checks actual triangle/position multisets, cold no-op and profile removal;
 live pixels and character movement remain separate evidence.
 
@@ -1848,3 +2110,231 @@ missing coverage, unrefined and explicit base queries.
 `Project.World.Realization.Building.RefinedOwnerClampedAnchor` checks actual
 Building mesh elevation, cross-cell owner identity and retained hashes for
 unrefined/immutable-grade inputs.
+
+## 62. Constructed cover outlines must preserve exact mesh connectivity
+
+**Symptom.** A connected rotated surface refuses component correspondence after
+float conversion, even though every source and stored shared edge is intact.
+
+**Root cause.** Native polygon union normalizes coordinates to an integer frame.
+Its reconstructed polygons can split an exact triangle cover at different internal
+edges before and after float storage. Unequal float axis spacings can also leave
+a rotated source corner without a supported point in the adjacent 3x3 grid.
+
+**Fix.** Extract source and stored outlines through native mesh boundary loops
+using exact shared nodes and existing collinear subdivisions. Temporary topology
+fans never become emitted geometry. Retain the independent coverage, holes,
+component, height and slope gates. If adjacent conversion fails, bounded extra
+candidates use one coarsest storage interval; check their actual rounded
+displacement and source membership before accepting a node.
+
+**Files.** `ProjectWorldConstructedOutline`, `ProjectWorldConstructedBoundary`,
+the constructed mesh builder and its coverage validator.
+
+**Regression.** `Project.World.Realization.Constructed.Outline` retains the
+captured projected cover and checks exact T junctions, holes, nested islands,
+separate/point-touching components and invalid covers. `Constructed.Boundary`
+checks the rotated corner, rounded bound escapes, unchanged adjacent results
+and unknown-source refusal. `Constructed.Coverage` retains missing-face,
+filled-hole, duplicate and false component-correspondence controls.
+
+## 63. Constructed support changes must invalidate verification fixtures
+
+**Symptom.** Native Road input identity changes after a valid support or model
+change, but a verification fixture keeps its previous digest.
+
+**Root cause.** Bundle serialization omitted typed constructed endpoint/domain
+fields, referenced model bindings and the constructed surface itself. Geometry
+alone could not distinguish changed support or observed versus modeled basis.
+
+**Fix.** Serialize the complete typed constructed inputs and sort reference keys.
+Keep absent default fields out of the existing ordinary serialization. This
+changes evidence identity, not production admission or geometry.
+
+**Files.** `Verify/ProjectWorldVerifyIdentity.cpp` and
+`ProjectWorldReferencedSurfaceTest.cpp`.
+
+**Regression.** `Project.World.Realization.Verify.ConstructedEndpointIdentity`
+reuses the native reference fixture. Valid relation, support-model and basis
+mutations invalidate verification while the recorded ordinary digest stays fixed.
+
+## 64. Default navigation creation can ignore supported-agent clearance
+
+**Symptom.** The possessed standing character is taller than its selected
+navigation data even though native agent lookup succeeds. A configuration-only
+correction then produces an agent-registration refusal.
+
+**Root cause.** Native single-agent lookup returns its main data without a size
+match. The default creation overload spawns raw Recast data with fallback agent
+dimensions; it does not apply the live supported-agent configuration. Comparing
+only the navigation class and tile size also hides changed clearance.
+
+**Fix.** Declare the project supported agent and create missing data through the
+native configured factory. Require registered, correctly owned data matching the
+live default agent. Refuse unexpected or mismatched preexisting actors; roll back
+only an owned failed creation. Map verification includes actual agent identity,
+dimensions and runtime mode. Advance map output and comparison revisions before
+ordinary saved-map reconciliation; a configuration edit is not map acceptance.
+
+**Files.** `ProjectWorldRuntimeNavigation.cpp`,
+`Verify/ProjectWorldMapVerifyProjection.cpp` and project navigation configuration.
+
+**Regression.** `Project.World.Realization.Runtime.NavigationAgentConfiguration`
+checks loaded native configuration and taller-capsule refusal/restoration.
+`Runtime.NavigationDataOwnership` covers reuse and stale/unexpected actor refusal.
+`Runtime.NavigationMapProjection` changes actual native agent fields and runtime
+mode, requiring a changed digest and exact restoration.
+
+## 65. Deprecated navigation cell size does not configure current resolution tiers
+
+**Symptom.** A project requests small navigation cells while newly-created native
+data still uses the engine default resolution.
+
+**Root cause.** Current Recast generation reads `NavMeshResolutionParams`.
+The old scalar cell size migrates only when loading older serialized navigation
+versions; it does not configure current newly-created data.
+
+**Fix.** Configure the native fixed-array resolution tiers and remove the
+obsolete scalar. Preserve High <= Default <= Low cell widths. Read effective
+values from actual native data and include those values in map verification.
+Changing voxel resolution does not itself prove geographic or navigation quality.
+
+**Files.** Project navigation configuration, map verification projection and
+`ProjectWorldRuntimeNavigationTests.cpp`.
+
+**Regression.** `Project.World.Realization.Runtime.NavigationAgentConfiguration`
+checks the effective default resolution and tier order on registered native data.
+`Runtime.NavigationMapProjection` changes all native tier dimensions and contour
+settings, requiring changed digests and exact restoration.
+
+## 66. Existing navigation settings survive a map producer revision
+
+**Symptom.** Product Apply refuses an unregistered stale map-owned agent, or
+accepts an existing native actor whose vertical resolution remains stale.
+
+**Root cause.** Strict data resolution validates or creates the native actor;
+it does not reconcile existing settings. Advancing a producer revision or
+observing the settings in verification does not itself update them. Native
+registration also caches agent keys, so changing a registered actor's agent
+properties is not equivalent to loading an unregistered stale actor.
+
+**Fix.** Full map Apply uses explicit owned navigation reconciliation before
+domain configuration. Validate ownership and accepted settings before mutation,
+unregister before changing agent keys, require actual native registration and
+rematched tiers, then invalidate the generated field. Preserve strict generic
+resolution and refuse conflicting or inconsistent ownership. Native LoadMap can
+retire failed-registration data, so verify serialized transitions separately.
+
+**Files.** `ProjectWorldRuntimeNavigation.cpp`,
+`ProjectWorldRuntimeRealization.cpp` and `ProjectWorldRuntimeProfileTests.cpp`.
+
+**Regression.** `Project.World.Realization.Runtime.ProductNavigationDomain`
+covers stale unregistered agent and vertical-resolution repair, lawful larger
+tiles, clean no-op behavior, actual support removal/restoration and conflicting
+native actor refusal.
+
+## 67. JSON conversion and output hashes do not establish a typed source handoff
+
+**Symptom.** Invalid source evidence passes file authentication, a structural
+field disappears on load, or annotation changes unnecessarily dirty Road meshes.
+
+**Root cause.** Native JSON accessors can coerce numeric strings and fractions;
+the reader also accepts nonfinite numbers. File hashes authenticate bytes without
+proving their declared role, context or policy association. Admission metadata
+and geometric dependencies answer different questions.
+
+**Fix.** Parse the closed structural contract into the existing typed field.
+Verify the complete output inventory before matching retained inputs to exact
+request and feature associations. Require literal finite numeric types and
+integral byte counts. Keep admission metadata in verification identity while
+geometric consumption uses the semantic model and actual XYZ. Source primitive
+qualification remains upstream.
+
+**Files.** `ProjectWorldCanonicalBundle.cpp`,
+`ProjectWorldConstructedContractParsing.cpp`,
+`ProjectWorldCanonicalRetainedInputs.cpp`, `ProjectWorldCanonicalFiniteJson.h`
+and `Verify/ProjectWorldVerifyIdentity.cpp`.
+
+**Regression.** `Project.World.Realization.Constructed.CanonicalJsonAdmission`
+covers captured source-shaped parsing, role/type refusal and metadata-only
+geometry locality. `CanonicalImportBundle` consumes a freshly generated Python
+child and checks declared evidence, context/policy binding and cold repeated
+admission. `CanonicalImportIdentity` changes each added metadata input.
+
+## 68. Reloaded structural meshes can retain file handles during retirement
+
+**Symptom.** Selective removal succeeds before reload but fails to delete an
+owned mesh package after reload, with a file-sharing error.
+
+**Root cause.** Detaching the external actor's linker does not detach the
+separate mesh package linker and its bulk-data file handle.
+
+**Fix.** Reset loaders for the exact derived owned mesh package before retiring
+its file. Never follow an attached foreign mesh to choose the deletion target.
+Report the failed filename if native deletion fails.
+
+**File.** `ProjectWorldConstructedEditor/Private/ProjectWorldConstructedOutput.cpp`.
+
+**Regression.** `Project.World.Realization.Constructed.DependencyLocalLifecycle`
+checks selective removal after save/reload, undeclared-removal refusal, preserved
+neighbor bytes and subsequent reload/no-op.
+
+## 69. Simple-ring encoding does not prove a basin contour is convex
+
+**Symptom.** An inferred basin accepts a reflex contour despite its strictly
+convex model contract.
+
+**Root cause.** The model delegated convexity to a shared encoding certificate
+whose contract also supports simple concave rings for other consumers.
+
+**Fix.** Keep finite/simple encoding in the shared verifier and check every
+exact contour turn in the basin owner before native construction.
+
+**File.** [Identified basin](../../../../tools/World/CanonicalCompilation/refinement/identified_basin.py).
+
+**Regression.** `IdentifiedBasinTests.test_reflex_contour_refuses_instead_of_building_a_basin`
+inserts an inward notch in the captured influence contour and proves refusal
+without input mutation. Valid convex basin and shared concave-ring proofs remain.
+
+## 70. Building placement centers are not physical interaction footprints
+
+**Symptom.** A joint basin candidate accepts a Building overlapping the selected
+Ground while the Building's owner and placement center lie outside it.
+
+**Root cause.** A placement-support helper deliberately returns the center
+clamped to the owner cell; it cannot establish physical separation.
+
+**Fix.** Basin admission uses selected effective Building-volume polygons, or
+the outline when volumes are absent, and includes prospective constructed
+features from earlier operations. An unresolved physical envelope refuses the
+whole candidate before publication.
+
+**File.** [Basin admission](../../../../tools/World/CanonicalCompilation/refinement/basin_admission.py).
+
+**Regression.** `BasinAdmissionTests` checks an unselected-owner crossing
+footprint, an effective volume outside its outline, and an actual earlier
+structural creation, preserving base bytes and leaving no refused output.
+
+## 71. General polygon overlay can reject a valid compiled triangle comparison
+
+**Symptom.** A compiled-field audit rejects a complete stored field with a native
+triangle intersection convex-contract error, despite a small height error.
+
+**Root cause.** The general polygon overlay quantizes its paths and can split a
+near-coincident positive triangle intersection. Treating that output as a single
+convex intersection makes the audit fail before measuring the real coverage.
+
+**Fix.** The MeshTerrain private field oracle uses the native triangle-only
+intersection query with local finite, nondegenerate, counterclockwise inputs.
+Exact separating halfplanes exclude disjoint interiors. Existing coverage,
+positive overlap and height limits still reject actual field defects. Positive
+intersection pairs must agree in their original orientation: normalization alone
+would hide an actual-only winding reversal.
+
+**File.** [Compiled-field fidelity](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainSurfaceFidelity.cpp).
+
+**Regression.** `Project.World.Realization.MeshTerrain.SplitIntersection` retains
+the captured source face and stored neighborhood, equivalent reversed-both inputs,
+actual-only winding refusal, an interior hole, distinct overlap and missing,
+duplicated and height-shifted controls. `SectionStorageSplit` exercises
+the complete permanent fixture through actual saved/reloaded sections.

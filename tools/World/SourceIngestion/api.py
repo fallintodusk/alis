@@ -6,6 +6,17 @@ from .app.run_identity import default_output_root, profile_path, run_contract
 from .app.osm_context import osm_provider_namespace, osm_context_identity, osm_way_context
 
 
+def osm_multipolygon_context(document, primitives, provider_feature_id):
+    """Load the optional literal relation qualifier only for its actual consumers."""
+    from .osm_multipolygon_context import osm_multipolygon_context as qualify
+    return qualify(document, primitives, provider_feature_id)
+
+
+def osm_multipolygon_context_identity():
+    from .osm_multipolygon_context import osm_multipolygon_context_identity as identity
+    return identity()
+
+
 __all__ = [
     "IngestionError",
     "build_plan",
@@ -20,4 +31,6 @@ __all__ = [
     "osm_provider_namespace",
     "osm_context_identity",
     "osm_way_context",
+    "osm_multipolygon_context",
+    "osm_multipolygon_context_identity",
 ]

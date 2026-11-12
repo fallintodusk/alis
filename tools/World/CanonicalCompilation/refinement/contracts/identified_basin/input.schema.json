@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/identified-basin-input-v1.json",
+  "title": "Retained identified joint basin input",
+  "type": "object",
+  "required": ["$schema", "schema_version", "reference_basis", "original_feature", "grid", "evidence", "selected", "model", "maximum_triangles"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/identified-basin-input-v1.json"},
+    "schema_version": {"const": 1},
+    "reference_basis": {"const": "identified_retained_grid_node_pwa"},
+    "original_feature": {"$ref": "https://alis.world/schemas/world-compiler/canonical-feature-v1.json#/properties/features/items"},
+    "grid": {"$ref": "https://alis.world/schemas/world-source/ground-grid-v1.json"},
+    "evidence": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/reference_evidence"},
+    "selected": {
+      "type": "object", "minProperties": 1, "maxProperties": 16,
+      "additionalProperties": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+        "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 0}}}
+    },
+    "maximum_triangles": {"type": "integer", "minimum": 2, "maximum": 4096},
+    "model": {
+      "type": "object",
+      "required": ["version", "basis", "canonical_crs", "vertical_datum", "source_geometry_sha256", "representation", "role", "role_evidence", "support", "contours", "parameters"],
+      "properties": {
+        "version": {"const": 1}, "basis": {"const": "identified_static_basin"},
+        "canonical_crs": {"type": "string", "pattern": "^EPSG:[0-9]+$"}, "vertical_datum": {"const": "EPSG:3855"},
+        "source_geometry_sha256": {"$ref": "#/$defs/hash"},
+        "representation": {"const": "strict_binary64_source_edge_subdivision_v1"}, "role": {"const": "inferred_constructed_basin"},
+        "role_evidence": {
+          "type": "object", "required": ["basis", "references", "source_query_policy_sha256"],
+          "properties": {
+            "basis": {"const": "primary_project_association_not_survey"},
+            "references": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+              "items": {"type": "string", "pattern": "^https://"}},
+            "source_query_policy_sha256": {"$ref": "#/$defs/hash"}
+          }, "additionalProperties": false
+        },
+        "support": {
+          "type": "object", "required": ["mode", "known_canonical_under_routes", "unmapped_under_routes", "basis"],
+          "properties": {
+            "mode": {"const": "inferred_solid_plaza"}, "known_canonical_under_routes": {"type": "array", "maxItems": 0},
+            "unmapped_under_routes": {"const": "unknown"}, "basis": {"const": "explicit_model_assumption_not_observed_ground"}
+          }, "additionalProperties": false
+        },
+        "contours": {
+          "type": "object", "required": ["core", "rim", "influence"],
+          "properties": {"core": {"$ref": "#/$defs/ring"}, "rim": {"$ref": "#/$defs/ring"}, "influence": {"$ref": "#/$defs/ring"}},
+          "additionalProperties": false
+        },
+        "parameters": {"$ref": "https://alis.world/schemas/world-compiler/identified-basin-surface-v1.json#/$defs/parameters"}
+      }, "additionalProperties": false
+    }
+  }, "additionalProperties": false,
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "positive": {"type": "number", "exclusiveMinimum": 0},
+    "ring": {"type": "array", "minItems": 4, "maxItems": 512,
+      "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}}
+  }
+}

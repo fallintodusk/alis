@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["$schema", "canonical_result", "canonical_sha256", "feature_id", "output", "kit"],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "canonical_result": {"type": "string", "minLength": 1},
+    "canonical_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "feature_id": {"const": "alis:osm:way:250440683"},
+    "output": {"type": "string", "minLength": 1},
+    "kit": {"type": "string", "minLength": 1}
+  }, "additionalProperties": false
+}

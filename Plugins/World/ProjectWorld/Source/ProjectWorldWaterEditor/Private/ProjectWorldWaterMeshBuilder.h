@@ -60,7 +60,8 @@ namespace ProjectWorldWaterMeshBuilder
 		const FProjectWorldPreparedWaterSurface& PreparedSurface,
 		double SurfaceOffsetMeters,
 		FProjectWorldWaterMeshBuildResult& OutResult,
-		FString& OutError);
+		FString& OutError,
+		const FVector* CommonOrigin = nullptr);
 
 	bool BuildCellSurface(
 		const FProjectWorldCanonicalBundle& Bundle,

@@ -299,8 +299,8 @@ namespace ProjectWorldPresentationRealization
 			return false;
 		}
 
-		Sun->SetActorRotation(Profile.SunRotation);
 		Sun->GetComponent()->SetMobility(EComponentMobility::Movable);
+		Sun->SetActorRotation(Profile.SunRotation);
 		Sun->GetComponent()->SetIntensity(Profile.SunIntensityLux);
 		Sun->GetComponent()->SetAtmosphereSunLight(true);
 		SkyLight->GetLightComponent()->SetMobility(EComponentMobility::Movable);

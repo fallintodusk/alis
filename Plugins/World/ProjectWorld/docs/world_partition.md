@@ -115,6 +115,16 @@ own canonical or realization identity. MeshPartition is isolated behind the
 replaceable ProjectWorldMeshTerrain adapter rather than exposed across
 ProjectWorld.
 
+PCG is an optional future consumer, not an admitted generated-terrain producer or
+MeshPartition deformation authority. Native PCG spatial types and partitioned
+generation are capabilities to evaluate at that future boundary. A layout intent
+may request a bounded canonical correction against an explicit terrain revision;
+final placement must consume the resulting canonical surface. Realized child
+meshes must not feed hidden height edits back into Terrain. A single writer alone
+does not establish acyclic dependencies. The generic influence adapter is not
+implemented by this policy, and Landscape edit tools do not change the selected
+Mesh Terrain representation.
+
 ## World Partition and locality
 
 Each realized world has one minimal persistent World Partition map plus spatial
@@ -172,6 +182,50 @@ identity before serialization. Unreal package byte stability is not used as the
 semantic no-op definition.
 
 ## Runtime and performance acceptance
+
+Native navigation data must conservatively contain the actual standing
+character capsule. The project supported-agent configuration is owned by
+[DefaultEngine.ini](../../../../Config/DefaultEngine.ini). Crouch clearance is
+a separate movement state; a successful native single-agent lookup does not
+prove standing clearance. `Runtime.NavigationAgentConfiguration` checks loaded
+configuration, an actual capsule and taller-capsule refusal/restoration. The
+saved-scene fixture additionally checks the actual possessed character.
+
+`Project.World.Realization.Constructed.NeighborhoodPawnNavigation` isolates
+navigation verification from long walking campaigns. It consumes an explicitly
+hash-bound grouped fixture, reloads its saved meshes and checks the actual
+possessed character and capsule contacts before querying native path-corridor
+detail. Paths connect projected source waypoints; this is not coverage of every
+source-axis position. Physical support removal and declared connector removal
+exercise separate refusal paths, including real lower Ground beneath the decks.
+Restoration rebuilds navigation and rechecks the saved physical source. Reuse
+walking evidence only while its consumed geometry and character remain unchanged;
+city, streaming, rendering and packaged acceptance retain their own boundaries.
+
+Changing supported-agent settings invalidates runtime acceptance. Map-owned
+navigation also requires the map producer's output revision and ordinary
+reconciliation before accepting existing saved maps; a configuration edit alone
+does not refresh generated authority. Terrain triangles and materials do not
+change merely because the navigation agent changes.
+The map verification projection observes the actual navigation agent identity,
+dimensions and runtime-generation mode. A stale map with matching class and tile
+size must still differ when its clearance or generation behavior changes.
+It also observes each native resolution tier and the active contour
+approximation settings; deprecated scalar settings are not evidence of their
+effective runtime values.
+
+Full map Apply owns explicit navigation reconciliation before configuring its
+territory domain. It reuses one exact stock Recast actor only after checking
+persistent internal ownership, the live supported agent and the configured
+resolution tiers. Accepted cell widths are rematched through the native tile
+property event; lawful larger tiles survive. Changed settings require actual
+native registration postconditions and invalidation of the old generated field.
+An unchanged accepted actor is reused without dirtying the map. Generic data
+resolution and gameplay checks remain strict and do not perform this repair.
+Conflicting ownership or inconsistent registered-agent bookkeeping refuses;
+the surrounding World transaction owns recovery after a failed mutation.
+Native map loading may retire failed-registration actors before Apply, so live
+repair evidence alone does not establish a serialized migration result.
 
 The acceptance route is product-first:
 
@@ -235,6 +289,17 @@ Useful native diagnostics include `wp.Editor.DumpActorDescs`,
 `wp.Runtime.DumpStreamingSources`, and the `wp.Runtime.ToggleDraw*` family.
 Diagnostic output does not replace the applicable static, commandlet, packaged,
 or authority receipt.
+
+The [constructed-surface streaming diagnostic](../Source/ProjectWorldEditor/Private/Tests/ProjectWorldConstructedPawnPIETest.cpp)
+uses saved/reopened OFPA geometry, native PIE and the selected project pawn.
+Near/unloaded/returned actor and capsule-contact measurements are qualified by
+an always-loaded collision control. Its synthetic grid and saved StaticMeshes
+establish that scene's streaming lifecycle; production MeshPartition terrain,
+experience loading, cooked residency and performance require their own proof.
+
+Disposable map and native external-actor/object package roots must resolve to
+scratch before saving. Their physical mount directories stay disjoint to avoid
+AssetRegistry aliases. Native PIE shutdown precedes owned map/package teardown.
 
 Cold Editor map loading must restore the partition's MeshPartitionEditorComponent
 and produce drawn preview sections. A compiled gameplay readiness result does not

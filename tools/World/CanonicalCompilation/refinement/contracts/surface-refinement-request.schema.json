@@ -14,11 +14,27 @@
     "operations": {
       "type": "array", "minItems": 1,
       "items": {
-        "type": "object", "required": ["kind", "feature_ids", "base_features", "context"],
+        "type": "object", "required": ["kind", "feature_ids", "base_features"],
         "properties": {
-          "kind": {"enum": ["bridge_elevation", "water_confluence"]},
-          "feature_ids": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-          "base_features": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/hash"}},
+          "kind": {"enum": ["bridge_elevation", "water_confluence", "constructed_surface_import", "identified_basin", "authored_dry_terrain"]},
+          "feature_ids": {"type": "array", "minItems": 0, "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "base_features": {"type": "object", "additionalProperties": {"$ref": "#/$defs/hash"}},
+          "source_qualification": {"enum": ["way_context", "way_and_multipolygon_context"]},
+          "construction_identity": {"$ref": "#/$defs/hash"},
+          "input": {"$ref": "#/$defs/input"},
+          "inputs": {
+            "type": "object", "required": ["model", "policy", "source_contexts"],
+            "properties": {
+              "model": {"$ref": "#/$defs/input"}, "policy": {"$ref": "#/$defs/input"},
+              "source_contexts": {"type": "array", "minItems": 1, "maxItems": 16, "items": {
+                "type": "object", "required": ["id", "normalized", "native"],
+                "properties": {"id": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"},
+                  "normalized": {"$ref": "#/$defs/input"},
+                  "native": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/native_input"}]}},
+                "additionalProperties": false
+              }}
+            }, "additionalProperties": false
+          },
           "context": {
             "type": "object", "required": ["path", "sha256", "byte_size"],
             "properties": {
@@ -26,9 +42,37 @@
               "sha256": {"$ref": "#/$defs/hash"}, "byte_size": {"type": "integer", "minimum": 1}
             }, "additionalProperties": false
           }
-        }, "additionalProperties": false
+        }, "additionalProperties": false,
+        "allOf": [{
+          "if": {"properties": {"kind": {"const": "authored_dry_terrain"}}},
+          "then": {"required": ["input"], "properties": {"feature_ids": {"maxItems": 0}, "base_features": {"maxProperties": 0}}, "not": {"anyOf": [{"required": ["context"]}, {"required": ["inputs"]}, {"required": ["source_qualification"]}, {"required": ["construction_identity"]}]}},
+          "else": {"properties": {"feature_ids": {"minItems": 1}},
+            "allOf": [{
+              "if": {"properties": {"kind": {"const": "constructed_surface_import"}}},
+              "then": {"required": ["inputs", "source_qualification", "construction_identity"],
+                "properties": {"base_features": {"maxProperties": 0}}, "not": {"required": ["context"]}},
+              "else": {
+                "if": {"properties": {"kind": {"const": "identified_basin"}}},
+                "then": {"required": ["input", "construction_identity"],
+                  "properties": {"feature_ids": {"maxItems": 1}, "base_features": {"minProperties": 1, "maxProperties": 1}},
+                  "not": {"anyOf": [{"required": ["context"]}, {"required": ["inputs"]}, {"required": ["source_qualification"]}]}},
+                "else": {"required": ["context"], "properties": {"feature_ids": {"maxItems": 2}, "base_features": {"minProperties": 1}},
+                  "not": {"anyOf": [{"required": ["inputs"]}, {"required": ["input"]}, {"required": ["source_qualification"]}, {"required": ["construction_identity"]}]}}
+              }
+            }]}
+        }]
       }
     }
   }, "additionalProperties": false,
-  "$defs": {"hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "input": {"type": "object", "required": ["path", "sha256", "byte_size"], "properties": {
+      "path": {"type": "string", "pattern": "^refinement/inputs/[0-9a-f]{64}\\.json$"},
+      "sha256": {"$ref": "#/$defs/hash"}, "byte_size": {"type": "integer", "minimum": 1, "maximum": 16000000}},
+      "additionalProperties": false},
+    "native_input": {"type": "object", "required": ["path", "sha256", "byte_size", "format"], "properties": {
+      "path": {"type": "string", "pattern": "^refinement/inputs/[0-9a-f]{64}\\.json$"},
+      "sha256": {"$ref": "#/$defs/hash"}, "byte_size": {"type": "integer", "minimum": 1, "maximum": 16000000},
+      "format": {"enum": ["osm_json", "sanitized_osm_full_response"]}}, "additionalProperties": false}
+  }
 }

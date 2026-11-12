@@ -2,6 +2,8 @@
 // License terms: see repository root LICENSE.
 #include "ProjectWorldRoadSurface.h"
 #include "ProjectWorldRoadStoredPolygon.h"
+#include "ProjectWorldRoadReferencedSurface.h"
+#include "ProjectWorldConstructedSurface.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldTerrainSurface.h"
 #include "MeshDescription.h"
@@ -91,6 +93,12 @@ namespace ProjectWorldRoadSurface
 			if (const auto* Found = Context.Cells.Find(FIntPoint(X, Y))) Neighbors.Add(*Found);
 		TArray<FRibbonTriangle> Clipped;
 		TMap<const FProjectWorldCanonicalRoadElevation*, ProjectWorldRoadStoredPolygon::FVertexMap> StoredVertices;
+		struct FReferencedStorage
+		{
+			TArray<FProjectWorldSurfaceTriangle> Field;
+			TMap<FVector2f,float> Heights;
+		};
+		TMap<const FProjectWorldCanonicalRoadElevation*,FReferencedStorage> ReferencedStorage;
 		struct FStorageGroup
 		{
 			const FRibbonTriangle* Example = nullptr;
@@ -169,7 +177,12 @@ namespace ProjectWorldRoadSurface
 			TArray<FVector2D> Footprint;
 			for (const auto& P : Source.Points) { Footprint.Add(FVector2D(P)); Bounds += Footprint.Last(); }
 			const double ExpectedArea = Area(Footprint);
-			if (ExpectedArea <= 1e-12) { Error = TEXT("Road ribbon has degenerate XY coverage."); return false; }
+			if (ExpectedArea <= 1e-12)
+			{
+				Error = FString::Printf(TEXT("Road ribbon has degenerate XY coverage: %.17g m2."),ExpectedArea);
+				for (const auto& P : Source.Points) Error+=FString::Printf(TEXT(" [%.17g,%.17g,%.17g]"),P.X,P.Y,P.Z);
+				return false;
+			}
 			double CoveredArea = 0;
 			for (const auto* NeighborPointer : Neighbors)
 			{
@@ -277,6 +290,28 @@ namespace ProjectWorldRoadSurface
 			TArray<FProjectWorldSurfaceTriangle> Stored;
 			if (!ProjectWorldRoadStoredPolygon::StoreGroup(Storage.Pieces, Domain, StoredVertices.FindOrAdd(Entry.Elevation), Stored, Error, &StorageClip))
 			{ Error = FString::Printf(TEXT("Road storage group %d: %s"), Id, *Error); return false; }
+			if (Entry.Elevation && Entry.Elevation->Domain==EProjectWorldRoadElevationDomain::ReferencedConstructedSurface)
+			{
+				auto* Cached=ReferencedStorage.Find(Entry.Elevation);
+				if (!Cached)
+				{
+					FReferencedStorage New; FString Identity;
+					if (!ProjectWorldRoadReferencedSurface::Read(Bundle,*Entry.Elevation,New.Field,Identity,Error)) return false;
+					Cached=&ReferencedStorage.Add(Entry.Elevation,MoveTemp(New));
+				}
+				// Raw source aliases and XY coverage have already passed StoreGroup.
+				// The referenced field is sampled at the XY the mesh actually stores.
+				for (auto& Face : Stored) for (auto& P : Face.Points)
+				{
+					const FVector2f Key(P.X,P.Y);
+					if (const auto* Z=Cached->Heights.Find(Key)) { P.Z=*Z; continue; }
+					const auto Canonical=FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,P+Origin); double Height;
+					if (!ProjectWorldConstructedSurface::Sample(Cached->Field,FVector2D(Canonical),Height,Error)) return false;
+					const float Z=static_cast<float>((Height+Lift-Bundle.HeightOriginMeters)*100-Origin.Z);
+					if (!FMath::IsFinite(Z)) { Error=TEXT("Referenced stored height exceeds native position storage."); return false; }
+					Cached->Heights.Add(Key,Z); P.Z=Z;
+				}
+			}
 			for (auto Face : Stored) if (!Emit(Entry, Face.Points)) return false;
 		}
 		if (Description) *Description = MoveTemp(Candidate);

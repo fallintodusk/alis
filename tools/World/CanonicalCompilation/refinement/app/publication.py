@@ -1,6 +1,5 @@
 """Authenticated disposable refinement publication; production promotion remains separate."""
 
-from copy import deepcopy
 import math
 from pathlib import Path
 import shutil
@@ -12,7 +11,7 @@ from ...app.artifacts import accepted_base, output_descriptor, promote_staging
 from .contracts import existing_result
 from ...app.contracts import CompilerError, canonical_hash, file_hash, read_json, resolve_owned_path
 from .contracts import validate_document, write_json
-from .geometry import EPSILON, _point, refine_terrain_cells, _domain
+from .geometry import EPSILON, _point, refine_terrain_cells, _domain, _external_edges, _check_outer, _check_seams
 from ...app.terrain_water_coverage import _intersects
 from .civil_grade import preserve_civil_grades
 
@@ -49,6 +48,39 @@ def validate_refinement(repo_root: Path, base: dict, surface: dict) -> None:
             validate_triangle_cover(repo_root, {"type": "Polygon", "coordinates": [[a[:2], b[:2], d[:2], c[:2], a[:2]]]}, triangles)
         except ExecutionEnvironmentError as error:
             raise CompilerError(error.code, str(error), **error.details) from error
+
+
+def stage_terrain_refinements(repo_root, staging, coverage, cells, payloads):
+    """Validate and stage final quads through the shared Terrain artifact owner."""
+    domain = _domain(cells, {key: [q['coordinate'] for q in value['quads']] for key, value in payloads.items()})
+    exterior = _external_edges(domain)
+    _check_seams(payloads, domain)
+    for payload in payloads.values():
+        for quad in payload['quads']:
+            for point in quad['vertices']:
+                _check_outer(point, exterior)
+    for identifier, payload in sorted(payloads.items()):
+        entry = next(e for e in coverage['cells'] if e['cell_id'] == identifier)
+        manifest_path = staging/entry['path']
+        manifest = read_json(manifest_path)
+        base_descriptor = manifest['terrain_artifact']
+        if not base_descriptor['path'].startswith('canonical/terrain/'):
+            raise CompilerError('refinement_base_invalid', 'Terrain staging requires one immutable regular base')
+        payload['base'] = {'path': base_descriptor['path'], 'sha256': base_descriptor['content_hash'],
+            'byte_size': base_descriptor['byte_size']}
+        validate_refinement(repo_root, cells[identifier], payload)
+        relative = base_descriptor['path'].replace('canonical/terrain/', 'canonical/refined_terrain/')
+        target = staging/relative
+        write_json(target, payload)
+        manifest['terrain_artifact'] = {**base_descriptor, 'path': relative, 'content_hash': file_hash(target),
+            'byte_size': target.stat().st_size,
+            'dependencies': [*base_descriptor['dependencies'], 'refinement:'+canonical_hash(payload['consumed'])]}
+        write_json(manifest_path, manifest)
+        entry.update(sha256=file_hash(manifest_path), byte_size=manifest_path.stat().st_size)
+        for descriptor in coverage['artifact_descriptors']:
+            if descriptor['artifact_id'] == base_descriptor['artifact_id']:
+                descriptor.update({k: v for k, v in manifest['terrain_artifact'].items() if k != 'path'})
+    return sorted(payloads)
 
 
 def prepare_terrain_refinement(repo_root: Path, base_result_path: Path, output_root: Path,
@@ -90,7 +122,6 @@ def prepare_terrain_refinement(repo_root: Path, base_result_path: Path, output_r
             destination = resolve_owned_path(staging, entry["path"], must_exist=False)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(resolve_owned_path(base_root, entry["path"]), destination)
-        changed_cells = []
         for identifier in sorted({f['owner_cell_id'] for f in civil.values()}):
             manifest = manifests[identifier]
             path = staging / manifest['feature_artifact']['path']
@@ -100,30 +131,11 @@ def prepare_terrain_refinement(repo_root: Path, base_result_path: Path, output_r
             manifest['feature_artifact'].update(content_hash=file_hash(path), byte_size=path.stat().st_size,
                 dependencies=[*manifest['feature_artifact']['dependencies'], 'civil-grade:'+request_hash])
         affected = set(payloads) | {f['owner_cell_id'] for f in civil.values()}
-        for identifier in sorted(affected - set(payloads)):
+        for identifier in sorted(affected):
             manifest = manifests[identifier]
             target = staging / next(e['path'] for e in coverage['cells'] if e['cell_id'] == identifier)
             write_json(target, manifest)
-        for identifier, payload in sorted(payloads.items()):
-            manifest = deepcopy(manifests[identifier])
-            base_descriptor = manifest["terrain_artifact"]
-            payload["base"] = {"path": base_descriptor["path"], "sha256": base_descriptor["content_hash"],
-                               "byte_size": base_descriptor["byte_size"]}
-            validate_refinement(repo_root, cells[identifier], payload)
-            relative = base_descriptor["path"].replace("canonical/terrain/", "canonical/refined_terrain/")
-            target = staging / relative
-            write_json(target, payload)
-            manifest["terrain_artifact"] = {**base_descriptor, "path": relative, "content_hash": file_hash(target),
-                                             "byte_size": target.stat().st_size,
-                                             "dependencies": [*base_descriptor["dependencies"], f"refinement:{canonical_hash(payload['consumed'])}"]}
-            entry = next(e for e in coverage["cells"] if e["cell_id"] == identifier)
-            manifest_path = staging / entry["path"]
-            write_json(manifest_path, manifest)
-            entry.update(sha256=file_hash(manifest_path), byte_size=manifest_path.stat().st_size)
-            for descriptor in coverage["artifact_descriptors"]:
-                if descriptor["artifact_id"] == base_descriptor["artifact_id"]:
-                    descriptor.update({k: v for k, v in manifest["terrain_artifact"].items() if k != "path"})
-            changed_cells.append(identifier)
+        stage_terrain_refinements(repo_root, staging, coverage, cells, payloads)
         for identifier in sorted(affected):
             manifest = read_json(staging / next(e['path'] for e in coverage['cells'] if e['cell_id'] == identifier))
             entry = next(e for e in coverage['cells'] if e['cell_id'] == identifier)

@@ -9,13 +9,11 @@ import shutil
 import tempfile
 
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError, exclusive_file_lock
-from World.ExecutionEnvironment.geometry.api import execution_identity
-from World.SourceIngestion.api import osm_context_identity
 from ...app import promotion
 from ...app.contracts import CompilerError, canonical_hash, file_hash, resolve_owned_path
 from .contracts import validate_document
-from .identity import implementation_identity
-from .authority import validate_current_surface_selection
+from .identity import request_is_current
+from .authority import selected_request, validate_current_surface_selection
 
 
 SCHEMA = 'https://alis.world/schemas/world-compiler/canonical-selection-transition-v1.json'
@@ -49,10 +47,8 @@ def _pointer(payload):
     return value
 
 
-def _current_producer(repo, selected):
-    if (selected['implementation_sha256'] != implementation_identity() or
-            selected['source_context_identity'] != osm_context_identity() or
-            selected['execution_identity'] != execution_identity(repo, True)['identity_sha256']):
+def _current_producer(repo, selected, root):
+    if not request_is_current(repo, selected_request(root, selected)):
         _refuse('First activation requires current child, source and native producing contracts')
 
 
@@ -108,9 +104,9 @@ def _prepare(repo, profile, candidate, expected):
     if old.get('selected_refinement') or not selected or _base_identity(old) != _base_identity(new):
         _refuse('Only an explicit unchanged-base to selected-feature transition is supported')
     _fresh_schema(new, active)
-    _current_producer(repo, selected)
+    _current_producer(repo, selected, candidate.parent)
     validate_current_surface_selection(repo, new, candidate.parent, profile)
-    _current_producer(repo, selected)
+    _current_producer(repo, selected, candidate.parent)
     if file_hash(profile) != profile_before or active.read_bytes() != old_bytes or candidate.read_bytes() != new_bytes:
         _refuse('Canonical pointers changed during fresh selection admission')
     descriptor = selected['bundle']
@@ -208,10 +204,10 @@ def _publish(repo, transition, restore):
         return {'status': 'accepted', 'state': state, 'changed': False}
     if not restore and transition.get('transition_kind') != 'schema_reference_v1':
         _fresh_schema(_pointer(decoded['new']), active)
-        _current_producer(repo, selected)
+        _current_producer(repo, selected, active.parent)
         validate_current_surface_selection(repo, _pointer(decoded['new']), active.parent,
                                           resolve_owned_path(repo, transition['profile_path']))
-        _current_producer(repo, selected)
+        _current_producer(repo, selected, active.parent)
         if file_hash(resolve_owned_path(repo, transition['profile_path'])) != transition['profile_sha256']:
             _refuse('Canonical profile changed during fresh selection admission')
     before = transition['new_active_sha256' if restore else 'old_active_sha256']

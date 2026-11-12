@@ -66,7 +66,11 @@ namespace ProjectWorldRoadStoredPolygon
 				const double Bound = FMath::Max(Gradient, Previous->Gradient) * FVector2D(P - Previous->Source).Length() +
 					EvaluationBounds[I] + Previous->EvaluationRoundoff;
 				if (!FMath::IsFinite(Bound) || FMath::Abs(P.Z - Previous->Source.Z) > Bound)
-					return Refuse(TEXT("Road storage aliases conflicting source heights."));
+				{
+					Error=FString::Printf(TEXT("Road storage source-height alias: delta %.17g, bound %.17g, source [%.17g,%.17g,%.17g], previous [%.17g,%.17g,%.17g]."),
+						FMath::Abs(P.Z-Previous->Source.Z),Bound,P.X,P.Y,P.Z,Previous->Source.X,Previous->Source.Y,Previous->Source.Z);
+					return false;
+				}
 				Value.Z = static_cast<float>(Previous->Stored.Z);
 			}
 			else Pending.Add(Key, {P, FVector(Value), Gradient, EvaluationBounds[I]});

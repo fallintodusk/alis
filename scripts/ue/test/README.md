@@ -26,6 +26,11 @@ Shared process and log helpers under `lib/` are not independent user entry
 points. Test selection policy and evidence interpretation are owned by the
 [testing documentation](../../../docs/testing/README.md).
 
+Cold-run launch, bounded output completion and process ownership are private to
+the [unit process helper](unit/owned_test_process.ps1) and its
+[Windows Job adapter](unit/owned_test_process.cs). They are exercised by the
+[real-process regressions](unit/test/ProcessCompletion.Tests.ps1).
+
 Automated render-capable gates launch Unreal with `-RenderOffScreen` so they
 cannot take keyboard or mouse focus. Callers that create a separate Windows
 process also hide that process window. Interactive play remains owned by the

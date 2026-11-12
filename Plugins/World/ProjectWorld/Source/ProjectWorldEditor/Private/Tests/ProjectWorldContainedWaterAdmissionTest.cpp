@@ -33,6 +33,8 @@ bool FProjectWorldContainedWaterAdmissionTest::RunTest(const FString&)
         return Accepted;
     };
     TestTrue(TEXT("Closed contained Ground model is admitted"),Read(Valid));
+    TestFalse(TEXT("Typed inferred-basin consumption cannot open canonical JSON admission"),Read(Valid.Replace(
+        TEXT("contained_ground_quantile"),TEXT("identified_static_lined_basin"))));
     TestTrue(TEXT("Observed Ground footprint is a separately identified admitted model"),Read(Valid.Replace(
         TEXT("mapped_containment"),TEXT("observed_ground_component"))));
     TestFalse(TEXT("Unknown footprint policy refuses"),Read(Valid.Replace(TEXT("mapped_containment"),TEXT("ignore_source"))));

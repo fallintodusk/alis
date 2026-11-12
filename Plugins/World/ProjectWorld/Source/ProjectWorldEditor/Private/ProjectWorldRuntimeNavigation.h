@@ -15,6 +15,8 @@ struct FProjectWorldRuntimeProfile;
 
 namespace ProjectWorldRuntimeNavigation
 {
+	bool ReconcileTerritoryData(UWorld* World, FString& OutError);
+
 	bool GetTerritoryDomainBounds(
 		const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldRuntimeProfile& Profile,

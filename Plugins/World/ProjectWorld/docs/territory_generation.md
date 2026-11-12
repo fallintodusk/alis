@@ -11,6 +11,7 @@ default session bootstrap.
 | Full architecture, ownership, data flow, and operator observability | [Architecture](architecture/README.md) |
 | Generation order, identity, geospatial authority, error budget | [Territory contract](territory_contract.md#purpose) |
 | Logic/data ownership and persistent canonical authority | [Territory contract](territory_contract.md#ownership-layers) |
+| Ground authority, separate feature representations and authored Terrain adjustment | [Terrain and feature separation](territory_contract.md#terrain-and-feature-separation) |
 | Layer add/remove/order and precise dirty regeneration | [Territory contract](territory_contract.md#layered-regeneration-contract-scale-out-precondition) |
 | Authored anchors and protected overlays | [Territory contract](territory_contract.md#authored-anchor-semantics-byte-equality-is-not-enough) |
 | Generated manifests, transactions, enrollment, retirement | [Territory contract](territory_contract.md#generated-artifact-manifest-and-drift-validation) |

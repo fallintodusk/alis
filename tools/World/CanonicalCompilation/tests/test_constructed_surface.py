@@ -1,11 +1,13 @@
 """A mapped platform owns its surface role without changing Ground or Water."""
 from copy import deepcopy
+import math
 from pathlib import Path
 import unittest
 
 from ..app.contracts import CompilerError, canonical_hash
 from ..app.surface_context import surface_context
 from ..refinement.constructed_surface import build_constructed_road_surface
+from .constructed_support_fixture import PROVENANCE, fixture as captured_fixture
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -30,6 +32,29 @@ class ConstructedSurfaceTests(unittest.TestCase):
         road, points, parent, context, evidence, selection = values
         return build_constructed_road_surface(ROOT, road, points, parent, context, evidence,
             canonical_crs='EPSG:32618', selection=selection, **kw)
+
+    def test_captured_pier_support_preserves_full_source_field_and_steepness(self):
+        values = captured_fixture(); before = deepcopy(values)
+        self.assertEqual(126, len(values[1]))
+        self.assertLess(Path(__file__).with_name('constructed_support_fixture.py').stat().st_size, 24576)
+        result = self.build(values)
+        self.assertEqual(before, values)
+        faces = result['uv_triangles']
+        # Pin the entire original 19,001-point affine field, independent of face order.
+        field = sorted(sorted(tuple(p) for p in face) for face in faces)
+        self.assertEqual(PROVENANCE['full_input_field_sha256'], canonical_hash(field))
+        self.assertLessEqual(len(faces), 384)
+        area, gradient = 0., 0.
+        for a, b, c in faces:
+            ux, uy, uz = [b[i]-a[i] for i in range(3)]
+            vx, vy, vz = [c[i]-a[i] for i in range(3)]
+            determinant = ux*vy-uy*vx
+            area += abs(determinant)/2
+            gradient = max(gradient, math.hypot((uz*vy-vz*uy)/determinant,
+                                               (ux*vz-vx*uz)/determinant))
+        self.assertAlmostEqual(result['length_m']*2., area, delta=1e-8)
+        # Successful source interpolation must not be mistaken for walkable geography.
+        self.assertAlmostEqual(1.92791944003, gradient, delta=1e-8)
 
     def test_oblique_platform_path_keeps_observed_heights_and_complete_width(self):
         values = fixture(); before = deepcopy(values)

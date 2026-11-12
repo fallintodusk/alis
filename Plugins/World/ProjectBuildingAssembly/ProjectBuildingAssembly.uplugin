@@ -1,0 +1,11 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Project Building Assembly",
+  "Description": "Optional modular building planning and isolated editor realization.",
+  "Category": "Project.World",
+  "EnabledByDefault": false,
+  "CanContainContent": false,
+  "Modules": [{ "Name": "ProjectBuildingAssemblyEditor", "Type": "Editor", "LoadingPhase": "Default" }]
+}

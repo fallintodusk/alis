@@ -1,0 +1,17 @@
+{
+  "$schema": "../Schemas/modular-kit.schema.json",
+  "kit_id": "original_test_v1",
+  "generator": "original_box_modules_v1",
+  "provenance": { "kind": "original_procedural_test_geometry", "owner": "project" },
+  "parameters": {
+    "panel_width_m": 2.0,
+    "floor_height_m": 3.0,
+    "wall_thickness_m": 0.18,
+    "slab_thickness_m": 0.15,
+    "foundation_embed_m": 0.1,
+    "maximum_support_span_m": 0.5,
+    "frame_fraction": 0.12,
+    "window_every": 2,
+    "maximum_instances": 4096
+  }
+}

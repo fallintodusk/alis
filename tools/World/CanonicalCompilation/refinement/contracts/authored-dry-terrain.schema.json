@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/authored-dry-terrain-surface-v1.json",
+  "$defs": {
+    "consumed": {
+      "type": "object",
+      "required": [
+        "authored_input_sha256",
+        "domain_sha256",
+        "implementation_sha256",
+        "execution_identity"
+      ],
+      "properties": {
+        "authored_input_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "domain_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "implementation_sha256": {
+          "$ref": "#/$defs/hash"
+        },
+        "execution_identity": {
+          "$ref": "#/$defs/hash"
+        }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "height_rule"
+      ],
+      "properties": {
+        "height_rule": {
+          "const": "quantized_sum_on_immutable_final_grid_v1"
+        }
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "changed_nodes",
+        "affected_quads",
+        "maximum_cut_m",
+        "maximum_fill_m"
+      ],
+      "properties": {
+        "changed_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "affected_quads": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximum_cut_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maximum_fill_m": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

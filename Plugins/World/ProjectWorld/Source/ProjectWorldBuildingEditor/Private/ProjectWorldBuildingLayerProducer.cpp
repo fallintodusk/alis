@@ -2,14 +2,28 @@
 
 #include "ProjectWorldBuildingInventory.h"
 #include "ProjectWorldBuildingRealization.h"
+#include "ProjectWorldBuildingSelection.h"
 #include "ProjectWorldCanonicalBundle.h"
 
 #include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 FProjectWorldBuildingLayerProducer& FProjectWorldBuildingLayerProducer::Get()
 {
 	static FProjectWorldBuildingLayerProducer Producer;
 	return Producer;
+}
+
+bool FProjectWorldBuildingLayerProducer::UpdateMaterialReferences(const FProjectWorldLayerApplyContext& Context,
+    const TArray<FProjectWorldLayerArtifactInventory>& Accepted,FProjectWorldLayerInventory& Inventory,
+    FProjectWorldRealizationResult& Result,bool bApply,FString& Error) const
+{
+    ProjectWorldBuildingSelection::FSet Selection;
+    if (!ProjectWorldBuildingSelection::Load(Context.Inputs,Selection,Error)) return false;
+    if (!Selection.Buildings.IsEmpty())
+    {Error=TEXT("Material-only adoption of modular ISM assemblies is unsupported in this prototype.");return false;}
+    return IProjectWorldLayerProducer::UpdateMaterialReferences(Context,Accepted,Inventory,Result,bApply,Error);
 }
 
 FProjectWorldBuildingLayerProducer::FProjectWorldBuildingLayerProducer()
@@ -39,8 +53,16 @@ bool FProjectWorldBuildingLayerProducer::ValidateSettings(
 		TEXT("duplicate_policy"), TEXT("contained_policy"), TEXT("conflict_policy"),
 		TEXT("nanite"), TEXT("collision"), TEXT("navigation")};
 	TSharedPtr<FJsonObject> Settings;
+    TSharedPtr<FJsonObject> Declared;FString BaseSettings=NormalizedSettings;
+    if (FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(NormalizedSettings),Declared) && Declared && Declared->HasField(TEXT("assembly_source")))
+    {
+        FString Source;
+        if (!Declared->HasTypedField<EJson::String>(TEXT("assembly_source")) || !Declared->TryGetStringField(TEXT("assembly_source"),Source) ||
+            !ProjectWorldBuildingSelection::ValidateSetting(Source)) {OutError=TEXT("Assembly source is not a confined selection document.");return false;}
+        Declared->RemoveField(TEXT("assembly_source"));FJsonSerializer::Serialize(Declared,TJsonWriterFactory<>::Create(&BaseSettings));
+    }
 	if (!ProjectWorldLayerProducerRegistry::ParseExactSettings(
-		NormalizedSettings, MakeArrayView(Fields), Settings, OutError))
+		BaseSettings, MakeArrayView(Fields), Settings, OutError))
 	{
 		return false;
 	}
@@ -74,11 +96,12 @@ bool FProjectWorldBuildingLayerProducer::ValidateSettings(
 bool FProjectWorldBuildingLayerProducer::HashUnitInputs(const FProjectWorldLayerInputs& Inputs,
 	FProjectWorldLayerUnitInputs& OutUnits, FString& OutError) const
 {
+    ProjectWorldBuildingSelection::FSet Selection;
+    if (!ProjectWorldBuildingSelection::Load(Inputs,Selection,OutError)) return false;
 	for (const FProjectWorldCanonicalCell& Cell : Inputs.Bundle.Cells)
 	{
 		FString Hash;
-		if (!ProjectWorldBuildingRealization::HashCellInput(
-			Inputs.Bundle, Cell, Inputs.Layer, Inputs.AuthoredOverlays, Hash, OutError))
+		if (!ProjectWorldBuildingSelection::HashCell(Inputs,Selection,Cell,Hash,OutError))
 		{
 			return false;
 		}
@@ -92,9 +115,12 @@ bool FProjectWorldBuildingLayerProducer::Apply(const FProjectWorldLayerApplyCont
 	FString& OutError) const
 {
 	UMaterialInterface* const* Material = Context.PresentationMaterials.Find(TEXT("building"));
+    ProjectWorldBuildingSelection::FSet Selection;
+    if (!ProjectWorldBuildingSelection::Load(Context.Inputs,Selection,OutError) ||
+        !ProjectWorldBuildingSelection::Apply(Context,Selection,Inventory,OutResult,OutError)) return false;
 	if (!ProjectWorldBuildingRealization::Apply(&Context.World, Context.Inputs.Bundle,
 		Context.Inputs.Profile, Context.Inputs.AuthoredOverlays,
-		Material != nullptr ? *Material : nullptr, OutResult, OutError))
+		Material != nullptr ? *Material : nullptr, OutResult, OutError,&Selection))
 	{
 		return false;
 	}
@@ -107,11 +133,14 @@ bool FProjectWorldBuildingLayerProducer::CaptureArtifacts(const FProjectWorldLay
 	FString& OutError) const
 {
 	UMaterialInterface* const* Material=Context.PresentationMaterials.Find(TEXT("building"));
+    ProjectWorldBuildingSelection::FSet Selection;
+    if (!ProjectWorldBuildingSelection::Load(Context.Inputs,Selection,OutError)) return false;
 	if (!ProjectWorldBuildingInventory::Capture(&Context.World, Context.Inputs.Bundle,
-		Context.Inputs.Layer, Context.Inputs.AuthoredOverlays, Inventory, OutResult, OutError,Material ? *Material : nullptr))
+		Context.Inputs.Layer, Context.Inputs.AuthoredOverlays, Inventory, OutResult, OutError,Material ? *Material : nullptr,&Selection))
 	{
 		return false;
 	}
+    if (!ProjectWorldBuildingSelection::Capture(Context,Selection,Inventory,OutResult,OutError)) return false;
 	Inventory.Metrics.Add(TEXT("cell_actors"), OutResult.MutableProducerMetric(TEXT("project_building_massing"), TEXT("cell_actors")));
 	Inventory.Metrics.Add(TEXT("mesh_assets"), OutResult.MutableProducerMetric(TEXT("project_building_massing"), TEXT("mesh_assets")));
 	Inventory.Metrics.Add(TEXT("triangles"), OutResult.MutableProducerMetric(TEXT("project_building_massing"), TEXT("triangles")));

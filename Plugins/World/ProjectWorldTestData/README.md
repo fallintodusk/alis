@@ -1,12 +1,14 @@
 # ProjectWorldTestData
 
-Editor-only owner of deterministic synthetic inputs and their derived Unreal
+Editor-only owner of deterministic synthetic and captured inputs and their derived Unreal
 fixtures. This plugin is enabled only for Editor targets and must not ship.
 
 Ownership:
 
 - `Data/Profiles/` owns synthetic source and compiler profiles.
-- `Data/Fixtures/` owns synthetic provider and compiler inputs.
+- `Data/Fixtures/` owns synthetic and captured provider/compiler inputs, including
+  the [authored Ground replay](Data/Fixtures/madison_dry_ground/README.md) and
+  [building neighborhood lifecycle](Data/Fixtures/building_neighborhood/README.md).
 - `Data/Authored/`, `Data/Presentation/`, and `Data/Runtime/` own synthetic
   realization profiles.
 - `Content/Authored/` owns protected authored test packages.

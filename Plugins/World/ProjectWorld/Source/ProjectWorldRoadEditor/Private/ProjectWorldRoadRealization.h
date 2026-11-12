@@ -14,6 +14,7 @@ class AActor;
 class UMaterialInterface;
 class UWorld;
 struct FMeshDescription;
+struct FProjectWorldRoadNominalFootprint;
 
 namespace ProjectWorldRoadRealization
 {
@@ -23,7 +24,11 @@ namespace ProjectWorldRoadRealization
 
 	bool BuildDescription(const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldCanonicalCell& Cell, const FProjectWorldRealizationLayer& Layer,
-		FMeshDescription& OutDescription, FVector& OutOrigin, FString& OutError);
+		FMeshDescription& OutDescription, FVector& OutOrigin, FString& OutError,
+		const TSet<FString>* FeatureSelection = nullptr, TSet<FString>* LocallyEligible = nullptr);
+	bool ReadSurfaceOffset(const FProjectWorldRealizationLayer& Layer, double& Out, FString& Error);
+	bool BuildNominalFootprint(const FProjectWorldCanonicalBundle& Bundle,const FProjectWorldCanonicalCell& Cell,
+		const FProjectWorldRealizationLayer& Layer,const TSet<FString>& FeatureIds,FProjectWorldRoadNominalFootprint& Out,FString& Error);
 	bool ValidateSettings(const FString& NormalizedSettings, FString& OutError);
 	bool HashActorSemantic(const FString& CellId, const FString& MeshSemantic,
 		FString& OutHash);

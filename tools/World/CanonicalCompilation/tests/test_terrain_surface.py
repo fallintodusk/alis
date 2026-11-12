@@ -227,6 +227,56 @@ class TerrainSurfaceTests(unittest.TestCase):
 
         self.assertEqual({CELL_ID, neighbor_id}, dirty)
 
+    def test_distant_water_dirtying_avoids_per_sample_segment_work(self) -> None:
+        previous = _compiled()
+        feature = previous.by_owner[CELL_ID][0]
+        feature['geometry'] = {'type': 'LineString',
+                               'coordinates': [[100000.+i, 100000.] for i in range(40)]}
+        feature['attributes']['width_m'] = 4.
+        feature['intersecting_cell_ids'] = []
+        current = deepcopy(previous)
+        current.by_owner[CELL_ID][0]['attributes']['surface_function']['level_m'] = 9.
+        terrain = _terrain()
+        terrain[CELL_ID].update(bounds=[0., 0., 930., 930.], sample_spacing=[30., 30.],
+            water_fit={'core_samples': [[12.]*32 for _ in range(32)],
+                       'halo_window': {'samples': [[12.]*34 for _ in range(34)]}})
+        with patch.object(terrain_surface, '_segment_distance', wraps=terrain_surface._segment_distance) as distances:
+            dirty = water_surface_dirty_cells(current, previous, terrain, _profile())
+        self.assertEqual(set(), dirty)
+        self.assertEqual(0, distances.call_count, 'A disjoint Water footprint needs no individual segment distances')
+
+    def test_water_dirtying_matches_raw_geometry_for_holes_ribbons_and_halos(self) -> None:
+        shapes = [
+            ('Polygon', [[[-2., -2.], [2., -2.], [2., 2.], [-2., 2.], [-2., -2.]],
+                         [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5], [-.5, -.5]]], 0.),
+            ('LineString', [[-10., 0.], [10., 0.]], 4.),
+            ('MultiLineString', [[[-10., 0.], [10., 0.]], [[70., 70.], [80., 80.]]], 4.),
+            ('Polygon', [[[.2, .2], [.4, .2], [.4, .4], [.2, .4], [.2, .2]]], 0.),
+        ]
+        for geometry_type, coordinates, width in shapes:
+            previous = _compiled()
+            feature = previous.by_owner[CELL_ID][0]
+            feature['geometry'] = {'type': geometry_type, 'coordinates': coordinates}
+            feature['attributes']['width_m'] = width
+            feature['intersecting_cell_ids'] = []
+            current = deepcopy(previous)
+            current.by_owner[CELL_ID][0]['attributes']['surface_function']['level_m'] = 9.
+            for radius in (0., 1., 60.):
+                profile = _profile();profile['terrain_surface']['hydro_transition_radius_m'] = radius
+                terrain = {}
+                for x in (-90., -61., -3., 0., 3., 61., 90.):
+                    cell = deepcopy(_terrain()[CELL_ID]);cell['bounds'] = [x, 0., x, 0.]
+                    terrain[str(x)] = cell
+                expected = set()
+                for key, cell in terrain.items():
+                    x = cell['bounds'][0]
+                    if (any(terrain_surface._footprint_distance(feature, (x+i, -j)) <= radius
+                            for i in (-1, 0, 1) for j in (-1, 0, 1)) or
+                            terrain_surface._intersects(feature, (x-2, -2., x+2, 2.))):
+                        expected.add(key)
+                with self.subTest(geometry_type=geometry_type, radius=radius):
+                    self.assertEqual(expected, water_surface_dirty_cells(current, previous, terrain, profile))
+
     def test_hand_height_runs_after_hydro_and_preserves_water_fit_base(self) -> None:
         terrain = _terrain()
         finalize_terrain_cells(terrain, _compiled(), _profile(), GRID_ID, _overlay(delta=-1.0))

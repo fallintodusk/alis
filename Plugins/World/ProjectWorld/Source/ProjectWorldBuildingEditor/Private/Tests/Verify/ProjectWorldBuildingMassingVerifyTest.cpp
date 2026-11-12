@@ -295,6 +295,16 @@ bool FProjectWorldBuildingRetiredIdentityProjectionTest::RunTest(const FString& 
 	TestEqual(TEXT("Both actor and mesh pairs remain observable."), Projection.Sorted().Num(), 4);
 	TestTrue(TEXT("Retired identity is visible in the projection."),
 		Projection.ToCanonicalJson().Contains(TEXT("ProjectWorld.BuildingMassing.v1")));
+	FProjectWorldVerifyIdentity Identity;
+	if (!TestTrue(TEXT("Known-bad output uses the ordinary producer baseline identity."),
+		FProjectWorldVerifyIdentity::ForProducer(Spec.Verify, Spec.GeneratorId, Spec.GeneratorVersion,
+			ComparisonVersion, Identity, Error))) return false;
+	Identity.AddFixtureBundle(TEXT("memory:bundle"), Bundle);
+	Identity.AddFixtureText(TEXT("memory:profile"), ProjectWorldVerifyTestFlow::SerializeProfile(Profile));
+	if (!TestTrue(TEXT("Known-bad fixture authenticates its material."), Identity.AddFixtureObject(BuildingMaterial, Error))) return false;
+	const auto Rejected = ProjectWorldVerify::CompareOrRecord(Identity, Projection, ProjectWorldVerify::EMode::Compare);
+	TestFalse(TEXT("Saved/reloaded retired ownership cannot pass the current output baseline."), Rejected.bPassed);
+	TestTrue(TEXT("Output sabotage reports the changed tags."), Rejected.Message.Contains(TEXT("tags")));
 	return true;
 }
 

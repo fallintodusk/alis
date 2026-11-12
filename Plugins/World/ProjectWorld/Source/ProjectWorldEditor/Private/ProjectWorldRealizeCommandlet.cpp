@@ -25,7 +25,8 @@ bool UProjectWorldRealizeCommandlet::IsSafeResultPath(const FString& ResultPath)
 	const FString ScratchRoot = FPaths::ConvertRelativePathToFull(
 		FPaths::Combine(FPaths::ProjectDir(), TEXT("tmp/world")));
 	const FString FullPath = FPaths::ConvertRelativePathToFull(ResultPath);
-	return FPaths::IsUnderDirectory(FullPath, EvidenceRoot) || FPaths::IsUnderDirectory(FullPath, ScratchRoot);
+	return !ProjectWorldRealizationEvidence::IsReservedInputPath(FullPath) &&
+        (FPaths::IsUnderDirectory(FullPath, EvidenceRoot) || FPaths::IsUnderDirectory(FullPath, ScratchRoot));
 }
 
 int32 UProjectWorldRealizeCommandlet::Main(const FString& Params)
