@@ -113,6 +113,7 @@ struct FProjectWorldCanonicalConstructedSurface
 	TArray<FString> SourceProviderIds;
 	TArray<FProjectWorldCanonicalRetainedSource> SourceSnapshots;
 	TArray<FProjectWorldCanonicalConstructedRegion> FaceRegions;
+	TMap<FString,FProjectWorldCanonicalBasinArtifact> TerrainSupport;
 	TOptional<FProjectWorldCanonicalConstructedPolicy> OperationalPolicy;
 };
 
@@ -197,6 +198,7 @@ struct FProjectWorldCanonicalTerrain
 	FString VerticalProvenanceId;
 	FString VerticalDatum;
 	FString VerticalConfidence;
+	bool bHasVerticalSourceAccuracy = false;
 	double VerticalSourceAccuracyMeters = 0.0;
 	double SamplingQuantizationResidualMeters = 0.0;
 	FVector4d Bounds = FVector4d(0.0, 0.0, 0.0, 0.0);

@@ -42,6 +42,7 @@ $projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scrip
 $configDirectory = Join-Path (Join-Path $projectRoot "scripts") "config"
 . (Join-Path $configDirectory "Resolve-UEConfig.ps1")
 . (Join-Path $scriptDirectory "execution_envelope.ps1")
+. (Join-Path $scriptDirectory 'capture_input_paths.ps1')
 
 $config = Resolve-UEConfig -ConfigDir $configDirectory
 $editorCommand = Join-Path $config.UE_PATH "Engine\Binaries\Win64\UnrealEditor.exe"
@@ -57,13 +58,7 @@ if ($Map.StartsWith('//')) {
     $Map = $Map.Substring(1)
 }
 
-$vantagePlanPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $VantagePlan))
-if (-not (Test-Path -LiteralPath $vantagePlanPath -PathType Leaf)) {
-    $vantagePlanPath = [System.IO.Path]::GetFullPath($VantagePlan)
-}
-if (-not (Test-Path -LiteralPath $vantagePlanPath -PathType Leaf)) {
-    throw "Vantage plan does not exist: $VantagePlan"
-}
+$vantagePlanPath = Resolve-ProjectWorldCapturePlanPath -ProjectRoot $projectRoot -VantagePlan $VantagePlan
 
 # Scratch output lives under the project tmp/ tree.
 $captureRoot = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {

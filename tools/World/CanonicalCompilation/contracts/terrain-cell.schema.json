@@ -18,7 +18,7 @@
       "properties": {
         "source_ref": {"type": "string", "minLength": 1},
         "vertical_datum": {"type": "string", "minLength": 1},
-        "source_accuracy_m": {"type": "number", "minimum": 0},
+        "source_accuracy_m": {"type": ["number", "null"], "minimum": 0},
         "confidence": {"type": "string", "minLength": 1},
         "sampling_quantization_residual_m": {"type": "number", "minimum": 0}
       },
@@ -28,7 +28,7 @@
       "type": "object",
       "required": ["authority", "source_crs", "canonical_crs", "resampling_method"],
       "properties": {
-        "authority": {"enum": ["synthetic_fixture_affine", "pinned_gdalwarp_vrt"]},
+        "authority": {"enum": ["synthetic_fixture_affine", "pinned_gdalwarp_vrt", "qualified_ground_grid_nodes"]},
         "source_crs": {"type": "string"},
         "canonical_crs": {"type": "string"},
         "resampling_method": {"const": "bilinear"},

@@ -65,9 +65,16 @@ namespace ProjectWorldConstructedImportTests
 		return Write(Receipt,Result);
 	}
 }
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedImportTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedImportTest,
 	"Project.World.Realization.Constructed.CanonicalImportBundle",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldConstructedImportTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    FString Value; const TCHAR* Command=FCommandLine::Get();
+    if (FParse::Value(Command,TEXT("ProjectWorldConstructedImport="),Value) || FParse::Value(Command,TEXT("ProjectWorldConstructedImportHash="),Value) ||
+        FParse::Param(Command,TEXT("ProjectWorldConstructedImport")) || FParse::Param(Command,TEXT("ProjectWorldConstructedImportHash")))
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedImportTest::RunTest(const FString&)
 {
 	using namespace ProjectWorldConstructedImportTests;

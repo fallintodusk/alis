@@ -4,6 +4,19 @@
   "title": "Canonical Cell Manifest",
   "type": "object",
   "$defs": {
+    "qualified_ground_lineage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "base_result_sha256", "parent_lineage_sha256", "refinement_inputs_sha256", "source_admission_sha256", "ground_grid_sha256", "construction_identity"],
+      "properties": {
+        "kind": {"const": "qualified_ground_base"},
+        "base_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "parent_lineage_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "refinement_inputs_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_admission_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "ground_grid_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "construction_identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
     "lineage": {
       "type": "object",
       "required": ["grid_id", "algorithm_version", "identity_namespace", "implementation_sha256", "execution_environment_identity", "compiler_contract_sha256", "source_ingestion_contract_sha256", "source_semantic_contract_sha256", "source_snapshots", "source_result_sha256", "source_area", "raster_source_sha256", "overlay_id", "overlay_sha256"],
@@ -54,8 +67,8 @@
       },
       "uniqueItems": true
     },
-    "terrain_lineage": {"$ref": "#/$defs/lineage"},
-    "feature_lineage": {"$ref": "#/$defs/lineage"},
+    "terrain_lineage": {"oneOf": [{"$ref": "#/$defs/lineage"}, {"$ref": "#/$defs/qualified_ground_lineage"}]},
+    "feature_lineage": {"oneOf": [{"$ref": "#/$defs/lineage"}, {"$ref": "#/$defs/qualified_ground_lineage"}]},
     "provenance_result": {"const": "accepted"}
   },
   "additionalProperties": false

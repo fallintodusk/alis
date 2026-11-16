@@ -34,6 +34,10 @@ def strict_json_document(payload, path):
 
 
 def operation_input_descriptors(operation):
+    if operation['kind'] == 'inferred_shore_transition':
+        return [(operation['input'], 'shore')]
+    if operation['kind'] == 'qualified_ground_base':
+        return [(operation['input'], 'ground')]
     if operation['kind'] == 'authored_dry_terrain':
         return [(operation['input'], 'authored')]
     if operation['kind'] == 'identified_basin':
@@ -53,7 +57,7 @@ def request_input_descriptors(request):
     result = {}
     for operation in request['operations']:
         for descriptor, role in operation_input_descriptors(operation):
-            if operation['kind'] in ('constructed_surface_import', 'identified_basin', 'authored_dry_terrain') and descriptor['path'] != f"refinement/inputs/{descriptor['sha256']}.json":
+            if operation['kind'] in ('constructed_surface_import', 'identified_basin', 'authored_dry_terrain', 'qualified_ground_base', 'inferred_shore_transition') and descriptor['path'] != f"refinement/inputs/{descriptor['sha256']}.json":
                 raise CompilerError('refinement_input_conflict', 'Retained model input is not content addressed')
             value = descriptor, role
             path = descriptor['path']

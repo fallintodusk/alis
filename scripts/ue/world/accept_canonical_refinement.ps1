@@ -6,7 +6,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$RequestPath,
     [Parameter(Mandatory = $true)][string]$EvidencePath,
-    [ValidateSet('failure', 'saved', 'noop')][string]$HostLeg = '',
+    [ValidateSet('base', 'failure', 'saved', 'noop')][string]$HostLeg = '',
     [string]$ExpectedRequestSha256 = '',
     [string]$OuterOperationId = ''
 )
@@ -15,6 +15,8 @@ $targetEntry = $PSCommandPath
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot '../generated_content/generated_content_outer_recovery.ps1')
 . (Join-Path $PSScriptRoot 'canonical_refinement_operation.ps1')
+. (Join-Path $PSScriptRoot 'realization_layer_operation.ps1')
+. (Join-Path $PSScriptRoot 'selected_refinement_consumers.ps1')
 $requestFull = [IO.Path]::GetFullPath($RequestPath)
 $evidenceFull = [IO.Path]::GetFullPath($EvidencePath)
 $scratch = $projectRoot + '\tmp\'
@@ -32,9 +34,46 @@ if ($names.Count -ne 1) { throw 'One selected child is required per target opera
 $name = [string]$names[0]
 $settings = $profile.profiles.$name
 $candidate = $selection.candidates.$name
+Assert-ProjectWorldSelectedConsumers -ProjectRoot $projectRoot -Request $request -Profile $profile -Settings $settings
 if ($HostLeg) {
     if ((Get-ProjectWorldFileSha256 $requestFull) -cne $ExpectedRequestSha256 -or
         (Get-ProjectWorldFileSha256 $selectionPath) -cne [string]$request.selection_sha256) { throw 'Target host inputs changed.' }
+    $childLock = Enter-ProjectGeneratedContentCanonicalChild -ProjectRoot $projectRoot -OperationId $OuterOperationId `
+        -CandidateSha256 $candidate.active_sha256 -EffectiveResultSha256 $candidate.result_sha256 -WorldDataPlugin $settings.world_data_plugin `
+        -PreparingBase:($HostLeg -ceq 'base')
+    try {
+    if ($HostLeg -ceq 'base') {
+        foreach ($city in @($selection.base_selection.profiles.PSObject.Properties.Name | Sort-Object)) {
+            $baseSettings = $profile.profiles.$city
+            if ([string]$baseSettings.world_data_plugin -cne [string]$settings.world_data_plugin) { continue }
+            $base = Invoke-ProjectWorldRefinementOwner -ProjectRoot $projectRoot -Owner CanonicalCompilation -Arguments @(
+                'materialize', '--profile', (Join-Path $projectRoot $baseSettings.compiler_profile_path)) `
+                -EvidenceDirectory (Join-Path (Split-Path -Parent $evidenceFull) ('base-inputs-' + $city))
+            $basePin = $selection.base_selection.profiles.$city
+            $expectedBase = [string]$basePin.compile_result_sha256
+            if ($basePin.PSObject.Properties['selected_refinement']) { $expectedBase = [string]$basePin.selected_refinement.result_sha256 }
+            if ([string]$base.status -cne 'accepted' -or
+                (Get-ProjectWorldFileSha256 (Join-Path $projectRoot $base.result_path)) -cne $expectedBase) {
+                throw 'Immutable base materialization differs from the admitted effective selection.'
+            }
+            $roots=Resolve-ProjectWorldDataRoots -ProjectRoot $projectRoot -PluginName $baseSettings.world_data_plugin
+            $active=Read-ProjectWorldActiveSet -ManifestRoot $roots.ManifestRoot -ProjectRoot $projectRoot
+            $layers=Resolve-ProjectWorldRealizationLayers -RealizationDocument (Get-Content (Join-Path $projectRoot $baseSettings.realization_profile) -Raw | ConvertFrom-Json) -WorldDataRoots $roots
+            $enrollment=@{}
+            if(@($layers.Definitions.Keys | Where-Object {-not $active.Manifests.Contains($_)}).Count -gt 0) {
+                $enrollment=@{EnrollManifests=$true;RestoringCanonicalBaseOperationId=$OuterOperationId}
+            }
+            & (Join-Path $projectRoot 'scripts/ue/world/realize_canonical_world.ps1') @enrollment -Mode Apply `
+                -CompileResult (Join-Path $projectRoot $base.result_path) -Map $baseSettings.map_package `
+                -WorldDataPlugin $baseSettings.world_data_plugin -PresentationProfile (Join-Path $projectRoot $baseSettings.presentation_profile) `
+                -RuntimeProfile (Join-Path $projectRoot $baseSettings.runtime_profile) `
+                -AuthoredOverlayProfile (Join-Path $projectRoot $baseSettings.authored_overlay_profile) `
+                -RealizationProfile (Join-Path $projectRoot $baseSettings.realization_profile) -NonInteractive `
+                -EvidencePath (Join-Path (Split-Path -Parent $evidenceFull) ('base-' + $city + '-native.json'))
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        exit 0
+    }
     $arguments = @{CompileResult = (Join-Path $projectRoot $candidate.materialized_result_path); Mode = 'Apply';
         Map = [string]$settings.map_package; WorldDataPlugin = [string]$settings.world_data_plugin;
         PresentationProfile = (Join-Path $projectRoot $settings.presentation_profile);
@@ -43,9 +82,8 @@ if ($HostLeg) {
         RealizationProfile = (Join-Path $projectRoot $settings.realization_profile);
         ExecuteLayer = @($request.execute_layers); NonInteractive = $true; EvidencePath = $evidenceFull}
     if ($HostLeg -cne 'noop') { $arguments.CanonicalRefinementSelection = $selectionPath }
-    $childLock = Enter-ProjectGeneratedContentCanonicalChild -ProjectRoot $projectRoot -OperationId $OuterOperationId `
-        -CandidateSha256 $candidate.active_sha256 -EffectiveResultSha256 $candidate.result_sha256 -WorldDataPlugin $settings.world_data_plugin
-    try { & (Join-Path $PSScriptRoot 'realize_canonical_world.ps1') @arguments } finally { $childLock.Dispose() }
+    & (Join-Path $PSScriptRoot 'realize_canonical_world.ps1') @arguments
+    } finally { $childLock.Dispose() }
     exit $LASTEXITCODE
 }
 
@@ -86,7 +124,8 @@ try {
         '--candidate', (Join-Path $projectRoot $candidate.active_path), '--expected-active-sha256',
         [string]$selection.base_selection.profiles.$name.active_sha256) -EvidenceDirectory (Join-Path $evidenceRoot 'preparation')
     $marker = New-ProjectGeneratedContentOuterOperation -Lock $lock -ProjectRoot $projectRoot `
-        -WorldDataPlugin $settings.world_data_plugin -Label 'selected_refinement_target' -CanonicalTransition $ticket
+        -WorldDataPlugin $settings.world_data_plugin -Label 'selected_refinement_target' -CanonicalTransition $ticket -PrepareCanonicalBase `
+        -CanonicalBaseInputs @(Get-ProjectWorldRefinementBaseInputs -ProjectRoot $projectRoot -Profile $profile -Selection $selection -WorldDataPlugin $settings.world_data_plugin)
     $report.transition = $ticket
     $roots = Resolve-ProjectWorldDataRoots -ProjectRoot $projectRoot -PluginName $settings.world_data_plugin
     $worldPath = Join-Path $roots.ManifestRoot 'active_set.json'
@@ -94,7 +133,24 @@ try {
     $beforeWorld = Get-ProjectWorldFileSha256 $worldPath
     $beforeInventory = [string]$marker.canonical_selection.snapshot_inventory_sha256
     try {
-        if ([string]$marker.world.pre.audit_status -cne 'accepted') { throw 'Selected target requires accepted pre-operation World authority.' }
+        Write-ProjectGeneratedContentOuterLog 'target=preparing_immutable_base'
+        if ((Invoke-TargetLeg 'base') -ne 0) { throw 'Full immutable base preparation failed.' }
+        $baseAudit = Get-ProjectGeneratedContentWorldIdentity -ProjectRoot $projectRoot -WorldDataPlugin $settings.world_data_plugin `
+            -EvidenceRoot (Join-Path $evidenceRoot 'base-audit')
+        if ($baseAudit.audit_status -cne 'accepted') { throw 'Prepared full base failed its strict cold audit.' }
+        $marker = Set-ProjectGeneratedContentCanonicalPrepared -Lock $lock -ProjectRoot $projectRoot -Marker $marker
+        $preparedWorld = Get-ProjectWorldFileSha256 $worldPath
+        Copy-Item -LiteralPath $worldPath -Destination (Join-Path $evidenceRoot 'base-active-set.json')
+        $report.base_preparation = @{status = 'accepted'; world_sha256 = $preparedWorld}
+        $report.receipts.base_active = Get-TargetReceiptPin (Join-Path $evidenceRoot 'base-active-set.json')
+        $report.receipts.base_audit = Get-TargetReceiptPin (Join-Path $evidenceRoot 'base-audit/world_audit.json')
+        $report.receipts.base_validation_profile = Get-TargetReceiptPin (Join-Path $projectRoot $request.validation_profile_path)
+        foreach ($city in @($selection.base_selection.profiles.PSObject.Properties.Name)) {
+            if ([string]$profile.profiles.$city.world_data_plugin -ceq [string]$settings.world_data_plugin) {
+                $report.receipts.('base_native_' + $city) = Get-TargetReceiptPin (Join-Path $evidenceRoot ('base-' + $city + '-native.json'))
+                $report.receipts.('base_profile_' + $city) = Get-TargetReceiptPin (Join-Path $projectRoot $profile.profiles.$city.realization_profile)
+            }
+        }
         Write-ProjectGeneratedContentOuterLog 'target=failure_control'
         $held = [IO.File]::Open($worldPath, 'Open', 'Read', 'Read')
         try { $failureExit = Invoke-TargetLeg 'failure' } finally { $held.Dispose() }
@@ -103,15 +159,15 @@ try {
         Test-ProjectWorldJournal -Journal $journal -ProjectRoot $projectRoot -ManifestRoot $roots.ManifestRoot -ContentRoot $roots.ContentRoot
         $state = Invoke-ProjectWorldCanonicalSelection -ProjectRoot $projectRoot -Transition $ticket -Action validate
         if ($failureExit -eq 0 -or [string]$journal.phase -cne 'publishing' -or [string]$state.state -cne 'selected' -or
-            (Get-ProjectWorldFileSha256 $worldPath) -cne $beforeWorld) { throw 'Failure control did not reach the intended saved post-CAS boundary.' }
+            (Get-ProjectWorldFileSha256 $worldPath) -cne $preparedWorld) { throw 'Failure control did not reach the intended saved post-CAS boundary.' }
         Copy-Item -LiteralPath $journalPath -Destination (Join-Path $evidenceRoot 'failure-journal.json')
         Copy-Item -LiteralPath (Join-Path $roots.ManifestRoot 'active_set.json.tmp') -Destination (Join-Path $evidenceRoot 'failure-staged-active-set.json')
         Assert-ProjectGeneratedContentCanonicalRestore -ProjectRoot $projectRoot -Marker $marker
         Invoke-ProjectGeneratedContentWorldTransactionRecovery -ProjectRoot $projectRoot -WorldDataPlugin $settings.world_data_plugin `
             -EvidenceRoot (Join-Path $evidenceRoot 'failure-recovery')
-        Assert-ProjectGeneratedContentCanonicalRestore -ProjectRoot $projectRoot -Marker $marker -Current
+        Assert-ProjectGeneratedContentCanonicalRestore -ProjectRoot $projectRoot -Marker $marker -Current -Prepared
         $report.failure_recovery = @{status = 'accepted'; host_exit = $failureExit; phase = [string]$journal.phase;
-            canonical_state = [string]$state.state; world_sha256 = $beforeWorld}
+            canonical_state = [string]$state.state; world_sha256 = $preparedWorld}
         $report.receipts.failure_native = Get-TargetReceiptPin (Join-Path $evidenceRoot 'failure-native.json')
         $report.receipts.failure_journal = Get-TargetReceiptPin (Join-Path $evidenceRoot 'failure-journal.json')
         $report.receipts.failure_staging = Get-TargetReceiptPin (Join-Path $evidenceRoot 'failure-staged-active-set.json')
@@ -137,6 +193,12 @@ try {
             (Get-ProjectWorldFileSha256 $canonicalPath) -cne $savedCanonical) { throw 'Cold replay changed an accepted pointer.' }
         $report.cold_noop = @{status = 'accepted'; world_sha256 = $savedWorld; canonical_sha256 = $savedCanonical}
         $report.receipts.noop_native = Get-TargetReceiptPin (Join-Path $evidenceRoot 'noop-native.json')
+        if ($request.PSObject.Properties['consumer_verification']) {
+            Write-ProjectGeneratedContentOuterLog 'target=selected_runtime_consumers'
+            $consumerPath=Invoke-ProjectWorldSelectedConsumers -ProjectRoot $projectRoot -Request $request -Profile $profile `
+                -Settings $settings -Candidate $candidate -EvidenceRoot $evidenceRoot -WorldPath $worldPath -CanonicalPath $canonicalPath
+            $report.receipts.consumer_verification=Get-TargetReceiptPin $consumerPath
+        }
     }
     finally {
         Write-ProjectGeneratedContentOuterLog 'target=restoring'

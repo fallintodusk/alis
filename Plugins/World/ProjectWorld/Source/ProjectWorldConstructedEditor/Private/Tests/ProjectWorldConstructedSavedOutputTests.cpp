@@ -26,9 +26,16 @@
 #include "HAL/FileManager.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedSavedOutputTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedSavedOutputTest,
 	"Project.World.Realization.Constructed.RegisteredSourceOutput",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldConstructedSavedOutputTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    FString Value; const TCHAR* Command=FCommandLine::Get();
+    if (FParse::Value(Command,TEXT("ProjectWorldConstructedImport="),Value) || FParse::Value(Command,TEXT("ProjectWorldConstructedImportHash="),Value) ||
+        FParse::Param(Command,TEXT("ProjectWorldConstructedImport")) || FParse::Param(Command,TEXT("ProjectWorldConstructedImportHash")))
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedSavedOutputTest::RunTest(const FString&)
 {
 	FString Input,Hash,Actual,Error;

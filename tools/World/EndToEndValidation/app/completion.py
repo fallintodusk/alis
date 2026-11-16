@@ -49,6 +49,11 @@ def retain_completion(repo, root, request):
     require(target_request==target['evidence']['request'],'Target request bytes differ from accepted target')
     archive.add(target_request['selection_path'],target_request['selection_sha256'])
     archive.retain_pins(transport['receipts'])
+    if 'consumer_verification' in target_request:
+        pin = transport['receipts'].get('consumer_verification')
+        require(pin is not None, 'Requested consumers have no retained receipt')
+        consumers = archive.read(pin['path'], pin['sha256'])
+        archive.retain_pins(consumers['files'])
     return archive.write({'schema_version':1,**request,'target_request':{
         'path':request_path,'sha256':transport['request_sha256']}})
 
@@ -98,6 +103,7 @@ def _target(archive,target):
     for key in ('failure_recovery','saved_publication','cold_noop','restoration'):
         require(transport.get(key,{}).get('status')=='accepted','Selected target omits a required saved/recovery phase')
     failure,saved,noop,restored = [transport[k] for k in ('failure_recovery','saved_publication','cold_noop','restoration')]
+    prepared = transport.get('base_preparation', {}).get('world_sha256', restored['before_world_sha256'])
     for value in (saved['world_sha256'],saved['canonical_sha256'],restored['before_inventory_sha256'],
                   restored['after_inventory_sha256'],restored['before_world_sha256'],restored['after_world_sha256']):
         digest(value)
@@ -106,18 +112,25 @@ def _target(archive,target):
     require(saved['world_sha256']==noop['world_sha256'] and saved['canonical_sha256']==noop['canonical_sha256']==candidate['active_sha256'],
             'Target cold no-op lost the selected authority pair')
     require(restored['before_inventory_sha256']==restored['after_inventory_sha256'] and
-            restored['before_world_sha256']==restored['after_world_sha256']==failure['world_sha256'] and
+            restored['before_world_sha256']==restored['after_world_sha256'] and failure['world_sha256']==prepared and
             restored['canonical_state']=='prior','Target restoration is not exact')
     required = {'failure_native','saved_native','noop_native','failure_journal','failure_staging','saved_audit','saved_active'}
     require(isinstance(transport.get('receipts'),dict) and required<=set(transport['receipts']),
             'Target lacks its raw saved/native/recovery evidence')
     receipts = {k:archive.read(v['path'],v['sha256']) for k,v in transport['receipts'].items()}
+    from .consumer_verification import validate_consumers
+    validate_consumers(request,transport,receipts,selection,
+        lambda path,sha256: archive.read(path,sha256), archive.path)
+    if 'base_preparation' in transport:
+        from .refinement_target import validate_prepared_base
+        require(transport['base_preparation'].get('status')=='accepted', 'Prepared base phase is incomplete')
+        validate_prepared_base(selection,transport,receipts,prepared)
     ticket,journal = transport['transition'],receipts['failure_journal']
     require(ticket['old_active_sha256']==selection['base_selection']['profiles'][name]['active_sha256'] and
             ticket['new_active_sha256']==candidate['active_sha256'] and
             ticket['effective_result_sha256']==candidate['result_sha256'],'Target ticket belongs to another transition')
     require(journal['phase']=='publishing' and journal['canonical_selection_transition']==ticket and
-            journal['prior_active_set_sha256']==restored['before_world_sha256'] and
+            journal['prior_active_set_sha256']==prepared and
             journal['expected_active_set_sha256']==transport['receipts']['failure_staging']['sha256'],
             'Frozen native journal does not prove the selected transaction boundary')
     require(transport['receipts']['saved_active']['sha256']==saved['world_sha256'] and
@@ -194,9 +207,8 @@ def load_completion(repo,path,profile_path,profile):
         require(all(leg.get(field) is None for field in
                     ('source_root','source_result','compile_first_root','compile_second_root','incremental_root')),
                 'Frozen artifact consumption contains unrecorded source/base production')
-        require(all(leg.get('canonical_authority',{}).get(field)==record[field] for field in
-                    ('authority_id','active_path','active_sha256','bundle_sha256','compile_result_sha256')),
-                'Matrix leg did not consume the selected authenticated base')
+        from .immutable_canonical import validate_consumed_authority
+        validate_consumed_authority(record, leg)
     require(set(evidence['profiles'])==set(selection['base_selection']['profiles']), 'Matrix omits a selected city')
     projected = copy.deepcopy(matrix)
     for leg in projected['evidence']['profiles'].values():

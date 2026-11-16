@@ -32,6 +32,7 @@ contains canonical and generated authority, not this raw provider cache.
 
 | Path | Responsibility |
 |---|---|
+| [Elevation source suitability](elevation_sources.md) | Physical surface, provider products, known artifacts and comparison limits |
 | `contracts/` | Source profile, ledger, provider snapshot, raster, and result schemas |
 | `api.py` | Public accepted-source surface consumed by Canonical Compilation |
 | [retention/](retention/) | Durable provider bytes and exact-byte cache recovery |
@@ -82,7 +83,7 @@ python -S tools/World/SourceIngestion/bootstrap.py run --profile Plugins/World/P
 python -S tools/World/SourceIngestion/bootstrap.py plan --profile Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json
 python -S tools/World/SourceIngestion/bootstrap.py verify --profile Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json
 python -S tools/World/SourceIngestion/bootstrap.py run --profile Plugins/World/ProjectWorldData/Data/Profiles/SourceIngestion/kazan_territory_v1.source.json
-python -m unittest discover tools/World/SourceIngestion/tests
+python -m unittest discover tools/World/SourceIngestion/tests -t tools
 ```
 
 `bootstrap.py` is the public clean-machine route. `run.py` is the internal

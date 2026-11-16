@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "Templates/Function.h"
+
 class ARecastNavMesh;
 class ANavigationData;
 class ANavMeshBoundsVolume;
@@ -15,6 +17,8 @@ struct FProjectWorldRuntimeProfile;
 
 namespace ProjectWorldRuntimeNavigation
 {
+	UWorld* WithTerritoryLoadDefaults(TFunctionRef<UWorld*()> Load, FString& OutError);
+
 	bool ReconcileTerritoryData(UWorld* World, FString& OutError);
 
 	bool GetTerritoryDomainBounds(

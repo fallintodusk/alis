@@ -18,6 +18,7 @@ from World.CanonicalCompilation.api import (
     validate_canonical_authority,
 )
 
+from .layered_validation import validate_first_layered_receipt
 from .contracts import ValidationFailure, canonical_hash, file_hash, read_json, tree_size, validate_against
 from .roots import WorldDataRootError, resolve_world_data_roots
 from .saved_projections import capture as capture_saved_projections
@@ -637,6 +638,7 @@ def _run_profile(
         active_path = canonical_active_path(REPO_ROOT, compiler_path)
         authority = validate_canonical_authority(REPO_ROOT, active_path, compiler_path)
         realization_compile_result = materialize_canonical(REPO_ROOT, active_path, compiler_path)
+        from .immutable_canonical import selected_refinement_record
         canonical_authority = {
             "active_path": active_path.relative_to(REPO_ROOT).as_posix(),
             "active_sha256": file_hash(active_path),
@@ -644,6 +646,7 @@ def _run_profile(
             "inputs_hash": authority["inputs_hash"],
             "bundle_sha256": authority["bundle"]["sha256"],
             "compile_result_sha256": authority["compile_result_sha256"],
+            **selected_refinement_record(authority),
         }
     elif mode != "full":
         raise ValidationFailure("canonical_mode_authority_missing", "Canonical Matrix requires promoted authority")
@@ -707,6 +710,7 @@ def _run_profile(
     first_seconds = _run(f"{name}_unreal_first", [*first_command, "-EnrollManifests"], logs)
     first_result = root / "unreal_first.json"
     _copy_realization(first_result)
+    validate_first_layered_receipt(read_json(first_result), settings)
     def saved_projections(leg: str) -> tuple[Path | None, Path | None]:
         return capture_saved_projections(name, leg, settings, emitted, realization_compile_result,
             realization, world_data_plugin, powershell, logs, REPO_ROOT, _run)

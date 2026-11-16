@@ -142,7 +142,8 @@ namespace ProjectWorldVerifyIdentityDetail
 			if (!Terrain.BaseArtifactHash.IsEmpty() && Terrain.BaseArtifactHash != Terrain.ArtifactHash)
 				Append(Text, P + TEXT("terrain.base_artifact_hash"), Terrain.BaseArtifactHash);
 			Append(Text, P + TEXT("terrain.vertical"), Terrain.VerticalProvenanceId + TEXT(";") + Terrain.VerticalDatum +
-				TEXT(";") + Terrain.VerticalConfidence + TEXT(";") + Number(Terrain.VerticalSourceAccuracyMeters) +
+				TEXT(";") + Terrain.VerticalConfidence + TEXT(";") +
+				(Terrain.bHasVerticalSourceAccuracy ? Number(Terrain.VerticalSourceAccuracyMeters) : TEXT("unknown")) +
 				TEXT(";") + Number(Terrain.SamplingQuantizationResidualMeters));
 			Append(Text, P + TEXT("terrain.bounds"), Number(Terrain.Bounds.X) + TEXT(",") + Number(Terrain.Bounds.Y) +
 				TEXT(",") + Number(Terrain.Bounds.Z) + TEXT(",") + Number(Terrain.Bounds.W));

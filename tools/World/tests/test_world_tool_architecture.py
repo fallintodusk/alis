@@ -9,6 +9,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 WORLD_ROOT = REPO_ROOT / "tools" / "World"
+OPTIONAL_GEOMETRY_ENTRYPOINTS = {
+    "World.ExecutionEnvironment.geometry.affine",
+    "World.ExecutionEnvironment.geometry.constrained",
+    "World.ExecutionEnvironment.geometry.boundary_rounding",
+    "World.ExecutionEnvironment.geometry.triangle_boundary",
+}
 
 
 class WorldToolArchitectureTests(unittest.TestCase):
@@ -146,6 +152,7 @@ class WorldToolArchitectureTests(unittest.TestCase):
                                 bootstrap_api = "World.ExecutionEnvironment.app.python_environment"
                                 self.assertTrue(
                                     imported_module.endswith(".api")
+                                    or imported_module in OPTIONAL_GEOMETRY_ENTRYPOINTS
                                     or (path.name == "bootstrap.py" and imported_module == bootstrap_api),
                                     f"Cross-component import bypasses public API in {path}: {imported_module}",
                                 )

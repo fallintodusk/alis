@@ -25,6 +25,7 @@ namespace ProjectWorldWaterVerifyTest
 		Bundle.HeightQuantizationMeters = 0.1;
 		Bundle.HeightOriginMeters = 10.0;
 		FProjectWorldCanonicalCell Cell;
+		Cell.Terrain.bHasVerticalSourceAccuracy = true;
 		Cell.CellId = TEXT("persistent_water:x0:y0");
 		Cell.Bounds = FVector4d(0.0, 0.0, 63.0, 63.0);
 		Cell.OwnedFeatureIds.Add(TEXT("water/test/lake"));

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-source/native-raster-collection-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "kind", "members"],
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-source/native-raster-collection-v1.json"},
+    "schema_version": {"const": 1},
+    "kind": {"const": "qualified_native_raster_collection"},
+    "members": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["raw_artifact_id", "metadata_artifact_id", "source_url", "header"],
+        "properties": {
+          "raw_artifact_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "metadata_artifact_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "source_url": {"type": "string", "format": "uri", "pattern": "^https://[^?#]+\\.tif$"},
+          "header": {"type": "object"}
+        }
+      }
+    }
+  }
+}

@@ -54,6 +54,7 @@ def _parser() -> argparse.ArgumentParser:
     target.add_argument('--check-result', required=True)
     target.add_argument('--base-run', required=True)
     target.add_argument('--execute-layer', action='append', required=True)
+    target.add_argument('--runtime-vantage-plan')
     target.add_argument('--bootstrap-preflight', required=True)
     verify_target = subcommands.add_parser('verify-refinement-target')
     verify_target.add_argument('--request', required=True)
@@ -260,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
             "sha256": validation_profile_hash,
         }
         execution["profile_input_contract"] = initial_profile_contract
+        result["evidence"] = execution
         checks, metrics = validate(profile, execution)
         result.update({
             "status": "accepted",

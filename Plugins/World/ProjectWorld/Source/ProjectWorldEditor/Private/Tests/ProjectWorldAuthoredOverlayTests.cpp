@@ -43,6 +43,7 @@ namespace ProjectWorldAuthoredOverlayTests
 		Cell.Terrain.VerticalProvenanceId = TEXT("fixture_terrain");
 		Cell.Terrain.VerticalDatum = TEXT("EPSG:3855");
 		Cell.Terrain.VerticalConfidence = TEXT("fixture_exact");
+		Cell.Terrain.bHasVerticalSourceAccuracy = true;
 		Cell.Terrain.VerticalSourceAccuracyMeters = 0.5;
 		Cell.Terrain.SamplingQuantizationResidualMeters = 0.05;
 		Bundle.Cells.Add(MoveTemp(Cell));
@@ -180,6 +181,9 @@ bool FProjectWorldAuthoredOverlayCoordinateTest::RunTest(const FString& Paramete
 	Overlay.Anchor.VerticalToleranceMeters = 1.0;
 
 	FProjectWorldCanonicalBundle MissingTerrainProvenance = Bundle;
+	MissingTerrainProvenance.Cells[0].Terrain.bHasVerticalSourceAccuracy = false;
+	TestFalse(TEXT("Unknown source accuracy cannot satisfy a surface-snap error budget."),
+		ProjectWorldAuthoredOverlay::Resolve(MissingTerrainProvenance, Set, Overlay, Resolution, Error));
 	MissingTerrainProvenance.Cells[0].Terrain.VerticalProvenanceId.Reset();
 	TestFalse(TEXT("Surface snap without qualified terrain provenance fails closed."),
 		ProjectWorldAuthoredOverlay::Resolve(

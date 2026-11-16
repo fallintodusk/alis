@@ -16,15 +16,15 @@ $ErrorActionPreference = 'Stop'
 $executable = (Get-Process -Id $PID).Path
 $spawn = "function New-ProbeChild([string]`$payload) { `$s = New-Object Diagnostics.ProcessStartInfo; `$s.FileName = '$executable'; `$s.Arguments = '-NoProfile -NonInteractive -EncodedCommand ' + `$payload; `$s.UseShellExecute = `$false; `$s.CreateNoWindow = `$true; [Diagnostics.Process]::Start(`$s) };"
 $rootCode = "`$ErrorActionPreference = 'Stop'; $spawn `$p = [Diagnostics.Process]::GetCurrentProcess(); @{ pid = `$p.Id; started_utc_ticks = `$p.StartTime.ToUniversalTime().Ticks.ToString() } | ConvertTo-Json | Set-Content -LiteralPath '$EvidenceRoot/root.process.json'; [Console]::Out.WriteLine('retained stdout'); [Console]::Error.WriteLine('retained stderr');"
-if ($Mode -in @('timeout', 'timeout-failure', 'inherited-pipes')) {
+if ($Mode -in @('timeout', 'timeout-failure', 'inherited-pipes', 'native-teardown', 'native-teardown-failure')) {
     $grandCode = "[Console]::Out.WriteLine('grandchild pipe'); Start-Sleep -Seconds 60"
     $grandEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($grandCode))
     $descendantCode = "`$ErrorActionPreference = 'Stop'; $spawn `$p = New-ProbeChild '$grandEncoded'; @{ pid = `$p.Id; started_utc_ticks = `$p.StartTime.ToUniversalTime().Ticks.ToString() } | ConvertTo-Json | Set-Content -LiteralPath '$EvidenceRoot/grandchild.process.json';"
-    if ($Mode -ne 'inherited-pipes') { $descendantCode += 'Start-Sleep -Seconds 60;' }
+    if ($Mode -notin @('inherited-pipes', 'native-teardown', 'native-teardown-failure')) { $descendantCode += 'Start-Sleep -Seconds 60;' }
     $descendantEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($descendantCode))
     $rootCode += "`$p = New-ProbeChild '$descendantEncoded'; @{ pid = `$p.Id; started_utc_ticks = `$p.StartTime.ToUniversalTime().Ticks.ToString() } | ConvertTo-Json | Set-Content -LiteralPath '$EvidenceRoot/descendant.process.json';"
     $rootCode += "`$ready = [Diagnostics.Stopwatch]::StartNew(); while (-not (Test-Path '$EvidenceRoot/grandchild.process.json')) { if (`$ready.Elapsed.TotalSeconds -gt 4) { exit 33 }; Start-Sleep -Milliseconds 20 };"
-    if ($Mode -ne 'inherited-pipes') { $rootCode += 'Start-Sleep -Seconds 60;' }
+    if ($Mode -notin @('inherited-pipes', 'native-teardown', 'native-teardown-failure')) { $rootCode += 'Start-Sleep -Seconds 60;' }
 }
 $rootCode += "exit $ChildExitCode"
 $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($rootCode))
@@ -35,12 +35,14 @@ $psi.UseShellExecute = $false
 $psi.CreateNoWindow = $true
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true
-if ($Mode -in @('cleanup-failure', 'timeout-failure')) {
+if ($Mode -in @('cleanup-failure', 'timeout-failure', 'native-teardown-failure')) {
     # Failure at the native termination boundary must refuse even when disposal cleans up.
     function Stop-ProjectOwnedTestProcess { return $false }
 }
 $limit = if ($Mode -in @('timeout', 'timeout-failure')) { 3 } else { 8 }
-$result = Invoke-ProjectOwnedTestProcess -StartInfo $psi -TimeoutSeconds $limit -LogPath (Join-Path $EvidenceRoot 'streams.log') -ScratchRoot (Join-Path $EvidenceRoot 'compile')
+$options = @{}
+if ($Mode -in @('native-teardown', 'native-teardown-failure')) { $options.RetireDescendantsOnRootExit = $true }
+$result = Invoke-ProjectOwnedTestProcess -StartInfo $psi -TimeoutSeconds $limit -LogPath (Join-Path $EvidenceRoot 'streams.log') -ScratchRoot (Join-Path $EvidenceRoot 'compile') @options
 $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'result.json')
 exit $result.ExitCode
 '@
@@ -124,6 +126,22 @@ exit $result.ExitCode
 }
 
 Describe 'Native test runner owned-process completion' {
+    It 'explicit native retirement verifies the whole Job in <Mode> with exit <Expected>' -ForEach @(
+        @{Mode='native-teardown'; Expected=0; ChildExitCode=0},
+        @{Mode='native-teardown'; Expected=7; ChildExitCode=7},
+        @{Mode='native-teardown-failure'; Expected=1; ChildExitCode=0}) {
+        $result = Invoke-CompletionProbe $Mode $ChildExitCode
+        $result.Finished | Should -BeTrue
+        $result.ExitCode | Should -Be $Expected
+        $result.SentinelAlive | Should -BeTrue
+        $result.RecordedOwned | Should -Be 3
+        $result.RemainingOwned | Should -Be 0
+        if ($Mode -eq 'native-teardown') {
+            Get-Content -LiteralPath $result.Log -Raw | Should -Match 'Retired owned native workers after root exit; Job verified empty'
+        } else {
+            Get-Content -LiteralPath $result.Log -Raw | Should -Match 'Owned Job did not become empty within termination grace'
+        }
+    }
     It 'refuses actual cold startup while an unrelated named editor sentinel survives' {
         $result = Invoke-CompletionProbe 'cold-start'
         $result.Finished | Should -BeTrue
@@ -152,7 +170,7 @@ Describe 'Native test runner owned-process completion' {
         $result.RecordedOwned | Should -Be 3
         $result.UniqueOwned | Should -Be 3
         $result.RemainingOwned | Should -Be 0
-        Get-Content -LiteralPath $result.Log -Raw | Should -Match 'redirected output did not drain within grace'
+        Get-Content -LiteralPath $result.Log -Raw | Should -Match 'Owned descendants remain after root exit'
     }
 
     It 'retains normal output and exit code <ChildExitCode>' -ForEach @(@{ChildExitCode=0}, @{ChildExitCode=7}) {

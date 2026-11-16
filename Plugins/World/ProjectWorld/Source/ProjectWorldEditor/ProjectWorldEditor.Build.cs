@@ -25,6 +25,7 @@ public class ProjectWorldEditor : ModuleRules
 			"GeometryAlgorithms",
 			"GeometryCore",
 			"Json",
+			"ImageCore",
 			"MeshDescription",
 			"NavigationSystem",
 			"ProceduralMeshComponent",

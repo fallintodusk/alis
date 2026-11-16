@@ -3,6 +3,8 @@
 #include "ProjectWorldTerrainSurface.h"
 #include "ProjectWorldCanonicalBundle.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "CompGeom/ExactPredicates.h"
+#include <limits>
 
 namespace ProjectWorldTerrainSurface
 {
@@ -95,5 +97,78 @@ namespace ProjectWorldTerrainSurface
 			Out.Add(FProjectWorldSurfaceTriangle{{B, C, D}});
 		}
 		return true;
+	}
+    namespace
+    {
+        constexpr double ContinuityTolerance=1e-8;
+		bool InsideFieldFace(const FProjectWorldSurfaceTriangle& T, const FVector& P)
+		{
+			const FVector A = T.Points[1]-T.Points[0], B = T.Points[2]-T.Points[0], D = P-T.Points[0];
+			const double Determinant = A.X*B.Y-A.Y*B.X;
+			const double U = (D.X*B.Y-D.Y*B.X)/Determinant, V = (A.X*D.Y-A.Y*D.X)/Determinant;
+			return U >= -1e-9 && V >= -1e-9 && 1-U-V >= -1e-9;
+		}
+    }
+	bool ValidateField(const TArray<FProjectWorldSurfaceTriangle>& Triangles,int32 MaximumTriangles,FString& Error)
+	{
+		using namespace ProjectWorldTerrainSurface;
+		if (MaximumTriangles<1 || MaximumTriangles>MaximumFieldTriangles || Triangles.IsEmpty() || Triangles.Num() > MaximumTriangles)
+		{ Error = TEXT("Surface needs a bounded finite triangle field."); return false; }
+		TArray<FBox2D> Bounds;
+		for (const auto& Face : Triangles)
+		{
+			double Z;
+			if (!Height(Face,FVector2D(Face.Points[0]),Z,Error)) return false;
+			FBox2D Box(ForceInit); for (const auto& P : Face.Points) Box += FVector2D(P);
+			Bounds.Add(Box);
+		}
+		for (int32 I=0; I<Triangles.Num(); ++I) for (int32 J=I+1; J<Triangles.Num(); ++J)
+		{
+			if (!Bounds[I].Intersect(Bounds[J])) continue;
+			TArray<FVector2D> Overlap;
+			if (!IntersectXY(Triangles[I],Triangles[J],Overlap,Error)) return false;
+			if (Area(Overlap) > 1e-9)
+			{ Error = TEXT("Surface height fields overlap in XY."); return false; }
+			for (int32 Side=0; Side<2; ++Side)
+			{
+				const auto& A = Triangles[Side ? J : I]; const auto& B = Triangles[Side ? I : J];
+				for (const auto& P : A.Points) if (InsideFieldFace(B,P))
+				{
+					double Z;
+					if (!Height(B,FVector2D(P),Z,Error)) return false;
+					if (FMath::Abs(Z-P.Z) > ContinuityTolerance)
+					{ Error = TEXT("Surface height field has a discontinuous edge or T junction."); return false; }
+				}
+			}
+		}
+		return true;
+	}
+	EFieldSampleResult TrySampleField(const TArray<FProjectWorldSurfaceTriangle>& Triangles,const FVector2D& Point,int32 MaximumTriangles,double& Out,FString& Error)
+	{
+		Out=std::numeric_limits<double>::quiet_NaN(); Error.Reset();
+		if (MaximumTriangles<1 || MaximumTriangles>MaximumFieldTriangles || Triangles.IsEmpty() || Triangles.Num()>MaximumTriangles || Point.ContainsNaN())
+		{ Error=TEXT("Surface sampling requires a bounded validated field and finite point."); return EFieldSampleResult::Invalid; }
+		bool Found=false; double Candidate=0;
+		for (const auto& T : Triangles)
+		{
+			for (const auto& P : T.Points) if (P.ContainsNaN())
+			{ Error=TEXT("Surface sampling received a nonfinite field."); return EFieldSampleResult::Invalid; }
+			using UE::Geometry::ExactPredicates::Orient2;
+			const double Direction=Orient2(FVector2D(T.Points[0]),FVector2D(T.Points[1]),FVector2D(T.Points[2]));
+			if (Direction==0 || !FMath::IsFinite(Direction))
+			{ Error=TEXT("Surface sampling received a degenerate field face."); return EFieldSampleResult::Invalid; }
+			bool Contains=true;
+			for (int32 I=0; I<3; ++I)
+				Contains &= Orient2(FVector2D(T.Points[I]),FVector2D(T.Points[(I+1)%3]),Point)*Direction>=0;
+			if (!Contains) continue;
+			double Height;
+			if (!ProjectWorldTerrainSurface::Height(T,Point,Height,Error)) return EFieldSampleResult::Invalid;
+			if (Found && FMath::Abs(Candidate-Height)>ContinuityTolerance)
+			{ Error=TEXT("Surface sampling has contradictory containing faces."); return EFieldSampleResult::Invalid; }
+			if (!Found) Candidate=Height;
+			Found=true;
+		}
+		if (!Found) { Error=TEXT("Surface sample is outside the complete source field."); return EFieldSampleResult::Outside; }
+		Out=Candidate; return EFieldSampleResult::Sampled;
 	}
 }

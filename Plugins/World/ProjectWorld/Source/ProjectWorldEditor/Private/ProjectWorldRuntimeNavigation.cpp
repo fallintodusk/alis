@@ -24,6 +24,8 @@ namespace ProjectWorldRuntimeNavigation
 {
 	namespace
 	{
+		constexpr float TerritoryMinimumTileSizeUU = 4096.0f;
+
 		bool ConfigureVolume(
 			ANavMeshBoundsVolume* NavBounds,
 			const FVector& Center,
@@ -114,6 +116,24 @@ namespace ProjectWorldRuntimeNavigation
 		}
 	}
 
+	UWorld* WithTerritoryLoadDefaults(TFunctionRef<UWorld*()> Load, FString& OutError)
+	{
+		OutError.Reset();
+		if (!IsInGameThread()) { OutError = TEXT("Territory navigation load policy requires the game thread."); return nullptr; }
+		auto* Defaults = GetMutableDefault<ARecastNavMesh>();
+		const float Cell = Defaults->GetCellSize(ENavigationDataResolution::Default);
+		const float Tile = FMath::Max(TerritoryMinimumTileSizeUU, Defaults->TileSizeUU);
+		if (!FMath::IsFinite(Defaults->TileSizeUU) || Defaults->TileSizeUU <= 0 || !FMath::IsFinite(Cell) ||
+			Cell < 1 || Cell > 1024 || Tile > FMath::Max(float(RECAST_MIN_TILE_SIZE), 1024 * Cell))
+		{
+			OutError = TEXT("Territory navigation cannot initialize from invalid native tile defaults.");
+			return nullptr;
+		}
+		// Auto-created data can allocate tiles during map loading, before reconciliation.
+		TGuardValue<float> LoadTileSize(Defaults->TileSizeUU, Tile);
+		return Load();
+	}
+
 	bool ReconcileTerritoryData(UWorld* World, FString& OutError)
 	{
 		OutError.Reset();
@@ -137,8 +157,8 @@ namespace ProjectWorldRuntimeNavigation
 			return Refuse(TEXT("Map navigation reconciliation refuses conflicting native data ownership."));
 		ARecastNavMesh* Recast = Existing[0];
 		if (Recast->GetClass() != ARecastNavMesh::StaticClass() || Recast->GetWorld() != World ||
-			Recast->GetLevel() != World->PersistentLevel || Recast->IsPackageExternal())
-			return Refuse(TEXT("Map navigation reconciliation requires one exact stock persistent internal actor."));
+			Recast->GetLevel() != World->PersistentLevel)
+			return Refuse(TEXT("Map navigation reconciliation requires one exact stock persistent actor."));
 		const auto AgentMatches = [&]()
 		{
 			return Recast->GetConfig().Name == Config.Name && Recast->GetConfig().AgentRadius == Config.AgentRadius &&
@@ -149,13 +169,13 @@ namespace ProjectWorldRuntimeNavigation
 			return Refuse(TEXT("Registered map navigation has inconsistent agent bookkeeping; reconciliation refuses before mutation."));
 		const auto* Defaults = GetDefault<ARecastNavMesh>();
 		const float DefaultCell = Defaults->GetCellSize(ENavigationDataResolution::Default);
-		const float Tile = FMath::Max(4096.f, Recast->TileSizeUU);
+		const float Tile = FMath::Max(TerritoryMinimumTileSizeUU, Recast->TileSizeUU);
 		if (!FMath::IsFinite(Recast->TileSizeUU) || Recast->TileSizeUU <= 0 || !FMath::IsFinite(DefaultCell) || DefaultCell < 1 || DefaultCell > 1024 ||
 			Tile < FMath::Max3(float(RECAST_MIN_TILE_SIZE), 16 * DefaultCell, 4 * Config.AgentRadius) ||
 			Tile > FMath::Max(float(RECAST_MIN_TILE_SIZE), 1024 * DefaultCell))
 			return Refuse(TEXT("Map navigation reconciliation cannot preserve the tile under the accepted native resolution limits."));
 		TArray<float> Desired;
-		bool Changed = !Recast->IsRegistered() || !AgentMatches() || Recast->TileSizeUU != Tile;
+		bool Changed = Recast->IsPackageExternal() || !Recast->IsRegistered() || !AgentMatches() || Recast->TileSizeUU != Tile;
 		for (const auto R : {ENavigationDataResolution::Low, ENavigationDataResolution::Default, ENavigationDataResolution::High})
 		{
 			const float Cell = Defaults->GetCellSize(R), Height = Defaults->GetCellHeight(R);
@@ -274,7 +294,7 @@ namespace ProjectWorldRuntimeNavigation
 		FString& OutError)
 	{
 		UNavigationSystemV1* Navigation = nullptr;
-		return PrepareNavigation(World, NavBounds, 4096.0f, true, Navigation, OutRecast, OutError);
+		return PrepareNavigation(World, NavBounds, TerritoryMinimumTileSizeUU, true, Navigation, OutRecast, OutError);
 	}
 
 	bool ConfigureRouteDomain(

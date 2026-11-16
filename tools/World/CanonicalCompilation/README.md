@@ -53,7 +53,7 @@ compile-only promotion.
 | `app/control_network.py` | Geodetic control qualification and error gates |
 | `app/territory_admission.py` | Cross-contract territory admission and owner confinement |
 | `app/promotion.py` | Persistent canonical authority promotion and reuse |
-| `tests/` | Determinism, incremental, overlay, coordinate, and failure checks |
+| [tests/](tests/README.md) | Determinism, incremental, overlay, coordinate, and failure checks |
 
 ## Commands
 
@@ -69,7 +69,7 @@ python -S tools/World/CanonicalCompilation/bootstrap.py admit --profile Plugins/
 python -S tools/World/CanonicalCompilation/bootstrap.py promote --profile <compiler-profile> --result <accepted-compile-result>
 python -S tools/World/CanonicalCompilation/bootstrap.py authority --profile <compiler-profile>
 python -S tools/World/CanonicalCompilation/bootstrap.py materialize --profile <compiler-profile>
-python -m unittest discover tools/World/CanonicalCompilation/tests
+python -m unittest discover tools/World/CanonicalCompilation/tests -t tools
 ```
 
 P0 and representative compiler profiles are independent runtime SOTs. They
@@ -155,6 +155,13 @@ terrain as `water_fit`, derives the final hydro-conditioned and authored terrain
 surface, and emits the `ground` and `hydro_transition` semantic weights. Surface-
 anchor resolution and Unreal realization consume this cell-local authority, not
 feature/control provenance and not a realized engine terrain actor.
+
+Explicitly unknown source accuracy remains `null`; known heights do not imply a
+known geographic error bound. Native Terrain loading preserves that state and
+accuracy-dependent surface-snap placement refuses it. A coherent replacement
+from qualified Ground uses the existing
+[pre-Water refinement contract](terrain_refinement.md#coherent-qualified-ground-base),
+with distinct effective lineage rather than claiming a fresh raw source run.
 
 Continuous Water support and conditioning-policy authority are defined in the
 [territory contract](../../../Plugins/World/ProjectWorld/docs/territory_contract.md#geospatial-authority).

@@ -49,6 +49,24 @@ qualification. Admission does not repeat that decode or trust a supplied review
 verdict as proof. A raster's missing explicit vertical header remains qualified
 by the retained provider/frame evidence, rather than an invented datum.
 
+A qualified native raster collection can retain multiple original objects without
+calling a derived mosaic an original raw source. Its
+[collection contract](contracts/native-raster-collection.schema.json) binds each
+raw artifact exactly once to its unchanged native header, provider XML artifact
+and download identity. The geographic branch is limited to NAD83 EPSG:4269,
+NAVD88 EPSG:5703 and metre elevations. Retained FGDC horizontal datum, vertical
+datum, elevation units and online-file URL must agree. Only that explicitly
+qualified branch can accept a missing native band-unit field; a contradictory
+unit still refuses. The projected single-header and classified-point branches
+retain their existing requirements.
+
+The collection header and its raw-object decoding agreement belong to processing
+qualification, not admission. Every original object, XML and processing artifact
+passes the same hashing and two-store retention as the other capsule inputs.
+For multiple raw objects the public source identity hashes the sorted artifact
+ID/hash pairs; a single object's source identity remains its raw hash. Member
+ordering does not select geographic priority or change the processed grid.
+
 Raster qualification must bind the complete sampling recipe, including native
 filter scale, overview selection, transform approximation, masks and units.
 A method name alone does not define its consumed support: GDAL's default

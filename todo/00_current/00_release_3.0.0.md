@@ -1,7 +1,17 @@
 # ALIS 3.0.0 Release Plan
 
-**Status:** CURRENT - geographic hold and final certification remain open.
-**Current mode:** documentation cleanup only (D29); no publication authorization.
+**Status:** CURRENT - Terrain development scope closed; presentation qualification
+and final release certification remain open.
+**Current mode:** retain completed Ground/Water/Pier engineering and the operator's
+prototype fountain disposition. Lighting/daylight/Lumen has a current queued stub;
+no research, tuning or implementation has started.
+The retained candidate has saved-city Hero, collision/reload, recovery/no-op,
+partition and both-city uncooked consumer proof. The final-reader correction has
+focused and independent technical reinspection proof; its original top-level
+REJECTED receipt remains immutable. Neither this record nor the operator's
+prototype-fidelity decision selects production authority or mints a new receipt.
+EV8 improves diagnostic readability but is not adopted. Required normal runtime
+presentation, source freeze, candidate selection, R5 and R6 remain separate.
 **Goal:** finish required World concerns, accept one frozen unsigned technical
 candidate, then retain operator-owned walkthrough and R6 decisions.
 
@@ -9,6 +19,7 @@ candidate, then retain operator-owned walkthrough and R6 decisions.
 
 - [Documentation owners](#documentation-owners)
 - [Current state and next steps](#current-state-and-next-steps)
+- [Optional player-facing investigations](#optional-player-facing-investigations)
 - [Remaining release steps](#remaining-release-steps)
 - [Release proof traceability](#release-proof-traceability)
 - [Completion criteria](#completion-criteria)
@@ -28,8 +39,26 @@ candidate, then retain operator-owned walkthrough and R6 decisions.
 
 ## Current state and next steps
 
-The remaining geographic steps belong to
-[Road and Water Alignment](20261008-1543_world_investigate_road_water_alignment.md).
+Terrain/Water development is complete in the
+[alignment closure record](../01_done/world/20261008-1543_world_investigate_road_water_alignment.md).
+The operator accepts the fountain as prototype object context; its future detailed
+reconstruction will use final Terrain height/support. No geographic exclusion,
+new Ground correction or further fountain investigation is needed for this scope.
+The sampled 7-15 cm raised Water edge is retained as approximate object context,
+not claimed as surveyed basin geometry or a material-only defect.
+
+Lighting/exposure readability and any demonstrated material issue belong to the
+current [lighting/daylight stub](20260825-1717_world_implement_environment_cycle.md).
+The geometry-disposition prerequisite is satisfied; this handoff does not start
+research or adopt a presentation policy. Keep the actual Ready-runtime material
+and paired-view requirements. Detailed object reconstruction and conditional
+Terrain influence remain optional owner backlog work.
+
+Next select a bounded presentation investigation or proceed with release
+preparation under its own authorization. Before source freeze, explicitly select
+the verified candidate through normal authority; the restoring proof left the
+original selection intact. Final installed-runtime presentation and packaged
+acceptance remain required; completed development does not certify that artifact.
 [World Surface Presentation](../01_done/world/20261008-1543_world_improve_surface_materials.md)
 is development-complete. Do not restart accepted materials, source-recovery,
 renderer, winding or earlier owner-local rollouts without a changed input/defect.
@@ -40,12 +69,65 @@ Current geographic quality is not accepted merely because bounded D60 tests pass
 | Historical unsigned R5 | `a4167f43b91403d69da0ad011aa85d319c1453e6`; `tmp/release/r5/a4167f43b91403d69da0ad011aa85d319c1453e6/closure.json`; machine acceptance with explicit INCONCLUSIVE performance decision, unsigned/unpublished; not certification for later inputs |
 | Completed prerequisite concerns | Mesh Terrain migration, Terrain Material v2, public projection recovery, generation locality, global Windows-only platform policy and adopted default surfaces remain accepted in their own scopes |
 | Later both-city material/runtime campaign | Accepted in the completed presentation record; unchanged-input receipts do not certify newly reconciled geography or the final frozen artifact |
-| Active concern | Pier25/coastal connections, Manhattan regional Ground/fountain and Kazan bank/Water require explicit [terrain-first case dispositions](20261008-1543_world_investigate_road_water_alignment.md#required-release-case-dispositions); Q2/Q3/Q5 and detailed object deferral are not blanket waivers |
+| Closed Terrain development concern | Pier25/coastal connections, Manhattan regional Ground/fountain and Kazan bank/Water have explicit [development dispositions](../01_done/world/20261008-1543_world_investigate_road_water_alignment.md#required-release-case-dispositions); detailed fountain context is accepted, while final selected-artifact proof remains required |
 
 Version-specific decisions remain in the authority register. Preserve the
 16.67 ms target and explicit default-off INCONCLUSIVE policy (D22); do not turn
 historical risk acceptance into a fresh performance PASS. No Linux acceptance
 is required while D4/D10/D17 stand. City17 retains D9's bounded legacy scope.
+
+## Optional player-facing investigations
+
+D30 adds candidate investigations, not committed features or new R2 blockers.
+Implementation remains REVIEW REQUIRED. The existing environment task is now the
+current [lighting/daylight stub](20260825-1717_world_implement_environment_cycle.md),
+the single owner for exposure, old-map lessons, native daylight selection and
+measured Lumen quality/performance. The Terrain geometry decision is complete;
+this stub still requires an authorized investigation before work starts.
+
+| Priority | Candidate | Smallest useful outcome / scope limit |
+|---|---|---|
+| First | Geographic day/night presentation | A controllable cycle with convincing dawn/sunset and readable nights; use territory location, date, time zone and north orientation with one world clock and one environment owner |
+| With the cycle | Simple player time controls | Reuse existing controls for time presets and pause/resume where suitable; retain frozen-time mode for reproducible captures, without a new UI framework |
+| Only if inexpensive after the first proof | Visual sky-condition presets | Clear, lightly cloudy and overcast using supported existing cloud/fog/lighting controls; no real-weather service, precipitation or seasonal simulation |
+
+**Premise / KISS:** generated worlds already have the outdoor presentation actors;
+evaluate a native controller inside that ownership boundary. Keep the accepted
+static presentation as the control. Do not duplicate sky actors, rebuild canonical
+geography or reopen accepted material/texture development to add a clock. Legacy
+City17 SunSky setup is reference material, not proof of a reusable runtime cycle.
+Start from the existing [environment realization](../../Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp)
+and [presentation profile reader](../../Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp).
+
+Future investigation sequence:
+
+1. Follow [Native Engine First](../../docs/architecture/principles.md#native-engine-first).
+   Compare the installed Day Sequence capabilities with SunPosition plus existing
+   actors before selecting a custom controller. Inspect geographic positioning,
+   playback/time synchronization, exposure and ownership integration; longitude
+   locates the Sun together with the other inputs, not the weather.
+2. After investigation/prototype scope is approved, use one bounded Kazan scene
+   with a fixed-time control. Inspect morning, noon, sunset and night, plus an
+   accelerated continuous transition. Prove normal gameplay readability and
+   time controls. Measure moving-shadow, sky capture and cloud costs; still
+   screenshots and a cheap solar calculation do not prove runtime performance.
+   The Terrain development prerequisite is complete. Presentation work does not
+   alter retained geography. Serialize Unreal through its safe lane.
+3. If the result warrants selection, propose the smallest integration and tests.
+   Preserve deterministic frozen-time evidence, save/reload and normal map-loading
+   behavior. Verify selected behavior in both cities and installed runtime through
+   affected owner checks and R5, retaining D22's 16.67 ms target and explicit
+   INCONCLUSIVE policy. Reuse unchanged evidence; no extra full-city debug campaign.
+4. Before source freeze, record adopt/defer and measured player-visible benefit,
+   incremental cost and unresolved dependencies. If the bounded proof needs major
+   new assets, renderer changes or night-time city-light infrastructure, defer it
+   in the existing backlog rather than extend the investigation. A selected
+   feature must pass its own checks; an unselected candidate does not block 3.0.0.
+
+No building/PCG expansion, engine upgrade, sophisticated weather, new daylight
+framework or additional feature hunt follows from this list. Closed Terrain
+development dispositions, source freeze, human walkthrough and publication gates
+stay intact.
 
 ## Remaining release steps
 
@@ -64,9 +146,12 @@ is required while D4/D10/D17 stand. City17 retains D9's bounded legacy scope.
 
 - [X] Retain accepted BrownEarth, AsphaltMacro, RiverCalm and Concrete development,
   adopted bindings and packaged material proof. No new artistic cycle without defect.
-- [ ] Accept remaining alignment geography/consumer quality and its representative
-  neighborhood walking, saved collision and visual proof. Final artifact certification
-  is R5; do not create a cyclic requirement for final R5 to start R5.
+- [X] Accept Terrain development dispositions: retained coherent Ground/Water/Pier,
+  saved-city Hero/collision/streaming proof and prototype fountain context. See D33.
+- [ ] Qualify remaining normal runtime presentation/readability for the selected
+  candidate. Do not treat EV8 diagnostics as adopted policy or detailed basin
+  reconstruction as a new Terrain prerequisite. Final artifact certification is
+  R5; do not create a cyclic requirement for final R5 to start R5.
 
 ### R3 - Supported-route blockers
 
@@ -435,6 +520,45 @@ elsewhere; never restate or renumber them.
     their accepted work and long-term completion goal remain.
   - Source: operator's active-todo cleanup request, 2026-10-18.
   - Reason: remove redundancy and keep facts in their hierarchical owners.
+
+- **D30** Update the 3.0.0 release plan with suggested future investigations for
+  KISS changes that make it more playable and attractive.
+  - Effect: record bounded, optional player-facing candidates and their selection
+    evidence; no feature implementation, prototype execution, city regeneration
+    or release operation is authorized by this planning request. Existing required
+    concerns, accepted work, performance policy and operator gates remain binding.
+  - Reason: improve player-visible playability and appeal with small changes.
+  - Date/source: 2026-11-12, operator request to update this release plan.
+
+- **D31** Complete the required Terrain/Water milestone through both-city L2,
+  preserving valid verified improvements in 3.0.0.
+  - Effect: the alignment task's D38 owns the bounded cached Ground check,
+    supported integration, actual Hero checks and restoring L2 after local
+    acceptance. Stop with the exact product decision if the model is unsupported;
+    do not silently backlog required geography. Optional D30 features remain
+    unselected. No R5 packaging, Git writes, publication or final operator
+    acceptance is delegated by this Terrain-only run.
+  - Source/reason: operator's explicit Terrain-through-L2 closure mandate,
+    2026-11-12, before moving to other 3.0.0 work.
+
+- **D32** Retain the existing Manhattan domain and qualify missing public Ground
+  coverage in one metadata-first pass, with at most 2 GB of targeted raster
+  downloads. The alignment task's D39 records the exact budget and stop rules.
+  D31's supported integration and restoring L2 mandate survives; independent
+  Pier25/Kazan gameplay work continues. No automatic geographic acceptance,
+  production promotion, R5, staging, commits or publication is authorized.
+  - Source/reason: operator's bounded source-qualification decision, 2026-11-12.
+
+- **D33** Accept the fountain as prototype object context, with eventual detailed
+  reconstruction based on final Terrain height/support; no further investigation
+  is needed for this Terrain scope. Close the Terrain development task and update
+  durable ownership and relevant scoped backlogs.
+  - Effect: resolves the remaining Terrain development fidelity decision, retaining
+    the coherent Ground and tested Pier/Kazan scope. It does not exclude geography,
+    adopt EV8, select production authority, grant whole-release acceptance or start
+    lighting, building, PCG or detailed fountain implementation.
+  - Source/reason: operator's explicit fountain disposition and todo/docs request,
+    2026-11-16. The alignment closure register records this as D48.
 
 ### No longer binding
 

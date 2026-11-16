@@ -31,6 +31,7 @@ namespace ProjectWorldGameplayVerifyTest
 			Cell.CellX = CellIndex;
 			Cell.CellY = 0;
 			Cell.Bounds = FVector4d(CellIndex * 63.0, 0.0, (CellIndex + 1) * 63.0, 63.0);
+			Cell.Terrain.bHasVerticalSourceAccuracy = true;
 			Cell.Terrain.ArtifactHash = FString::ChrN(64, CellIndex == 0 ? TEXT('a') : TEXT('b'));
 			Cell.Terrain.Bounds = Cell.Bounds;
 			Cell.Terrain.SampleSpacing = FVector2D(63.0, 63.0);

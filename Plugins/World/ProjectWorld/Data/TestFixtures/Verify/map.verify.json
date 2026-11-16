@@ -4,9 +4,9 @@
   "verify": "Project.World.Realization.Verify.Map",
   "identity": {
     "producer_id": "map:v1",
-    "output_revision": 1,
+    "output_revision": 2,
     "pipeline_revision": 1,
-    "comparison_contract_version": 1,
+    "comparison_contract_version": 2,
     "engine_identity": "eab58750e84719489f3ee0d42d05a533ceb357eb3ee511777e9408d27a85f43c",
     "fixture_inputs": [
       {"name": "canonical:features:grid_24b9032e5f87005d:x0:y0", "sha256": "288b7e84a1f4b95e8cf95ea1cf429854ad349a921b65a1fa3f9d6d166d969b06"},
@@ -27,7 +27,7 @@
     ],
     "embedded": []
   },
-  "projection_sha256": "cd008803a791047821771594c89eadde9f2f15a4991fc95d5eb43ea8a5cb65da",
+  "projection_sha256": "b5210759df1d20f5d71ef0786cfa6354a611f978b1273e03f5dd3711cee4fe1f",
   "records": [
     {
       "kind": "actor",
@@ -272,7 +272,23 @@
       "kind": "navigation",
       "key": "recast",
       "fields": {
+        "agent.height_cm": "176",
+        "agent.name": "ProjectCharacter",
+        "agent.radius_cm": "35",
         "class": "/Script/NavigationSystem.RecastNavMesh",
+        "maximum_agent_slope": "44",
+        "maximum_simplification_error": "1.29999995",
+        "resolution.0.cell_height_cm": "10",
+        "resolution.0.cell_size_cm": "37.9259262",
+        "resolution.0.maximum_step_cm": "35",
+        "resolution.1.cell_height_cm": "10",
+        "resolution.1.cell_size_cm": "5.00122118",
+        "resolution.1.maximum_step_cm": "35",
+        "resolution.2.cell_height_cm": "10",
+        "resolution.2.cell_size_cm": "5.00122118",
+        "resolution.2.maximum_step_cm": "35",
+        "runtime_generation": "Dynamic",
+        "simplification_elevation_ratio": "0",
         "tile_size_uu": "4096"
       }
     },

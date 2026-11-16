@@ -10,9 +10,14 @@
 #include "StaticMeshAttributes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldRoadCivilGradeTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldRoadCivilGradeTest,
     "Project.World.Realization.Road.ImmutableCivilGrade",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldRoadCivilGradeTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    if (!FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_CIVIL_GRADE_FIXTURE")).IsEmpty())
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldRoadCivilGradeTest::RunTest(const FString& Parameters)
 {
     const FString Root = FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_CIVIL_GRADE_FIXTURE"));

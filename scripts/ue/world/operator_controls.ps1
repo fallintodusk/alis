@@ -87,18 +87,27 @@ function Get-ProjectWorldGenerationHistory {
     return @($records | Sort-Object scope_id, generation)
 }
 
-# Enrolling ProjectWorldData into its durable manifest root grants production authority. An
-# unattended run may do it only when the operator authorized that exact operation; TestData,
-# transient manifest roots, attended runs, and Apply without enrollment stay legal.
+# Permanent production enrollment requires operator authority. A live restoring canonical
+# preparation may add missing layers of its admitted existing map only through its owner.
 function Assert-ProjectWorldProductionEnrollmentAllowed {
     param(
         [switch]$EnrollManifests,
         [switch]$NonInteractive,
         [switch]$DurableEnrollmentAuthorized,
         [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
-        [switch]$TargetsDurableAuthority
+        [switch]$TargetsDurableAuthority,
+        [string]$ProjectRoot = '', [string]$RestoringCanonicalBaseOperationId = '',
+        [System.Collections.IDictionary]$InputIdentity, [string]$RealizationProfileHash = '', [switch]$FullApply
     )
 
+    if($RestoringCanonicalBaseOperationId) {
+        if(-not $EnrollManifests -or -not $NonInteractive -or -not $TargetsDurableAuthority -or
+            -not $FullApply -or $DurableEnrollmentAuthorized){throw 'Temporary enrollment requires full restoring base Apply only.'}
+        . (Join-Path $PSScriptRoot '../generated_content/generated_content_outer_recovery.ps1')
+        Assert-ProjectGeneratedContentCanonicalBaseEnrollment -ProjectRoot $ProjectRoot -OperationId $RestoringCanonicalBaseOperationId `
+            -WorldDataPlugin $WorldDataPlugin -InputIdentity $InputIdentity -RealizationProfileHash $RealizationProfileHash
+        return
+    }
     if ($EnrollManifests -and $NonInteractive -and -not $DurableEnrollmentAuthorized -and
         $WorldDataPlugin -ceq 'ProjectWorldData' -and $TargetsDurableAuthority) {
         throw ('Refused: production enrollment (-EnrollManifests on ' +

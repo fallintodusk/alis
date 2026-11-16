@@ -73,6 +73,15 @@ already falsified. Read the current slice for state; read the SOT for design.
 A current plan never overrides a stable SOT. When an active slice exists, never
 infer current work from a done or archived plan.
 
+For a deferred or repeatedly investigated case, follow
+`docs/agents/scientific_debugging.md#resuming-a-deferred-investigation` before
+selecting another experiment. Its case-specific checkpoint belongs in the task.
+
+For an elevation discrepancy, establish the required physical surface and actual
+source role before changing a correction algorithm. Use
+`tools/World/SourceIngestion/elevation_sources.md` for provider interpretation and
+the source-model preflight; processing precision alone does not admit Ground.
+
 ## Establish the boundary before changing behavior
 
 Before substantial coding or design, record briefly:

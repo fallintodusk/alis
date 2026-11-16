@@ -72,11 +72,16 @@ def prove(repo, deck, ground, water_features, offset):
     captured, _, _ = fixture()
     if deck != captured['triangles']:
         raise ValueError('This captured-case adapter requires the admitted exact v2 Pier25 model')
+    vertices = {tuple(p[:2]): p for face in deck for p in face}
+    return prove_field(repo, deck, ground, water_features, offset,
+        [[vertices[tuple(p)] for p in edge] for edge in shore_contact_xy()])
+
+
+def prove_field(repo, deck, ground, water_features, offset, cap_edges):
     gap = 1000-measure_affine_cover(ground, deck, offset_m=1000)['maximum_height_error_upper_m']
     if gap < -1e-8:
         raise ValueError('The admitted deck penetrates actual complete-cell Ground')
-    vertices = {tuple(p[:2]): p for face in deck for p in face}
-    cap_errors = [contact_error(ground, [vertices[tuple(p)] for p in edge]) for edge in shore_contact_xy()]
+    cap_errors = [contact_error(ground, edge) for edge in cap_edges]
     if max(cap_errors) > 1e-8:
         raise ValueError('An entire shore cap loses actual Ground contact')
     minimum = math.inf; fragments = 0; water_ids = set()

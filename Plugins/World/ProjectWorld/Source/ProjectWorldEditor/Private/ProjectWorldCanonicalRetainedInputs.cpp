@@ -63,9 +63,11 @@ namespace ProjectWorldCanonicalRefinement
 		TFunctionRef<bool(const FString&,const FString&,int64,bool)> IsVerifiedOutput,
 		TMap<FString,FString>& OutRoles,FRetainedFeatureContexts& OutContexts,
 		ProjectWorldIdentifiedBasinParsing::FRetainedInputs& OutBasins,
-		ProjectWorldAuthoredTerrainParsing::FRetainedInputs& OutAuthored,FProjectWorldCanonicalValidation& Validation)
+		ProjectWorldAuthoredTerrainParsing::FRetainedInputs& OutAuthored,
+		ProjectWorldGroundBaseParsing::FRetainedInput& OutGround,ProjectWorldShoreTransitionParsing::FInputs& OutShores,
+		FProjectWorldCanonicalValidation& Validation)
 	{
-		OutRoles.Reset(); OutContexts.Reset(); OutBasins.Reset(); OutAuthored.Reset();
+		OutRoles.Reset(); OutContexts.Reset(); OutBasins.Reset(); OutAuthored.Reset(); OutGround={};OutShores.Reset();
 		if (!Refinement || !HasRequest)
 			return EvidencePaths.IsEmpty() || RejectRetainedInput(Validation,TEXT("Raw source evidence requires an authenticated refinement request."));
 		FObject Request; FString RequestSchema;
@@ -78,6 +80,16 @@ namespace ProjectWorldCanonicalRefinement
 		if (!Version || Version->Type!=EJson::Number || !Version->TryGetNumber(Number) || Number!=1 ||
 			!Request->TryGetArrayField(TEXT("operations"),Operations) || !Operations || Operations->IsEmpty())
 			return RejectRetainedInput(Validation,TEXT("The surface refinement request version or operations are invalid."));
+		int32 Grounds=0,Shores=0;bool GroundComposition=true;
+		for (const auto& V:*Operations)
+		{
+			const FObject* O=nullptr;FString K;
+			if (!V->TryGetObject(O) || !O || !String(*O,TEXT("kind"),K)) return false;
+			Grounds+=K==TEXT("qualified_ground_base");Shores+=K==TEXT("inferred_shore_transition");
+			GroundComposition &= K==TEXT("qualified_ground_base") || K==TEXT("inferred_shore_transition") || K==TEXT("constructed_surface_import");
+		}
+		if ((Grounds && (Grounds!=1 || (Operations->Num()>1 && (!GroundComposition || Shores!=1)))) || (Shores && Grounds!=1))
+			return RejectRetainedInput(Validation,TEXT("Unsupported dependent Ground/shore operation composition."));
 		TMap<FString,FInput> Inputs;
 		auto Add = [&](const FObject& Value,const FString& Role,bool Addressed)
 		{
@@ -95,6 +107,24 @@ namespace ProjectWorldCanonicalRefinement
 			if (!OperationValue->TryGetObject(Operation) || !Operation || !String(*Operation,TEXT("kind"),Kind))
 				return RejectRetainedInput(Validation,TEXT("A surface operation is malformed."));
 			FObject DescriptorObject;
+			if (Kind==TEXT("qualified_ground_base"))
+			{
+				FObject Document; FInput Input; FString Error;
+				if (!Object(*Operation,TEXT("input"),DescriptorObject) || !Add(DescriptorObject,TEXT("ground"),true) ||
+					!Descriptor(DescriptorObject,TEXT("ground"),true,Input) || !Load(Root,Input.Path,Document) ||
+					!ProjectWorldGroundBaseParsing::ReadInput(*Operation,Document,Input.Hash,OutGround,Error))
+					return RejectRetainedInput(Validation,TEXT("Qualified Ground input is absent, unverified or unsupported: ")+Error);
+				continue;
+			}
+			if (Kind==TEXT("inferred_shore_transition"))
+			{
+				FObject Document;FInput Input;
+				if (!Object(*Operation,TEXT("input"),DescriptorObject) || !Add(DescriptorObject,TEXT("shore"),true) ||
+					!Descriptor(DescriptorObject,TEXT("shore"),true,Input) || !Load(Root,Input.Path,Document) ||
+					!ProjectWorldShoreTransitionParsing::ReadInput(*Operation,Document,Input.Hash,OutShores))
+					return RejectRetainedInput(Validation,TEXT("Shore input is absent, unverified or unsupported."));
+				continue;
+			}
 			if (Kind==TEXT("authored_dry_terrain"))
 			{
 				FObject Document; FInput Input;

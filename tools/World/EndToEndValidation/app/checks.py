@@ -7,6 +7,7 @@ from typing import Any
 from .contract_inputs import common_contract_files
 from .contracts import ValidationFailure, canonical_hash, file_hash, read_json, tree_size, validate_against
 from .execution import REPO_ROOT, SOURCE_RUN, _powershell, _run
+from .producer_descriptors import ProducerDescriptorError, load_producer_descriptors, recorded_verify
 
 
 REQUIRED_TEST_SUITE_NAMES = {
@@ -26,13 +27,58 @@ def common_contract_hash(repo_root: Path = REPO_ROOT) -> str:
     })
 
 
+def _preflight_verify_revisions(repo_root: Path = REPO_ROOT) -> None:
+    """Reject recorded revision drift cheaply; native projection comparison still runs."""
+    try:
+        descriptors = load_producer_descriptors(repo_root)
+    except ProducerDescriptorError as error:
+        raise ValidationFailure('verify_baseline_descriptor_invalid', str(error)) from error
+    revisions = {item.label: read_json(repo_root / item.path).get('output_revision')
+                 for item in descriptors if not item.is_pipeline}
+    if any(type(value) is not int or value < 1 for value in revisions.values()):
+        raise ValidationFailure('verify_baseline_revision_unknown', 'Producer output revisions must be positive integers')
+    problems = []
+    for item in descriptors:
+        try:
+            verify = recorded_verify(repo_root, item)
+        except ProducerDescriptorError as error:
+            raise ValidationFailure('verify_baseline_descriptor_invalid', str(error)) from error
+        if verify is None:
+            continue
+        identity = read_json(repo_root / item.baseline_path).get('identity', {})
+        if not isinstance(identity, dict):
+            raise ValidationFailure('verify_baseline_revision_unknown', 'Verify identity must be an object', baseline=item.baseline_path)
+        if item.is_pipeline:
+            declared = read_json(repo_root / item.path).get('pipeline_revision')
+            if (type(declared) is not int or declared < 1 or
+                    type(identity.get('pipeline_revision')) is not int or identity['pipeline_revision'] != declared):
+                problems.append(item.baseline_path + ': pipeline revision')
+            embedded = identity.get('embedded')
+            if not isinstance(embedded, list) or not embedded:
+                problems.append(item.baseline_path + ': missing embedded identities')
+                continue
+            for value in embedded:
+                fields = value.split('|') if isinstance(value, str) else []
+                if (len(fields) != 3 or fields[0] not in revisions or
+                        fields[1] != str(revisions.get(fields[0])) or not fields[2].isdigit() or int(fields[2]) < 1):
+                    problems.append(item.baseline_path + ': embedded ' + str(value))
+        elif (identity.get('producer_id') != item.label or
+              type(identity.get('output_revision')) is not int or
+              identity['output_revision'] != revisions[item.label]):
+            problems.append(item.baseline_path + ': producer revision')
+    if problems:
+        raise ValidationFailure('verify_baseline_revision_stale',
+            'Declared verify revisions differ; probe and review the owning native output before recording',
+            baselines=problems)
+
+
 def _run_test_suites(logs: Path, powershell: str) -> list[dict[str, Any]]:
     suites = [
         ("execution_environment", [sys.executable, "-m", "unittest", "discover", "tools/World/ExecutionEnvironment/tests"]),
-        ("source_ingestion", [sys.executable, "-m", "unittest", "discover", "tools/World/SourceIngestion/tests"]),
-        ("canonical_compilation", [sys.executable, "-m", "unittest", "discover", "tools/World/CanonicalCompilation/tests"]),
-        ("end_to_end_validation", [sys.executable, "-m", "unittest", "discover", "tools/World/EndToEndValidation/tests"]),
         ("world_architecture", [sys.executable, "-m", "unittest", "discover", "tools/World/tests"]),
+        ("source_ingestion", [sys.executable, "-m", "unittest", "discover", "tools/World/SourceIngestion/tests", "-t", "tools"]),
+        ("canonical_compilation", [sys.executable, "-m", "unittest", "discover", "tools/World/CanonicalCompilation/tests", "-t", "tools"]),
+        ("end_to_end_validation", [sys.executable, "-m", "unittest", "discover", "tools/World/EndToEndValidation/tests"]),
         (
             "world_lifecycle_scripts",
             [
@@ -63,11 +109,9 @@ def _run_test_suites(logs: Path, powershell: str) -> list[dict[str, Any]]:
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                str(REPO_ROOT / "scripts" / "ue" / "test" / "unit" / "iterate.ps1"),
-                "-TestFilter",
-                "Project.World.Realization",
-                "-Mode",
-                "Gate",
+                str(REPO_ROOT / "scripts" / "ue" / "world" / "test" / "integration" / "verify_native_realization.ps1"),
+                "-EvidenceDirectory",
+                str(REPO_ROOT / "tmp" / "world" / "end_to_end_validation" / "native" / logs.parent.name),
             ],
         ),
     ]
@@ -92,6 +136,7 @@ def execute_checks(evidence_root: Path, preflight_path: Path) -> dict[str, Any]:
          str(REPO_ROOT / "scripts" / "ue" / "build" / "export_target_json.ps1")],
         logs,
     )
+    _preflight_verify_revisions()
     initial_contract_hash = common_contract_hash()
     preflight = read_json(preflight_path)
     validate_against(preflight, "bootstrap-preflight.schema.json")

@@ -47,6 +47,57 @@ def _dependent_layer_closure(
             return closure
 
 
+def _layer_contracts(expected: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    contracts = {item["layer_id"]: item for item in expected["expected_layers"]}
+    _require(len(contracts) == len(expected["expected_layers"]),
+        "layer_expectation_identity_invalid", "Expected layer IDs are duplicated")
+    return contracts
+
+
+def _checked_inventory(receipt: dict[str, Any], contracts: dict[str, dict[str, Any]], leg: str) -> dict[str, dict[str, Any]]:
+    inventory = _inventory_by_id(receipt, leg)
+    _require(set(inventory) == set(contracts), "layer_inventory_set_mismatch",
+        "Realization produced an unexpected layer set", leg=leg)
+    for layer_id, contract in contracts.items():
+        record = inventory[layer_id]
+        expected_artifact_count = (
+            contract.get("producer_artifact_count", contract["artifact_count"])
+            if leg in ("first", "clean") else contract["artifact_count"]
+        )
+        _require(
+            record.get("generator_id") == contract["generator_id"]
+            and record.get("generator_version") == contract["generator_version"]
+            and record.get("artifact_root") == contract["artifact_root"]
+            and len(record.get("canonical_inputs", [])) == contract["canonical_input_count"]
+            and len(record.get("artifacts", [])) == expected_artifact_count,
+            "layer_inventory_contract_mismatch",
+            "Layer generator, root, inputs, or artifacts differ from the profile",
+            leg=leg,
+            layer_id=layer_id,
+        )
+        metrics = record.get("metrics")
+        expected_metrics = contract["metrics"]
+        _require(
+            isinstance(metrics, dict)
+            and set(metrics) == set(expected_metrics)
+            and all(
+                metrics[key] == (value if leg in ("first", "clean") or not key.endswith("_written") else 0)
+                for key, value in expected_metrics.items()
+            ),
+            "layer_metrics_mismatch",
+            "Layer metrics differ from the profile or rewrite work occurred on a no-op leg",
+            leg=leg,
+            layer_id=layer_id,
+        )
+    return inventory
+
+
+def validate_first_layered_receipt(receipt: dict[str, Any], expected: dict[str, Any]) -> None:
+    """Refuse a mismatched first receipt before any later native World dispatch."""
+    if "expected_layers" in expected:
+        _checked_inventory(receipt, _layer_contracts(expected), "first")
+
+
 def validate_layered_realization(
     receipts: dict[str, dict[str, Any]],
     expected: dict[str, Any],
@@ -63,12 +114,7 @@ def validate_layered_realization(
         "Layered realization is missing a required World leg",
     )
     topology = expected["expected_topology"]
-    layer_contracts = {item["layer_id"]: item for item in expected["expected_layers"]}
-    _require(
-        len(layer_contracts) == len(expected["expected_layers"]),
-        "layer_expectation_identity_invalid",
-        "Expected layer IDs are duplicated",
-    )
+    layer_contracts = _layer_contracts(expected)
 
     inventories: dict[str, dict[str, dict[str, Any]]] = {}
     for leg in required_legs:
@@ -112,47 +158,11 @@ def validate_layered_realization(
             "Retired P0 section counters are nonzero",
             leg=leg,
         )
-        inventories[leg] = _inventory_by_id(receipt, leg)
-        _require(
-            set(inventories[leg]) == set(layer_contracts),
-            "layer_inventory_set_mismatch",
-            "Realization produced an unexpected layer set",
-            leg=leg,
-        )
+        inventories[leg] = _checked_inventory(receipt, layer_contracts, leg)
 
     road_locality_layers = _dependent_layer_closure(inventories["second"], "roads")
     for layer_id, contract in layer_contracts.items():
         records = {leg: inventories[leg][layer_id] for leg in required_legs}
-        for leg, record in records.items():
-            expected_artifact_count = (
-                contract.get("producer_artifact_count", contract["artifact_count"])
-                if leg in ("first", "clean") else contract["artifact_count"]
-            )
-            _require(
-                record.get("generator_id") == contract["generator_id"]
-                and record.get("generator_version") == contract["generator_version"]
-                and record.get("artifact_root") == contract["artifact_root"]
-                and len(record.get("canonical_inputs", [])) == contract["canonical_input_count"]
-                and len(record.get("artifacts", [])) == expected_artifact_count,
-                "layer_inventory_contract_mismatch",
-                "Layer generator, root, inputs, or artifacts differ from the profile",
-                leg=leg,
-                layer_id=layer_id,
-            )
-            metrics = record.get("metrics")
-            expected_metrics = contract["metrics"]
-            _require(
-                isinstance(metrics, dict)
-                and set(metrics) == set(expected_metrics)
-                and all(
-                    metrics[key] == (value if leg in ("first", "clean") or not key.endswith("_written") else 0)
-                    for key, value in expected_metrics.items()
-                ),
-                "layer_metrics_mismatch",
-                "Layer metrics differ from the profile or rewrite work occurred on a no-op leg",
-                leg=leg,
-                layer_id=layer_id,
-            )
         _require(
             len({record.get("normalized_layer_contract_sha256") for record in records.values()}) == 1,
             "layer_contract_hash_drift",

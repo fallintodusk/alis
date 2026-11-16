@@ -15,6 +15,9 @@ World acceptance gates or authorize geographic inference.
 [EndToEndValidation's selected-child acceptance](../../../tools/World/EndToEndValidation/README.md#selected-refinement-target-acceptance).
 Its acceptance judgment stays with that owner; it uses the existing generated-content
 outer recovery rather than a second transaction framework.
+The optional [selected consumer adapter](selected_refinement_consumers.ps1) runs
+existing read-only saved/runtime/visual tools inside that same restoration window.
+It preserves generic target semantics and introduces no additional state writer.
 `repair_canonical_schema_reference.ps1` composes the same outer recovery and
 empty-candidate World publication for the closed
 [Canonical schema-reference repair](../../../tools/World/CanonicalCompilation/terrain_refinement.md#durable-schema-reference-repair).
@@ -25,6 +28,12 @@ checkout; [release preparation](../package/README.md#prepare_release_inputsps1)
 owns that checkout and its cleanup.
 
 ## Release impact routing
+
+Common Check runs the permanent native World regressions through
+[`test/integration/verify_native_realization.ps1`](test/integration/verify_native_realization.ps1).
+This host composes the existing build and safe test runner in a fresh rendered
+Entry process, with scratch settings and logs. It refuses inherited diagnostic
+scene inputs; source-qualified scene probes remain explicit separate tests.
 
 `test/release_preflight_plan.py` adapts the existing World planner for the
 [release preflight](../package/README.md#preparation-preflight-and-failure-triage).
@@ -132,6 +141,12 @@ carried owners retain their true base lineage only when their proved inputs,
 producer and reconstructed artifacts remain exact. Later material adoption uses
 the existing material authority; it may change appearance pins while geometry
 pins and consumed unit identities stay strict.
+
+Missing layer scopes in a restoring selected-child base use the existing
+[canonical participant](../generated_content/README.md#canonical-selection-participant).
+Its preparation capability qualifies exact admitted inputs and an already accepted
+map before temporary full-Apply enrollment. It cannot authorize permanent
+production enrollment or selected execution during preparation.
 
 The scoped route saves only selected owner packages. It does not run global
 partition, HLOD, runtime-route, presentation, authored-overlay or stale-output

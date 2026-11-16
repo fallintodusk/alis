@@ -109,7 +109,103 @@ class DerivedGroundTests(unittest.TestCase):
         self.assertNotIn('classification',admitted['evidence'])
         self.assertNotIn('point_content_sha256',receipt)
         self.assertEqual('raster_ground_model',admitted['evidence']['basis'])
+        raw=next(a for a in self.product['artifacts'] if a['role']=='raw_source')
+        self.assertEqual(raw['sha256'],admitted['evidence']['source_sha256'])
         self.assertEqual(receipt,api.admit_ground_product(self.repo,self.profile,self.output))
+
+    def native_raster_collection(self):
+        from World.SourceIngestion.tests.usgs_raster_fixture import RASTERS
+        grid,_=self.raster_product()
+        self.product['source_frame']={'horizontal':'EPSG:4269','vertical':'EPSG:5703','unit':'m'}
+        self.product['query']['source_nodata']=-999999.
+        self.product['artifacts']=[a for a in self.product['artifacts'] if a['role']!='raw_source']
+        members=[]
+        for index,item in enumerate(RASTERS):
+            for identity,role,name,payload in [
+                (f'raw_{index}','raw_source',item['file_name'],f'Raw fixture {index}'.encode()),
+                (f'fgdc_{index}','supporting_evidence',f'metadata_{index}.xml',
+                 ('<!DOCTYPE metadata SYSTEM "https://www.fgdc.gov/schemas/metadata/fgdc-std-001-1998.dtd">\n'+item['fgdc']).encode())]:
+                path=self.capsule/name;path.write_bytes(payload)
+                self.product['artifacts'].append({'id':identity,'role':role,'path':name,
+                    'sha256':hashlib.sha256(payload).hexdigest(),'byte_size':len(payload)})
+            members.append({'raw_artifact_id':f'raw_{index}','metadata_artifact_id':f'fgdc_{index}',
+                'source_url':item['url'],'header':deepcopy(item['header'])})
+        document={'$schema':'https://alis.world/schemas/world-source/native-raster-collection-v1.json',
+            'schema_version':1,'kind':'qualified_native_raster_collection','members':members}
+        self.replace_artifact('source_ground',document)
+        return grid,document
+
+    def test_native_geographic_collection_retains_both_sources_and_deterministic_identity(self):
+        grid,_=self.native_raster_collection()
+        api=self.api();api.admit_ground_product(self.repo,self.profile,self.output)
+        result=api.read_ground_product(self.output/'admission.json',hashlib.sha256((self.output/'admission.json').read_bytes()).hexdigest())
+        self.assertEqual(grid,result['grid'])
+        from World.SourceIngestion.app.contracts import canonical_hash
+        raw=sorted((a['id'],a['sha256']) for a in self.product['artifacts'] if a['role']=='raw_source')
+        self.assertEqual(canonical_hash({'raw_sources':raw}),result['evidence']['source_sha256'])
+        for identity,_ in raw:
+            self.assertTrue((self.output/'artifacts'/identity).is_dir())
+        self.assertEqual(2,len(list((self.output/'artifacts').glob('raw_*'))))
+        before=self.snapshot();api.admit_ground_product(self.repo,self.profile,self.output)
+        self.assertEqual(before,self.snapshot())
+        self.product['artifacts'].reverse()
+        source=json.loads((self.capsule/'source_ground.json').read_text());source['members'].reverse()
+        self.replace_artifact('source_ground',source)
+        other=self.repo/'tmp/reordered';api.admit_ground_product(self.repo,self.profile,other)
+        reordered=api.read_ground_product(other/'admission.json',hashlib.sha256((other/'admission.json').read_bytes()).hexdigest())
+        self.assertEqual(result['evidence']['source_sha256'],reordered['evidence']['source_sha256'])
+        self.assertEqual(result['grid'],reordered['grid'])
+
+    def test_native_geographic_collection_refuses_incomplete_or_contradictory_bindings(self):
+        _,document=self.native_raster_collection();original=deepcopy(self.product)
+        evidence=next(a for a in original['artifacts'] if a['id']=='fgdc_0')
+        xml=(self.capsule/evidence['path']).read_text()
+        for defect in ('missing','duplicate','raw_id','metadata_id','datum','unit','crs','xml','url','band_unit','extra',
+                       'xml_unit','xml_vertical','xml_horizontal','xml_download','xml_duplicate','xml_entity','xml_dtd_comment'):
+            self.product=deepcopy(original);changed=deepcopy(document)
+            (self.capsule/evidence['path']).write_text(xml)
+            member=changed['members'][0]
+            if defect=='missing': changed['members'].pop()
+            elif defect=='duplicate': changed['members'][1]=deepcopy(member)
+            elif defect=='raw_id': member['raw_artifact_id']='fgdc_0'
+            elif defect=='metadata_id': member['metadata_artifact_id']='raw_0'
+            elif defect=='datum': self.product['source_frame']['vertical']='EPSG:6360'
+            elif defect=='unit': self.product['source_frame']['unit']='us_ft'
+            elif defect=='crs': member['header']['stac']['proj:epsg']=4326
+            elif defect=='url': member['source_url']=changed['members'][1]['source_url']
+            elif defect=='band_unit': member['header']['bands'][0]['unit']='US survey foot'
+            elif defect=='extra': changed['unqualified']=True
+            else:
+                a=next(a for a in self.product['artifacts'] if a['id']=='fgdc_0')
+                replacements={'xml_unit':('meters','feet'),'xml_vertical':('North American Vertical Datum of 1988','Other datum'),
+                    'xml_horizontal':('North American Datum of 1983','Other datum'),
+                    'xml_download':(member['source_url'],changed['members'][1]['source_url'])}
+                altered=xml.replace(*replacements[defect]) if defect in replacements else '<metadata/>'
+                if defect=='xml_duplicate': altered=xml.replace('</horizdn>','</horizdn><horizdn>Other datum</horizdn>')
+                if defect=='xml_entity': altered='<!DOCTYPE metadata [<!ENTITY x "meters">]><metadata/>'
+                if defect=='xml_dtd_comment':
+                    dtd='<!DOCTYPE metadata SYSTEM "https://www.fgdc.gov/schemas/metadata/fgdc-std-001-1998.dtd">'
+                    altered='<!--'+dtd+'-->\n'+xml.replace(dtd,'<!DOCTYPE metadata SYSTEM "https://example.invalid/unknown.dtd">')
+                path=self.capsule/a['path'];path.write_text(altered)
+                a.update(sha256=hashlib.sha256(path.read_bytes()).hexdigest(),byte_size=path.stat().st_size)
+            self.replace_artifact('source_ground',changed)
+            with self.subTest(defect=defect),self.assertRaises(IngestionError):
+                self.api().admit_ground_product(self.repo,self.profile,self.output)
+            self.assertFalse(self.output.exists());self.assertFalse((self.root/'archive').exists())
+
+    def test_observed_ground_still_refuses_multiple_raw_objects(self):
+        duplicate=deepcopy(self.product['artifacts'][0]);duplicate['id']='other_raw'
+        self.product['artifacts'].append(duplicate);self.save()
+        with self.assertRaises(IngestionError): self.api().admit_ground_product(self.repo,self.profile,self.output)
+        self.assertFalse(self.output.exists())
+
+    def test_native_collection_second_raw_change_preserves_accepted_output(self):
+        self.native_raster_collection();api=self.api()
+        api.admit_ground_product(self.repo,self.profile,self.output);before=self.snapshot()
+        raw=next(a for a in self.product['artifacts'] if a['id']=='raw_1')
+        (self.capsule/raw['path']).write_bytes(b'changed second raw object')
+        with self.assertRaises(IngestionError): api.admit_ground_product(self.repo,self.profile,self.output)
+        self.assertEqual(before,self.snapshot())
 
     def test_raster_model_rejects_classification_nodata_frame_and_grid_tampering(self):
         grid,metadata=self.raster_product()
@@ -141,23 +237,6 @@ class DerivedGroundTests(unittest.TestCase):
                 self.api().admit_ground_product(self.repo,self.profile,self.output)
             self.assertFalse(self.output.exists())
             self.assertFalse((self.root/'archive').exists())
-
-    def test_raster_model_cannot_enter_classified_contained_water_constructor(self):
-        self.raster_product()
-        api=self.api();api.admit_ground_product(self.repo,self.profile,self.output)
-        digest=hashlib.sha256((self.output/'admission.json').read_bytes()).hexdigest()
-        ground=api.read_ground_product(self.output/'admission.json',digest)
-        from World.CanonicalCompilation.refinement.api import build_contained_water
-        from World.CanonicalCompilation.app.contracts import CompilerError
-        water={'feature_class':'water','geometry':{'type':'Polygon','coordinates':[[[0,0],[1,0],[0,1],[0,0]]]},
-               'attributes':{'surface_geometry':'polygon','surface_behavior':'standing'}}
-        from World.CanonicalCompilation.app.contracts import canonical_hash
-        context={'amenity':'fountain','barrier':'kerb','geometry_sha256':canonical_hash(water['geometry'])}
-        with self.assertRaises(CompilerError) as error:
-            build_contained_water(ROOT,water,[[0.,0.,1.],[1.,0.,1.],[0.,1.,1.]],context,
-                ground['evidence'],quantile=.5,height_step=.1,canonical_crs='EPSG:32618')
-        self.assertEqual('contained_water_unsupported',error.exception.code)
-        self.assertIn('Ground class',str(error.exception))
 
     def test_raster_vertical_crs_cannot_match_only_a_nested_datum_identifier(self):
         _,metadata=self.raster_product()

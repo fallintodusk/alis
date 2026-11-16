@@ -12,9 +12,14 @@
 #include "StaticMeshAttributes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldBuildingCivilGradeTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldBuildingCivilGradeTest,
     "Project.World.Realization.Building.ImmutableCivilGrade",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldBuildingCivilGradeTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    if (!FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_CIVIL_GRADE_FIXTURE")).IsEmpty())
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldBuildingCivilGradeTest::RunTest(const FString& Parameters)
 {
     const FString Root = FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_CIVIL_GRADE_FIXTURE"));
@@ -126,15 +131,16 @@ bool FProjectWorldBuildingRefinedOwnerClampTest::RunTest(const FString&)
     };
     Bundle.Cells[1].ReferencedFeatureIds = {Feature.FeatureId};
     Bundle.Cells[1].Terrain.RefinedQuads.Reset();
+    // The public fixture producer may revise its wrapper; this control owns an opaque key.
+    Bundle.Cells[0].Terrain.ArtifactHash = FString::ChrN(64, 'c');
     auto GridOnly = Bundle;
-    // Hold the opaque artifact key fixed to isolate the consumed query variant.
     GridOnly.Cells[0].Terrain.RefinedQuads.Reset();
     TestNotEqual(TEXT("Refined default anchor includes its changed query contract."), Hash(Bundle, 0), Hash(GridOnly, 0));
     TestNotEqual(TEXT("A cross-cell fragment keys the owner query, not its own unrefined Terrain."), Hash(Bundle, 1), Hash(GridOnly, 1));
-    TestEqual(TEXT("Unrefined owner retains its pre-correction identity."), Hash(GridOnly, 0),
-        FString(TEXT("c26b18cda35785085fd735341f59f8f4eb76aeee184d40727e8a26a3b91bc0a5")));
-    TestEqual(TEXT("Unrefined fragment retains its pre-correction identity."), Hash(GridOnly, 1),
-        FString(TEXT("e387a9284649f1055b300f33e89adfd25a6d14bd6326f68160f716f30e9d7946")));
+    TestEqual(TEXT("Unrefined owner retains its controlled fixture identity."), Hash(GridOnly, 0),
+        FString(TEXT("77423e4c2451f29beb63b0dab0dd2d5fbb90bdbd968952ddd6395a84de5b572b")));
+    TestEqual(TEXT("Unrefined fragment retains its controlled fixture identity."), Hash(GridOnly, 1),
+        FString(TEXT("a35a70b4ce8a2cbfea51335827fa14fcd76812935325fd4341c6107081bc5358")));
     FProjectWorldCanonicalCivilGrade Grade; Grade.TerrainArtifacts.Add(Cell.CellId, Cell.Terrain.BaseArtifactHash);
     Bundle.Features[Feature.FeatureId].CivilGrade = MoveTemp(Grade);
     FProjectWorldBuildingMeshBuildResult Preserved;

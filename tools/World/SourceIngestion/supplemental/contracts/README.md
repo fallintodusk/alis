@@ -7,3 +7,4 @@ Owns the closed derived-source product description.
 | [derived-ground.schema.json](derived-ground.schema.json) | Frames, query, processing evidence and artifact identities |
 | [derived-ground-admission.schema.json](derived-ground-admission.schema.json) | Pinned candidate admission receipt |
 | [ground-grid.schema.json](ground-grid.schema.json) | Explicit raster-model canonical node samples |
+| [native-raster-collection.schema.json](native-raster-collection.schema.json) | Complete raw-object, native-header and provider-metadata bindings |

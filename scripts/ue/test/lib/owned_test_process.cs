@@ -123,9 +123,8 @@ namespace Project.Testing
             }
         }
 
-        public bool Stop(int milliseconds)
+        public bool WaitForEmpty(int milliseconds)
         {
-            Check(TerminateJobObject(job, 124));
             var clock = Stopwatch.StartNew();
             do
             {
@@ -135,6 +134,12 @@ namespace Project.Testing
                 Thread.Sleep(20);
             } while (clock.ElapsedMilliseconds < milliseconds);
             return false;
+        }
+
+        public bool Stop(int milliseconds)
+        {
+            Check(TerminateJobObject(job, 124));
+            return WaitForEmpty(milliseconds);
         }
 
         public void Dispose()

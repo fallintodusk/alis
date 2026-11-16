@@ -126,11 +126,32 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
                 _refuse('Base feature identity is duplicated or has inconsistent ownership')
             all_features[feature['feature_id']] = feature
     admitted, contexts, used, structural_documents, basin_documents = [], {}, set(), {}, {}
-    authored_documents = {}
+    authored_documents, shore_documents = {}, {}
     if not isinstance(operations, list) or not operations:
         _refuse('At least one closed surface operation is required')
+    kinds = [op.get('kind') if isinstance(op, dict) else None for op in operations]
+    if 'qualified_ground_base' in kinds and (kinds.count('qualified_ground_base') != 1 or
+            len(kinds)>1 and (kinds.count('inferred_shore_transition')!=1 or
+            set(kinds)-{'qualified_ground_base','inferred_shore_transition','constructed_surface_import'})):
+        _refuse('Ground may compose only with one explicit shore transition and declared structural imports')
+    if 'inferred_shore_transition' in kinds and 'qualified_ground_base' not in kinds:
+        _refuse('An inferred shore must consume the qualified Ground operation in the same request')
+    ground_document = None
     context_digests = {op['sha256'] for op in operations if isinstance(op, dict) and isinstance(op.get('sha256'), str)}
     for operation in operations:
+        if isinstance(operation, dict) and operation.get('kind') == 'inferred_shore_transition':
+            from . import shore_transition
+            selected, retained, document = shore_transition.admit(repo_root, operation, all_features)
+            if used.intersection(selected['feature_ids']):
+                _refuse('Surface operations have interacting feature ownership')
+            used.update(selected['feature_ids']); contexts.update(retained); admitted.append(selected)
+            shore_documents[canonical_hash(selected)] = document
+            continue
+        if isinstance(operation, dict) and operation.get('kind') == 'qualified_ground_base':
+            from . import ground_admission
+            selected, retained, ground_document = ground_admission.admit(repo_root, operation, base_root, entries, coverage)
+            contexts.update(retained); admitted.append(selected)
+            continue
         if isinstance(operation, dict) and operation.get('kind') == 'authored_dry_terrain':
             from . import authored_terrain
             selected, retained, document = authored_terrain.admit(repo_root, operation)
@@ -178,7 +199,8 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
         admitted.append({'kind': operation['kind'], 'feature_ids': sorted(ids),
             'base_features': {key: canonical_hash(all_features[key]) for key in sorted(ids)},
             'context': {'path': relative, 'sha256': digest, 'byte_size': len(payload)}})
-    admitted.sort(key=lambda op: (op['kind'], op['feature_ids'], canonical_hash(op)))
+    admitted.sort(key=lambda op: (0 if op['kind']=='qualified_ground_base' else 1 if op['kind']=='inferred_shore_transition' else 2,
+        op['kind'], op['feature_ids'], canonical_hash(op)))
     request = {'$schema': 'https://alis.world/schemas/world-compiler/surface-refinement-request-v1.json',
         'schema_version': 1, 'base_result_sha256': base_hash, 'operations': admitted,
         'context_authority': 'supplementary_matching_context_not_historical_replay',
@@ -198,7 +220,19 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
         cells = {key: _read_artifact(base_root, entries, m['terrain_artifact']) for key, m in manifests.items()}
         changes, structural_proofs, terrain_payloads, basin_proofs, basin_cells = {}, {}, {}, {}, {}
         authored_cells = set()
+        ground_cells, ground_proof = {}, None
         for index, operation in enumerate(admitted):
+            if operation['kind'] == 'qualified_ground_base':
+                from .ground_base import construct
+                ground_cells, ground_changes, ground_proof = construct(repo_root, ground_document['construction'],
+                    coverage, cells, all_features, temporary/'ground-base')
+                changes.update(ground_changes)
+                continue
+            if operation['kind'] == 'inferred_shore_transition':
+                from .shore_transition import construct
+                terrain_payloads.update(construct(repo_root, operation, shore_documents[canonical_hash(operation)],
+                    admitted[0], coverage, ground_cells, {**all_features, **changes}))
+                continue
             if operation['kind'] == 'authored_dry_terrain':
                 from . import authored_terrain
                 payloads = authored_terrain.construct(repo_root, operation,
@@ -241,6 +275,9 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
         if authored_cells:
             from .authored_terrain import validate_consumers
             validate_consumers(authored_cells, {**all_features, **changes})
+        if shore_documents and structural_documents:
+            from .shore_support import validate_structures
+            validate_structures(repo_root, ground_cells, terrain_payloads, {**all_features, **changes})
         staging = temporary / 'candidate'
         staging.mkdir()
         for entry in base['outputs']:
@@ -251,15 +288,21 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
             shutil.copy2(resolve_owned_path(base_root, entry['path']), destination)
             if destination.stat().st_size != entry['byte_size'] or file_hash(destination) != entry['sha256']:
                 _refuse('Base artifact changed during candidate preparation')
+        if ground_cells:
+            from .ground_admission import stage
+            stage(staging, coverage, ground_cells, request_hash, admitted[0], ground_document, base_hash)
         if terrain_payloads:
             from .publication import stage_terrain_refinements
             from ..basin_admission import bind_staged_support
-            stage_terrain_refinements(repo_root, staging, coverage, cells, terrain_payloads)
+            stage_terrain_refinements(repo_root, staging, coverage, ground_cells or cells, terrain_payloads)
             for identifier, support in basin_cells.items():
                 bind_staged_support(staging, coverage, changes[identifier], support)
+        if shore_documents and structural_documents:
+            from .shore_support import bind_staged
+            bind_staged(staging, coverage, changes)
         created = {identifier: feature for identifier, feature in changes.items() if identifier not in all_features}
         changed_cells = sorted({feature['owner_cell_id'] for feature in changes.values()} |
-            {cell for feature in created.values() for cell in feature['intersecting_cell_ids']} | set(terrain_payloads))
+            {cell for feature in created.values() for cell in feature['intersecting_cell_ids']} | set(terrain_payloads) | set(ground_cells))
         for owner in changed_cells:
             entry = next(e for e in coverage['cells'] if e['cell_id'] == owner)
             manifest, shard = json.loads((staging/entry['path']).read_bytes()), deepcopy(shards[owner])
@@ -274,6 +317,10 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
                     manifest['owned_feature_ids'] = sorted(f['feature_id'] for f in shard['features'])
                 manifest['feature_artifact'].update(content_hash=file_hash(path), byte_size=path.stat().st_size,
                     dependencies=[*manifest['feature_artifact']['dependencies'], 'surface-refinement:'+request_hash])
+                if ground_cells:
+                    from .ground_admission import lineage, dependencies
+                    manifest['feature_lineage'] = lineage(manifest['feature_lineage'], request_hash, admitted[0], ground_document, base_hash)
+                    manifest['feature_artifact']['dependencies'] = dependencies(request_hash, ground_document, base_hash)
             new_references = {key for key, f in created.items() if owner in f['intersecting_cell_ids'] and f['owner_cell_id'] != owner}
             if new_references:
                 manifest['referenced_feature_ids'] = sorted(set(manifest['referenced_feature_ids']) | new_references)
@@ -281,6 +328,8 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
             path = staging / entry['path']
             write_json(path, manifest)
             entry.update(sha256=file_hash(path), byte_size=path.stat().st_size)
+            if ground_cells:
+                entry['feature_lineage'] = manifest['feature_lineage']
             for descriptor in coverage['artifact_descriptors']:
                 if descriptor['artifact_id'] == manifest['feature_artifact']['artifact_id']:
                     descriptor.update({key: value for key, value in manifest['feature_artifact'].items() if key != 'path'})
@@ -301,6 +350,8 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
                 'proof': structural_proofs[key]} for key, f in sorted(created.items())}
         if basin_proofs:
             report['identified_basins'] = basin_proofs
+        if ground_proof is not None:
+            report['qualified_ground_base'] = ground_proof
         write_json(staging / 'reports/refinement.json', report)
         result = {**base, '$schema': 'https://alis.world/schemas/world-compiler/refinement-result-v1.json',
             'base_result_sha256': base_hash, 'operation': 'refine', 'operation_id': 'refine:'+request_hash[:16],
@@ -312,5 +363,8 @@ def prepare_surface_refinement(repo_root: Path, base_result_path: Path, output_r
             _refuse('Base receipt changed before candidate publication')
         if not request_is_current(repo_root, request):
             _refuse('Consumed surface implementation changed before candidate publication')
+        if ground_document is not None:
+            from .ground_admission import validate_inputs
+            validate_inputs(repo_root, ground_document, base_root, entries, coverage)
         promote_staging(staging, output_root)
     return result, output_root

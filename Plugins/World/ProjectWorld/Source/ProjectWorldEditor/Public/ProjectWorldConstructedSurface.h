@@ -9,7 +9,7 @@ struct FProjectWorldCanonicalFeature;
 // Typed geometry consumption only; source qualification and footprint admission stay upstream.
 namespace ProjectWorldConstructedSurface
 {
-	enum class ESampleResult { Sampled, Outside, Invalid };
+	using ESampleResult=ProjectWorldTerrainSurface::EFieldSampleResult;
 	PROJECTWORLDEDITOR_API bool Read(const FProjectWorldCanonicalBundle& Bundle,
 		const FProjectWorldCanonicalFeature& Feature, TArray<FProjectWorldSurfaceTriangle>& Triangles,
 		FString& Identity, FString& Error);

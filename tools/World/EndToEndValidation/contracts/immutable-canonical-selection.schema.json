@@ -29,6 +29,15 @@
           "active_sha256": {"$ref": "#/$defs/digest"},
           "bundle_sha256": {"$ref": "#/$defs/digest"},
           "compile_result_sha256": {"$ref": "#/$defs/digest"},
+          "selected_refinement": {
+            "type": "object", "additionalProperties": false,
+            "required": ["effective_identity", "result_sha256", "bundle_sha256"],
+            "properties": {
+              "effective_identity": {"$ref": "#/$defs/digest"},
+              "result_sha256": {"$ref": "#/$defs/digest"},
+              "bundle_sha256": {"$ref": "#/$defs/digest"}
+            }
+          },
           "run_contract_sha256": {"$ref": "#/$defs/digest"},
           "historical_producer_implementation_sha256": {"$ref": "#/$defs/digest"},
           "historical_source_inputs_hash": {"$ref": "#/$defs/digest"},

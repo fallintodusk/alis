@@ -78,7 +78,7 @@
                 "generator_version": {"type": "integer", "minimum": 1},
                 "artifact_root": {"type": "string", "pattern": "^/Project[A-Za-z0-9]+/Generated/.+/$"},
                 "canonical_input_count": {"type": "integer", "minimum": 1},
-                "artifact_count": {"type": "integer", "minimum": 1},
+                "artifact_count": {"type": "integer", "minimum": 0},
                 "producer_artifact_count": {"type": "integer", "minimum": 1},
                 "incremental_dirty_count": {"type": "integer", "minimum": 0},
                 "metrics": {

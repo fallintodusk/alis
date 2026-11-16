@@ -68,8 +68,21 @@ def verify(receipt_path):
     finding(bool(views), "views_present", f"{len(views)} views")
 
     seen = {}
+    modes = {"lit", "base_color", "lighting_only", "world_normal"}
+    pose_modes = {}
     for view in views:
         name = view.get("name", "<unnamed>")
+        mode = view.get("render_mode", "lit")
+        valid_mode = isinstance(mode, str) and mode in modes
+        finding(valid_mode, f"render_mode:{name}", str(mode))
+        if not valid_mode:
+            continue
+        role = "product" if mode == "lit" else "diagnostic"
+        finding(view.get("evidence_role", role) == role, f"evidence_role:{name}", role)
+        pose = (tuple(view.get("location", [])),
+                tuple(view.get("rotation_pitch_yaw_roll", [])), view.get("fov_degrees"),
+                view.get("requested_width"), view.get("requested_height"))
+        pose_modes.setdefault(pose, set()).add(mode)
         path = os.path.join(screenshots, view.get("file", ""))
         if not os.path.isfile(path):
             finding(False, f"exists:{name}", path)
@@ -84,12 +97,20 @@ def verify(receipt_path):
         actual = sha256_of(path)
         finding(actual == view.get("image_sha256"), f"unmodified:{name}",
                 f"{actual[:12]} vs recorded {str(view.get('image_sha256'))[:12]}")
-        seen.setdefault(actual, []).append(name)
+        if mode == "lit":
+            seen.setdefault(actual, []).append(name)
 
-    # Distinct poses that render identical bytes are the stale-frame signature.
+    # Flat diagnostic buffers can match across poses; preserve the product-frame guard.
     collisions = {h: names for h, names in seen.items() if len(names) > 1}
     finding(not collisions, "views_distinct",
             "all distinct" if not collisions else f"identical: {collisions}")
+
+    if any(group != {"lit"} for group in pose_modes.values()):
+        incomplete = [sorted(modes - group) for group in pose_modes.values()
+                      if group not in ({"lit"}, modes)]
+        finding(not incomplete, "paired_presentation",
+                "same-pose product and three diagnostic views" if not incomplete
+                else f"missing same-pose views: {incomplete}")
 
     # The control is the FIRST pose captured a second time. It is REPORTED, never gated:
     # UE carries temporal rendering state between frames (auto exposure reads the previous

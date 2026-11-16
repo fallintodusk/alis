@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import zipfile
@@ -47,7 +48,27 @@ def consumer_identity() -> str:
         files.extend(root.glob("api.py"))
         files.extend(root.glob("app/*.py"))
         files.extend(root.glob("contracts/*.json"))
+    child = world / 'CanonicalCompilation/refinement'
+    files.extend(child.glob('*.py'))
+    files.extend(child.glob('app/*.py'))
+    files.extend(child.glob('contracts/*.json'))
+    files.extend((world / 'SourceIngestion/supplemental/contracts').glob('*.json'))
     return canonical_hash({path.relative_to(world).as_posix(): file_hash(path) for path in sorted(files)})
+
+
+def selected_refinement_record(authority: dict) -> dict:
+    """Project an authenticated child into consumer identity, retaining the base separately."""
+    if 'selected_refinement' not in authority:
+        return {}
+    child = authority['selected_refinement']
+    if not isinstance(child, dict) or not isinstance(child.get('bundle'), dict):
+        _refuse('Selected refinement descriptor is malformed')
+    record = {key: child.get(key) for key in ('effective_identity', 'result_sha256')}
+    record['bundle_sha256'] = child['bundle'].get('sha256')
+    if (child.get('base_result_sha256') != authority['compile_result_sha256'] or
+            any(not isinstance(value, str) or not re.fullmatch('[a-f0-9]{64}', value) for value in record.values())):
+        _refuse('Selected refinement does not identify its authenticated base and effective output')
+    return {'selected_refinement': record}
 
 
 def selected_profiles(profile: dict) -> dict:
@@ -106,8 +127,6 @@ def snapshot_selection(repo_root: Path, profile: dict, base: str, validation_pro
             authority = validate_canonical_authority(repo_root, active_path, compiler_path)
         except CanonicalCompilationError as error:
             _refuse("The selected canonical authority failed authentication", profile=name, reason=error.code)
-        if 'selected_refinement' in authority:
-            _refuse('A selected refinement needs explicit effective-input acceptance; base-only consumption cannot certify it', profile=name)
         if (authority["world_data_plugin"] != settings["world_data_plugin"] or
                 authority["profile_id"] != settings["compiler_profile"] or
                 authority["external_inputs"]["source_profile_path"] != settings["source_profile_path"]):
@@ -129,6 +148,7 @@ def snapshot_selection(repo_root: Path, profile: dict, base: str, validation_pro
             "historical_source_inputs_hash": contract["source_inputs_hash"],
             "historical_execution_identity": contract["execution_environment"]["identity_sha256"],
             "inputs_hash": authority["inputs_hash"], "geographic_input_files": pins,
+            **selected_refinement_record(authority),
         }
     selection = {
         "$schema": SCHEMA, "schema_version": 1, "mode": MODE,
@@ -166,7 +186,17 @@ def validate_execution(repo_root: Path, profile: dict, execution: dict) -> None:
         if any(record.get(key) is not None for key in
                ("source_root", "source_result", "compile_first_root", "compile_second_root", "incremental_root")):
             _refuse("An immutable artifact-consumer receipt contains fresh producer execution", profile=name)
-        authority = record.get("canonical_authority", {})
-        if any(authority.get(key) != selection["profiles"][name][key] for key in
-               ("authority_id", "active_path", "active_sha256", "bundle_sha256", "compile_result_sha256")):
-            _refuse("A World leg consumed a different canonical authority", profile=name)
+        validate_consumed_authority(selection['profiles'][name], record)
+
+
+def validate_consumed_authority(expected: dict, record: dict) -> None:
+    """Bind both live Matrix and retained completion legs to their actual effective input."""
+    authority = record.get('canonical_authority', {})
+    if any(authority.get(key) != expected[key] for key in
+           ('authority_id', 'active_path', 'active_sha256', 'bundle_sha256', 'compile_result_sha256')):
+        _refuse('A World leg consumed a different canonical authority')
+    child = expected.get('selected_refinement')
+    result_hash = child['result_sha256'] if child else expected['compile_result_sha256']
+    if (authority.get('selected_refinement') != child or
+            record.get('realization_compile_result_sha256') != result_hash):
+        _refuse('A World leg omitted or replaced its effective selected input')

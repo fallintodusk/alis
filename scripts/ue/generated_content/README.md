@@ -74,6 +74,26 @@ canonical state or damaged backups refuse. The marker is retained until both pri
 pointers and the complete restored path/byte inventory match. This is coordinated
 recovery under the global lock, not two-file atomic publication.
 
+A selected-refinement acceptance run can explicitly prepare a current immutable
+base before selecting its child. The marker retains the original World snapshot;
+its prepared checkpoint starts absent. Only measured producer-fingerprint drift
+may enter this phase with a rejected initial audit. Private preparation children
+cannot execute selected correction. Full base Apply, a strict accepted cold audit
+and a second authenticated World snapshot precede atomic checkpoint publication
+in the same marker. Selected children require that checkpoint. Inner failure
+recovery checks the prepared snapshot; final recovery authenticates both backups
+and restores the original snapshot and prior canonical pointer. An interruption
+before the checkpoint leaves only original-state recovery available.
+
+Preparing an admitted existing map may require an absent layer manifest. The
+same canonical participant records exact base input identities and qualifies
+temporary enrollment through its live delegated lock, preparation phase,
+authenticated original backups and prior canonical selection. New maps and
+unadmitted inputs refuse. This capability permits full base Apply only; it does
+not grant permanent enrollment. The original snapshot restores every temporary
+scope and package, including after interruption. Ordinary production enrollment
+retains the World operator guard.
+
 ```mermaid
 sequenceDiagram
     participant E as Existing outer owner
@@ -81,6 +101,12 @@ sequenceDiagram
     participant C as Canonical selection owner
     E->>W: Snapshot settled World and pin all backup bytes
     E->>E: Write existing recovery marker with canonical ticket
+    opt Explicit immutable-base preparation
+        E->>W: Full Apply with original canonical selection
+        W->>E: Strict accepted cold audit
+        E->>W: Snapshot and authenticate prepared World
+        E->>E: Atomically publish prepared checkpoint
+    end
     E->>W: Selected saved execution and cold replay
     E->>E: Authenticate complete backup inventory
     E->>W: Settle any inner journal

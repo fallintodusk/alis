@@ -94,6 +94,11 @@ operator merely because `UnrealEditor.exe` or an MCP listener is absent.
   while `FLevelEditorSequencerIntegration` is releasing resources. Preserve the
   crash context and verify terminal receipts/logs; do not treat this engine
   shutdown stack as generated-world corruption or add a World-code workaround.
+- End active PIE/SIE and confirm that the play world is gone before issuing a
+  command that exits the Editor. Exiting during a play session can write all
+  captures and then fail in `UExternalDataLayerEngineSubsystem::Get` during
+  `UEditorEngine::TeardownPlaySession`. Preserve the images as diagnostics;
+  file authentication does not turn an abnormal native exit into PASS.
 - The unattended visual-evidence wrapper remains the preferred no-window route
   when fixed scene-capture vantages are sufficient. A green capture receipt
   authenticates files, dimensions, hashes, and frame freshness only. The agent

@@ -24,9 +24,16 @@ namespace
 			FProjectWorldCanonicalLoader::ComputeFileSha256(Path,Actual) && Actual==Expected;
 	}
 }
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldBasinImportTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldBasinImportTest,
 	"Project.World.Realization.Water.CanonicalBasinBundle",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldBasinImportTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    FString Value; const TCHAR* Command=FCommandLine::Get();
+    if (FParse::Value(Command,TEXT("ProjectWorldBasinImport="),Value) || FParse::Value(Command,TEXT("ProjectWorldBasinImportHash="),Value) ||
+        FParse::Param(Command,TEXT("ProjectWorldBasinImport")) || FParse::Param(Command,TEXT("ProjectWorldBasinImportHash")))
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldBasinImportTest::RunTest(const FString&)
 {
 	FString Input,Expected,Actual;
@@ -63,9 +70,16 @@ bool FProjectWorldBasinImportTest::RunTest(const FString&)
 	return !HasAnyErrors();
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldBasinRefusalTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldBasinRefusalTest,
 	"Project.World.Realization.Water.CanonicalBasinRefusals",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldBasinRefusalTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    FString Value; const TCHAR* Command=FCommandLine::Get();
+    if (FParse::Value(Command,TEXT("ProjectWorldBasinControls="),Value) || FParse::Value(Command,TEXT("ProjectWorldBasinControlsHash="),Value) ||
+        FParse::Param(Command,TEXT("ProjectWorldBasinControls")) || FParse::Param(Command,TEXT("ProjectWorldBasinControlsHash")))
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldBasinRefusalTest::RunTest(const FString&)
 {
 	FString Input,Expected,Text;

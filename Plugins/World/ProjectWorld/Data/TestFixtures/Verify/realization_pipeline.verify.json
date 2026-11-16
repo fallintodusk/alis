@@ -29,7 +29,7 @@
       {"name": "layer:vegetation:data:Plugins/Resources/ProjectObject/Content/Nature/ExteriorPlant/Tree/Hornbeam/SM_Tree_Hornbeam_Medium.uasset", "sha256": "e229d04ece2107d5fee64b1ec8d9d4eefdb4c314781265cfd3f7b71e69d5ebf8"}
     ],
     "embedded": [
-      "project_building_massing:v2|2|1",
+      "project_building_massing:v2|3|1",
       "project_gameplay_placement:v1|1|1",
       "project_mesh_terrain:v1|1|2",
       "project_road_mesh:v1|2|1",

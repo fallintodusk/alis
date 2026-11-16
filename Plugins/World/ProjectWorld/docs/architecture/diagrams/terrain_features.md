@@ -5,7 +5,7 @@ owns their authority and adjustment semantics.
 
 ```mermaid
 flowchart LR
-    Raster[Accepted raster observations] --> Compiler[CanonicalCompilation]
+    Raster[Accepted raster evidence] --> Compiler[CanonicalCompilation]
     Vectors[Accepted vector and context records] --> Compiler
     Patches[Provenance-bound authored Terrain patches] --> Compiler
     Compiler --> Ground[Final canonical Terrain]
@@ -21,8 +21,8 @@ flowchart LR
     Water --> WaterProducer[Registered Water producer]
     WaterProducer --> WaterMesh[Separate Water mesh]
     Features --> Placement
-    Features --> Constructed[Registered constructed-surface producer]
-    Constructed --> StructuralMesh[Separate structural meshes]
+    Features --> Constructed[Registered constructed height-field producer]
+    Constructed --> StructuralMesh[Separate height-field structural meshes]
     Placement --> FeatureActors[Separate generated feature actors]
 
     Authored[Protected authored Unreal content] --> Anchors[Canonical anchor resolution]

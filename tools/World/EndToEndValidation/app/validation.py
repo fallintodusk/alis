@@ -22,9 +22,10 @@ def _require(condition: bool, code: str, message: str, **details: object) -> Non
         raise ValidationFailure(code, message, **details)
 
 
-def _accepted(path: Path, expected_schema: str, expected_version: int = 1) -> dict[str, Any]:
+def _accepted(path: Path, expected_schema: str | tuple[str, ...], expected_version: int = 1) -> dict[str, Any]:
     value = read_json(path)
-    _require(value.get("$schema") == expected_schema, "evidence_schema_invalid", "Evidence schema is incompatible", path=str(path))
+    schemas = (expected_schema,) if isinstance(expected_schema, str) else expected_schema
+    _require(value.get("$schema") in schemas, "evidence_schema_invalid", "Evidence schema is incompatible", path=str(path))
     _require(value.get("schema_version") == expected_version, "evidence_version_invalid", "Evidence version is incompatible", path=str(path))
     _require(value.get("status") == "accepted", "evidence_rejected", "Required evidence is not accepted", path=str(path))
     return value
@@ -35,10 +36,11 @@ def _output_hashes(result: dict[str, Any]) -> dict[str, str]:
 
 
 def _canonical_bytes_from_result(result_path: Path) -> int:
-    result = _accepted(
-        result_path,
-        "https://alis.world/schemas/world-compiler/compile-result-v1.json",
-    )
+    families = {name: f'https://alis.world/schemas/world-compiler/{family}-v1.json'
+                for name, family in (('compile', 'compile-result'), ('refine', 'refinement-result'))}
+    result = _accepted(result_path, tuple(families.values()))
+    _require(result.get('operation') in families and result.get('$schema') == families[result['operation']],
+             'evidence_schema_invalid', 'Canonical result schema and operation disagree')
     outputs = result["outputs"]
     _require(bool(outputs), "canonical_outputs_missing", "Canonical authority has no output inventory")
     return sum(
@@ -241,11 +243,11 @@ def _validate_saved_world_projections(record: dict[str, Any], map_package: str) 
         _require(receipt.get("schema") == "project-world-saved-projection:v1" and
             receipt.get("status") == "accepted" and receipt.get("map_package") == map_package,
             "saved_world_projection_invalid", "Saved World projection receipt is invalid", leg=leg)
-        for name, generator, version in (("map", "map", 1),
-                                         ("buildings", "project_building_massing", 2)):
+        for name, generator, version, comparison in (("map", "map", 1, 2),
+                                         ("buildings", "project_building_massing", 2, 1)):
             part = receipt.get(name)
             _require(isinstance(part, dict) and part.get("generator_id") == generator and
-                part.get("generator_version") == version and part.get("comparison_version") == 1 and
+                part.get("generator_version") == version and part.get("comparison_version") == comparison and
                 isinstance(part.get("projection_json"), str) and
                 hashlib.sha256(part["projection_json"].encode("utf-8")).hexdigest() == part.get("sha256"),
                 "saved_world_projection_invalid", "Saved World producer projection is unauthenticated",

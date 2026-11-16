@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/ground-base-input-v1.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["$schema", "schema_version", "compiler_profile_path", "source_admission", "construction"],
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {"type": "string", "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.json$"}
+  },
+  "properties": {
+    "$schema": {"const": "https://alis.world/schemas/world-compiler/ground-base-input-v1.json"},
+    "schema_version": {"const": 1},
+    "compiler_profile_path": {"$ref": "#/$defs/path"},
+    "source_admission": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256", "byte_size"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"},
+        "byte_size": {"type": "integer", "minimum": 1, "maximum": 16000000}}
+    },
+    "construction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["grid", "evidence", "compiler_profile", "source_metadata"],
+      "properties": {
+        "grid": {"$ref": "https://alis.world/schemas/world-source/ground-grid-v1.json"},
+        "compiler_profile": {"$ref": "https://alis.world/schemas/world-compiler/compiler-profile-v1.json"},
+        "source_metadata": {
+          "type": "object", "additionalProperties": false,
+          "required": ["source_crs", "source_accuracy_m", "confidence"],
+          "properties": {"source_crs": {"type": "string", "pattern": "^EPSG:[0-9]+$"},
+            "source_accuracy_m": {"type": ["number", "null"], "minimum": 0},
+            "confidence": {"type": "string", "minLength": 1}}
+        },
+        "evidence": {
+          "type": "object", "additionalProperties": false,
+          "required": ["basis", "canonical_crs", "vertical_datum", "grid_content_sha256", "source_sha256", "processing_sha256"],
+          "properties": {"basis": {"const": "raster_ground_model"},
+            "canonical_crs": {"type": "string", "pattern": "^EPSG:[0-9]+$"},
+            "vertical_datum": {"const": "EPSG:3855"},
+            "grid_content_sha256": {"$ref": "#/$defs/hash"}, "source_sha256": {"$ref": "#/$defs/hash"},
+            "processing_sha256": {"$ref": "#/$defs/hash"}}
+        },
+        "water_conditioning_limits": {"$ref": "https://alis.world/schemas/world-compiler/compiler-profile-v1.json#/properties/terrain_surface/properties/water_conditioning_limits"}
+      }
+    }
+  }
+}

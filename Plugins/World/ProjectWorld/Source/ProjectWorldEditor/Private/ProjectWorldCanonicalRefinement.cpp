@@ -60,7 +60,8 @@ namespace ProjectWorldCanonicalRefinement
 
 	bool Parse(const TSharedPtr<FJsonObject>& Object, const FString& Grid, const FString& Cell,
 		FProjectWorldCanonicalTerrain& Terrain, FProjectWorldCanonicalValidation& Validation,
-		const ProjectWorldAuthoredTerrainParsing::FRetainedInputs& AuthoredInputs,TSet<FString>& UsedAuthoredInputs)
+		const ProjectWorldAuthoredTerrainParsing::FRetainedInputs& AuthoredInputs,TSet<FString>& UsedAuthoredInputs,
+		ProjectWorldShoreTransitionParsing::FInputs& ShoreInputs)
 	{
 		if (!Object.IsValid()) return true;
 		const TSharedPtr<FJsonObject>* Base = nullptr;
@@ -82,6 +83,7 @@ namespace ProjectWorldCanonicalRefinement
 			if (!Object->TryGetStringField(TEXT("construction"),Construction) ||
 				!(Construction==TEXT("authored_dry_terrain_v1") ?
 					ProjectWorldAuthoredTerrainParsing::ReadTerrain(Object,Grid,AuthoredInputs) :
+					Construction==TEXT("inferred_east_bank_v1") ? ProjectWorldShoreTransitionParsing::ReadTerrain(Object,Grid,Cell,ShoreInputs) :
 					ProjectWorldIdentifiedBasinParsing::ReadTerrain(Object,Terrain)))
 				return Reject(Validation,TEXT("Terrain construction metadata is malformed, unbound or unsupported."));
 			if (Construction==TEXT("authored_dry_terrain_v1")) UsedAuthoredInputs.Add((*Consumed)->GetStringField(TEXT("authored_input_sha256")));
@@ -186,7 +188,8 @@ namespace ProjectWorldCanonicalRefinement
 				return Reject(Validation, TEXT("Refinement has missing quad coverage."));
 			Terrain.RefinedQuads.Add(MoveTemp(Quad));
 		}
-		return true;
+		return ProjectWorldShoreTransitionParsing::ValidateEncoded(Object,Terrain) ||
+			Reject(Validation,TEXT("The encoded shore triangles violate their declared grade or capacity."));
 	}
 
 	bool ValidateSeams(const FProjectWorldCanonicalBundle& Bundle, FProjectWorldCanonicalValidation& Validation)

@@ -13,6 +13,24 @@ CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
 
 
+def with_diagnostics(plan):
+    """Keep product poses and add native diagnostic views with identical framing."""
+    views = []
+    names = set()
+    for original in plan["vantages"]:
+        if original.get("render_mode", "lit") != "lit":
+            raise ValueError("Diagnostic expansion requires a normal lit input plan")
+        for mode in ("lit", "base_color", "lighting_only", "world_normal"):
+            view = dict(original, render_mode=mode)
+            if mode != "lit":
+                view["name"] = original["name"] + "__" + mode
+            if view["name"] in names:
+                raise ValueError("Diagnostic expansion produces a duplicate view name")
+            names.add(view["name"])
+            views.append(view)
+    return dict(plan, vantages=views)
+
+
 def altitude_for(span_world_x, span_world_y):
     """Altitude at which BOTH world spans fit the captured frame.
 
@@ -29,7 +47,7 @@ def altitude_for(span_world_x, span_world_y):
     return max(span_world_y / 2.0 / math.tan(half_h),
                span_world_x / 2.0 / math.tan(half_v))
 
-def main(desc_path, out_path):
+def main(desc_path, out_path, diagnostics=False):
     rows = parse(desc_path)
     terr = with_role(rows, TERRAIN_ROLE)
     water = with_role(rows, WATER_ROLE)
@@ -88,13 +106,22 @@ def main(desc_path, out_path):
                     total_descs=len(rows)),
         required_overview_altitude_uu=altitude_for(X1-X0, Y1-Y0),
         vantages=V)
-    json.dump(doc, open(out_path,"w"), indent=2)
+    if diagnostics:
+        doc = with_diagnostics(doc)
+    with open(out_path, "w", encoding="utf-8") as handle:
+        json.dump(doc, handle, indent=2)
     print(f"territory {span/100:.0f} m span, relief {(Zmax-Zmin)/100:.1f} m")
     print(f"terrain={len(terr)} water={len(water)} descs={len(rows)}")
-    print(f"vantages={len(V)} -> {out_path}")
-    for v in V:
+    print(f"vantages={len(doc['vantages'])} -> {out_path}")
+    for v in doc["vantages"]:
         print(f"  {v['name']:26s} ({v['x']:>9},{v['y']:>9},{v['z']:>8}) p={v['pitch']:>4} y={v['yaw']:>5}  {v['note']}")
     return 0
 
 if __name__=="__main__":
-    sys.exit(main(sys.argv[1],sys.argv[2]))
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("dump_path")
+    parser.add_argument("out_path")
+    parser.add_argument("--diagnostics", action="store_true")
+    arguments = parser.parse_args()
+    sys.exit(main(arguments.dump_path, arguments.out_path, arguments.diagnostics))

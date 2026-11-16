@@ -64,6 +64,7 @@ namespace ProjectWorldBuildingMassingVerifyTest
 		FProjectWorldCanonicalCell Result;
 		Result.CellId = Id;
 		Result.Bounds = FVector4d(MinimumX, 0.0, MaximumX, 100.0);
+		Result.Terrain.bHasVerticalSourceAccuracy = true;
 		Result.Terrain.ArtifactHash = FString::ChrN(64, Hash);
 		Result.Terrain.Bounds = Result.Bounds;
 		Result.Terrain.SampleSpacing = FVector2D(100.0, 100.0);

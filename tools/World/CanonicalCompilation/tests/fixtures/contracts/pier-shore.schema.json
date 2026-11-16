@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Captured bounded bank regression inputs",
+  "type": "object",
+  "required": ["$schema", "provenance", "cell", "water", "parameters"],
+  "properties": {
+    "$schema": {"const": "contracts/pier-shore.schema.json"},
+    "provenance": {"type": "object", "required": ["basis", "source_result_sha256", "window_original_quad_offset"]},
+    "cell": {"type": "object", "required": ["grid_id", "cell_id", "bounds", "core_samples", "water_fit"]},
+    "water": {"type": "object", "required": ["feature_id", "geometry", "attributes", "feature_class"]},
+    "parameters": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "number"}}
+  },
+  "additionalProperties": false
+}

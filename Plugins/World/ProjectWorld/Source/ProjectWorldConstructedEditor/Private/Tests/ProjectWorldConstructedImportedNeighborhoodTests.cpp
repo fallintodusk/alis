@@ -20,9 +20,16 @@
 #include "StaticMeshResources.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedImportedNeighborhoodTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedImportedNeighborhoodTest,
 	"Project.World.Realization.Constructed.ImportedNeighborhood",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+void FProjectWorldConstructedImportedNeighborhoodTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    FString Value; const TCHAR* Command=FCommandLine::Get();
+    if (FParse::Value(Command,TEXT("ProjectWorldConstructedImport="),Value) || FParse::Value(Command,TEXT("ProjectWorldConstructedImportHash="),Value) ||
+        FParse::Param(Command,TEXT("ProjectWorldConstructedImport")) || FParse::Param(Command,TEXT("ProjectWorldConstructedImportHash")))
+    {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedImportedNeighborhoodTest::RunTest(const FString&)
 {
 	FString Input,Hash,Actual,Error;

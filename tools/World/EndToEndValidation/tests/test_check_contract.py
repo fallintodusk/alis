@@ -19,17 +19,55 @@ from World.EndToEndValidation.tests import proof_input_fixture as proof_fixture
 
 
 class CommonCheckContractTests(unittest.TestCase):
+    def test_compiled_process_owner_changes_invalidate_common_evidence(self) -> None:
+        parent = REPO_ROOT / 'tmp/world/check_contract_test/process-owner'
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent) as directory:
+            root = Path(directory)
+            proof_fixture.write_producers(root)
+            proof_fixture.write_target_export(root)
+            relative = 'scripts/ue/test/lib/owned_test_process.cs'
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('class OwnedProcess {}\n')
+            self._assert_change_stales_receipt(root, relative)
+
     def test_target_export_precedes_first_contract_hash(self) -> None:
         calls: list[str] = []
         with mock.patch.object(checks, "_powershell", return_value="powershell"), \
              mock.patch.object(checks, "_run", side_effect=lambda name, *_: calls.append(name)), \
+             mock.patch.object(checks, "_preflight_verify_revisions", side_effect=lambda: calls.append("verify_revisions")), \
              mock.patch.object(checks, "common_contract_hash", side_effect=lambda: calls.append("hash") or "same"), \
              mock.patch.object(checks, "read_json", return_value={}), \
              mock.patch.object(checks, "validate_against"), \
              mock.patch.object(checks, "tree_size", return_value=0), \
              mock.patch.object(checks, "_run_test_suites", return_value=[]):
             checks.execute_checks(REPO_ROOT / "tmp/world/check_contract_test", REPO_ROOT / "unused.json")
-        self.assertEqual(calls[:2], ["export_editor_target", "hash"])
+        self.assertEqual(calls[:3], ["export_editor_target", "verify_revisions", "hash"])
+
+    def test_declared_and_embedded_verify_revision_drift_refuse_before_suites(self) -> None:
+        parent=REPO_ROOT/'tmp/world/verify_revision_tests';parent.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent) as temporary:
+            root=Path(temporary);proof_fixture.write_producers(root)
+            descriptors=checks.load_producer_descriptors(root)
+            for item in descriptors:
+                document=json.loads((root/item.path).read_text())
+                identity=({'pipeline_revision':document['pipeline_revision'],
+                           'embedded':['project_water_mesh:v1|1|1']} if item.is_pipeline else
+                          {'producer_id':item.label,'output_revision':document['output_revision']})
+                baseline=json.loads((root/item.baseline_path).read_text())
+                baseline['identity']=identity
+                (root/item.baseline_path).write_text(json.dumps(baseline))
+            checks._preflight_verify_revisions(root)
+            for identifier in ('map','project_water_mesh'):
+                item=next(row for row in descriptors if row.generator_id==identifier)
+                path=root/item.path;document=json.loads(path.read_text());document['output_revision']=2
+                path.write_text(json.dumps(document))
+                with self.assertRaises(ValidationFailure) as error:
+                    checks._preflight_verify_revisions(root)
+                self.assertEqual('verify_baseline_revision_stale',error.exception.code)
+                if identifier=='project_water_mesh':self.assertIn('embedded',str(error.exception.details))
+                document['output_revision']=1;path.write_text(json.dumps(document))
 
     def test_twin_verify_is_a_required_common_suite(self) -> None:
         commands: dict[str, list[str]] = {}
@@ -37,6 +75,13 @@ class CommonCheckContractTests(unittest.TestCase):
             checks._run_test_suites(REPO_ROOT / "tmp/world/check_contract_test", "powershell")
         self.assertIn("twin_realization", checks.REQUIRED_TEST_SUITE_NAMES)
         self.assertIn("verify_twin_realization.ps1", commands["test_twin_realization"][-1])
+        self.assertEqual(["-t", "tools"], commands["test_canonical_compilation"][-2:])
+        self.assertEqual(["-t", "tools"], commands["test_source_ingestion"][-2:])
+        self.assertLess(list(commands).index("test_world_architecture"), list(commands).index("test_canonical_compilation"))
+        native = commands["test_unreal_realization"]
+        self.assertIn("verify_native_realization.ps1", native[-3])
+        self.assertEqual("-EvidenceDirectory", native[-2])
+        self.assertTrue(Path(native[-1]).is_relative_to(REPO_ROOT / "tmp"))
 
     def test_no_gate_passes_verify_record_mode(self) -> None:
         gate_files = [
@@ -164,6 +209,7 @@ class CommonCheckContractTests(unittest.TestCase):
                 "Plugins/Resources/ProjectObject/Source/ProjectObject/Private/ObjectSpawnServiceImpl.cpp",
                 "Plugins/Gameplay/ProjectObjectCapabilities/Source/ProjectObjectCapabilities/Public/Pickup.h",
                 "Plugins/Foundation/ProjectCore/Source/ProjectCore/Public/ProjectSha256.h",
+                "Plugins/World/ProjectBuildingAssembly/Source/ProjectBuildingAssemblyEditor/Private/ProjectBuildingAssemblyRealization.cpp",
             )
             for relative in paths:
                 if not (root / relative).exists():

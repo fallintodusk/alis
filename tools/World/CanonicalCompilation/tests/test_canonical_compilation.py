@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+import jsonschema
 from copy import deepcopy
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
@@ -810,7 +811,9 @@ class CanonicalCompilationTests(unittest.TestCase):
             with self.subTest(path=path):
                 value = json.loads(path.read_text(encoding="utf-8"))
                 self.assertIn("$schema", value)
-                if path.parent.name != "contracts":
+                if value["$schema"] == "https://json-schema.org/draft/2020-12/schema":
+                    jsonschema.Draft202012Validator.check_schema(value)
+                else:
                     validate_document(value, path)
 
 

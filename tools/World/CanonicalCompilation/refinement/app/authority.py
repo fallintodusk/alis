@@ -63,8 +63,12 @@ def _archive_result(bundle, name, digest, count):
             document = _validate_payload(payload, entry['path'])
             if role == 'basin' and document.get('$schema') != 'https://alis.world/schemas/world-compiler/identified-basin-input-v1.json':
                 _refuse('Retained basin input differs from its declared role')
+            if role == 'ground' and document.get('$schema') != 'https://alis.world/schemas/world-compiler/ground-base-input-v1.json':
+                _refuse('Retained Ground input differs from its declared role')
             if role == 'authored' and document.get('$schema') != 'https://alis.world/schemas/world-compiler/authored-overlay-v2.json':
                 _refuse('Retained authored input differs from its declared role')
+            if role == 'shore' and document.get('$schema') != 'https://alis.world/schemas/world-compiler/shore-transition-input-v1.json':
+                _refuse('Retained shore input differs from its declared role')
     return result
 
 
@@ -138,7 +142,7 @@ def validate_selection_bundle(authority: dict, root: Path) -> None:
             if authored_only and path.startswith('canonical/features/') and child.read(path) != base.read(path):
                 _refuse('Authored-only refinement changed an original feature artifact')
             permitted = path == 'canonical/coverage.json' or path.startswith(('canonical/features/', 'canonical/cells/'))
-            if not permitted and child.read(path) != base.read(path):
+            if not permitted and path not in terrain_paths and child.read(path) != base.read(path):
                 _refuse('Surface refinement changed an unrelated base artifact')
         report = _validate_payload(child.read('reports/refinement.json'), 'reports/refinement.json')
         if report['inputs_hash'] != result['inputs_hash'] or report['base_result_sha256'] != result['base_result_sha256']:
@@ -157,6 +161,34 @@ def _declared_terrain(base, child, request):
     child_paths = set(child.namelist())
     declared = {}
     for operation in request['operations']:
+        if operation['kind'] == 'qualified_ground_base':
+            kinds = [op['kind'] for op in request['operations']]
+            if (kinds.count('qualified_ground_base')!=1 or len(kinds)>1 and
+                    (kinds.count('inferred_shore_transition')!=1 or
+                    set(kinds)-{'qualified_ground_base','inferred_shore_transition','constructed_surface_import'})):
+                _refuse('Ground base cannot hide an unsupported dependent operation')
+            for key, entry in cells.items():
+                manifest = json.loads(base.read(entry['path']))
+                relative = manifest['terrain_artifact']['path']
+                if not relative.startswith('canonical/terrain/') or relative not in child_paths:
+                    _refuse('Ground base omits original regular-grid Terrain ownership')
+                original = _validate_payload(base.read(relative), relative)
+                payload = _validate_payload(child.read(relative), relative)
+                for field in ('$schema', 'schema_version', 'grid_id', 'cell_id', 'bounds', 'sample_spacing', 'height_quantization'):
+                    if payload.get(field) != original.get(field):
+                        _refuse('Ground base changed immutable regular-grid identity or XY')
+                if (len(payload['core_samples']) != len(original['core_samples']) or
+                        any(len(row) != len(old) for row, old in zip(payload['core_samples'], original['core_samples'], strict=True))):
+                    _refuse('Ground base changed regular-grid topology')
+                current = _validate_payload(child.read(entry['path']), entry['path'])
+                if current['terrain_lineage'].get('kind') != 'qualified_ground_base':
+                    _refuse('Ground base lost its explicit effective source lineage')
+                declared[relative] = key
+            continue
+        if operation['kind'] == 'inferred_shore_transition':
+            from .shore_transition import declared_terrain
+            declared.update(declared_terrain(base,child,request,operation,coverage,cells))
+            continue
         if operation['kind'] == 'authored_dry_terrain':
             from .authored_terrain import CONSTRUCTION, POLICY, cell_quads, domain_identity, selection
             document = _validate_payload(child.read(operation['input']['path']), operation['input']['path'])
@@ -225,7 +257,7 @@ def _replay_result(repo, base_result_path, result_path, output_root):
     _current_request(repo, request)
     operations = []
     for operation in request['operations']:
-        if operation['kind'] in ('identified_basin', 'authored_dry_terrain'):
+        if operation['kind'] in ('identified_basin', 'authored_dry_terrain', 'qualified_ground_base', 'inferred_shore_transition'):
             descriptor = {**operation['input'], 'path': resolve_owned_path(result_path.parent, operation['input']['path']).relative_to(repo).as_posix()}
             operations.append({'kind': operation['kind'], 'feature_ids': operation['feature_ids'], 'input': descriptor})
         elif operation['kind'] == 'constructed_surface_import':

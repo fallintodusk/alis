@@ -3,7 +3,9 @@
 | Path | Responsibility |
 |---|---|
 | [terrain-refinement.schema.json](terrain-refinement.schema.json) | Sparse replacement surface |
+| [shore-transition-input.schema.json](shore-transition-input.schema.json) | Closed inferred bank input, consumed identities, limits and metrics |
 | [authored-dry-terrain.schema.json](authored-dry-terrain.schema.json) | Closed authored dry-surface input/domain binding, rule and measured node changes |
+| [ground-base-input.schema.json](ground-base-input.schema.json) | Qualified coherent Ground, unchanged compiler profile and explicit candidate conditioning parameters |
 | [Identified basin](identified_basin/README.md) | Retained joint model input |
 | [civil-grade-reference.schema.json](civil-grade-reference.schema.json) | Immutable grid support for declared civil-grade preservation |
 | [road-elevation.schema.json](road-elevation.schema.json) | Disposable affine Road elevation field |

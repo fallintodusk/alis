@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "ProjectWorldMeshTerrainAuditCommandlet.h"
+#include "ProjectWorldMeshTerrainAuditSurfaces.h"
 #include "ProjectWorldRealizeCommandlet.h"
 #include "ProjectWorldRealizationEvidence.h"
 
@@ -42,15 +43,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogProjectWorldMeshTerrainAudit, Log, All);
 
 namespace
 {
+	using namespace ProjectWorldMeshTerrainAuditSurfaces;
 	constexpr double FallbackSurfaceToleranceCentimeters = 5.0;
-
-	struct FSurfaceProbe
-	{
-		FString Actor;
-		FBoxSphereBounds Bounds;
-		TArray<FVector> Vertices;
-		TArray<FIntVector> Triangles;
-	};
 
 	struct FHeightProbeResult
 	{
@@ -228,39 +222,6 @@ namespace
 		return false;
 	}
 
-	bool BuildSurfaceProbe(
-		const AActor* Section,
-		const UStaticMeshComponent* Component,
-		FSurfaceProbe& OutProbe, bool bIncludeTriangles)
-	{
-		const UStaticMesh* Mesh = Component != nullptr ? Component->GetStaticMesh() : nullptr;
-		const FStaticMeshRenderData* RenderData = Mesh != nullptr ? Mesh->GetRenderData() : nullptr;
-		if (RenderData == nullptr || RenderData->LODResources.IsEmpty())
-		{
-			return false;
-		}
-		const FPositionVertexBuffer& Positions =
-			RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer;
-		if (Positions.GetNumVertices() == 0)
-		{
-			return false;
-		}
-		OutProbe.Actor = Section->GetPathName();
-		OutProbe.Bounds = Component->Bounds;
-		OutProbe.Vertices.Reserve(Positions.GetNumVertices());
-		for (uint32 Index = 0; Index < Positions.GetNumVertices(); ++Index)
-		{
-			OutProbe.Vertices.Add(Component->GetComponentTransform().TransformPosition(
-				FVector(Positions.VertexPosition(Index))));
-		}
-		if (bIncludeTriangles)
-		{
-			const auto Indices = RenderData->LODResources[0].IndexBuffer.GetArrayView();
-			for (int32 I=0; I+2<Indices.Num(); I+=3) OutProbe.Triangles.Add(FIntVector(Indices[I],Indices[I+1],Indices[I+2]));
-		}
-		return true;
-	}
-
 	double DirectedSurfaceError(const TArray<FVector>& From, const TArray<FVector>& To)
 	{
 		double MaximumDistanceSquared = 0.0;
@@ -385,7 +346,7 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 		const int32 ChannelTableBytes = ReadArrayCount(Section, TEXT("ChannelTable"));
 		const bool bHasChannelTable = ChannelTableBytes > 0;
 		const int32 CollisionComponents = ReadArrayCount(Section, TEXT("CollisionComponents"));
-		TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents(Section);
+		const auto StaticMeshComponents = VisualComponents(*Section);
 		TArray<UStaticMesh*> StaticMeshes;
 		for (const UStaticMeshComponent* Component : StaticMeshComponents)
 		{
@@ -493,20 +454,9 @@ int32 UProjectWorldMeshTerrainAuditCommandlet::Main(const FString& Params)
 	const FHeightProbeResult FallbackHeight = CompareCanonicalHeights(
 		Bundle, FallbackSurfaces, HeightToleranceCentimeters);
 	FProjectWorldMeshTerrainSurfaceFidelity RefinedNanite, RefinedFallback;
-	const auto CompareRefined = [&](const TArray<FSurfaceProbe>& Surfaces, FProjectWorldMeshTerrainSurfaceFidelity& Result)
-	{
-		TArray<FProjectWorldSurfaceTriangle> Faces;
-		for (const auto& Surface : Surfaces) for (const auto& Triangle : Surface.Triangles)
-		{
-			if (!Surface.Vertices.IsValidIndex(Triangle.X) || !Surface.Vertices.IsValidIndex(Triangle.Y) || !Surface.Vertices.IsValidIndex(Triangle.Z)) return false;
-			Faces.Add(FProjectWorldSurfaceTriangle{{FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,Surface.Vertices[Triangle.X]),
-				FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,Surface.Vertices[Triangle.Y]),
-				FProjectWorldCanonicalLoader::UnrealToCanonical(Bundle,Surface.Vertices[Triangle.Z])}});
-		}
-		return ProjectWorldMeshTerrainProducer::CompareRefinedSurface(Bundle,Faces,HeightToleranceCentimeters*0.01,Result,Error);
-	};
-	if (bHasRefinements && (!CompareRefined(NaniteSurfaces,RefinedNanite) || !CompareRefined(FallbackSurfaces,RefinedFallback)))
-		Failures.Add(TEXT("Compiled refinement fidelity failed: ") + Error);
+	if (bHasRefinements)
+		CompareRefinements(Bundle,NaniteSurfaces,FallbackSurfaces,HeightToleranceCentimeters*0.01,
+			RefinedNanite,RefinedFallback,Failures);
 	if (NaniteHeight.MismatchedSamples > 0 ||
 		NaniteHeight.MatchedSamples != NaniteHeight.ExpectedSamples)
 	{

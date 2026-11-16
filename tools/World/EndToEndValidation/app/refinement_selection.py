@@ -18,6 +18,8 @@ def _refuse(message, **details):
 
 
 def _candidate(repo, settings, baseline, path):
+    if 'selected_refinement' in baseline:
+        _refuse('Replacing an already selected child requires an explicit child-transition contract')
     path = path.resolve()
     scratch = (repo / 'tmp').resolve()
     if not path.is_relative_to(scratch) or not path.is_file():
@@ -75,9 +77,16 @@ def _check_base_pins(repo, baseline):
             _refuse('Immutable authority or geographic input changed during candidate admission', path=relative)
     for record in baseline['profiles'].values():
         active = repo / record['active_path']
-        archive = (active.parent / read_json(active)['bundle']['path']).resolve()
+        authority = read_json(active)
+        archive = (active.parent / authority['bundle']['path']).resolve()
         if not archive.is_relative_to(active.parent.resolve()) or not archive.is_file() or file_hash(archive) != record['bundle_sha256']:
             _refuse('Immutable base bundle changed during candidate admission')
+        if 'selected_refinement' in record:
+            child = authority['selected_refinement']['bundle']
+            archive = (active.parent / child['path']).resolve()
+            if (not archive.is_relative_to(active.parent.resolve()) or not archive.is_file() or
+                    file_hash(archive) != record['selected_refinement']['bundle_sha256']):
+                _refuse('Carried refinement bundle changed during candidate admission')
     if consumer_identity() != baseline['current_consumer_implementation_sha256']:
         _refuse('Candidate reader implementation changed during input admission')
 

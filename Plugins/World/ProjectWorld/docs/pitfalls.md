@@ -5,6 +5,26 @@ the area; add an entry after fixing a non-trivial bug.
 
 Format: Symptom / Root cause / Fix / File / Regression test.
 
+## Buried Terrain must not enlarge a deck's Hero contact tolerance
+
+**Symptom.** A Hero contact checker can allow a large foot gap above a flat deck
+when the Terrain beneath it is steep.
+
+**Root cause.** Combining local slopes from both physical layers lets hidden
+Ground inflate the capsule envelope for a structural floor.
+
+**Fix.** Verify the actual CMC floor impact against authenticated top support,
+then derive the capsule envelope from that declared floor's layer. Retain local
+neighboring faces for triangle junctions and the native floor-distance margin.
+
+**File.** [Regional support oracle](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainRegionalSupport.cpp)
+and [Hero contact checker](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainRegionalGameplayTests.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CanonicalRegionSupport`
+rejects a 10 cm gap over a flat deck above 30 m/m buried Ground and retains the
+captured Kazan junction control. The saved-scene gameplay adapter exercises actual
+Ground/deck transitions with the configured Hero.
+
 ## Runtime presentation must make the Sun movable before rotating it
 
 **Symptom.** Presentation reports the selected profile, but an initialized Game
@@ -22,6 +42,27 @@ when verifying runtime presentation.
 **Regression test.** `Project.World.Realization.Presentation.GameRotation`
 initializes actors before applying the real profile and compares actual rotation
 and intensity. The regional PIE observer also reads back Sun/exposure settings.
+
+## Restoring collision mode alone can change the component profile
+
+**Symptom.** A structural actor's numeric collision mode is restored after a
+temporary physics probe, but the registered owner refuses its `Custom` profile.
+
+**Root cause.** Changing collision enablement can discard the original profile
+identity. Restoring only the enabled mode does not restore the complete owned
+component configuration.
+
+**Fix.** Capture the admitted profile and mode after scope/ownership preflight,
+then restore both. Refused preflight performs no collision writes. Keep the
+registered owner's profile check and verify restored physical support.
+
+**File.** [Regional collision scope](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainRegionDomain.cpp).
+
+**Regression test.** `Project.World.Realization.MeshTerrain.CanonicalRegionSelection`
+demonstrates profile loss on an actual component and checks complete restoration.
+The two-cell `CanonicalRegion` case checks the restored structures through saved
+replay and own-component collision probes. The [regional test guide](../../ProjectWorldMeshTerrain/Tests/README.md)
+owns the exact fast/native commands and their proof limits.
 
 ## Distant Water footprints dominate dependency selection
 
@@ -490,11 +531,16 @@ that GUID, so equivalent rebuilds can produce different persistent paths.
 It is not a streamable world actor and therefore must not claim an external
 actor package path. The helper is separate from route probing because package
 ownership is a persistence concern.
+Full Apply must let the validated sole stock persistent actor reach that helper;
+rejecting its external flag earlier prevents the intended normalization. Remove
+the old external package through the existing owner and prove save/reload plus
+refusal of conflicting agents without mutation.
 
 **File.** `Source/ProjectWorldEditor/Private/ProjectWorldRuntimeNavigation.cpp`.
 
 **Regression test.**
-`Project.World.Realization.Runtime.NavigationDataOwnership`, plus the Matrix
+`Project.World.Realization.Runtime.NavigationDataOwnership` and
+`Project.World.Realization.Runtime.ExternalNavigationReconciliation`, plus the Matrix
 generated-package path-stability gate.
 
 ---
@@ -1588,10 +1634,26 @@ the realization process exposed.
 **Fix.** `realize_canonical_world.ps1` starts the realization commandlet with
 `-NoAssetRegistryCache`, so every leg discovers the current on-disk packages.
 
+**Same-process saved replay.** An earlier scan in the current process can also
+predate newly saved external actor files. The files exist and authenticate, but
+fresh map loading omits their actors from discovery. Authenticate every live
+actor's saved package, then force a synchronous rescan of that bounded file
+inventory before loading the map. Keep the exact actor census; reducing it hides
+the defect. This refresh handles the same-process case and does not replace the
+separate-process startup flag above.
+
+The [saved regional replay](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainStorageReplay.cpp)
+uses the existing native rescan route. The [regional test guide](../../ProjectWorldMeshTerrain/Tests/README.md)
+owns preparation and loading procedures.
+
 **Regression test.** The canonical-authority Kazan Matrix starts with the map
 and layer packages isolated, runs a full first Apply, both saved projections,
 and an unchanged second Apply with zero actor and mesh writes. Its outer
 transaction restores the original generated tree byte for byte.
+The two-cell constructed-input case of
+`Project.World.Realization.MeshTerrain.CanonicalRegion` saves late structural
+actors and requires their complete authenticated inventory on fresh reload,
+alongside unchanged Terrain/Water fields and actual collision.
 
 ---
 
@@ -2224,6 +2286,12 @@ unregister before changing agent keys, require actual native registration and
 rematched tiers, then invalidate the generated field. Preserve strict generic
 resolution and refuse conflicting or inconsistent ownership. Native LoadMap can
 retire failed-registration data, so verify serialized transitions separately.
+Map loading can also create native default data before reconciliation. A small
+default tile size over a regional domain can exhaust the hard tile limit during
+load, even if later reconciliation succeeds. Use a scoped product-load default
+before loading, restore it on every return, and retain strict post-load checks.
+This leaves ordinary maps and project configuration untouched. See Epic's
+[native navigation settings](https://dev.epicgames.com/documentation/unreal-engine/navigation-mesh-settings-in-the-unreal-engine-project-settings).
 
 **Files.** `ProjectWorldRuntimeNavigation.cpp`,
 `ProjectWorldRuntimeRealization.cpp` and `ProjectWorldRuntimeProfileTests.cpp`.
@@ -2232,6 +2300,9 @@ retire failed-registration data, so verify serialized transitions separately.
 covers stale unregistered agent and vertical-resolution repair, lawful larger
 tiles, clean no-op behavior, actual support removal/restoration and conflicting
 native actor refusal.
+`Project.World.Realization.Runtime.TerritoryLoadDefaults` covers actual native
+creation during save/reload, restoration after failed/successful callbacks,
+preserved larger legal defaults and invalid-default refusal before loading.
 
 ## 67. JSON conversion and output hashes do not establish a typed source handoff
 
@@ -2338,3 +2409,198 @@ the captured source face and stored neighborhood, equivalent reversed-both input
 actual-only winding refusal, an interior hole, distinct overlap and missing,
 duplicated and height-shifted controls. `SectionStorageSplit` exercises
 the complete permanent fixture through actual saved/reloaded sections.
+
+## 72. Regional Ground crosses a structural field budget
+
+**Symptom.** Hero verification refuses a fully authenticated refined Terrain
+before movement with a bounded constructed-field error.
+
+**Root cause.** The support oracle applies one structure's 4,096-face limit to
+the combined Terrain of multiple complete cells. A legal sparse refinement can
+cross that aggregate count without violating any original quad's capacity.
+
+**Fix.** Shared finite-field math belongs to `ProjectWorldTerrainSurface` with
+an explicit caller capacity. Regional Ground derives its exact census from
+authenticated grid topology and refined replacements; saved missing/extra faces
+refuse. Constructed wrappers retain their independent 4,096-face limit.
+
+**File.** [Regional support](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainRegionalSupport.cpp)
+and [field geometry](../Source/ProjectWorldEditor/Private/ProjectWorldTerrainSurface.cpp).
+
+**Regression.** `Project.World.Realization.MeshTerrain.RegionalGroundCapacity`
+uses two complete cells and a legal 512-face refined quad, totaling 4,354 faces.
+It checks sampling, missing-face refusal and the unchanged structural cap.
+
+## 73. Parameterized observers enter ordinary regression discovery
+
+**Symptom.** Common Check fails a saved-scene observer for missing CLI inputs
+even though no saved scene was selected.
+
+**Root cause.** Unconditional SIMPLE registration places an input-dependent
+observer in a broad ordinary regression suite.
+
+**Fix.** Saved-region View/Hero observers use opt-in COMPLEX registration when
+their input or hash option is declared. RunTest retains strict pin, role and
+malformed-input refusal. Default discovery excludes an unselected case; it does
+not report the case as passed.
+
+**File.** [Regional view](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainRegionalViewTests.cpp)
+and [Hero observer](../../ProjectWorldMeshTerrain/Source/ProjectWorldMeshTerrainEditor/Private/Tests/ProjectWorldMeshTerrainRegionalGameplayTests.cpp).
+
+**Regression.** Default `CanonicalRegion` discovery contains only its permanent
+Selection/Support cases without observer inputs. Fully pinned View/Hero runs and
+explicit invalid-input runs independently exercise opt-in and refusal.
+
+The same registration rule applies to explicitly supplied canonical Basin,
+Constructed, civil-grade and project-pawn diagnostic fixtures. Their RunTest
+validation remains strict. Permanent saved-reload tests remain unconditional;
+the [World cold host](../../../../scripts/ue/world/test/integration/verify_native_realization.ps1)
+supplies their scratch INI, Entry map and queue-only exit envelope.
+The fixed host's process deadline includes cold engine startup and the complete
+saved-reload suite. Budget the aggregate run; retain the safe runner's owned-job
+timeout cleanup and require every selected test to complete successfully.
+
+## 74. Final Matrix reader requires an obsolete projection revision
+
+**Symptom.** Native saved-world projections pass, but final Matrix validation
+rejects an authenticated Map projection after both cities have completed.
+
+**Root cause.** The reader assumes one comparison revision for Map and Buildings.
+Their native contracts differ: Map generator 1 uses comparison 2, while Building
+massing generator 2 uses comparison 1. Old synthetic receipts hide this mismatch.
+
+**Fix.** Require each producer's exact registered pair and preserve hash,
+record-count and clean-reconstruction checks. Keep completed execution evidence
+in final refusal receipts for cheap diagnosis; rejection still blocks admission.
+
+**File.** [Matrix validator](../../../../tools/World/EndToEndValidation/app/validation.py)
+and [result owner](../../../../tools/World/EndToEndValidation/app/cli.py).
+
+**Regression.** The existing saved-projection tests use the actual revisions,
+retain collision-drift and actor-allocation controls, and reject older/newer
+revisions. `test_matrix_failure_evidence.py` proves final refusal retains evidence
+without becoming an admissible accepted run.
+
+## 75. Full refresh retains obsolete mixed canonical lineage
+
+**Symptom.** Native full Apply succeeds, but publication rejects a changed map
+against compatibility evidence that pins its earlier carried map.
+
+**Root cause.** A selected child needs mixed base/effective lineage. Replacing
+the whole map and all consumers can make that binding obsolete; carrying it
+unconditionally still demands the old immutable map manifest.
+
+**Fix.** Retire only when an actual replacement map targets the admitted effective
+result and every surviving consumer has unified map inputs. An old owner cannot
+escape the check by detaching its map reference. Mixed and unrelated maps retain
+their proofs. Validate before writing candidate manifests or active authority.
+
+**Files/tests.** `scripts/ue/world/canonical_input_compatibility.ps1` and
+`canonical_refinement_operation.Tests.ps1`: unified refresh, unchanged effective
+owner reuse, incomplete/conflicting refresh refusal and other-map preservation.
+
+## 76. A new layer is absent from retained World authority
+
+**Symptom.** A fresh sandbox Matrix passes, while preparation of a retained
+world refuses an absent registered-layer manifest.
+
+**Root cause.** A full profile can declare a new owner without admitting that
+owner into an existing active set. Ordinary Apply intentionally refuses this;
+neither a sandbox pass nor a new producer declaration grants production authority.
+
+**Fix.** A restoring selected-child preparation qualifies temporary missing-layer
+enrollment through the existing canonical participant. It requires exact admitted
+base inputs, a live preparing owner, intact original backups and an already
+accepted map. Permanent enrollment remains separately protected.
+
+**Files/tests.** The generated-content canonical participant and World operator
+guard; `canonical_outer_recovery.Tests.ps1` proves temporary scope restoration and
+no-mutation refusals for invalid context, inputs, phase or backup bytes.
+
+## 77. Compiled Terrain audit counts the native virtual-texture copy
+
+**Symptom.** Ordinary saved height samples match, but every refined-cell triangle
+fails complete-field overlap checks. A regional primary-component proof passes.
+
+**Root cause.** Native `ACompiledSection::AddStaticMesh` registers a primary mesh
+component and an auxiliary virtual-texture component with the same geometry.
+The auxiliary component does not render in the main or depth pass. Enumerating
+all static-mesh components duplicates the field; a unique-mesh counter hides it.
+
+**Fix.** Read the native section's primary `GetMeshComponents()` inventory.
+Never deduplicate faces or mesh pointers to mask genuine repeated primary
+geometry. Compare both refined visual variants independently; short-circuiting
+after Nanite failure leaves fallback unmeasured.
+
+**Files/tests.** The Mesh Terrain audit and its private `AuditSurfaces` helper;
+`Project.World.Realization.MeshTerrain.AuditPrimarySurfaces` uses actual native
+component creation and rejects genuine duplicate primary instances sharing one
+mesh. The [adapter contract](../../ProjectWorldMeshTerrain/README.md#final-surface-realization-and-fidelity)
+owns the representation boundary and test route.
+
+## 78. Composed acceptance times out while descendants keep mutating
+
+**Symptom.** The selected target reports a host timeout, but a delegated worker
+continues publishing generated state and leaves outer recovery pending.
+
+**Root cause.** A per-stage subprocess deadline was applied to the entire composed
+operation. Windows process termination stops the immediate process, not its
+descendants. A rejected host result therefore did not establish quiescence.
+
+**Fix.** The selected target uses a distinct composed budget and the existing
+shared test Job owner, assigned before worker execution. Timeout, abnormal
+supervisor death and live descendants after root exit cannot leave accepted work
+running. Cleanup must be verified; pending restoration remains owned by
+generated-content recovery. Include the compiled Job helper in Common evidence.
+
+**Files/tests.** `app/owned_execution.py` in End-to-End Validation and the
+[shared process contract](../../../../scripts/ue/test/README.md).
+`test_owned_execution.py` exercises real root/child/grandchild deadlines, abrupt
+supervisor death, fast parent exit, an unrelated sentinel and retained output.
+`ProcessCompletion.Tests.ps1` covers cleanup refusal; `test_check_contract.py`
+proves a compiled process-owner edit invalidates prior Common evidence.
+
+## 79. Full-base acceptance requires a scoped-only receipt field
+
+**Symptom.** Complete native generation, consumers and restoration pass, but the
+final selected-target reader rejects the prepared base's layer coverage.
+
+**Root cause.** Full native Apply emits `layer_inventories`; only the scoped
+adapter adds `execution_layer_ids`. A synthetic fixture copied the scoped receipt
+into its full-base leg and concealed the mismatch.
+
+**Fix.** Compare exact, duplicate-free native layer/scope pairs against the pinned
+profile and same-map cold audit. Validate a scoped list when present, including
+its type. A dictionary with the right keys is not that list. Keep the original
+rejected receipt immutable when separately reinspecting completed native proof.
+
+**Files/tests.** End-to-End Validation's `app/refinement_target.py`,
+`tests/test_refinement_target.py` and `tests/test_completion.py`. Fixtures retain
+the real full-base shape; missing/duplicate/foreign scopes and malformed optional
+lists refuse. The [acceptance owner](../../../../tools/World/EndToEndValidation/README.md#immutable-artifact-consumer-acceptance)
+defines the saved-target boundary.
+
+## 80. Diagnostic capture modes can conceal the tested presentation
+
+**Symptom.** A clear unlit image is presented as normal player visibility, or
+normal/Base Color captures lose directions or become transparent PNGs.
+
+**Cause.** A diagnostic view is a different acceptance surface. Native GBuffer
+copies emit zero alpha, signed normals cannot survive an unsigned LDR target,
+and a SceneCapture does not run EditorViewportClient's neutral-material setup.
+Uniform normal buffers can also match across distinct cameras without being
+stale. Cold Editor captures do not populate ProjectTexture runtime outputs;
+an empty encoded normal texture can make level Ground shade as a vertical face.
+
+**Fix.** Pair unchanged product framing with explicitly labelled native
+diagnostics. Preserve signed normals in a float target before RGB encoding,
+make evidence alpha opaque, and scope the neutral view override to the capture.
+Never save a material or exposure override to obtain diagnostic evidence.
+Keep the identical-image rejection for normal product poses, and allow uniform
+diagnostic buffers. Prove procedural appearance with actual Ready runtime data;
+do not repair a cold Editor preview by modifying canonical Ground.
+
+**Files/tests.** `ProjectWorldEvidenceCapture.cpp`,
+`Project.World.VisualEvidence.RenderModeContract`, and Visual Verification's
+`test_verify_capture.py`. The [paired review procedure](../../../../tools/World/VisualVerification/README.md#paired-geometry-and-presentation-review)
+owns the rendering proof and the diagnostic-only/mismatched-pose refusal.

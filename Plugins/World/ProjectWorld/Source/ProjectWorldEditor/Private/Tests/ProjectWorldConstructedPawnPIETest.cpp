@@ -361,30 +361,56 @@ static bool RunPawnScene(FAutomationTestBase& Test,bool Neighborhood,bool Stream
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedPawnPIETest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedPawnPIETest,
 	"Project.World.Realization.Constructed.ProjectPawnLifecycle",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+void FProjectWorldConstructedPawnPIETest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    const bool Declared=!FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_INPUT")).IsEmpty() ||
+        !FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_SHA256")).IsEmpty();
+    const bool Configured=ProjectWorldConstructedRuntimeTest::ConfiguredPawnRequested();
+    if (Configured && !Declared) {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedPawnPIETest::RunTest(const FString&) { return RunPawnScene(*this,false); }
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(FProjectWorldConstructedPawnPIETest,
 	"Project.World.Realization.Constructed.ProjectPawnLifecycle", "[Slow][Integration][World]")
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedNeighborhoodPIETest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedNeighborhoodPIETest,
 	"Project.World.Realization.Constructed.NeighborhoodPawnPhysics",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+void FProjectWorldConstructedNeighborhoodPIETest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    const bool Declared=!FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_INPUT")).IsEmpty() ||
+        !FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_SHA256")).IsEmpty();
+    if (Declared) {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedNeighborhoodPIETest::RunTest(const FString&) { return RunPawnScene(*this,true); }
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(FProjectWorldConstructedNeighborhoodPIETest,
 	"Project.World.Realization.Constructed.NeighborhoodPawnPhysics", "[Slow][Integration][World]")
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedNeighborhoodNavigationTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedNeighborhoodNavigationTest,
 	"Project.World.Realization.Constructed.NeighborhoodPawnNavigation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+void FProjectWorldConstructedNeighborhoodNavigationTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    const bool Declared=!FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_INPUT")).IsEmpty() ||
+        !FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_SHA256")).IsEmpty();
+    if (Declared) {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedNeighborhoodNavigationTest::RunTest(const FString&) { return RunPawnScene(*this,true,false,true); }
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(FProjectWorldConstructedNeighborhoodNavigationTest,
 	"Project.World.Realization.Constructed.NeighborhoodPawnNavigation", "[Slow][Integration][World]")
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectWorldConstructedStreamingReturnTest,
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FProjectWorldConstructedStreamingReturnTest,
 	"Project.World.Realization.Constructed.StreamingReturn",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+void FProjectWorldConstructedStreamingReturnTest::GetTests(TArray<FString>& Names,TArray<FString>& Parameters) const
+{
+    const bool Declared=!FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_INPUT")).IsEmpty() ||
+        !FPlatformMisc::GetEnvironmentVariable(TEXT("PROJECT_WORLD_STRUCTURE_SHA256")).IsEmpty();
+    const bool Configured=ProjectWorldConstructedRuntimeTest::ConfiguredPawnRequested();
+    if (Configured || Declared) {Names.Add(TEXT(""));Parameters.Add(TEXT(""));}
+}
 bool FProjectWorldConstructedStreamingReturnTest::RunTest(const FString&) { return RunPawnScene(*this,false,true); }
 REGISTER_SIMPLE_AUTOMATION_TEST_TAGS(FProjectWorldConstructedStreamingReturnTest,
 	"Project.World.Realization.Constructed.StreamingReturn", "[Slow][Integration][World]")

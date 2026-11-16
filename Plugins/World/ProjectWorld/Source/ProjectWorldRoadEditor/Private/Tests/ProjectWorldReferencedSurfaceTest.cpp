@@ -29,6 +29,7 @@ namespace ProjectWorldReferencedSurfaceTest
 		B.CanonicalCrs = TEXT("EPSG:32618"); B.VerticalDatum = TEXT("EPSG:3855");
 		auto& Cell = B.Cells.AddDefaulted_GetRef();
 		Cell.CellId = TEXT("cell_0"); Cell.Bounds = Cell.Terrain.Bounds = FVector4d(0,0,20,20);
+		Cell.Terrain.bHasVerticalSourceAccuracy = true;
 		Cell.Terrain.SampleSpacing = FVector2D(10,10); Cell.Terrain.SamplesX = Cell.Terrain.SamplesY = 3;
 		Cell.Terrain.HeightsMeters.Init(0,9); Cell.Terrain.ArtifactHash = FString::ChrN(64,'a');
 		FProjectWorldCanonicalFeature Deck; Deck.FeatureId = TEXT("fixture:fixed-deck");

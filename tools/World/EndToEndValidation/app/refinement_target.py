@@ -7,11 +7,15 @@ import re
 from .acceptance import accepted_run_evidence
 from .checks import load_common_checks
 from .contracts import ValidationFailure, file_hash, load_profile, profile_path, read_json, validate_against, write_result
-from .execution import REPO_ROOT, _powershell, _run
+from .execution import REPO_ROOT, _powershell
+from .owned_execution import run as _run
 from .refinement_selection import validate_candidates
 
 
 MODE = 'refinement_selected'
+# This composes repeated authenticated preparations, failure recovery, publication,
+# native consumers and restoration; their individual deadlines remain unchanged.
+SELECTED_TARGET_TIMEOUT_SECONDS = 21600
 
 
 def _require(condition, message):
@@ -46,6 +50,9 @@ def verify_request(request_path: Path):
     validate_candidates(REPO_ROOT, profile, selection)
     _require(len(selection['candidates']) == 1, 'One selected-child target is accepted per operation')
     name, candidate = next(iter(selection['candidates'].items()))
+    if 'consumer_verification' in request:
+        from .consumer_verification import preflight
+        preflight(REPO_ROOT, request, profile, name)
     common = load_common_checks(check_path)
     baseline = accepted_run_evidence(request['base_run'], profile['profile_id'])
     evidence = baseline['document']['evidence']
@@ -67,7 +74,7 @@ def validate_transport(request_path: Path, transport_path: Path):
     report = read_json(transport_path)
     _require(report.get('status') == 'accepted' and report.get('request_sha256') == file_hash(request_path),
              'Selected target adapter did not accept this exact request')
-    for name in ('failure_recovery', 'saved_publication', 'cold_noop', 'restoration'):
+    for name in ('base_preparation', 'failure_recovery', 'saved_publication', 'cold_noop', 'restoration'):
         _require(report.get(name, {}).get('status') == 'accepted', f'Target lacks accepted {name}')
     failure = report['failure_recovery']
     _require(failure.get('host_exit', 0) != 0 and failure.get('phase') == 'publishing' and
@@ -86,7 +93,8 @@ def validate_transport(request_path: Path, transport_path: Path):
     candidate = next(iter(selection['candidates'].values()))
     _require(saved.get('canonical_sha256') == candidate['active_sha256'] and
              saved.get('world_sha256') != restored.get('before_world_sha256'), 'Target did not publish the selected pair')
-    _require(failure.get('world_sha256') == restored.get('before_world_sha256'), 'Failure control lost the prior World authority')
+    prepared = report['base_preparation'].get('world_sha256')
+    _require(failure.get('world_sha256') == prepared, 'Failure control lost the prepared base authority')
     documents = {}
     for key, pin in report.get('receipts', {}).items():
         receipt = _owned_path(pin.get('path', ''))
@@ -95,9 +103,10 @@ def validate_transport(request_path: Path, transport_path: Path):
     journal = documents.get('failure_journal', {})
     ticket = report.get('transition', {})
     _require(journal.get('phase') == 'publishing' and journal.get('canonical_selection_transition') == ticket and
-             journal.get('prior_active_set_sha256') == restored['before_world_sha256'] and
+             journal.get('prior_active_set_sha256') == prepared and
              journal.get('expected_active_set_sha256') == report['receipts'].get('failure_staging', {}).get('sha256'),
              'Actual failure journal does not establish the paired publication boundary')
+    validate_prepared_base(selection, report, documents, prepared)
     _require(ticket.get('old_active_sha256') == selection['base_selection']['profiles'][next(iter(selection['candidates']))]['active_sha256'] and
              ticket.get('new_active_sha256') == candidate['active_sha256'] and
              ticket.get('effective_result_sha256') == candidate['result_sha256'], 'Target transition belongs to another child')
@@ -117,7 +126,63 @@ def validate_transport(request_path: Path, transport_path: Path):
             _require(bool(document.get('layer_inventories')) and 'updated_actors' in document.get('changes', {}) and
                      all(isinstance(row.get('final_dirty_units'), list) and not row['final_dirty_units'] for row in document['layer_inventories']) and
                      all(value in (0, '') for value in document.get('changes', {}).values()), 'Cold selected replay was not a no-op')
+    from .consumer_verification import validate_consumers
+    validate_consumers(request, report, documents, selection, read_json_pin, file_pin)
     return report
+
+
+def file_pin(path, sha256):
+    resolved = _owned_path(path)
+    _require(file_hash(resolved) == sha256, 'Nested consumer evidence changed')
+    return resolved
+
+
+def read_json_pin(path, sha256):
+    return read_json(file_pin(path, sha256))
+
+
+def validate_prepared_base(selection, report, documents, prepared):
+    """A disposable full base may add scopes; the original snapshot remains untouched."""
+    profile = documents.get('base_validation_profile', {})
+    _require(report['receipts'].get('base_validation_profile', {}).get('sha256') ==
+             selection['base_selection']['validation_profile_sha256'], 'Prepared base validation profile is unpinned')
+    name = next(iter(selection['candidates']))
+    owner = profile['profiles'][name]['world_data_plugin']
+    audit = documents.get('base_audit', {})
+    _require(report['receipts'].get('base_active', {}).get('sha256') == prepared and
+             audit.get('status') == 'accepted' and audit.get('active_set', {}).get('sha256') == prepared,
+             'Prepared base lacks its pinned active set and strict cold audit')
+    for city, baseline in selection['base_selection']['profiles'].items():
+        settings = profile['profiles'][city]
+        if settings['world_data_plugin'] != owner:
+            continue
+        reference = report['receipts'].get('base_profile_' + city, {})
+        _require(reference.get('path') == settings['realization_profile'], 'Prepared base layer profile has a different owner')
+        realization = documents.get('base_profile_' + city, {})
+        layer_rows = realization.get('layers', [])
+        layers = {row['layer_id'] for row in layer_rows}
+        expected = {(key, 'layer_' + realization.get('profile_id', '') + '_' + key) for key in layers}
+        native = documents.get('base_native_' + city, {})
+        inventories = native.get('layer_inventories', [])
+        pairs = {(row.get('layer_id'), row.get('scope_id')) for row in inventories}
+        effective = baseline.get('selected_refinement', {}).get('result_sha256', baseline['compile_result_sha256'])
+        scopes = [row for row in audit.get('scopes', [])
+                  if row.get('input_identity', {}).get('map_package') == settings['map_package']]
+        layer_scopes = [row for row in scopes if row.get('owning_layer') != 'map']
+        _require(native.get('status') == 'accepted' and native.get('input_sha256') == effective and
+                 bool(layers) and len(layers) == len(layer_rows) and realization.get('profile_id') and
+                 native.get('realization_profile_sha256') == reference.get('sha256') and
+                 len(inventories) == len(pairs) == len(layers) and pairs == expected and
+                 ('execution_layer_ids' not in native or
+                  isinstance(native['execution_layer_ids'], list) and
+                  len(native['execution_layer_ids']) == len(layers) and set(native['execution_layer_ids']) == layers) and
+                 len(scopes) == len(layers) + 1 and
+                 len({row.get('scope_id') for row in scopes}) == len(scopes) and
+                 all(isinstance(row.get('scope_id'), str) and row['scope_id'] for row in scopes) and
+                 {(row.get('owning_layer'), row.get('scope_id')) for row in layer_scopes} == expected and
+                 {row.get('owning_layer') for row in scopes} == {'map', *layers} and
+                 all(row['input_identity'].get('compile_result_sha256') == effective for row in scopes),
+                 'Prepared base does not prove every pinned layer and map of the owning plugin')
 
 
 def run_target(args):
@@ -139,13 +204,19 @@ def run_target(args):
             'selection_path': selection_path.relative_to(REPO_ROOT).as_posix(), 'selection_sha256': file_hash(selection_path),
             'check_result_path': check_path.relative_to(REPO_ROOT).as_posix(), 'check_result_sha256': file_hash(check_path),
             'base_run': args.base_run, 'base_result_sha256': baseline['result_sha256'], 'execute_layers': sorted(args.execute_layer)}
+        if getattr(args, 'runtime_vantage_plan', None):
+            plan = Path(args.runtime_vantage_plan).resolve()
+            _require(plan.is_relative_to(REPO_ROOT) and plan.is_file(), 'Runtime vantage plan must belong to the repository')
+            request['consumer_verification'] = {'vantage_plan_path': plan.relative_to(REPO_ROOT).as_posix(),
+                'vantage_plan_sha256': file_hash(plan)}
         request_path = root / 'request.json'
         request_path.write_text(json.dumps(request, indent=2) + '\n', encoding='utf-8')
         verified = verify_request(request_path)
         result['profile_id'] = verified['profile_id']
         _run('selected_refinement_target', [_powershell(), '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
             '-File', str(REPO_ROOT / 'scripts/ue/world/accept_canonical_refinement.ps1'),
-            '-RequestPath', str(request_path), '-EvidencePath', str(root / 'transport.json')], evidence_root / 'logs')
+            '-RequestPath', str(request_path), '-EvidencePath', str(root / 'transport.json')], evidence_root / 'logs',
+            timeout=SELECTED_TARGET_TIMEOUT_SECONDS)
         transport = validate_transport(request_path, root / 'transport.json')
         verify_request(request_path)
         result.update(status='accepted', checks=[{'check': 'selected_child_saved_cold_recovery', 'status': 'passed'}],

@@ -155,6 +155,27 @@ dirtiness); that proved nothing about what originally produced the flat terrain.
 Correctness tests never ship quarantined or expected-failure. RED is something you
 observe during the session; the final tree is green.
 
+### Resuming a deferred investigation
+
+Before deferring or handing off a case, keep a compact resume checkpoint in its
+existing task: current owner, admitted purpose and authority limit; accepted
+proofs and their consumed inputs; rejected premise with its exact witness; the
+missing boundary; what concrete change could reopen the premise; and the cheapest
+next discriminator with a stop condition. Keep detailed attempt history as
+references. Durable rules and regressions stay with their stable owners.
+
+On return, state what changed that could alter the previous result before
+repeating an experiment. A new session, reviewer, task name or still-available
+dataset does not change the premise. Changed inputs, constraints, model, admitted
+role or execution envelope can justify a new bounded check when they address the
+failed premise and remain within current authority. Existing scope limits survive
+handoff; follow the [gate-escalation contract](canonical.md#checkpoint-scope-and-gate-escalation).
+
+Reuse proofs only for unchanged consumed inputs and properties. Missing scratch
+evidence is UNVERIFIED: recover it or reconstruct the smallest affected proof
+through its owner, without inventing old results or restarting unrelated source
+research. A missing consumer proof does not itself demonstrate a geometry defect.
+
 ## 3. Worked example (the incident that produced this document)
 
 ```text

@@ -80,8 +80,13 @@ changed geographic inputs. An unused producer edit can coexist with immutable
 artifact consumption, but receives no producer certification from that receipt.
 Unavailable historical raw bytes remain a gap for fresh historical replay.
 
-The base-only immutable reader refuses a selected refinement rather than
-recording only its original compile identity. `refinement-inputs` admits explicit repository-tmp child
+The immutable reader preserves an already selected refinement's effective,
+result and archive identities alongside the original compile lineage. Public
+frozen authority validation authenticates its retained bytes; consuming it does
+not require rerunning today's child producer. The World leg must record that same
+child and consume its effective result hash. Reader and consumed schema changes
+invalidate the consumer proof without rewriting historical producer identities.
+`refinement-inputs` admits explicit repository-tmp child
 candidates against the same unchanged historical base selection. It authenticates
 the effective archive/result and current child/source/native identities, then
 freezes base and candidate pins separately. Source acquisition, base compilation
@@ -89,6 +94,15 @@ and production promotion are not performed. This input snapshot is not a World
 acceptance result: selected-owner integration and coordinated recovery remain
 required before activation. Existing `run` modes cannot silently use that snapshot
 as a completed immutable or full compiler gate.
+
+Candidate admission authenticates the unchanged effective selection for every
+profile, including carried children in other cities. Its final pin check covers
+both base and carried child archives. The target city must be base-only: replacing
+an already selected child requires an explicit transition contract, not an implicit
+drop. Fresh candidates still require current child/source/native producing inputs.
+The frozen execution reader can inspect compatible retained receipts, but cannot
+create a missing current Matrix. Do not advance the true slice base or relabel a
+target receipt as that Matrix.
 
 ```powershell
 python -S tools/World/EndToEndValidation/bootstrap.py refinement-inputs `
@@ -112,6 +126,16 @@ World dependency closure on the existing accepted map through the supported host
 The [target request](contracts/refinement-target-request.schema.json) binds those
 inputs. Verification runs before mutation and again after complete restoration.
 
+The composed target uses the existing
+[Windows Job owner](../../../scripts/ue/test/README.md) with a separate whole-run
+deadline; individual native limits remain unchanged. Suspended startup contains
+descendants before any worker runs. Deadline or abrupt supervisor death stops
+that private process group. A timeout or unverified cleanup rejects the target
+and leaves pending recovery to the existing generated-content recovery owner;
+it never certifies restoration. Worker output and supervisor results are retained
+as separate logs. The composed budget includes repeated authenticated preparation,
+publication, deliberate failed-apply recovery, runtime consumers and restoration.
+
 ```powershell
 python -S tools/World/EndToEndValidation/bootstrap.py refinement-target `
   --profile <validation-profile> --selection <tmp-input-selection.json> `
@@ -119,8 +143,44 @@ python -S tools/World/EndToEndValidation/bootstrap.py refinement-target `
   --execute-layer <owner> --execute-layer <dependent-owner>
 ```
 
+Inside its outer snapshot, the target first fully applies the authenticated
+immutable inputs for every selected territory in the target data plugin. This
+prepares complete current layer profiles, including legitimately empty layers,
+without durable enrollment. A strict cold audit must accept that prepared base.
+The original snapshot and prepared base have separate identities: failure recovery
+returns to the prepared base; final restoration returns to the original files and
+authorities. Each base native receipt binds its effective canonical result and
+complete realization profile, including carried children.
+
+Full-base native Apply proves its complete layers through `layer_inventories`,
+not the scoped adapter's optional `execution_layer_ids`. Acceptance requires an
+exact, duplicate-free layer/scope pair set for the pinned realization profile and
+the same map's cold audit. If the scoped list is present, it must be a list with
+the exact layer set and cardinality. Missing, duplicate or foreign inventories,
+scope substitutions and contradictory scoped lists refuse. The production-shaped
+fixtures are in [target tests](tests/test_refinement_target.py) and the retained
+[completion tests](tests/test_completion.py).
+
 The target proves a real post-canonical-CAS failed-commit recovery, successful saved
 pair publication, cold authority audit, and cold no-op without a new child selection.
+For the existing two product cities, optional `--runtime-vantage-plan <plan>` also
+requests the complete saved-consumer proof before restoration. The
+[World adapter](../../../scripts/ue/world/selected_refinement_consumers.ps1)
+uses the selected child and final compiled census for Terrain readback, map/building
+projections, both-city partition and uncooked Hero streaming tours, and selected-map
+visual capture. Unsupported operations and incompatible camera inputs refuse before
+mutation. Every nested output and plan is pinned and retained by completion;
+fresh and frozen readers share the same consumer validator. This proves the
+declared runtime envelope, not packaged performance or automatic visual approval.
+Omitting the option retains the generic publication/recovery-only target.
+The plan can additionally request `gameplay_scenes` for both product cities.
+These reference pins are checked against the admitted effective canonical inputs
+before mutation. The [saved-scene walking host](../../../scripts/ue/world/selected_refinement_gameplay.ps1)
+copies current map/floor manifest evidence, then runs the existing Hero checker
+on the actual saved city. Regional reference fields do not certify their own
+disposable map as city evidence. Ownership refusal controls, continuous walking,
+foot envelopes and the saved World/child binding remain required in fresh and
+frozen validation. The ordinary center/streaming tour covers a different route.
 It uses the existing [outer recovery owner](../../../scripts/ue/generated_content/README.md#canonical-selection-participant)
 to restore both original pointers and the complete World path/byte inventory. An
 interrupted target retains the existing outer marker and snapshots for its normal
@@ -130,7 +190,7 @@ acceptance; ordinary material preview remains an independent live-Editor loop.
 An accepted `refinement_selected` result certifies this bounded target. It does not
 replace the unchanged-base regression envelope, authorize geographic policy, certify
 packaged performance or count as a full Matrix/package provenance receipt. Existing
-base-only `run` and final acceptance commands remain strict about their own modes.
+`run` and final acceptance commands remain strict about their own modes.
 Do not relabel the target as fresh base compilation or source replay.
 
 ```mermaid
@@ -154,9 +214,27 @@ is not required for this separation.
 
 ## Execution and evidence
 
-`check` bootstraps the pinned environment and runs the common Python,
-PowerShell lifecycle, architecture, failure, and Unreal realization suites
-once. Each `run` verifies and pins that same accepted check receipt and refuses
+`check` bootstraps the pinned environment and refuses stale declared
+producer/baseline revisions before long suites.
+That metadata preflight does not replace native projection comparison or permit
+automatic baseline recording. It runs the common Python, PowerShell lifecycle,
+architecture, failure, and Unreal realization suites once.
+The native suite uses the World-owned
+[cold verification host](../../../scripts/ue/world/test/integration/verify_native_realization.ps1):
+Entry map, normal rendering, isolated user-settings INI and queue-only exit.
+Ambient diagnostic scene inputs refuse before dispatch. Input-dependent scene
+tests register only for explicit inputs; permanent saved-reload regressions
+remain in the common suite.
+The first native receipt is checked against its layer contracts before later
+projections or World legs. A refusal unwinds the existing restoration owner.
+Final cross-leg, reconstruction, locality and manifest comparisons remain required.
+Saved Map and Building projections require their exact registered comparison
+revisions independently. A final validation refusal retains the completed
+execution envelope for diagnosis; its rejected receipt cannot admit a Matrix.
+Expectations describe the effective input, including retained refinements, and the
+producer's exact metric set. Zero-valued diagnostics remain contract values.
+
+Each `run` verifies and pins that same accepted check receipt and refuses
 it if any covered code, package/world script, contract, or test changed
 afterward. The Check hash includes project/plugin descriptors, relevant project
 configuration, C++ Build.cs, pinned tool locks, immutable TestData inputs and

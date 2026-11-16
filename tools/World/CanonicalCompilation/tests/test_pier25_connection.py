@@ -11,7 +11,8 @@ from World.CanonicalCompilation.app.contracts import CompilerError
 from World.CanonicalCompilation.refinement.constructed_import import _qualify, _prove_roles, _prove_field
 from World.CanonicalCompilation.tests.pier25_connection_fixture import fixture, shore_contact_xy, original_shore_strip
 from World.ExecutionEnvironment.api import ExecutionEnvironmentError
-from World.ExecutionEnvironment.geometry.affine import measure_affine_cover, _overlap, _area, _height
+from World.ExecutionEnvironment.geometry.affine import measure_affine_cover
+from World.CanonicalCompilation.tests.affine_oracle import cross,height,contains
 from World.SourceIngestion.tests.osm_pier_relation_fixture import fixture as source_fixture
 
 
@@ -19,8 +20,6 @@ def contact_error(ground, edge):
     a, b = [list(map(F, p)) for p in edge]
     intervals = []
     error = F(0)
-    def cross(p, q, r):
-        return (q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0])
     for face in ground:
         face = [list(map(F, p)) for p in face]
         sign = 1 if cross(*face) > 0 else -1
@@ -38,7 +37,7 @@ def contact_error(ground, edge):
             intervals.append((lower, upper))
             for t in (lower, upper):
                 point = [a[i]+t*(b[i]-a[i]) for i in range(3)]
-                error = max(error, abs(point[2]-_height(face, point)))
+                error = max(error, abs(point[2]-height(face, point)))
     covered = F(0)
     for lower, upper in sorted(intervals):
         if lower > covered: raise AssertionError('Shore contact lacks complete Ground support')
@@ -84,8 +83,9 @@ class Pier25ConnectionTests(unittest.TestCase):
     def test_missing_ground_and_broken_joint_refuse(self):
         item, policy, ground = fixture()
         first = [[F(v) for v in p] for p in item['triangles'][0]]
+        interior = [sum(p[axis] for p in first)/3 for axis in (0,1)]
         missing = next(i for i, face in enumerate(ground)
-                       if _area(_overlap([[F(v) for v in p] for p in face], first)) > 0)
+                       if contains([[F(v) for v in p] for p in face], interior))
         with self.assertRaises(ExecutionEnvironmentError) as refused:
             measure_affine_cover(ground[:missing]+ground[missing+1:], item['triangles'])
         self.assertEqual(refused.exception.code, 'geometry_affine_certificate')

@@ -48,6 +48,8 @@ param(
     # unattended -EnrollManifests into the durable root still refuses, so an
     # agent cannot decide to grant production authority on its own.
     [switch]$DurableEnrollmentAuthorized,
+    # Private preparing-phase capability; cannot grant permanent enrollment.
+    [string]$RestoringCanonicalBaseOperationId = '',
 
     # Explicit clean reconstruction (contract route 2). Requires accepted
     # manifests for the declared scope set; each participating scope must be
@@ -325,8 +327,8 @@ $transactionActive = $modeName -eq "apply" -or $modeName -eq "delete"
 # C8 operator control, revised 2026-08-20. The authority boundary is the MANIFEST
 # ROOT, not the owning plugin.
 #
-# DURABLE root (the plugin's Data/Manifests): enrollment grants durable authority
-# to a brand-new production scope. Operator-executed, never unattended.
+# DURABLE root (the plugin's Data/Manifests): permanent enrollment requires the
+# operator. A live restoring base may prepare only its qualified missing layers.
 #
 # TRANSIENT root (anywhere else, e.g. a candidate under tmp/): the durable active
 # set is neither read, written, nor retired. Building pre-approval candidates and
@@ -352,6 +354,9 @@ if (($TestFailAfterSelfSavedActor -or $TestRejectAcceptedChild) -and $enrollment
     throw 'Fault injection requires transient manifest authority.'
 }
 Assert-ProjectWorldProductionEnrollmentAllowed `
+    -ProjectRoot $projectRoot -RestoringCanonicalBaseOperationId $RestoringCanonicalBaseOperationId `
+    -InputIdentity $operationInputIdentity -RealizationProfileHash $realizationProfileHash `
+    -FullApply:($modeName -ceq 'apply' -and $ExecuteLayer.Count -eq 0 -and $DirtyUnit.Count -eq 0) `
     -EnrollManifests:$EnrollManifests `
     -NonInteractive:$NonInteractive `
     -DurableEnrollmentAuthorized:$DurableEnrollmentAuthorized `

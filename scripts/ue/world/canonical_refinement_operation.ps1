@@ -2,6 +2,20 @@
 # License terms: see repository root LICENSE.
 Set-StrictMode -Version Latest
 
+function Get-ProjectWorldRefinementBaseInputs {
+    param([string]$ProjectRoot,$Profile,$Selection,[string]$WorldDataPlugin)
+    foreach($property in $Selection.base_selection.profiles.PSObject.Properties) {
+        $settings=$Profile.profiles.($property.Name);$pin=$property.Value
+        if($settings.world_data_plugin -cne $WorldDataPlugin){continue}
+        $compile=if($pin.PSObject.Properties['selected_refinement']){$pin.selected_refinement.result_sha256}else{$pin.compile_result_sha256}
+        [pscustomobject]@{realization_profile_sha256=(Get-ProjectWorldFileSha256 (Join-Path $ProjectRoot $settings.realization_profile));
+            input_identity=[pscustomobject]@{map_package=$settings.map_package;compile_result_sha256=$compile;
+                presentation_profile_sha256=(Get-ProjectWorldFileSha256 (Join-Path $ProjectRoot $settings.presentation_profile));
+                runtime_profile_sha256=$(if($settings.runtime_profile){Get-ProjectWorldFileSha256 (Join-Path $ProjectRoot $settings.runtime_profile)}else{'none'});
+                authored_overlay_profile_sha256=(Get-ProjectWorldFileSha256 (Join-Path $ProjectRoot $settings.authored_overlay_profile))}}
+    }
+}
+
 function Invoke-ProjectWorldRefinementOwner {
     param([string]$ProjectRoot,[ValidateSet('CanonicalCompilation','EndToEndValidation')][string]$Owner,
         [string[]]$Arguments,[string]$EvidenceDirectory)

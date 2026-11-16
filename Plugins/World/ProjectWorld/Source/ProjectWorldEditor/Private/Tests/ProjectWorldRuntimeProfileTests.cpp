@@ -331,6 +331,11 @@ bool FProjectWorldProductNavigationDomainTest::RunTest(const FString& Parameters
 	TestTrue(TEXT("Territory Recast tiles fit the accepted large-world bounds."),
 		Recast != nullptr && Recast->GetTileSizeUU() >= 4096.0f);
 	if (!Recast || !Navigation || !NavigationBounds) return false;
+	Recast->SetPackageExternal(true);
+	FProjectWorldRealizationResult PackagingRepair;
+	if (!TestTrue(TEXT("Ordinary product Apply normalizes its sole stock external navigation default."),
+		ProjectWorldRuntimeRealization::Apply(World, Bundle, Profile, PackagingRepair, Error))) { AddError(Error); return false; }
+	TestFalse(TEXT("Ordinary Apply returns the same default to map-internal ownership."), Recast->IsPackageExternal());
 	const FNavDataConfig OriginalConfig = Recast->GetConfig();
 	const float OriginalHeight = Recast->GetCellHeight(ENavigationDataResolution::Default);
 	ON_SCOPE_EXIT { Recast->SetConfig(OriginalConfig); Recast->SetCellHeight(ENavigationDataResolution::Default, OriginalHeight); };

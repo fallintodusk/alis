@@ -9,6 +9,19 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'canonical_compatibility_test_helpers.ps1')
     $script:RepositoryRoot=(Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
     $script:FixtureParent=Join-Path $script:RepositoryRoot 'tmp/world/refinement_operation_tests'
+    function New-UnifiedRefreshCandidates($Accepted,$Identity,[string]$MapScope='') {
+        foreach ($scope in $Accepted.Manifests.Keys) {
+            $prior=$Accepted.Manifests[$scope]
+            if($MapScope -and $scope -cne $MapScope -and $MapScope -cnotin @($prior.consumer_references)){continue}
+            $isMap=$scope -clike 'map_*'
+            $input=if($isMap){$Identity}else{New-ProjectWorldLayerInputIdentity $Identity}
+            $values=@{ProjectRoot=$projectRoot;ScopeId=$scope;Generation=([int]$prior.generation+1);
+                OwningLayer=$prior.owning_layer;OperationId='refresh';InputIdentity=$input;ScopePaths=@();
+                ArtifactRecords=@();GeneratorFingerprint=('0'*64);ConsumerReferences=@($prior.consumer_references)}
+            if(-not $isMap){$values.LayerContract=$prior.layer_contract}
+            New-ProjectWorldCandidateManifest @values
+        }
+    }
 }
 Describe 'Selected canonical refinement preflight' {
     BeforeEach {
@@ -269,5 +282,53 @@ Describe 'Selected canonical refinement preflight' {
             kind='asset';digest_kind='sha256';digest=('0'*64)})
         { New-ProjectWorldLayerManifests @candidateArgs } | Should -Throw '*carried refinement owner differs*'
         (Get-ProjectWorldFileSha256 (Join-Path $manifestRoot 'active_set.json')) | Should -Be $accepted.Sha256
+    }
+    It 'retires mixed lineage only after the replacement map and every actual consumer share effective inputs' {
+        $accepted=Save-CompatibilityFixture -Fixture $fixture -ProjectRoot $projectRoot -ManifestRoot $manifestRoot
+        $candidates=@(New-UnifiedRefreshCandidates $accepted $arguments.InputIdentity |
+            Where-Object scope_id -ne layer_fixture_roads)
+        # The already-effective Road can carry unchanged while the other owners advance.
+        Publish-ProjectWorldActiveSet -ProjectRoot $projectRoot -ManifestRoot $manifestRoot -PriorActiveSet $accepted `
+            -TransactionId ('6'*32) -OperationId refresh -CandidateManifests $candidates | Out-Null
+        $current=Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
+        $current.Record.PSObject.Properties.Name | Should -Not -Contain canonical_input_compatibility
+        foreach($scope in $current.Manifests.Keys){$current.Manifests[$scope].input_identity.compile_result_sha256 | Should -Be ('7'*64)}
+        $current.Manifests.layer_fixture_roads.generation | Should -Be 2
+    }
+    It 'refuses incomplete or conflicting refresh before writing any authority' -ForEach @(
+        @{Fault='carried_base'},@{Fault='presentation'},@{Fault='layer_runtime'},@{Fault='missing_map'},
+        @{Fault='detached_owner'},@{Fault='wrong_child'}
+    ) {
+        $accepted=Save-CompatibilityFixture -Fixture $fixture -ProjectRoot $projectRoot -ManifestRoot $manifestRoot
+        $candidates=@(New-UnifiedRefreshCandidates $accepted $arguments.InputIdentity)
+        switch($Fault){
+            carried_base {$candidates=@($candidates | Where-Object scope_id -ne layer_fixture_buildings)}
+            presentation {($candidates | Where-Object scope_id -eq layer_fixture_buildings).input_identity.presentation_profile_sha256='e'*64}
+            layer_runtime {($candidates | Where-Object scope_id -eq layer_fixture_buildings).input_identity.runtime_profile_sha256='c'*64}
+            missing_map {$candidates=@($candidates | Where-Object scope_id -ne $fixture.MapScope)}
+            detached_owner {($candidates | Where-Object scope_id -eq layer_fixture_buildings).consumer_references=@()}
+            wrong_child {foreach($owner in $candidates){$owner.input_identity.compile_result_sha256='e'*64}}
+        }
+        $beforeFiles=@(Get-ChildItem $manifestRoot -Recurse -File | ForEach-Object FullName) -join ','
+        $expectedError=if($Fault -eq 'missing_map'){'*owner lineage or producer differs*'}else{'*carried map authority*'}
+        {Publish-ProjectWorldActiveSet -ProjectRoot $projectRoot -ManifestRoot $manifestRoot -PriorActiveSet $accepted `
+            -TransactionId ('6'*32) -OperationId refresh -CandidateManifests $candidates} | Should -Throw $expectedError
+        (Get-ProjectWorldFileSha256 (Join-Path $manifestRoot 'active_set.json')) | Should -Be $accepted.Sha256
+        (@(Get-ChildItem $manifestRoot -Recurse -File | ForEach-Object FullName) -join ',') | Should -Be $beforeFiles
+    }
+    It 'preserves another map compatibility and immutable manifests during a unified refresh' {
+        $accepted=Save-CompatibilityFixture -Fixture $fixture -ProjectRoot $projectRoot -ManifestRoot $manifestRoot
+        $other=New-CompatibilityFixture -ProjectRoot $projectRoot -ManifestRoot $manifestRoot -Prefix other -PriorActiveSet $accepted
+        $both=Save-CompatibilityFixture -Fixture $other -ProjectRoot $projectRoot -ManifestRoot $manifestRoot
+        $otherProof=ConvertTo-Json -InputObject $both.Record.canonical_input_compatibility[1] -Depth 24 -Compress
+        $candidates=@(New-UnifiedRefreshCandidates $both $arguments.InputIdentity $fixture.MapScope)
+        Publish-ProjectWorldActiveSet -ProjectRoot $projectRoot -ManifestRoot $manifestRoot -PriorActiveSet $both `
+            -TransactionId ('6'*32) -OperationId refresh -CandidateManifests $candidates | Out-Null
+        $current=Read-ProjectWorldActiveSet -ManifestRoot $manifestRoot -ProjectRoot $projectRoot
+        @($current.Record.canonical_input_compatibility).Count | Should -Be 1
+        (ConvertTo-Json -InputObject $current.Record.canonical_input_compatibility[0] -Depth 24 -Compress) | Should -Be $otherProof
+        foreach($entry in $both.Record.scopes | Where-Object scope_id -Match '_other($|_)'){
+            ($current.Record.scopes | Where-Object scope_id -eq $entry.scope_id).manifest_sha256 | Should -Be $entry.manifest_sha256
+        }
     }
 }

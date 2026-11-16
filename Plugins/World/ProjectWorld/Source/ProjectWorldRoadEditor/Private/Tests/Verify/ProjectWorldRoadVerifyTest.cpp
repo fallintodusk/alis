@@ -33,6 +33,7 @@ namespace ProjectWorldRoadVerifyTest
 		Cell.CellId = FString::Printf(TEXT("cell_%d"), CellX);
 		Cell.CellX = CellX;
 		Cell.Bounds = FVector4d(CellX * 10.0, 0.0, (CellX + 1) * 10.0, 10.0);
+		Cell.Terrain.bHasVerticalSourceAccuracy = true;
 		Cell.Terrain.ArtifactHash = FString::ChrN(64, Hash);
 		Cell.Terrain.Bounds = Cell.Bounds;
 		Cell.Terrain.SampleSpacing = Spacing;

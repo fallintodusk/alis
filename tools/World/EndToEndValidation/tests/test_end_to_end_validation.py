@@ -121,7 +121,7 @@ class EndToEndValidationTests(unittest.TestCase):
             root = Path(directory)
             with patch.object(checks, "common_contract_hash", side_effect=["a" * 64, "b" * 64]), patch.object(
                 checks, "read_json", return_value={}
-            ), patch.object(checks, "validate_against"), patch.object(
+            ), patch.object(checks, "_preflight_verify_revisions"), patch.object(checks, "validate_against"), patch.object(
                 checks, "_run"
             ), patch.object(checks, "_run_test_suites", return_value=[]), patch.object(
                 checks, "_powershell", return_value="powershell"

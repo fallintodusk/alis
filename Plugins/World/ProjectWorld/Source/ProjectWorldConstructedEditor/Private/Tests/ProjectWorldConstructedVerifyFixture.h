@@ -37,7 +37,7 @@ namespace ProjectWorldConstructedVerifyFixture
 		Out.CanonicalCrs=TEXT("EPSG:32618"); Out.VerticalDatum=TEXT("EPSG:3855");
 		Out.CoordinateQuantizationMeters=.01; Out.HeightQuantizationMeters=.001;
 		for (int32 I=0; I<2; ++I)
-		{auto& Cell=Out.Cells.AddDefaulted_GetRef(); Cell.CellId=FString::Printf(TEXT("cell_%d"),I); Cell.CellX=I; Cell.Bounds=FVector4d(I*10.,0,I*10.+10,10);}
+		{auto& Cell=Out.Cells.AddDefaulted_GetRef(); Cell.CellId=FString::Printf(TEXT("cell_%d"),I); Cell.CellX=I; Cell.Terrain.bHasVerticalSourceAccuracy=true; Cell.Bounds=FVector4d(I*10.,0,I*10.+10,10);}
 		for (const TCHAR* Id : {TEXT("fixture:fixed"),TEXT("fixture:gangways")})
 		{
 			FProjectWorldCanonicalFeature Feature; Feature.FeatureId=Id; Feature.FeatureClass=TEXT("constructed_surface");

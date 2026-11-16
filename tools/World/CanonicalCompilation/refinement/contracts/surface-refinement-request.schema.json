@@ -16,7 +16,7 @@
       "items": {
         "type": "object", "required": ["kind", "feature_ids", "base_features"],
         "properties": {
-          "kind": {"enum": ["bridge_elevation", "water_confluence", "constructed_surface_import", "identified_basin", "authored_dry_terrain"]},
+          "kind": {"enum": ["bridge_elevation", "water_confluence", "constructed_surface_import", "identified_basin", "authored_dry_terrain", "qualified_ground_base", "inferred_shore_transition"]},
           "feature_ids": {"type": "array", "minItems": 0, "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
           "base_features": {"type": "object", "additionalProperties": {"$ref": "#/$defs/hash"}},
           "source_qualification": {"enum": ["way_context", "way_and_multipolygon_context"]},
@@ -44,16 +44,19 @@
           }
         }, "additionalProperties": false,
         "allOf": [{
-          "if": {"properties": {"kind": {"const": "authored_dry_terrain"}}},
-          "then": {"required": ["input"], "properties": {"feature_ids": {"maxItems": 0}, "base_features": {"maxProperties": 0}}, "not": {"anyOf": [{"required": ["context"]}, {"required": ["inputs"]}, {"required": ["source_qualification"]}, {"required": ["construction_identity"]}]}},
+          "if": {"properties": {"kind": {"enum": ["authored_dry_terrain", "qualified_ground_base"]}}},
+          "then": {"required": ["input"], "properties": {"feature_ids": {"maxItems": 0}, "base_features": {"maxProperties": 0}}, "not": {"anyOf": [{"required": ["context"]}, {"required": ["inputs"]}, {"required": ["source_qualification"]}]},
+            "allOf": [{"if": {"properties": {"kind": {"const": "qualified_ground_base"}}},
+              "then": {"required": ["construction_identity"]}, "else": {"not": {"required": ["construction_identity"]}}}]},
           "else": {"properties": {"feature_ids": {"minItems": 1}},
             "allOf": [{
               "if": {"properties": {"kind": {"const": "constructed_surface_import"}}},
               "then": {"required": ["inputs", "source_qualification", "construction_identity"],
                 "properties": {"base_features": {"maxProperties": 0}}, "not": {"required": ["context"]}},
               "else": {
-                "if": {"properties": {"kind": {"const": "identified_basin"}}},
-                "then": {"required": ["input", "construction_identity"],
+                "if": {"properties": {"kind": {"enum": ["identified_basin", "inferred_shore_transition"]}}},
+                "then": {"required": ["input"],
+                  "allOf": [{"if": {"properties": {"kind": {"const": "identified_basin"}}}, "then": {"required": ["construction_identity"]}, "else": {"not": {"required": ["construction_identity"]}}}],
                   "properties": {"feature_ids": {"maxItems": 1}, "base_features": {"minProperties": 1, "maxProperties": 1}},
                   "not": {"anyOf": [{"required": ["context"]}, {"required": ["inputs"]}, {"required": ["source_qualification"]}]}},
                 "else": {"required": ["context"], "properties": {"feature_ids": {"maxItems": 2}, "base_features": {"minProperties": 1}},

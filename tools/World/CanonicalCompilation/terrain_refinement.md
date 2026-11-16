@@ -391,6 +391,142 @@ of the Water-specific refinement provenance contract.
 
 See [finite ground resolution closure](refinement/docs/architecture/diagrams/ground_resolution.md).
 
+## Coherent qualified Ground base
+
+`qualified_ground_base` is a closed whole-domain operation through
+`prepare_surface_refinement`. It consumes a qualified provider Ground grid before
+Water fitting and the existing Terrain finalizer. It replaces the original
+regular grids instead of splicing low Ground into retained DSM exterior heights.
+Its supported dependent composition is Ground, one
+[inferred east-bank transition](#inferred-east-bank-transition), then optional
+declared structural imports. Other mixtures refuse.
+
+The regular-grid Water conditioner conservatively lowers all four corners of
+every Water-intersecting quad. Dry positions in those quads can therefore lose
+height even with complete bare-earth evidence. Moving an inferred shoreline
+within a coarse quad does not guarantee restored dry access. Qualify the complete
+final contact/shore field; do not hide an inland depression under a larger upper
+deck, disguise a retaining wall as a steep Terrain slope, or relax cut limits to
+claim geographic acceptance. A local shore field touching Water needs its own
+qualified construction/admission; dry-only patches and basin roles are not
+substitutes. The small captured
+[shore diagnostic](tests/pier_shore_fixture.py) replays this limitation without
+provider caches or Unreal and certifies no geography.
+
+Exact polygon partition is also not an all-dry-preservation guarantee: the
+existing sparse operation lowers shared shoreline vertices on dry triangles to
+the wet bound. Where the source Ground trace is higher, a continuous field
+requires an explicitly qualified dry transition. Preserving the entire higher
+dry trace instead requires a discontinuous land/bed boundary and separate
+retaining geometry; a vertical face is not supported by the upper heightfield.
+Close the complete neighbor height, subdivision and weight traces independently
+of local contact heights. Unchanged heights alone do not qualify new outer nodes.
+This constrains the selected field/layout; it is not surveyed evidence or proof
+that every bounded inferred shoreline model fails.
+
+The [input contract](refinement/contracts/ground-base-input.schema.json) binds the
+unchanged compiler profile to the immutable base run, an exact
+[SourceIngestion admission](../SourceIngestion/supplemental/ground_products.md),
+its grid/evidence and source metadata. The public source reader authenticates
+the content; the publisher rechecks those source/profile inputs before promotion
+of the disposable result. This does not reconstruct missing raw OSM records,
+claim a fresh source replay or select production geography.
+
+The [constructor](refinement/app/ground_base.py) requires every original cell,
+unchanged XY, spacing and topology, and complete aligned source core/halo nodes.
+Unknowns refuse; no extrapolation, provider-priority mosaic or automatic fallback
+is applied. Authored patches, Terrain-bound civil support and constructed
+surfaces refuse rather than surviving with stale support. Their adaptation is a
+separate demonstrated dependency, not implicit composition.
+
+Water classification, geometry, widths, memberships and source identities stay
+fixed. Standing functions consume the existing polygon-node/fallback query.
+Flowing functions consume the exact retained ordered knot XY stations through
+the shared `fit_flow_stations` rule. Visible line suppression can remove source
+segments; resampling that visible geometry is not an equivalent replay. Before
+using this closed refit, reproduce the old functions from original `water_fit`.
+This establishes retained-station refitting, not general raw compiler equivalence.
+
+The existing finalizer regenerates final heights, shared edges/bands and surface
+weights after Water refitting. A hydroflattened provider Water pixel is not
+observed bathymetry. Water support cuts and derived stages remain inferred model
+geometry. Explicit candidate conditioning limits can qualify a disposable model;
+they do not accept those limits for the production profile. Finite samples,
+continuous geometry and hashes alone do not establish playable geography.
+
+Regular-grid Water support can lower dry corners of a quad intersected by Water;
+complete provider coverage does not prove that the resulting dry bank survives.
+Check the final physical triangles at consumed shore contacts against both the
+qualified pre-Water field and exact Water footprint. Clipping at the footprint
+alone still interpolates lowered boundary heights across dry triangles. The
+bounded lowering operation cannot restore a bank erased by an earlier finalizer;
+passing pre-Water heights as if they were its final base would break its contract.
+A near-vertical retaining edge, a continuous bank and a separate elevated access
+are different physical models. Their supported roles must be settled before
+adapting downstream structures or accepting a conditioning policy.
+
+The output remains `terrain-cell-v2`. `qualified_ground_grid_nodes` identifies
+alignment to the admitted canonical nodes; it does not claim a new raw GDAL warp
+or infer its filter scale. Source accuracy can be explicit `null`, independently
+of known heights and quantization residual. Native readers retain that unknown
+state; accuracy-dependent anchor placement refuses it.
+
+The native retained-input reader validates the closed Ground construction and
+its complete target-cell usage, frame, provenance, lineage and quantized
+pre-Water core/halo against the retained qualified nodes. Frozen reading does
+not reacquire provider rasters or reinterpret missing accuracy. The captured
+`Project.World.Terrain.QualifiedGroundBaseInput` regression covers known/unknown
+accuracy and resealed invalid inputs; geographic quality remains separate.
+
+Effective artifact lineage uses the closed `qualified_ground_base` branch in the
+[cell manifest](contracts/cell-manifest.schema.json). It binds the immutable
+compile base, parent lineage, refinement request, source admission and Ground
+grid. Original compile reports remain historical evidence. They are not a claim
+that the new heights came from the old DSM or a fresh compiler/source run.
+Unchanged feature records remain intact; changed Water shards carry derived
+lineage. This uses the existing publisher, bundle authentication and selection
+route; production adoption and geographic acceptance remain separate.
+
+## Inferred east-bank transition
+
+`inferred_shore_transition` consumes the qualified Ground operation in the same
+immutable-base request. Its [closed input](refinement/contracts/shore-transition-input.schema.json)
+binds that Ground input, original Water hash, complete effective Water snapshot,
+selected original quads, explicit inferred geometry limits and provenance.
+The supported domain is a complete rectangle of at most 64 quads in four cells,
+with one unambiguous east bank in each Y interval and constant derived Water.
+Unknown Ground, additional interacting Water and retained civil/structural
+support refuse. Water footprint and stage are preserved.
+
+The [constructor](refinement/app/shore_geometry.py) partitions an affine envelope
+between retained final Terrain, qualified pre-Water Ground, a bank plane and two
+finite end collars. Shared boundary nodes participate in every incident face.
+Final encoded triangles must cover each original quad, preserve exterior height,
+topology and semantic traces, remain below Water throughout its footprint and
+respect the declared grade/restoration limits. Unselected Terrain is unchanged.
+The inference is playable model geometry, with source accuracy kept separate.
+
+The shared publisher constructs Ground before the bank and stages regular Ground
+before its sparse wrapper. The wrapper binds those exact staged bytes; the coarse
+conditioner is not reapplied afterward. Structural imports consume final-height
+geometry pins and pass complete Ground/Water clearance checks. Their final native
+support bindings reference the staged Terrain descriptors for every membership
+cell. Failed later construction publishes none of the composition.
+
+Frozen Python archive reading authenticates retained inputs, bindings and exact
+selected scope; it does not certify wet heights from stored metrics. Current
+preparation verifies the actual packed field. Native canonical loading additionally
+clips the actual selected XYZ faces against actual Water and enforces the strict
+wet-height limit before any World consumer proceeds. Native structural support
+must match the complete loaded Terrain artifact set.
+
+The captured window and `test_shore_transition`, `test_shore_bindings` and
+`test_shore_publication` provide focused geometry, refusal and staging controls.
+`Project.World.Terrain.ShoreTransitionInput` covers native binding and an interior
+wet-height fault with unchanged metrics. Regional render/Hero and city acceptance
+are separate. Preparation cost follows the existing
+[complete-base reuse contract](#combined-feature-preparation).
+
 ## Identified original-width path-floor comparison
 
 The optional [path-floor constructor](refinement/ground_path_floor.py) constructs
@@ -839,10 +975,11 @@ rule language. Complete primitive context is qualified before construction.
 Water source projection and the admitted native ribbon/polygon suppression
 contract must reproduce the base visible geometry exactly.
 
-Operations with interacting feature ownership refuse. Independent corrections
+Operations with interacting feature ownership refuse outside the explicitly
+supported [Ground/bank/import composition](#inferred-east-bank-transition). Independent corrections
 to one owned shard are merged before writing that shard, manifest and coverage
-once, preserving both results. Operations use deterministic kind/feature order;
-that order is not a prerequisite graph or a dependent-correction protocol. Joint
+once, preserving both results. Ground precedes its bank and imports; remaining
+operations use deterministic kind/feature order. Joint
 basin and authored-dry operations also require disjoint original Terrain-cell ownership. A basin
 evaluates the effective feature set including earlier imported records, and
 refuses unresolved physical interaction rather than delegating it to a later

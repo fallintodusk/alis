@@ -21,6 +21,7 @@
 #include "ProjectWorldRuntimeProfile.h"
 #include "ProjectWorldRuntimePartitionRealization.h"
 #include "ProjectWorldRuntimeRealization.h"
+#include "ProjectWorldRuntimeNavigation.h"
 #include "ProjectWorldSavePolicy.h"
 #include "ProjectWorldSemanticEvidence.h"
 
@@ -480,7 +481,10 @@ int32 FProjectWorldRealizationService::Run(
 		Reject(OutResult, TEXT("editor-selected-map"), TEXT("Selected execution cannot create a shared map."));
 		return OutResult.ExitCode();
 	}
-	UWorld* World = LoadOrCreateWorld(Request.MapPackagePath, bExistingMap, EditorError);
+	auto LoadWorld = [&]() { return LoadOrCreateWorld(Request.MapPackagePath, bExistingMap, EditorError); };
+	UWorld* World = bNeedsRuntime && RuntimeProfile.ProfileKind == TEXT("territory_product")
+		? ProjectWorldRuntimeNavigation::WithTerritoryLoadDefaults(LoadWorld, EditorError)
+		: LoadWorld();
 	if (World == nullptr || !World->IsPartitionedWorld())
 	{
 		Reject(OutResult, TEXT("editor-world"), EditorError.IsEmpty() ? TEXT("Target is not a World Partition map.") : EditorError);

@@ -155,6 +155,18 @@ into each anchor. Unknown accuracy is reported as unknown; it is not converted
 into a convenient number. Such a point may
 retain a name and coordinate as provisional metadata, but cannot accept the
 control network or a precision placement until qualified by a better source.
+
+A canonical Terrain cell can likewise carry explicit `null` source accuracy
+while its finite heights remain usable geometry. The native reader records
+whether accuracy is known; it does not interpret unknown as measured zero.
+`surface_snap` still refuses when that accuracy is required for its error budget.
+This applies to both `standard` and `precision` authored placements. A source
+change audit must enumerate the selected authored overlays and their actual
+height modes. Runtime spawn, route endpoints and generated feature placement
+that sample finite final Terrain geometry do not acquire a surveyed-accuracy
+guarantee from that sample. Their physical/gameplay verification remains
+separate from accuracy-budgeted anchor admission; never supply a fictitious
+accuracy merely to make an anchor resolve.
 The operator-supplied Spasskaya Tower coordinate is the named origin now; its
 source accuracy must be qualified in the Slice 1 control-network receipt.
 
@@ -194,6 +206,12 @@ owns the exact values used by ALIS. Absolute-height anchors
 require qualified vertical provenance and their own tolerance. This preserves
 approximately 1:1 placement without claiming accuracy the current 30 m terrain
 source cannot provide.
+
+Before correcting elevation, establish whether the source represents the physical
+surface required by the consumer. Provider products, epochs, artifact treatments
+and suitability checks belong to the
+[elevation source owner](../../../../tools/World/SourceIngestion/elevation_sources.md).
+Qualified processing does not by itself admit that source as playable Ground.
 
 When coverage needs more than one admitted raster tile, source ingestion first
 creates one versioned, deterministic accepted mosaic. Its global authority
@@ -373,9 +391,10 @@ they are not baked into the Terrain mesh as object geometry. The
 [terrain and feature view](architecture/diagrams/terrain_features.md) shows these
 consumption boundaries.
 
-Source evidence does not imply detailed object reconstruction. The raster source
-is a DSM, whose observed heights can include infrastructure, buildings and
-vegetation; separate blockout meshes alone do not establish bare-earth ground.
+Source evidence does not imply detailed object reconstruction. A DSM raster's
+observed heights can include infrastructure, buildings and vegetation; separate
+blockout meshes alone do not establish bare-earth ground. Qualified bare-earth
+Ground and a DSM surface are distinct source roles, even when both are rasters.
 The [source and accuracy contract](#geospatial-authority) retains that distinction.
 Building massing remains a blockout representation of canonical effective volumes.
 The [structural producer](../Source/ProjectWorldConstructedEditor/docs/architecture/structure.md)
@@ -388,6 +407,16 @@ grid query. Explicit immutable civil grades remain separately authenticated
 inputs for the consumers that declare them. A generated actor transform or a
 placeholder's visual shape is not a second Terrain height authority.
 
+A natural bank can be represented by continuous Terrain. A retaining structure
+needed for an admitted visual or physical use is a distinct constructed body;
+an unknown shore needs bounded explicit inference or an unresolved disposition.
+A vertical wall must not be
+encoded as a steep exposed Terrain slope or forced through the existing
+constructed-surface XY height field. Source shoreline-role qualification belongs
+to the [source suitability owner](../../../../tools/World/SourceIngestion/elevation_sources.md#engineered-shoreline-evidence).
+This separation does not imply an automatic shoreline classifier or a general
+wall producer. A separate wall must not conceal an uncorrected Ground defect.
+
 Authored Terrain adjustment already enters through the canonical compiler's
 [overlay contract](../../../../tools/World/CanonicalCompilation/contracts/authored-overlay.schema.json).
 The [surface finalizer](../../../../tools/World/CanonicalCompilation/app/terrain_surface.py)
@@ -396,6 +425,29 @@ adjustments that break Water support. This is distinct from the protected Unreal
 content overlay below. Direct edits to generated Terrain packages are not durable
 adjustment inputs. The current patch operation does not provide an arbitrary
 procedural-object influence interface or an in-editor Mesh Terrain sculpt layer.
+
+The accepted extension direction is object-driven, bounded Terrain adaptation:
+an admitted road, building, bridge or authored placement may require a different
+support surface. Start with the existing canonical corrections; extend them only
+for a demonstrated consumer failure. A future PCG adapter must route accepted
+influence through that authority and its input identities, ordered dependencies,
+local dirty scope and recovery. A PCG graph must not independently sculpt the
+generated mesh after canonical verification or feed its own prior output back as
+new source evidence. Final Terrain, dependent Water and the actual object support
+must agree before that consumer is admitted. This is an integration target, not a
+registered producer or a prerequisite for the current Terrain baseline.
+
+Epic's [PCG and Mesh Terrain](https://dev.epicgames.com/documentation/unreal-engine/pcg-and-mesh-terrain-in-unreal-engine?application_version=5.8)
+documents Query/Write priorities and patch/projection instance spawners, including
+the feedback-loop hazard. Its [Biome reference](https://dev.epicgames.com/documentation/unreal-engine/procedural-content-generation-pcg-biome-core-and-sample-plugins-reference-guide-in-unreal-engine?application_version=5.8)
+describes bounded influences, exclusions and local updates; [Electric Dreams](https://dev.epicgames.com/documentation/unreal-engine/procedural-content-generation-in-electric-dreams?application_version=5.8)
+demonstrates assembly-driven procedural composition. Those capabilities support
+the direction, not automatic compatibility with ALIS canonical admission.
+The installed `PCGMeshPartitionInterop.uplugin` marks the interop Experimental;
+the adapter requires an actual consumer proof before adoption.
+[Landscape Patch](https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-patch-system?application_version=5.8)
+edits Landscape heightmaps in the editor and bakes the result; it is not the Mesh
+Terrain adapter or evidence of arbitrary runtime sculpting in ALIS.
 
 ### Fidelity and overlapping physical roles
 
@@ -406,6 +458,38 @@ it does not require a finished roof, bridge deck or foundation. Detailed object
 reconstruction and surveyed microtopography are not prerequisites for that scope.
 Geometry admitted as required walkable support has stronger physical and gameplay
 obligations than a nonphysical contextual envelope.
+
+Contextual prototypes do not establish surveyed object geometry or a need to
+reshape qualified Ground. Detailed object reconstruction uses final canonical
+Terrain for placement/support and qualifies required object contacts together.
+Terrain adaptation, when demonstrated necessary, follows the canonical influence
+direction above. Accepting a contextual prototype does not admit it as walkable
+support or implement that future influence interface. Inferred heights remain
+inferred; object detail and presentation retain their own owners.
+
+Source approximation is evaluated by admitted use, not by a claim of perfect
+construction recovery. OSM building footprints and explicit height tags, floor
+estimates or defaults describe approximate effective volumes, not LiDAR building
+meshes. `source-derived` records a tag's origin, not its survey accuracy. Missing
+setbacks or roof detail can be acceptable for contextual blockouts. A hole in
+required Ground, floating admitted support, blocked required route, systematic
+offset or unreadable required contact remains a defect of its owning geometry
+or presentation, not generic source-error tolerance.
+
+Separate three checks before calling Terrain/building alignment good:
+
+1. Source qualification: ground role, horizontal CRS, vertical basis and uncertainty.
+2. Conversion and placement: shared georeference, metre-to-centimetre scale, axis
+   direction, terrain-relative versus absolute heights, and realized versus
+   specified geometry. A global correction must not conceal local bad tags.
+3. Product suitability: representative source-bound player views and actual
+   required support/clearance. Correct conversion does not certify every source
+   footprint or construction, and one good building does not prove the domain.
+
+Use the [geodetic error budget](#geodetic-error-budget) for numeric source and
+conversion errors, and [paired visual review](../../../../tools/World/VisualVerification/README.md#paired-geometry-and-presentation-review)
+to distinguish geometry from lighting. Do not introduce an arbitrary universal
+height allowance or demand surveyed roofs for the current blockout baseline.
 
 Approximation concerns the geographic model, not fidelity of realization to that
 accepted model. Canonical coverage and seams, actual cooked support, consumed
@@ -932,6 +1016,11 @@ conflict; two owners for one path always are.
 The one always-loaded Recast navigation authority stays inside its map
 package. It is map infrastructure, not a streamable actor, so a random UE
 actor GUID must never create a generated external-package path.
+Full product Apply reconciles a sole exact stock persistent actor through this
+same owner, including internalizing an external package after ownership checks.
+Product map loading temporarily uses the territory tile-size floor for native
+default creation; it restores class defaults before other consumers run. This
+does not replace serialized-setting reconciliation or relax agent validation.
 
 ### Manifest acceptance lifecycle
 
@@ -1004,6 +1093,14 @@ carry existing bindings; retiring a map removes only its binding. Repeating an
 identical publication retains the active-set bytes. Cold validation refuses
 missing original evidence, altered input digests and false base/effective lineage.
 Its durable facts contain no temporary paths.
+
+A full refresh can retire the mixed-lineage binding when a replacement map
+targets its effective canonical result and every prospective layer consumer
+shares that map's inputs, with runtime policy still owned only by the map.
+Already-effective owners may carry unchanged. An old owner must remain a map
+consumer or be explicitly retired; detaching it cannot hide stale lineage.
+Mixed inputs, an unchanged map, explicit replacement bindings and unrelated
+maps retain strict compatibility validation before publication.
 
 Native comparison and passive metadata publication do not activate a canonical
 child or certify its producing behavior. The default host shared-input guard

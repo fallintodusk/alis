@@ -20,6 +20,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/SceneCapture2D.h"
+#include "Engine/Engine.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -28,6 +29,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "RenderingThread.h"
+#include "RenderUtils.h"
+#include "SceneViewExtension.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -38,6 +41,28 @@ namespace ProjectWorldEvidenceCapture
 {
 	namespace
 	{
+		class FNeutralCaptureView final : public ISceneViewExtension
+		{
+		public:
+			void SetupView(FSceneViewFamily& Family, FSceneView& View) override
+			{
+				if (Family.EngineShowFlags.LightingOnlyOverride)
+				{
+					// Scene captures do not run the Editor viewport's neutral-lighting setup.
+					const FLinearColor Brightness = GEngine->LightingOnlyBrightness;
+					View.DiffuseOverrideParameter = FVector4f(Brightness.R, Brightness.G, Brightness.B, 0);
+					View.SpecularOverrideParameter = FVector4f(0, 0, 0, 0);
+					View.NormalOverrideParameter = FVector4f(0, 0, 1, 0);
+				}
+			}
+		};
+
+		bool SupportedMode(const FString& Mode)
+		{
+			return Mode == TEXT("lit") || Mode == TEXT("base_color") ||
+				Mode == TEXT("lighting_only") || Mode == TEXT("world_normal");
+		}
+
 		bool ReadNumberField(const TSharedPtr<FJsonObject>& Object, const TCHAR* Field, double& OutValue, FString& OutError)
 		{
 			if (!Object->TryGetNumberField(Field, OutValue))
@@ -105,6 +130,17 @@ namespace ProjectWorldEvidenceCapture
 				return false;
 			}
 			FProjectWorldCaptureVantage Vantage;
+			if ((*Entry)->HasField(TEXT("render_mode")) &&
+				!(*Entry)->TryGetStringField(TEXT("render_mode"), Vantage.RenderMode))
+			{
+				OutError = TEXT("Vantage render_mode must be a string.");
+				return false;
+			}
+			if (!SupportedMode(Vantage.RenderMode))
+			{
+				OutError = FString::Printf(TEXT("Unsupported vantage render_mode: %s"), *Vantage.RenderMode);
+				return false;
+			}
 			if (!(*Entry)->TryGetStringField(TEXT("name"), Vantage.Name) || Vantage.Name.IsEmpty())
 			{
 				OutError = TEXT("A vantage entry has no name.");
@@ -177,6 +213,16 @@ namespace ProjectWorldEvidenceCapture
 			OutError = TEXT("The loaded world has no rendering scene, so a scene capture would write clear-colour frames.");
 			return false;
 		}
+		for (const FProjectWorldCaptureVantage& Vantage : Vantages)
+		{
+			if (!SupportedMode(Vantage.RenderMode) ||
+				((Vantage.RenderMode == TEXT("base_color") || Vantage.RenderMode == TEXT("world_normal")) &&
+					IsForwardShadingEnabled(GMaxRHIShaderPlatform)))
+			{
+				OutError = TEXT("Unsupported capture mode or GBuffer diagnostic requested on a forward renderer.");
+				return false;
+			}
+		}
 		IFileManager::Get().MakeDirectory(*OutputDirectory, true);
 		OutResult.ScreenshotDirectory = FPaths::ConvertRelativePathToFull(OutputDirectory);
 		OutResult.Width = Width;
@@ -213,6 +259,8 @@ namespace ProjectWorldEvidenceCapture
 		Capture->bCaptureEveryFrame = false;
 		Capture->bCaptureOnMovement = false;
 		Capture->bAlwaysPersistRenderingState = true;
+		const TSharedRef<FNeutralCaptureView, ESPMode::ThreadSafe> NeutralView = MakeShared<FNeutralCaptureView, ESPMode::ThreadSafe>();
+		Capture->SceneViewExtensions.Add(NeutralView);
 
 		int32 ActorCount = 0;
 		int32 PrimitiveCount = 0;
@@ -264,6 +312,20 @@ namespace ProjectWorldEvidenceCapture
 
 		auto CaptureOne = [&](const FProjectWorldCaptureVantage& Vantage, const FString& FileName, FString& OutHash) -> bool
 		{
+			const bool bNormals = Vantage.RenderMode == TEXT("world_normal");
+			Capture->CaptureSource = bNormals ? ESceneCaptureSource::SCS_Normal :
+				Vantage.RenderMode == TEXT("base_color") ? ESceneCaptureSource::SCS_BaseColor :
+				ESceneCaptureSource::SCS_FinalColorLDR;
+			Capture->ShowFlags.SetLightingOnlyOverride(Vantage.RenderMode == TEXT("lighting_only"));
+			Capture->ShowFlags.SetMaterials(Vantage.RenderMode != TEXT("lighting_only"));
+			// Signed GBuffer normals need a float target; an LDR target would discard negative axes.
+			const ETextureRenderTargetFormat Format = bNormals ? RTF_RGBA16f : RTF_RGBA8_SRGB;
+			if (RenderTarget->RenderTargetFormat != Format)
+			{
+				RenderTarget->RenderTargetFormat = Format;
+				RenderTarget->InitAutoFormat(static_cast<uint32>(Width), static_cast<uint32>(Height));
+				RenderTarget->UpdateResourceImmediate(true);
+			}
 			CaptureActor->SetActorLocationAndRotation(Vantage.Location, Vantage.Rotation);
 			Capture->FOVAngle = static_cast<float>(Vantage.FieldOfViewDegrees);
 			Capture->CaptureScene();
@@ -278,6 +340,22 @@ namespace ProjectWorldEvidenceCapture
 			{
 				OutError = FString::Printf(TEXT("Cannot read back the render target for vantage %s."), *Vantage.Name);
 				return false;
+			}
+			if (bNormals)
+			{
+				Image.ChangeFormat(ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+				for (FLinearColor& Pixel : Image.AsRGBA32F())
+				{
+					Pixel = FLinearColor(Pixel.R * 0.5f + 0.5f, Pixel.G * 0.5f + 0.5f,
+						Pixel.B * 0.5f + 0.5f, 1.0f);
+				}
+				Image.ChangeFormat(ERawImageFormat::BGRA8, EGammaSpace::Linear);
+			}
+			else if (Vantage.RenderMode == TEXT("base_color"))
+			{
+				// The native GBuffer copy writes zero alpha; evidence PNGs must remain visible.
+				Image.ChangeFormat(ERawImageFormat::BGRA8, EGammaSpace::sRGB);
+				for (FColor& Pixel : Image.AsBGRA8()) Pixel.A = 255;
 			}
 			const FString FilePath = FPaths::Combine(OutputDirectory, FileName);
 			if (!FImageUtils::SaveImageByExtension(*FilePath, Image))
@@ -298,6 +376,7 @@ namespace ProjectWorldEvidenceCapture
 		{
 			FProjectWorldCaptureView View;
 			View.Name = Vantage.Name;
+			View.RenderMode = Vantage.RenderMode;
 			View.File = Vantage.Name + TEXT(".png");
 			View.RequestedWidth = Width;
 			View.RequestedHeight = Height;
@@ -346,6 +425,7 @@ namespace ProjectWorldEvidenceCapture
 		OutResult.bViewsPairwiseDistinct = true;
 		for (const FProjectWorldCaptureView& View : OutResult.Views)
 		{
+			if (View.RenderMode != TEXT("lit")) continue;
 			bool bAlreadySeen = false;
 			Hashes.Add(View.ImageSha256, &bAlreadySeen);
 			if (bAlreadySeen)
@@ -368,6 +448,7 @@ namespace ProjectWorldEvidenceCapture
 		Root->SetStringField(TEXT("status"), Result.Status);
 		Root->SetStringField(TEXT("message"), Result.Message);
 		Root->SetBoolField(TEXT("views_pairwise_distinct"), Result.bViewsPairwiseDistinct);
+		Root->SetStringField(TEXT("view_distinctness_scope"), TEXT("lit_product"));
 
 		const TSharedRef<FJsonObject> Control = MakeShared<FJsonObject>();
 		Control->SetStringField(TEXT("name"), Result.ControlName);
@@ -380,6 +461,8 @@ namespace ProjectWorldEvidenceCapture
 		{
 			const TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
 			Entry->SetStringField(TEXT("name"), View.Name);
+			Entry->SetStringField(TEXT("render_mode"), View.RenderMode);
+			Entry->SetStringField(TEXT("evidence_role"), View.RenderMode == TEXT("lit") ? TEXT("product") : TEXT("diagnostic"));
 			Entry->SetStringField(TEXT("file"), View.File);
 			Entry->SetNumberField(TEXT("requested_width"), View.RequestedWidth);
 			Entry->SetNumberField(TEXT("requested_height"), View.RequestedHeight);

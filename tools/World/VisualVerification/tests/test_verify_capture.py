@@ -17,6 +17,7 @@ import zlib
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
 import verify_capture
+import plan_vantages
 
 
 def write_png(path, width, height, fill):
@@ -42,6 +43,95 @@ def sha256_of(path):
 
 
 class CaptureAuthenticationTests(unittest.TestCase):
+    def setUp(self):
+        scratch = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                               "../../../../tmp/world/visual_verification/tests"))
+        os.makedirs(scratch, exist_ok=True)
+        self.directory = tempfile.TemporaryDirectory(dir=scratch)
+        self.addCleanup(self.directory.cleanup)
+
+    def test_paired_review_requires_normal_render_of_the_same_pose(self):
+        receipt, _ = self.build(self.directory.name, self.healthy())
+        with open(receipt, encoding="utf-8") as handle:
+            document = json.load(handle)
+        for view in document["views"]:
+            view["render_mode"] = "base_color"
+        with open(receipt, "w", encoding="utf-8") as handle:
+            json.dump(document, handle)
+        passed, findings, _ = verify_capture.verify(receipt)
+        self.assertFalse(passed)
+        self.assertTrue(any(not item["ok"] and item["check"] == "paired_presentation"
+                            for item in findings))
+
+    def paired_receipt(self):
+        modes = ("lit", "base_color", "lighting_only", "world_normal")
+        views = [(mode, 32, 20, (20 + index * 40, 40, 60), (32, 20))
+                 for index, mode in enumerate(modes)]
+        receipt, _ = self.build(self.directory.name, views)
+        with open(receipt, encoding="utf-8") as handle:
+            document = json.load(handle)
+        for view, mode in zip(document["views"], modes):
+            view.update(render_mode=mode, evidence_role="product" if mode == "lit" else "diagnostic")
+        self.save(receipt, document)
+        return receipt, document
+
+    def save(self, path, document):
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(document, handle)
+
+    def test_complete_paired_views_pass_and_shifted_camera_refuses(self):
+        receipt, document = self.paired_receipt()
+        self.assertTrue(verify_capture.verify(receipt)[0])
+        document["views"][1]["location"][0] += 10
+        self.save(receipt, document)
+        self.assertIn("paired_presentation", self.failed_checks(receipt))
+
+    def test_diagnostic_cannot_be_labelled_product_or_unknown_mode(self):
+        receipt, document = self.paired_receipt()
+        document["views"][1]["evidence_role"] = "product"
+        self.save(receipt, document)
+        self.assertIn("evidence_role:base_color", self.failed_checks(receipt))
+        document["views"][1]["render_mode"] = "brightened"
+        self.save(receipt, document)
+        self.assertIn("render_mode:base_color", self.failed_checks(receipt))
+
+    def test_normal_overview_can_accompany_a_local_diagnostic_pair(self):
+        receipt, document = self.paired_receipt()
+        path = os.path.join(self.directory.name, "screenshots", "overview.png")
+        write_png(path, 32, 20, (0, 255, 0))
+        overview = dict(document["views"][0], name="overview", file="overview.png",
+                        image_sha256=sha256_of(path), location=[1000, 0, 500])
+        document["views"].append(overview)
+        self.save(receipt, document)
+        self.assertTrue(verify_capture.verify(receipt)[0])
+
+    def test_uniform_diagnostic_buffers_do_not_imply_a_stale_product_frame(self):
+        receipt, document = self.paired_receipt()
+        second = []
+        for original in document["views"]:
+            view = dict(original, name="second_" + original["name"], location=[100, 0, 0])
+            if view["render_mode"] == "lit":
+                path = os.path.join(self.directory.name, "screenshots", "second_lit.png")
+                write_png(path, 32, 20, (255, 128, 0))
+                view.update(file="second_lit.png", image_sha256=sha256_of(path))
+            second.append(view)
+        document["views"].extend(second)
+        self.save(receipt, document)
+        self.assertTrue(verify_capture.verify(receipt)[0])
+
+    def test_planner_preserves_product_framing_and_input(self):
+        original = dict(name="rim", x=1, y=2, z=3, pitch=-65, yaw=90, fov=75)
+        plan = dict(capture_width=1280, capture_height=720, vantages=[original])
+        expanded = plan_vantages.with_diagnostics(plan)
+        self.assertEqual(4, len(expanded["vantages"]))
+        self.assertNotIn("render_mode", original)
+        self.assertEqual([original], plan["vantages"])
+        for view in expanded["vantages"]:
+            self.assertEqual({key: view[key] for key in original if key != "name"},
+                             {key: value for key, value in original.items() if key != "name"})
+        with self.assertRaises(ValueError):
+            plan_vantages.with_diagnostics(expanded)
+
     def build(self, directory, views, control_matches=True, status="accepted"):
         screenshots = os.path.join(directory, "screenshots")
         os.makedirs(screenshots, exist_ok=True)

@@ -152,7 +152,8 @@ function Test-ProjectWorldCanonicalCompatibilitySet {
 }
 
 function Get-ProjectWorldCanonicalCompatibilities {
-    param([object]$PriorActiveSet, [object]$Replacement = $null, [string[]]$RetiredScopeIds = @())
+    param([object]$PriorActiveSet, [object]$Replacement = $null, [string[]]$RetiredScopeIds = @(),
+        [AllowEmptyCollection()][object[]]$CandidateManifests = @(), [System.Collections.IDictionary]$Manifests = $null)
     $records = [ordered]@{}
     if ($null -ne $PriorActiveSet -and $null -ne $PriorActiveSet.Record.PSObject.Properties['canonical_input_compatibility']) {
         foreach ($record in @($PriorActiveSet.Record.canonical_input_compatibility)) { $records[[string]$record.map_scope_id] = $record }
@@ -160,6 +161,26 @@ function Get-ProjectWorldCanonicalCompatibilities {
     if ($null -ne $Replacement) {
         Test-ProjectWorldCanonicalCompatibilityDocument $Replacement
         $records[[string]$Replacement.map_scope_id] = $Replacement
+    }
+    foreach ($mapId in @($records.Keys)) {
+        if ($null -eq $Manifests -or ($null -ne $Replacement -and $mapId -ceq [string]$Replacement.map_scope_id) -or
+            $mapId -cnotin @($CandidateManifests | ForEach-Object scope_id)) { continue }
+        $record=$records[$mapId]
+        Test-ProjectWorldCanonicalCompatibilityDocument $record
+        $map=$Manifests[$mapId]
+        if ([string]$map.input_identity.compile_result_sha256 -cne [string]$record.candidate.result_sha256) { continue }
+        $consumers=@($Manifests.Keys | Where-Object {$_ -clike 'layer_*' -and $mapId -cin @($Manifests[$_].consumer_references)})
+        # A detached old owner is not a completed refresh. Retirement has its own explicit route.
+        $missing=@($record.layers.PSObject.Properties.Name | Where-Object {$_ -cnotin $consumers -and $_ -cnotin $RetiredScopeIds})
+        if ($consumers.Count -eq 0 -or $missing.Count -gt 0) { continue }
+        $expected=ConvertTo-ProjectWorldSortedValue $map.input_identity
+        $expected.runtime_profile_sha256='none'
+        $expectedJson=ConvertTo-Json -InputObject $expected -Depth 16 -Compress
+        $different=@($consumers | Where-Object {
+            (ConvertTo-Json -InputObject (ConvertTo-ProjectWorldSortedValue $Manifests[$_].input_identity) -Depth 16 -Compress) -cne $expectedJson
+        })
+        # Unified inputs need ordinary manifest authority, rather than a proof pinning a carried base map.
+        if ($different.Count -eq 0) { $records.Remove($mapId) }
     }
     return @($records.Keys | Sort-Object | Where-Object { $_ -cnotin $RetiredScopeIds } | ForEach-Object { $records[$_] })
 }

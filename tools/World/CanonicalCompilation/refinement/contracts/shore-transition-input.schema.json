@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alis.world/schemas/world-compiler/shore-transition-input-v1.json",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "grid_id",
+    "ground_input_sha256",
+    "water_feature_id",
+    "base_water_sha256",
+    "effective_water_sha256",
+    "selected",
+    "parameters",
+    "provenance",
+    "effective_water"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://alis.world/schemas/world-compiler/shore-transition-input-v1.json"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "grid_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ground_input_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "water_feature_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_water_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "effective_water_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "selected": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 4,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 64,
+        "uniqueItems": true,
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "required": [
+        "bank_grade_x",
+        "bank_wet_offset_m",
+        "south_collar_zero_y",
+        "north_collar_zero_y",
+        "collar_grade",
+        "maximum_bank_gradient",
+        "maximum_triangles",
+        "maximum_restore_m"
+      ],
+      "properties": {
+        "bank_grade_x": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "bank_wet_offset_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "south_collar_zero_y": {
+          "type": "number"
+        },
+        "north_collar_zero_y": {
+          "type": "number"
+        },
+        "collar_grade": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maximum_bank_gradient": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maximum_triangles": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 4096
+        },
+        "maximum_restore_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "basis",
+        "description"
+      ],
+      "properties": {
+        "basis": {
+          "const": "authored_game_world_transition_not_surveyed"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "effective_water": {
+      "type": "object",
+      "required": [
+        "feature_id",
+        "feature_class",
+        "geometry",
+        "attributes"
+      ],
+      "properties": {
+        "feature_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "feature_class": {
+          "const": "water"
+        },
+        "geometry": {
+          "type": "object"
+        },
+        "attributes": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "consumed": {
+      "type": "object",
+      "required": [
+        "shore_input_sha256",
+        "ground_input_sha256",
+        "water_feature_id",
+        "base_water_sha256",
+        "water_sha256",
+        "domain_sha256",
+        "implementation_sha256",
+        "execution_identity"
+      ],
+      "properties": {
+        "shore_input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "ground_input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "water_feature_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_water_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "water_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "domain_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "execution_identity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "bank_grade_x",
+        "bank_wet_offset_m",
+        "south_collar_zero_y",
+        "north_collar_zero_y",
+        "collar_grade",
+        "maximum_bank_gradient",
+        "maximum_triangles",
+        "maximum_restore_m"
+      ],
+      "properties": {
+        "bank_grade_x": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "bank_wet_offset_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "south_collar_zero_y": {
+          "type": "number"
+        },
+        "north_collar_zero_y": {
+          "type": "number"
+        },
+        "collar_grade": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maximum_bank_gradient": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maximum_triangles": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 4096
+        },
+        "maximum_restore_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "affected_quads",
+        "triangles",
+        "maximum_bank_gradient",
+        "maximum_restore_m",
+        "wet_height_upper_m"
+      ],
+      "properties": {
+        "affected_quads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "triangles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximum_bank_gradient": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maximum_restore_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "wet_height_upper_m": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

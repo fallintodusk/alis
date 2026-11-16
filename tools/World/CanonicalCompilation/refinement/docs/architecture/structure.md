@@ -15,6 +15,7 @@ owns supported models, provenance, refusal and activation semantics.
 |---|---|
 | Public construction and selection operations | [API](../../api.py) |
 | Authored dry height correction over accepted final grids | [Authored Terrain](../../app/authored_terrain.py) |
+| Qualified Ground and finite bank composition | [Shore admission](../../app/shore_transition.py) |
 | Pure raster Ground construction | [Ground constructor](../../ground.py) |
 | Pure identified inner-to-provider composition | [Composite constructor](../../ground_composite.py) |
 | Pure identified incoming-strip continuation into one east neighbor | [Continuation constructor](../../ground_continuation.py) |
@@ -42,8 +43,8 @@ Pure Ground, contained-basin and constructed-platform capabilities are not
 production admission. Their fixture consumption cannot be used as a publication
 certificate. Closed bridge/confluence, declared structural import, joint basin
 preparation, authored dry Terrain and qualified selection have explicit, distinct admission contracts.
-Independent feature composition preserves one staged candidate; interacting
-ownership refuses. The [combined-preparation contract](../../../terrain_refinement.md#combined-feature-preparation)
+Independent feature composition and the closed Ground/bank/import relationship
+preserve one staged candidate; other interacting ownership refuses. The [combined-preparation contract](../../../terrain_refinement.md#combined-feature-preparation)
 owns supported combinations, deterministic ordering, refusal and current reuse
 granularity. The [effective-authority contract](../../../terrain_refinement.md#effective-authority-candidates)
 owns accepted selection; consumers must not add hidden geographic corrections.

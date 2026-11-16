@@ -686,7 +686,8 @@ function Publish-ProjectWorldActiveSet {
         -PriorActiveSet $PriorActiveSet `
         -PriorGenerations $priorGenerations
     $compatibilities = @(Get-ProjectWorldCanonicalCompatibilities -PriorActiveSet $PriorActiveSet `
-        -Replacement $CanonicalInputCompatibility -RetiredScopeIds $RetiredScopeIds)
+        -Replacement $CanonicalInputCompatibility -RetiredScopeIds $RetiredScopeIds `
+        -CandidateManifests $CandidateManifests -Manifests $prospective)
     Test-ProjectWorldCanonicalCompatibilitySet -Compatibilities $compatibilities -Manifests $prospective -ManifestRoot $ManifestRoot
     $priorCompatibilities = @(Get-ProjectWorldCanonicalCompatibilities -PriorActiveSet $PriorActiveSet)
     $sameCompatibility = (ConvertTo-Json -InputObject (ConvertTo-ProjectWorldSortedValue $compatibilities) -Depth 24 -Compress) -ceq

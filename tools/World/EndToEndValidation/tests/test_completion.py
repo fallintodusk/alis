@@ -172,7 +172,7 @@ class CompletionTargetTests(CompletionFixture,unittest.TestCase):
         native['changes']['updated_actors']=False
         with self.assertRaises(ValidationFailure): _native(native,{'result_sha256':'c'*64},['roads'],noop=True)
 
-    def fixture(self,mutate=None):
+    def fixture(self,mutate=None,prepared=False):
         archive = EvidenceArchive(self.repo,self.repo/'Saved/Validation/WorldAuthority/completion-target')
         originals = []
         def pin(name,value):
@@ -193,6 +193,15 @@ class CompletionTargetTests(CompletionFixture,unittest.TestCase):
             'implementation_sha256','source_context_identity','execution_identity')}
         candidate.update(active_path='tmp/child/active.json',base_authority_id='fixture',base_result_sha256='a'*64,
                          result_sha256='c'*64,materialized_result_path='tmp/child/result.json')
+        base_pins = {}
+        if prepared:
+            realization = pin('base_profile_city',{'profile_id':'fixture',
+                'layers':[{'layer_id':key} for key in ('roads','water','vegetation')]})
+            realization['path'] = str(Path(realization['path']).relative_to(self.repo)).replace('\\','/')
+            validation = pin('base_validation_profile',{'profiles':{'city':{'world_data_plugin':'ProjectWorldTestData',
+                'map_package':'/fixture','realization_profile':realization['path']}}})
+            base['validation_profile_sha256'] = validation['sha256']
+            base_pins = {'base_profile_city':realization,'base_validation_profile':validation}
         selection = pin('selection',{'$schema':'https://alis.world/schemas/world-validation/refinement-candidate-selection-v1.json',
             'schema_version':1,'mode':'refinement_candidate','base_selection':base,'candidates':{'city':candidate},
             'executed_upstream_operations':operations})
@@ -208,20 +217,39 @@ class CompletionTargetTests(CompletionFixture,unittest.TestCase):
         receipts['saved_audit'] = pin('saved_audit',{'status':'accepted','active_set':{'sha256':world}})
         ticket = {'old_active_sha256':'a'*64,'new_active_sha256':'b'*64,'effective_result_sha256':'c'*64}
         receipts['failure_staging'] = pin('staging',{'pending':'World'})
+        prior_world = 'd'*64
+        if prepared:
+            receipts.update(base_pins)
+            receipts['base_active'] = pin('base_active',{'prepared':'World'})
+            prior_world = receipts['base_active']['sha256']
+            receipts['base_native_city'] = pin('base_native_city',{'status':'accepted','input_sha256':'a'*64,
+                'layer_inventories':[{'layer_id':key,'scope_id':'layer_fixture_'+key}
+                    for key in ('roads','water','vegetation')],
+                'realization_profile_sha256':realization['sha256']})
+            receipts['base_audit'] = pin('base_audit',{'status':'accepted','active_set':{'sha256':prior_world},
+                'scopes':[{'owning_layer':key,'scope_id':'map_fixture' if key=='map' else 'layer_fixture_'+key,
+                           'input_identity':{'map_package':'/fixture','compile_result_sha256':'a'*64}}
+                          for key in ('map','roads','water','vegetation')]})
         receipts['failure_journal'] = pin('journal',{'phase':'publishing','canonical_selection_transition':ticket,
-            'prior_active_set_sha256':'d'*64,'expected_active_set_sha256':receipts['failure_staging']['sha256']})
+            'prior_active_set_sha256':prior_world,'expected_active_set_sha256':receipts['failure_staging']['sha256']})
         report = {'status':'accepted','transition':ticket,'receipts':receipts,
-            'failure_recovery':{'status':'accepted','host_exit':1,'phase':'publishing','canonical_state':'selected','world_sha256':'d'*64},
+            'failure_recovery':{'status':'accepted','host_exit':1,'phase':'publishing','canonical_state':'selected','world_sha256':prior_world},
             'saved_publication':{'status':'accepted','world_sha256':world,'canonical_sha256':'b'*64},
             'cold_noop':{'status':'accepted','world_sha256':world,'canonical_sha256':'b'*64},
             'restoration':{'status':'accepted','before_inventory_sha256':'e'*64,'after_inventory_sha256':'e'*64,
                 'before_world_sha256':'d'*64,'after_world_sha256':'d'*64,'canonical_state':'prior'}}
+        if prepared: report['base_preparation'] = {'status':'accepted','world_sha256':prior_world}
         if mutate: mutate(report)
         transport = pin('transport',report)
         target = {'status':'accepted','evidence':{'matrix_mode':'refinement_selected',
             'scope':'selected_child_target_not_full_matrix','request':request,
             'transport_path':transport['path'],'transport_sha256':transport['sha256']}}
         return archive,target,originals
+
+    def test_prepared_base_target_survives_removal_of_original_inputs(self):
+        archive,target,originals = self.fixture(prepared=True)
+        for path in originals: path.unlink()
+        self.assertEqual('city',_target(archive,target)[0])
 
     def test_frozen_target_reads_its_exact_retained_closure_without_originals(self):
         archive,target,originals = self.fixture()

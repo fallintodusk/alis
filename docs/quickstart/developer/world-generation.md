@@ -11,6 +11,11 @@ Before changing behavior, use the
 It routes each concern to the owner of authored inputs, generated outputs,
 persistence, or regeneration.
 
+For agent-assisted work, load the [agent/dev SOT](../../agents/canonical.md) and
+[World engineering skill](../../../.claude/skills/world-engineering/SKILL.md).
+Resume ongoing work through the [task lifecycle](../../../todo/README.md) before
+selecting experiments; the source contracts alone do not describe task state.
+
 ## World tool prerequisite
 
 Install a Windows x86-64 CPython host compatible with the version declared by

@@ -100,6 +100,19 @@ namespace ProjectWorldConstructedContractParsing
 			for (TCHAR C : Epsg) if (C<'0' || C>'9') return false;
 			FObject Provenance;
 			if (!Object(Value,TEXT("model_provenance"),Provenance)) return false;
+			if (Provenance->HasField(TEXT("terrain_artifacts")))
+			{
+				FObject Support;if (!Object(Provenance,TEXT("terrain_artifacts"),Support) || Support->Values.IsEmpty() || Support->Values.Num()>16) return false;
+				for (const auto& Pair:Support->Values)
+				{
+					const FObject* D=nullptr;FProjectWorldCanonicalBasinArtifact Artifact;double Bytes=0;
+					if (!Pair.Value->TryGetObject(D) || !D || (*D)->Values.Num()!=3 || !String(*D,TEXT("path"),Artifact.Path) ||
+						!HashField(*D,TEXT("sha256"),Artifact.Hash) || !Number((*D)->TryGetField(TEXT("byte_size")),Bytes) ||
+						Bytes<1 || Bytes>=static_cast<double>(MAX_int64) || Bytes!=FMath::FloorToDouble(Bytes) ||
+						(!Artifact.Path.StartsWith(TEXT("canonical/terrain/")) && !Artifact.Path.StartsWith(TEXT("canonical/refined_terrain/")))) return false;
+					Artifact.ByteSize=static_cast<int64>(Bytes);Out.TerrainSupport.Add(FString(*Pair.Key),MoveTemp(Artifact));
+				}
+			}
 			const FValues *Bindings=nullptr,*Triangles=nullptr,*Roles=nullptr;
 			if (!Array(Value,TEXT("source_bindings"),Bindings,32) || !Array(Value,TEXT("triangles"),Triangles,4096) ||
 				!Array(Value,TEXT("face_roles"),Roles,64)) return false;
@@ -193,6 +206,22 @@ namespace ProjectWorldConstructedContractParsing
 			return FProjectSha256::HashBuffer(Bytes,Out.AdmissionHash);
 		}
 	}
+    bool ValidateTerrainSupport(const FProjectWorldCanonicalFeature& Feature,
+        const TMap<FString,FProjectWorldCanonicalBasinArtifact>& LoadedTerrain,bool Required)
+    {
+        if (!Feature.ConstructedSurface.IsSet()) return false;
+        const auto& Support=Feature.ConstructedSurface->TerrainSupport;
+        if (Support.IsEmpty()) return !Required;
+        TSet<FString> Members;for (const auto& R:Feature.Representations) Members.Add(R.CellId);
+        if (Support.Num()!=Members.Num()) return false;
+        for (const auto& Pair:Support)
+        {
+            const auto* Actual=LoadedTerrain.Find(Pair.Key);
+            if (!Members.Contains(Pair.Key) || !Actual || Actual->Path!=Pair.Value.Path ||
+                Actual->Hash!=Pair.Value.Hash || Actual->ByteSize!=Pair.Value.ByteSize) return false;
+        }
+        return true;
+    }
 	bool Read(const TSharedPtr<FJsonObject>& Attributes,FProjectWorldCanonicalFeature& Feature,
 		FProjectWorldCanonicalValidation& Validation)
 	{

@@ -445,7 +445,9 @@ function New-ProjectGeneratedContentOuterOperation {
         [Parameter(Mandatory = $true)][string]$WorldDataPlugin,
         [Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9_]{1,64}$')][string]$Label,
         [string]$LayoutReceipt = '',
-        [object]$CanonicalTransition
+        [object]$CanonicalTransition,
+        [switch]$PrepareCanonicalBase,
+        [AllowEmptyCollection()][object[]]$CanonicalBaseInputs = @()
     )
     Assert-ProjectGeneratedContentLockOwner -Lock $Lock -ProjectRoot $ProjectRoot
     if (Test-ProjectGeneratedContentRecoveryPending -ProjectRoot $ProjectRoot) {
@@ -491,7 +493,7 @@ function New-ProjectGeneratedContentOuterOperation {
         } } else { $null })
     }
     if ($null -ne $CanonicalTransition) {
-        $participant = New-ProjectGeneratedContentCanonicalParticipant -ProjectRoot $ProjectRoot -Marker $marker -Transition $CanonicalTransition
+        $participant = New-ProjectGeneratedContentCanonicalParticipant -ProjectRoot $ProjectRoot -Marker $marker -Transition $CanonicalTransition -PreparingBase:$PrepareCanonicalBase -BaseInputs $CanonicalBaseInputs
         $marker | Add-Member -NotePropertyName canonical_selection -NotePropertyValue $participant
     }
     Write-ProjectGeneratedContentOuterMarker -Lock $Lock -ProjectRoot $ProjectRoot -Marker $marker -Create

@@ -58,7 +58,8 @@ def _validate(product):
            for key, value in product['accuracy'].items() if key != 'confidence'):
         _refuse('Unknown accuracy must remain null, not nonfinite')
     roles = [a['role'] for a in product['artifacts']]
-    if any(roles.count(role) != 1 for role in SINGLE_ROLES):
+    single = SINGLE_ROLES if product['basis'] == 'observed_las_ground' else SINGLE_ROLES[1:]
+    if any(roles.count(role) != 1 for role in single) or roles.count('raw_source') < 1:
         _refuse('Derived product needs exactly one of each required processing artifact')
     ids = [a['id'] for a in product['artifacts']]
     if len(set(ids)) != len(ids):
@@ -138,7 +139,16 @@ def _verified_product(product, root):
         paths = {a['role']: _path(root, a['path']) for a in product['artifacts'] if a['role'] in ('source_ground', 'processed_ground')}
         grid = read_json(paths['processed_ground'])
         _document(grid, 'ground-grid.schema.json')
-        return read_grid(product, read_json(paths['source_ground']), grid)
+        source = read_json(paths['source_ground'])
+        if not isinstance(source, dict):
+            _refuse('Qualified source raster header is not an object')
+        if source.get('kind') == 'qualified_native_raster_collection':
+            from .raster_collection import read_collection
+            _document(source, 'native-raster-collection.schema.json')
+            return read_collection(product, source, grid, root, _path)
+        if sum(a['role'] == 'raw_source' for a in product['artifacts']) != 1:
+            _refuse('Multiple native raster objects require a complete source-header collection')
+        return read_grid(product, source, grid)
     _points(product, root, 'source_ground')
     return _points(product, root)
 
@@ -181,10 +191,11 @@ def read_ground_product(receipt_path: Path, expected_sha256: str):
     key = 'point_content_sha256' if product['basis'] == 'observed_las_ground' else 'grid_content_sha256'
     if canonical_hash(payload) != receipt.get(key):
         _refuse('Admitted Ground content identity changed')
-    raw = next(a for a in product['artifacts'] if a['role'] == 'raw_source')
+    raw = sorted((a['id'], a['sha256']) for a in product['artifacts'] if a['role'] == 'raw_source')
+    source_hash = raw[0][1] if len(raw) == 1 else canonical_hash({'raw_sources': raw})
     evidence = {'basis': product['basis'], 'canonical_crs': product['target_frame']['horizontal'],
         'vertical_datum': product['target_frame']['vertical'], key: canonical_hash(payload),
-        'source_sha256': raw['sha256'], 'processing_sha256': receipt['inputs_hash']}
+        'source_sha256': source_hash, 'processing_sha256': receipt['inputs_hash']}
     if product['basis'] == 'observed_las_ground':
         return {'product': product, 'points': payload, 'evidence': {**evidence, 'classification': 2}}
     return {'product': product, 'grid': payload, 'evidence': evidence}

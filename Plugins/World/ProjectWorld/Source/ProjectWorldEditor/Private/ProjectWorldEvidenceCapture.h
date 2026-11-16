@@ -14,6 +14,7 @@ struct FProjectWorldCaptureVantage
 	FRotator Rotation = FRotator::ZeroRotator;
 	double FieldOfViewDegrees = 90.0;
 	FString Note;
+	FString RenderMode = TEXT("lit");
 };
 
 struct FProjectWorldCaptureView
@@ -26,6 +27,7 @@ struct FProjectWorldCaptureView
 	FRotator Rotation = FRotator::ZeroRotator;
 	double FieldOfViewDegrees = 0.0;
 	FString ImageSha256;
+	FString RenderMode = TEXT("lit");
 };
 
 struct FProjectWorldCaptureResult
@@ -36,11 +38,11 @@ struct FProjectWorldCaptureResult
 	int32 Width = 0;
 	int32 Height = 0;
 	TArray<FProjectWorldCaptureView> Views;
-	// Same pose captured twice. Identical bytes prove the route is deterministic, which is what
-	// makes the pairwise-distinct check below evidence of pose response rather than noise.
+	// First pose repeated as a reported control; temporal state can change its bytes.
 	FString ControlName;
 	FString ControlSha256;
 	bool bControlMatches = false;
+	// Uniform diagnostic buffers need not differ; this gate covers product views.
 	bool bViewsPairwiseDistinct = false;
 	FString Status;
 	FString Message;

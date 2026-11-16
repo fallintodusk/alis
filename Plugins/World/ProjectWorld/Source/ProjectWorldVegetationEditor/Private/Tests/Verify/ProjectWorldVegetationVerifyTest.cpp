@@ -23,6 +23,7 @@ namespace ProjectWorldVegetationVerifyTest
 		FProjectWorldCanonicalCell Cell;
 		Cell.CellId = TEXT("vegetation_grid:x0:y0");
 		Cell.Bounds = FVector4d(0.0, 0.0, 100.0, 100.0);
+		Cell.Terrain.bHasVerticalSourceAccuracy = true;
 		Cell.Terrain.ArtifactHash = FString::ChrN(64, TEXT('b'));
 		Cell.Terrain.Bounds = Cell.Bounds;
 		Cell.Terrain.SampleSpacing = FVector2D(100.0, 100.0);

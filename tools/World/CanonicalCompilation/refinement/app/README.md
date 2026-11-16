@@ -19,3 +19,8 @@
 | [identity.py](identity.py) | Current child and consumed-helper fingerprints |
 | [contracts.py](contracts.py) | Refinement result admission and writes |
 | [retained_input.py](retained_input.py) | Bounded authenticated content-addressed model input reads |
+| [ground_admission.py](ground_admission.py) | Qualified full-domain source/profile binding and shared regular-artifact staging |
+| [ground_base.py](ground_base.py) | Ground nodes before retained-station Water refitting and existing conditioning |
+| [shore_geometry.py](shore_geometry.py) | Finite affine bank construction and complete encoded-field checks |
+| [shore_transition.py](shore_transition.py) | Ground/Water input admission and frozen selected-scope binding |
+| [shore_support.py](shore_support.py) | Joint upper clearance and final Terrain artifact bindings |

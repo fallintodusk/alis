@@ -55,6 +55,25 @@
       }
     },
     {
+      "layer_id": "structures",
+      "layer_kind": "generated_geography",
+      "generator_id": "project_constructed_surface",
+      "generator_version": 1,
+      "depends_on": [],
+      "canonical_selectors": ["constructed_surfaces"],
+      "artifact_root": "/ProjectWorldData/Generated/Showcase/Manhattan/Structures/",
+      "spatial_ownership": "cell_local",
+      "dirty_granularity": "canonical_cell",
+      "dependency_halo_cells": 0,
+      "runtime_mapping": "world_partition_spatial",
+      "settings": {
+        "maximum_join_step_m": 0.001,
+        "nanite": true,
+        "collision": "complex_as_simple",
+        "navigation": "physical_support"
+      }
+    },
+    {
       "layer_id": "roads",
       "layer_kind": "generated_geography",
       "generator_id": "project_road_mesh",

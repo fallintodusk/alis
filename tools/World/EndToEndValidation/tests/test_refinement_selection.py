@@ -8,8 +8,25 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / 'tools'))
 from World.CanonicalCompilation.tests import test_refinement_authority as fixture
+from World.CanonicalCompilation.tests import test_selection_feature_binding as binding_fixture
 from World.EndToEndValidation.app import refinement_selection as operation
 from World.EndToEndValidation.app.contracts import ValidationFailure, file_hash
+
+
+class ResealedFeatureSelectionTests(unittest.TestCase):
+    def test_resealed_e2e_candidate_is_refused_without_changing_the_pointer(self):
+        binding=binding_fixture.SelectionFeatureBindingTests();binding.setUp()
+        self.addCleanup(binding.doCleanups)
+        binding.reseal('base_feature_sha256')
+        source=binding.fixture
+        baseline={'active_path':source.active.relative_to(ROOT).as_posix(),
+            'active_sha256':file_hash(source.active),
+            'compile_result_sha256':source.base_authority['compile_result_sha256'],
+            'authority_id':source.base_authority['authority_id']}
+        settings={'compiler_profile_path':source.profile_path.relative_to(ROOT).as_posix()}
+        with self.assertRaises(ValidationFailure):
+            operation._candidate(ROOT,settings,baseline,binding.candidate)
+        self.assertEqual(binding.prior,source.active.read_bytes())
 
 
 class RefinementSelectionTests(unittest.TestCase):

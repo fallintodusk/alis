@@ -144,7 +144,7 @@ $psi.RedirectStandardError = $true
 $psi.CreateNoWindow = $true
 
 $processScratch = Join-Path $projectRoot ('tmp/test/native_process_owner/' + [guid]::NewGuid().ToString('N'))
-$execution = Invoke-ProjectOwnedTestProcess -StartInfo $psi -TimeoutSeconds $TimeoutSeconds -LogPath $testLog -ScratchRoot $processScratch
+$execution = Invoke-ProjectOwnedTestProcess -StartInfo $psi -TimeoutSeconds $TimeoutSeconds -LogPath $testLog -ScratchRoot $processScratch -RetireDescendantsOnRootExit
 if ($execution.ProcessDeadlineMissed -or $execution.InfrastructureError) {
     Write-Warning "Native test execution refused: $($execution.InfrastructureError)"
     exit $execution.ExitCode

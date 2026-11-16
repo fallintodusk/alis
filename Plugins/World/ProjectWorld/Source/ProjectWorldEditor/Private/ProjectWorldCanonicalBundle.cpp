@@ -10,6 +10,7 @@
 #include "ProjectWorldConstructedSurface.h"
 #include "ProjectWorldGeometryParsing.h"
 #include "ProjectWorldWaterContractParsing.h"
+#include "ProjectWorldVerticalProvenanceParsing.h"
 
 #include "Dom/JsonObject.h"
 #include "HAL/PlatformFileManager.h"
@@ -374,11 +375,13 @@ bool FProjectWorldCanonicalLoader::Load(
 	ProjectWorldCanonicalRefinement::FRetainedFeatureContexts InputContexts;
 	ProjectWorldIdentifiedBasinParsing::FRetainedInputs BasinInputs;
 	ProjectWorldAuthoredTerrainParsing::FRetainedInputs AuthoredInputs;
+	ProjectWorldGroundBaseParsing::FRetainedInput GroundInput;
+	ProjectWorldShoreTransitionParsing::FInputs ShoreInputs;
 	TSet<FString> UsedAuthoredInputs;
 	TMap<FString,FProjectWorldCanonicalBasinArtifact> LoadedTerrain;
 	const auto* RequestDescriptor=Descriptors.Find(TEXT("refinement/request.json"));
 	if (!ProjectWorldCanonicalRefinement::ValidateRetainedInputs(OutputRoot,bRefinement,
-		RequestDescriptor && RequestDescriptor->Kind==TEXT("compiler_document"),EvidencePaths,VerifiedInput,InputRoles,InputContexts,BasinInputs,AuthoredInputs,OutValidation)) return false;
+		RequestDescriptor && RequestDescriptor->Kind==TEXT("compiler_document"),EvidencePaths,VerifiedInput,InputRoles,InputContexts,BasinInputs,AuthoredInputs,GroundInput,ShoreInputs,OutValidation)) return false;
 
 	const FOutputDescriptor* CoverageDescriptor = Descriptors.Find(TEXT("canonical/coverage.json"));
 	const FOutputDescriptor* ProvenanceDescriptor = Descriptors.Find(TEXT("reports/provenance.json"));
@@ -553,14 +556,15 @@ bool FProjectWorldCanonicalLoader::Load(
 					return D != nullptr && D->Sha256 == Hash && D->ByteSize == Size;
 				}, OutValidation) ||
 			!ParseTerrain(TerrainObject, OutBundle.GridId, Cell.CellId, OutBundle.CellQuads, Cell.Terrain, OutValidation) ||
-			!ProjectWorldCanonicalRefinement::Parse(RefinementObject, OutBundle.GridId, Cell.CellId, Cell.Terrain, OutValidation,AuthoredInputs,UsedAuthoredInputs) ||
+			!ProjectWorldCanonicalRefinement::Parse(RefinementObject, OutBundle.GridId, Cell.CellId, Cell.Terrain, OutValidation,AuthoredInputs,UsedAuthoredInputs,ShoreInputs) ||
 			!ParseFeatures(
 				FeatureObject,
 				OutBundle.GridId,
 				Cell.CellId,
 				OutBundle.Features,
 				DocumentFeatureIds,
-				OutValidation) || !ProjectWorldIdentifiedBasinParsing::ValidateSources(FeatureObject,BasinInputs,OutValidation))
+				OutValidation) || !ProjectWorldIdentifiedBasinParsing::ValidateSources(FeatureObject,BasinInputs,OutValidation) ||
+			!ProjectWorldShoreTransitionParsing::ValidateSources(FeatureObject,ShoreInputs))
 		{
 			Reject(OutValidation,TEXT("cell-artifact"),TEXT("Canonical cell artifacts cannot be validated."),Cell.CellId);
 			return false;
@@ -582,6 +586,7 @@ bool FProjectWorldCanonicalLoader::Load(
 			Reject(OutValidation, TEXT("feature-manifest"), TEXT("Owned feature identities do not match the canonical feature document."), Cell.CellId);
 			return false;
 		}
+		if (!ProjectWorldGroundBaseParsing::ReadTerrain(TerrainObject,CellObject,*CoverageCellPtr,OutBundle,Cell,BaseResultHash,GroundInput,OutValidation,RefinementObject)) return false;
 		LoadedTerrain.Add(Cell.CellId,{TerrainPath,TerrainDescriptor->Sha256,TerrainDescriptor->ByteSize});
 		OutBundle.Cells.Add(MoveTemp(Cell));
 	}
@@ -622,6 +627,8 @@ bool FProjectWorldCanonicalLoader::Load(
 			if (!FeatureInputs || FeatureInputs->PolicyHash!=Pair.Value.ConstructedSurface->PolicyHash)
 			{ Reject(OutValidation,TEXT("constructed-surface-input"),TEXT("Structural policy is not the declared verified input."),Pair.Key); return false; }
 			Pair.Value.ConstructedSurface->OperationalPolicy=FeatureInputs->Policy;
+			if (!ProjectWorldConstructedContractParsing::ValidateTerrainSupport(Pair.Value,LoadedTerrain,!ShoreInputs.IsEmpty()))
+			{ Reject(OutValidation,TEXT("constructed-terrain-support"),TEXT("Structural support differs from its complete final Terrain artifacts."),Pair.Key); return false; }
 			for (const auto& Snapshot : Pair.Value.ConstructedSurface->SourceSnapshots)
 			{
 				const auto* Role=InputRoles.Find(Snapshot.Path);
@@ -638,7 +645,10 @@ bool FProjectWorldCanonicalLoader::Load(
 	}
 	if (!ProjectWorldAuthoredTerrainParsing::ValidateUsage(AuthoredInputs,OutBundle.GridId,UsedAuthoredInputs))
 	{ Reject(OutValidation,TEXT("refinement-retained-input"),TEXT("An authored Terrain input has no final Terrain binding in its declared grid.")); return false; }
-	return ProjectWorldIdentifiedBasinParsing::ValidateBundle(OutBundle,BasinInputs,LoadedTerrain,VerifiedInput,OutValidation) &&
+	if (!ProjectWorldShoreTransitionParsing::ValidateUsage(ShoreInputs,GroundInput.InputHash,OutBundle))
+	{ Reject(OutValidation,TEXT("shore-input"),TEXT("Shore input has stale Ground/Water or incomplete final Terrain usage.")); return false; }
+	return ProjectWorldGroundBaseParsing::ValidateUsage(GroundInput,OutValidation) &&
+		ProjectWorldIdentifiedBasinParsing::ValidateBundle(OutBundle,BasinInputs,LoadedTerrain,VerifiedInput,OutValidation) &&
 		ProjectWorldCanonicalRefinement::ValidateSeams(OutBundle, OutValidation);
 }
 
@@ -664,31 +674,7 @@ namespace ProjectWorldCanonical
 			!ReadBounds(Object, OutTerrain.Bounds, Validation) ||
 			!ReadVector2(Object, TEXT("sample_spacing"), OutTerrain.SampleSpacing, Validation) ||
 			!RequireObject(Object, TEXT("vertical_provenance"), VerticalProvenance, Validation) ||
-			!RequireString(
-				VerticalProvenance,
-				TEXT("source_ref"),
-				OutTerrain.VerticalProvenanceId,
-				Validation) ||
-			!RequireString(
-				VerticalProvenance,
-				TEXT("vertical_datum"),
-				OutTerrain.VerticalDatum,
-				Validation) ||
-			!RequireString(
-				VerticalProvenance,
-				TEXT("confidence"),
-				OutTerrain.VerticalConfidence,
-				Validation) ||
-			!RequireDouble(
-				VerticalProvenance,
-				TEXT("source_accuracy_m"),
-				OutTerrain.VerticalSourceAccuracyMeters,
-				Validation) ||
-			!RequireDouble(
-				VerticalProvenance,
-				TEXT("sampling_quantization_residual_m"),
-				OutTerrain.SamplingQuantizationResidualMeters,
-				Validation))
+			!ProjectWorldVerticalProvenanceParsing::Read(VerticalProvenance, OutTerrain, Validation))
 		{
 			return false;
 		}

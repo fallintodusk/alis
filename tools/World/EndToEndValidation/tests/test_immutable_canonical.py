@@ -2,6 +2,7 @@
 import importlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -51,6 +52,13 @@ class ImmutableCanonicalTests(unittest.TestCase):
                 target = cls.root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / name, target)
+            # This fixture authenticates the real base archives, not today's
+            # effective World with its independently selected children.
+            active.pop("selected_refinement", None)
+            active_path = cls.root / relative
+            schema = ROOT / "tools/World/CanonicalCompilation/contracts/canonical-authority.schema.json"
+            active["$schema"] = Path(os.path.relpath(schema, active_path.parent)).as_posix()
+            active_path.write_text(json.dumps(active))
             cls.pin_paths.update(paths)
             archive = Path(relative).parent / active["bundle"]["path"]
             (cls.root / archive).parent.mkdir(parents=True, exist_ok=True)
@@ -72,6 +80,7 @@ class ImmutableCanonicalTests(unittest.TestCase):
         return importlib.import_module(MODULE)
 
     def test_both_real_authorities_admit_without_acquire_compile_or_promotion(self):
+        """Authenticate real base lineage without claiming current selected-child acceptance."""
         operation = self.operation()
         forbidden = AssertionError("The immutable consumer must not invoke a producer")
         with patch("World.CanonicalCompilation.app.pipeline.compile_world", side_effect=forbidden), \

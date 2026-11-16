@@ -79,6 +79,7 @@ def _validate_matrix_authority(
     materialized_result: Path,
 ) -> None:
     recorded = record.get("canonical_authority") or {}
+    from .immutable_canonical import selected_refinement_record
     expected = {
         "active_path": active_path.relative_to(REPO_ROOT).as_posix(),
         "active_sha256": file_hash(active_path),
@@ -86,8 +87,11 @@ def _validate_matrix_authority(
         "inputs_hash": authority["inputs_hash"],
         "bundle_sha256": authority["bundle"]["sha256"],
         "compile_result_sha256": authority["compile_result_sha256"],
+        **selected_refinement_record(authority),
     }
-    if recorded != expected or record.get("realization_compile_result_sha256") != file_hash(materialized_result):
+    effective_hash = authority.get('selected_refinement', {}).get('result_sha256', authority['compile_result_sha256'])
+    if (recorded != expected or record.get("realization_compile_result_sha256") != effective_hash or
+            file_hash(materialized_result) != effective_hash):
         raise ValidationFailure(
             "matrix_canonical_authority_stale",
             "Matrix evidence does not identify the current canonical authority",

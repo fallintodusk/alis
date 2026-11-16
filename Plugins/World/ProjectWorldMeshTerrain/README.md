@@ -65,6 +65,17 @@ captures actual Nanite and explicitly selected fallback depth and queries
 compiled collision. Packaged/city performance and physics acceptance remain
 separate from this disposable Editor fixture.
 
+The [audit readback](Source/ProjectWorldMeshTerrainEditor/Private/ProjectWorldMeshTerrainAuditSurfaces.cpp)
+uses native `ACompiledSection::GetMeshComponents()` to select primary surfaces.
+Native sections also register an auxiliary virtual-texture component referencing
+the same mesh outside the main render pass; enumerating every static-mesh
+component counts that representation twice. Real primary instances remain
+distinct, including instances sharing one mesh. Nanite-enabled and fallback
+refinement comparisons run independently so a failed first field cannot leave
+the second unmeasured. `Project.World.Realization.MeshTerrain.AuditPrimarySurfaces`
+exercises actual native component creation, the auxiliary-copy control and
+genuine duplicate-primary refusal.
+
 `Project.World.Realization.MeshTerrain.CoastalIntersection` retains a captured
 four-piece cover that distinguishes local-frame measurements from canonical
 roundtrip loss. Missing, duplicate, shifted and reversed fields still refuse.

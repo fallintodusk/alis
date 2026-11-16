@@ -9,6 +9,7 @@ immutable authenticated base.
 | Public operations | [API](api.py) |
 | Authored dry height correction over accepted final grids | [Contract](../terrain_refinement.md#authored-dry-terrain) |
 | Pure raster Ground construction | [Ground](ground.py) |
+| Coherent full-domain Ground before Water | [Contract](../terrain_refinement.md#coherent-qualified-ground-base) |
 | Unpublished inner-to-provider model composition | [Ground composite](ground_composite.py) |
 | Unpublished incoming-strip continuation into one east neighbor | [Ground continuation](ground_continuation.py) |
 | Unpublished original-width path floor and masked source controls | [Path floor](ground_path_floor.py) |
@@ -21,6 +22,19 @@ immutable authenticated base.
 | Owned request, result and selection schemas | [Contracts](contracts/README.md) |
 
 ## Focused contract tests
+
+For the captured coarse-grid shoreline failure, run
+`python -B -m World.CanonicalCompilation.tests.pier_shore_fixture` with `tools/`
+on `PYTHONPATH`. This tiny retained-input diagnostic prints contact errors and a
+refused authored comparison; it is not a geographic acceptance test. Use it as
+the input witness for a future local shore construction regression.
+Add `--sparse` to characterize the existing exact-footprint operation from
+pre-Water Ground, including dry-only deformation, source/Water limiting heights
+and outer refusal checks. This optional diagnostic uses the pinned native
+geometry environment. Its focused regression is
+`python -B -m unittest World.CanonicalCompilation.tests.test_pier_shore_diagnostics`;
+GREEN means the rejected mechanism and its controls are diagnosed correctly,
+not that a shoreline model is accepted.
 
 Use the [pinned execution environment](../../ExecutionEnvironment/README.md) Python,
 with repository `tools/` on `PYTHONPATH`:

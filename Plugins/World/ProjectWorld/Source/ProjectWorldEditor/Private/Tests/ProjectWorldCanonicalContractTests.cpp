@@ -20,7 +20,10 @@ namespace ProjectWorldCanonicalContractTests
 		CoverageCell,
 		TerrainBounds,
 		TerrainSpacing,
-		FeatureManifest
+		FeatureManifest,
+		UnknownAccuracy,
+		MissingAccuracy,
+		InvalidAccuracy
 	};
 
 	struct FDocument
@@ -56,6 +59,10 @@ namespace ProjectWorldCanonicalContractTests
 
 	FString TerrainDocument(const FString& CellId, int32 CellX, EConflict Conflict)
 	{
+		const FString Accuracy = Conflict == EConflict::UnknownAccuracy ? TEXT("\"source_accuracy_m\":null,")
+			: Conflict == EConflict::MissingAccuracy ? TEXT("")
+			: Conflict == EConflict::InvalidAccuracy ? TEXT("\"source_accuracy_m\":\"unknown\",")
+			: TEXT("\"source_accuracy_m\":0.5,");
 		const FString Bounds = Conflict == EConflict::TerrainBounds && CellX == 0
 			? TEXT("[0,0,2,1]")
 			: FString::Printf(TEXT("[%d,0,%d,1]"), CellX, CellX + 1);
@@ -63,10 +70,11 @@ namespace ProjectWorldCanonicalContractTests
 			? TEXT("[2,1]")
 			: TEXT("[1,1]");
 		return FString::Printf(
-			LR"({"$schema":"https://alis.world/schemas/world-compiler/terrain-cell-v2.json","schema_version":2,"grid_id":"grid_0123456789abcdef","cell_id":"%s","bounds":%s,"sample_spacing":%s,"vertical_provenance":{"source_ref":"fixture_terrain","vertical_datum":"EPSG:3855","source_accuracy_m":0.5,"confidence":"fixture_exact","sampling_quantization_residual_m":0.05},"core_samples":[[0,0],[0,0]],"surface_semantics":{"contract_id":"terrain_surface_semantics","contract_version":1,"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000","roles":["ground","hydro_transition"],"core_samples":{"ground":[[1,1],[1,1]],"hydro_transition":[[0,0],[0,0]]}}})",
+			LR"({"$schema":"https://alis.world/schemas/world-compiler/terrain-cell-v2.json","schema_version":2,"grid_id":"grid_0123456789abcdef","cell_id":"%s","bounds":%s,"sample_spacing":%s,"vertical_provenance":{"source_ref":"fixture_terrain","vertical_datum":"EPSG:3855",%s"confidence":"fixture_exact","sampling_quantization_residual_m":0.05},"core_samples":[[0,0],[0,0]],"surface_semantics":{"contract_id":"terrain_surface_semantics","contract_version":1,"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000","roles":["ground","hydro_transition"],"core_samples":{"ground":[[1,1],[1,1]],"hydro_transition":[[0,0],[0,0]]}}})",
 			*CellId,
 			*Bounds,
-			*Spacing);
+			*Spacing,
+			*Accuracy);
 	}
 
 	FString FeatureDocument(const FString& CellId)
@@ -207,6 +215,9 @@ bool FProjectWorldCanonicalContractsFailClosedTest::RunTest(const FString& Param
 		TEXT("Engine origin is independent from lattice identity."),
 		Bundle.EngineGeoreferenceOriginMeters,
 		FVector2D(10.0, 20.0));
+	TestTrue(TEXT("An explicit unknown-accuracy fixture remains receipt-consistent."), WriteFixture(EConflict::UnknownAccuracy, ReceiptPath));
+	TestTrue(TEXT("Known heights do not require invented source accuracy."), FProjectWorldCanonicalLoader::Load(ReceiptPath, Bundle, Validation));
+	TestFalse(TEXT("Unknown source accuracy is distinct from measured zero."), Bundle.Cells[0].Terrain.bHasVerticalSourceAccuracy);
 
 	const TArray<TPair<EConflict, FString>> Cases = {
 		{EConflict::CoverageVersion, TEXT("document-contract")},
@@ -214,7 +225,9 @@ bool FProjectWorldCanonicalContractsFailClosedTest::RunTest(const FString& Param
 		{EConflict::CoverageCell, TEXT("cell-contract")},
 		{EConflict::TerrainBounds, TEXT("terrain-contract")},
 		{EConflict::TerrainSpacing, TEXT("terrain-contract")},
-		{EConflict::FeatureManifest, TEXT("feature-manifest")}
+		{EConflict::FeatureManifest, TEXT("feature-manifest")},
+		{EConflict::MissingAccuracy, TEXT("terrain-provenance")},
+		{EConflict::InvalidAccuracy, TEXT("terrain-provenance")}
 	};
 	for (const TPair<EConflict, FString>& Case : Cases)
 	{

@@ -85,8 +85,9 @@ rejects good low-relief data.
 python -m unittest discover tools/World/VisualVerification/tests
 ```
 
-Green surface **plus** green height check together mean "correct data,
-correctly realized". Neither proves that alone.
+Green surface plus a green height check establish the measured sampling
+characteristics and fidelity to canonical. They do not prove bare-earth source
+suitability, accurate construction geometry or player-visible quality.
 
 ### 3. Capture - operator evidence
 
@@ -147,8 +148,10 @@ produced three accepted captures of City17.
 
 `verify_capture.py` then authenticates the set independently of the engine: it
 re-reads PNG headers for actual dimensions and re-hashes every file. Distinct
-poses returning identical bytes is a hard rejection - that is the stale-frame
-signature. A repeated pose is captured once as a REPORTED control; it is not
+normal product poses returning identical bytes is a hard rejection - that is the
+stale-frame signature. Uniform diagnostic buffers can legitimately match across
+poses; the hash gate covers normal product views. A repeated pose is captured
+once as a REPORTED control; it is not
 gated, because UE carries temporal rendering state between frames and healthy
 imagery legitimately differs on a repeat.
 
@@ -198,7 +201,85 @@ needs. Choosing the wrong branch is the single easiest way to lose a day here;
 see the screenshot entry in
 [ProjectWorld pitfalls](../../../Plugins/World/ProjectWorld/docs/pitfalls.md).
 
+### Paired geometry and presentation review
+
+Use identical framing to separate geometry, material and lighting defects:
+
+| Plan `render_mode` | Representation | What it can establish |
+| --- | --- | --- |
+| `lit` (default) | Unchanged product materials, lights and exposure | Actual appearance and player readability |
+| `base_color` | Native deferred Base Color, without scene lighting | Material boundaries and whether shadows hide a surface |
+| `lighting_only` | Native neutral diffuse override, without material normal detail or specular | Geometry under the existing lights, independently of dark or noisy albedo |
+| `world_normal` | Native signed GBuffer normals encoded as RGB | Surface orientation and suspicious shading discontinuities |
+
+These are simple diagnostic surfaces, not replacement production materials.
+The capture modifies only its transient component/view. It does not edit or save
+world materials, lights, exposure, geometry or collision. Normal RGB encodes
+`normal * 0.5 + 0.5`; it includes material normals and is not a topology or
+collision certificate. Base Color and normals require deferred rendering;
+forward rendering refuses instead of silently substituting a lit image.
+Translucent materials do not have the same GBuffer coverage as opaque surfaces;
+absence from a buffer view alone does not establish missing Water geometry.
+
+Generate the paired overview plan with:
+
+```powershell
+python tools/World/VisualVerification/app/plan_vantages.py <descriptor-dump> <output-plan> --diagnostics
+```
+
+For a source-bound local plan, use `plan_vantages.with_diagnostics(plan)` before
+passing it to the existing capture wrapper. It retains each product pose and
+adds the three diagnostic poses, including the same FOV and image size. Review
+the normal player-eye view first, then compare its diagnostic siblings. The
+receipt labels each actual render mode and its product/diagnostic role. The
+independent reader rejects unknown modes, diagnostics labelled as product, and
+diagnostic sets without all four views at the same measured pose. Ordinary
+normal-only captures remain supported; their authentication is not a visual PASS.
+
+A clear diagnostic image does not satisfy a normal-presentation requirement.
+For procedural material appearance, use Game/PIE with actual Ready outputs as
+defined by [ProjectTexture](../../../Plugins/Resources/ProjectTexture/docs/pattern_generation.md#contract).
+A cold Editor's empty encoded-normal target can produce nearly horizontal
+shading normals over level collision geometry. Compare native output pixels and
+the runtime normal buffer before classifying that as a Terrain, normal-graph or
+exposure defect. Runtime-primed Editor images remain a different envelope from
+actual play; label them separately. Use the existing saved/regional runtime view
+route for acceptance, and retain actual play-world, support and camera evidence.
+
+Use the comparison to select the responsible owner: wrong shape/placement ->
+canonical or realization; correct shape with bad albedo -> material; correct
+shape/material with unreadable shade -> presentation. Do not change Terrain
+heights to compensate for darkness or reject an approximate roof solely because
+it differs from detailed architecture.
+
+Native references: [Epic viewport modes](https://dev.epicgames.com/documentation/en-us/unreal-engine/viewport-modes-in-unreal-engine?application_version=5.8),
+installed `SceneCaptureRendering.cpp` / `SetupSceneViewExtensionsForSceneCapture`,
+`SceneCapturePixelShader.usf`, and `EditorViewportClient.cpp` lighting overrides.
+
+### Local support and context
+
+For a local Water/Ground contact, derive the camera and target from the
+authenticated feature footprint after coordinate conversion. A name containing
+`player` does not establish that the eye stands on dry support or that the rim
+is in frame: a pose above a pool center can look past the entire feature. Read
+back actual support, pose and FOV, and inspect the normal image with full scene
+context before closing the selected-candidate observation window. Nearby mock
+volumes may obstruct a view that worked in an isolated Terrain fixture.
+
+Temporary visibility, shadow, exposure or debug-buffer controls can identify
+the responsible owner; label them as controls and restore them. They do not
+replace a normal product view or justify a Terrain height adjustment. Preserve
+completed native execution evidence when correcting framing or a final reader;
+do not repeat full generation merely to obtain another camera angle.
+
 ## Output locations
+
+The public capture entrypoint accepts absolute and repository-relative vantage
+plan paths through the shared
+[capture input resolver](../../../scripts/ue/world/capture_input_paths.ps1).
+Selected-target admission uses the same resolver before World mutation. Missing
+plans refuse before output creation or Editor launch; an absolute path is never
+joined to the repository a second time.
 
 All scratch output goes under the project `tmp/` tree:
 

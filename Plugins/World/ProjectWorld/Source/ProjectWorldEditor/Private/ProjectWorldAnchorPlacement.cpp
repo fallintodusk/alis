@@ -29,6 +29,7 @@ namespace ProjectWorldAnchorPlacement
 				}
 				if (Cell.Terrain.VerticalProvenanceId.IsEmpty() ||
 					Cell.Terrain.VerticalDatum.IsEmpty() ||
+					!Cell.Terrain.bHasVerticalSourceAccuracy ||
 					Cell.Terrain.VerticalSourceAccuracyMeters < 0.0 ||
 					Cell.Terrain.SamplingQuantizationResidualMeters < 0.0)
 				{

@@ -129,25 +129,7 @@ namespace ProjectWorldIdentifiedBasinParsing
 		}
 		bool Equal(const TSharedPtr<FJsonValue>& A,const TSharedPtr<FJsonValue>& B)
 		{
-			if (!A || !B || A->Type!=B->Type) return false;
-			if (A->Type==EJson::Object)
-			{
-				const auto X=A->AsObject(),Y=B->AsObject();
-				if (!X || !Y || X->Values.Num()!=Y->Values.Num()) return false;
-				for (const auto& Pair : X->Values) if (!Equal(Pair.Value,Y->TryGetField(Pair.Key))) return false;
-				return true;
-			}
-			if (A->Type==EJson::Array)
-			{
-				const auto& X=A->AsArray(); const auto& Y=B->AsArray();
-				if (X.Num()!=Y.Num()) return false;
-				for (int32 I=0; I<X.Num(); ++I) if (!Equal(X[I],Y[I])) return false;
-				return true;
-			}
-			if (A->Type==EJson::Number) return A->AsNumber()==B->AsNumber();
-			if (A->Type==EJson::String) return A->AsString()==B->AsString();
-			if (A->Type==EJson::Boolean) return A->AsBool()==B->AsBool();
-			return A->Type==EJson::Null;
+			return ProjectWorldCanonicalJson::Equal(A,B);
 		}
 	}
 

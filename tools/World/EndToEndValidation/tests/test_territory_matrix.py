@@ -46,7 +46,7 @@ class TerritoryMatrixContractTests(unittest.TestCase):
                     projection = json.dumps([{"kind": "actor", "key": name, "fields": fields}],
                         sort_keys=True, separators=(",", ":"))
                     parts[name] = {"generator_id": generator, "generator_version": 1 if name == "map" else 2,
-                        "comparison_version": 1, "record_count": 1, "projection_json": projection,
+                        "comparison_version": 2 if name == "map" else 1, "record_count": 1, "projection_json": projection,
                         "sha256": hashlib.sha256(projection.encode()).hexdigest()}
                 path = root / f"{leg}.json"
                 path.write_text(json.dumps({"schema": "project-world-saved-projection:v1",
@@ -69,7 +69,7 @@ class TerritoryMatrixContractTests(unittest.TestCase):
                             "tags": "role=stable", "collision.0": "same"}}],
                         sort_keys=True, separators=(",", ":"))
                     parts[name] = {"generator_id": generator, "generator_version": 1 if name == "map" else 2,
-                        "comparison_version": 1, "record_count": 1, "projection_json": projection,
+                        "comparison_version": 2 if name == "map" else 1, "record_count": 1, "projection_json": projection,
                         "sha256": hashlib.sha256(projection.encode()).hexdigest()}
                 path = root / f"{leg}.json"
                 path.write_text(json.dumps({"schema": "project-world-saved-projection:v1",
@@ -79,6 +79,18 @@ class TerritoryMatrixContractTests(unittest.TestCase):
             result = validation._validate_saved_world_projections(record, "test-map")
             self.assertEqual(result["map"]["first_sha256"], result["map"]["clean_sha256"])
             self.assertEqual(result["buildings"]["first_sha256"], result["buildings"]["clean_sha256"])
+            first = Path(record["saved_world_projection_first"])
+            original = first.read_text(encoding="utf-8")
+            for name, revision in (("map", 1), ("map", 3), ("buildings", 0), ("buildings", 2)):
+                with self.subTest(producer=name, comparison_revision=revision):
+                    receipt = json.loads(original)
+                    receipt[name]["comparison_version"] = revision
+                    first.write_text(json.dumps(receipt), encoding="utf-8")
+                    record["saved_world_projection_first_sha256"] = hashlib.sha256(first.read_bytes()).hexdigest()
+                    with self.assertRaises(ValidationFailure) as raised:
+                        validation._validate_saved_world_projections(record, "test-map")
+                    self.assertEqual("saved_world_projection_invalid", raised.exception.code)
+                    self.assertEqual(name, raised.exception.details["producer"])
 
     def test_saved_terrain_projection_rejects_compiled_collision_drift(self) -> None:
         with tempfile.TemporaryDirectory(dir=REPO_ROOT / "tmp") as directory:
@@ -137,7 +149,8 @@ class TerritoryMatrixContractTests(unittest.TestCase):
             _validate_manifest_artifact_paths(legs, [first, first, first, clean], False)
 
     def test_promoted_bundle_budget_uses_output_inventory_without_metrics_file(self) -> None:
-        receipt = {"outputs": [
+        receipt = {"$schema": "https://alis.world/schemas/world-compiler/compile-result-v1.json",
+                   "operation": "compile", "outputs": [
             {"path": "canonical/coverage.json", "byte_size": 17},
             {"path": "reports/validation.json", "byte_size": 23},
         ]}

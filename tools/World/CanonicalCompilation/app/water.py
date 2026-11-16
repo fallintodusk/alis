@@ -255,6 +255,14 @@ def _flow_function(
             authority_id=authority_id,
             axis_source_ids=axis_ids,
         )
+    return fit_flow_stations(points, sampler, configuration, height_step, coordinate_step)
+
+
+def fit_flow_stations(
+    points: list[list[float]], sampler: TerrainSampler, configuration: dict[str, Any],
+    height_step: float, coordinate_step: float,
+) -> dict[str, Any]:
+    """Fit an already selected ordered axis station set without choosing new geometry."""
     raw = [sampler.sample(point) for point in points]
     fitted = fit_downstream_surface(raw, int(configuration["rolling_radius"]), float(configuration["quantile"]))
     knots = [[point[0], point[1], quantize(height, height_step)] for point, height in zip(points, fitted, strict=True)]

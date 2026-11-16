@@ -5,6 +5,8 @@
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldIdentifiedBasinParsing.h"
 #include "ProjectWorldAuthoredTerrainParsing.h"
+#include "ProjectWorldGroundBaseParsing.h"
+#include "ProjectWorldShoreTransitionParsing.h"
 struct FProjectWorldCanonicalValidation;
 namespace ProjectWorldCanonicalRefinement
 {
@@ -21,5 +23,7 @@ namespace ProjectWorldCanonicalRefinement
 		TFunctionRef<bool(const FString&,const FString&,int64,bool)> IsVerifiedOutput,
 		TMap<FString,FString>& OutRoles,FRetainedFeatureContexts& OutContexts,
 		ProjectWorldIdentifiedBasinParsing::FRetainedInputs& OutBasins,
-		ProjectWorldAuthoredTerrainParsing::FRetainedInputs& OutAuthored,FProjectWorldCanonicalValidation& Validation);
+		ProjectWorldAuthoredTerrainParsing::FRetainedInputs& OutAuthored,
+		ProjectWorldGroundBaseParsing::FRetainedInput& OutGround,ProjectWorldShoreTransitionParsing::FInputs& OutShores,
+		FProjectWorldCanonicalValidation& Validation);
 }

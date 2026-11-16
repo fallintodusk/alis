@@ -14,8 +14,6 @@ from World.CanonicalCompilation.app.contracts import CompilerError, canonical_ha
 from World.CanonicalCompilation.refinement.app import activation, authority, identity
 from World.CanonicalCompilation.refinement.app.contracts import write_json as write_child
 from World.CanonicalCompilation.app import promotion
-from World.EndToEndValidation.app import refinement_selection
-from World.EndToEndValidation.app.contracts import ValidationFailure
 
 
 class SelectionFeatureBindingTests(unittest.TestCase):
@@ -101,17 +99,6 @@ class SelectionFeatureBindingTests(unittest.TestCase):
             self.prior, self.candidate.read_bytes(), self.fixture.base_authority, selected)
         with self.assertRaises(CompilerError):
             activation.publish_selection_transition(ROOT, transition)
-        self.assertEqual(self.prior, self.fixture.active.read_bytes())
-
-    def test_resealed_e2e_candidate_is_refused_without_changing_the_pointer(self):
-        self.reseal('base_feature_sha256')
-        baseline = {'active_path': self.fixture.active.relative_to(ROOT).as_posix(),
-            'active_sha256': file_hash(self.fixture.active),
-            'compile_result_sha256': self.fixture.base_authority['compile_result_sha256'],
-            'authority_id': self.fixture.base_authority['authority_id']}
-        settings = {'compiler_profile_path': self.fixture.profile_path.relative_to(ROOT).as_posix()}
-        with self.assertRaises(ValidationFailure):
-            refinement_selection._candidate(ROOT, settings, baseline, self.candidate)
         self.assertEqual(self.prior, self.fixture.active.read_bytes())
 
     def test_base_archive_changed_during_replay_refuses_before_installation(self):

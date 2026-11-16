@@ -19,6 +19,10 @@ def request_is_current(repo_root, request):
             request['execution_identity'] != execution_identity(repo_root, True)['identity_sha256']):
         return False
     for operation in request['operations']:
+        if operation['kind'] == 'qualified_ground_base':
+            from .ground_admission import construction_identity
+            if operation['construction_identity'] != construction_identity():
+                return False
         if operation['kind'] == 'identified_basin':
             from ..basin_admission import implementation_identity as basin_identity
             if operation['construction_identity'] != basin_identity(repo_root):

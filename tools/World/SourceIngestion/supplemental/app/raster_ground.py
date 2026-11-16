@@ -16,9 +16,8 @@ def _crs_id(component):
     return f"EPSG:{identifier['code']}"
 
 
-def read_grid(product, source, grid):
-    """Qualification owns native processing; admission binds its frozen header and grid."""
-    query, frame = product['query'], product['source_frame']
+def validate_header(source, frame, query, *, geographic=False, qualified_unit=False):
+    """Check the unchanged native header; geographic metadata qualification is explicit."""
     size = source.get('size')
     transform = source.get('geoTransform')
     bands = source.get('bands')
@@ -36,10 +35,11 @@ def read_grid(product, source, grid):
     if not isinstance(native_crs, dict):
         _refuse('Qualified raster header needs its native structured CRS')
     components = native_crs.get('components') if native_crs.get('type') == 'CompoundCRS' else [native_crs]
+    horizontal = 'GeographicCRS' if geographic else 'ProjectedCRS'
     if (not isinstance(components, list) or len(components) not in (1, 2) or
             (native_crs.get('type') == 'CompoundCRS' and len(components) != 2) or
             any(not isinstance(c, dict) for c in components) or
-            [c.get('type') for c in components] not in (['ProjectedCRS'], ['ProjectedCRS', 'VerticalCRS'])):
+            [c.get('type') for c in components] not in ([horizontal], [horizontal, 'VerticalCRS'])):
         _refuse('Qualified source raster CRS components are unsupported')
     authority = source['stac'].get('proj:epsg')
     wkt = source['coordinateSystem'].get('wkt')
@@ -55,12 +55,18 @@ def read_grid(product, source, grid):
         _refuse('Explicit source raster vertical CRS contradicts the descriptor')
     unit = bands[0].get('unit')
     units = {'m': {'m', 'metre', 'meter'}, 'us_ft': {'US survey foot'}}
-    if not isinstance(unit, str) or unit not in units[frame['unit']] or source['metadata'][''].get('AREA_OR_POINT') != 'Area':
+    unit_agrees = isinstance(unit, str) and unit in units[frame['unit']]
+    if not (unit_agrees or (unit is None and qualified_unit)) or source['metadata'][''].get('AREA_OR_POINT') != 'Area':
         _refuse('Qualified raster units or pixel interpretation contradict the descriptor')
     source_nodata = bands[0].get('noDataValue')
     if (source_nodata is not None and (type(source_nodata) not in (int, float) or not math.isfinite(source_nodata)) or
             source_nodata != query['source_nodata']):
         _refuse('Source raster NoData does not match its processing contract')
+
+
+def validate_grid(product, grid):
+    """Check complete finite target nodes independently of the source header layout."""
+    query = product['query']
     if grid['frame'] != product['target_frame'] or grid['frame']['unit'] != 'm':
         _refuse('Processed Ground grid contradicts its canonical frame')
     nx, ny = grid['size']
@@ -80,3 +86,9 @@ def read_grid(product, source, grid):
     if any(not math.isfinite(v) for v in bounds) or bounds != query['canonical_bounds']:
         _refuse('Processed Ground nodes do not cover the qualified bounds')
     return grid
+
+
+def read_grid(product, source, grid):
+    """Qualification owns native processing; admission binds its frozen header and grid."""
+    validate_header(source, product['source_frame'], product['query'])
+    return validate_grid(product, grid)
