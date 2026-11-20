@@ -18,6 +18,16 @@ struct FProjectWorldCaptureViewpoint
 	float FieldOfViewDegrees = 60.0f;
 };
 
+struct FProjectWorldHistogramExposure
+{
+	float MinEv100 = 0.0f;
+	float MaxEv100 = 0.0f;
+	float HistogramMinEv100 = 0.0f;
+	float HistogramMaxEv100 = 0.0f;
+	float SpeedUp = 0.0f;
+	float SpeedDown = 0.0f;
+};
+
 struct FProjectWorldPresentationProfile
 {
 	FString ProfileId;
@@ -32,6 +42,7 @@ struct FProjectWorldPresentationProfile
 	float FogDensity = 0.0f;
 	float FogHeightFalloff = 0.0f;
 	float FixedExposureEv100 = 0.0f;
+	TOptional<FProjectWorldHistogramExposure> GameplayHistogramExposure;
 	TArray<FProjectWorldCaptureViewpoint> CaptureViewpoints;
 };
 

@@ -382,6 +382,120 @@ class PublicSourceProjectionTests(unittest.TestCase):
             hashlib.sha256(normalized).hexdigest(), manifest["assets"][0]["source_sha256"]
         )
 
+    def generated_definition_fixture(
+        self,
+        manifest_text: str,
+        filtered_text: str,
+        source_text: str | None = None,
+        commit: bool = False,
+    ) -> tuple[Path, str | None]:
+        filtered_source = self.root / "Data/Definition.json"
+        filtered_source.parent.mkdir(parents=True, exist_ok=True)
+        filtered_source.write_text(filtered_text, encoding="utf-8")
+        source_root = self.root / "source-repository"
+        source_source = source_root / "Data/Definition.json"
+        source_source.parent.mkdir(parents=True, exist_ok=True)
+        source_source.write_text(source_text if source_text is not None else filtered_text, encoding="utf-8")
+        manifest_path = self.root / "Data/manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "assets": [
+                        {
+                            "source_path": "Data/Definition.json",
+                            "source_sha256": hashlib.sha256(manifest_text.encode("utf-8")).hexdigest(),
+                            "source_json_hash_md5": hashlib.md5(
+                                manifest_text.encode("utf-8"), usedforsecurity=False
+                            ).hexdigest(),
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        contract = self.root / "scripts/git/mirror/developer_asset_release.json"
+        contract.parent.mkdir(parents=True)
+        contract.write_text(
+            json.dumps(
+                {
+                    "asset_authorities": [
+                        {
+                            "authority_kind": "generated_definition_manifest",
+                            "owner": "OwnerA",
+                            "manifest_path": "Data/manifest.json",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        revision = None
+        if commit:
+            subprocess.run(
+                ["git", "-C", str(source_root), "init", "-q"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(source_root), "config", "user.email", "test@example.invalid"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(source_root), "config", "user.name", "Test"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(source_root), "add", "Data/Definition.json"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(source_root), "commit", "-q", "-m", "fixture"],
+                check=True,
+                capture_output=True,
+            )
+            revision = subprocess.run(
+                ["git", "-C", str(source_root), "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        return source_root, revision
+
+    def test_generated_definition_projection_classifies_stale_source(self):
+        old = json.dumps({"id": "old"}) + chr(10)
+        new = json.dumps({"id": "new"}) + chr(10)
+        source_root, revision = self.generated_definition_fixture(old, new, new, commit=True)
+        with self.assertRaisesRegex(MODULE.ProjectionError, "Run scripts/git/mirror/refresh_developer_asset_authority.ps1 -Regenerate"):
+            MODULE.rebind_generated_definition_sources(self.root, source_root, revision)
+        with self.assertRaisesRegex(MODULE.ProjectionError, "OwnerA"):
+            MODULE.rebind_generated_definition_sources(self.root, source_root, revision)
+
+    def test_generated_definition_projection_classifies_snapshot_matching_projection_change(self):
+        expected = json.dumps({"id": "new"}) + chr(10)
+        filtered = json.dumps({"id": "new", "extra": 1}) + chr(10)
+        source_root, revision = self.generated_definition_fixture(expected, filtered, expected, commit=True)
+        with self.assertRaisesRegex(MODULE.ProjectionError, "source snapshot matches"):
+            MODULE.rebind_generated_definition_sources(self.root, source_root, revision)
+        with self.assertRaisesRegex(MODULE.ProjectionError, "Do not regenerate"):
+            MODULE.rebind_generated_definition_sources(self.root, source_root, revision)
+
+    def test_generated_definition_projection_classifies_force_worktree_change(self):
+        expected = json.dumps({"id": "new"}) + chr(10)
+        filtered = json.dumps({"id": "new", "extra": 1}) + chr(10)
+        source_root, _ = self.generated_definition_fixture(expected, filtered, expected, commit=False)
+        with self.assertRaisesRegex(MODULE.ProjectionError, "source snapshot matches"):
+            MODULE.rebind_generated_definition_sources(self.root, source_root, None)
+
+    def test_generated_definition_projection_reports_unavailable_snapshot(self):
+        old = json.dumps({"id": "old"}) + chr(10)
+        new = json.dumps({"id": "new"}) + chr(10)
+        self.generated_definition_fixture(old, new, new)
+        with self.assertRaisesRegex(MODULE.ProjectionError, "source snapshot was unavailable"):
+            MODULE.rebind_generated_definition_sources(self.root)
+
     def test_mirror_keeps_project_skills_and_excludes_claude_local_state(self):
         rules = mirror_exclude_rules()
 

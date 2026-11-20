@@ -8,4 +8,5 @@ Durable documentation owned by reusable World generation and realization.
 | Task route into World contracts and tools | [Territory generation](territory_generation.md) |
 | Deep source, canonical, and realization contract | [Territory contract](territory_contract.md) |
 | World Partition and streaming policy | [World Partition](world_partition.md) |
+| Serialized time context and runtime lighting binding | [Daylight composition](daylight_composition.md) |
 | Recurring implementation traps | [Pitfalls](pitfalls.md) |

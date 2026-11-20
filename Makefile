@@ -34,7 +34,7 @@ ifneq ($(FORCE_WSL),)
   IS_WSL := $(FORCE_WSL)
 endif
 
-.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets full-build clean generate open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package release publish cinematics cinematics-convert
+.PHONY: help check check-uht check-syntax check-blueprints check-assets check-config check-refs check-primary-assets check-generated-json full-build clean generate generate-json open test test-all test-unit test-integration test-quick test-package prepare-tests merge-ai mirror build-module build-editor build-game build-server package release publish cinematics cinematics-convert
 
 # Exact positional UX: `make release 2.0.0`. Only the one version goal is
 # synthesized; there is no catch-all target that could hide a misspelling.
@@ -106,6 +106,7 @@ help:
 	@echo "    make check-config      - Validate shipping ini settings (no editor)"
 	@echo "    make check-refs        - Validate null materials/soft refs (needs editor)"
 	@echo "    make check-primary-assets - Verify primary asset classes exist (needs editor)"
+	@echo "    make check-generated-json - Verify generated definition authority (no editor)"
 	@echo ""
 	@echo "  Testing Commands:"
 	@echo "    make test              - Run all tests (unit + integration)"
@@ -120,6 +121,7 @@ help:
 	@echo ""
 	@echo "  Build Commands:"
 	@echo "    make generate          - Generate Visual Studio project files"
+	@echo "    make generate-json     - Regenerate definitions and refresh all authority manifests"
 	@echo "    make full-build        - Full project build (Editor + Game)"
 	@echo "    make build-editor      - Build editor only"
 	@echo "    make build-module MODULE=<name> - Build specific module (fast iteration)"
@@ -157,6 +159,14 @@ check:
 	@$(MAKE) check-uht
 	@$(MAKE) check-blueprints
 	@$(MAKE) check-assets
+
+check-generated-json:
+	@echo "Checking generated definition authority (no editor)..."
+ifeq ($(IS_WSL),1)
+	@python3 scripts/git/mirror/refresh_developer_asset_authority.py --repo-root . --check
+else
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\scripts\git\mirror\refresh_developer_asset_authority.ps1" -Check
+endif
 
 # Individual fast checks
 check-uht:
@@ -293,6 +303,15 @@ else
 		-game \
 		-engine
 	@echo "✓ Project files generated"
+endif
+
+generate-json:
+	@echo "Regenerating generated definitions and refreshing all authority manifests..."
+ifeq ($(IS_WSL),1)
+	@command -v powershell.exe >/dev/null 2>&1 || { echo "[ERROR] make generate-json requires Windows PowerShell and the installed Unreal Editor; WSL interop is unavailable."; exit 2; }
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w "$(CURDIR)/scripts/git/mirror/refresh_developer_asset_authority.ps1")" -Regenerate
+else
+	@powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\scripts\\git\\mirror\\refresh_developer_asset_authority.ps1" -Regenerate
 endif
 
 # Full builds

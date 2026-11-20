@@ -3,6 +3,7 @@
 
 #include "ProjectMaterialAggregateSurface.h"
 #include "ProjectMaterialAggregateProjection.h"
+#include "ProjectMaterialAggregateVariation.h"
 #include "ProjectMaterialExpressionUtils.h"
 #include "ProjectMaterialPatternBindings.h"
 #include "ProjectMaterialSurfaceRecipe.h"
@@ -81,6 +82,7 @@ bool Metric(const E* N,const TCHAR* Scale,UTexture* Target)
 {
 	if (ProjectMaterialAggregateProjection::Signals(N,Target,Scale)) return true;
 	const auto* S=Cast<UMaterialExpressionTextureSampleParameter2D>(N);
+	if (FCString::Strcmp(Scale,TEXT("TileMeters"))==0) return ProjectMaterialAggregateVariation::Sample(S,Target);
 	const auto* D=S ? Cast<UMaterialExpressionDivide>(S->Coordinates.Expression) : nullptr;
 	const auto* XY=D ? Cast<UMaterialExpressionComponentMask>(D->A.Expression) : nullptr;
 	const auto* Units=D ? Cast<UMaterialExpressionMultiply>(D->B.Expression) : nullptr;
@@ -136,7 +138,9 @@ bool Routes(const UMaterialExpressionSubstrateSlabBSDF* S,const TArray<UTextureR
 	return Base && Base->IsA<UMaterialExpressionVertexNormalWS>() && Strength && Parameter(Strength->B.Expression,TEXT("ReliefStrength")) &&
 		Decode && Value(Decode->B.Expression,1) && Twice && Value(Twice->B.Expression,2) && Channel(Strength->A.Expression,Decode,true,true,false) && Channel(Z,Decode,false,false,true) &&
 		Normal && Normal->Texture==T[1] && Metric(Normal,TEXT("TileMeters"),T[1]) &&
-		Cast<UMaterialExpressionTextureSampleParameter2D>(Pigment) && Normal->Coordinates.Expression==Cast<UMaterialExpressionTextureSampleParameter2D>(Pigment)->Coordinates.Expression && F0 && F0->Constant.Equals(FLinearColor(.04f,.04f,.04f),1.e-6f);
+		Cast<UMaterialExpressionTextureSampleParameter2D>(Pigment) && Normal->Coordinates.Expression==Cast<UMaterialExpressionTextureSampleParameter2D>(Pigment)->Coordinates.Expression &&
+		Normal->CoordinatesDX.Expression==Cast<UMaterialExpressionTextureSampleParameter2D>(Pigment)->CoordinatesDX.Expression &&
+		Normal->CoordinatesDY.Expression==Cast<UMaterialExpressionTextureSampleParameter2D>(Pigment)->CoordinatesDY.Expression && F0 && F0->Constant.Equals(FLinearColor(.04f,.04f,.04f),1.e-6f);
 }
 }
 
@@ -159,6 +163,8 @@ bool ProjectMaterialAggregateSurface::Build(UMaterial* M,const FProjectMaterialS
 		E* UV=Binary<UMaterialExpressionDivide>(M,XY,Binary<UMaterialExpressionMultiply>(M,Scalar(M,R,TEXT("TileMeters")),Constant(M,100)));
 		Signals=Sample(M,TEXT("SurfaceSignals"),T[0],UV,Bias);
 		E* Normal=Sample(M,TEXT("SurfaceNormal"),T[1],UV,Bias);
+		if (!ProjectMaterialAggregateVariation::Bind(M,UV,Bias,T[0],CastChecked<UMaterialExpressionTextureSampleParameter2D>(Signals),
+			CastChecked<UMaterialExpressionTextureSampleParameter2D>(Normal),Error)) return false;
 		E* Decoded=Binary<UMaterialExpressionSubtract>(M,Binary<UMaterialExpressionMultiply>(M,Normal,Constant(M,2)),Constant(M,1));
 		E* Detail=ProjectMaterialAggregateSurfacePrivate::Unit(M,Binary<UMaterialExpressionAppendVector>(M,Binary<UMaterialExpressionMultiply>(M,Mask(M,Decoded,true,true,false),Scalar(M,R,TEXT("ReliefStrength"))),Mask(M,Decoded,false,false,true)));
 		OrientedNormal=WorldOrientedNormal(M,Detail,Error);
@@ -191,6 +197,8 @@ bool ProjectMaterialAggregateSurface::Verify(const FProjectMaterialSurfaceRecipe
 	const bool bTriplanar=R.ProjectionFrame==EProjectMaterialProjectionFrame::WorldMetricTriplanar2D;
 	if (!M || !Targets(P,T,Error) || M->bTangentSpaceNormal || M->MaterialDomain!=MD_Surface || M->BlendMode!=BLEND_Opaque)
 	{ Error=TEXT("Asphalt material or source contract is invalid."); return false; }
+	if (!bTriplanar && !ProjectMaterialAggregateVariation::Verify(const_cast<UMaterial*>(M),T[0]))
+	{ Error=TEXT("Aggregate phase selection contract is invalid."); return false; }
 	const auto* Slab=Cast<UMaterialExpressionSubstrateSlabBSDF>(M->GetEditorOnlyData()->FrontMaterial.Expression);
 	const auto* Normal=Slab ? Cast<UMaterialExpressionNormalize>(Slab->Normal.Expression) : nullptr;
 	const auto* Orient=Normal ? Cast<UMaterialExpressionMaterialFunctionCall>(Normal->VectorInput.Expression) : nullptr;
@@ -214,7 +222,9 @@ bool ProjectMaterialAggregateSurface::Verify(const FProjectMaterialSurfaceRecipe
 		}
 		if (const auto* S=Cast<UMaterialExpressionTextureSampleParameter2D>(N))
 		{
-			if (S->SamplerType!=SAMPLERTYPE_LinearColor || S->MipValueMode!=TMVM_MipBias || !S->Coordinates.Expression || !S->MipValue.Expression)
+			const bool bFine=!bTriplanar && ProjectMaterialAggregateVariation::Sample(S,S->Texture);
+			if (S->SamplerType!=SAMPLERTYPE_LinearColor || !S->Coordinates.Expression ||
+				(!bFine && (S->MipValueMode!=TMVM_MipBias || !S->MipValue.Expression)))
 			{ Error=TEXT("Asphalt sampling contract is invalid."); return false; }
 			if (S->Texture==T[0] && S->ParameterName==TEXT("SurfaceSignals")) ++SignalSamples;
 			else if (S->Texture==T[1] && S->ParameterName==TEXT("SurfaceNormal")) ++NormalSamples;

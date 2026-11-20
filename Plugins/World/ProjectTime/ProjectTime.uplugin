@@ -1,0 +1,19 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "ProjectTime",
+  "Description": "World-scoped offline environmental time and optional demo controls.",
+  "Category": "Project.World",
+  "EnabledByDefault": false,
+  "CanContainContent": false,
+  "Modules": [
+    { "Name": "ProjectTime", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "ProjectTimeDemoUI", "Type": "ClientOnly", "LoadingPhase": "Default" },
+    { "Name": "ProjectTimeTests", "Type": "Editor", "LoadingPhase": "PostEngineInit" }
+  ],
+  "Plugins": [
+    { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectUI", "Enabled": true, "TargetDenyList": ["Server"] }
+  ]
+}

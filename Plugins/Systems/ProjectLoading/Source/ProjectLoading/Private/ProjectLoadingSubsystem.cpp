@@ -90,6 +90,13 @@ public:
 		return NAME_None;
 	}
 
+	virtual bool TryGetLoadedExperienceContext(FName& OutName, const UWorld*& OutWorld) const override
+	{
+		const auto* Sub = Subsystem.Get();
+		OutName = NAME_None; OutWorld = nullptr;
+		return Sub && Sub->TryGetLoadedExperienceContext(OutName, OutWorld);
+	}
+
 private:
 	TWeakObjectPtr<UProjectLoadingSubsystem> Subsystem;
 };
@@ -229,6 +236,8 @@ void UProjectLoadingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	// Initialize SOLID components
 	InitializeComponents();
+	ExperienceMapLoadedHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
+		this, &UProjectLoadingSubsystem::HandleExperienceMapLoaded);
 
 	// Initialize phase executors
 	InitializePhaseExecutors();
@@ -246,6 +255,7 @@ void UProjectLoadingSubsystem::Deinitialize()
 {
 	UE_LOG(LogProjectLoading, Display, TEXT("ProjectLoadingSubsystem: Deinitializing..."));
 
+	FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(ExperienceMapLoadedHandle);
 	CancelActiveLoad(true);
 
 	// Wait for pipeline task to complete
@@ -482,6 +492,7 @@ TSharedPtr<ILoadingHandle> UProjectLoadingSubsystem::StartLoad(const FLoadReques
 
 	// Store active request
 	ActiveRequest = Request;
+	BeginExperienceContext(Request);
 	LoadStartTimeSeconds = FPlatformTime::Seconds();
 	Telemetry = {};
 	Telemetry.LoadStartTimeSeconds = LoadStartTimeSeconds;
@@ -714,6 +725,8 @@ void UProjectLoadingSubsystem::CompleteActiveLoad(ELoadingState FinalState, cons
 		Duration,
 		*StaticEnum<ELoadingState>()->GetNameStringByValue(static_cast<int64>(FinalState)),
 		Telemetry.TotalProgress * 100.0f);
+
+	CompleteExperienceContext(FinalState == ELoadingState::Completed);
 
 	// Broadcast appropriate event (through broadcaster - single source of truth)
 	if (EventBroadcaster)

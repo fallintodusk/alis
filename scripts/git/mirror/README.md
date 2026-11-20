@@ -10,6 +10,9 @@ Files:
   for public developers.
 - `install_developer_payload.ps1`: verifies and installs that complement into
   a matching ALIS source checkout.
+- `refresh_developer_asset_authority.ps1` / `.py`: refreshes every declared
+  generated-definition authority from a fresh Unreal Asset Registry inventory,
+  or verifies the recorded authority without the editor.
 - `mirror.exclude`: blacklist of files and folders removed from the public mirror snapshot.
   A `!pattern` line re-includes paths that an earlier broad rule would remove.
 - `sanitize_public_text.py`: anonymizes the filtered snapshot before validation
@@ -171,18 +174,87 @@ World projection and every admitted artifact before mirroring. It then uses
 Kazan and Manhattan maps. These are internal gates; the maintainer entry point
 remains `make release X.Y.Z`.
 
-After changing generated definitions, refresh the reviewed binary authority:
+## Generated Definition Authority
+
+After changing generated definitions, use the project Make command:
+
+```powershell
+make generate-json
+```
+
+It regenerates every registered definition type with orphan cleanup, exports a
+fresh Unreal Asset Registry inventory, refreshes every generated-definition
+authority declared in `developer_asset_release.json`, and verifies the result.
+The scripts remain the implementation owners:
+
+```powershell
+.\scripts\git\mirror\refresh_developer_asset_authority.ps1 -Regenerate
+```
+
+To refresh manifests from the existing generated assets without regenerating:
 
 ```powershell
 .\scripts\git\mirror\refresh_developer_asset_authority.ps1
 ```
 
-This reads the live Unreal Asset Registry, requires every declared source JSON
-to have a generated asset with the same normalized source hash, and rewrites
-the plugin-owned authority manifest. JSON source authentication normalizes line
-endings so the same Git bytes remain valid in Windows and Unix checkouts.
-Review and commit source, `.uasset`, and
-manifest changes together. Ordinary manual composition requires a clean tree.
+The default covers every generated-definition owner. Use `-Owner <name>` for a
+targeted manifest refresh or check; it cannot be combined with `-Regenerate`.
+Review and commit source, `.uasset`, and manifest changes together. Ordinary
+manual composition requires a clean tree.
+
+Check recorded authority without the editor or any writes:
+
+```powershell
+make check-generated-json
+# direct:
+.\scripts\git\mirror\refresh_developer_asset_authority.ps1 -Check
+```
+
+The check verifies recorded hashes, package/class/schema/path structure, contract
+metadata, and source-root completeness. It does not prove Asset Registry
+provenance; the fresh editor inventory export is that evidence. The editor-backed
+regeneration requires native Windows or WSL with Windows PowerShell/editor
+interop; the editor-free check runs natively on WSL.
+
+### Cleanup and identity changes
+
+`make generate-json` runs `GenerateDefinitions -all -cleanup`. Cleanup removes
+only generated assets under the generated content path whose `SourceJsonPath` is
+absent. It does not delete arbitrary Content assets.
+
+Cleanup runs only after every definition for the type generates cleanly and the
+source directory is available. A generation failure or a missing source directory
+skips cleanup, so a previously valid generated asset is not deleted.
+
+
+A same-ID filename-only rename updates the existing asset's recorded source path
+in place and preserves its package identity; cleanup keeps it.
+
+An ID change is a manual identity migration, not an ordinary regeneration. The
+first `make generate-json` creates the new asset and is expected to stop at the
+authority refresh because the previous source-backed asset remains with a stale
+source hash. Audit every reference to the previous identity, deliberately
+retire the previous generated asset through the editor or a reviewed asset
+operation, then rerun `make generate-json` and verify the previous identity is
+absent and the new identity is present. Do not rely on cleanup to remove a
+source-backed previous asset.
+
+### Fresh inventory
+
+The refresh writes a per-run
+`Saved/Inspection/generated_asset_inventory.<run>.json` path through
+`ALIS_GENERATED_ASSET_INVENTORY_OUTPUT` and requires that file to exist before
+writing any manifest. An editor exit code of 0 without a fresh inventory fails
+the workflow rather than reusing an older export.
+
+### Mirror diagnosis
+
+The public projection compares the filtered generated source with the matching
+source snapshot: the exact source revision for a clean mirror, the worktree for
+`--force`. A source-snapshot mismatch names the stale authority and the refresh
+remedy. A filtered copy that differs while the source snapshot matches the
+manifest names the sanitizer/projection instead of recommending regeneration.
+The strict mirror gate remains; a mismatch fails before push.
 
 Generated surface and pattern recipes need no separate refresh: the owners'
 accepted manifests are the authority, and composition rejects a recipe, package, or

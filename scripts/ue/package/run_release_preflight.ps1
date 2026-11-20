@@ -88,7 +88,9 @@ function Get-ProjectReleasePreflightCommands {
             'scripts/ue/package/tests/test_public_world_projection.ps1')
         Mirror = @('scripts/git/mirror/tests/test_mirror_linked_worktree.ps1',
             'scripts/git/mirror/tests/test_stage_public_world_manifests.py',
-            'scripts/git/mirror/tests/test_public_source_projection.py')
+            'scripts/git/mirror/tests/test_public_source_projection.py',
+            'scripts/git/mirror/tests/test_refresh_asset_authority.py',
+            'scripts/git/mirror/tests/test_refresh_inventory_freshness.ps1')
         Payload = @('scripts/git/mirror/tests/test_developer_payload.py',
             'scripts/git/mirror/tests/test_developer_dependency_audit.py')
         ReleaseAssembly = @('scripts/ue/package/tests/test_release_preflight.Tests.ps1',

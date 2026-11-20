@@ -10,6 +10,8 @@
 #include "EngineUtils.h"
 #include "Misc/PackageName.h"
 #include "ProceduralMeshComponent.h"
+#include "ProjectTimeWorldContextComponent.h"
+#include "ProjectLightComponent.h"
 
 namespace ProjectWorldSemanticEvidence
 {
@@ -121,6 +123,10 @@ namespace ProjectWorldSemanticEvidence
 			Actor->GetComponents(Components);
 			for (UActorComponent* Component : Components)
 			{
+				if (const auto* Time = Cast<UProjectTimeWorldContextComponent>(Component))
+					Records.Add(TEXT("time-context|") + ActorIdentity + TEXT("|") + Time->IntegrityRecord());
+				if (const auto* Light = Cast<UProjectLightComponent>(Component))
+					Records.Add(TEXT("light-policy|") + ActorIdentity + TEXT("|") + Light->Settings.IntegrityRecord());
 				UProceduralMeshComponent* ProceduralMesh =
 					Cast<UProceduralMeshComponent>(Component);
 				const FString RuntimeState = ProceduralMesh == nullptr

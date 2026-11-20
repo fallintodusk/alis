@@ -227,7 +227,8 @@ namespace ProjectWorldPresentationProfile
 		if (!Root->TryGetObjectField(TEXT("outdoor_environment"), Environment) || Environment == nullptr ||
 			!HasOnlyFields(*Environment, {
 				TEXT("sun_rotation"), TEXT("sun_intensity_lux"), TEXT("sky_light_intensity"),
-				TEXT("fog_density"), TEXT("fog_height_falloff"), TEXT("fixed_exposure_ev100")}, OutError) ||
+				TEXT("fog_density"), TEXT("fog_height_falloff"), TEXT("fixed_exposure_ev100"),
+				TEXT("gameplay_histogram_exposure")}, OutError) ||
 			!RequireVector(*Environment, TEXT("sun_rotation"), 3, -360.0, 360.0, SunRotation, OutError) ||
 			!RequireNumber(*Environment, TEXT("sun_intensity_lux"), 1000.0, 120000.0, SunIntensity, OutError) ||
 			!RequireNumber(*Environment, TEXT("sky_light_intensity"), 0.0, 10.0, SkyLightIntensity, OutError) ||
@@ -244,6 +245,28 @@ namespace ProjectWorldPresentationProfile
 		OutProfile.FogDensity = FogDensity;
 		OutProfile.FogHeightFalloff = FogHeightFalloff;
 		OutProfile.FixedExposureEv100 = Exposure;
+		if ((*Environment)->HasField(TEXT("gameplay_histogram_exposure")))
+		{
+			const TSharedPtr<FJsonObject>* Histogram = nullptr;
+			double Min = 0, Max = 0, HistogramMin = 0, HistogramMax = 0, Up = 0, Down = 0;
+			if (!(*Environment)->TryGetObjectField(TEXT("gameplay_histogram_exposure"), Histogram) || Histogram == nullptr ||
+				!HasOnlyFields(*Histogram, {TEXT("min_ev100"), TEXT("max_ev100"), TEXT("histogram_min_ev100"),
+					TEXT("histogram_max_ev100"), TEXT("speed_up"), TEXT("speed_down")}, OutError) ||
+				!RequireNumber(*Histogram, TEXT("min_ev100"), -10, 20, Min, OutError) ||
+				!RequireNumber(*Histogram, TEXT("max_ev100"), -10, 20, Max, OutError) ||
+				!RequireNumber(*Histogram, TEXT("histogram_min_ev100"), -10, 20, HistogramMin, OutError) ||
+				!RequireNumber(*Histogram, TEXT("histogram_max_ev100"), -10, 20, HistogramMax, OutError) ||
+				!RequireNumber(*Histogram, TEXT("speed_up"), 0.001, 20, Up, OutError) ||
+				!RequireNumber(*Histogram, TEXT("speed_down"), 0.001, 20, Down, OutError) ||
+				Min >= Max || HistogramMin > Min || HistogramMax < Max)
+			{
+				OutErrorCode = TEXT("presentation-profile-environment");
+				if (OutError.IsEmpty()) OutError = TEXT("Histogram bins must contain ordered exposure limits.");
+				return false;
+			}
+			OutProfile.GameplayHistogramExposure = FProjectWorldHistogramExposure{
+				float(Min), float(Max), float(HistogramMin), float(HistogramMax), float(Up), float(Down)};
+		}
 
 		const TArray<TSharedPtr<FJsonValue>>* Viewpoints = nullptr;
 		TSet<FString> ViewpointNames;

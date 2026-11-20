@@ -43,7 +43,11 @@ namespace ProjectWorldRegionalEvidence
         FProjectWorldPresentationProfile Profile;FProjectWorldPresentationResources Resources;
         FProjectWorldRealizationResult Result;
         if (!ProjectWorldPresentationProfile::Load(ProfilePath,Profile,Code,Error) ||
-            !ProjectWorldPresentationProfile::ResolveResources(Profile,Resources,Error) ||
+            !ProjectWorldPresentationProfile::ResolveResources(Profile,Resources,Error)) return false;
+        Receipt.SetStringField(TEXT("exposure_purpose"),TEXT("deterministic_capture"));
+        Receipt.SetBoolField(TEXT("source_gameplay_histogram"),Profile.GameplayHistogramExposure.IsSet());
+        Profile.GameplayHistogramExposure.Reset();
+        if (
             !ProjectWorldPresentationRealization::Apply(&World,Bundle,Profile,Resources,Result,Error)) return false;
         int32 Suns=0,Volumes=0;double ObservedEV=0;
         for (TActorIterator<ADirectionalLight> It(&World);It;++It) if (It->ActorHasTag(TEXT("ProjectWorld.PresentationRole=Sun")))

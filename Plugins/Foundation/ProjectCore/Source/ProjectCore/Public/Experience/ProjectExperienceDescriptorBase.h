@@ -89,6 +89,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Experience")
 	FExperienceLoadAssets LoadAssets;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Experience")
+	bool AllowEnvironmentalTimeControls = false;
+
 	/**
 	 * Populate an FLoadRequest with descriptor data (soft paths only).
 	 * AssetManager resolution is performed by ProjectLoading.

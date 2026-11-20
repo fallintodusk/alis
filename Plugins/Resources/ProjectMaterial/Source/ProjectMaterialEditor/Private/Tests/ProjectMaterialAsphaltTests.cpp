@@ -19,6 +19,12 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionSubstrate.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "Materials/MaterialExpressionTextureObjectParameter.h"
+#include "Materials/MaterialExpressionStaticBool.h"
+#include "Materials/MaterialExpressionConstant.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
@@ -201,6 +207,53 @@ bool FProjectMaterialAsphaltTest::RunTest(const FString&)
 	TestTrue(TEXT("Restored instance again matches the authenticated recipe"),ProjectMaterialPatternBindings::VerifyInstance(InstanceRecipe,Second,Instance,Error));
 	auto* Parent=LoadObject<UMaterial>(nullptr,TEXT("/ProjectMaterialTest/Surfaces/Asphalt/M_ProjectAsphaltFixture.M_ProjectAsphaltFixture"));
 	if (!TestNotNull(TEXT("Saved parent loads"),Parent)) return false;
+	int32 VariationCalls=0;
+	for (auto* N : UMaterialEditingLibrary::GetMaterialExpressions(Parent))
+		if (const auto* F=Cast<UMaterialExpressionMaterialFunctionCall>(N); F && F->MaterialFunction &&
+			F->MaterialFunction->GetPathName()==TEXT("/Engine/Functions/Engine_MaterialFunctions03/Texturing/TextureVariation.TextureVariation")) ++VariationCalls;
+	TestEqual(TEXT("Saved XY aggregate has exactly one shared native phase variation"),VariationCalls,1);
+	for (auto* N : UMaterialEditingLibrary::GetMaterialExpressions(Parent))
+	{
+		if (auto* S=Cast<UMaterialExpressionTextureSampleParameter2D>(N))
+		{
+			if (S->ParameterName==TEXT("SurfaceNormal"))
+			{
+				const auto Coords=S->Coordinates; S->Coordinates.OutputIndex=1;
+				TestFalse(TEXT("Unshifted normal UVs cannot authenticate as shared phase sampling"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); S->Coordinates=Coords;
+				S->Coordinates.Mask=1; S->Coordinates.MaskR=1; S->Coordinates.MaskG=0; S->Coordinates.MaskB=0; S->Coordinates.MaskA=0;
+				TestFalse(TEXT("A one-axis UV swizzle cannot authenticate as paired sampling"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); S->Coordinates=Coords;
+				const auto DX=S->CoordinatesDX; S->CoordinatesDX=S->CoordinatesDY;
+				TestFalse(TEXT("Swapped normal derivatives are rejected"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); S->CoordinatesDX=DX;
+				UTexture* SavedNormalTexture=S->Texture; S->Texture=LoadObject<UTexture>(nullptr,*P.OutputObjectPath);
+				TestFalse(TEXT("Signals cannot substitute for the paired normal output"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); S->Texture=SavedNormalTexture;
+			}
+			else if (S->MipValueMode==TMVM_MipBias)
+			{
+				S->MipValueMode=TMVM_Derivative;
+				TestFalse(TEXT("A macro sample cannot masquerade as a valid derivative sample"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); S->MipValueMode=TMVM_MipBias;
+			}
+		}
+		if (auto* O=Cast<UMaterialExpressionTextureObjectParameter>(N))
+		{
+			UTexture* SavedHeightTexture=O->Texture; O->Texture=LoadObject<UTexture>(nullptr,*Second.OutputObjectPath);
+			TestFalse(TEXT("Native height selection must use the parent-selected Signals output"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); O->Texture=SavedHeightTexture;
+		}
+		if (auto* F=Cast<UMaterialExpressionMaterialFunctionCall>(N); F && F->MaterialFunction && F->MaterialFunction->GetPathName().Contains(TEXT("/TextureVariation.TextureVariation")))
+			for (auto& I : F->FunctionInputs)
+			{
+				if (I.Input.InputName==TEXT("Random Rotation and Scale"))
+				{
+					auto* B=CastChecked<UMaterialExpressionStaticBool>(I.Input.Expression); B->Value=true;
+					TestFalse(TEXT("Unqualified normal rotation is rejected"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); B->Value=false;
+				}
+				if (I.Input.InputName==TEXT("Variation Scale"))
+				{
+					auto* C=CastChecked<UMaterialExpressionConstant>(I.Input.Expression); const float SavedVariationScale=C->R; C->R=1;
+					TestFalse(TEXT("A different native sampling model is rejected"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error)); C->R=SavedVariationScale;
+				}
+			}
+	}
+	TestTrue(TEXT("Restored saved phase selection and paired gradients authenticate"),ProjectMaterialAggregateSurface::Verify(Recipe,P,Parent,Error));
 	auto* Signals=LoadObject<UTextureRenderTarget2D>(nullptr,*P.OutputObjectPath);
 	const FString SourcePackage=FPackageName::LongPackageNameToFilename(Signals->GetOutermost()->GetName(),FPackageName::GetAssetPackageExtension());
 	TArray<uint8> SourceBefore,SourceAfter; TestTrue(TEXT("Record accepted source bytes"),FFileHelper::LoadFileToArray(SourceBefore,*SourcePackage));

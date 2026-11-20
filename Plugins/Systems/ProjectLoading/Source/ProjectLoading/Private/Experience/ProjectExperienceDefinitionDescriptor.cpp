@@ -24,6 +24,7 @@ bool UProjectExperienceDefinitionDescriptor::InitializeFromDefinition(
 	ExperienceName = Definition.ExperienceName;
 	LoadAssets.Map = Definition.Map;
 	TraversalMode = Definition.TraversalMode;
+	AllowEnvironmentalTimeControls = Definition.AllowEnvironmentalTimeControls;
 	AssetScanDirectory = Definition.AssetScanDirectory;
 
 	LoadAssets.CriticalAssets.Reset();

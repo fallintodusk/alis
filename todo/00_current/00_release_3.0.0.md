@@ -3,8 +3,9 @@
 **Status:** CURRENT - Terrain development scope closed; presentation qualification
 and final release certification remain open.
 **Current mode:** retain completed Ground/Water/Pier engineering and the operator's
-prototype fountain disposition. Lighting/daylight/Lumen has a current queued stub;
-no research, tuning or implementation has started.
+prototype fountain disposition. Time/Light is implemented as an opt-in candidate;
+its current [visual/UI qualification](20261118-1151_world_plan_time_service_daylight_controls.md)
+precedes final integrated performance acceptance. Dynamic city defaults stay disabled.
 The retained candidate has saved-city Hero, collision/reload, recovery/no-op,
 partition and both-city uncooked consumer proof. The final-reader correction has
 focused and independent technical reinspection proof; its original top-level
@@ -47,18 +48,24 @@ new Ground correction or further fountain investigation is needed for this scope
 The sampled 7-15 cm raised Water edge is retained as approximate object context,
 not claimed as surveyed basin geometry or a material-only defect.
 
-Lighting/exposure readability and any demonstrated material issue belong to the
-current [lighting/daylight stub](20260825-1717_world_implement_environment_cycle.md).
-The geometry-disposition prerequisite is satisfied; this handoff does not start
-research or adopt a presentation policy. Keep the actual Ready-runtime material
+Lighting/exposure evidence belongs to the
+[lighting record](20260825-1717_world_implement_environment_cycle.md); the
+[Time/Light task](20261118-1151_world_plan_time_service_daylight_controls.md)
+owns the implemented cycle and current visual/UI review. Preserve Ready-runtime
 and paired-view requirements. Detailed object reconstruction and conditional
 Terrain influence remain optional owner backlog work.
 
-Next select a bounded presentation investigation or proceed with release
-preparation under its own authorization. Before source freeze, explicitly select
+Finish the bounded visual qualification before any chosen daylight adoption;
+performance acceptance remains in final release preparation. Before source freeze, explicitly select
 the verified candidate through normal authority; the restoring proof left the
 original selection intact. Final installed-runtime presentation and packaged
 acceptance remain required; completed development does not certify that artifact.
+The retained LFS refinement archive contains the final joint result, but its
+presence does not select that result. Authenticate its hydrated bytes and intended
+result through the canonical/World owner before an authorized selection. Do not
+interpret either the archive or the NONPRODUCING reinspection as an accepted new
+target run. A selection changed after source freeze needs a new freeze and
+affected fresh proof; do not reuse R5 evidence for the former selection.
 [World Surface Presentation](../01_done/world/20261008-1543_world_improve_surface_materials.md)
 is development-complete. Do not restart accepted materials, source-recovery,
 renderer, winding or earlier owner-local rollouts without a changed input/defect.
@@ -78,12 +85,12 @@ is required while D4/D10/D17 stand. City17 retains D9's bounded legacy scope.
 
 ## Optional player-facing investigations
 
-D30 adds candidate investigations, not committed features or new R2 blockers.
-Implementation remains REVIEW REQUIRED. The existing environment task is now the
-current [lighting/daylight stub](20260825-1717_world_implement_environment_cycle.md),
-the single owner for exposure, old-map lessons, native daylight selection and
-measured Lumen quality/performance. The Terrain geometry decision is complete;
-this stub still requires an authorized investigation before work starts.
+D30's optional candidates do not add mandatory R2 scope. Exposure and old-map
+evidence remain in the [lighting record](20260825-1717_world_implement_environment_cycle.md).
+The implemented native calendar/daylight candidate and remaining visual checks
+belong to the current [Time/Light task](20261118-1151_world_plan_time_service_daylight_controls.md).
+Its performance acceptance is deferred to final release preparation; candidate
+implementation and a visual probe do not adopt dynamic defaults.
 
 | Priority | Candidate | Smallest useful outcome / scope limit |
 |---|---|---|
@@ -99,25 +106,18 @@ City17 SunSky setup is reference material, not proof of a reusable runtime cycle
 Start from the existing [environment realization](../../Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp)
 and [presentation profile reader](../../Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationProfile.cpp).
 
-Future investigation sequence:
+Remaining qualification sequence:
 
-1. Follow [Native Engine First](../../docs/architecture/principles.md#native-engine-first).
-   Compare the installed Day Sequence capabilities with SunPosition plus existing
-   actors before selecting a custom controller. Inspect geographic positioning,
-   playback/time synchronization, exposure and ownership integration; longitude
-   locates the Sun together with the other inputs, not the weather.
-2. After investigation/prototype scope is approved, use one bounded Kazan scene
-   with a fixed-time control. Inspect morning, noon, sunset and night, plus an
-   accelerated continuous transition. Prove normal gameplay readability and
-   time controls. Measure moving-shadow, sky capture and cloud costs; still
-   screenshots and a cheap solar calculation do not prove runtime performance.
-   The Terrain development prerequisite is complete. Presentation work does not
-   alter retained geography. Serialize Unreal through its safe lane.
-3. If the result warrants selection, propose the smallest integration and tests.
-   Preserve deterministic frozen-time evidence, save/reload and normal map-loading
-   behavior. Verify selected behavior in both cities and installed runtime through
-   affected owner checks and R5, retaining D22's 16.67 ms target and explicit
-   INCONCLUSIVE policy. Reuse unchanged evidence; no extra full-city debug campaign.
+1. Retain the selected SunPosition route with ProjectTime, ProjectLight and World's
+   explicit composition. Do not repeat Day Sequence/provider research without a
+   demonstrated defect requiring a different capability.
+2. Review the bounded both-city player/UI screenshot iteration and resolve only
+   demonstrated appearance/control issues. Keep unchanged evidence and source
+   identities. Do not reopen Terrain or materials for a clock/presentation issue.
+3. At final release preparation, qualify any selected dynamic policy through R5:
+   matched rendering conditions, Live/moving-light cost, both-city budgets and
+   installed gameplay. Preserve D22's limits and explicit INCONCLUSIVE policy;
+   still captures and a cheap solar calculation do not establish performance.
 4. Before source freeze, record adopt/defer and measured player-visible benefit,
    incremental cost and unresolved dependencies. If the bounded proof needs major
    new assets, renderer changes or night-time city-light infrastructure, defer it
@@ -166,6 +166,11 @@ stay intact.
 
 ### R5 - Final candidate (one frozen source identity)
 
+- [ ] Complete authorized candidate selection and its required owner checks
+  before the final source freeze. Bind the intended active canonical/World
+  identities and LFS payloads in that source; use the existing
+  [selected-child route](../../scripts/ue/world/README.md#canonical-realization-contract)
+  rather than copying an archive or editing a pointer by hand.
 - [ ] Inspect required concern acceptance, final diff, current preflight and gate
   freshness. Use a source-freeze route permitted by D25 and the current repository
   [Git policy](../../AGENTS.md#autonomous-commit-policy-critical): operator commit,
@@ -183,6 +188,13 @@ stay intact.
   rendered pixels, movement/contact/collision, streaming and measured performance
   in their real envelopes. Inspect dependency/rights reports and exact size deltas
   against 2.0.0, including Manhattan chunk 11 and per-owner IoStore inventory.
+- [ ] If adopting dynamic daylight, close its deferred performance gate here:
+  matched frozen/moving conditions under comparable host load, Live cadence and
+  event-aligned apply/recovery cost, then both-city acceptance under the existing
+  load-aware limits. Prior contended Manhattan runs remain REJECTED, not waived.
+  Screenshot/UI success does not certify frame budget. Reuse the
+  [Time/Light task](20261118-1151_world_plan_time_service_daylight_controls.md)
+  for exact retained evidence and remaining obligations.
 - [ ] Obtain independent final architect review of exact integrated evidence.
   Resolve genuine PATCH findings through owner-local controls; retain valid receipts.
 - [ ] Obtain the operator's actual Kazan/Manhattan walkthrough and final candidate

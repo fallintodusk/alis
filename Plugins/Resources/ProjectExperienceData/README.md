@@ -23,6 +23,12 @@ selection may not be placed there merely because a territory selected it. An exp
 record is product composition, not geography, so it lives here and refers to a world by
 package path.
 
+Configured environmental-time control permission is also experience composition.
+It defaults to denial and projects onto the cooked definition. ProjectSinglePlay
+combines that flag with the successful-load world identity; neither map identity
+alone nor a travel URL grants controls. Environmental clock/UI behavior belongs
+to [ProjectTime](../../World/ProjectTime/README.md).
+
 ## Why JSON is the source of truth
 
 ALIS is text-first: the JSON record is reviewable, diffable, and present in the public
@@ -43,6 +49,15 @@ An experience with genuinely custom load behavior may still be a plugin-owned de
 class registered by its own module, the way City17 and MainMenuWorld do it. Those keep
 working and take precedence over a configured record of the same id. This contract covers
 configured experiences, not every possible one.
+
+Before publishing the public source or developer payload, refresh the generated
+asset authority as documented in
+[scripts/git/mirror/README.md](../../../scripts/git/mirror/README.md).
+
+`ExperienceName` is the generated identity. Changing it is an identity migration,
+not an ordinary regeneration: audit references, deliberately retire the previous
+generated asset, then rerun the refresh. The routine command is expected to stop
+at the authority refresh until that migration is done.
 
 Ids must be unique across all configured records: the id names the generated asset and
 becomes its `FPrimaryAssetId`. ProjectDefinitionGenerator rejects duplicates at generation

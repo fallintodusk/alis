@@ -16,6 +16,7 @@
 #include "ProjectWorldMaterialReferencePipeline.h"
 #include "ProjectWorldPartitionPolicy.h"
 #include "ProjectWorldPresentationProfile.h"
+#include "ProjectWorldDaylightRealization.h"
 #include "ProjectWorldPresentationRealization.h"
 #include "ProjectWorldRealizationProfile.h"
 #include "ProjectWorldRuntimeProfile.h"
@@ -634,6 +635,13 @@ int32 FProjectWorldRealizationService::Run(
 		{
 			Reject(OutResult, TEXT("presentation-create"), TEXT("Cannot realize the presentation profile."), EditorError);
 			OutResult.DurationSeconds = FPlatformTime::Seconds() - StartSeconds;
+			return OutResult.ExitCode();
+		}
+		if (!ProjectWorldDaylightRealization::Apply(*World, Bundle,
+			bNeedsRuntime ? &RuntimeProfile : nullptr, PresentationProfile, PresentationResources,
+			OutResult, EditorError))
+		{
+			Reject(OutResult, TEXT("daylight-context"), TEXT("Cannot realize daylight context."), EditorError);
 			return OutResult.ExitCode();
 		}
 		if (!ProjectWorldAuthoredOverlayRealization::Apply(

@@ -535,20 +535,25 @@ and reports both the rejection and the rollback failure.
 **Regression tests:** the host cases for a failed orphan deletion with recovery, in both
 the surface and pattern tests.
 
-## Adaptive unity compilation makes an aggregate helper ambiguous
+## Aggregate private helpers collide in unity builds
 
-**Symptom:** The standard Editor build fails with C2668 on `Unit()` in the aggregate
-surface builder after the adaptive working set changes.
+**Symptom:** The Editor build fails with C2668 on `Unit()`, C2084 on `Value()` or
+`Param()`, or C4459 on unrelated local `Path` variables after the adaptive working
+set changes. An incremental build that excludes the affected file can still pass.
 
-**Root cause:** Unity compilation places the projection's anonymous-namespace helper
-and the surface builder's private helper in one translation unit. The surface builder's
-unqualified call imports both overload candidates.
+**Root cause:** Unity compilation merges source files into one translation unit.
+Top-level anonymous namespaces then share helper names and expose generic globals
+to subsequent files. Internal linkage alone does not isolate each original file.
 
-**Fix:** Qualify the surface helper with its owning private namespace. Do not disable
-unity compilation or change the material graph to resolve C++ name lookup.
+**Fix:** Keep variation helpers inside their owning namespace and qualify the surface
+helper with its private owner. Do not disable unity compilation or change the material
+graph to resolve C++ name lookup.
 
-**File:** [aggregate surface builder](../Source/ProjectMaterialEditor/Private/ProjectMaterialAggregateSurface.cpp).
+**Files:** [aggregate surface builder](../Source/ProjectMaterialEditor/Private/ProjectMaterialAggregateSurface.cpp)
+and [aggregate variation](../Source/ProjectMaterialEditor/Private/ProjectMaterialAggregateVariation.cpp).
 
-**Regression proof:** the standard Editor build reproduces C2668 and then succeeds
-with the qualified call. `Project.Material.Aggregate.TriplanarContract` exercises
-the retained material projection contract.
+**Regression proof:** compile the failing unity translation unit with its UBT response
+arguments as well as running the standard Editor build. Check that the reproduced
+unit still includes the conflicting source files; an adaptive exclusion alone cannot
+prove this fix. `Project.Material.Aggregate.TriplanarContract` and
+`Project.Material.Asphalt.AuthenticatedSample` exercise the retained graph contracts.

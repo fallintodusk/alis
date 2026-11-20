@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../UI/ProjectUI/Data/Schemas/ui_layout.schema.json",
+  "root": {
+    "type": "CanvasPanel",
+    "name": "TimeHintRoot",
+    "children": [
+      { "type": "TextBlock", "name": "TimeHint", "text": "F6: geographic time preview", "anchor": "TopRight", "alignment": {"x": 1, "y": 0}, "position": {"x": -24, "y": 24}, "size": {"x": 360, "y": 28}, "font": "BodyMedium" }
+    ]
+  }
+}

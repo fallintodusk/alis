@@ -26,6 +26,9 @@ Manhattan data and engine-specific terrain adapters stay outside this component.
 - Material graph compilation and generated material authority, owned by
   `ProjectMaterial`; ProjectWorld never depends on ProjectMaterialEditor.
 - World-specific gameplay or presentation.
+- Environmental clocks and optional controls, owned by
+  [ProjectTime](../../../ProjectTime/README.md), and lighting parameter/daylight
+  policy, owned by [ProjectLight](../../../ProjectLight/README.md).
 
 ## Composition
 
@@ -39,6 +42,7 @@ Manhattan data and engine-specific terrain adapters stay outside this component.
 | Territory contracts | Stable authority, identity, and acceptance semantics |
 | World Partition policy | Runtime streaming and cell policy |
 | Presentation resource resolution | Read accepted material manifests and authenticate role bindings, package bytes and loaded state |
+| Daylight composition | Project serialized context on the existing geographic actor and bind the exact world's Time provider to Light at runtime |
 
 ## Relationships
 

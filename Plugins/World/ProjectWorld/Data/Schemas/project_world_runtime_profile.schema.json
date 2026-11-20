@@ -24,6 +24,15 @@
     "schema_version": { "const": 3 },
     "profile_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
     "profile_kind": { "const": "territory_product" },
+    "environment_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "time_zone"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "time_zone": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
     "grid_id": { "type": "string", "pattern": "^grid_[a-z0-9]+$" },
     "runtime_partition": {
       "type": "object",

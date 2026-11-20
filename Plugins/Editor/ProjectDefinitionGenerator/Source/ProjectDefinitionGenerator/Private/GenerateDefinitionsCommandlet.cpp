@@ -2,6 +2,7 @@
 // License terms: see repository root LICENSE.
 
 #include "GenerateDefinitionsCommandlet.h"
+#include "HAL/FileManager.h"
 #include "DefinitionGeneratorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenerateDefinitions, Log, All);
@@ -110,14 +111,7 @@ int32 UGenerateDefinitionsCommandlet::GenerateType(const FString& TypeName, bool
 	// Generate
 	TArray<FDefinitionGenerationResult> Results = Generator->GenerateAllForType(TypeName, bForceRegenerate);
 
-	// Cleanup orphans if requested
-	if (bCleanup)
-	{
-		const int32 OrphansDeleted = Generator->CleanupOrphanedAssets(TypeName);
-		UE_LOG(LogGenerateDefinitions, Log, TEXT("Deleted %d orphaned assets"), OrphansDeleted);
-	}
-
-	// Count results
+	// Count results before cleanup. A failed generation must never drive orphan deletion.
 	int32 SuccessCount = 0;
 	int32 SkippedCount = 0;
 	int32 FailedCount = 0;
@@ -136,6 +130,32 @@ int32 UGenerateDefinitionsCommandlet::GenerateType(const FString& TypeName, bool
 		{
 			FailedCount++;
 			UE_LOG(LogGenerateDefinitions, Error, TEXT("FAILED: %s - %s"), *Result.AssetId, *Result.ErrorMessage);
+		}
+	}
+
+	const bool bSourceDirAvailable = !SourceDir.IsEmpty() && IFileManager::Get().DirectoryExists(*SourceDir);
+	if (!bSourceDirAvailable)
+	{
+		FailedCount++;
+		UE_LOG(LogGenerateDefinitions, Error,
+			TEXT("Source directory is missing or unavailable for %s: '%s'; refusing orphan cleanup."),
+			*TypeName, *SourceDir);
+	}
+
+	// Cleanup orphans only after a clean generation. Otherwise a failed or unavailable
+	// source can make previously valid generated assets look orphaned.
+	if (bCleanup)
+	{
+		if (FailedCount > 0 || !bSourceDirAvailable)
+		{
+			UE_LOG(LogGenerateDefinitions, Warning,
+				TEXT("Skipping orphan cleanup for %s because generation did not complete cleanly."),
+				*TypeName);
+		}
+		else
+		{
+			const int32 OrphansDeleted = Generator->CleanupOrphanedAssets(TypeName);
+			UE_LOG(LogGenerateDefinitions, Log, TEXT("Deleted %d orphaned assets"), OrphansDeleted);
 		}
 	}
 

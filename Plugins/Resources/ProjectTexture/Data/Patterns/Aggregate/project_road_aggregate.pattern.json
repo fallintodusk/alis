@@ -42,7 +42,7 @@
     "CoarseFrequency": 48,
     "MicroFrequency": 192,
     "PatchFrequency": 6,
-    "WarpAmplitude": 0.003,
+    "WarpAmplitude": 0.012,
     "GrainRadius": 0.48,
     "GrainRadiusVariation": 0.32,
     "GrainContrast": 1.4,

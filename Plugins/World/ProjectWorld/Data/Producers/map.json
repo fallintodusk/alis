@@ -4,7 +4,7 @@
   "kind": "producer",
   "generator_id": "map",
   "generator_version": 1,
-  "output_revision": 2,
+  "output_revision": 4,
   "data_inputs": [],
   "modules": []
 }

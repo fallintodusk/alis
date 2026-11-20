@@ -5,6 +5,7 @@
 #include "UObject/PrimaryAssetId.h"
 #include "SinglePlayModeConfig.h"
 #include "SinglePlayTraversalPolicy.h"
+#include "Interfaces/ProjectTimeView.h"
 #include "SinglePlayerGameMode.generated.h"
 
 class USinglePlayScenarioRunnerComponent;
@@ -50,12 +51,13 @@ class USinglePlayScenarioRunnerComponent;
  * Features self-register on module startup; GameMode just calls InitializeFeature for each.
  */
 UCLASS()
-class PROJECTSINGLEPLAY_API ASinglePlayerGameMode : public AGameModeBase
+class PROJECTSINGLEPLAY_API ASinglePlayerGameMode : public AGameModeBase, public IProjectTimeControlPolicy
 {
 	GENERATED_BODY()
 
 public:
 	ASinglePlayerGameMode();
+	virtual bool AllowsEnvironmentalTimeControl() const override;
 
 	//~ Begin AGameModeBase Interface
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;

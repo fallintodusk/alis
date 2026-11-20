@@ -97,6 +97,7 @@ public:
 	virtual TSharedPtr<ILoadingHandle> GetActiveLoadHandle() const override { return ActiveHandle; }
 	virtual bool BuildLoadRequestForExperience(FName ExperienceName, FLoadRequest& OutRequest, FText& OutError) override;
 	virtual FName GetLastLoadedExperienceName() const override;
+	virtual bool TryGetLoadedExperienceContext(FName& OutName, const UWorld*& OutWorld) const override;
 	//~End ILoadingService interface
 
 	/** Reads initial entry experience name from config/state and triggers the first load. */
@@ -183,6 +184,18 @@ private:
 	FLoadRequest ActiveRequest;
 	FProjectLoadTelemetry Telemetry;
 	FName LastLoadedExperienceName;
+	FName ConfirmedExperienceName;
+	TWeakObjectPtr<UWorld> ConfirmedExperienceWorld;
+	FName PendingExperienceName;
+	FString PendingExperienceMap;
+	TWeakObjectPtr<UWorld> PendingExperienceWorld;
+	bool bPendingExperienceCompleted = false;
+	FDelegateHandle ExperienceMapLoadedHandle;
+	void BeginExperienceContext(const FLoadRequest& Request);
+	void CompleteExperienceContext(bool bSucceeded);
+	void HandleExperienceMapLoaded(UWorld* World);
+	void PublishExperienceContext();
+	friend class FProjectLoadingExperienceContextTest;
 	double LoadStartTimeSeconds = 0.0;
 
 	// Async task handle for pipeline execution

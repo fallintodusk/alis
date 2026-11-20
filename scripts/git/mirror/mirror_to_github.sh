@@ -699,7 +699,10 @@ info "Sanitizing filtered mirror tree for public anonymity"
 sanitize_filtered_tree "$FILTERED_DIR"
 
 info "Applying deterministic public project/config projection"
-PROJECTION_ARGS=(--root "$FILTERED_DIR")
+PROJECTION_ARGS=(--root "$FILTERED_DIR" --source-root "$REPO_ROOT")
+if [[ "$ALLOW_DIRTY" -eq 0 ]]; then
+  PROJECTION_ARGS+=(--source-revision "$SOURCE_REVISION")
+fi
 if [[ -n "$PUBLIC_WORLD_MANIFEST_ROOT" ]]; then
   PROJECTION_ARGS+=(--world-manifest-root "$PUBLIC_WORLD_MANIFEST_ROOT")
 fi

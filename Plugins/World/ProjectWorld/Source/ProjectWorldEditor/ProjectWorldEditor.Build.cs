@@ -30,10 +30,16 @@ public class ProjectWorldEditor : ModuleRules
 			"NavigationSystem",
 			"ProceduralMeshComponent",
 			"ProjectCore",
+			"ProjectLight",
+			"ProjectTime",
+			"ProjectTimeDemoUI",
+			"Slate",
+			"SlateCore",
 			"RenderCore",
 			"Projects",
 			"RHI",
 			"StaticMeshDescription",
+			"UMG",
 			"UnrealEd"
 		});
 	}

@@ -72,6 +72,7 @@ class PROJECTCORE_API IOrchestratorRegistry { /* ... */ };
 - **IMindThoughtSource** - Mind source adapter contracts (default implementations in ProjectMind, optional overrides by gameplay plugins)
   - Guardrail: keep mind orchestration in ProjectMind, not in domain feature modules
 - **ProjectLoadingHandle** - Async loading operation handle
+- **[ProjectTimeView](ProjectTimeView.h)** - Read-only world-local environmental UTC and default-deny control-policy boundary; provider discovery/composition is explicit, without a global clock service
 
 ---
 

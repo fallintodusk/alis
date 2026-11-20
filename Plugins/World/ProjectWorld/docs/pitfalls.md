@@ -5,6 +5,26 @@ the area; add an entry after fixing a non-trivial bug.
 
 Format: Symptom / Root cause / Fix / File / Regression test.
 
+## Identical daylight data can hide unregistered components
+
+**Symptom.** Reapplying the same profile reports no work, but Time refuses its
+context or the daylight controller cannot consume scheduled ticks.
+
+**Root cause.** Component registration is live state. Matching serialized fields
+and bindings does not establish registration; registering only newly created
+components leaves existing unregistered instances unrepaired.
+
+**Fix.** Qualify no-op with registration as well as data identity. Configure and
+re-register valid existing components through the same realization owner, then
+confirm registration before returning success. Preserve component identity and
+leave the next identical replay as a no-op.
+
+**File.** [Daylight realization](../Source/ProjectWorldEditor/Private/ProjectWorldDaylightRealization.cpp).
+
+**Regression test.** `Project.World.Realization.Presentation.DaylightLifecycle`
+unregisters Context and Controller separately, replays the same profile and
+checks in-place repair, runtime clock binding and actual world-tick consumption.
+
 ## Buried Terrain must not enlarge a deck's Hero contact tolerance
 
 **Symptom.** A Hero contact checker can allow a large foot gap above a flat deck

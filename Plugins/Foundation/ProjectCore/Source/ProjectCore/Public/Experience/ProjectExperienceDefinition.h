@@ -50,6 +50,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Experience")
 	FString TraversalMode;
 
+	/** Session-only presentation controls; ordinary experiences default to denial. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Experience")
+	bool AllowEnvironmentalTimeControls = false;
+
 	/**
 	 * Package directory scanned so the AssetManager can resolve this experience's map in
 	 * cooked builds. Empty means the experience needs no descriptor-specific scan.

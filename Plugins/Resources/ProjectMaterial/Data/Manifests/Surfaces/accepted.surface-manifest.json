@@ -12,12 +12,12 @@
 			"pattern_id": "project_road_aggregate",
 			"pattern_object_path": "/ProjectTexture/Patterns/Aggregate/DA_ProjectRoadAggregate.RT_ProjectRoadSignals",
 			"pattern_output_contract": "aggregate_signals_normal_v1",
-			"pattern_semantic_identity": "0f0cbd20490cd63e2a7681ad5874f5219215d96858208ab7a930694bec2eb6b6",
-			"pattern_package_sha256": "56f24bc08820a7f7d45bfc3cbfeb4be9e9199ac2341d137b1512fff071884118",
+			"pattern_semantic_identity": "c0be421c57d3a5d87e43d3b9634048461bc9677977446bf6d344b92d7a6f04e7",
+			"pattern_package_sha256": "9220edfa256559d5ad71928d0e5d1e8e4c00140867cae9cf181964cd2b0ddc12",
 			"output_object_path": "/ProjectMaterial/Surfaces/Aggregate/M_ProjectAggregateSurface.M_ProjectAggregateSurface",
-			"semantic_identity": "531affe1fec216929994725bbd6dac02e825bb01767c5c2cf31a7e936f8eba42",
-			"package_sha256": "465a3ae41123cf92baf2a157bbf30c88fbe1fd7df53b94321ba9365ba20d923a",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "45301107a3d2d839d2009a2698aa57675d7a2ad2b15a371b0762f51b4ff92345",
+			"package_sha256": "a51d4c1c29dfbf43219c0ee4fd196bc3dba07e1e9dcbee5ab06fe92ee9ea5187",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -33,15 +33,15 @@
 			"pattern_semantic_identity": "7fe5f093b722ded69455d80e5c6fa1ef21a461343aabc55a3d6177120e3f2698",
 			"pattern_package_sha256": "b8df2779bb3ef9f1e0c912ffaf549cd42e805cb6b82643b38d260a84d5222afb",
 			"output_object_path": "/ProjectMaterial/Surfaces/Aggregate/M_ProjectAggregateTriplanar.M_ProjectAggregateTriplanar",
-			"semantic_identity": "1bcba553ae1ceb6c8dc58600d96c7dca3604c3cd5f17893b30b509294c0d575b",
-			"package_sha256": "8f76b3049b129862be93e3898d0cf2a12fff150bab433a7f4751d6f1dcb71f4e",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "58151e562100b248fad7bff5f30a3e048851572e2df7d8be7f6fddc4c84acd41",
+			"package_sha256": "410baf12e08274dd9c3bf4f8bd50d59c8967bce46993348a61b9c9505be76b97",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
 			"recipe_path": "Aggregate/MI_ProjectAsphalt_Default.surface.json",
-			"recipe_sha256": "806f892c7bc6a45520f5bccbaf828a81c66c94059cfcae7ceb61a19e2257bfe2",
-			"recipe_source_sha256": "5f7b3139f1499c71ee54fb2807a4b821b35056464cb4fc544966e04641e71498",
+			"recipe_sha256": "8e91e707c2299b387125662105b70fd88b41929ca9d7ae2139b9ea33f6a44e61",
+			"recipe_source_sha256": "aa6fd845972d964feb4f5906a9e4bbd5ac5f1b7bb6c4df255bd608281bea424e",
 			"binding_id": "road.default_asphalt",
 			"family": "surface_substrate",
 			"archetype": "aggregate_metric",
@@ -49,14 +49,14 @@
 			"pattern_id": "project_road_aggregate",
 			"pattern_object_path": "/ProjectTexture/Patterns/Aggregate/DA_ProjectRoadAggregate.RT_ProjectRoadSignals",
 			"pattern_output_contract": "aggregate_signals_normal_v1",
-			"pattern_semantic_identity": "0f0cbd20490cd63e2a7681ad5874f5219215d96858208ab7a930694bec2eb6b6",
-			"pattern_package_sha256": "56f24bc08820a7f7d45bfc3cbfeb4be9e9199ac2341d137b1512fff071884118",
+			"pattern_semantic_identity": "c0be421c57d3a5d87e43d3b9634048461bc9677977446bf6d344b92d7a6f04e7",
+			"pattern_package_sha256": "9220edfa256559d5ad71928d0e5d1e8e4c00140867cae9cf181964cd2b0ddc12",
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Aggregate/M_ProjectAggregateSurface.M_ProjectAggregateSurface",
-			"dependency_package_sha256": "465a3ae41123cf92baf2a157bbf30c88fbe1fd7df53b94321ba9365ba20d923a",
+			"dependency_package_sha256": "a51d4c1c29dfbf43219c0ee4fd196bc3dba07e1e9dcbee5ab06fe92ee9ea5187",
 			"output_object_path": "/ProjectMaterial/Surfaces/Aggregate/MI_ProjectAsphalt_Default.MI_ProjectAsphalt_Default",
-			"semantic_identity": "de0dc28d07708064933decc58ad5f419123dbb7960a13f752ab64259c15c9aef",
-			"package_sha256": "53d6c555585cc55192af2bb121a644f15b8419a93627057759c7317efe82fb0a",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "f589a0171652121537520c36347f2856a41518898177184501c69b29d4e98102",
+			"package_sha256": "efdaf9fbe7c3cbd36059b3e3175adda5d1cb519a399d815c43ff68f02ae93f18",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -73,11 +73,11 @@
 			"pattern_semantic_identity": "7fe5f093b722ded69455d80e5c6fa1ef21a461343aabc55a3d6177120e3f2698",
 			"pattern_package_sha256": "b8df2779bb3ef9f1e0c912ffaf549cd42e805cb6b82643b38d260a84d5222afb",
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Aggregate/M_ProjectAggregateTriplanar.M_ProjectAggregateTriplanar",
-			"dependency_package_sha256": "8f76b3049b129862be93e3898d0cf2a12fff150bab433a7f4751d6f1dcb71f4e",
+			"dependency_package_sha256": "410baf12e08274dd9c3bf4f8bd50d59c8967bce46993348a61b9c9505be76b97",
 			"output_object_path": "/ProjectMaterial/Surfaces/Aggregate/MI_ProjectConcrete_Default.MI_ProjectConcrete_Default",
-			"semantic_identity": "66bece19dbb39fac1e02d6b6b5db6e9abed8d849bf253f31a8e9a4e9cd387272",
-			"package_sha256": "2ac88e1cf3d55d0ef0bbddfb87fad70546c68a4e28d51794828e8f7716f19c70",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "7760f6ec6fead90c1e073e132898e88c3dbf48a73d6c909f2d3663bc71a87003",
+			"package_sha256": "61ae632aea3434232f5f7f5dc998c9a9a079eb6066373241c7985bf2c29d1f29",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -93,9 +93,9 @@
 			"pattern_semantic_identity": "99c82ca2da7a8e6aa34a2680023b8a29b7cfbf4b03c4fdccecd579688f7451d6",
 			"pattern_package_sha256": "b1a188d4303887e062e797ad2c95f2955df49595007c5d2fc2c6772f054cfe91",
 			"output_object_path": "/ProjectMaterial/Surfaces/Object/M_ProjectMetricSurface.M_ProjectMetricSurface",
-			"semantic_identity": "1341b03adec921035b78fa650193bb832d30b2c42350c22aacecacc6cd3b1fb2",
-			"package_sha256": "0b349606193c6068c86b2246f97b9c716fd848d4340326a9c7ffc7106c6c1597",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "8101b165606f097f815ceb859d813ad45c473b6d5c57ba30d058b6e7e10e2c4c",
+			"package_sha256": "6d32cfe6a68750310b54dfd82b70b22627a3c6b557f89bec7797e168ea1eae91",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -112,11 +112,11 @@
 			"pattern_semantic_identity": "99c82ca2da7a8e6aa34a2680023b8a29b7cfbf4b03c4fdccecd579688f7451d6",
 			"pattern_package_sha256": "b1a188d4303887e062e797ad2c95f2955df49595007c5d2fc2c6772f054cfe91",
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Object/M_ProjectMetricSurface.M_ProjectMetricSurface",
-			"dependency_package_sha256": "0b349606193c6068c86b2246f97b9c716fd848d4340326a9c7ffc7106c6c1597",
+			"dependency_package_sha256": "6d32cfe6a68750310b54dfd82b70b22627a3c6b557f89bec7797e168ea1eae91",
 			"output_object_path": "/ProjectMaterial/Surfaces/Object/MI_ProjectMetricCube.MI_ProjectMetricCube",
-			"semantic_identity": "ca787763aa6ed47d43358e94624fde060547f1858c8b71633efbbec0f5a94863",
-			"package_sha256": "7eada50321ee7da1645fd6960562d63fa4e614b8b5b5d809c408761d4d9283ca",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "ecdad94e567bda06e4ecaf099322a5eddb51fc198db2edecf0b2cfcd38d6adb1",
+			"package_sha256": "df41415d1ed3c3f87af917b98d5141af8abd2cc5360e7301034cb03a88b2c605",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -133,9 +133,9 @@
 			"pattern_package_sha256": "5560ae3d0082ade293018ad60a2b3a06f486d4a05437364eb9f208ab22824320",
 			"terrain_layout_receipt_sha256": "124aef29d3b1162a7af77dc0679b91aa9e40594dc8300c79b48871f979c3ac9c",
 			"output_object_path": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain",
-			"semantic_identity": "3865fb448d83779f3d7a2257bfcb269d207b8e3fe24c2e03b351bfafd9b381a5",
-			"package_sha256": "de21f9c136b95ee5716d88ef6bb8fc93f70632115857cb543cef7cd6100b83a7",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "d80fff21c547bb3606b9c4b8b53135343b0dcf35a3c3d13f5ade9f9be2c89c86",
+			"package_sha256": "698e3af16066df92ef1008516a6c7d69e3df6606168c9706084b77a04bcfbad8",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -152,12 +152,12 @@
 			"pattern_semantic_identity": "43c76876aa81d8882002a9468a2ad2e4625da6dd7af1d86ac559f0f68f127d30",
 			"pattern_package_sha256": "5560ae3d0082ade293018ad60a2b3a06f486d4a05437364eb9f208ab22824320",
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Terrain/M_ProjectTerrain.M_ProjectTerrain",
-			"dependency_package_sha256": "de21f9c136b95ee5716d88ef6bb8fc93f70632115857cb543cef7cd6100b83a7",
+			"dependency_package_sha256": "698e3af16066df92ef1008516a6c7d69e3df6606168c9706084b77a04bcfbad8",
 			"terrain_layout_receipt_sha256": "124aef29d3b1162a7af77dc0679b91aa9e40594dc8300c79b48871f979c3ac9c",
 			"output_object_path": "/ProjectMaterial/Surfaces/Terrain/MI_ProjectTerrain_Default.MI_ProjectTerrain_Default",
-			"semantic_identity": "904a67efaebeb5196529ed31fd81e501c497e10122b979d2bef0f43be3f43f31",
-			"package_sha256": "91364ae6510b42bda5ebfc82354eeebb26da69fcfb9173a203ceaec0e964e1a4",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "0669c332c11117d94bd13b39e6efe42f7bdec58bd1d0bd397563d01eed6664c7",
+			"package_sha256": "eab042e1b5a8d8fd8cc874c4e99056cb654fb0a294fe9ec0f317ef5bcd51e612",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -175,9 +175,9 @@
 				"/Water/Textures/Normals/T_Water_TilingNormal_With_Height_02_Softened.T_Water_TilingNormal_With_Height_02_Softened": "4365c821a4edbfe40ae596971484bb4481bc3d7c1ec4035bd3756b86d09176db"
 			},
 			"output_object_path": "/ProjectMaterial/Surfaces/Water/M_ProjectWaterSurface.M_ProjectWaterSurface",
-			"semantic_identity": "fe1ce347988a1ec089f93ec1dd46bcfcb67f6f16b01f7ddfd4c43c76d48f15e5",
-			"package_sha256": "b36af274616464576485c8410532742c3bc9a17c981753bffa8b0c83fda23741",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "b79cfd2522eb2c6c031c816ba4adcaea3eadfc90726f77cdc02b55a40aed2637",
+			"package_sha256": "c590900e68381f894172d8eaa8b35e280a5075f8558a371e4d4f26dd69e9f851",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		},
 		{
@@ -196,11 +196,11 @@
 				"/Water/Textures/Normals/T_Water_TilingNormal_With_Height_02_Softened.T_Water_TilingNormal_With_Height_02_Softened": "4365c821a4edbfe40ae596971484bb4481bc3d7c1ec4035bd3756b86d09176db"
 			},
 			"dependency_object_path": "/ProjectMaterial/Surfaces/Water/M_ProjectWaterSurface.M_ProjectWaterSurface",
-			"dependency_package_sha256": "b36af274616464576485c8410532742c3bc9a17c981753bffa8b0c83fda23741",
+			"dependency_package_sha256": "c590900e68381f894172d8eaa8b35e280a5075f8558a371e4d4f26dd69e9f851",
 			"output_object_path": "/ProjectMaterial/Surfaces/Water/MI_ProjectRiverCalm_Default.MI_ProjectRiverCalm_Default",
-			"semantic_identity": "0cefb85beecd91705a9bc8868c79811a7f1321177f12f9a4143d4e542db6f984",
-			"package_sha256": "601fff59425ee1b5a53d16c2d5cef174a94d265692d7a6f915eb77f9a32166fe",
-			"compiler_fingerprint": "463db0d0d1c551961bb06e4688d1c2731dfe51a1c38c6a799d9a661e6f785664",
+			"semantic_identity": "4f616ee93e4cd7a5865da7a967d31b3156b68618a378a3470c1800e1ee5b0708",
+			"package_sha256": "7aaeaa61d639e7800ec644d6958f0a35ace6c1e845bc9a805728bb414ab80274",
+			"compiler_fingerprint": "8c4edf48fa92c3fdaf3592d1f24772c89cbf8bdcbf76c5efb32f5ba2d4eef420",
 			"engine_compatibility": "5.8"
 		}
 	]

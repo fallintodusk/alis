@@ -32,10 +32,10 @@ public:
 	virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
-private:
-	/** Generate assets for a single type */
+	/** Generate assets for a single type. Public so editor automation can cover the commandlet's safety contract. */
 	int32 GenerateType(const FString& TypeName, bool bForceRegenerate, bool bCleanup);
 
+private:
 	/** Log summary for a type */
 	void LogSummary(const FString& TypeName, int32 SuccessCount, int32 SkippedCount, int32 FailedCount);
 };

@@ -169,6 +169,28 @@ BlendAngleCorrectedNormals aligns the decoded detail with the geometry normal;
 one opaque Substrate Slab receives the final shading inputs. This does not
 displace vertices or change collision.
 
+World-XY aggregate sampling uses one installed native `TextureVariation` call
+for the fine Signals and Normal pair. Phase selection is non-rotating and uses
+no temporal dithering. Both outputs share shifted coordinates and clean native
+derivatives; derivative scale retains the recipe's mip-bias meaning. The broad
+macro sample keeps its independent world-metric coordinates. Triplanar aggregate
+sampling is unchanged and does not inherit this XY sampling route.
+
+Explicit derivatives control the sampling footprint across shifted coordinates;
+they do not select the texture filter. Filtering remains part of the
+[ProjectTexture output contract](../../ProjectTexture/docs/pattern_generation.md#aggregate-bundle).
+Do not infer an anisotropic-filtering change from the mip-mode enum alone:
+`FHLSLMaterialTranslator::TextureSample` can emit gradient sampling for MipBias
+when analytic derivatives are available, while `UTextureLODSettings::GetSamplerFilter`
+resolves the actual filter.
+
+The closed verifier authenticates the selection inputs, height source, paired
+texture roles, shared UVs and gradients, normal orientation, and macro sampling.
+A different native function, rotation, UV swizzles, disconnected or swapped derivatives,
+wrong source output, or altered selection defaults is not an admitted variation.
+Native save/reload and tamper regressions belong to the asphalt fixture test;
+runtime appearance, section boundaries and cost require separate rendered proof.
+
 The same physical family also admits world-metric triplanar projection. Its
 encoded-normal adapter samples the existing linear output in three planes,
 decodes it, preserves derivative signs, reverses only each outward axis and
@@ -251,6 +273,11 @@ provenance, and until then `Validate` reports the manifest stale.
 The UBT compiler fingerprint covers the sorted non-test compiler source and schema
 set through one shared `ExternalDependencies` list. A skip is accepted only when the
 semantic identity and current package SHA-256 both match the accepted manifest.
+This fingerprint is shared by all surface recipes: a compiler-source change
+invalidates unrelated surface identities too. The production wrapper reconciles
+the complete recipe set; it has no selected-recipe manifest merge. Use isolated
+generated fixtures when an evaluation must leave other accepted outputs intact.
+Do not suppress fingerprint changes or edit accepted records to force a skip.
 
 Each record also stores `recipe_source_sha256`: SHA-256 of the recipe's UTF-8 bytes
 after dropping one byte-order mark and converting CRLF and CR to LF. Public binary
@@ -365,6 +392,29 @@ comparison if geometry or other unexplained scene changes occur between frames.
 Runtime pattern quality still requires a Ready pattern in PIE/game
 preview. Persistent generation continues through the locked commandlet host above;
 this operation does not enable persistent in-editor saving or production adoption.
+
+World-metric projection and mip filtering do not prevent recognizable albedo
+repetition. For aggregate surfaces, compare macro-disabled BaseColor and
+flat-relief WorldNormal controls before changing scale or filtering. Repetition
+that survives the macro-disabled control needs a separate detail-pigment
+diagnosis; reducing macro contrast alone does not establish a fix. Keep near
+detail and normal rendering in the comparison, and identify the actual selected
+mesh/material rather than inferring its surface role from a screenshot.
+
+Visible repetition in Lit can be driven by roughness even when BaseColor and
+WorldNormal show weaker recurrence. Compare constant roughness and normal-off
+controls independently in Lit, then restore the original binding and confirm
+the symptom returns. A constant-channel diagnostic localizes a contribution;
+it does not establish an acceptable replacement material. Reducing a channel's
+contrast can weaken bands while leaving their spacing intact. Judge retained
+detail and periodic structure alongside the normal-render images before adoption.
+
+A shared non-rotating UV phase variation can shorten repeated bands while
+leaving directional structure inside each sampled region. Search recurrence at
+both the original offsets and new offsets; lower correlation alone is not visual
+acceptance. Keep Signals and Normal on the same selection and clean sampling
+derivatives. An unsaved native graph experiment does not authenticate a generated
+graph or justify relaxing its connected-route and sample-count checks.
 
 ### Isolated graph fixtures
 

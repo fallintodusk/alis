@@ -110,6 +110,20 @@
           "type": "number",
           "minimum": -10,
           "maximum": 20
+        },
+        "gameplay_histogram_exposure": {
+          "description": "Optional native gameplay adaptation. Its absence selects fixed exposure. Generated capture cameras use fixed_exposure_ev100 in either policy. Histogram bins must contain the ordered exposure limits; the native loader enforces this relational constraint.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min_ev100", "max_ev100", "histogram_min_ev100", "histogram_max_ev100", "speed_up", "speed_down"],
+          "properties": {
+            "min_ev100": {"type": "number", "minimum": -10, "maximum": 20},
+            "max_ev100": {"type": "number", "minimum": -10, "maximum": 20},
+            "histogram_min_ev100": {"type": "number", "minimum": -10, "maximum": 20},
+            "histogram_max_ev100": {"type": "number", "minimum": -10, "maximum": 20},
+            "speed_up": {"type": "number", "minimum": 0.001, "maximum": 20},
+            "speed_down": {"type": "number", "minimum": 0.001, "maximum": 20}
+          }
         }
       }
     },

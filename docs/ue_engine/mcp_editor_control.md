@@ -33,10 +33,18 @@ generator and reproduced through the normal command before acceptance.
 ## Connection Proof
 
 After configuration or an editor/client restart, use a fresh MCP client and
-call `server_status`. This proves that the configured server can launch, speak
-the protocol, and reach the current editor. It does not prove that an external
+call `server_status`. In editor mode this proves that the configured server can
+speak the protocol and reach the current editor. It does not prove that an external
 client process restarted; where restart identity matters, record operator
 attestation separately.
+
+Blueprint MCP can auto-start a standalone NullRHI commandlet when no live editor
+is connected. A `commandlet mode` result does not prove a rendering editor is
+available. Start the owned native editor and wait for its listener before calling
+the connection probe. That helper commandlet is also a same-project Unreal
+process: it blocks the safe native lane and generated-content recovery. Shut down
+an agent-started helper through `shutdown_server` before entering either route;
+never disable the process-exclusion guard.
 
 The official route needs its own proof because it fails silently. `unreal-mcp`
 is an HTTP attachment to the in-editor listener, so the client binds it once at
@@ -133,6 +141,19 @@ the routing and concurrency rules above. Starting the editor and waiting for
 its owned endpoints is normal task work, not a user dependency.
 
 ## Evidence Boundary
+
+### Player-view dimensions
+
+Embedded PIE can retain the editor panel's render-target size after `r.SetRes`
+changes system-resolution metadata. World Editor builds with development tests
+expose
+`project.world.test.ensure_player_viewport`, which calls the existing
+[uncooked-session viewport helper](../../Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/Tests/ProjectWorldUncookedSessionTest.cpp)
+to fix the active PIE render target at 2560x1440. It refuses without an active
+PIE game viewport and changes no saved world or renderer-quality policy.
+Confirm the PlayerController viewport readback and the resulting PNG dimensions;
+neither a configured resolution nor command-dispatch success proves the size.
+Record screen percentage and dynamic-resolution settings separately.
 
 MCP may provide live evidence for:
 

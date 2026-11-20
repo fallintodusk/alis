@@ -22,6 +22,8 @@
     { "Name": "GeometryProcessing", "Enabled": true, "TargetAllowList": ["Editor"] },
     { "Name": "ProceduralMeshComponent", "Enabled": true },
     { "Name": "ProjectCore", "Enabled": true },
+    { "Name": "ProjectTime", "Enabled": true },
+    { "Name": "ProjectLight", "Enabled": true },
     { "Name": "ProjectBuildingAssembly", "Enabled": true, "TargetAllowList": ["Editor"] }
   ]
 }

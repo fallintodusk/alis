@@ -18,7 +18,7 @@
     "SurfaceRoughness": 0.86,
     "RoughnessVariation": 0.18,
     "MacroMeters": 32,
-    "MacroContrast": 0.3,
+    "MacroContrast": 0.1,
     "MacroRoughness": 0.06
   },
   "vectors": {

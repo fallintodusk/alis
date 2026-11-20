@@ -3,23 +3,23 @@
   "assets": [
     {
       "artifact_path": "Plugins/Resources/ProjectExperienceData/Content/Experiences/KazanTerritory.uasset",
-      "artifact_sha256": "d8716bd4dbb9c420dd7e4e389bda1e863791838eaf132c0543f9bf9ef976dd94",
+      "artifact_sha256": "73c25da4aa9b8d1cc5d46124978ec77a23c1ebd4072dd0a369baa0c2f0f824a2",
       "asset_class": "ProjectExperienceDefinition",
       "package_name": "/ProjectExperienceData/Experiences/KazanTerritory",
       "schema_path": "Plugins/Resources/ProjectExperienceData/Data/Schemas/experience.schema.json",
-      "source_json_hash_md5": "318ee938aae48604aa1d1b7daa6a120f",
+      "source_json_hash_md5": "36998c65ec2c10bfed7c2dad210ef9dd",
       "source_path": "Plugins/Resources/ProjectExperienceData/Data/Experiences/kazan_territory.json",
-      "source_sha256": "d5eadf8d17fb46081a0ba3c75be4d4c7e0684c5bbd1a4aeefeb1cbe8a2c81fcd"
+      "source_sha256": "f7401e7076d1d97e0ce1e0c1358e17c8aec5d0753e24f8d3aac40fd40d916de8"
     },
     {
       "artifact_path": "Plugins/Resources/ProjectExperienceData/Content/Experiences/ManhattanShowcase.uasset",
-      "artifact_sha256": "27af3657945c322082663c0453e807b23dadaf2d973bd5c9a5e7765462391e99",
+      "artifact_sha256": "599ca69f0d56e7cbfbb67564d976422defdabaedbb35f89a6f8f12a6b1e16c80",
       "asset_class": "ProjectExperienceDefinition",
       "package_name": "/ProjectExperienceData/Experiences/ManhattanShowcase",
       "schema_path": "Plugins/Resources/ProjectExperienceData/Data/Schemas/experience.schema.json",
-      "source_json_hash_md5": "85a0f587710f0055e132213c4b6087e1",
+      "source_json_hash_md5": "ff032ca35a02ca533dbcdfd40cfa87fd",
       "source_path": "Plugins/Resources/ProjectExperienceData/Data/Experiences/manhattan_showcase.json",
-      "source_sha256": "63c94441827e3a2abc4c84b7ccd401e3778e793706f78fafb2965069bfc64c37"
+      "source_sha256": "8051f3d0bd190a4292e6506ffafbb630be2e637c127b39af44a3e6a3b523efb6"
     }
   ],
   "manifest_id": "project_experience_data_public_generated_experiences_v1",

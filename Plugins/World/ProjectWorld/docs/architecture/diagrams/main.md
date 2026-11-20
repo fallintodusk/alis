@@ -30,6 +30,12 @@ flowchart LR
     Presentation -->|same geometry, separate adoption provenance| Runtime
     MeshPartition -->|generated package and manifest| Runtime
     Runtime -->|World Partition and streaming APIs| Unreal[Unreal runtime]
+    Editor -->|static settings and native actor binding| Light[ProjectLight]
+    Editor -->|serialized context on generated geographic actor| Context[Cooked time context]
+    Context -->|validated same-world identity| Runtime
+    Runtime -->|explicit context binding| Time[ProjectTime]
+    Runtime -->|Core provider binding and native ENU basis| Light
+    Time -->|Core read-only time view| Light
     Fixtures[ProjectWorldTestData] -->|synthetic contract inputs| Editor
 ```
 

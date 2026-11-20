@@ -209,6 +209,15 @@ per-object identities are not reasons to introduce new producers or allocate
 unique bundles. The normal's fixed reference slope remains an encoding convention;
 it does not choose a consumer's physical scale or change geometry.
 
+Regular particle rows can originate inside the generated Signals tile. Inspect
+the raw tiled pigment and derived Normal alongside matched rendered controls
+before treating that symptom as whole-tile repetition or changing filtering.
+The existing particle-placement warp can reduce those rows without adding
+per-pixel material work. Regenerate both outputs together; the independent
+patch/micro roughness channel does not depend on that warp. A source adjustment
+does not remove the periodicity of the complete tile. Projection and any
+whole-tile sampling variation remain ProjectMaterial responsibilities.
+
 The production [concrete aggregate recipe](../Data/Patterns/Aggregate/project_concrete_aggregate.pattern.json)
 selects the same native kernel and output ABI with a distinct structural recipe.
 Its catalog is shared across building consumers. Building identity and material

@@ -463,6 +463,13 @@ frame smoothing/fixed-rate/fixed-step/benchmark modes are disabled, and dynamic
 resolution is disabled. These are process-local acceptance settings; they are
 not saved to normal player settings. Fixed-timestep or best-of-run evidence
 cannot satisfy the release gate.
+
+Product and playable-tour PNGs use separate native SceneCapture2D sessions. Their
+render-target size and exposure do not define the measured game viewport or prove
+player-camera Histogram behavior. The timing gate checks the actual game viewport
+size; use matched Ready player-camera views for lighting acceptance, following
+[paired visual review](../../../tools/World/VisualVerification/README.md#paired-geometry-and-presentation-review).
+
 Each Development child writes both UE's rich diagnostic CSV and an exact CSV
 projection of the C++ performance collector frames. The runner requires every
 child's functional, streaming, envelope, package, executable, source, and

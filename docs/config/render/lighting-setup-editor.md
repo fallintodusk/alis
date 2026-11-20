@@ -19,7 +19,7 @@ This guide fixes dark corners in interiors and shaded outdoor areas in City17_Pe
 ### 3-Step Process
 
 **STEP 1: .ini Configuration** [OK] (COMPLETED)
-- See [render.md](./render.md) for applied settings
+- See [render configuration owners](./render.md) for actual settings; this guide is City17-specific.
 
 **STEP 2: BP_SunSky_Child Setup** [ACTION] (ACTION REQUIRED)
 - [-> Go to BP_SunSky_Child guide](./lighting-bp-sunsky.md)
@@ -89,7 +89,7 @@ All settings must be in **Persistent Level**, NOT streaming cells!
 - [Quick Reference](./lighting-fix-summary.md) - Condensed guide
 
 ### Technical Docs
-- [render.md](./render.md) - Render config (synced with DefaultEngine.ini)
+- [Render configuration owners](./render.md) - Current configuration and map-specific scope
 - `Config/DefaultEngine.ini` - Engine settings
 
 ### Official UE5 Documentation

@@ -6,6 +6,7 @@
 #include "ProjectWorldCanonicalBundle.h"
 #include "ProjectWorldGeneratedGeometry.h"
 #include "ProjectWorldPresentationProfile.h"
+#include "ProjectWorldLightSettings.h"
 #include "ProjectWorldRealizationService.h"
 
 #include "ActorFactories/ActorFactoryBoxVolume.h"
@@ -62,29 +63,6 @@ namespace ProjectWorldPresentationRealization
 				return Tag.ToString().StartsWith(Prefix);
 			});
 			Actor.Tags.Add(FName(*(Prefix + Value)));
-		}
-
-		void ConfigureFixedExposure(FPostProcessSettings& Settings, float FixedExposureEv100)
-		{
-			constexpr float ManualAperture = 4.0f;
-			constexpr float ManualIso = 100.0f;
-			const float ManualShutterSpeed =
-				FMath::Pow(2.0f, FixedExposureEv100) /
-				FMath::Square(ManualAperture);
-			Settings.bOverride_AutoExposureMethod = true;
-			Settings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-			Settings.bOverride_AutoExposureMinBrightness = false;
-			Settings.bOverride_AutoExposureMaxBrightness = false;
-			Settings.bOverride_AutoExposureApplyPhysicalCameraExposure = true;
-			Settings.AutoExposureApplyPhysicalCameraExposure = true;
-			Settings.bOverride_CameraISO = true;
-			Settings.CameraISO = ManualIso;
-			Settings.bOverride_CameraShutterSpeed = true;
-			Settings.CameraShutterSpeed = ManualShutterSpeed;
-			Settings.bOverride_DepthOfFieldFstop = true;
-			Settings.DepthOfFieldFstop = ManualAperture;
-			Settings.bOverride_AutoExposureBias = true;
-			Settings.AutoExposureBias = 0.0f;
 		}
 
 		bool EnsureEditorVolumeBrush(APostProcessVolume& Volume)
@@ -299,16 +277,6 @@ namespace ProjectWorldPresentationRealization
 			return false;
 		}
 
-		Sun->GetComponent()->SetMobility(EComponentMobility::Movable);
-		Sun->SetActorRotation(Profile.SunRotation);
-		Sun->GetComponent()->SetIntensity(Profile.SunIntensityLux);
-		Sun->GetComponent()->SetAtmosphereSunLight(true);
-		SkyLight->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-		SkyLight->GetLightComponent()->SetIntensity(Profile.SkyLightIntensity);
-		SkyLight->GetLightComponent()->SetRealTimeCapture(true);
-		Fog->GetComponent()->SetFogDensity(Profile.FogDensity);
-		Fog->GetComponent()->SetFogHeightFalloff(Profile.FogHeightFalloff);
-		Fog->GetComponent()->SetVolumetricFog(true);
 		UVolumetricCloudComponent* CloudComponent =
 			Cloud->FindComponentByClass<UVolumetricCloudComponent>();
 		if (CloudComponent == nullptr)
@@ -316,14 +284,24 @@ namespace ProjectWorldPresentationRealization
 			OutError = TEXT("Generated Volumetric Cloud has no component.");
 			return false;
 		}
-		CloudComponent->SetMaterial(Resources.CloudMaterial);
 		if (!ConfigureAlwaysLoadedUnboundVolume(*PostProcess))
 		{
 			OutError = TEXT("Generated Post Process Volume cannot be made always loaded.");
 			return false;
 		}
-		PostProcess->BlendWeight = 1.0f;
-		ConfigureFixedExposure(PostProcess->Settings, Profile.FixedExposureEv100);
+		FProjectLightBindings Bindings;
+		Bindings.Sun = Sun->GetComponent();
+		Bindings.SkyLight = SkyLight->GetLightComponent();
+		Bindings.Atmosphere = Atmosphere->GetComponent();
+		Bindings.Fog = Fog->GetComponent();
+		Bindings.Cloud = CloudComponent;
+		Bindings.CloudMaterial = Resources.CloudMaterial;
+		Bindings.PostProcess = PostProcess;
+		if (!ProjectLight::ApplyStatic(ProjectWorldLightSettings::FromProfile(Profile), Bindings))
+		{
+			OutError = TEXT("Lighting configuration/bindings are invalid.");
+			return false;
+		}
 
 		SetIdentity(*Sun, TEXT("Sun"), Bundle, Profile);
 		SetIdentity(*Atmosphere, TEXT("SkyAtmosphere"), Bundle, Profile);
@@ -351,7 +329,7 @@ namespace ProjectWorldPresentationRealization
 			UCameraComponent* CameraComponent = Camera->GetCameraComponent();
 			CameraComponent->SetFieldOfView(Viewpoint.FieldOfViewDegrees);
 			CameraComponent->PostProcessBlendWeight = 1.0f;
-			ConfigureFixedExposure(CameraComponent->PostProcessSettings, Profile.FixedExposureEv100);
+			ProjectLight::ConfigureFixedExposure(CameraComponent->PostProcessSettings, Profile.FixedExposureEv100);
 			SetIdentity(*Camera, Role, Bundle, Profile);
 		}
 		OutResult.PresentationActorCount = ExpectedClasses.Num();

@@ -1,357 +1,119 @@
-[SystemSettings]
-r.Streaming.PoolSize=8000
+# Render configuration owners
 
-[URL]
-GameName=Alis
+Renderer values and map defaults are owned by configuration, not a copied INI
+inside documentation. Pin the exact source revision and dirty-file hashes when
+comparing this checkout with a public revision or an installed candidate.
 
-[/Script/HardwareTargeting.HardwareTargetingSettings]
-TargetedHardwareClass=Desktop
-AppliedTargetedHardwareClass=Desktop
-DefaultGraphicsPerformance=Maximum
-AppliedDefaultGraphicsPerformance=Maximum
+## Current configuration
 
-[/Script/EngineSettings.GameMapsSettings]
-EditorStartupMap=/City17/Maps/City17_Persistent_WP.City17_Persistent_WP
-GameDefaultMap=/City17/Maps/City17_Persistent_WP.City17_Persistent_WP
-TransitionMap=None
-ServerDefaultMap=/Game/Project/Maps/Boot/L_OrchestratorBoot.L_OrchestratorBoot
-GlobalDefaultGameMode=/Script/Engine.GameModeBase
-; Use AlisGI to read entry experience and start ProjectLoading (content pipeline kick-off)
-GameInstanceClass=/Script/Alis.AlisGI
+| Concern | Owner |
+|---|---|
+| Renderer project settings, stability guards and entry-map defaults | [DefaultEngine.ini](../../../Config/DefaultEngine.ini) |
+| Quality-tier overrides | [DefaultScalability.ini](../../../Config/DefaultScalability.ini) |
+| Generated-world outdoor settings | [Presentation profile](../../../Plugins/World/ProjectWorldData/Data/Presentation/kazan_representative_v1.json) |
+| Generated actors, PostProcess and capture-camera realization | [World presentation implementation](../../../Plugins/World/ProjectWorld/Source/ProjectWorldEditor/Private/ProjectWorldPresentationRealization.cpp) |
+| Native lighting parameters and runtime Sun application | [ProjectLight](../../../Plugins/World/ProjectLight/README.md) |
+| Installed engine selection | [Engine configuration](../../../scripts/config/ue_path.conf) and its resolver; machine overrides remain local |
 
-[/Script/Engine.Engine]
-GameViewportClientClassName=/Script/CommonUI.CommonGameViewportClient
-SmoothedFrameRateRange=(LowerBound=(Type=Inclusive,Value=22.000000),UpperBound=(Type=Exclusive,Value=120.000000))
-bSmoothFrameRate=False
-NearClipPlane=5.000000
-+ActiveGameNameRedirects=(OldGameName="/Script/Alis_0_2_0", NewGameName="/Script/Alis")
-;+ActiveClassRedirects=(OldClassName="/Script/Alis.Alis_0_2_0",NewClassName="/Script/Alis.Alis")
-MinDesiredFrameRate=0.000000
+`r.ReflectionMethod=1` selects Lumen reflections; `2` selects standalone SSR
+(`EngineTypes.h::EReflectionMethod`). The effective runtime path also depends on
+scalability and view settings. A project setting or an SSR quality value alone
+does not establish which reflection path a player view actually uses.
 
-[/Script/Engine.RendererSettings]
+Generated World presentation bakes declared lighting settings. Optional runtime
+activation follows [World's cooked daylight binding](../../../Plugins/World/ProjectWorld/docs/daylight_composition.md).
+Its
+[profile contract](../../../Plugins/World/ProjectWorld/Data/Schemas/project_world_presentation_profile.schema.json)
+supports fixed physical exposure and optional bounded native Histogram for
+gameplay. The generated unbound PostProcess volume owns gameplay exposure;
+generated capture cameras explicitly retain the profile's fixed exposure.
+Cooked native actors carry these settings without a runtime Editor dependency.
+Global auto-exposure defaults alone do not establish the blended player-camera
+policy; inspect active camera override flags and actual Ready player views.
 
-; ==============================
-; CORE RENDER PIPELINE (STABLE)
-; ==============================
-r.ForwardShading=False
-r.Nanite.ProjectEnabled=True
-r.VirtualTextures=True
-r.GBufferFormat=3
-r.CustomDepth=1
-r.GenerateMeshDistanceFields=True
-r.AllowStaticLighting=False
+The profile expresses Histogram limits in EV100. Realization converts them for
+the configured native exposure-unit convention. Changing that convention requires
+an explicit presentation-output migration; unchanged-profile no-op does not
+convert saved settings. Fixed captures are
+deterministic diagnostics; adaptive gameplay needs settled views and a moving
+shade/bright-scene comparison. Measure frame and GPU costs at the actual image
+resolution; a configured resolution alone does not establish the rendered size.
 
-; ==============================
-; EXPOSURE (AUTO)
-; Restored from Artur's config - fixes overexposed/washed out scene
-; Auto exposure + HDR range critical for modern raytracing lighting
-; ==============================
-r.DefaultFeature.AutoExposure=True
-r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange=True
-r.DefaultFeature.LightUnits=1
-r.EyeAdaptation.ExposureCompensationBias=2.5
+## Cached lighting and gameplay exposure
 
-; ==============================
-; ANTI-ALIASING
-; ==============================
-r.DefaultFeature.AntiAliasing=2 ; TAA
+`r.EyeAdaptation.CachedLightingPreExposure` in the project configuration owns the
+fixed precision/range offset for cached Lumen and real-time Sky Light lighting.
+Gameplay brightness and adaptation remain with the World PostProcess policy;
+the cache offset is not an exposure-compensation control or a quality tier.
 
-; ==============================
-; GLOBAL ILLUMINATION (LUMEN OPTIMIZED)
-; ==============================
-r.DynamicGlobalIlluminationMethod=1 ; Lumen
-r.Lumen.GlobalIllumination=1
-; Hardware RT enabled for better quality
-r.Lumen.HardwareRayTracing=True
-r.Lumen.HardwareRayTracing.LightingMode=0
-r.Lumen.TraceMeshSDFs=0
-r.Lumen.ScreenProbeGather.Quality=2
-r.Lumen.ScreenProbeGather.RadianceCache=1
-r.Lumen.DiffuseIndirect.Allow=1
+A valid Histogram policy can still exceed the cached-lighting range. This is
+distinct from clipped highlights in the final image. The installed renderer's
+`PostProcessEyeAdaptation.cpp::EyeAdaptation::WriteWarnings` compares the actual
+view pre-exposure with that range. Qualify changes with the native Temporal
+Upscaler visualization's pre-exposure and input/output dimensions, then inspect
+matched normal player views and motion. Diagnostic views do not certify appearance.
+Do not suppress the warning or reduce lighting quality as a substitute for fixing
+an established range mismatch.
 
-; ==============================
-; SHADOWS (VSM OPTIMIZED FOR SOFT SHADOWS)
-; ==============================
-r.Shadow.Virtual.Enable=1
-; NEW: 4->8 for soft shadows
-r.Shadow.Virtual.SMRT.RayCountDirectional=8
-; NEW: 2->4 for quality
-r.Shadow.Virtual.SMRT.SamplesPerRayDirectional=4
-; NEW: fix for dark corners
-r.Shadow.Virtual.OnePassProjection.MaxLightsPerPixel=32
-r.RayTracing=True
-r.RayTracing.Shadows=False
-; Enabled for cinematics/screenshots
-r.PathTracing=True
+Keep one project configuration owner rather than competing per-world or per-tick
+writers of this global setting. Check a cold process readback after an offset
+change. A future night policy must qualify its darker endpoint as well as daylight;
+the static-world comparison does not establish day/night or installed-game acceptance.
 
-; ==============================
-; REFLECTIONS (3060 FRIENDLY)
-; ==============================
-r.ReflectionMethod=1 ; SSR
-r.SSR.Quality=2
-r.SSR.MaxRoughness=0.6
-r.ReflectionCaptureResolution=64
+## Wall-lighting diagnostics
 
-; ==============================
-; AMBIENT OCCLUSION (REDUCED FOR BRIGHTNESS)
-; ==============================
-r.DefaultFeature.AmbientOcclusion=True
-r.DefaultFeature.AmbientOcclusionStaticFraction=True
-r.AmbientOcclusionLevels=2
-r.AmbientOcclusionMaxQuality=50
+Use the same Ready player pose, time, image dimensions, exposure and quality tier
+as the reported defect. A darker replay that hides the pattern is not a fix.
+Compare native Unlit, Lighting Only, Detail Lighting and World Normal before
+changing a material. Inspect Lumen Scene, Surface Cache and Geometry Normals
+separately; visible-mesh normals do not prove tracing-representation agreement.
+Pink Surface Cache regions establish missing coverage, not the cause of every
+bright patch. Temporarily disable diffuse GI and screen traces separately,
+restore each control, and retain normal-render controls.
+Compare a cold fixed-time view with a day-to-night seek and a later view at the
+same UTC: indirect-light and exposure history can outlast texture readiness.
+Do not accept transient daylight left on night walls as the night preset's
+visibility. A longer capture wait corrects evidence; it does not eliminate the
+runtime transient or qualify continuously accelerated time.
 
-; ==============================
-; POST FX (CLEAN)
-; ==============================
-r.DefaultFeature.MotionBlur=False
-r.MotionBlurQuality=0
-r.BloomQuality=0
-r.SceneColorFringeQuality=0
-r.TonemapperFilm=1
-r.Tonemapper.GrainQuantization=0
+For an active post-seek artifact, `vis Lumen.ScreenProbeGather.DiffuseIndirect`
+shows the native diffuse-indirect contribution; `vis 0` disables that diagnostic.
+Test `r.Lumen.ScreenProbeGather.RadianceCache 0` before the lighting change and
+compare with its enabled control, then restore the original value. Removing a
+patch pattern while retaining stale overall illumination is not convergence.
+Lumen Scene and Final Gather update speeds control different stages; failure
+of one does not reject the other. In the installed renderer,
+`r.Lumen.ScreenProbeGather.Temporal.ClearHistoryEveryFrame 1` disables history
+reuse for debugging; `0` restores normal reuse. Confirm this in
+`LumenScreenProbeGather.cpp`, rather than copying a forum reply's reversed value.
+These global switches and Surface Cache resets are diagnostics, not runtime policies.
+A demonstrated Scene-budget correction belongs to
+[ProjectLight's bounded world policy](../../../Plugins/World/ProjectLight/docs/architecture/structure.md#update-lifecycle-and-performance).
+Large instantaneous seeks and continuous accelerated time need separate evidence.
 
-; ==============================
-; MISC
-; ==============================
-r.SupportStationarySkylight=True
-r.SupportLowQualityLightmaps=True
-r.NormalMapsForStaticLighting=False
-r.SkinCache.CompileShaders=True
-r.Substrate=False
-; KEPT: MegaLights support
-r.MegaLights.EnableForProject=True
+Generated massing uses ordinary static-mesh components, so the project's ISM
+ray-tracing exclusion does not directly exclude those walls. Preserve that
+documented stability guard. Hardware tracing, mesh distance fields and Surface
+Cache cards are different representations. In the installed engine,
+`StaticMesh.cpp` and `DistanceFieldAtlas.cpp` can schedule card generation even
+with distance-field resolution zero. Read actual card data after asynchronous builds;
+raising `MaxLumenMeshCards` does not guarantee additional cards or coverage.
+Qualify a disposable rebuilt cell before changing its producer or saved output.
+See Epic's [Lumen technical details](https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine)
+and [native view modes](https://dev.epicgames.com/documentation/en-us/unreal-engine/viewport-modes-in-unreal-engine),
+with the installed engine source authoritative for exact behavior.
 
-; ==============================
-; RESTORED FROM BACKUP (IMPORTANT)
-; ==============================
-; Decal buffer for decals
-r.DBuffer=True
-; CRITICAL: texture streaming
-r.TextureStreaming=True
-; For mirror/portal effects
-r.AllowGlobalClipPlane=False
-; Disabled for performance
-r.Lumen.TranslucencyReflections.FrontLayer.EnableForProject=False
+## Map-specific references and evidence
 
-; ==============================
-; SKELETAL MESH & CHARACTERS (CRITICAL FOR GAMEPLAY)
-; ==============================
-; Optimization for skeletal meshes
-r.SkinCache.DefaultBehavior=0
-; Support for >256 bones
-r.GPUSkin.Support16BitBoneIndex=True
-; Unlimited bone influences
-r.GPUSkin.UnlimitedBoneInfluences=True
+The [City17 SunSky guide](lighting-bp-sunsky.md),
+[Editor setup](lighting-setup-editor.md),
+[post-process notes](lighting-postprocess.md) and
+[troubleshooting](lighting-troubleshooting.md) describe a legacy map-specific
+setup. Their suggested lux, skylight and exposure values are not current
+settings or acceptance evidence for generated Kazan/Manhattan. The
+[fix history](lighting-fix-summary.md) records that historical work.
 
-; ==============================
-; REFRACTION & TRANSLUCENCY
-; ==============================
-; Glass/water refraction
-r.Lumen.Reflections.HardwareRayTracing.Translucent.Refraction.EnableForProject=True
-
-; ==============================
-; LEGACY TECH (EXPLICITLY DISABLED)
-; ==============================
-; Old GI technology (replaced by Lumen)
-r.LightPropagationVolume=False
-; Screen Space GI disabled (using Lumen)
-r.SSGI.Enable=False
-
-; ==============================
-; RAYTRACING COMPATIBILITY
-; ==============================
-; LOD for RT textures
-r.RayTracing.UseTextureLod=False
-
-; ==============================
-; MOBILE COMPATIBILITY (UNUSED BUT SAFE)
-; ==============================
-; Desktop-only project
-r.Mobile.EnableStaticAndCSMShadowReceivers=False
-; Desktop-only project
-r.Mobile.AllowDistanceFieldShadows=False
-
-[/Script/Engine.AssetManagerSettings]
-+PrimaryAssetTypesToScan=(PrimaryAssetType="Map",AssetBaseClass="/Script/Engine.World",bHasBlueprintClasses=False,bIsEditorOnly=True,Directories=((Path="/Game/Maps")),SpecificAssets=,Rules=(Priority=-1,ChunkId=-1,bApplyRecursively=True,CookRule=Unknown))
-+PrimaryAssetTypesToScan=(PrimaryAssetType="PrimaryAssetLabel",AssetBaseClass="/Script/Engine.PrimaryAssetLabel",bHasBlueprintClasses=False,bIsEditorOnly=True,Directories=((Path="/Game")),SpecificAssets=,Rules=(Priority=-1,ChunkId=-1,bApplyRecursively=True,CookRule=AlwaysCook))
-bOnlyCookProductionAssets=False
-bShouldManagerDetermineTypeAndName=False
-bShouldGuessTypeAndNameInEditor=True
-bShouldAcquireMissingChunksOnLoad=False
-bShouldWarnAboutInvalidAssets=True
-
-[Internationalization]
-+LocalizationPaths=%GAMEDIR%Content/Localization/GameLocalization
-+LocalizationPaths=%GAMEDIR%Content/Localization/Game
-
-[/Script/Engine.PhysicsSettings]
-DefaultGravityZ=-980.000000
-DefaultTerminalVelocity=4000.000000
-DefaultFluidFriction=0.300000
-SimulateScratchMemorySize=262144
-RagdollAggregateThreshold=4
-TriangleMeshTriangleMinAreaThreshold=5.000000
-bEnableShapeSharing=False
-bEnablePCM=False
-bEnableStabilization=False
-bWarnMissingLocks=True
-bEnable2DPhysics=False
-PhysicErrorCorrection=(PingExtrapolation=0.100000,PingLimit=100.000000,ErrorPerLinearDifference=1.000000,ErrorPerAngularDifference=1.000000,MaxRestoredStateError=1.000000,MaxLinearHardSnapDistance=400.000000,PositionLerp=0.000000,AngleLerp=0.400000,LinearVelocityCoefficient=100.000000,AngularVelocityCoefficient=10.000000,ErrorAccumulationSeconds=0.500000,ErrorAccumulationDistanceSq=15.000000,ErrorAccumulationSimilarity=100.000000)
-LockedAxis=Invalid
-DefaultDegreesOfFreedom=Full3D
-BounceThresholdVelocity=200.000000
-FrictionCombineMode=Average
-RestitutionCombineMode=Average
-MaxAngularVelocity=3600.000000
-MaxDepenetrationVelocity=0.000000
-ContactOffsetMultiplier=0.010000
-MinContactOffset=0.000100
-MaxContactOffset=1.000000
-bSimulateSkeletalMeshOnDedicatedServer=True
-DefaultShapeComplexity=CTF_UseSimpleAndComplex
-bDefaultHasComplexCollision=True
-bSuppressFaceRemapTable=False
-bSupportUVFromHitResults=False
-bDisableActiveActors=False
-bDisableKinematicStaticPairs=False
-bDisableKinematicKinematicPairs=False
-bDisableCCD=False
-bEnableEnhancedDeterminism=False
-MaxPhysicsDeltaTime=0.100000
-bSubstepping=True
-bSubsteppingAsync=False
-MaxSubstepDeltaTime=0.016700
-MaxSubsteps=6
-SyncSceneSmoothingFactor=0.000000
-InitialAverageFrameRate=0.016667
-PhysXTreeRebuildRate=10
-+PhysicalSurfaces=(Type=SurfaceType1,Name="Grass")
-+PhysicalSurfaces=(Type=SurfaceType2,Name="Concrete")
-+PhysicalSurfaces=(Type=SurfaceType3,Name="Wood")
-DefaultBroadphaseSettings=(bUseMBPOnClient=False,bUseMBPOnServer=False,MBPBounds=(Min=(X=0.000000,Y=0.000000,Z=0.000000),Max=(X=0.000000,Y=0.000000,Z=0.000000),IsValid=0),MBPNumSubdivs=2)
-bTickPhysicsAsync=False
-MinPhysicsDeltaTime=0.000100
-
-[/Script/LuminRuntimeSettings.LuminRuntimeSettings]
-FrameTimingHint=FPS_120
-
-[/Script/Engine.CollisionProfile]
--Profiles=(Name="NoCollision",CollisionEnabled=NoCollision,ObjectTypeName="WorldStatic",CustomResponses=((Channel="Visibility",Response=ECR_Ignore),(Channel="Camera",Response=ECR_Ignore)),HelpMessage="No collision",bCanModify=False)
--Profiles=(Name="BlockAll",CollisionEnabled=QueryAndPhysics,ObjectTypeName="WorldStatic",CustomResponses=,HelpMessage="WorldStatic object that blocks all actors by default. All new custom channels will use its own default response. ",bCanModify=False)
--Profiles=(Name="OverlapAll",CollisionEnabled=QueryOnly,ObjectTypeName="WorldStatic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Overlap),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldStatic object that overlaps all actors by default. All new custom channels will use its own default response. ",bCanModify=False)
--Profiles=(Name="BlockAllDynamic",CollisionEnabled=QueryAndPhysics,ObjectTypeName="WorldDynamic",CustomResponses=,HelpMessage="WorldDynamic object that blocks all actors by default. All new custom channels will use its own default response. ",bCanModify=False)
--Profiles=(Name="OverlapAllDynamic",CollisionEnabled=QueryOnly,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Overlap),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldDynamic object that overlaps all actors by default. All new custom channels will use its own default response. ",bCanModify=False)
--Profiles=(Name="IgnoreOnlyPawn",CollisionEnabled=QueryOnly,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="Pawn",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Ignore)),HelpMessage="WorldDynamic object that ignores Pawn and Vehicle. All other channels will be set to default.",bCanModify=False)
--Profiles=(Name="OverlapOnlyPawn",CollisionEnabled=QueryOnly,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="Pawn",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Ignore)),HelpMessage="WorldDynamic object that overlaps Pawn, Camera, and Vehicle. All other channels will be set to default. ",bCanModify=False)
--Profiles=(Name="Pawn",CollisionEnabled=QueryAndPhysics,ObjectTypeName="Pawn",CustomResponses=((Channel="Visibility",Response=ECR_Ignore)),HelpMessage="Pawn object. Can be used for capsule of any playerable character or AI. ",bCanModify=False)
--Profiles=(Name="Spectator",CollisionEnabled=QueryOnly,ObjectTypeName="Pawn",CustomResponses=((Channel="WorldStatic",Response=ECR_Block),(Channel="Pawn",Response=ECR_Ignore),(Channel="Visibility",Response=ECR_Ignore),(Channel="WorldDynamic",Response=ECR_Ignore),(Channel="Camera",Response=ECR_Ignore),(Channel="PhysicsBody",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Ignore),(Channel="Destructible",Response=ECR_Ignore)),HelpMessage="Pawn object that ignores all other actors except WorldStatic.",bCanModify=False)
--Profiles=(Name="CharacterMesh",CollisionEnabled=QueryOnly,ObjectTypeName="Pawn",CustomResponses=((Channel="Pawn",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Ignore),(Channel="Visibility",Response=ECR_Ignore)),HelpMessage="Pawn object that is used for Character Mesh. All other channels will be set to default.",bCanModify=False)
--Profiles=(Name="PhysicsActor",CollisionEnabled=QueryAndPhysics,ObjectTypeName="PhysicsBody",CustomResponses=,HelpMessage="Simulating actors",bCanModify=False)
--Profiles=(Name="Destructible",CollisionEnabled=QueryAndPhysics,ObjectTypeName="Destructible",CustomResponses=,HelpMessage="Destructible actors",bCanModify=False)
--Profiles=(Name="InvisibleWall",CollisionEnabled=QueryAndPhysics,ObjectTypeName="WorldStatic",CustomResponses=((Channel="Visibility",Response=ECR_Ignore)),HelpMessage="WorldStatic object that is invisible.",bCanModify=False)
--Profiles=(Name="InvisibleWallDynamic",CollisionEnabled=QueryAndPhysics,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="Visibility",Response=ECR_Ignore)),HelpMessage="WorldDynamic object that is invisible.",bCanModify=False)
--Profiles=(Name="Trigger",CollisionEnabled=QueryOnly,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Ignore),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldDynamic object that is used for trigger. All other channels will be set to default.",bCanModify=False)
--Profiles=(Name="Ragdoll",CollisionEnabled=QueryAndPhysics,ObjectTypeName="PhysicsBody",CustomResponses=((Channel="Pawn",Response=ECR_Ignore),(Channel="Visibility",Response=ECR_Ignore)),HelpMessage="Simulating Skeletal Mesh Component. All other channels will be set to default.",bCanModify=False)
--Profiles=(Name="Vehicle",CollisionEnabled=QueryAndPhysics,ObjectTypeName="Vehicle",CustomResponses=,HelpMessage="Vehicle object that blocks Vehicle, WorldStatic, and WorldDynamic. All other channels will be set to default.",bCanModify=False)
--Profiles=(Name="UI",CollisionEnabled=QueryOnly,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Block),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldStatic object that overlaps all actors by default. All new custom channels will use its own default response. ",bCanModify=False)
-+Profiles=(Name="NoCollision",CollisionEnabled=NoCollision,bCanModify=False,ObjectTypeName="WorldStatic",CustomResponses=((Channel="Visibility",Response=ECR_Ignore),(Channel="Camera",Response=ECR_Ignore)),HelpMessage="No collision")
-+Profiles=(Name="BlockAll",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="WorldStatic",CustomResponses=,HelpMessage="WorldStatic object that blocks all actors by default. All new custom channels will use its own default response. ")
-+Profiles=(Name="OverlapAll",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="WorldStatic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldStatic object that overlaps all actors by default. All new custom channels will use its own default response. ")
-+Profiles=(Name="BlockAllDynamic",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=,HelpMessage="WorldDynamic object that blocks all actors by default. All new custom channels will use its own default response. ")
-+Profiles=(Name="OverlapAllDynamic",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldDynamic object that overlaps all actors by default. All new custom channels will use its own default response. ")
-+Profiles=(Name="IgnoreOnlyPawn",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="Pawn",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Ignore)),HelpMessage="WorldDynamic object that ignores Pawn and Vehicle. All other channels will be set to default.")
-+Profiles=(Name="OverlapOnlyPawn",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="Pawn",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Overlap)),HelpMessage="WorldDynamic object that overlaps Pawn, Camera, and Vehicle. All other channels will be set to default. ")
-+Profiles=(Name="Pawn",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="Pawn",CustomResponses=((Channel="Visibility",Response=ECR_Ignore)),HelpMessage="Pawn object. Can be used for capsule of any playerable character or AI. ")
-+Profiles=(Name="Spectator",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="Pawn",CustomResponses=((Channel="WorldDynamic",Response=ECR_Ignore),(Channel="Pawn",Response=ECR_Ignore),(Channel="Visibility",Response=ECR_Ignore),(Channel="Camera",Response=ECR_Ignore),(Channel="PhysicsBody",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Ignore),(Channel="Destructible",Response=ECR_Ignore)),HelpMessage="Pawn object that ignores all other actors except WorldStatic.")
-+Profiles=(Name="CharacterMesh",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="Pawn",CustomResponses=((Channel="Pawn",Response=ECR_Ignore),(Channel="Visibility",Response=ECR_Ignore),(Channel="Vehicle",Response=ECR_Ignore)),HelpMessage="Pawn object that is used for Character Mesh. All other channels will be set to default.")
-+Profiles=(Name="PhysicsActor",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="PhysicsBody",CustomResponses=,HelpMessage="Simulating actors")
-+Profiles=(Name="Destructible",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="Destructible",CustomResponses=,HelpMessage="Destructible actors")
-+Profiles=(Name="InvisibleWall",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="WorldStatic",CustomResponses=((Channel="Visibility",Response=ECR_Ignore)),HelpMessage="WorldStatic object that is invisible.")
-+Profiles=(Name="InvisibleWallDynamic",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="Visibility",Response=ECR_Ignore)),HelpMessage="WorldDynamic object that is invisible.")
-+Profiles=(Name="Trigger",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Visibility",Response=ECR_Ignore),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldDynamic object that is used for trigger. All other channels will be set to default.")
-+Profiles=(Name="Ragdoll",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="PhysicsBody",CustomResponses=((Channel="Pawn",Response=ECR_Ignore)),HelpMessage="Simulating Skeletal Mesh Component. All other channels will be set to default.")
-+Profiles=(Name="Vehicle",CollisionEnabled=QueryAndPhysics,bCanModify=False,ObjectTypeName="Vehicle",CustomResponses=,HelpMessage="Vehicle object that blocks Vehicle, WorldStatic, and WorldDynamic. All other channels will be set to default.")
-+Profiles=(Name="UI",CollisionEnabled=QueryOnly,bCanModify=False,ObjectTypeName="WorldDynamic",CustomResponses=((Channel="WorldStatic",Response=ECR_Overlap),(Channel="WorldDynamic",Response=ECR_Overlap),(Channel="Pawn",Response=ECR_Overlap),(Channel="Camera",Response=ECR_Overlap),(Channel="PhysicsBody",Response=ECR_Overlap),(Channel="Vehicle",Response=ECR_Overlap),(Channel="Destructible",Response=ECR_Overlap)),HelpMessage="WorldStatic object that overlaps all actors by default. All new custom channels will use its own default response. ")
-+DefaultChannelResponses=(Channel=ECC_GameTraceChannel1,DefaultResponse=ECR_Ignore,bTraceType=True,bStaticObject=False,Name="HighlightLT")
-+DefaultChannelResponses=(Channel=ECC_GameTraceChannel2,DefaultResponse=ECR_Ignore,bTraceType=True,bStaticObject=False,Name="InterLT")
-+DefaultChannelResponses=(Channel=ECC_GameTraceChannel3,DefaultResponse=ECR_Ignore,bTraceType=False,bStaticObject=False,Name="Indoor")
--ProfileRedirects=(OldName="BlockingVolume",NewName="InvisibleWall")
--ProfileRedirects=(OldName="InterpActor",NewName="IgnoreOnlyPawn")
--ProfileRedirects=(OldName="StaticMeshComponent",NewName="BlockAllDynamic")
--ProfileRedirects=(OldName="SkeletalMeshActor",NewName="PhysicsActor")
--ProfileRedirects=(OldName="InvisibleActor",NewName="InvisibleWallDynamic")
-+ProfileRedirects=(OldName="BlockingVolume",NewName="InvisibleWall")
-+ProfileRedirects=(OldName="InterpActor",NewName="IgnoreOnlyPawn")
-+ProfileRedirects=(OldName="StaticMeshComponent",NewName="BlockAllDynamic")
-+ProfileRedirects=(OldName="SkeletalMeshActor",NewName="PhysicsActor")
-+ProfileRedirects=(OldName="InvisibleActor",NewName="InvisibleWallDynamic")
--CollisionChannelRedirects=(OldName="Static",NewName="WorldStatic")
--CollisionChannelRedirects=(OldName="Dynamic",NewName="WorldDynamic")
--CollisionChannelRedirects=(OldName="VehicleMovement",NewName="Vehicle")
--CollisionChannelRedirects=(OldName="PawnMovement",NewName="Pawn")
-+CollisionChannelRedirects=(OldName="Static",NewName="WorldStatic")
-+CollisionChannelRedirects=(OldName="Dynamic",NewName="WorldDynamic")
-+CollisionChannelRedirects=(OldName="VehicleMovement",NewName="Vehicle")
-+CollisionChannelRedirects=(OldName="PawnMovement",NewName="Pawn")
-+CollisionChannelRedirects=(OldName="InteractionLT",NewName="HighlightLT")
-+CollisionChannelRedirects=(OldName="Inter_LT",NewName="InterLT")
-
-[/Script/NavigationSystem.RecastNavMesh]
-RuntimeGeneration=Dynamic
-CellSize=5.000000
-
-[/Script/NavigationSystem.NavigationSystemV1]
-bGenerateNavigationOnlyAroundNavigationInvokers=True
-
-[/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings]
-bEnablePlugin=True
-bAllowNetworkConnection=True
-SecurityToken=<redacted>
-bIncludeInShipping=False
-bAllowExternalStartInShipping=False
-bCompileAFSProject=False
-bUseCompression=False
-bLogFiles=False
-bReportStats=False
-ConnectionType=USBOnly
-bUseManualIPAddress=False
-ManualIPAddress=
-
-[/Script/WindowsTargetPlatform.WindowsTargetSettings]
-DefaultGraphicsRHI=DefaultGraphicsRHI_DX12
--D3D12TargetedShaderFormats=PCD3D_SM5
-+D3D12TargetedShaderFormats=PCD3D_SM5
-+D3D12TargetedShaderFormats=PCD3D_SM6
--D3D11TargetedShaderFormats=PCD3D_SM5
-+D3D11TargetedShaderFormats=PCD3D_SM5
-Compiler=Default
-AudioSampleRate=48000
-AudioCallbackBufferFrameSize=1024
-AudioNumBuffersToEnqueue=1
-AudioMaxChannels=0
-AudioNumSourceWorkers=4
-SpatializationPlugin=
-SourceDataOverridePlugin=
-ReverbPlugin=
-OcclusionPlugin=
-CompressionOverrides=(bOverrideCompressionTimes=False,DurationThreshold=5.000000,MaxNumRandomBranches=0,SoundCueQualityIndex=0)
-CacheSizeKB=65536
-MaxChunkSizeOverrideKB=0
-bResampleForDevice=False
-MaxSampleRate=48000.000000
-HighSampleRate=32000.000000
-MedSampleRate=24000.000000
-LowSampleRate=12000.000000
-MinSampleRate=8000.000000
-CompressionQualityModifier=1.000000
-AutoStreamingThreshold=0.000000
-SoundCueCookQualityIndex=-1
-
-[/Script/Engine.UserInterfaceSettings]
-ApplicationScale=1.000000
-
-[/Script/IOSRuntimeSettings.IOSRuntimeSettings]
-FrameRateLock=PUFRL_60
-
-[/Script/Engine.WorldPartitionSettings]
-bNewMapsEnableWorldPartition=True
+Use [paired visual review](../../../tools/World/VisualVerification/README.md#paired-geometry-and-presentation-review)
+and [actual Ready procedural outputs](../../../Plugins/Resources/ProjectTexture/docs/pattern_generation.md#contract)
+to distinguish material, lighting and geometry issues. Runtime readbacks and
+normal player views decide current appearance; a cold Editor image does not.

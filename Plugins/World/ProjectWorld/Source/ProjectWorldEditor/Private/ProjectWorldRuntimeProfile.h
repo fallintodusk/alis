@@ -20,6 +20,8 @@ struct FProjectWorldRuntimeProfile
 	FString ProfileId;
 	FString ProfileHash;
 	FString ProfileKind;
+	bool bEnvironmentTimeEnabled = false;
+	FString EnvironmentTimeZone;
 	FString GridId;
 	FString RuntimePartitionClass;
 	int32 RuntimeCellSizeMeters = 0;

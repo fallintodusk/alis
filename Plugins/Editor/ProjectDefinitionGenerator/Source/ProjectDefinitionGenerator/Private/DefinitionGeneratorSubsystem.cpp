@@ -370,6 +370,7 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 	{
 		FString ExistingHash;
 		int32 ExistingVersion = 0;
+		FString ExistingSourcePath;
 
 		// Get hash via reflection
 		if (FStrProperty* HashProp = CastField<FStrProperty>(TypeInfo->DefinitionClass->FindPropertyByName(*TypeInfo->HashPropertyName)))
@@ -381,8 +382,15 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 		{
 			ExistingVersion = VersionProp->GetPropertyValue_InContainer(ExistingAsset);
 		}
+		// Get source path via reflection. A filename-only rename keeps the same asset ID and
+		// content hash; without this check the asset would be skipped and cleanup would
+		// delete it as an orphan because its recorded source path no longer exists.
+		if (FStrProperty* SourcePathProp = CastField<FStrProperty>(TypeInfo->DefinitionClass->FindPropertyByName(*TypeInfo->SourcePathPropertyName)))
+		{
+			ExistingSourcePath = SourcePathProp->GetPropertyValue_InContainer(ExistingAsset);
+		}
 
-		if (ExistingHash == FileHash && ExistingVersion == TypeInfo->GeneratorVersion)
+		if (ExistingHash == FileHash && ExistingVersion == TypeInfo->GeneratorVersion && ExistingSourcePath == RelativePath)
 		{
 			Result.bSuccess = true;
 			Result.bSkipped = true;
@@ -399,6 +407,11 @@ FDefinitionGenerationResult UDefinitionGeneratorSubsystem::GenerateFromJson(cons
 		{
 			UE_LOG(LogDefinitionGenerator, Log, TEXT("[%s] Version mismatch for %s: stored=%d current=%d"),
 				*TypeName, *Result.AssetId, ExistingVersion, TypeInfo->GeneratorVersion);
+		}
+		else if (ExistingSourcePath != RelativePath)
+		{
+			UE_LOG(LogDefinitionGenerator, Log, TEXT("[%s] Source path changed for %s: stored='%s' current='%s'"),
+				*TypeName, *Result.AssetId, *ExistingSourcePath, *RelativePath);
 		}
 	}
 

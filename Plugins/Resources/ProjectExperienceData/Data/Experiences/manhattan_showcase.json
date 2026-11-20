@@ -3,5 +3,6 @@
   "ExperienceName": "ManhattanShowcase",
   "Map": "/ProjectWorldData/Generated/Showcase/Manhattan/L_ProjectWorldManhattanShowcase.L_ProjectWorldManhattanShowcase",
   "TraversalMode": "PreviewFlight",
+  "AllowEnvironmentalTimeControls": true,
   "AssetScanDirectory": "/ProjectWorldData/Generated/Showcase/Manhattan"
 }

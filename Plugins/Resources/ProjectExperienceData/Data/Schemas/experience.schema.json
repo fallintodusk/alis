@@ -36,6 +36,11 @@
       "description": "Generic traversal policy token forwarded as the 'Traversal' load-request option. ProjectSinglePlay owns what the token means. Omit for the mode default.",
       "enum": ["PreviewFlight"]
     },
+    "AllowEnvironmentalTimeControls": {
+      "type": "boolean",
+      "default": false,
+      "description": "Permit session-only time controls in this configured demo experience. Not a travel URL permission."
+    },
     "AssetScanDirectory": {
       "type": "string",
       "description": "Package directory scanned so cooked builds can resolve this experience's map. Omit when the map is already covered by project PrimaryAssetTypesToScan.",

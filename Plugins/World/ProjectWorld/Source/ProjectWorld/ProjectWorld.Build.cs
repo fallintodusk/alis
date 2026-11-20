@@ -21,7 +21,10 @@ public class ProjectWorld : ModuleRules
 			"Json",
 			"NavigationSystem",
 			"RenderCore",
-			"RHI"
+			"RHI",
+			"ProjectTime",
+			"ProjectLight",
+			"GeoReferencing"
 		});
 	}
 }

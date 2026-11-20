@@ -13,6 +13,7 @@ terminal results.
 - Ordered phase execution, cancellation, and phase error propagation.
 - Preload-handle lifetime through travel and cleanup.
 - Loading progress and diagnostic data.
+- The confirmed named-experience/world pair exposed through `ILoadingService`.
 
 ## Does not own
 
@@ -41,6 +42,16 @@ Through `ILoadingService`, callers submit requests and observe handles without
 depending on the subsystem. Loading events expose progress and terminal results
 to presentation owners. The frame-pump callback keeps Slate mechanics outside
 the core loading module.
+
+Permission consumers use the confirmed experience context, rather than the
+legacy last-name query. Pipeline completion and actual map arrival can occur in
+either order. The subsystem publishes the pair only after both succeed for the
+same GameInstance and target package; unnamed requests never publish one.
+Failure preserves the preceding confirmed pair. Consumers still reject a pair
+whose world differs from their own, or while another load is in progress.
+The native `Project.Loading.Experience.ArrivalContext` regression covers both
+event orders and refusal paths. Map-name fallback and travel URL options are
+not evidence for a permission grant.
 
 ## Invariants
 

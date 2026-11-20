@@ -19,6 +19,8 @@ default session bootstrap.
 | Kazan v1 envelope, grid, margins, and ceilings | [Territory contract](territory_contract.md#territory-envelope-v1-operator-decision-2026-08-10) |
 | Delivery stages and final acceptance | [Territory contract](territory_contract.md#delivery-stages) |
 | World Partition design and measurement | [World Partition](world_partition.md) |
+| Generated environment, gameplay exposure and deterministic captures | [Render configuration owners](../../../../docs/config/render/render.md#current-configuration) |
+| Cooked environmental time and exact-world daylight binding | [Daylight composition](daylight_composition.md) |
 | Native reuse gate and excluded experimental systems | [World Partition](world_partition.md#unreal-native-reuse) |
 | Realization, enrollment, recovery, and audit commands | [Canonical World Realization](../../../../scripts/ue/world/README.md) |
 | Source, compile, validation, and acceptance commands | [World tools](../../../../tools/World/README.md) |

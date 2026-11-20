@@ -4,7 +4,7 @@ Documentation for the rendering pipeline.
 
 ## General
 
-- **[Render Overview](render.md)** - Main rendering documentation.
+- **[Render Overview](render.md)** - Current configuration owners and map-specific reference scope.
 
 ## Lighting
 

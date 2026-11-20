@@ -4,6 +4,7 @@
 #include "ProjectWorldRuntimeProfile.h"
 
 #include "ProjectWorldSchemaReference.h"
+#include "ProjectTimeZone.h"
 
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
@@ -172,7 +173,7 @@ namespace ProjectWorldRuntimeProfile
 			!HasOnlyFields(Root, {
 				TEXT("$schema"), TEXT("schema_version"), TEXT("profile_id"), TEXT("profile_kind"),
 				TEXT("grid_id"), TEXT("runtime_partition"), TEXT("gameplay_route"), TEXT("product_spawn"),
-				TEXT("optimization_policy"), TEXT("budgets")}, OutError))
+				TEXT("optimization_policy"), TEXT("budgets"), TEXT("environment_time")}, OutError))
 		{
 			OutErrorCode = TEXT("runtime-profile-json");
 			return false;
@@ -196,6 +197,21 @@ namespace ProjectWorldRuntimeProfile
 		{
 			OutErrorCode = TEXT("runtime-profile-contract");
 			return false;
+		}
+
+		if (Root->HasField(TEXT("environment_time")))
+		{
+			const TSharedPtr<FJsonObject>* Time = nullptr;
+			if (!Root->TryGetObjectField(TEXT("environment_time"), Time) || !Time ||
+				!HasOnlyFields(*Time, {TEXT("enabled"), TEXT("time_zone")}, OutError) ||
+				!RequireBool(*Time, TEXT("enabled"), OutProfile.bEnvironmentTimeEnabled, OutError) ||
+				!RequireString(*Time, TEXT("time_zone"), OutProfile.EnvironmentTimeZone, OutError) ||
+				!ProjectTimeZone::IsValid(OutProfile.EnvironmentTimeZone))
+			{
+				OutErrorCode = TEXT("runtime-time-context");
+				OutError = TEXT("Environment time requires a valid explicit native timezone.");
+				return false;
+			}
 		}
 
 		const TSharedPtr<FJsonObject>* ProductSpawn = nullptr;

@@ -1,0 +1,27 @@
+[
+  {
+    "id": "ProjectTime.Demo",
+    "layer": "UI.Layer.Modal",
+    "widget_class": "/Script/ProjectTimeDemoUI.ProjectTimeDemoWidget",
+    "viewmodel_class": "/Script/ProjectTimeDemoUI.ProjectTimeDemoViewModel",
+    "layout_json": "TimeDemo.json",
+    "load": "OnDemand",
+    "spawn": "Transient",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Menu",
+    "priority": 20
+  },
+  {
+    "id": "ProjectTime.Hint",
+    "layer": "UI.Layer.Notification",
+    "widget_class": "/Script/ProjectTimeDemoUI.ProjectTimeDemoHintWidget",
+    "layout_json": "TimeHint.json",
+    "load": "OnDemand",
+    "spawn": "Transient",
+    "scope": "PerPlayer",
+    "size_policy": "Fill",
+    "input": "Game",
+    "priority": 5
+  }
+]

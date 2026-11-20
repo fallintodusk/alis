@@ -4,6 +4,7 @@
 #include "Editor.h"
 #include "Engine/GameViewportClient.h"
 #include "GameMapsSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/CommandLine.h"
 #include "Misc/PackageName.h"
@@ -34,6 +35,22 @@ namespace
 			}
 		}
 	}
+
+	FAutoConsoleCommand EnsurePlayerViewport(
+		TEXT("project.world.test.ensure_player_viewport"),
+		TEXT("Set the active PIE render target to the World 2560x1440 evidence envelope."),
+		FConsoleCommandDelegate::CreateLambda([]()
+		{
+			if (GEditor == nullptr || GEditor->PlayWorld == nullptr || GEngine->GameViewport == nullptr ||
+				GEngine->GameViewport->GetGameViewport() == nullptr)
+			{
+				UE_LOG(LogProjectWorldUncookedSession, Warning, TEXT("[UncookedSession] Viewport request refused: no active PIE game viewport."));
+				return;
+			}
+			MaintainUncookedViewport();
+			UE_LOG(LogProjectWorldUncookedSession, Display, TEXT("[UncookedSession] Active PIE render target: %s"),
+				*GEngine->GameViewport->GetGameViewport()->GetSizeXY().ToString());
+		}));
 
 	class FProjectWorldAwaitUncookedProductExit : public IAutomationLatentCommand
 	{

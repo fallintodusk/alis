@@ -136,8 +136,13 @@ UDefinitionGeneratorSubsystem::Get()->RegisterDefinitionType(TEXT("Object"), Typ
 
 **Commandlet:**
 ```bash
-UnrealEditor-Cmd.exe YourProject.uproject -run=GenerateDefinitions -nopause
+UnrealEditor-Cmd.exe YourProject.uproject -run=GenerateDefinitions -all -nopause
 ```
+
+Use `-type=<TypeName>` for one type, `-force` for a full regeneration, and
+`-cleanup` to remove generated orphans. The project command that also refreshes
+the public authority is documented in
+[scripts/git/mirror/README.md](../../../scripts/git/mirror/README.md).
 
 **C++ API:**
 ```cpp
@@ -175,6 +180,7 @@ Generator->GenerateAll(bForceRegenerate);
 Assets are only regenerated when:
 - JSON file hash changes
 - Generator version increases
+- Recorded `SourceJsonPath` changes (a filename-only rename)
 - Force regenerate flag is set
 
 Each generated asset stores:
@@ -200,6 +206,21 @@ Generator->CleanupOrphanedAssets(TEXT("Item"));
 ```
 
 Compares `SourceJsonPath` metadata against existing JSON files.
+
+Cleanup is skipped when any generation for the type fails or its source directory
+is missing. Fix the source and rerun; a failed generation must not delete the
+previous generated asset.
+
+
+A same-ID filename-only rename updates the existing asset's `SourceJsonPath` in
+place and preserves its package identity; cleanup keeps it instead of deleting
+it as an orphan.
+
+An ID change is a manual identity migration: the previous source-backed asset
+remains, requires an asset-reference audit and deliberate removal, and the
+routine generation command is expected to stop at the authority refresh until
+that is done. See
+[scripts/git/mirror/README.md](../../../scripts/git/mirror/README.md).
 
 ### Nested Property Paths
 

@@ -3,6 +3,10 @@
   "schema_version": 3,
   "profile_id": "kazan_territory_512_1536_v1",
   "profile_kind": "territory_product",
+  "environment_time": {
+    "enabled": false,
+    "time_zone": "Europe/Moscow"
+  },
   "grid_id": "grid_413718bc833994e5",
   "runtime_partition": {
     "partition_class": "lhgrid_2d",

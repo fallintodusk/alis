@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -207,7 +208,59 @@ def project_world_manifests(root: Path, source_root: Path) -> None:
     )
 
 
-def rebind_generated_definition_sources(root: Path) -> None:
+def _source_snapshot_md5(source_root: Path, source_revision: str | None, relative: str) -> str | None:
+    try:
+        raw = (
+            subprocess.run(
+                ["git", "-C", str(source_root), "show", f"{source_revision}:{relative}"],
+                check=True,
+                capture_output=True,
+            ).stdout
+            if source_revision
+            else (source_root / Path(relative)).read_bytes()
+        )
+        text = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+        return hashlib.md5(text.encode("utf-8"), usedforsecurity=False).hexdigest()
+    except (OSError, UnicodeDecodeError, subprocess.CalledProcessError):
+        return None
+
+
+def _generated_source_mismatch(
+    owner: str,
+    manifest_path: str,
+    source_rel: str,
+    expected: str | None,
+    semantic_md5: str,
+    source_snapshot_md5: str | None,
+    source_revision: str | None,
+) -> str:
+    prefix = f"Generated source metadata mismatch for {owner}: {source_rel} (manifest {manifest_path})"
+    if source_snapshot_md5 is None:
+        return (
+            f"{prefix}: manifest records {expected!r}, filtered copy is {semantic_md5}; "
+            "the source snapshot was unavailable. Compare the source JSON at the source revision: "
+            "if it matches the manifest, inspect the sanitizer/projection; otherwise refresh the "
+            "authority and commit it. The mirror gate failed closed."
+        )
+    if source_snapshot_md5 == expected:
+        return (
+            f"{prefix}: manifest records {expected!r}, source snapshot matches, but the filtered "
+            f"copy is {semantic_md5}. Do not regenerate; inspect the sanitizer/projection and the "
+            "definition text. The mirror gate failed closed."
+        )
+    return (
+        f"{prefix}: manifest records {expected!r}, source snapshot at "
+        f"{source_revision or 'worktree'} is {source_snapshot_md5}, filtered copy is {semantic_md5}. "
+        "Run scripts/git/mirror/refresh_developer_asset_authority.ps1 -Regenerate "
+        "(or make generate-json), audit any identity change, and commit the refreshed authority."
+    )
+
+
+def rebind_generated_definition_sources(
+    root: Path,
+    source_root: Path | None = None,
+    source_revision: str | None = None,
+) -> None:
     contract_path = root / "scripts" / "git" / "mirror" / "developer_asset_release.json"
     if not contract_path.is_file():
         return
@@ -215,16 +268,35 @@ def rebind_generated_definition_sources(root: Path) -> None:
     for authority in contract.get("asset_authorities", []):
         if authority.get("authority_kind") != "generated_definition_manifest":
             continue
-        manifest_path = root / str(authority["manifest_path"])
+        owner = str(authority.get("owner", "unknown"))
+        manifest_path_rel = str(authority.get("manifest_path", "unknown"))
+        manifest_path = root / manifest_path_rel
         manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
         for asset in manifest.get("assets", []):
-            source_path = root / str(asset["source_path"])
+            source_rel = str(asset["source_path"])
+            source_path = root / source_rel
             text = source_path.read_text(encoding="utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
             normalized = text.encode("utf-8")
             source_path.write_bytes(normalized)
             semantic_md5 = hashlib.md5(normalized, usedforsecurity=False).hexdigest()
-            if semantic_md5 != asset.get("source_json_hash_md5"):
-                raise ProjectionError(f"Public filtering changed generated source semantics: {asset['source_path']}")
+            expected = asset.get("source_json_hash_md5")
+            if semantic_md5 != expected:
+                snapshot_md5 = (
+                    _source_snapshot_md5(source_root, source_revision, source_rel)
+                    if source_root is not None
+                    else None
+                )
+                raise ProjectionError(
+                    _generated_source_mismatch(
+                        owner,
+                        manifest_path_rel,
+                        source_rel,
+                        expected,
+                        semantic_md5,
+                        snapshot_md5,
+                        source_revision,
+                    )
+                )
             asset["source_sha256"] = hashlib.sha256(normalized).hexdigest()
         manifest_path.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
@@ -272,7 +344,12 @@ def verify(root: Path) -> None:
         raise ProjectionError("Placeholder GitHub route remains in the public README")
 
 
-def project(root: Path, world_manifest_root: Path | None = None) -> None:
+def project(
+    root: Path,
+    world_manifest_root: Path | None = None,
+    source_root: Path | None = None,
+    source_revision: str | None = None,
+) -> None:
     project_descriptor(root)
     public_gitignore(root)
     public_readme(root)
@@ -281,7 +358,7 @@ def project(root: Path, world_manifest_root: Path | None = None) -> None:
     default_game(root)
     if world_manifest_root is not None:
         project_world_manifests(root, world_manifest_root)
-    rebind_generated_definition_sources(root)
+    rebind_generated_definition_sources(root, source_root, source_revision)
     verify(root)
 
 
@@ -289,11 +366,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--world-manifest-root", type=Path)
+    parser.add_argument("--source-root", type=Path)
+    parser.add_argument("--source-revision")
     args = parser.parse_args()
     try:
         project(
             args.root.resolve(),
             args.world_manifest_root.resolve() if args.world_manifest_root else None,
+            args.source_root.resolve() if args.source_root else None,
+            args.source_revision,
         )
     except (OSError, ValueError, KeyError, json.JSONDecodeError, ProjectionError) as error:
         print(f"[FAIL] {error}")

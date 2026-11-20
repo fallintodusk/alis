@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 
 class ILoadingHandle;
+class UWorld;
 struct FLoadRequest;
 
 /**
@@ -123,4 +124,8 @@ public:
 	 * Consumed by death/reload flow to avoid guessing experience from map name.
 	 */
 	virtual FName GetLastLoadedExperienceName() const = 0;
+
+	/** Confirmed named experience and arrived world. Never infers permission from a map or URL. */
+	virtual bool TryGetLoadedExperienceContext(FName& OutName, const UWorld*& OutWorld) const
+	{ OutName = NAME_None; OutWorld = nullptr; return false; }
 };
